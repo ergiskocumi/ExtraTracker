@@ -1,0 +1,232 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply antialiased;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 text-slate-800 min-h-screen;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  ::selection {
+    @apply bg-primary-200 text-primary-900;
+  }
+}
+
+@layer components {
+  /* Card Styles */
+  .card {
+    @apply bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 
+           shadow-soft transition-all duration-300 ease-out;
+  }
+  
+  .card:hover {
+    @apply shadow-soft-lg border-slate-300/60 transform -translate-y-0.5;
+  }
+
+  .card-glass {
+    @apply bg-white/60 backdrop-blur-md rounded-2xl border border-white/80 
+           shadow-soft;
+  }
+
+  /* Button Styles */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 
+           font-semibold text-sm rounded-xl transition-all duration-200 
+           focus:outline-none focus:ring-2 focus:ring-offset-2 
+           disabled:opacity-50 disabled:cursor-not-allowed
+           active:scale-[0.98];
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary-500 to-primary-600 text-white 
+           hover:from-primary-600 hover:to-primary-700 
+           focus:ring-primary-500 shadow-md hover:shadow-lg hover:shadow-primary-500/25;
+  }
+
+  .btn-success {
+    @apply bg-gradient-to-r from-accent-500 to-accent-600 text-white 
+           hover:from-accent-600 hover:to-accent-700 
+           focus:ring-accent-500 shadow-md hover:shadow-lg hover:shadow-accent-500/25;
+  }
+
+  .btn-danger {
+    @apply bg-gradient-to-r from-rose-500 to-rose-600 text-white 
+           hover:from-rose-600 hover:to-rose-700 
+           focus:ring-rose-500 shadow-md hover:shadow-lg hover:shadow-rose-500/25;
+  }
+
+  .btn-ghost {
+    @apply bg-slate-100 text-slate-700 hover:bg-slate-200 
+           focus:ring-slate-400;
+  }
+
+  /* Input Styles */
+  .input {
+    @apply w-full px-4 py-3 bg-white border border-slate-200 rounded-xl 
+           text-slate-800 placeholder:text-slate-400
+           focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400
+           transition-all duration-200 shadow-sm;
+  }
+
+  .input:hover {
+    @apply border-slate-300;
+  }
+
+  .select {
+    @apply w-full px-4 py-3 bg-white border border-slate-200 rounded-xl 
+           text-slate-800 cursor-pointer appearance-none
+           focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400
+           transition-all duration-200 shadow-sm
+           bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')]
+           bg-[length:1.5rem] bg-[right_0.5rem_center] bg-no-repeat pr-10;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-slate-600 mb-1.5;
+  }
+
+  /* Table Styles */
+  .table-modern {
+    @apply w-full border-collapse;
+  }
+
+  .table-modern thead {
+    @apply bg-gradient-to-r from-slate-50 to-slate-100;
+  }
+
+  .table-modern th {
+    @apply px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider
+           border-b border-slate-200;
+  }
+
+  .table-modern tbody tr {
+    @apply bg-white transition-all duration-200;
+  }
+
+  .table-modern tbody tr:hover {
+    @apply bg-primary-50/50;
+  }
+
+  .table-modern td {
+    @apply px-6 py-4 text-sm text-slate-700 border-b border-slate-100;
+  }
+
+  .table-modern tfoot {
+    @apply bg-gradient-to-r from-primary-50 to-indigo-50;
+  }
+
+  .table-modern tfoot td {
+    @apply px-6 py-4 font-semibold text-slate-800 border-t-2 border-primary-200;
+  }
+
+  /* Badge Styles */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
+           transition-all duration-200;
+  }
+
+  .badge-primary {
+    @apply bg-primary-100 text-primary-700;
+  }
+
+  .badge-success {
+    @apply bg-accent-100 text-accent-700;
+  }
+
+  .badge-neutral {
+    @apply bg-slate-100 text-slate-600;
+  }
+
+  /* Stat Card */
+  .stat-card {
+    @apply card p-6 relative overflow-hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent pointer-events-none;
+  }
+
+  /* Navigation */
+  .nav-link {
+    @apply px-5 py-2.5 rounded-xl font-medium text-slate-600 
+           transition-all duration-200 hover:bg-slate-100 hover:text-slate-900
+           flex items-center gap-2;
+  }
+
+  .nav-link.active {
+    @apply bg-primary-100 text-primary-700;
+  }
+
+  /* Animations */
+  .animate-on-scroll {
+    @apply opacity-0 translate-y-4;
+    animation: slideUp 0.5s ease-out forwards;
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500 
+           bg-clip-text text-transparent;
+  }
+
+  /* Divider */
+  .divider {
+    @apply h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-8;
+  }
+
+  /* Glow Effect */
+  .glow-effect {
+    @apply relative;
+  }
+
+  .glow-effect::after {
+    content: '';
+    @apply absolute -inset-1 bg-gradient-to-r from-primary-400 to-accent-400 
+           rounded-2xl blur-lg opacity-0 transition-opacity duration-300 -z-10;
+  }
+
+  .glow-effect:hover::after {
+    @apply opacity-20;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.slate.300') transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: theme('colors.slate.300');
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: theme('colors.slate.400');
+  }
+}
