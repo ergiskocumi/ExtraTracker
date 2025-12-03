@@ -1,5 +1,5 @@
 import  { ProjectForm } from '../features/projects/ProjectForm'
-import  { useProjects } from '../hooks/useProjects'
+import { useProjects } from '../context/ProjectsContext'
 
 export const SettingsPage = () => {
     const {projects,addProject} = useProjects();
