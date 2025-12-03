@@ -1,5 +1,6 @@
 import type { Project } from "../projects/type";
 import { useState } from "react";
+import { EditIcon, FolderIcon, CalendarIcon, PlayIcon, StopIcon, PlusIcon } from "../../components/icons";
 
 
 
@@ -37,12 +38,12 @@ export const WorkLogForm = ({ projects, onAdd }: WorkLogFormProps) => {
   return (
     <div className="card p-6 animate-scale-in">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center shadow-md">
-          <span className="text-white text-lg">✏️</span>
+        <div className="icon-container-accent">
+          <EditIcon className="text-accent-400" size={20} />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-slate-800">Nuovo Inserimento</h3>
-          <p className="text-sm text-slate-500">Registra le tue ore di lavoro</p>
+          <h3 className="text-lg font-semibold text-white">Nuovo Inserimento</h3>
+          <p className="text-sm text-white/50">Registra le tue ore di lavoro</p>
         </div>
       </div>
       
@@ -54,7 +55,7 @@ export const WorkLogForm = ({ projects, onAdd }: WorkLogFormProps) => {
         {/* 1. SELETTORE PROGETTO */}
         <div className="lg:col-span-1">
           <label className="label">
-            <span className="flex items-center gap-1">📁 Progetto</span>
+            <span className="flex items-center gap-1.5"><FolderIcon size={14} /> Progetto</span>
           </label>
           <select 
             name="projectId" 
@@ -75,7 +76,7 @@ export const WorkLogForm = ({ projects, onAdd }: WorkLogFormProps) => {
         {/* 2. DATA */}
         <div>
           <label className="label">
-            <span className="flex items-center gap-1">📅 Data</span>
+            <span className="flex items-center gap-1.5"><CalendarIcon size={14} /> Data</span>
           </label>
           <input 
             type="date" 
@@ -90,7 +91,7 @@ export const WorkLogForm = ({ projects, onAdd }: WorkLogFormProps) => {
         {/* 3. ORA INIZIO */}
         <div>
           <label className="label">
-            <span className="flex items-center gap-1">🕐 Inizio</span>
+            <span className="flex items-center gap-1.5"><PlayIcon size={14} /> Inizio</span>
           </label>
           <input 
             type="time" 
@@ -105,7 +106,7 @@ export const WorkLogForm = ({ projects, onAdd }: WorkLogFormProps) => {
         {/* 4. ORA FINE */}
         <div>
           <label className="label">
-            <span className="flex items-center gap-1">🕕 Fine</span>
+            <span className="flex items-center gap-1.5"><StopIcon size={14} /> Fine</span>
           </label>
           <input 
             type="time" 
@@ -120,7 +121,7 @@ export const WorkLogForm = ({ projects, onAdd }: WorkLogFormProps) => {
         {/* BOTTONE */}
         <div>
           <button type="submit" className="btn btn-success w-full">
-            <span>➕</span>
+            <PlusIcon size={16} />
             <span>Aggiungi</span>
           </button>
         </div>

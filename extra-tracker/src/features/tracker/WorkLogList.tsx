@@ -2,6 +2,7 @@ import type { WorkLog } from "./type";
 import type { Project } from "../projects/type";
 import { calculateDurationInHours } from "../../utils/dateUtils";
 import { formatCurrency } from "../../utils/currencyUtils";
+import { ListIcon, TrashIcon, FileTextIcon } from "../../components/icons";
 
 
 // import degli oggetti che vogliamo visualizzare poi a scermo
@@ -42,8 +43,6 @@ export const WorkLogList = ({ logs, projects, onDelete }: WorkLogListProps) => {
         return total + calculatedLogAmount(log);
     }, 0);
 
-    console.log("DEBUG: ",{logs,projects} )
-
     // Formatta la data in modo leggibile
     const formatDate = (dateString: string) => {
       const date = new Date(dateString);
@@ -57,25 +56,25 @@ export const WorkLogList = ({ logs, projects, onDelete }: WorkLogListProps) => {
     if (logs.length === 0) {
       return (
         <div className="card p-8 text-center animate-fade-in">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
-            <span className="text-3xl">📝</span>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary-500/20 flex items-center justify-center border border-primary-500/30">
+            <FileTextIcon className="text-primary-400" size={28} />
           </div>
-          <h3 className="text-lg font-semibold text-slate-700 mb-2">Nessun log registrato</h3>
-          <p className="text-slate-500">Inizia ad aggiungere le tue ore di lavoro!</p>
+          <h3 className="text-lg font-semibold text-white mb-2">Nessun log registrato</h3>
+          <p className="text-white/50">Inizia ad aggiungere le tue ore di lavoro!</p>
         </div>
       );
     }
 
     return (
     <div className="card overflow-hidden animate-slide-up">
-      <div className="p-6 border-b border-slate-100">
+      <div className="p-6 border-b border-white/[0.08]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md">
-            <span className="text-white text-lg">📋</span>
+          <div className="icon-container">
+            <ListIcon className="text-primary-400" size={20} />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-slate-800">Diario di Lavoro</h2>
-            <p className="text-sm text-slate-500">{logs.length} registrazioni</p>
+            <h2 className="text-lg font-semibold text-white">Diario di Lavoro</h2>
+            <p className="text-sm text-white/50">{logs.length} registrazioni</p>
           </div>
         </div>
       </div>
@@ -100,16 +99,16 @@ export const WorkLogList = ({ logs, projects, onDelete }: WorkLogListProps) => {
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 <td>
-                  <span className="font-medium text-slate-700">{formatDate(log.date)}</span>
+                  <span className="font-medium text-white/80">{formatDate(log.date)}</span>
                 </td>
                 <td>
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
-                      <span className="text-xs font-bold text-primary-600">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500/30 to-primary-600/30 border border-primary-500/30 flex items-center justify-center">
+                      <span className="text-xs font-bold text-primary-300">
                         {getProjectName(log.projectId).charAt(0).toUpperCase()}
                       </span>
                     </div>
-                    <span className="font-medium text-slate-700">{getProjectName(log.projectId)}</span>
+                    <span className="font-medium text-white/80">{getProjectName(log.projectId)}</span>
                   </div>
                 </td>
                 <td>
@@ -118,12 +117,12 @@ export const WorkLogList = ({ logs, projects, onDelete }: WorkLogListProps) => {
                   </span>
                 </td>
                 <td>
-                  <span className="font-semibold text-slate-700">
+                  <span className="font-semibold text-white/80">
                     {calculateDurationInHours(log.startTime, log.endTime).toFixed(2)} h
                   </span>
                 </td>
                 <td>
-                  <span className="font-bold text-accent-600">
+                  <span className="font-bold text-accent-400">
                     {getHoursEuro(log, projects.find(p => p.id === log.projectId)!)}
                   </span>
                 </td>
@@ -132,7 +131,7 @@ export const WorkLogList = ({ logs, projects, onDelete }: WorkLogListProps) => {
                     onClick={() => onDelete(log.id)}
                     className="btn btn-danger py-1.5 px-3 text-xs"
                   >
-                    <span>🗑️</span>
+                    <TrashIcon size={14} />
                     <span>Elimina</span>
                   </button>
                 </td>
@@ -143,13 +142,13 @@ export const WorkLogList = ({ logs, projects, onDelete }: WorkLogListProps) => {
           <tfoot>
             <tr>
               <td colSpan={3} className="text-right">
-                <span className="text-slate-600">TOTALE GENERALE:</span>
+                <span className="text-white/60">TOTALE GENERALE:</span>
               </td>
               <td>
-                <span className="text-primary-600 font-bold text-lg">{totalHours.toFixed(2)} h</span>
+                <span className="text-primary-400 font-bold text-lg">{totalHours.toFixed(2)} h</span>
               </td>
               <td>
-                <span className="text-accent-600 font-bold text-lg">{formatCurrency(totalAmount)}</span>
+                <span className="text-accent-400 font-bold text-lg">{formatCurrency(totalAmount)}</span>
               </td>
               <td></td>
             </tr>
