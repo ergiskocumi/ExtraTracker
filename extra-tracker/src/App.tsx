@@ -2,6 +2,8 @@ import { DashboardPage } from './pages/DashboardPage'
 import { SettingsPage } from './pages/SettingsPage'
 import {Routes, Route, Link, useLocation} from 'react-router-dom';
 import { DashboardIcon, SettingsIcon, LogoIcon } from './components/icons';
+import { TimelinePage } from './pages/TimelinePage';
+import { ClockIcon } from './components/icons';
 
 function App() {
   const location = useLocation();
@@ -40,6 +42,14 @@ function App() {
                 <SettingsIcon size={18} />
                 <span>Progetti</span>
               </Link>
+
+              <Link 
+                to="/timeline" 
+                className={`nav-link ${location.pathname === '/timeline' ? 'active' : ''}`}
+              >
+                <ClockIcon size={18} />
+                <span>Timeline</span>
+              </Link>
             </nav>
           </div>
         </div>
@@ -50,6 +60,7 @@ function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/timeline" element={<TimelinePage />} />
         </Routes>
       </main>
 
