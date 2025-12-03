@@ -28,5 +28,16 @@ export const useUserWorkLog = () => {
       setLogs(updatedLogs);
   };
 
-  return { logs, addWorkLog, deleteLog};
+  //4. aggiunta della funzione per Update dei log
+  const updateLog = (updatedLog: WorkLog) => {
+    setLogs((prevLogs) =>
+      prevLogs.map((log) =>
+      (log.id === updatedLog.id ? updatedLog : log)
+      ));
+  };
+
+
+
+
+  return { logs, addWorkLog, deleteLog, updateLog};
 };
