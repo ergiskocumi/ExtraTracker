@@ -1,18 +1,34 @@
 import { ProjectSummary } from '../features/tracker/ProjectSummary'
 import { WorkLogList } from '../features/tracker/WorkLogList'
 import { WorkLogForm } from '../features/tracker/WorkLogForm'
-import { useUserWorkLog } from '../hooks/userWorkLog'
 import { useFilterMonth } from '../hooks/useFilterMonth'
 import { useProjects } from '../hooks/useProjects'
+import { useWorkLog } from '../hooks/useWorkLog'
 import { CalendarIcon } from '../components/icons'
+import { useState } from 'react'
+import type { WorkLog } from '../features/tracker/type'
 
 
 
 export const DashboardPage = () => {
 
     const { projects } = useProjects();
-    const { logs, addWorkLog, deleteLog} = useUserWorkLog();
+    const { logs, addWorkLog, deleteLog, updateLog} = useWorkLog(); //aggiunto updateLog
     const { selectedMonth, setSelectedMonth, filteredLogs } = useFilterMonth(logs);
+
+    //stato per la modifica
+    const [editingLog, setEditingLog] = useState<WorkLog | null>(null);
+
+    const handleSave = (data: Omit<WorkLog, 'id' | 'description'>) => { 
+      if (editingLog) {
+        //qui dentro siamo in modalita modifica
+        updateLog({ ...editingLog, ...data });
+        setEditingLog(null); // esci dalla modalita modifica
+      } else {
+        //qui siamo in modalita aggiunta
+        addWorkLog(data);
+      }
+    }
 
    return (
     <div className="space-y-8 animate-slide-up">
@@ -45,10 +61,17 @@ export const DashboardPage = () => {
       <div className="divider" />
       
       {/* FORM INSERIMENTO */}
-      <WorkLogForm projects={projects} onAdd={addWorkLog} />
+      <WorkLogForm 
+      key={editingLog ? editingLog.id : 'new'}
+      projects={projects} onSave={handleSave} initialData={editingLog} onCancel={() => setEditingLog(null)} />
       
       {/* LISTA LAVORI */}
-      <WorkLogList logs={filteredLogs} projects={projects} onDelete={deleteLog} />
+      <WorkLogList 
+      logs={filteredLogs} 
+      projects={projects} 
+      onDelete={deleteLog} 
+      onEdit={(log) => setEditingLog(log)}
+    />
     </div>
   );
 };

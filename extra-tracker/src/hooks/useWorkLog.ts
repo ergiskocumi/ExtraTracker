@@ -2,7 +2,7 @@ import { useState,useEffect } from "react";
 import type { WorkLog } from "../features/tracker/type";
 import { MOCK_WORKLOGS } from "../data";
 
-export const useUserWorkLog = () => {
+export const useWorkLog = () => {
 // 1. Inizializziamo lo stato con i dati finti, ma ora almeno è modificabile.
   const [logs, setLogs] = useState<WorkLog[]>(() => {
     const savedData = localStorage.getItem('work-tracker-data');
@@ -35,9 +35,6 @@ export const useUserWorkLog = () => {
       (log.id === updatedLog.id ? updatedLog : log)
       ));
   };
-
-
-
 
   return { logs, addWorkLog, deleteLog, updateLog};
 };
