@@ -10,9 +10,10 @@ interface WorkLogListProps {
     logs: WorkLog[];
     projects: Project[];
     onDelete: (id:string) => void; // dopo aver implementato la funzione di eliminazione, la passo come prop qua
-}
+    onEdit: (log: WorkLog) => void; // funzione per modificare un log esistente
+  }
 
-export const WorkLogList = ({ logs, projects, onDelete }: WorkLogListProps) => {
+export const WorkLogList = ({ logs, projects, onDelete, onEdit }: WorkLogListProps) => {
     
     // funzione di utilità per ottenere il nome del progetto dato l'ID
     const getProjectName = (projectId: string) => {
@@ -93,11 +94,7 @@ export const WorkLogList = ({ logs, projects, onDelete }: WorkLogListProps) => {
           </thead>
           <tbody>
             {logs.map((log, index) => (
-              <tr 
-                key={log.id} 
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
+              <tr key={log.id} className="animate-fade-in" style={{ animationDelay: `${index * 50}ms` }} >
                 <td>
                   <span className="font-medium text-white/80">{formatDate(log.date)}</span>
                 </td>
@@ -126,6 +123,7 @@ export const WorkLogList = ({ logs, projects, onDelete }: WorkLogListProps) => {
                     {getHoursEuro(log, projects.find(p => p.id === log.projectId)!)}
                   </span>
                 </td>
+                
                 <td>
                   <button 
                     onClick={() => onDelete(log.id)}
@@ -133,6 +131,11 @@ export const WorkLogList = ({ logs, projects, onDelete }: WorkLogListProps) => {
                   >
                     <TrashIcon size={14} />
                     <span>Elimina</span>
+                  </button>
+                </td>
+                <td>
+                  <button  onClick={() => onEdit(log)} className="btn btn-secondary py-1.5 px-3 text-xs bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20" > 
+                    <span>Modifica</span>
                   </button>
                 </td>
               </tr>

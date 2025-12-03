@@ -1,50 +1,81 @@
 import type { Project } from "../projects/type";
 import { useState } from "react";
 import { EditIcon, FolderIcon, CalendarIcon, PlayIcon, StopIcon, PlusIcon } from "../../components/icons";
-
-
+import type { WorkLog } from "./type";
 
 interface WorkLogFormProps {
   projects: Project[];
-  //qua si dichiara l'oggetto che ci aspettiamo esattametne di ricervere dal FORM appena creato. 
-  onAdd: (logData: {projectId: string; date: string; startTime: string; endTime: string}) => void;
+  onSave: (data: { projectId: string; date: string; startTime: string; endTime: string }) => void;
+  initialData: WorkLog | null;
+  onCancel: () => void;
 }
 
-export const WorkLogForm = ({ projects, onAdd }: WorkLogFormProps) => {
+export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLogFormProps) => {
+  
+  const [formData, setFormData] = useState({
+    projectId: '',
+    date: '',
+    startTime: '',
+    endTime: ''
+  });
 
-    //qui dichiaro l'oggetto e lo stato iniziale del form che è vuoto ma so già cosa mi aspetto
-    const [formData, setFormData] = useState({
-        projectId: '',
-        date: '',
-        startTime: '',
-        endTime: ''
-    });
 
-    const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-        const { name, value } = e.target;
-        // praticamente vado a cambiare lo stato del form ogni volta che l'utente interagisce con un campo
-        setFormData((prevData) => ({...prevData, [name]: value}));
-    };
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({ ...prevData, [name]: value }));
+  };
 
-    //funzione che va a renderizzare il form dopo l'invio del utente. 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        //qui vengono passati i dati all' APP principale, con i dati che ha inserito l'utente dopo aver compilato il form
-        onAdd(formData);
-        setFormData({ projectId: '', date: '', startTime: '', endTime: ''});  // resetto il form dopo l'invio
-    };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+   
+    if (!initialData) {
+      setFormData({ projectId: '', date: '', startTime: '', endTime: '' });
+    }
+  };
 
+  // Helper booleano per pulizia codice
+  const isEditing = !!initialData;
 
   return (
-    <div className="card p-6 animate-scale-in">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="icon-container-accent">
-          <EditIcon className="text-accent-400" size={20} />
+    <div 
+      className={`card p-6 animate-scale-in transition-colors duration-300 
+      ${isEditing ? 'border-amber-500/50 bg-amber-500/5' : ''}`}
+    >
+      {/* HEADER DEL FORM */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          {/* Cambio icona e colore in base allo stato */}
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center border
+            ${isEditing 
+              ? 'bg-amber-500/20 border-amber-500/30' 
+              : 'bg-accent-500/20 border-accent-500/30'}`
+          }>
+            {isEditing ? (
+              <EditIcon className="text-amber-400" size={20} />
+            ) : (
+              <PlusIcon className="text-accent-400" size={20} />
+            )}
+          </div>
+          <div>
+            <h3 className={`text-lg font-semibold ${isEditing ? 'text-amber-100' : 'text-white'}`}>
+              {isEditing ? 'Modifica Attività' : 'Nuovo Inserimento'}
+            </h3>
+            <p className="text-sm text-white/50">
+              {isEditing ? 'Modifica i dettagli del log selezionato' : 'Registra le tue ore di lavoro'}
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-lg font-semibold text-white">Nuovo Inserimento</h3>
-          <p className="text-sm text-white/50">Registra le tue ore di lavoro</p>
-        </div>
+
+        {/* TASTO ANNULLA (Visibile solo in modifica) */}
+        {isEditing && (
+          <button 
+            onClick={onCancel}
+            className="text-sm text-white/40 hover:text-white hover:underline transition-colors"
+          >
+            Annulla
+          </button>
+        )}
       </div>
       
       <form 
@@ -66,9 +97,7 @@ export const WorkLogForm = ({ projects, onAdd }: WorkLogFormProps) => {
           >
             <option value="">-- Seleziona --</option>
             {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
         </div>
@@ -118,11 +147,17 @@ export const WorkLogForm = ({ projects, onAdd }: WorkLogFormProps) => {
           />
         </div>
 
-        {/* BOTTONE */}
+        {/* BOTTONE SUBMIT */}
         <div>
-          <button type="submit" className="btn btn-success w-full">
-            <PlusIcon size={16} />
-            <span>Aggiungi</span>
+          <button 
+            type="submit" 
+            className={`w-full btn ${isEditing 
+              ? 'bg-amber-500 hover:bg-amber-400 text-white shadow-glow-sm' // Stile Modifica (Giallo)
+              : 'btn-success' // Stile Nuovo (Verde)
+            }`}
+          >
+            {isEditing ? <EditIcon size={16} /> : <PlusIcon size={16} />}
+            <span>{isEditing ? 'Salva' : 'Aggiungi'}</span>
           </button>
         </div>
 
