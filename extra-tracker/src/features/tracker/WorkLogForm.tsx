@@ -2,6 +2,14 @@ import type { Project } from "../projects/type";
 import { useState } from "react";
 import { EditIcon, FolderIcon, CalendarIcon, PlayIcon, StopIcon, PlusIcon } from "../../components/icons";
 import type { WorkLog } from "./type";
+import DatePicker, { registerLocale } from "react-datepicker";
+import { it } from "date-fns/locale/it";
+import "react-datepicker/dist/react-datepicker.css";
+import { generateTimeSlots } from "../../utils/dateUtils";
+import { TimeSelect } from "../../components/TimeSelect";
+
+// Registra la lingua italiana
+registerLocale("it", it);
 
 interface WorkLogFormProps {
   projects: Project[];
@@ -12,6 +20,8 @@ interface WorkLogFormProps {
 
 export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLogFormProps) => {
   
+  const TIME_SLOTS = generateTimeSlots();
+
   const [formData, setFormData] = useState({
     projectId: '',
     date: '',
@@ -19,10 +29,22 @@ export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLog
     endTime: ''
   });
 
+  // Stato per il DatePicker (usa Date object)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({ ...prevData, [name]: value }));
+  };
+
+  // Handler per il DatePicker
+  const handleDateChange = (date: Date | null) => {
+    setSelectedDate(date);
+    if (date) {
+      // Converte in formato YYYY-MM-DD per il form
+      const formattedDate = date.toISOString().split('T')[0];
+      setFormData((prevData) => ({ ...prevData, date: formattedDate }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -31,6 +53,7 @@ export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLog
    
     if (!initialData) {
       setFormData({ projectId: '', date: '', startTime: '', endTime: '' });
+      setSelectedDate(null);
     }
   };
 
@@ -107,45 +130,47 @@ export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLog
           <label className="label">
             <span className="flex items-center gap-1.5"><CalendarIcon size={14} /> Data</span>
           </label>
-          <input 
-            type="date" 
-            name="date" 
+          <DatePicker
+            selected={selectedDate}
+            onChange={handleDateChange}
+            dateFormat="dd/MM/yyyy"
+            locale="it"
+            placeholderText="Seleziona data"
+            className="input w-full cursor-pointer"
+            calendarClassName="dark-calendar"
+            showPopperArrow={false}
+            popperPlacement="top-start"
             required 
-            className="input" 
-            value={formData.date} 
-            onChange={handleChange} 
           />
         </div>
 
-        {/* 3. ORA INIZIO */}
-        <div>
-          <label className="label">
-            <span className="flex items-center gap-1.5"><PlayIcon size={14} /> Inizio</span>
-          </label>
-          <input 
-            type="time" 
-            name="startTime" 
-            required 
-            className="input" 
-            value={formData.startTime} 
-            onChange={handleChange} 
-          />
-        </div>
+          {/* 3. ORA INIZIO */}
+          <div>
+            <label className="label">
+              <span className="flex items-center gap-1.5"><PlayIcon size={14} /> Inizio</span>
+            </label>
+            <TimeSelect
+              value={formData.startTime}
+              onChange={(value) => setFormData((prev) => ({ ...prev, startTime: value }))}
+              options={TIME_SLOTS}
+              placeholder="-- : --"
+              required
+            />
+          </div>
 
-        {/* 4. ORA FINE */}
-        <div>
-          <label className="label">
-            <span className="flex items-center gap-1.5"><StopIcon size={14} /> Fine</span>
-          </label>
-          <input 
-            type="time" 
-            name="endTime" 
-            required 
-            className="input" 
-            value={formData.endTime} 
-            onChange={handleChange} 
-          />
-        </div>
+          {/* 4. ORA FINE */}
+          <div>
+            <label className="label">
+              <span className="flex items-center gap-1.5"><StopIcon size={14} /> Fine</span>
+            </label>
+            <TimeSelect
+              value={formData.endTime}
+              onChange={(value) => setFormData((prev) => ({ ...prev, endTime: value }))}
+              options={TIME_SLOTS}
+              placeholder="-- : --"
+              required
+            />
+          </div>
 
         {/* BOTTONE SUBMIT */}
         <div>

@@ -361,3 +361,20 @@ export const EuroIcon = ({ className = "", size = 20 }: IconProps) => (
     <path d="M4 10h12M4 14h12M17 6a6 6 0 0 0-6 6 6 6 0 0 0 6 6" />
   </svg>
 );
+
+// Chevron Down Icon
+export const ChevronDownIcon = ({ className = "", size = 20 }: IconProps) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+    className={className}
+  >
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);

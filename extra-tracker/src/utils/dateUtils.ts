@@ -17,3 +17,14 @@ export const calculateDurationInHours = (startTime: string, endTime: string): nu
 
     return diffMinutes / 60; //converto i minuti in ore
 }
+
+//funzione per andare a scaglioni di 30 minuti nella selezione dell'orario
+export const generateTimeSlots = (): string[] => {
+    const slots: string[] = [];
+    for(let i=0;i<24;i++) {
+        const hour = i.toString().padStart(2,'0');
+        slots.push(`${hour}:00`);
+        slots.push(`${hour}:30`);
+    }
+    return slots;
+};
