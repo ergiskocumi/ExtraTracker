@@ -1,46 +1,75 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import type { ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import type { WorkLog } from "../features/tracker/type";
-import { MOCK_WORKLOGS } from "../data";
 
 interface WorkLogContextType {
-    logs: WorkLog[];
-    addWorkLog: (data: Omit<WorkLog, 'id'>) => void;
-    deleteLog: (id: string) => void;
-    updateLog: (updatedLog: WorkLog) => void;
+  logs: WorkLog[];
+  addWorkLog: (data: Omit<WorkLog, 'id'>) => void;
+  deleteLog: (id: string) => void;
+  updateLog: (updatedLog: WorkLog) => void;
 }
 
 const WorkLogContext = createContext<WorkLogContextType | undefined>(undefined);
 
 export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
-   const [logs, setLogs] = useState<WorkLog[]>(() => {
-    const savedData = localStorage.getItem('work-tracker-data');
-    return savedData ? JSON.parse(savedData) : MOCK_WORKLOGS;
-  });
+  const [logs, setLogs] = useState<WorkLog[]>([]);
 
+  // 1. GET: Carica i log dal server
   useEffect(() => {
-    localStorage.setItem('work-tracker-data', JSON.stringify(logs));
-  }, [logs]);
+    fetch('http://localhost:5000/api/worklogs')
+      .then(res => res.json())
+      .then(data => setLogs(data))
+      .catch(err => console.error("Errore fetch logs:", err));
+  }, []);
 
-  const addWorkLog = (data: Omit<WorkLog, 'id'>) => {
-    const newLog: WorkLog = {
-      id: Date.now().toString(),
-      ...data
-    };
-    setLogs((prev) => [...prev, newLog]);
+  // 2. POST: Aggiungi log
+  const addWorkLog = async (data: Omit<WorkLog, 'id'>) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/worklogs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const newLog = await response.json();
+      setLogs((prev) => [...prev, newLog]);
+    } catch (err) {
+      console.error("Errore addLog:", err);
+    }
   };
 
-   const deleteLog = (id: string) => {
-    const updatedLogs = logs.filter( log => log.id !== id);
-      setLogs(updatedLogs);
+  // 3. DELETE: Cancella log
+  const deleteLog = async (id: string) => {
+    try {
+      await fetch(`http://localhost:5000/api/worklogs/${id}`, {
+        method: 'DELETE',
+      });
+      // Aggiorniamo la UI togliendo quello cancellato
+      setLogs((prev) => prev.filter(log => log.id !== id));
+    } catch (err) {
+      console.error("Errore deleteLog:", err);
+    }
   };
 
-  //4. aggiunta della funzione per Update dei log
-  const updateLog = (updatedLog: WorkLog) => {
-    setLogs((prevLogs) =>
-      prevLogs.map((log) =>
-      (log.id === updatedLog.id ? updatedLog : log)
-      ));
+  // 4. PUT: Modifica log
+  const updateLog = async (updatedLog: WorkLog) => {
+    try {
+      // Separiamo l'ID dal resto dei dati per mandarli nel body
+      const { id, ...dataToSend } = updatedLog;
+      
+      const response = await fetch(`http://localhost:5000/api/worklogs/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend)
+      });
+      
+      const savedLog = await response.json();
+      
+      // Aggiorniamo la lista locale sostituendo quello vecchio con quello nuovo
+      setLogs((prevLogs) =>
+        prevLogs.map((log) => (log.id === id ? savedLog : log))
+      );
+    } catch (err) {
+      console.error("Errore updateLog:", err);
+    }
   };
 
   return (
@@ -50,7 +79,6 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// 4. L'Hook per usare il context
 export const useWorkLog = () => {
   const context = useContext(WorkLogContext);
   if (!context) {
