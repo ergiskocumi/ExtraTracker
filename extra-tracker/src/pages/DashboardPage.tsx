@@ -7,6 +7,12 @@ import { useWorkLog } from '../context/WorkLogContenxt'
 import { CalendarIcon } from '../components/icons'
 import { useState } from 'react'
 import type { WorkLog } from '../features/tracker/type'
+import DatePicker, { registerLocale } from "react-datepicker"
+import { it } from "date-fns/locale/it"
+import "react-datepicker/dist/react-datepicker.css"
+
+// Registra la lingua italiana
+registerLocale("it", it);
 
 
 
@@ -45,11 +51,26 @@ export const DashboardPage = () => {
             <CalendarIcon size={18} />
             Periodo:
           </label>
-          <input 
-            type="month" 
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="input py-2 px-3 w-auto"
+          <DatePicker
+            selected={selectedMonth ? new Date(selectedMonth + "-01") : new Date()}
+            onChange={(date: Date | null) => {
+              if (date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                setSelectedMonth(`${year}-${month}`);
+              }
+            }}
+            dateFormat="MMMM yyyy"
+            showMonthYearPicker
+            locale="it"
+            className="input py-2 px-3 w-auto cursor-pointer capitalize"
+            calendarClassName="dark-calendar"
+            showPopperArrow={false}
+            popperPlacement="bottom-end"
+            popperProps={{
+              strategy: "fixed"
+            }}
+            portalId="datepicker-portal"
           />
         </div>
       </div>

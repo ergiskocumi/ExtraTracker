@@ -4,10 +4,16 @@ import { motion } from "framer-motion"; // Libreria animazioni
 import { useWorkLog } from "../context/WorkLogContenxt";
 import { useProjects } from "../context/ProjectsContext";
 import { useFilterMonth } from "../hooks/useFilterMonth";
-import { CalendarIcon, ClockIcon, FolderIcon } from "../components/icons";
+import { CalendarIcon, ClockIcon } from "../components/icons";
 import { formatCurrency } from "../utils/currencyUtils";
 import { calculateDurationInHours } from "../utils/dateUtils";
-import { FaBriefcase, FaCode, FaCoffee } from "react-icons/fa"; // Icone generiche
+import { FaBriefcase, FaCode } from "react-icons/fa"; // Icone generiche
+import DatePicker, { registerLocale } from "react-datepicker";
+import { it } from "date-fns/locale/it";
+import "react-datepicker/dist/react-datepicker.css";
+
+// Registra la lingua italiana
+registerLocale("it", it);
 
 export const TimelinePage = () => {
   // 1. Recuperiamo i dati dal Context
@@ -41,12 +47,27 @@ export const TimelinePage = () => {
         
         {/* Selettore Mese */}
         <div className="flex items-center gap-3 card-glass px-4 py-3">
-          <CalendarIcon size={18} />
-          <input 
-            type="month" 
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="input py-1 px-2 w-auto border-none bg-transparent focus:ring-0"
+          <CalendarIcon size={18} className="text-white/60" />
+          <DatePicker
+            selected={selectedMonth ? new Date(selectedMonth + "-01") : new Date()}
+            onChange={(date: Date | null) => {
+              if (date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                setSelectedMonth(`${year}-${month}`);
+              }
+            }}
+            dateFormat="MMMM yyyy"
+            showMonthYearPicker
+            locale="it"
+            className="input py-1 px-2 w-auto border-none bg-transparent focus:ring-0 cursor-pointer capitalize"
+            calendarClassName="dark-calendar"
+            showPopperArrow={false}
+            popperPlacement="bottom-end"
+            popperProps={{
+              strategy: "fixed"
+            }}
+            portalId="datepicker-portal"
           />
         </div>
       </div>

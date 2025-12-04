@@ -94,7 +94,7 @@ export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLog
         {isEditing && (
           <button 
             onClick={onCancel}
-            className="text-sm text-white/40 hover:text-white hover:underline transition-colors"
+            className="text-sm transition-colors text-white/40 hover:text-white hover:underline"
           >
             Annulla
           </button>
@@ -103,7 +103,7 @@ export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLog
       
       <form 
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end"
+        className="grid items-end grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5"
       >
         
         {/* 1. SELETTORE PROGETTO */}
@@ -136,10 +136,14 @@ export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLog
             dateFormat="dd/MM/yyyy"
             locale="it"
             placeholderText="Seleziona data"
-            className="input w-full cursor-pointer"
+            className="w-full cursor-pointer input"
             calendarClassName="dark-calendar"
             showPopperArrow={false}
             popperPlacement="top-start"
+            popperProps={{
+              strategy: "fixed"
+            }}
+            portalId="datepicker-portal"
             required 
           />
         </div>
