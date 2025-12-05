@@ -126,27 +126,31 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit, onDuplicate }: W
                 </td>
                 
                 <td>
-                  <button 
-                    onClick={() => onDelete(log.id)}
-                    className="btn btn-danger py-1.5 px-3 text-xs"
-                  >
-                    <TrashIcon size={14} />
-                    <span>Elimina</span>
-                  </button>
-                </td>
-                <td>
-                  <button  onClick={() => onEdit(log)} className="btn btn-secondary py-1.5 px-3 text-xs bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20" > 
-                    <span>Modifica</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => onDelete(log.id)}
+                      className="btn btn-danger py-1.5 px-3 text-xs"
+                    >
+                      <TrashIcon size={14} />
+                      <span>Elimina</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => onEdit(log)} 
+                      className="btn py-1.5 px-3 text-xs bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 transition-colors"
+                    > 
+                      <span>Modifica</span>
+                    </button>
 
-                  <button  
-                    onClick={() => onDuplicate(log)} 
-                    className="btn py-1.5 px-3 text-xs bg-blue-500/10 text-blue-300 hover:bg-blue-500/20" 
-                    title="Smart copy: crea un nuovo log copiando questo"
-                  > 
-                    <FileTextIcon size={16} />
-                    <span>Smart Copy</span>
-                  </button>
+                    <button  
+                      onClick={() => onDuplicate(log)} 
+                      className="btn py-1.5 px-3 text-xs bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/20 transition-colors" 
+                      title="Smart copy: crea un nuovo log copiando questo"
+                    > 
+                      <FileTextIcon size={14} />
+                      <span>Smart Copy</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

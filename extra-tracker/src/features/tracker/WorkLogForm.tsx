@@ -115,14 +115,14 @@ export const WorkLogForm = ({ projects, onSave, initialData, mode, onCancel }: W
           <button
             type="button"
             onClick={onCancel}
-            className="text-sm transition-colors text-white/50 hover:text-white underline"
+            className="text-sm underline transition-colors text-white/50 hover:text-white"
           >
             Annulla
           </button>
         )}
       </div>
       {isDuplicating && (
-        <div className="mb-4 text-sm text-blue-100/80 bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-2">
+        <div className="px-4 py-2 mb-4 text-sm border text-blue-100/80 bg-blue-500/10 border-blue-500/30 rounded-xl">
           Smart Copy attiva: controlla data e orari prima di salvare per creare un nuovo log.
         </div>
       )}
