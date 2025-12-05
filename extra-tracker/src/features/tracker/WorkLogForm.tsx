@@ -1,7 +1,7 @@
 import type { Project } from "../projects/type";
-import { useState } from "react";
-import { EditIcon, FolderIcon, CalendarIcon, PlayIcon, StopIcon, PlusIcon } from "../../components/icons";
-import type { WorkLog } from "./type";
+import { useEffect, useState } from "react";
+import { EditIcon, FolderIcon, CalendarIcon, PlayIcon, StopIcon, PlusIcon, FileTextIcon } from "../../components/icons";
+import type { WorkLog, WorkLogFormMode } from "./type";
 import DatePicker, { registerLocale } from "react-datepicker";
 import { it } from "date-fns/locale/it";
 import "react-datepicker/dist/react-datepicker.css";
@@ -15,22 +15,35 @@ interface WorkLogFormProps {
   projects: Project[];
   onSave: (data: { projectId: string; date: string; startTime: string; endTime: string }) => void;
   initialData: WorkLog | null;
+  mode: WorkLogFormMode;
   onCancel: () => void;
 }
 
-export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLogFormProps) => {
+export const WorkLogForm = ({ projects, onSave, initialData, mode, onCancel }: WorkLogFormProps) => {
   
   const TIME_SLOTS = generateTimeSlots();
 
   const [formData, setFormData] = useState({
-    projectId: '',
-    date: '',
-    startTime: '',
-    endTime: ''
+    projectId: initialData?.projectId || "",
+    date: initialData?.date || "",
+    startTime: initialData?.startTime || "",
+    endTime: initialData?.endTime || "",
   });
 
-  // Stato per il DatePicker (usa Date object)
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(
+    initialData?.date ? new Date(initialData.date) : null
+  );
+
+  // Allinea il form quando cambia il dato in ingresso (edit/smart copy)
+  useEffect(() => {
+    setFormData({
+      projectId: initialData?.projectId || "",
+      date: initialData?.date || "",
+      startTime: initialData?.startTime || "",
+      endTime: initialData?.endTime || "",
+    });
+    setSelectedDate(initialData?.date ? new Date(initialData.date) : null);
+  }, [initialData, mode]);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -41,7 +54,9 @@ export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLog
   const handleDateChange = (date: Date | null) => {
     setSelectedDate(date);
     if (date) {
-      // Converte in formato YYYY-MM-DD per il form
+      // Converte in formato YYYY-MM-DD per il form (aggiusta il fuso orario se serve, qui uso ISO semplice)
+      // Nota: toISOString() usa UTC. Per mantenere l'ora locale spesso è meglio:
+      // const localDate = date.toLocaleDateString('en-CA'); // Format YYYY-MM-DD
       const formattedDate = date.toISOString().split('T')[0];
       setFormData((prevData) => ({ ...prevData, date: formattedDate }));
     }
@@ -51,14 +66,15 @@ export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLog
     e.preventDefault();
     onSave(formData);
    
-    if (!initialData) {
+    // Resetta solo quando siamo in inserimento o smart copy
+    if (!initialData || mode === "smartCopy") {
       setFormData({ projectId: '', date: '', startTime: '', endTime: '' });
       setSelectedDate(null);
     }
   };
 
-  // Helper booleano per pulizia codice
-  const isEditing = !!initialData;
+  const isEditing = mode === "edit";
+  const isDuplicating = mode === "smartCopy";
 
   return (
     <div 
@@ -68,39 +84,48 @@ export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLog
       {/* HEADER DEL FORM */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          {/* Cambio icona e colore in base allo stato */}
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center border
             ${isEditing 
               ? 'bg-amber-500/20 border-amber-500/30' 
-              : 'bg-accent-500/20 border-accent-500/30'}`
+              : isDuplicating
+                ? 'bg-blue-500/20 border-blue-500/30'
+                : 'bg-accent-500/20 border-accent-500/30'}`
           }>
-            {isEditing ? (
-              <EditIcon className="text-amber-400" size={20} />
-            ) : (
-              <PlusIcon className="text-accent-400" size={20} />
-            )}
+            {isEditing && <EditIcon className="text-amber-400" size={20} />}
+            {isDuplicating && <FileTextIcon className="text-blue-400" size={20} />}
+            {!isEditing && !isDuplicating && <PlusIcon className="text-accent-400" size={20} />}
           </div>
+          
           <div>
-            <h3 className={`text-lg font-semibold ${isEditing ? 'text-amber-100' : 'text-white'}`}>
-              {isEditing ? 'Modifica Attività' : 'Nuovo Inserimento'}
+            <h3 className={`text-lg font-semibold 
+              ${isEditing ? 'text-amber-100' : isDuplicating ? 'text-blue-100' : 'text-white'}`}>
+              {isEditing ? 'Modifica Attività' : isDuplicating ? 'Smart Copy' : 'Nuovo Inserimento'}
             </h3>
             <p className="text-sm text-white/50">
-              {isEditing ? 'Modifica i dettagli del log selezionato' : 'Registra le tue ore di lavoro'}
+              {isEditing 
+                ? 'Modifica i dettagli del log selezionato' 
+                : isDuplicating 
+                  ? 'Copia i dettagli e salva un nuovo log' 
+                  : 'Registra le tue ore di lavoro'}
             </p>
           </div>
         </div>
 
-        {/* TASTO ANNULLA (Visibile solo in modifica) */}
-        {isEditing && (
-          <button 
+        {(isEditing || isDuplicating) && (
+          <button
+            type="button"
             onClick={onCancel}
-            className="text-sm transition-colors text-white/40 hover:text-white hover:underline"
+            className="text-sm transition-colors text-white/50 hover:text-white underline"
           >
             Annulla
           </button>
         )}
       </div>
-      
+      {isDuplicating && (
+        <div className="mb-4 text-sm text-blue-100/80 bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-2">
+          Smart Copy attiva: controlla data e orari prima di salvare per creare un nuovo log.
+        </div>
+      )}
       <form 
         onSubmit={handleSubmit}
         className="grid items-end grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5"
@@ -176,17 +201,24 @@ export const WorkLogForm = ({ projects, onSave, initialData, onCancel }: WorkLog
             />
           </div>
 
-        {/* BOTTONE SUBMIT */}
+       {/* BOTTONE SUBMIT */}
         <div>
           <button 
             type="submit" 
             className={`w-full btn ${isEditing 
-              ? 'bg-amber-500 hover:bg-amber-400 text-white shadow-glow-sm' // Stile Modifica (Giallo)
-              : 'btn-success' // Stile Nuovo (Verde)
+              ? 'bg-amber-500 hover:bg-amber-400 text-white shadow-glow-sm' 
+              : isDuplicating
+                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-glow-sm' // Bottone Blu per Duplica
+                : 'btn-success'
             }`}
           >
-            {isEditing ? <EditIcon size={16} /> : <PlusIcon size={16} />}
-            <span>{isEditing ? 'Salva' : 'Aggiungi'}</span>
+            {isEditing && <EditIcon size={16} />}
+            {isDuplicating && !isEditing && <FileTextIcon size={16} />}
+            {!isEditing && !isDuplicating && <PlusIcon size={16} />}
+            {/* Testo del bottone */}
+            <span>
+              {isEditing ? 'Salva Modifiche' : isDuplicating ? 'Crea Smart Copy' : 'Aggiungi'}
+            </span>
           </button>
         </div>
 

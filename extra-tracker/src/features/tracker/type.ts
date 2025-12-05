@@ -7,3 +7,5 @@ export interface WorkLog{
     endTime: string; // orario di fine del lavoro
     description?: string; // descrizione del lavoro svolto
 }
+
+export type WorkLogFormMode = "new" | "edit" | "smartCopy";
