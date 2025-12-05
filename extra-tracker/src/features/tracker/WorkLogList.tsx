@@ -2,7 +2,7 @@ import type { WorkLog } from "./type";
 import type { Project } from "../projects/type";
 import { calculateDurationInHours } from "../../utils/dateUtils";
 import { formatCurrency } from "../../utils/currencyUtils";
-import { ListIcon, TrashIcon, FileTextIcon } from "../../components/icons";
+import { ListIcon, TrashIcon, FileTextIcon, } from "../../components/icons";
 
 
 // import degli oggetti che vogliamo visualizzare poi a scermo
@@ -11,9 +11,10 @@ interface WorkLogListProps {
     projects: Project[];
     onDelete: (id:string) => void; // dopo aver implementato la funzione di eliminazione, la passo come prop qua
     onEdit: (log: WorkLog) => void; // funzione per modificare un log esistente
+    onDuplicate: (log: WorkLog) => void; // funzione per duplicare un log esistente
   }
 
-export const WorkLogList = ({ logs, projects, onDelete, onEdit }: WorkLogListProps) => {
+export const WorkLogList = ({ logs, projects, onDelete, onEdit, onDuplicate }: WorkLogListProps) => {
     
     // funzione di utilità per ottenere il nome del progetto dato l'ID
     const getProjectName = (projectId: string) => {
@@ -56,18 +57,18 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit }: WorkLogListPro
 
     if (logs.length === 0) {
       return (
-        <div className="card p-8 text-center animate-fade-in">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary-500/20 flex items-center justify-center border border-primary-500/30">
+        <div className="p-8 text-center card animate-fade-in">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 border rounded-full bg-primary-500/20 border-primary-500/30">
             <FileTextIcon className="text-primary-400" size={28} />
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">Nessun log registrato</h3>
+          <h3 className="mb-2 text-lg font-semibold text-white">Nessun log registrato</h3>
           <p className="text-white/50">Inizia ad aggiungere le tue ore di lavoro!</p>
         </div>
       );
     }
 
     return (
-    <div className="card overflow-hidden animate-slide-up">
+    <div className="overflow-hidden card animate-slide-up">
       <div className="p-6 border-b border-white/[0.08]">
         <div className="flex items-center gap-3">
           <div className="icon-container">
@@ -100,7 +101,7 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit }: WorkLogListPro
                 </td>
                 <td>
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500/30 to-primary-600/30 border border-primary-500/30 flex items-center justify-center">
+                    <div className="flex items-center justify-center w-8 h-8 border rounded-lg bg-gradient-to-br from-primary-500/30 to-primary-600/30 border-primary-500/30">
                       <span className="text-xs font-bold text-primary-300">
                         {getProjectName(log.projectId).charAt(0).toUpperCase()}
                       </span>
@@ -125,18 +126,31 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit }: WorkLogListPro
                 </td>
                 
                 <td>
-                  <button 
-                    onClick={() => onDelete(log.id)}
-                    className="btn btn-danger py-1.5 px-3 text-xs"
-                  >
-                    <TrashIcon size={14} />
-                    <span>Elimina</span>
-                  </button>
-                </td>
-                <td>
-                  <button  onClick={() => onEdit(log)} className="btn btn-secondary py-1.5 px-3 text-xs bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20" > 
-                    <span>Modifica</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => onDelete(log.id)}
+                      className="btn btn-danger py-1.5 px-3 text-xs"
+                    >
+                      <TrashIcon size={14} />
+                      <span>Elimina</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => onEdit(log)} 
+                      className="btn py-1.5 px-3 text-xs bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 transition-colors"
+                    > 
+                      <span>Modifica</span>
+                    </button>
+
+                    <button  
+                      onClick={() => onDuplicate(log)} 
+                      className="btn py-1.5 px-3 text-xs bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/20 transition-colors" 
+                      title="Smart copy: crea un nuovo log copiando questo"
+                    > 
+                      <FileTextIcon size={14} />
+                      <span>Smart Copy</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -148,10 +162,10 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit }: WorkLogListPro
                 <span className="text-white/60">TOTALE GENERALE:</span>
               </td>
               <td>
-                <span className="text-primary-400 font-bold text-lg">{totalHours.toFixed(2)} h</span>
+                <span className="text-lg font-bold text-primary-400">{totalHours.toFixed(2)} h</span>
               </td>
               <td>
-                <span className="text-accent-400 font-bold text-lg">{formatCurrency(totalAmount)}</span>
+                <span className="text-lg font-bold text-accent-400">{formatCurrency(totalAmount)}</span>
               </td>
               <td></td>
             </tr>

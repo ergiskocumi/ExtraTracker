@@ -12,18 +12,21 @@ export const MOCK_PROJECTS: Project[] = [
         id: "c1",
         name: "Cliente A",
         code: "COM001",
+        description: "Implementazione piattaforma web",
         rate: 25,
     },
     {
         id: "c2",
         name: "Cliente B",
         code: "COM002",
+        description: "Migrazione infrastruttura cloud",
         rate: 25,
     },
     {
         id: "c3",
         name: "Martesana",
         code: "3474",
+        description: "Supporto sistemistico continuativo",
         rate: 25,
     }
 ]
