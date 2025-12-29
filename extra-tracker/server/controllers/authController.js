@@ -390,29 +390,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
  * Completa il reset password con nuovo password
  */
 const resetPassword = asyncHandler(async (req, res) => {
-    const { token, password } = req.body;
-
-    if (!token || !password) {
-        return res.status(400).json({
-            success: false,
-            error: {
-                message: 'Token e nuova password obbligatori',
-                code: 'MISSING_FIELDS',
-            },
-        });
-    }
-
-    // Valida password (minimo 8 caratteri, 1 maiuscola, 1 numero)
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-    if (!passwordRegex.test(password)) {
-        return res.status(400).json({
-            success: false,
-            error: {
-                message: 'La password deve contenere almeno 8 caratteri, una maiuscola e un numero',
-                code: 'WEAK_PASSWORD',
-            },
-        });
-    }
+    const { token, newPassword } = req.body;
 
     // Hash del token
     const hashedToken = hashToken(token);
@@ -434,8 +412,7 @@ const resetPassword = asyncHandler(async (req, res) => {
     }
 
     // Aggiorna password
-    const authService = require('../services/authService');
-    user.password = await authService.hashPassword(password);
+    user.password = await authService.hashPassword(newPassword);
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     user.refreshTokenHash = undefined; // Invalida sessioni esistenti

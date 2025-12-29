@@ -10,9 +10,11 @@ import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axio
  * - Gestione errori centralizzata
  */
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 // Configurazione base
 const axiosInstance = axios.create({
-    baseURL: 'http://localhost:3001/api',
+    baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -44,7 +46,7 @@ const processQueue = (error: Error | null) => {
 // ==========================================
 
 // URL che NON devono triggerare il refresh automatico
-const NO_REFRESH_URLS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/me', '/auth/logout'];
+const NO_REFRESH_URLS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
 
 axiosInstance.interceptors.response.use(
     // Risposta OK: passa attraverso

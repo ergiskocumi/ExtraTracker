@@ -27,6 +27,8 @@ const {
     registerSchema, 
     loginSchema,
     changePasswordSchema,
+    resetPasswordRequestSchema,
+    resetPasswordConfirmSchema,
 } = require('../validators/authValidators');
 
 // ==========================================
@@ -153,6 +155,7 @@ router.post(
 router.post(
     '/forgot-password',
     authLimiter, // Rate limit per prevenire spam
+    validateMiddleware(resetPasswordRequestSchema),
     authController.forgotPassword
 );
 
@@ -164,6 +167,7 @@ router.post(
 router.post(
     '/reset-password',
     authLimiter,
+    validateMiddleware(resetPasswordConfirmSchema),
     authController.resetPassword
 );
 

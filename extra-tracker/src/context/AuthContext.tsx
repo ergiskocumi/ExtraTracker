@@ -58,10 +58,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             const response = await authService.checkAuth();
             
-            if (response.success && response.data?.isAuthenticated) {
+            if (response.success && response.data?.user) {
                 setState({
                     user: response.data.user,
-                    isAuthenticated: true,
+                    isAuthenticated: response.data.isAuthenticated ?? true,
                     isLoading: false,
                     error: null,
                 });

@@ -17,7 +17,7 @@ export interface User {
 
 export interface AuthResponse {
     success: boolean;
-    message: string;
+    message?: string;
     data?: {
         user: User;
         isAuthenticated?: boolean;
@@ -91,13 +91,12 @@ class AuthService {
      */
     async checkAuth(): Promise<AuthResponse> {
         try {
-            const response = await apiClient.get<AuthResponse>(`${this.baseUrl}/me`);
+            const response = await apiClient.get<AuthResponse>(`${this.baseUrl}/check`);
             return response;
         } catch {
             return {
                 success: false,
                 message: 'Non autenticato',
-                data: { user: { id: '', email: '' }, isAuthenticated: false },
             };
         }
     }
