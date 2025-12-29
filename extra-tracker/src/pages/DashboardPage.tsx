@@ -1,6 +1,7 @@
 import { ProjectSummary } from '../features/tracker/ProjectSummary'
 import { WorkLogList } from '../features/tracker/WorkLogList'
 import { WorkLogForm } from '../features/tracker/WorkLogForm'
+import { GoalsWidget } from '../features/dashboard/GoalsWidget'
 import { useFilterMonth } from '../hooks/useFilterMonth'
 import { useProjects } from '../context/ProjectsContext'
 import { useWorkLog } from '../context/WorkLogContenxt'
@@ -99,6 +100,9 @@ export const DashboardPage = () => {
 
       {/* RIEPILOGO PROGETTI */}
       <ProjectSummary logs={filteredLogs} projects={projects} />
+      
+      {/* WIDGET OBIETTIVI */}
+      <GoalsWidget />
       
       {/* DIVIDER */}
       <div className="divider" />

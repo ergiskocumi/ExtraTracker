@@ -1,16 +1,29 @@
-import { DashboardPage } from './pages/DashboardPage'
+import { DashboardPage } from './pages/DashboardPageNew'
 import { SettingsPage } from './pages/SettingsPage'
+import { GoalsPage } from './pages/GoalsPage'
+import { GoalDetailPage } from './pages/GoalDetailPage'
 import {Routes, Route, Link, useLocation} from 'react-router-dom';
 import { DashboardIcon, SettingsIcon, LogoIcon } from './components/icons';
 import { TimelinePage } from './pages/TimelinePage';
 import { ClockIcon } from './components/icons';
+import { GoalsProvider } from './context/GoalsContext';
+
+// Icona Target per il menu
+const TargetIcon = ({ size = 18 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" />
+    </svg>
+);
 
 function App() {
   const location = useLocation();
   
   return (
-    // Layout moderno con tema dark/purple
-    <div className='min-h-screen'>
+    <GoalsProvider>
+      {/* Layout moderno con tema dark/purple */}
+      <div className='min-h-screen'>
       
       {/* HEADER */}
       <header className="sticky top-0 z-50 bg-dark-500/80 backdrop-blur-xl border-b border-white/[0.08]">
@@ -36,6 +49,13 @@ function App() {
                 <span>Dashboard</span>
               </Link>
               <Link 
+                to="/goals" 
+                className={`nav-link ${location.pathname === '/goals' ? 'active' : ''}`}
+              >
+                <TargetIcon size={18} />
+                <span>Obiettivi</span>
+              </Link>
+              <Link 
                 to="/settings" 
                 className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`}
               >
@@ -59,6 +79,8 @@ function App() {
       <main className="max-w-6xl mx-auto px-6 py-8 animate-fade-in">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/goals" element={<GoalsPage />} />
+          <Route path="/goals/:id" element={<GoalDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/timeline" element={<TimelinePage />} />
         </Routes>
@@ -68,7 +90,8 @@ function App() {
       <footer className="mt-auto py-6 text-center text-sm text-white/30">
         <p>© 2024 Extra Tracker • Gestisci il tuo tempo con stile</p>
       </footer>
-    </div>
+      </div>
+    </GoalsProvider>
   )
 }
 
