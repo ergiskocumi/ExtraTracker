@@ -33,6 +33,7 @@ interface SettingsState {
         lastLoginAt?: string;
     } | null;
     isLoading: boolean;
+    hasLoaded: boolean;
     error: string | null;
 }
 
@@ -102,6 +103,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         notifications: defaultNotifications,
         account: null,
         isLoading: false,
+        hasLoaded: false,
         error: null,
     });
 
@@ -124,6 +126,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
                     notifications: { ...defaultNotifications, ...data.notifications },
                     account: data.account,
                     isLoading: false,
+                    hasLoaded: true,
                     error: null,
                 });
 
@@ -133,6 +136,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
                 setState(prev => ({
                     ...prev,
                     isLoading: false,
+                    hasLoaded: true,
                     error: response.error?.message || 'Errore nel caricamento impostazioni',
                 }));
             }
@@ -140,6 +144,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             setState(prev => ({
                 ...prev,
                 isLoading: false,
+                hasLoaded: true,
                 error: err instanceof Error ? err.message : 'Errore nel caricamento impostazioni',
             }));
         }
@@ -314,6 +319,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
                 notifications: defaultNotifications,
                 account: null,
                 isLoading: false,
+                hasLoaded: false,
                 error: null,
             });
         }

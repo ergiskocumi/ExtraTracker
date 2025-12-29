@@ -56,11 +56,16 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
         description,
       });
 
-      if (!response.success || !response.data) {
+      if (!response.success) {
         throw new Error(response.error?.message || 'Errore salvataggio progetto');
       }
 
-      setProjects((prev) => [...prev, response.data]);
+      const createdProject = response.data;
+      if (!createdProject) {
+        throw new Error('Errore salvataggio progetto');
+      }
+
+      setProjects((prev) => [...prev, createdProject]);
       
     } catch (err: any) {
       console.error(err);

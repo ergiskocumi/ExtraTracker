@@ -6,13 +6,14 @@
  * - /, /goals, /settings, /timeline → Pagine protette (AppLayout)
  */
 
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { GoalsProvider } from './context/GoalsContext';
 import { ProjectsProvider } from './context/ProjectsContext';
 import { WorkLogProvider } from './context/WorkLogContenxt';
 import { SettingsProvider } from './context/SettingsContext';
 import { ProtectedRoute } from './context/AuthContext';
 import { AppLayout, AuthLayout } from './layouts';
+import { useSettings } from './context/SettingsContext';
 
 // Pagine
 import { DashboardPage } from './pages/DashboardPageNew';
@@ -26,6 +27,21 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { VerifyEmailPage } from './pages/auth/VerifyEmailPage';
+
+const HomeRedirect = () => {
+    const { preferences, hasLoaded } = useSettings();
+
+    // Evita redirect "a caso" prima di aver caricato le preferenze reali dal backend.
+    if (!hasLoaded) return null;
+
+    const to = preferences.defaultView === 'timeline'
+        ? '/timeline'
+        : preferences.defaultView === 'goals'
+            ? '/goals'
+            : '/dashboard';
+
+    return <Navigate to={to} replace />;
+};
 
 function App() {
     return (
@@ -55,7 +71,8 @@ function App() {
                     </ProtectedRoute>
                 }
             >
-                <Route path="/" element={<DashboardPage />} />
+                <Route path="/" element={<HomeRedirect />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/goals" element={<GoalsPage />} />
                 <Route path="/goals/:id" element={<GoalDetailPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />

@@ -5,17 +5,36 @@ import { useWorkLog } from "../context/WorkLogContenxt";
 import { useProjects } from "../context/ProjectsContext";
 import { useFilterMonth } from "../hooks/useFilterMonth";
 import { CalendarIcon, ClockIcon } from "../components/icons";
-import { formatCurrency } from "../utils/currencyUtils";
 import { calculateDurationInHours } from "../utils/dateUtils";
 import { FaBriefcase, FaCode } from "react-icons/fa"; // Icone generiche
 import DatePicker, { registerLocale } from "react-datepicker";
 import { it } from "date-fns/locale/it";
+import { enUS } from "date-fns/locale/en-US";
+import { es } from "date-fns/locale/es";
+import { de } from "date-fns/locale/de";
+import { fr } from "date-fns/locale/fr";
 import "react-datepicker/dist/react-datepicker.css";
+import { useFormat } from "../hooks/useFormat";
 
-// Registra la lingua italiana
+// Registra le lingue supportate (date-fns)
 registerLocale("it", it);
+registerLocale("en", enUS);
+registerLocale("es", es);
+registerLocale("de", de);
+registerLocale("fr", fr);
 
 export const TimelinePage = () => {
+  const { formatMoney, formatTime, formatHours, language } = useFormat();
+
+  const localeMap: Record<string, string> = {
+    it: 'it-IT',
+    en: 'en-GB',
+    es: 'es-ES',
+    de: 'de-DE',
+    fr: 'fr-FR',
+  };
+  const dateLocale = localeMap[language] || 'it-IT';
+
   // 1. Recuperiamo i dati dal Context
   const { logs } = useWorkLog();
   const { projects } = useProjects();
@@ -59,7 +78,7 @@ export const TimelinePage = () => {
             }}
             dateFormat="MMMM yyyy"
             showMonthYearPicker
-            locale="it"
+            locale={language}
             className="input py-1 px-2 w-auto border-none bg-transparent focus:ring-0 cursor-pointer capitalize"
             calendarClassName="dark-calendar"
             showPopperArrow={false}
@@ -113,10 +132,10 @@ export const TimelinePage = () => {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-xs font-bold text-primary-300 uppercase tracking-wider">
-                      {new Date(log.date).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short'})}
+                      {new Date(log.date).toLocaleDateString(dateLocale, { weekday: 'short', day: 'numeric', month: 'short'})}
                     </span>
                     <span className="text-xs text-white/40 font-mono">
-                      {log.startTime}
+                      {formatTime(log.startTime)}
                     </span>
                   </div>
                   
@@ -126,7 +145,7 @@ export const TimelinePage = () => {
                   
                   <div className="flex items-center gap-2 text-sm text-white/60">
                     <ClockIcon size={14} />
-                    <span>{calculateDurationInHours(log.startTime, log.endTime).toFixed(2)} ore</span>
+                    <span>{formatHours(calculateDurationInHours(log.startTime, log.endTime))}</span>
                   </div>
                 </div>
               </motion.div>
@@ -157,7 +176,7 @@ export const TimelinePage = () => {
                         {selectedProject?.code}
                       </span>
                       <span className="text-white/50 text-sm">
-                        {new Date(selectedLog.date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        {new Date(selectedLog.date).toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                       </span>
                     </div>
                   </div>
@@ -171,25 +190,25 @@ export const TimelinePage = () => {
                   <div className="bg-white/[0.03] p-4 rounded-xl border border-white/[0.05]">
                     <p className="text-sm text-white/50 mb-1">Orario</p>
                     <p className="text-xl font-mono text-white">
-                      {selectedLog.startTime} - {selectedLog.endTime}
+                      {formatTime(selectedLog.startTime)} - {formatTime(selectedLog.endTime)}
                     </p>
                   </div>
                   <div className="bg-white/[0.03] p-4 rounded-xl border border-white/[0.05]">
                     <p className="text-sm text-white/50 mb-1">Durata</p>
                     <p className="text-xl font-bold text-white">
-                      {calculateDurationInHours(selectedLog.startTime, selectedLog.endTime).toFixed(2)} h
+                      {formatHours(calculateDurationInHours(selectedLog.startTime, selectedLog.endTime))}
                     </p>
                   </div>
                   <div className="bg-white/[0.03] p-4 rounded-xl border border-white/[0.05]">
                     <p className="text-sm text-white/50 mb-1">Tariffa</p>
                     <p className="text-xl text-white">
-                      {selectedProject?.rate} €/h
+                      {selectedProject ? `${formatMoney(selectedProject.rate)}/h` : '—'}
                     </p>
                   </div>
                   <div className="bg-accent-500/10 p-4 rounded-xl border border-accent-500/20">
                     <p className="text-sm text-accent-300 mb-1">Guadagno</p>
                     <p className="text-2xl font-bold text-accent-400">
-                      {formatCurrency(calculateDurationInHours(selectedLog.startTime, selectedLog.endTime) * (selectedProject?.rate || 0))}
+                      {formatMoney(calculateDurationInHours(selectedLog.startTime, selectedLog.endTime) * (selectedProject?.rate || 0))}
                     </p>
                   </div>
                 </div>

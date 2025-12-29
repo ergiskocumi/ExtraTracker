@@ -1,3 +1,12 @@
+import { useState } from 'react'
+import DatePicker, { registerLocale } from "react-datepicker"
+import "react-datepicker/dist/react-datepicker.css"
+import { it } from "date-fns/locale/it"
+import { enUS } from "date-fns/locale/en-US"
+import { es } from "date-fns/locale/es"
+import { de } from "date-fns/locale/de"
+import { fr } from "date-fns/locale/fr"
+
 import { ProjectSummary } from '../features/tracker/ProjectSummary'
 import { WorkLogList } from '../features/tracker/WorkLogList'
 import { WorkLogForm } from '../features/tracker/WorkLogForm'
@@ -6,18 +15,18 @@ import { useFilterMonth } from '../hooks/useFilterMonth'
 import { useProjects } from '../context/ProjectsContext'
 import { useWorkLog } from '../context/WorkLogContenxt'
 import { CalendarIcon } from '../components/icons'
-import { useState } from 'react'
+import { useFormat } from '../hooks/useFormat'
 import type { WorkLog, WorkLogFormMode } from '../features/tracker/type'
-import DatePicker, { registerLocale } from "react-datepicker"
-import { it } from "date-fns/locale/it"
-import "react-datepicker/dist/react-datepicker.css"
 
-// Registra la lingua italiana
+// Registra le lingue supportate (date-fns)
 registerLocale("it", it);
-
-
-
+registerLocale("en", enUS);
+registerLocale("es", es);
+registerLocale("de", de);
+registerLocale("fr", fr);
 export const DashboardPage = () => {
+
+  const { language } = useFormat();
 
     const { projects } = useProjects();
     const { logs, addWorkLog, deleteLog, updateLog} = useWorkLog(); //aggiunto updateLog
@@ -85,7 +94,7 @@ export const DashboardPage = () => {
             }}
             dateFormat="MMMM yyyy"
             showMonthYearPicker
-            locale="it"
+            locale={language}
             className="w-auto px-3 py-2 capitalize cursor-pointer input"
             calendarClassName="dark-calendar"
             showPopperArrow={false}
