@@ -1,33 +1,50 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import type { WorkLog } from "../features/tracker/type";
+import { useAuth } from "./AuthContext";
+
+const API_BASE = 'http://localhost:3001/api';
 
 interface WorkLogContextType {
   logs: WorkLog[];
   addWorkLog: (data: Omit<WorkLog, 'id'>) => void;
   deleteLog: (id: string) => void;
   updateLog: (updatedLog: WorkLog) => void;
+  refreshLogs: () => void;
 }
 
 const WorkLogContext = createContext<WorkLogContextType | undefined>(undefined);
 
 export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
   const [logs, setLogs] = useState<WorkLog[]>([]);
+  const { isAuthenticated } = useAuth();
 
-  // 1. GET: Carica i log dal server
+  // Funzione per caricare i logs
+  const refreshLogs = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const res = await fetch(`${API_BASE}/worklogs`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(data);
+      }
+    } catch (err) {
+      console.error("Errore fetch logs:", err);
+    }
+  }, [isAuthenticated]);
+
+  // Carica i log quando autenticato
   useEffect(() => {
-    fetch('http://localhost:5000/api/worklogs')
-      .then(res => res.json())
-      .then(data => setLogs(data))
-      .catch(err => console.error("Errore fetch logs:", err));
-  }, []);
+    refreshLogs();
+  }, [refreshLogs]);
 
   // 2. POST: Aggiungi log
   const addWorkLog = async (data: Omit<WorkLog, 'id'>) => {
     try {
-      const response = await fetch('http://localhost:5000/api/worklogs', {
+      const response = await fetch(`${API_BASE}/worklogs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data)
       });
       const newLog = await response.json();
@@ -40,8 +57,9 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
   // 3. DELETE: Cancella log
   const deleteLog = async (id: string) => {
     try {
-      await fetch(`http://localhost:5000/api/worklogs/${id}`, {
+      await fetch(`${API_BASE}/worklogs/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
       // Aggiorniamo la UI togliendo quello cancellato
       setLogs((prev) => prev.filter(log => log.id !== id));
@@ -56,9 +74,10 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
       // Separiamo l'ID dal resto dei dati per mandarli nel body
       const { id, ...dataToSend } = updatedLog;
       
-      const response = await fetch(`http://localhost:5000/api/worklogs/${id}`, {
+      const response = await fetch(`${API_BASE}/worklogs/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(dataToSend)
       });
       
@@ -74,7 +93,7 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <WorkLogContext.Provider value={{ logs, addWorkLog, deleteLog, updateLog }}>
+    <WorkLogContext.Provider value={{ logs, addWorkLog, deleteLog, updateLog, refreshLogs }}>
       {children}
     </WorkLogContext.Provider>
   );

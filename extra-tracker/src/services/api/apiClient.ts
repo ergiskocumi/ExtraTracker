@@ -1,12 +1,131 @@
 import axios from 'axios';
+import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
-// Configurazione base per tutte le chiamate API
-// La porta 3001 è quella del nostro server Express
-const apiClient = axios.create({
+/**
+ * 🌐 API CLIENT - Configurato per Autenticazione Sicura
+ * 
+ * Caratteristiche:
+ * - withCredentials: true per inviare cookies HttpOnly
+ * - Interceptor per refresh automatico del token
+ * - Gestione errori centralizzata
+ */
+
+// Configurazione base
+const axiosInstance = axios.create({
     baseURL: 'http://localhost:3001/api',
     headers: {
         'Content-Type': 'application/json',
     },
+    // CRITICO: Necessario per inviare/ricevere cookies cross-origin
+    withCredentials: true,
+    timeout: 10000, // 10 secondi timeout
 });
 
-export default apiClient;
+// Flag per evitare loop infiniti di refresh
+let isRefreshing = false;
+let failedQueue: Array<{
+    resolve: (value?: unknown) => void;
+    reject: (reason?: unknown) => void;
+}> = [];
+
+const processQueue = (error: Error | null) => {
+    failedQueue.forEach((prom) => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve();
+        }
+    });
+    failedQueue = [];
+};
+
+// ==========================================
+// INTERCEPTOR RESPONSE - Auto Refresh Token
+// ==========================================
+
+// URL che NON devono triggerare il refresh automatico
+const NO_REFRESH_URLS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/me', '/auth/logout'];
+
+axiosInstance.interceptors.response.use(
+    // Risposta OK: passa attraverso
+    (response: AxiosResponse) => response,
+    
+    // Errore: gestisci 401 con refresh automatico
+    async (error: AxiosError) => {
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        const requestUrl = originalRequest?.url || '';
+
+        // NON fare refresh per endpoint di auth o se già in retry
+        const shouldSkipRefresh = NO_REFRESH_URLS.some(url => requestUrl.includes(url));
+        
+        if (error.response?.status === 401 && !originalRequest._retry && !shouldSkipRefresh) {
+            // Se stiamo già facendo refresh, accoda la richiesta
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(() => axiosInstance(originalRequest));
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            try {
+                // Prova a fare refresh del token
+                await axiosInstance.post('/auth/refresh');
+                processQueue(null);
+                
+                // Riprova la richiesta originale
+                return axiosInstance(originalRequest);
+            } catch (refreshError) {
+                processQueue(refreshError as Error);
+                
+                // Refresh fallito: emetti evento per logout
+                window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+                
+                return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+
+        return Promise.reject(error);
+    }
+);
+
+// ==========================================
+// API CLIENT WRAPPER
+// ==========================================
+
+interface ApiResponse<T> {
+    success: boolean;
+    data?: T;
+    error?: {
+        message: string;
+        code: string;
+    };
+}
+
+export const apiClient = {
+    async get<T>(url: string): Promise<T> {
+        const response = await axiosInstance.get<ApiResponse<T>>(url);
+        return response.data as T;
+    },
+
+    async post<T>(url: string, data: unknown): Promise<T> {
+        const response = await axiosInstance.post<ApiResponse<T>>(url, data);
+        return response.data as T;
+    },
+
+    async put<T>(url: string, data: unknown): Promise<T> {
+        const response = await axiosInstance.put<ApiResponse<T>>(url, data);
+        return response.data as T;
+    },
+
+    async delete<T>(url: string): Promise<T> {
+        const response = await axiosInstance.delete<ApiResponse<T>>(url);
+        return response.data as T;
+    },
+};
+
+// Export anche axios instance per usi avanzati
+export default axiosInstance;
