@@ -1,9 +1,20 @@
 import { DashboardPage } from './pages/DashboardPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { GoalsPage } from './pages/GoalsPage'
 import {Routes, Route, Link, useLocation} from 'react-router-dom';
 import { DashboardIcon, SettingsIcon, LogoIcon } from './components/icons';
 import { TimelinePage } from './pages/TimelinePage';
 import { ClockIcon } from './components/icons';
+import { GoalsProvider } from './context/GoalsContext';
+
+// Icona Target per il menu
+const TargetIcon = ({ size = 18 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" />
+    </svg>
+);
 
 function App() {
   const location = useLocation();
@@ -36,6 +47,13 @@ function App() {
                 <span>Dashboard</span>
               </Link>
               <Link 
+                to="/goals" 
+                className={`nav-link ${location.pathname === '/goals' ? 'active' : ''}`}
+              >
+                <TargetIcon size={18} />
+                <span>Obiettivi</span>
+              </Link>
+              <Link 
                 to="/settings" 
                 className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`}
               >
@@ -57,11 +75,14 @@ function App() {
 
       {/* CONTENUTO PAGINA */}
       <main className="max-w-6xl mx-auto px-6 py-8 animate-fade-in">
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/timeline" element={<TimelinePage />} />
-        </Routes>
+        <GoalsProvider>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/timeline" element={<TimelinePage />} />
+          </Routes>
+        </GoalsProvider>
       </main>
 
       {/* FOOTER */}
