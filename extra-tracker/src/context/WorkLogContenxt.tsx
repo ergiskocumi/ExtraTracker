@@ -1,37 +1,48 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import type { WorkLog } from "../features/tracker/type";
+import { useAuth } from "./AuthContext";
+import { apiClient } from "../services/api/apiClient";
 
 interface WorkLogContextType {
   logs: WorkLog[];
   addWorkLog: (data: Omit<WorkLog, 'id'>) => void;
   deleteLog: (id: string) => void;
   updateLog: (updatedLog: WorkLog) => void;
+  refreshLogs: () => void;
 }
 
 const WorkLogContext = createContext<WorkLogContextType | undefined>(undefined);
 
 export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
   const [logs, setLogs] = useState<WorkLog[]>([]);
+  const { isAuthenticated } = useAuth();
 
-  // 1. GET: Carica i log dal server
+  // Funzione per caricare i logs
+  const refreshLogs = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const response = await apiClient.get<WorkLog[]>('/worklogs');
+      if (response.success && response.data) {
+        setLogs(response.data);
+      }
+    } catch (err) {
+      console.error("Errore fetch logs:", err);
+    }
+  }, [isAuthenticated]);
+
+  // Carica i log quando autenticato
   useEffect(() => {
-    fetch('http://localhost:5000/api/worklogs')
-      .then(res => res.json())
-      .then(data => setLogs(data))
-      .catch(err => console.error("Errore fetch logs:", err));
-  }, []);
+    refreshLogs();
+  }, [refreshLogs]);
 
   // 2. POST: Aggiungi log
   const addWorkLog = async (data: Omit<WorkLog, 'id'>) => {
     try {
-      const response = await fetch('http://localhost:5000/api/worklogs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      const newLog = await response.json();
-      setLogs((prev) => [...prev, newLog]);
+      const response = await apiClient.post<WorkLog>('/worklogs', data);
+      if (response.success && response.data) {
+        setLogs((prev) => [...prev, response.data]);
+      }
     } catch (err) {
       console.error("Errore addLog:", err);
     }
@@ -40,11 +51,11 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
   // 3. DELETE: Cancella log
   const deleteLog = async (id: string) => {
     try {
-      await fetch(`http://localhost:5000/api/worklogs/${id}`, {
-        method: 'DELETE',
-      });
-      // Aggiorniamo la UI togliendo quello cancellato
-      setLogs((prev) => prev.filter(log => log.id !== id));
+      const response = await apiClient.delete<null>(`/worklogs/${id}`);
+      if (response.success) {
+        // Aggiorniamo la UI togliendo quello cancellato
+        setLogs((prev) => prev.filter(log => log.id !== id));
+      }
     } catch (err) {
       console.error("Errore deleteLog:", err);
     }
@@ -56,25 +67,20 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
       // Separiamo l'ID dal resto dei dati per mandarli nel body
       const { id, ...dataToSend } = updatedLog;
       
-      const response = await fetch(`http://localhost:5000/api/worklogs/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend)
-      });
-      
-      const savedLog = await response.json();
-      
-      // Aggiorniamo la lista locale sostituendo quello vecchio con quello nuovo
-      setLogs((prevLogs) =>
-        prevLogs.map((log) => (log.id === id ? savedLog : log))
-      );
+      const response = await apiClient.put<WorkLog>(`/worklogs/${id}`, dataToSend);
+      if (response.success && response.data) {
+        // Aggiorniamo la lista locale sostituendo quello vecchio con quello nuovo
+        setLogs((prevLogs) =>
+          prevLogs.map((log) => (log.id === id ? response.data : log))
+        );
+      }
     } catch (err) {
       console.error("Errore updateLog:", err);
     }
   };
 
   return (
-    <WorkLogContext.Provider value={{ logs, addWorkLog, deleteLog, updateLog }}>
+    <WorkLogContext.Provider value={{ logs, addWorkLog, deleteLog, updateLog, refreshLogs }}>
       {children}
     </WorkLogContext.Provider>
   );

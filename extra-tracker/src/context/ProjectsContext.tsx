@@ -1,14 +1,15 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import type { Project } from "../features/projects/type";
+import { useAuth } from "./AuthContext";
+import { apiClient } from "../services/api/apiClient";
 
 interface ProjectsContextType {
   projects: Project[];
-  // CORREZIONE 1: Scambia 'rate' e 'description' per matchare il Form
-  // Metti description alla fine col ? perché è opzionale
   addProject: (name: string, code: string, rate: number, description?: string) => void;
   loading: boolean;
   error: string | null;
+  refreshProjects: () => void;
 }
 
 const ProjectsContext = createContext<ProjectsContextType | undefined>(undefined);
@@ -17,47 +18,49 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
+
+  // Funzione per caricare i progetti
+  const refreshProjects = useCallback(async () => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setError(null);
+      const response = await apiClient.get<Project[]>('/projects');
+      if (response.success && response.data) {
+        setProjects(response.data);
+      } else {
+        setError(response.error?.message || 'Errore nel caricamento progetti');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/projects')
-      .then(res => {
-        if (!res.ok) throw new Error('Errore nel caricamento progetti');
-        return res.json();
-      })
-      .then(data => {
-        setProjects(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setError(err.message);
-        setLoading(false);
-      });
-  }, []);
+    refreshProjects();
+  }, [refreshProjects]);
 
-  // CORREZIONE 2: Allinea l'ordine dei parametri (name, code, rate, description)
+  // Aggiungi progetto
   const addProject = async (name: string, code: string, rate: number, description?: string) => {
     try {
-      const response = await fetch('http://localhost:5000/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name, 
-          code, 
-          // Assicuriamoci che sia un numero
-          rate: Number(rate), 
-          description 
-        }) 
+      const response = await apiClient.post<Project>('/projects', {
+        name,
+        code,
+        rate: Number(rate),
+        description,
       });
 
-      if (!response.ok) {
-        // Leggiamo l'errore specifico dal server se c'è
-        const errorData = await response.json(); 
-        throw new Error(errorData.message || 'Errore salvataggio progetto');
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Errore salvataggio progetto');
       }
 
-      const newProject = await response.json();
-      setProjects((prev) => [...prev, newProject]);
+      setProjects((prev) => [...prev, response.data]);
       
     } catch (err: any) {
       console.error(err);
@@ -66,7 +69,7 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <ProjectsContext.Provider value={{ projects, addProject, loading, error }}>
+    <ProjectsContext.Provider value={{ projects, addProject, loading, error, refreshProjects }}>
       {children}
     </ProjectsContext.Provider>
   );

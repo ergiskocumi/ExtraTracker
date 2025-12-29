@@ -1,98 +1,64 @@
-import { DashboardPage } from './pages/DashboardPageNew'
-import { SettingsPage } from './pages/SettingsPage'
-import { GoalsPage } from './pages/GoalsPage'
-import { GoalDetailPage } from './pages/GoalDetailPage'
-import {Routes, Route, Link, useLocation} from 'react-router-dom';
-import { DashboardIcon, SettingsIcon, LogoIcon } from './components/icons';
-import { TimelinePage } from './pages/TimelinePage';
-import { ClockIcon } from './components/icons';
-import { GoalsProvider } from './context/GoalsContext';
+/**
+ * 🚀 APP - Entry point con routing autenticato
+ * 
+ * Sistema di routing:
+ * - /login, /register, /forgot-password, /reset-password, /verify-email → Pagine pubbliche (AuthLayout)
+ * - /, /goals, /settings, /timeline → Pagine protette (AppLayout)
+ */
 
-// Icona Target per il menu
-const TargetIcon = ({ size = 18 }: { size?: number }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="6" />
-        <circle cx="12" cy="12" r="2" />
-    </svg>
-);
+import { Routes, Route } from 'react-router-dom';
+import { GoalsProvider } from './context/GoalsContext';
+import { ProjectsProvider } from './context/ProjectsContext';
+import { WorkLogProvider } from './context/WorkLogContenxt';
+import { ProtectedRoute } from './context/AuthContext';
+import { AppLayout, AuthLayout } from './layouts';
+
+// Pagine
+import { DashboardPage } from './pages/DashboardPageNew';
+import { SettingsPage } from './pages/SettingsPage';
+import { GoalsPage } from './pages/GoalsPage';
+import { GoalDetailPage } from './pages/GoalDetailPage';
+import { TimelinePage } from './pages/TimelinePage';
+import { LoginPage } from './pages/auth/LoginPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+import { VerifyEmailPage } from './pages/auth/VerifyEmailPage';
 
 function App() {
-  const location = useLocation();
-  
-  return (
-    <GoalsProvider>
-      {/* Layout moderno con tema dark/purple */}
-      <div className='min-h-screen'>
-      
-      {/* HEADER */}
-      <header className="sticky top-0 z-50 bg-dark-500/80 backdrop-blur-xl border-b border-white/[0.08]">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-glow-sm animate-float">
-                <LogoIcon className="text-white" size={22} />
-              </div>
-              <h1 className="text-2xl font-bold gradient-text">
-                Extra Tracker
-              </h1>
-            </div>
-
-            {/* MENU DI NAVIGAZIONE */}
-            <nav className="flex items-center gap-2 p-1.5 bg-white/[0.03] rounded-xl border border-white/[0.08]">
-              <Link 
-                to="/" 
-                className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
-              >
-                <DashboardIcon size={18} />
-                <span>Dashboard</span>
-              </Link>
-              <Link 
-                to="/goals" 
-                className={`nav-link ${location.pathname === '/goals' ? 'active' : ''}`}
-              >
-                <TargetIcon size={18} />
-                <span>Obiettivi</span>
-              </Link>
-              <Link 
-                to="/settings" 
-                className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`}
-              >
-                <SettingsIcon size={18} />
-                <span>Progetti</span>
-              </Link>
-
-              <Link 
-                to="/timeline" 
-                className={`nav-link ${location.pathname === '/timeline' ? 'active' : ''}`}
-              >
-                <ClockIcon size={18} />
-                <span>Timeline</span>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      {/* CONTENUTO PAGINA */}
-      <main className="max-w-6xl mx-auto px-6 py-8 animate-fade-in">
+    return (
         <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/goals" element={<GoalsPage />} />
-          <Route path="/goals/:id" element={<GoalDetailPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/timeline" element={<TimelinePage />} />
-        </Routes>
-      </main>
+            {/* ===== ROUTE PUBBLICHE (Auth) ===== */}
+            <Route element={<AuthLayout />}>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
+            </Route>
 
-      {/* FOOTER */}
-      <footer className="mt-auto py-6 text-center text-sm text-white/30">
-        <p>© 2024 Extra Tracker • Gestisci il tuo tempo con stile</p>
-      </footer>
-      </div>
-    </GoalsProvider>
-  )
+            {/* ===== ROUTE PROTETTE (App) ===== */}
+            <Route 
+                element={
+                    <ProtectedRoute>
+                        <ProjectsProvider>
+                            <WorkLogProvider>
+                                <GoalsProvider>
+                                    <AppLayout />
+                                </GoalsProvider>
+                            </WorkLogProvider>
+                        </ProjectsProvider>
+                    </ProtectedRoute>
+                }
+            >
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/goals" element={<GoalsPage />} />
+                <Route path="/goals/:id" element={<GoalDetailPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/timeline" element={<TimelinePage />} />
+            </Route>
+        </Routes>
+    );
 }
 
-export default App
+export default App;
