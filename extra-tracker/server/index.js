@@ -4,15 +4,17 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 const apiRoutes = require('./routes/api');
+const goalsRoutes = require('./routes/goals'); // Nuove routes per gli obiettivi
 
 // 1. MIDDLEWARE 
 app.use(cors()); // permetti richieste da altri domini
 app.use(express.json()); // permettere di leggere i JSON che ci manda react 
 
 app.use('/api', apiRoutes); // usa le rotte definite in routes/api.js
+app.use('/api', goalsRoutes); // usa le rotte per goals e check-in
 
 
 // 2. CONNESSIONE AL DATABASE
