@@ -24,7 +24,8 @@ export const AppLayout = () => {
     const navItems = [
         { path: '/', label: 'Dashboard', icon: FiLayout },
         { path: '/goals', label: 'Obiettivi', icon: FiTarget },
-        { path: '/settings', label: 'Progetti', icon: FiSettings },
+        { path: '/projects', label: 'Progetti', icon: FiSettings },
+        { path: '/settings', label: 'Impostazioni', icon: FiSettings },
         { path: '/timeline', label: 'Timeline', icon: FiClock },
     ];
 

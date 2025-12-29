@@ -127,8 +127,8 @@ export const apiClient = {
         return response.data;
     },
 
-    async delete<T>(url: string): Promise<ApiResponse<T>> {
-        const response = await axiosInstance.delete<ApiResponse<T>>(url);
+    async delete<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
+        const response = await axiosInstance.delete<ApiResponse<T>>(url, { data });
         return response.data;
     },
 };

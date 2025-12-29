@@ -1,7 +1,7 @@
 import type { WorkLog } from "./type";
 import type { Project } from "../projects/type";
 import { calculatesTotalsByProject } from "../../utils/calculations";
-import { formatCurrency } from "../../utils/currencyUtils";
+import { useFormat } from "../../hooks/useFormat";
 import { ClockIcon, CurrencyIcon, ChartIcon, FileTextIcon } from "../../components/icons";
 
 // inizializzo le props che mi servono per questo componente
@@ -12,6 +12,7 @@ interface ProjectSummaryProps {
 
 //funzione principale del componente ProjectSummary
 export const ProjectSummary = ({ logs, projects }: ProjectSummaryProps) => {
+    const { formatMoney, formatHours } = useFormat();
     const summaryData = calculatesTotalsByProject(logs, projects);
 
     if (summaryData.length === 0) {
@@ -41,7 +42,7 @@ export const ProjectSummary = ({ logs, projects }: ProjectSummaryProps) => {
               </div>
               <div>
                 <p className="text-label mb-1">Ore Totali</p>
-                <p className="value-large">{totalHours.toFixed(1)}</p>
+                <p className="value-large">{formatHours(totalHours)}</p>
               </div>
             </div>
           </div>
@@ -53,7 +54,7 @@ export const ProjectSummary = ({ logs, projects }: ProjectSummaryProps) => {
               </div>
               <div>
                 <p className="text-label mb-1">Guadagno Totale</p>
-                <p className="value-accent">{formatCurrency(totalAmount)}</p>
+                <p className="value-accent">{formatMoney(totalAmount)}</p>
               </div>
             </div>
           </div>
@@ -85,11 +86,11 @@ export const ProjectSummary = ({ logs, projects }: ProjectSummaryProps) => {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center py-2 border-b border-white/[0.08]">
                     <span className="text-sm text-white/50">Ore lavorate</span>
-                    <span className="font-semibold text-white/80">{item.totalHours.toFixed(2)} h</span>
+                    <span className="font-semibold text-white/80">{formatHours(item.totalHours)}</span>
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-sm text-white/50">Totale</span>
-                    <span className="font-bold text-lg text-primary-400">{formatCurrency(item.totalAmount)}</span>
+                    <span className="font-bold text-lg text-primary-400">{formatMoney(item.totalAmount)}</span>
                   </div>
                 </div>
               </div>

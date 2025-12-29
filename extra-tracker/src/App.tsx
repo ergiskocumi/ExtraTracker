@@ -10,12 +10,14 @@ import { Routes, Route } from 'react-router-dom';
 import { GoalsProvider } from './context/GoalsContext';
 import { ProjectsProvider } from './context/ProjectsContext';
 import { WorkLogProvider } from './context/WorkLogContenxt';
+import { SettingsProvider } from './context/SettingsContext';
 import { ProtectedRoute } from './context/AuthContext';
 import { AppLayout, AuthLayout } from './layouts';
 
 // Pagine
 import { DashboardPage } from './pages/DashboardPageNew';
-import { SettingsPage } from './pages/SettingsPage';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { SettingsPage } from './pages/SettingsPageNew';
 import { GoalsPage } from './pages/GoalsPage';
 import { GoalDetailPage } from './pages/GoalDetailPage';
 import { TimelinePage } from './pages/TimelinePage';
@@ -41,19 +43,22 @@ function App() {
             <Route 
                 element={
                     <ProtectedRoute>
-                        <ProjectsProvider>
-                            <WorkLogProvider>
-                                <GoalsProvider>
-                                    <AppLayout />
-                                </GoalsProvider>
-                            </WorkLogProvider>
-                        </ProjectsProvider>
+                        <SettingsProvider>
+                            <ProjectsProvider>
+                                <WorkLogProvider>
+                                    <GoalsProvider>
+                                        <AppLayout />
+                                    </GoalsProvider>
+                                </WorkLogProvider>
+                            </ProjectsProvider>
+                        </SettingsProvider>
                     </ProtectedRoute>
                 }
             >
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/goals" element={<GoalsPage />} />
                 <Route path="/goals/:id" element={<GoalDetailPage />} />
+                <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/timeline" element={<TimelinePage />} />
             </Route>
