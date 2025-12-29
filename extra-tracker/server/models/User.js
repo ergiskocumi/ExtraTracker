@@ -56,6 +56,10 @@ const userSchema = new mongoose.Schema(
             type: String,
             select: false,
         },
+        emailVerificationExpires: {
+            type: Date,
+            select: false,
+        },
 
         // Token per reset password
         passwordResetToken: {
@@ -120,6 +124,7 @@ const userSchema = new mongoose.Schema(
                 delete ret.passwordResetToken;
                 delete ret.passwordResetExpires;
                 delete ret.emailVerificationToken;
+                delete ret.emailVerificationExpires;
                 return ret;
             },
         },

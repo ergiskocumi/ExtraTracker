@@ -5,7 +5,7 @@
  * I token sono gestiti via HttpOnly cookies (non accessibili da JS).
  */
 
-import { apiClient } from './api/apiClient';
+import { apiClient, type ApiResponse } from './api/apiClient';
 
 // Tipi
 export interface User {
@@ -15,19 +15,11 @@ export interface User {
     createdAt?: string;
 }
 
-export interface AuthResponse {
-    success: boolean;
-    message?: string;
-    data?: {
-        user: User;
-        isAuthenticated?: boolean;
-    };
-    error?: {
-        message: string;
-        code: string;
-        details?: Array<{ field: string; message: string }>;
-    };
+export interface AuthData {
+    user: User;
+    isAuthenticated?: boolean;
 }
+export type AuthResponse = ApiResponse<AuthData>;
 
 export interface RegisterData {
     email: string;
@@ -58,7 +50,7 @@ class AuthService {
      * Registra nuovo utente
      */
     async register(data: RegisterData): Promise<AuthResponse> {
-        const response = await apiClient.post<AuthResponse>(`${this.baseUrl}/register`, data);
+        const response = await apiClient.post<AuthData>(`${this.baseUrl}/register`, data);
         return response;
     }
 
@@ -66,7 +58,7 @@ class AuthService {
      * Login utente
      */
     async login(data: LoginData): Promise<AuthResponse> {
-        const response = await apiClient.post<AuthResponse>(`${this.baseUrl}/login`, data);
+        const response = await apiClient.post<AuthData>(`${this.baseUrl}/login`, data);
         return response;
     }
 
@@ -74,7 +66,7 @@ class AuthService {
      * Logout utente
      */
     async logout(): Promise<AuthResponse> {
-        const response = await apiClient.post<AuthResponse>(`${this.baseUrl}/logout`, {});
+        const response = await apiClient.post<AuthData>(`${this.baseUrl}/logout`, {});
         return response;
     }
 
@@ -82,7 +74,7 @@ class AuthService {
      * Rinnova access token
      */
     async refresh(): Promise<AuthResponse> {
-        const response = await apiClient.post<AuthResponse>(`${this.baseUrl}/refresh`, {});
+        const response = await apiClient.post<AuthData>(`${this.baseUrl}/refresh`, {});
         return response;
     }
 
@@ -91,7 +83,7 @@ class AuthService {
      */
     async checkAuth(): Promise<AuthResponse> {
         try {
-            const response = await apiClient.get<AuthResponse>(`${this.baseUrl}/check`);
+            const response = await apiClient.get<AuthData>(`${this.baseUrl}/check`);
             return response;
         } catch {
             return {
@@ -105,7 +97,7 @@ class AuthService {
      * Ottieni profilo utente
      */
     async getProfile(): Promise<AuthResponse> {
-        const response = await apiClient.get<AuthResponse>(`${this.baseUrl}/me`);
+        const response = await apiClient.get<AuthData>(`${this.baseUrl}/me`);
         return response;
     }
 
@@ -113,7 +105,7 @@ class AuthService {
      * Cambia password
      */
     async changePassword(data: ChangePasswordData): Promise<AuthResponse> {
-        const response = await apiClient.put<AuthResponse>(`${this.baseUrl}/password`, data);
+        const response = await apiClient.put<AuthData>(`${this.baseUrl}/password`, data);
         return response;
     }
 }

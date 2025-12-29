@@ -2,21 +2,19 @@ const express = require('express');
 const router = express.Router();
 const Project = require('../models/Project');
 const WorkLog = require('../models/WorkLog');
+const { asyncHandler } = require('../middleware/errorHandler');
+const AppError = require('../utils/AppError');
 
 //! ROTTE PER I PROGETTI - API 
 
 //! API GET per poter prendere tutti i progetti dal database
-router.get('/projects', async (req, res) => {
-    try {
-        const projects = await Project.find({});  // certo tutti i clienti(project) che ho nel db
-        res.json(projects); //qui mandi il JSON al frontend
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
+router.get('/projects', asyncHandler(async (req, res) => {
+    const projects = await Project.find({});
+    res.json({ success: true, data: projects });
+}));
 
 //! API POST per creare un nuovo progetto
-router.post('/projects', async (req, res) => {
+router.post('/projects', asyncHandler(async (req, res) => {
     const project = new Project({
         name: req.body.name,
         code: req.body.code,
@@ -24,26 +22,18 @@ router.post('/projects', async (req, res) => {
         rate: req.body.rate
     });
 
-    try {
-        const newProject = await project.save();
-        res.status(201).json(newProject);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-});
+    const newProject = await project.save();
+    res.status(201).json({ success: true, data: newProject });
+}));
 
 //! API GET per leggere tutti i log di lavoro
-router.get('/worklogs', async (req, res) => {
-    try {
-        const log = await WorkLog.find({});
-        res.json(log);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
+router.get('/worklogs', asyncHandler(async (req, res) => {
+    const log = await WorkLog.find({});
+    res.json({ success: true, data: log });
+}));
 
 //!API POST per creare un nuovo log di lavoro
-router.post('/worklogs', async (req, res) => {
+router.post('/worklogs', asyncHandler(async (req, res) => {
     const log = new WorkLog({
         projectId: req.body.projectId,
         date: req.body.date,
@@ -52,36 +42,30 @@ router.post('/worklogs', async (req, res) => {
         description: req.body.description
     });
 
-    try {
-        const newLog = await log.save();
-        res.status(201).json(newLog);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-});
+    const newLog = await log.save();
+    res.status(201).json({ success: true, data: newLog });
+}));
 
 //! API DELETE per eliminare un log di lavoro
-router.delete('/worklogs/:id', async (req, res) => {
-    try {
-        await WorkLog.findOneAndDelete(req.params.id);
-        res.json({ message: 'Log di lavoro eliminato' });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+router.delete('/worklogs/:id', asyncHandler(async (req, res) => {
+    const deletedLog = await WorkLog.findByIdAndDelete(req.params.id);
+    if (!deletedLog) {
+        throw AppError.notFound('Log di lavoro');
     }
-});
+    res.json({ success: true, message: 'Log di lavoro eliminato' });
+}));
 
 //! API PUT per modifica dei log
-router.put('/worklogs/:id', async (req, res) => {
-    try {
-        const updatedLog = await WorkLog.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            { new: true }
-        );
-        res.json(updatedLog);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
+router.put('/worklogs/:id', asyncHandler(async (req, res) => {
+    const updatedLog = await WorkLog.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        { new: true, runValidators: true }
+    );
+    if (!updatedLog) {
+        throw AppError.notFound('Log di lavoro');
     }
-});
+    res.json({ success: true, data: updatedLog });
+}));
 
 module.exports = router;

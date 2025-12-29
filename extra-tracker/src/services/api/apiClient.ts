@@ -12,6 +12,19 @@ import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axio
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+export interface ApiError {
+    message: string;
+    code: string;
+    details?: Array<{ field: string; message: string }>;
+}
+
+export interface ApiResponse<T> {
+    success: boolean;
+    message?: string;
+    data?: T;
+    error?: ApiError;
+}
+
 // Configurazione base
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
@@ -98,34 +111,25 @@ axiosInstance.interceptors.response.use(
 // API CLIENT WRAPPER
 // ==========================================
 
-interface ApiResponse<T> {
-    success: boolean;
-    data?: T;
-    error?: {
-        message: string;
-        code: string;
-    };
-}
-
 export const apiClient = {
-    async get<T>(url: string): Promise<T> {
+    async get<T>(url: string): Promise<ApiResponse<T>> {
         const response = await axiosInstance.get<ApiResponse<T>>(url);
-        return response.data as T;
+        return response.data;
     },
 
-    async post<T>(url: string, data: unknown): Promise<T> {
+    async post<T>(url: string, data: unknown): Promise<ApiResponse<T>> {
         const response = await axiosInstance.post<ApiResponse<T>>(url, data);
-        return response.data as T;
+        return response.data;
     },
 
-    async put<T>(url: string, data: unknown): Promise<T> {
+    async put<T>(url: string, data: unknown): Promise<ApiResponse<T>> {
         const response = await axiosInstance.put<ApiResponse<T>>(url, data);
-        return response.data as T;
+        return response.data;
     },
 
-    async delete<T>(url: string): Promise<T> {
+    async delete<T>(url: string): Promise<ApiResponse<T>> {
         const response = await axiosInstance.delete<ApiResponse<T>>(url);
-        return response.data as T;
+        return response.data;
     },
 };
 

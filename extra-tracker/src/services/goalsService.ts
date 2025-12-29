@@ -1,4 +1,4 @@
-import apiClient from './api/apiClient';
+import { apiClient, type ApiResponse } from './api/apiClient';
 import type {
     Goal,
     CreateGoalDTO,
@@ -14,6 +14,13 @@ import type {
  * Goals Service
  * Gestisce tutte le chiamate API per obiettivi e check-in
  */
+const unwrap = <T>(response: ApiResponse<T>, fallbackMessage: string): T => {
+    if (!response.success || response.data === undefined) {
+        throw new Error(response.error?.message || response.message || fallbackMessage);
+    }
+    return response.data;
+};
+
 const goalsService = {
     // ==================== GOALS ====================
 
@@ -23,7 +30,7 @@ const goalsService = {
     async getAll(): Promise<Goal[]> {
         try {
             const response = await apiClient.get<Goal[]>('/goals');
-            return response.data;
+            return unwrap(response, 'Errore nel recupero obiettivi');
         } catch (error) {
             console.error('Failed to fetch goals:', error);
             throw error;
@@ -36,7 +43,7 @@ const goalsService = {
     async getById(id: string): Promise<GoalDetailResponse> {
         try {
             const response = await apiClient.get<GoalDetailResponse>(`/goals/${id}`);
-            return response.data;
+            return unwrap(response, `Errore nel recupero obiettivo ${id}`);
         } catch (error) {
             console.error(`Failed to fetch goal ${id}:`, error);
             throw error;
@@ -49,7 +56,7 @@ const goalsService = {
     async create(goalData: CreateGoalDTO): Promise<Goal> {
         try {
             const response = await apiClient.post<Goal>('/goals', goalData);
-            return response.data;
+            return unwrap(response, 'Errore nella creazione obiettivo');
         } catch (error) {
             console.error('Failed to create goal:', error);
             throw error;
@@ -62,7 +69,7 @@ const goalsService = {
     async update(id: string, goalData: UpdateGoalDTO): Promise<Goal> {
         try {
             const response = await apiClient.put<Goal>(`/goals/${id}`, goalData);
-            return response.data;
+            return unwrap(response, `Errore nell'aggiornamento obiettivo ${id}`);
         } catch (error) {
             console.error(`Failed to update goal ${id}:`, error);
             throw error;
@@ -74,7 +81,10 @@ const goalsService = {
      */
     async delete(id: string): Promise<void> {
         try {
-            await apiClient.delete(`/goals/${id}`);
+            const response = await apiClient.delete<null>(`/goals/${id}`);
+            if (!response.success) {
+                throw new Error(response.error?.message || response.message || `Errore nell'eliminazione obiettivo ${id}`);
+            }
         } catch (error) {
             console.error(`Failed to delete goal ${id}:`, error);
             throw error;
@@ -89,7 +99,7 @@ const goalsService = {
     async getCheckIns(goalId: string): Promise<CheckIn[]> {
         try {
             const response = await apiClient.get<CheckIn[]>(`/goals/${goalId}/checkins`);
-            return response.data;
+            return unwrap(response, `Errore nel recupero check-in per obiettivo ${goalId}`);
         } catch (error) {
             console.error(`Failed to fetch check-ins for goal ${goalId}:`, error);
             throw error;
@@ -105,7 +115,7 @@ const goalsService = {
                 `/goals/${goalId}/checkins`,
                 checkInData
             );
-            return response.data;
+            return unwrap(response, `Errore nella creazione check-in per obiettivo ${goalId}`);
         } catch (error) {
             console.error(`Failed to create check-in for goal ${goalId}:`, error);
             throw error;
@@ -117,7 +127,10 @@ const goalsService = {
      */
     async deleteCheckIn(checkInId: string): Promise<void> {
         try {
-            await apiClient.delete(`/checkins/${checkInId}`);
+            const response = await apiClient.delete<null>(`/checkins/${checkInId}`);
+            if (!response.success) {
+                throw new Error(response.error?.message || response.message || `Errore nell'eliminazione check-in ${checkInId}`);
+            }
         } catch (error) {
             console.error(`Failed to delete check-in ${checkInId}:`, error);
             throw error;
@@ -132,7 +145,7 @@ const goalsService = {
     async getDashboardStats(): Promise<GoalsDashboardStats> {
         try {
             const response = await apiClient.get<GoalsDashboardStats>('/goals-stats');
-            return response.data;
+            return unwrap(response, 'Errore nel recupero statistiche dashboard');
         } catch (error) {
             console.error('Failed to fetch dashboard stats:', error);
             throw error;

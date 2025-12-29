@@ -22,7 +22,7 @@ export const ForgotPasswordPage = () => {
         setIsLoading(true);
 
         try {
-            await apiClient.post('/auth/forgot-password', { email });
+            await apiClient.post<null>('/auth/forgot-password', { email });
             setIsSubmitted(true);
         } catch (err: any) {
             // Non mostrare se l'email esiste o meno per sicurezza

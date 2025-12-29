@@ -2,8 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import type { ReactNode } from "react";
 import type { Project } from "../features/projects/type";
 import { useAuth } from "./AuthContext";
-
-const API_BASE = 'http://localhost:3001/api';
+import { apiClient } from "../services/api/apiClient";
 
 interface ProjectsContextType {
   projects: Project[];
@@ -28,10 +27,12 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/projects`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setProjects(data);
+      setError(null);
+      const response = await apiClient.get<Project[]>('/projects');
+      if (response.success && response.data) {
+        setProjects(response.data);
+      } else {
+        setError(response.error?.message || 'Errore nel caricamento progetti');
       }
     } catch (err: any) {
       console.error(err);
@@ -48,26 +49,18 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
   // Aggiungi progetto
   const addProject = async (name: string, code: string, rate: number, description?: string) => {
     try {
-      const response = await fetch(`${API_BASE}/projects`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ 
-          name, 
-          code, 
-          rate: Number(rate), 
-          description 
-        }) 
+      const response = await apiClient.post<Project>('/projects', {
+        name,
+        code,
+        rate: Number(rate),
+        description,
       });
 
-      if (!response.ok) {
-        // Leggiamo l'errore specifico dal server se c'è
-        const errorData = await response.json(); 
-        throw new Error(errorData.message || 'Errore salvataggio progetto');
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Errore salvataggio progetto');
       }
 
-      const newProject = await response.json();
-      setProjects((prev) => [...prev, newProject]);
+      setProjects((prev) => [...prev, response.data]);
       
     } catch (err: any) {
       console.error(err);

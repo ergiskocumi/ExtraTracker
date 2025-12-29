@@ -27,7 +27,7 @@ export const VerifyEmailPage = () => {
 
         const verifyEmail = async () => {
             try {
-                const response = await apiClient.post<{ success: boolean; message: string }>('/auth/verify-email', { token });
+                const response = await apiClient.post<null>('/auth/verify-email', { token });
                 if (response.success) {
                     setStatus('success');
                     setMessage(response.message || 'Email verificata con successo!');

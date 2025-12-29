@@ -16,6 +16,8 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const { emailService, generateToken, hashToken } = require('../services/emailService');
 const User = require('../models/User');
 
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Helper per impostare i cookie di autenticazione
  */
@@ -68,10 +70,12 @@ const register = asyncHandler(async (req, res) => {
     // Genera token di verifica email
     const verificationToken = generateToken();
     const hashedToken = hashToken(verificationToken);
+    const verificationExpires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
     
     // Salva token hashato nel DB
     await User.findByIdAndUpdate(user._id, {
         emailVerificationToken: hashedToken,
+        emailVerificationExpires: verificationExpires,
     });
 
     // Invia email di verifica (non blocca la risposta)
@@ -248,7 +252,8 @@ const verifyEmail = asyncHandler(async (req, res) => {
     // Trova utente con questo token
     const user = await User.findOne({
         emailVerificationToken: hashedToken,
-    }).select('+emailVerificationToken');
+        emailVerificationExpires: { $gt: Date.now() },
+    }).select('+emailVerificationToken +emailVerificationExpires');
 
     if (!user) {
         return res.status(400).json({
@@ -263,6 +268,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
     // Aggiorna utente
     user.isEmailVerified = true;
     user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
     await user.save();
 
     res.status(200).json({
@@ -313,9 +319,11 @@ const resendVerification = asyncHandler(async (req, res) => {
     // Genera nuovo token
     const verificationToken = generateToken();
     const hashedToken = hashToken(verificationToken);
+    const verificationExpires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
 
     await User.findByIdAndUpdate(userId, {
         emailVerificationToken: hashedToken,
+        emailVerificationExpires: verificationExpires,
     });
 
     // Invia email

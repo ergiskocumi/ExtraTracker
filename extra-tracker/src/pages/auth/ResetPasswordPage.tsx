@@ -56,7 +56,7 @@ export const ResetPasswordPage = () => {
         setIsLoading(true);
 
         try {
-            const response = await apiClient.post<{ success: boolean; message: string }>('/auth/reset-password', {
+            const response = await apiClient.post<null>('/auth/reset-password', {
                 token,
                 newPassword: password,
             });
