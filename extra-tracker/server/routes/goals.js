@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Goal = require('../models/Goal');
 const CheckIn = require('../models/CheckIn');
+const { calculateGoalStats } = require('../services/goalStrategies');
 
 //! ==================== ROTTE PER GLI OBIETTIVI ====================
 
@@ -26,23 +27,13 @@ router.get('/goals/:id', async (req, res) => {
         // Recupera tutti i check-in per questo obiettivo
         const checkIns = await CheckIn.find({ goalId: req.params.id }).sort({ date: -1 });
         
-        // Calcola il progresso totale
-        const totalProgress = checkIns.reduce((sum, ci) => sum + ci.value, 0);
-        
-        // Calcola la percentuale (solo per obiettivi target)
-        let percentage = 0;
-        if (goal.type === 'target' && goal.targetValue > 0) {
-            percentage = Math.min(100, Math.round((totalProgress / goal.targetValue) * 100));
-        }
+        // Usa la strategy per calcolare le statistiche
+        const stats = calculateGoalStats(goal, checkIns);
         
         res.json({
             goal: goal.toJSON(),
             checkIns,
-            stats: {
-                totalProgress,
-                percentage,
-                checkInsCount: checkIns.length
-            }
+            stats
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -131,25 +122,20 @@ router.post('/goals/:goalId/checkins', async (req, res) => {
     try {
         const newCheckIn = await checkIn.save();
         
-        // Calcola e ritorna anche il nuovo progresso totale
+        // Calcola le nuove statistiche usando la strategy
         const allCheckIns = await CheckIn.find({ goalId: req.params.goalId });
-        const totalProgress = allCheckIns.reduce((sum, ci) => sum + ci.value, 0);
-        
-        let percentage = 0;
-        if (goal.type === 'target' && goal.targetValue > 0) {
-            percentage = Math.min(100, Math.round((totalProgress / goal.targetValue) * 100));
-        }
+        const stats = calculateGoalStats(goal, allCheckIns);
 
         // Se l'obiettivo è raggiunto, aggiornalo automaticamente
-        if (percentage >= 100 && goal.status === 'active') {
+        if (stats.isCompleted && goal.status === 'active') {
             await Goal.findByIdAndUpdate(req.params.goalId, { status: 'completed' });
         }
 
         res.status(201).json({
             checkIn: newCheckIn,
             stats: {
-                totalProgress,
-                percentage
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage
             }
         });
     } catch (error) {
@@ -179,19 +165,17 @@ router.get('/goals-stats', async (req, res) => {
         const activeGoals = goals.filter(g => g.status === 'active').length;
         const completedGoals = goals.filter(g => g.status === 'completed').length;
         
-        // Calcola progresso per ogni goal attivo
+        // Calcola progresso per ogni goal attivo usando la strategy
         const goalsWithProgress = await Promise.all(
             goals.filter(g => g.status === 'active').map(async (goal) => {
                 const goalCheckIns = checkIns.filter(ci => ci.goalId.toString() === goal._id.toString());
-                const totalProgress = goalCheckIns.reduce((sum, ci) => sum + ci.value, 0);
-                let percentage = 0;
-                if (goal.type === 'target' && goal.targetValue > 0) {
-                    percentage = Math.min(100, Math.round((totalProgress / goal.targetValue) * 100));
-                }
+                const stats = calculateGoalStats(goal, goalCheckIns);
+                
                 return {
                     ...goal.toJSON(),
-                    totalProgress,
-                    percentage
+                    totalProgress: stats.totalProgress,
+                    percentage: stats.percentage,
+                    ...(goal.type === 'habit' && { streak: stats.streak })
                 };
             })
         );

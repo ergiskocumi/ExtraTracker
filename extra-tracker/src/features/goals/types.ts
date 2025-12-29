@@ -39,7 +39,7 @@ export interface CreateGoalDTO {
     category: GoalCategory;
     type: GoalType;
     targetValue?: number;
-    unit: string;
+    unit?: string;
     frequency?: number;
     deadline: string;
     description?: string;
@@ -87,11 +87,13 @@ export interface GoalStats {
 export interface GoalWithProgress extends Goal {
     totalProgress: number;
     percentage: number;
+    currentValue?: number;  // Valore corrente per target goals
+    streak?: number;        // Streak per habit goals
 }
 
 // Risposta dettaglio singolo goal
 export interface GoalDetailResponse {
-    goal: Goal;
+    goal: GoalWithProgress;  // Changed from Goal to GoalWithProgress
     checkIns: CheckIn[];
     stats: GoalStats;
 }

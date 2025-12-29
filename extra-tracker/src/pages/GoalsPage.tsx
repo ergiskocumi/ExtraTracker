@@ -1,73 +1,74 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useGoals } from '../context/GoalsContext';
-import { GOAL_CATEGORIES, MOOD_OPTIONS } from '../features/goals/types';
-import type { GoalWithProgress, CreateCheckInDTO, Mood } from '../features/goals/types';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { GOAL_CATEGORIES } from '../features/goals/types';
 import { GoalWizard } from '../features/goals/GoalWizard';
-
-// Icona Target
-const TargetIcon = ({ size = 20 }: { size?: number }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="6" />
-        <circle cx="12" cy="12" r="2" />
-    </svg>
-);
-
-// Icona Plus
-const PlusIcon = ({ size = 20 }: { size?: number }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-);
-
-// Icona Trash
-const TrashIcon = ({ size = 20 }: { size?: number }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <polyline points="3 6 5 6 21 6" />
-        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    </svg>
-);
+import { 
+    FiTarget, 
+    FiPlus, 
+    FiSearch, 
+    FiFilter, 
+    FiTrendingUp,
+    FiCalendar,
+    FiCheckCircle,
+    FiActivity,
+    FiArrowRight,
+    FiDollarSign,
+    FiHeart,
+    FiBook,
+    FiBriefcase,
+    FiUser
+} from 'react-icons/fi';
 
 export const GoalsPage = () => {
-    const { goals, loading, error, stats, addCheckIn, deleteGoal } = useGoals();
+    const { goals, loading, error, stats } = useGoals();
     const [showWizard, setShowWizard] = useState(false);
-    const [checkInGoalId, setCheckInGoalId] = useState<string | null>(null);
-    const [checkInValue, setCheckInValue] = useState('');
-    const [checkInMood, setCheckInMood] = useState<Mood>(2);
-    const [checkInNotes, setCheckInNotes] = useState('');
+    
+    // Filtri e ordinamento
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterCategory, setFilterCategory] = useState<string>('all');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'completed'>('active');
+    const [sortBy, setSortBy] = useState<'percentage' | 'deadline' | 'recent'>('percentage');
 
-    // Gestisce il submit del check-in
-    const handleCheckInSubmit = async (goalId: string) => {
-        if (!checkInValue || isNaN(Number(checkInValue))) return;
-
-        const checkInData: CreateCheckInDTO = {
-            value: Number(checkInValue),
-            mood: checkInMood,
-            notes: checkInNotes || undefined,
-        };
-
-        try {
-            await addCheckIn(goalId, checkInData);
-            // Reset form
-            setCheckInGoalId(null);
-            setCheckInValue('');
-            setCheckInMood(2);
-            setCheckInNotes('');
-        } catch (err) {
-            alert('Errore nel salvataggio del progresso');
-        }
-    };
-
-    // Gestisce l'eliminazione di un goal
-    const handleDelete = async (goal: GoalWithProgress) => {
-        if (confirm(`Eliminare "${goal.title}" e tutti i suoi progressi?`)) {
-            try {
-                await deleteGoal(goal.id);
-            } catch (err) {
-                alert('Errore nell\'eliminazione');
+    // Logica di filtraggio e ordinamento
+    const filteredAndSortedGoals = goals
+        .filter(goal => {
+            const matchesSearch = searchQuery === '' || 
+                goal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (goal.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+            
+            const matchesCategory = filterCategory === 'all' || goal.category === filterCategory;
+            
+            const matchesStatus = filterStatus === 'all' || 
+                (filterStatus === 'completed' && goal.status === 'completed') ||
+                (filterStatus === 'active' && goal.status !== 'completed');
+            
+            return matchesSearch && matchesCategory && matchesStatus;
+        })
+        .sort((a, b) => {
+            switch(sortBy) {
+                case 'percentage':
+                    return b.percentage - a.percentage;
+                case 'deadline':
+                    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+                case 'recent':
+                    return new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime();
+                default:
+                    return 0;
             }
-        }
+        });
+
+    // Helper per icone categorie
+    const getCategoryIcon = (category: string): React.ReactElement => {
+        const icons: Record<string, React.ReactElement> = {
+            finance: <FiDollarSign className="w-5 h-5" />,
+            health: <FiHeart className="w-5 h-5" />,
+            learning: <FiBook className="w-5 h-5" />,
+            career: <FiBriefcase className="w-5 h-5" />,
+            personal: <FiUser className="w-5 h-5" />,
+        };
+        return icons[category] || <FiTarget className="w-5 h-5" />;
     };
 
     // Calcola giorni rimanenti
@@ -78,223 +79,324 @@ export const GoalsPage = () => {
         return diff;
     };
 
+    // Determina colore progresso
+    const getProgressColor = (percentage: number) => {
+        if (percentage >= 75) return 'from-emerald-500 to-green-600';
+        if (percentage >= 50) return 'from-blue-500 to-indigo-600';
+        if (percentage >= 25) return 'from-yellow-500 to-orange-600';
+        return 'from-gray-500 to-slate-600';
+    };
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <div className="w-8 h-8 border-2 rounded-full border-primary-500 border-t-transparent animate-spin"></div>
+            <div className="flex items-center justify-center h-screen">
+                <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-12 h-12 border-4 rounded-full border-primary-500 border-t-transparent"
+                />
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="p-4 text-center rounded-lg bg-red-500/20 text-red-400">
-                {error}
+            <div className="p-6 mx-auto mt-8 text-center bg-red-500/10 border border-red-500/20 rounded-xl max-w-md">
+                <p className="text-red-400">{error}</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 animate-slide-up">
-            {/* HEADER */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h2 className="mb-1 text-3xl font-bold text-white">🎯 Obiettivi</h2>
-                    <p className="text-white/50">Traccia i tuoi progressi verso i tuoi goal</p>
-                </div>
-
-                <button
-                    onClick={() => setShowWizard(true)}
-                    className="flex items-center gap-2 btn-primary"
-                >
-                    <PlusIcon size={18} />
-                    Nuovo Obiettivo
-                </button>
-            </div>
-
-            {/* STATISTICHE RAPIDE */}
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div className="p-4 card-glass">
-                    <div className="text-2xl font-bold text-white">{stats.totalGoals}</div>
-                    <div className="text-sm text-white/50">Totale Obiettivi</div>
-                </div>
-                <div className="p-4 card-glass">
-                    <div className="text-2xl font-bold text-primary-400">{stats.activeGoals}</div>
-                    <div className="text-sm text-white/50">Attivi</div>
-                </div>
-                <div className="p-4 card-glass">
-                    <div className="text-2xl font-bold text-green-400">{stats.completedGoals}</div>
-                    <div className="text-sm text-white/50">Completati</div>
-                </div>
-                <div className="p-4 card-glass">
-                    <div className="text-2xl font-bold text-yellow-400">{stats.totalCheckIns}</div>
-                    <div className="text-sm text-white/50">Check-in Totali</div>
-                </div>
-            </div>
-
-            {/* LISTA OBIETTIVI */}
-            {goals.length === 0 ? (
-                <div className="py-12 text-center card-glass">
-                    <TargetIcon size={48} />
-                    <h3 className="mt-4 text-lg font-medium text-white">Nessun obiettivo attivo</h3>
-                    <p className="mt-2 text-white/50">Crea il tuo primo obiettivo per iniziare a tracciare i progressi!</p>
-                    <button
+        <div className="min-h-screen pb-12">
+            {/* HEADER SECTION */}
+            <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8"
+            >
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 className="text-4xl font-bold text-white mb-2">Goals Dashboard</h1>
+                        <p className="text-white/60">Track your objectives and measure progress</p>
+                    </div>
+                    
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => setShowWizard(true)}
-                        className="mt-4 btn-primary"
+                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all"
                     >
-                        Crea Obiettivo
-                    </button>
+                        <FiPlus className="w-5 h-5" />
+                        New Goal
+                    </motion.button>
                 </div>
-            ) : (
-                <div className="space-y-4">
-                    {goals.map((goal) => {
-                        const category = GOAL_CATEGORIES[goal.category];
-                        const daysRemaining = getDaysRemaining(goal.deadline);
-                        const isExpired = daysRemaining < 0;
-                        const isUrgent = daysRemaining <= 7 && daysRemaining >= 0;
 
-                        return (
-                            <div key={goal.id} className="p-5 card-glass">
-                                <div className="flex items-start justify-between gap-4">
-                                    {/* Info Goal */}
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-xl">{category.emoji}</span>
-                                            <h3 className="text-lg font-semibold text-white">{goal.title}</h3>
-                                            <span className={`px-2 py-0.5 text-xs rounded-full ${category.color} bg-white/10`}>
-                                                {category.label}
-                                            </span>
-                                        </div>
+                {/* STATISTICS CARDS */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    {[
+                        { label: 'Total Goals', value: stats.totalGoals, icon: FiTarget, color: 'blue' },
+                        { label: 'Active', value: stats.activeGoals, icon: FiActivity, color: 'purple' },
+                        { label: 'Completed', value: stats.completedGoals, icon: FiCheckCircle, color: 'green' },
+                        { label: 'Check-ins', value: stats.totalCheckIns, icon: FiTrendingUp, color: 'orange' },
+                    ].map((stat, idx) => (
+                        <motion.div
+                            key={stat.label}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                            className="relative overflow-hidden bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all group"
+                        >
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-white/60 mb-1">{stat.label}</p>
+                                    <p className="text-3xl font-bold text-white">{stat.value}</p>
+                                </div>
+                                <div className={`p-3 rounded-xl bg-${stat.color}-500/10 text-${stat.color}-400 group-hover:scale-110 transition-transform`}>
+                                    <stat.icon className="w-6 h-6" />
+                                </div>
+                            </div>
+                            <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-${stat.color}-500 to-${stat.color}-600`} />
+                        </motion.div>
+                    ))}
+                </div>
 
-                                        {goal.description && (
-                                            <p className="mb-3 text-sm text-white/50">{goal.description}</p>
-                                        )}
+                {/* FILTERS & SEARCH */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-6"
+                >
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        {/* Search */}
+                        <div className="md:col-span-5 relative">
+                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 w-5 h-5" />
+                            <input
+                                type="text"
+                                placeholder="Search goals..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                            />
+                        </div>
 
-                                        {/* Barra Progresso (solo per target) */}
-                                        {goal.type === 'target' && goal.targetValue && (
-                                            <div className="mb-3">
-                                                <div className="flex justify-between mb-1 text-sm">
-                                                    <span className="text-white/60">
-                                                        {goal.totalProgress} / {goal.targetValue} {goal.unit}
-                                                    </span>
-                                                    <span className="font-medium text-primary-400">
-                                                        {goal.percentage}%
-                                                    </span>
+                        {/* Category Filter */}
+                        <div className="md:col-span-3 relative">
+                            <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 w-5 h-5" />
+                            <select
+                                value={filterCategory}
+                                onChange={(e) => setFilterCategory(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                            >
+                                <option value="all">All Categories</option>
+                                {Object.entries(GOAL_CATEGORIES).map(([key, data]) => (
+                                    <option key={key} value={key}>{data.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Status Filter */}
+                        <div className="md:col-span-2">
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value as any)}
+                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+
+                        {/* Sort */}
+                        <div className="md:col-span-2">
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value as any)}
+                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                            >
+                                <option value="percentage">Progress</option>
+                                <option value="deadline">Deadline</option>
+                                <option value="recent">Recent</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Active Filters Info */}
+                    {(searchQuery || filterCategory !== 'all' || filterStatus !== 'active') && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="mt-4 pt-4 border-t border-white/10"
+                        >
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-white/60">
+                                    Showing <span className="font-semibold text-primary-400">{filteredAndSortedGoals.length}</span> of {goals.length} goals
+                                </span>
+                                <button
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setFilterCategory('all');
+                                        setFilterStatus('active');
+                                    }}
+                                    className="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                                >
+                                    Clear Filters
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </motion.div>
+            </motion.div>
+
+            {/* GOALS LIST */}
+            <AnimatePresence mode="popLayout">
+                {filteredAndSortedGoals.length === 0 ? (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="py-20 text-center"
+                    >
+                        <div className="inline-flex items-center justify-center w-20 h-20 mb-6 rounded-full bg-white/5">
+                            <FiTarget className="w-10 h-10 text-white/40" />
+                        </div>
+                        <h3 className="text-2xl font-semibold text-white mb-2">
+                            {goals.length === 0 ? 'No goals yet' : 'No goals found'}
+                        </h3>
+                        <p className="text-white/60 mb-6">
+                            {goals.length === 0 
+                                ? 'Create your first goal to start tracking progress' 
+                                : 'Try adjusting your filters'}
+                        </p>
+                        {goals.length === 0 && (
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => setShowWizard(true)}
+                                className="px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium"
+                            >
+                                Create Your First Goal
+                            </motion.button>
+                        )}
+                    </motion.div>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {filteredAndSortedGoals.map((goal, index) => {
+                            const category = GOAL_CATEGORIES[goal.category];
+                            const daysRemaining = getDaysRemaining(goal.deadline);
+                            const isExpired = daysRemaining < 0;
+                            const isUrgent = daysRemaining <= 7 && daysRemaining >= 0;
+
+                            return (
+                                <motion.div
+                                    key={goal.id}
+                                    layout
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    transition={{ delay: index * 0.05 }}
+                                    whileHover={{ y: -4 }}
+                                    className="group"
+                                >
+                                    <Link to={`/goals/${goal.id}`}>
+                                        <div className="relative overflow-hidden bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all h-full">
+                                            {/* Header */}
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2.5 rounded-xl ${category.color} bg-white/5`}>
+                                                        {getCategoryIcon(goal.category)}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-lg font-semibold text-white group-hover:text-primary-400 transition-colors">
+                                                            {goal.title}
+                                                        </h3>
+                                                        <span className={`text-xs font-medium px-2 py-1 rounded-md ${category.color} bg-white/5`}>
+                                                            {category.label}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                                                    <div
-                                                        className="h-full transition-all duration-500 rounded-full bg-gradient-to-r from-primary-500 to-primary-400"
-                                                        style={{ width: `${goal.percentage}%` }}
+                                                
+                                                <FiArrowRight className="w-5 h-5 text-white/40 group-hover:text-primary-400 group-hover:translate-x-1 transition-all" />
+                                            </div>
+
+                                            {/* Description */}
+                                            {goal.description && (
+                                                <p className="text-sm text-white/60 mb-4 line-clamp-2">
+                                                    {goal.description}
+                                                </p>
+                                            )}
+
+                                            {/* Progress Bar */}
+                                            <div className="mb-4">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-sm font-medium text-white/80">Progress</span>
+                                                    <span className="text-sm font-bold text-white">{goal.percentage.toFixed(0)}%</span>
+                                                </div>
+                                                <div className="relative h-2 bg-white/5 rounded-full overflow-hidden">
+                                                    <motion.div
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${goal.percentage}%` }}
+                                                        transition={{ duration: 1, ease: "easeOut", delay: index * 0.05 }}
+                                                        className={`h-full bg-gradient-to-r ${getProgressColor(goal.percentage)} rounded-full`}
                                                     />
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* Info Scadenza */}
-                                        <div className="flex items-center gap-4 text-sm">
-                                            <span className={`${isExpired ? 'text-red-400' : isUrgent ? 'text-yellow-400' : 'text-white/50'}`}>
-                                                {isExpired
-                                                    ? `⚠️ Scaduto da ${Math.abs(daysRemaining)} giorni`
-                                                    : `📅 ${daysRemaining} giorni rimanenti`}
-                                            </span>
-                                            {goal.type === 'habit' && goal.frequency && (
-                                                <span className="text-white/50">
-                                                    🔄 {goal.frequency}x / settimana
-                                                </span>
+                                            {/* Stats Footer */}
+                                            <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <FiCalendar className="w-4 h-4 text-white/40" />
+                                                    <span className={`${isExpired ? 'text-red-400' : isUrgent ? 'text-yellow-400' : 'text-white/60'}`}>
+                                                        {isExpired 
+                                                            ? `Expired ${Math.abs(daysRemaining)} days ago`
+                                                            : `${daysRemaining} days left`
+                                                        }
+                                                    </span>
+                                                </div>
+
+                                                {goal.type === 'target' && goal.targetValue && (
+                                                    <div className="text-sm text-white/60">
+                                                        <span className="font-semibold text-white">{goal.currentValue}</span>
+                                                        <span className="mx-1">/</span>
+                                                        <span>{goal.targetValue}</span>
+                                                        {goal.unit && <span className="ml-1">{goal.unit}</span>}
+                                                    </div>
+                                                )}
+
+                                                {goal.type === 'habit' && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <FiActivity className="w-4 h-4 text-primary-400" />
+                                                        <span className="text-sm font-medium text-white">
+                                                            {goal.streak || 0} day streak
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Status Badge */}
+                                            {goal.status === 'completed' && (
+                                                <div className="absolute top-4 right-4">
+                                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-full">
+                                                        <FiCheckCircle className="w-4 h-4 text-green-400" />
+                                                        <span className="text-xs font-medium text-green-400">Completed</span>
+                                                    </div>
+                                                </div>
                                             )}
                                         </div>
-                                    </div>
+                                    </Link>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                )}
+            </AnimatePresence>
 
-                                    {/* Azioni */}
-                                    <div className="flex items-center gap-2">
-                                        {/* Bottone Check-in */}
-                                        <button
-                                            onClick={() => setCheckInGoalId(checkInGoalId === goal.id ? null : goal.id)}
-                                            className="flex items-center gap-1 px-3 py-2 text-sm transition-colors rounded-lg bg-primary-500/20 text-primary-400 hover:bg-primary-500/30"
-                                        >
-                                            <PlusIcon size={16} />
-                                            Check-in
-                                        </button>
-
-                                        {/* Bottone Elimina */}
-                                        <button
-                                            onClick={() => handleDelete(goal)}
-                                            className="p-2 transition-colors rounded-lg text-red-400/60 hover:text-red-400 hover:bg-red-500/20"
-                                        >
-                                            <TrashIcon size={18} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Form Check-in (espandibile) */}
-                                {checkInGoalId === goal.id && (
-                                    <div className="pt-4 mt-4 border-t border-white/10">
-                                        <div className="flex flex-wrap items-end gap-4">
-                                            {/* Valore */}
-                                            <div className="flex-1 min-w-[120px]">
-                                                <label className="block mb-1 text-sm text-white/60">
-                                                    Progresso ({goal.unit})
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    value={checkInValue}
-                                                    onChange={(e) => setCheckInValue(e.target.value)}
-                                                    placeholder={`Es: ${goal.type === 'habit' ? '1' : '50'}`}
-                                                    className="w-full input"
-                                                />
-                                            </div>
-
-                                            {/* Mood */}
-                                            <div>
-                                                <label className="block mb-1 text-sm text-white/60">Come ti senti?</label>
-                                                <div className="flex gap-2">
-                                                    {([1, 2, 3] as Mood[]).map((mood) => (
-                                                        <button
-                                                            key={mood}
-                                                            onClick={() => setCheckInMood(mood)}
-                                                            className={`p-2 text-xl rounded-lg transition-colors ${
-                                                                checkInMood === mood
-                                                                    ? 'bg-primary-500/30 ring-2 ring-primary-500'
-                                                                    : 'bg-white/5 hover:bg-white/10'
-                                                            }`}
-                                                        >
-                                                            {MOOD_OPTIONS[mood].emoji}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Note */}
-                                            <div className="flex-1 min-w-[200px]">
-                                                <label className="block mb-1 text-sm text-white/60">Note (opzionale)</label>
-                                                <input
-                                                    type="text"
-                                                    value={checkInNotes}
-                                                    onChange={(e) => setCheckInNotes(e.target.value)}
-                                                    placeholder="Come è andata?"
-                                                    className="w-full input"
-                                                />
-                                            </div>
-
-                                            {/* Submit */}
-                                            <button
-                                                onClick={() => handleCheckInSubmit(goal.id)}
-                                                disabled={!checkInValue}
-                                                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                Salva
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* WIZARD MODALE */}
-            {showWizard && <GoalWizard onClose={() => setShowWizard(false)} />}
+            {/* WIZARD MODAL */}
+            <AnimatePresence>
+                {showWizard && <GoalWizard onClose={() => setShowWizard(false)} />}
+            </AnimatePresence>
         </div>
     );
 };
