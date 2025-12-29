@@ -116,4 +116,55 @@ router.get(
     authController.checkAuth
 );
 
+// ==========================================
+// EMAIL VERIFICATION ROUTES
+// ==========================================
+
+/**
+ * @route   POST /api/auth/verify-email
+ * @desc    Verifica indirizzo email con token
+ * @access  Public
+ */
+router.post(
+    '/verify-email',
+    authController.verifyEmail
+);
+
+/**
+ * @route   POST /api/auth/resend-verification
+ * @desc    Reinvia email di verifica
+ * @access  Private
+ */
+router.post(
+    '/resend-verification',
+    requireAuth,
+    authController.resendVerification
+);
+
+// ==========================================
+// PASSWORD RESET ROUTES
+// ==========================================
+
+/**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Richiedi reset password (invia email)
+ * @access  Public
+ */
+router.post(
+    '/forgot-password',
+    authLimiter, // Rate limit per prevenire spam
+    authController.forgotPassword
+);
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Completa reset password con nuovo password
+ * @access  Public
+ */
+router.post(
+    '/reset-password',
+    authLimiter,
+    authController.resetPassword
+);
+
 module.exports = router;

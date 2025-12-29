@@ -13,6 +13,8 @@
 const authService = require('../services/authService');
 const securityConfig = require('../config/security');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { emailService, generateToken, hashToken } = require('../services/emailService');
+const User = require('../models/User');
 
 /**
  * Helper per impostare i cookie di autenticazione
@@ -63,12 +65,25 @@ const clearAuthCookies = (res) => {
 const register = asyncHandler(async (req, res) => {
     const { user, accessToken, refreshToken } = await authService.register(req.body);
 
+    // Genera token di verifica email
+    const verificationToken = generateToken();
+    const hashedToken = hashToken(verificationToken);
+    
+    // Salva token hashato nel DB
+    await User.findByIdAndUpdate(user._id, {
+        emailVerificationToken: hashedToken,
+    });
+
+    // Invia email di verifica (non blocca la risposta)
+    emailService.sendVerificationEmail(user.email, verificationToken)
+        .catch(err => console.error('Errore invio email verifica:', err));
+
     // Imposta cookies sicuri
     setAuthCookies(res, accessToken, refreshToken);
 
     res.status(201).json({
         success: true,
-        message: 'Registrazione completata con successo',
+        message: 'Registrazione completata con successo. Controlla la tua email per verificare l\'account.',
         data: {
             user: {
                 id: user._id,
@@ -206,6 +221,236 @@ const checkAuth = asyncHandler(async (req, res) => {
     });
 });
 
+// ==========================================
+// VERIFICA EMAIL
+// ==========================================
+
+/**
+ * POST /api/auth/verify-email
+ * Verifica l'indirizzo email con il token
+ */
+const verifyEmail = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+
+    if (!token) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Token di verifica mancante',
+                code: 'MISSING_TOKEN',
+            },
+        });
+    }
+
+    // Hash del token per confronto
+    const hashedToken = hashToken(token);
+
+    // Trova utente con questo token
+    const user = await User.findOne({
+        emailVerificationToken: hashedToken,
+    }).select('+emailVerificationToken');
+
+    if (!user) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Token non valido o scaduto',
+                code: 'INVALID_TOKEN',
+            },
+        });
+    }
+
+    // Aggiorna utente
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    await user.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Email verificata con successo!',
+    });
+});
+
+/**
+ * POST /api/auth/resend-verification
+ * Reinvia email di verifica
+ */
+const resendVerification = asyncHandler(async (req, res) => {
+    const userId = req.user?.id;
+
+    if (!userId) {
+        return res.status(401).json({
+            success: false,
+            error: {
+                message: 'Devi essere autenticato',
+                code: 'UNAUTHORIZED',
+            },
+        });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            error: {
+                message: 'Utente non trovato',
+                code: 'USER_NOT_FOUND',
+            },
+        });
+    }
+
+    if (user.isEmailVerified) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Email già verificata',
+                code: 'ALREADY_VERIFIED',
+            },
+        });
+    }
+
+    // Genera nuovo token
+    const verificationToken = generateToken();
+    const hashedToken = hashToken(verificationToken);
+
+    await User.findByIdAndUpdate(userId, {
+        emailVerificationToken: hashedToken,
+    });
+
+    // Invia email
+    await emailService.sendVerificationEmail(user.email, verificationToken);
+
+    res.status(200).json({
+        success: true,
+        message: 'Email di verifica inviata',
+    });
+});
+
+// ==========================================
+// RESET PASSWORD
+// ==========================================
+
+/**
+ * POST /api/auth/forgot-password
+ * Richiedi reset password
+ */
+const forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Email obbligatoria',
+                code: 'MISSING_EMAIL',
+            },
+        });
+    }
+
+    // Cerca utente (non rivelare se esiste o meno per sicurezza)
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    // Rispondi sempre con successo per non rivelare se l'email esiste
+    if (!user) {
+        return res.status(200).json({
+            success: true,
+            message: 'Se l\'email è registrata, riceverai le istruzioni per il reset.',
+        });
+    }
+
+    // Genera token con scadenza (1 ora)
+    const resetToken = generateToken();
+    const hashedToken = hashToken(resetToken);
+
+    await User.findByIdAndUpdate(user._id, {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: Date.now() + 60 * 60 * 1000, // 1 ora
+    });
+
+    // Invia email
+    try {
+        await emailService.sendPasswordResetEmail(user.email, resetToken);
+    } catch (error) {
+        // Se l'invio fallisce, pulisci il token
+        await User.findByIdAndUpdate(user._id, {
+            $unset: { passwordResetToken: 1, passwordResetExpires: 1 },
+        });
+        throw error;
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Se l\'email è registrata, riceverai le istruzioni per il reset.',
+    });
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Completa il reset password con nuovo password
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Token e nuova password obbligatori',
+                code: 'MISSING_FIELDS',
+            },
+        });
+    }
+
+    // Valida password (minimo 8 caratteri, 1 maiuscola, 1 numero)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(password)) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'La password deve contenere almeno 8 caratteri, una maiuscola e un numero',
+                code: 'WEAK_PASSWORD',
+            },
+        });
+    }
+
+    // Hash del token
+    const hashedToken = hashToken(token);
+
+    // Trova utente con token valido e non scaduto
+    const user = await User.findOne({
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { $gt: Date.now() },
+    }).select('+passwordResetToken +passwordResetExpires');
+
+    if (!user) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Token non valido o scaduto. Richiedi un nuovo reset.',
+                code: 'INVALID_TOKEN',
+            },
+        });
+    }
+
+    // Aggiorna password
+    const authService = require('../services/authService');
+    user.password = await authService.hashPassword(password);
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    user.refreshTokenHash = undefined; // Invalida sessioni esistenti
+    await user.save();
+
+    // Invia email di conferma
+    emailService.sendPasswordChangedEmail(user.email)
+        .catch(err => console.error('Errore invio email conferma:', err));
+
+    res.status(200).json({
+        success: true,
+        message: 'Password aggiornata con successo. Puoi effettuare il login.',
+    });
+});
+
 module.exports = {
     register,
     login,
@@ -214,4 +459,8 @@ module.exports = {
     getProfile,
     changePassword,
     checkAuth,
+    verifyEmail,
+    resendVerification,
+    forgotPassword,
+    resetPassword,
 };

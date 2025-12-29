@@ -337,5 +337,8 @@ class AuthService {
     }
 }
 
+// Crea singleton
+const authService = new AuthService();
+
 // Esporta singleton
-module.exports = new AuthService();
+module.exports = authService;
