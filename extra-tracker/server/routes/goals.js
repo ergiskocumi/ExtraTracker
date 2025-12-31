@@ -176,6 +176,50 @@ router.delete('/goals/:id', asyncHandler(async (req, res) => {
 // =========================================
 
 /**
+ * POST /api/goals/:goalId/quick-checkin
+ * Check-in rapido per habit/target senza body complesso
+ */
+router.post('/goals/:goalId/quick-checkin', asyncHandler(async (req, res) => {
+    const goal = await goalService.findById(req.tenantScope, req.params.goalId, {
+        throwIfNotFound: true,
+    });
+
+    const value = goal.type === 'habit' || goal.type === 'target' ? 1 : null;
+    if (value == null) {
+        return res.status(400).json({
+            success: false,
+            message: 'Tipo di obiettivo non supportato per quick check-in',
+        });
+    }
+
+    const checkIn = await checkInService.create(req.tenantScope, {
+        goalId: req.params.goalId,
+        date: new Date(),
+        value,
+    });
+
+    const allCheckIns = await checkInService.findByGoal(req.tenantScope, req.params.goalId);
+    const stats = calculateGoalStats(goal, allCheckIns);
+
+    if (stats.isCompleted && goal.status === 'active') {
+        await goalService.update(req.tenantScope, req.params.goalId, {
+            status: 'completed',
+        });
+    }
+
+    res.status(201).json({
+        success: true,
+        data: {
+            checkIn,
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+            },
+        },
+    });
+}));
+
+/**
  * GET /api/goals/:goalId/checkins
  * Lista check-in di un obiettivo
  */
@@ -222,6 +266,46 @@ router.post('/goals/:goalId/checkins', asyncHandler(async (req, res) => {
             stats: {
                 totalProgress: stats.totalProgress,
                 percentage: stats.percentage,
+            },
+        },
+    });
+}));
+
+/**
+ * POST /api/goals/:goalId/quick-checkin
+ * Quick Check-in - Endpoint leggero per "Fatto!" con un click
+ * Defaults: value=1, mood=2, date=now
+ */
+router.post('/goals/:goalId/quick-checkin', asyncHandler(async (req, res) => {
+    const value = req.body.value ?? 1;
+    
+    const checkIn = await checkInService.create(req.tenantScope, {
+        goalId: req.params.goalId,
+        date: new Date(),
+        value: value,
+        mood: 2, // Neutral di default
+        notes: '',
+    });
+    
+    const goal = await goalService.findById(req.tenantScope, req.params.goalId);
+    const allCheckIns = await checkInService.findByGoal(req.tenantScope, req.params.goalId);
+    const stats = calculateGoalStats(goal, allCheckIns);
+
+    // Se completato, aggiorna stato
+    if (stats.isCompleted && goal.status === 'active') {
+        await goalService.update(req.tenantScope, req.params.goalId, {
+            status: 'completed',
+        });
+    }
+
+    res.status(201).json({
+        success: true,
+        data: {
+            checkIn,
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+                streak: stats.streak,
             },
         },
     });

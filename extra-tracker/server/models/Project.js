@@ -43,6 +43,21 @@ const projectSchema = new mongoose.Schema({
         required: [true, 'La tariffa oraria è obbligatoria'],
         min: [0, 'La tariffa non può essere negativa'],
     },
+
+    // Ore stimate per completare il progetto (serve per il controllo salute)
+    estimatedHours: {
+        type: Number,
+        min: [0, 'Le ore stimate non possono essere negative'],
+        default: 0,
+    },
+
+    // Progresso manuale (0-100%) - serve per calcolare la Velocity reale
+    progress: {
+        type: Number,
+        min: [0, 'Il progresso non può essere negativo'],
+        max: [100, 'Il progresso non può superare 100'],
+        default: 0,
+    },
     
     // Stato del progetto
     status: {

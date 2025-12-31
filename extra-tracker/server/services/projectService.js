@@ -22,6 +22,22 @@ const Project = require('../models/Project');
 const WorkLog = require('../models/WorkLog');
 const AppError = require('../utils/AppError');
 
+const MINUTES_IN_HOUR = 60;
+const HEALTH_CONFIG = {
+    warningUsage: 0.75,
+    criticalUsage: 1.1,
+    inactivityDays: 14,
+};
+
+const EMPTY_STATS = {
+    projectId: null,
+    totalMinutes: 0,
+    totalHours: 0,
+    totalEarnings: 0,
+    logCount: 0,
+    lastLog: null,
+};
+
 class ProjectService extends BaseService {
     constructor() {
         super(Project, {
@@ -55,18 +71,68 @@ class ProjectService extends BaseService {
     }
 
     /**
-     * Ottiene statistiche per ogni progetto.
-     * 
-     * 🔒 SICUREZZA ESPLICITA: Filtro per user nelle aggregazioni
+     * Ritorna i progetti arricchiti con metriche di salute.
+     */
+    async findWithHealth(tenantScope) {
+        const merged = await this._mergeProjectsWithStats(tenantScope);
+        return merged.map(({ project, metrics }) => ({
+            ...project,
+            metrics,
+        }));
+    }
+
+    /**
+     * Ottiene statistiche e metriche per dashboard o widget.
      */
     async getProjectStats(tenantScope) {
+        const merged = await this._mergeProjectsWithStats(tenantScope);
+        return merged.map(({ project, metrics, stats }) => ({
+            projectId: project.id,
+            projectName: project.name,
+            projectCode: project.code,
+            rate: project.rate,
+            estimatedHours: project.estimatedHours || 0,
+            description: project.description,
+            status: project.status,
+            color: project.color,
+            stats: {
+                ...stats,
+                totalHours: stats.totalMinutes / MINUTES_IN_HOUR,
+            },
+            metrics,
+        }));
+    }
+
+    // =========================================
+    // PRIVATE HELPERS
+    // =========================================
+
+    async _mergeProjectsWithStats(tenantScope) {
+        const [projects, stats] = await Promise.all([
+            this.find(tenantScope),
+            this._aggregateWorklogsByProject(tenantScope),
+        ]);
+
+        const statsMap = new Map(
+            stats.map(stat => [String(stat.projectId), stat])
+        );
+
+        return projects.map(doc => {
+            const project = doc.toObject({ virtuals: true });
+            project.id = project.id || String(project._id);
+            delete project._id;
+            delete project.user;
+            const projectStats = statsMap.get(String(project.id)) || { ...EMPTY_STATS, projectId: project.id };
+            const metrics = this._buildHealthSnapshot(project, projectStats);
+            return { project, stats: projectStats, metrics };
+        });
+    }
+
+    async _aggregateWorklogsByProject(tenantScope) {
         const userId = this._getUserId(tenantScope);
-        
-        // 🔒 SICUREZZA: Filtro esplicito per user
-        const stats = await WorkLog.aggregate([
-            // PRIMA DI TUTTO: filtro per user
+
+        return WorkLog.aggregate([
             { $match: { user: userId } },
-            // Raggruppa per progetto
             {
                 $group: {
                     _id: '$projectId',
@@ -75,39 +141,151 @@ class ProjectService extends BaseService {
                     lastLog: { $max: '$date' },
                 },
             },
-            // Join con i progetti
-            {
-                $lookup: {
-                    from: 'projects',
-                    localField: '_id',
-                    foreignField: '_id',
-                    as: 'project',
-                },
-            },
-            { $unwind: '$project' },
-            // Proietta i campi finali
             {
                 $project: {
+                    _id: 0,
                     projectId: '$_id',
-                    projectName: '$project.name',
-                    projectCode: '$project.code',
-                    rate: '$project.rate',
                     totalMinutes: 1,
-                    totalHours: { $divide: ['$totalMinutes', 60] },
                     logCount: 1,
                     lastLog: 1,
-                    totalEarnings: {
-                        $multiply: [
-                            { $divide: ['$totalMinutes', 60] },
-                            '$project.rate',
-                        ],
-                    },
                 },
             },
-            { $sort: { totalMinutes: -1 } },
         ]);
+    }
 
-        return stats;
+    /**
+     * Costruisce lo snapshot di salute del progetto basandosi su:
+     * - Ore loggatte (totalHours)
+     * - Ore stimate (estimatedHours)
+     * - Progresso dichiarato (progress %) - serve per calcolare la velocity reale
+     * 
+     * FORMULA VELOCITY:
+     * Se progress > 0: velocity = totalHours / (progress / 100)
+     * Significa: "quante ore ci metto per completare l'1%"
+     * 
+     * projectedHours = velocity * 100 (proiezione finale)
+     * 
+     * HEALTH STATUS:
+     * 🟢 Healthy: projectedHours <= estimatedHours
+     * 🟡 Warning: projectedHours > estimatedHours ma < estimatedHours * 1.2 (entro 20%)
+     * 🔴 Critical: projectedHours > estimatedHours * 1.2 (oltre 20%)
+     */
+    _buildHealthSnapshot(project, stats) {
+        const totalHours = stats.totalMinutes > 0
+            ? stats.totalMinutes / MINUTES_IN_HOUR
+            : 0;
+        const rate = project.rate || 0;
+        const estimatedHours = project.estimatedHours || 0;
+        const progress = project.progress || 0;
+        const totalEarnings = totalHours * rate;
+        
+        // Calcolo Velocity basata sul progresso dichiarato
+        // velocity = ore spese per fare progress%, proiezione = velocity * 100
+        let velocity = null;
+        let projectedHours = null;
+        let overrunHours = null;
+        
+        if (progress > 0 && totalHours > 0) {
+            velocity = totalHours / (progress / 100); // ore per 1%
+            projectedHours = Math.round(velocity * 100);
+            if (estimatedHours > 0) {
+                overrunHours = projectedHours - estimatedHours;
+            }
+        }
+        
+        // Budget usage basato su ore stimate
+        const budgetUsagePercent = estimatedHours > 0 
+            ? Math.round((totalHours / estimatedHours) * 100)
+            : (totalHours > 0 ? 100 : 0);
+            
+        const hoursRemaining = estimatedHours > 0 
+            ? Math.max(estimatedHours - totalHours, 0) 
+            : null;
+        
+        // Date tracking
+        const now = new Date();
+        const lastLogDate = stats.lastLog ? new Date(stats.lastLog) : null;
+        const daysSinceLastLog = lastLogDate
+            ? Math.floor((now - lastLogDate) / (1000 * 60 * 60 * 24))
+            : null;
+
+        // === CALCOLO HEALTH STATUS ===
+        let healthStatus = 'unknown';
+        
+        if (project.status === 'completed') {
+            healthStatus = 'healthy';
+        } else if (estimatedHours <= 0 || progress <= 0) {
+            // Senza stima o progresso, non posso calcolare nulla
+            healthStatus = totalHours > 0 ? 'warning' : 'unknown';
+        } else if (projectedHours !== null) {
+            // Ho dati sufficienti per calcolare la proiezione
+            const threshold20Percent = estimatedHours * 1.2;
+            
+            if (projectedHours <= estimatedHours) {
+                healthStatus = 'healthy'; // 🟢 In linea o in anticipo
+            } else if (projectedHours <= threshold20Percent) {
+                healthStatus = 'warning'; // 🟡 Sforamento < 20%
+            } else {
+                healthStatus = 'critical'; // 🔴 Sforamento > 20%
+            }
+        }
+
+        // Inattività prolungata peggiora lo stato
+        if (daysSinceLastLog != null && daysSinceLastLog > HEALTH_CONFIG.inactivityDays) {
+            if (healthStatus === 'healthy') healthStatus = 'warning';
+        }
+
+        // === VELOCITY MESSAGE ===
+        let velocityMessage = 'Nessuna attività registrata';
+        
+        if (stats.logCount > 0) {
+            if (project.status === 'completed') {
+                velocityMessage = '✅ Progetto completato, ottimo lavoro!';
+            } else if (progress <= 0) {
+                velocityMessage = '⚙️ Imposta il progresso % per attivare il monitoraggio';
+            } else if (estimatedHours <= 0) {
+                velocityMessage = '⚙️ Imposta le ore stimate per vedere le proiezioni';
+            } else if (projectedHours !== null) {
+                switch (healthStatus) {
+                    case 'healthy':
+                        if (projectedHours < estimatedHours) {
+                            const saved = estimatedHours - projectedHours;
+                            velocityMessage = `✅ Ottimo ritmo! Finirai ${saved}h in anticipo sulla stima`;
+                        } else {
+                            velocityMessage = '✅ In linea con la stima, continua così!';
+                        }
+                        break;
+                    case 'warning':
+                        velocityMessage = `⚠️ A questo ritmo, sforerai di ~${Math.round(overrunHours)}h`;
+                        break;
+                    case 'critical':
+                        velocityMessage = `🔴 CRITICO: Proiezione ${projectedHours}h vs stima ${estimatedHours}h (+${Math.round(overrunHours)}h)`;
+                        break;
+                }
+            }
+            
+            // Override se progetto fermo
+            if (daysSinceLastLog != null && daysSinceLastLog > HEALTH_CONFIG.inactivityDays) {
+                velocityMessage = `⏸️ Progetto fermo da ${daysSinceLastLog} giorni`;
+            }
+        }
+
+        return {
+            totalMinutes: stats.totalMinutes,
+            totalHours,
+            totalEarnings,
+            logCount: stats.logCount,
+            lastLog: stats.lastLog,
+            progress,
+            budgetUsagePercent,
+            velocity,
+            projectedHours,
+            overrunHours,
+            hoursRemaining,
+            healthStatus,
+            velocityMessage,
+            daysSinceLastLog,
+        };
     }
 
     // =========================================

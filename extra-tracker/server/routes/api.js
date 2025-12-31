@@ -38,7 +38,7 @@ router.use(tenantContext({ required: true }));
  * Lista tutti i progetti dell'utente corrente
  */
 router.get('/projects', asyncHandler(async (req, res) => {
-    const projects = await projectService.find(req.tenantScope);
+    const projects = await projectService.findWithHealth(req.tenantScope);
     res.json({ success: true, data: projects });
 }));
 
@@ -65,6 +65,8 @@ router.post('/projects', asyncHandler(async (req, res) => {
         code: req.body.code,
         description: req.body.description,
         rate: req.body.rate,
+        estimatedHours: req.body.estimatedHours,
+        progress: req.body.progress,
         status: req.body.status,
         color: req.body.color,
     });
