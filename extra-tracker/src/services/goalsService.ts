@@ -8,6 +8,7 @@ import type {
     GoalDetailResponse,
     CheckInResponse,
     GoalsDashboardStats,
+    MilestoneToggleResponse,
 } from '../features/goals/types';
 
 /**
@@ -87,6 +88,23 @@ const goalsService = {
             }
         } catch (error) {
             console.error(`Failed to delete goal ${id}:`, error);
+            throw error;
+        }
+    },
+
+    // ==================== MILESTONES ====================
+
+    /**
+     * Toggle isCompleted di una specifica milestone
+     */
+    async toggleMilestone(goalId: string, milestoneId: string): Promise<MilestoneToggleResponse> {
+        try {
+            const response = await apiClient.patch<MilestoneToggleResponse>(
+                `/goals/${goalId}/milestones/${milestoneId}/toggle`
+            );
+            return unwrap(response, `Errore nel toggle milestone ${milestoneId}`);
+        } catch (error) {
+            console.error(`Failed to toggle milestone ${milestoneId}:`, error);
             throw error;
         }
     },

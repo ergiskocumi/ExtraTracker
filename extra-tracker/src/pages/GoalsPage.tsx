@@ -18,7 +18,8 @@ import {
     FiHeart,
     FiBook,
     FiBriefcase,
-    FiUser
+    FiUser,
+    FiFlag
 } from 'react-icons/fi';
 
 export const GoalsPage = () => {
@@ -101,7 +102,7 @@ export const GoalsPage = () => {
 
     if (error) {
         return (
-            <div className="p-6 mx-auto mt-8 text-center bg-red-500/10 border border-red-500/20 rounded-xl max-w-md">
+            <div className="max-w-md p-6 mx-auto mt-8 text-center border bg-red-500/10 border-red-500/20 rounded-xl">
                 <p className="text-red-400">{error}</p>
             </div>
         );
@@ -117,7 +118,7 @@ export const GoalsPage = () => {
             >
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h1 className="text-4xl font-bold text-white mb-2">Goals Dashboard</h1>
+                        <h1 className="mb-2 text-4xl font-bold text-white">Goals Dashboard</h1>
                         <p className="text-white/60">Track your objectives and measure progress</p>
                     </div>
                     
@@ -125,7 +126,7 @@ export const GoalsPage = () => {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => setShowWizard(true)}
-                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all"
+                        className="flex items-center gap-2 px-6 py-3 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl shadow-primary-500/25 hover:shadow-primary-500/40"
                     >
                         <FiPlus className="w-5 h-5" />
                         New Goal
@@ -133,7 +134,7 @@ export const GoalsPage = () => {
                 </div>
 
                 {/* STATISTICS CARDS */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-1 gap-4 mb-8 md:grid-cols-4">
                     {[
                         { label: 'Total Goals', value: stats.totalGoals, icon: FiTarget, color: 'blue' },
                         { label: 'Active', value: stats.activeGoals, icon: FiActivity, color: 'purple' },
@@ -149,7 +150,7 @@ export const GoalsPage = () => {
                         >
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-white/60 mb-1">{stat.label}</p>
+                                    <p className="mb-1 text-sm font-medium text-white/60">{stat.label}</p>
                                     <p className="text-3xl font-bold text-white">{stat.value}</p>
                                 </div>
                                 <div className={`p-3 rounded-xl bg-${stat.color}-500/10 text-${stat.color}-400 group-hover:scale-110 transition-transform`}>
@@ -168,26 +169,26 @@ export const GoalsPage = () => {
                     transition={{ delay: 0.4 }}
                     className="bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-6"
                 >
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
                         {/* Search */}
-                        <div className="md:col-span-5 relative">
-                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 w-5 h-5" />
+                        <div className="relative md:col-span-5">
+                            <FiSearch className="absolute w-5 h-5 -translate-y-1/2 left-4 top-1/2 text-white/40" />
                             <input
                                 type="text"
                                 placeholder="Search goals..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                className="w-full py-3 pl-12 pr-4 text-white transition-all border bg-white/5 border-white/10 rounded-xl placeholder-white/40 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                             />
                         </div>
 
                         {/* Category Filter */}
-                        <div className="md:col-span-3 relative">
-                            <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 w-5 h-5" />
+                        <div className="relative md:col-span-3">
+                            <FiFilter className="absolute w-5 h-5 -translate-y-1/2 left-4 top-1/2 text-white/40" />
                             <select
                                 value={filterCategory}
                                 onChange={(e) => setFilterCategory(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                className="w-full py-3 pl-12 pr-4 text-white transition-all border appearance-none cursor-pointer bg-white/5 border-white/10 rounded-xl focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                             >
                                 <option value="all">All Categories</option>
                                 {Object.entries(GOAL_CATEGORIES).map(([key, data]) => (
@@ -201,7 +202,7 @@ export const GoalsPage = () => {
                             <select
                                 value={filterStatus}
                                 onChange={(e) => setFilterStatus(e.target.value as any)}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                className="w-full px-4 py-3 text-white transition-all border appearance-none cursor-pointer bg-white/5 border-white/10 rounded-xl focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                             >
                                 <option value="all">All Status</option>
                                 <option value="active">Active</option>
@@ -214,7 +215,7 @@ export const GoalsPage = () => {
                             <select
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value as any)}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                className="w-full px-4 py-3 text-white transition-all border appearance-none cursor-pointer bg-white/5 border-white/10 rounded-xl focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                             >
                                 <option value="percentage">Progress</option>
                                 <option value="deadline">Deadline</option>
@@ -228,7 +229,7 @@ export const GoalsPage = () => {
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
-                            className="mt-4 pt-4 border-t border-white/10"
+                            className="pt-4 mt-4 border-t border-white/10"
                         >
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-white/60">
@@ -240,7 +241,7 @@ export const GoalsPage = () => {
                                         setFilterCategory('all');
                                         setFilterStatus('active');
                                     }}
-                                    className="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                                    className="font-medium transition-colors text-primary-400 hover:text-primary-300"
                                 >
                                     Clear Filters
                                 </button>
@@ -262,10 +263,10 @@ export const GoalsPage = () => {
                         <div className="inline-flex items-center justify-center w-20 h-20 mb-6 rounded-full bg-white/5">
                             <FiTarget className="w-10 h-10 text-white/40" />
                         </div>
-                        <h3 className="text-2xl font-semibold text-white mb-2">
+                        <h3 className="mb-2 text-2xl font-semibold text-white">
                             {goals.length === 0 ? 'No goals yet' : 'No goals found'}
                         </h3>
-                        <p className="text-white/60 mb-6">
+                        <p className="mb-6 text-white/60">
                             {goals.length === 0 
                                 ? 'Create your first goal to start tracking progress' 
                                 : 'Try adjusting your filters'}
@@ -275,14 +276,14 @@ export const GoalsPage = () => {
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => setShowWizard(true)}
-                                className="px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium"
+                                className="px-6 py-3 font-medium text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl"
                             >
                                 Create Your First Goal
                             </motion.button>
                         )}
                     </motion.div>
                 ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                         {filteredAndSortedGoals.map((goal, index) => {
                             const category = GOAL_CATEGORIES[goal.category];
                             const daysRemaining = getDaysRemaining(goal.deadline);
@@ -309,7 +310,7 @@ export const GoalsPage = () => {
                                                         {getCategoryIcon(goal.category)}
                                                     </div>
                                                     <div>
-                                                        <h3 className="text-lg font-semibold text-white group-hover:text-primary-400 transition-colors">
+                                                        <h3 className="text-lg font-semibold text-white transition-colors group-hover:text-primary-400">
                                                             {goal.title}
                                                         </h3>
                                                         <span className={`text-xs font-medium px-2 py-1 rounded-md ${category.color} bg-white/5`}>
@@ -318,12 +319,12 @@ export const GoalsPage = () => {
                                                     </div>
                                                 </div>
                                                 
-                                                <FiArrowRight className="w-5 h-5 text-white/40 group-hover:text-primary-400 group-hover:translate-x-1 transition-all" />
+                                                <FiArrowRight className="w-5 h-5 transition-all text-white/40 group-hover:text-primary-400 group-hover:translate-x-1" />
                                             </div>
 
                                             {/* Description */}
                                             {goal.description && (
-                                                <p className="text-sm text-white/60 mb-4 line-clamp-2">
+                                                <p className="mb-4 text-sm text-white/60 line-clamp-2">
                                                     {goal.description}
                                                 </p>
                                             )}
@@ -334,7 +335,7 @@ export const GoalsPage = () => {
                                                     <span className="text-sm font-medium text-white/80">Progress</span>
                                                     <span className="text-sm font-bold text-white">{goal.percentage.toFixed(0)}%</span>
                                                 </div>
-                                                <div className="relative h-2 bg-white/5 rounded-full overflow-hidden">
+                                                <div className="relative h-2 overflow-hidden rounded-full bg-white/5">
                                                     <motion.div
                                                         initial={{ width: 0 }}
                                                         animate={{ width: `${goal.percentage}%` }}
@@ -370,6 +371,16 @@ export const GoalsPage = () => {
                                                         <FiActivity className="w-4 h-4 text-primary-400" />
                                                         <span className="text-sm font-medium text-white">
                                                             {goal.streak || 0} day streak
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {/* Milestones indicator */}
+                                                {goal.milestones && goal.milestones.length > 0 && (
+                                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-primary-500/10 border border-primary-500/20 rounded-lg">
+                                                        <FiFlag className="w-3.5 h-3.5 text-primary-400" />
+                                                        <span className="text-xs font-medium text-primary-400">
+                                                            {goal.completedMilestones || 0}/{goal.milestones.length}
                                                         </span>
                                                     </div>
                                                 )}

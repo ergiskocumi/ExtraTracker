@@ -103,6 +103,9 @@ export interface GoalStats {
     totalProgress: number;
     percentage: number;
     checkInsCount?: number;
+    milestoneProgress?: number | null;
+    completedMilestones?: number;
+    totalMilestones?: number;
 }
 
 // Goal con statistiche calcolate (per la lista)
@@ -112,6 +115,12 @@ export interface GoalWithProgress extends Goal {
     currentValue?: number;  // Valore corrente per target goals
     streak?: number;        // Streak per habit goals
     // milestones, milestoneProgress e completedMilestones sono già in Goal
+}
+
+// Risposta toggle milestone
+export interface MilestoneToggleResponse {
+    goal: Goal;
+    stats: GoalStats;
 }
 
 // Risposta dettaglio singolo goal

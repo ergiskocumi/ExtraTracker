@@ -82,6 +82,7 @@ router.post('/goals', asyncHandler(async (req, res) => {
         frequency: req.body.frequency,
         deadline: req.body.deadline,
         description: req.body.description,
+        milestones: req.body.milestones, // Supporto milestones
     });
     res.status(201).json({ success: true, data: goal });
 }));
@@ -97,6 +98,36 @@ router.put('/goals/:id', asyncHandler(async (req, res) => {
         req.body
     );
     res.json({ success: true, data: goal });
+}));
+
+/**
+ * PATCH /api/goals/:id/milestones/:milestoneId/toggle
+ * Toggle isCompleted di una specifica milestone (operazione atomica)
+ */
+router.patch('/goals/:id/milestones/:milestoneId/toggle', asyncHandler(async (req, res) => {
+    const goal = await goalService.toggleMilestone(
+        req.tenantScope,
+        req.params.id,
+        req.params.milestoneId
+    );
+    
+    // Calcola statistiche aggiornate
+    const checkIns = await checkInService.findByGoal(req.tenantScope, req.params.id);
+    const stats = calculateGoalStats(goal, checkIns);
+    
+    res.json({ 
+        success: true, 
+        data: {
+            goal: goal.toJSON(),
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+                milestoneProgress: goal.milestoneProgress,
+                completedMilestones: goal.completedMilestones,
+                totalMilestones: goal.milestones?.length || 0
+            }
+        }
+    });
 }));
 
 /**

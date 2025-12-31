@@ -139,6 +139,68 @@ class GoalService extends BaseService {
         // Cascade delete dei check-in (solo quelli dell'utente corrente)
         await CheckIn.deleteMany({ user: userId, goalId: id });
     }
+
+    // =========================================
+    // MILESTONE METHODS
+    // =========================================
+
+    /**
+     * Toggle isCompleted di una specifica milestone.
+     * Usa l'operatore posizionale $ di MongoDB per update atomico.
+     * 
+     * 🔒 SICUREZZA ESPLICITA: Filtro per user + goalId + milestoneId
+     * 
+     * @param {Object} tenantScope - Oggetto req.tenantScope
+     * @param {string} goalId - ID del goal
+     * @param {string} milestoneId - ID della milestone
+     * @returns {Promise<Goal>} Goal aggiornato
+     * @throws {AppError} Se goal o milestone non trovati
+     */
+    async toggleMilestone(tenantScope, goalId, milestoneId) {
+        const userId = this._getUserId(tenantScope);
+        
+        // Prima trova il goal per verificare ownership e stato attuale
+        const goal = await Goal.findOne({ 
+            _id: goalId, 
+            user: userId,
+            'milestones._id': milestoneId
+        });
+        
+        if (!goal) {
+            throw AppError.notFound('Obiettivo o milestone');
+        }
+        
+        // Trova la milestone corrente per invertire lo stato
+        const milestone = goal.milestones.id(milestoneId);
+        if (!milestone) {
+            throw AppError.notFound('Milestone');
+        }
+        
+        const newIsCompleted = !milestone.isCompleted;
+        const completedAt = newIsCompleted ? new Date() : null;
+        
+        // Update atomico usando l'operatore posizionale $
+        const updatedGoal = await Goal.findOneAndUpdate(
+            { 
+                _id: goalId, 
+                user: userId,
+                'milestones._id': milestoneId 
+            },
+            { 
+                $set: { 
+                    'milestones.$.isCompleted': newIsCompleted,
+                    'milestones.$.completedAt': completedAt
+                } 
+            },
+            { new: true }
+        );
+        
+        if (!updatedGoal) {
+            throw AppError.notFound('Obiettivo o milestone');
+        }
+        
+        return updatedGoal;
+    }
 }
 
 module.exports = new GoalService();
