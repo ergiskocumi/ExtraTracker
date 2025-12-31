@@ -7,7 +7,7 @@ import { BurndownChart } from '../features/goals/BurndownChart';
 import { ActivityHeatmap } from '../features/goals/ActivityHeatmap';
 import { MoodStats } from '../features/goals/MoodStats';
 import { useFormat } from '../hooks/useFormat';
-import type { GoalDetailResponse, CreateCheckInDTO, Mood, CheckIn, Milestone } from '../features/goals/types';
+import type { GoalDetailResponse, CreateCheckInDTO, Mood, CheckIn } from '../features/goals/types';
 import {
     FiArrowLeft,
     FiPlus,
@@ -37,8 +37,9 @@ import {
     FiAlertCircle,
     FiRepeat,
     FiFlag,
-    FiSquare,
-    FiCheckSquare
+    FiChevronDown,
+    FiChevronUp,
+    FiSave
 } from 'react-icons/fi';
 
 // ========================================
@@ -202,6 +203,12 @@ export const GoalDetailPage = () => {
     
     // Milestone toggle state
     const [togglingMilestone, setTogglingMilestone] = useState<string | null>(null);
+
+    // Milestone UI state
+    const [expandedMilestones, setExpandedMilestones] = useState<Record<string, boolean>>({});
+    const [milestoneNotesDraft, setMilestoneNotesDraft] = useState<Record<string, string>>({});
+    const [savingMilestoneNotes, setSavingMilestoneNotes] = useState<string | null>(null);
+    const [milestoneSavedFlash, setMilestoneSavedFlash] = useState<Record<string, boolean>>({});
     
     // Active tab for analytics
     const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'insights'>('overview');
@@ -321,6 +328,49 @@ export const GoalDetailPage = () => {
             alert('Error updating milestone');
         } finally {
             setTogglingMilestone(null);
+        }
+    };
+
+    const toggleMilestoneExpanded = (milestoneId: string) => {
+        setExpandedMilestones(prev => ({
+            ...prev,
+            [milestoneId]: !prev[milestoneId]
+        }));
+    };
+
+    const handleMilestoneNotesChange = (milestoneId: string, value: string) => {
+        setMilestoneNotesDraft(prev => ({
+            ...prev,
+            [milestoneId]: value
+        }));
+    };
+
+    const handleMilestoneNotesSave = async (milestoneId: string) => {
+        if (!id || savingMilestoneNotes) return;
+
+        setSavingMilestoneNotes(milestoneId);
+        try {
+            const notes = (milestoneNotesDraft[milestoneId] ?? '').trim();
+            if (!notes) return;
+
+            await goalsService.updateMilestoneNotes(id, milestoneId, notes);
+
+            // Clear input for a clean "next note" UX
+            setMilestoneNotesDraft(prev => ({ ...prev, [milestoneId]: '' }));
+
+            // Small visual feedback
+            setMilestoneSavedFlash(prev => ({ ...prev, [milestoneId]: true }));
+            window.setTimeout(() => {
+                setMilestoneSavedFlash(prev => ({ ...prev, [milestoneId]: false }));
+            }, 1500);
+
+            const refreshed = await goalsService.getById(id);
+            setData(refreshed);
+        } catch (err) {
+            console.error('Error saving milestone notes:', err);
+            alert('Error saving milestone notes');
+        } finally {
+            setSavingMilestoneNotes(null);
         }
     };
 
@@ -655,76 +705,222 @@ export const GoalDetailPage = () => {
                             {goal.milestones.map((milestone, index) => {
                                 const isToggling = togglingMilestone === milestone.id;
                                 const isDisabled = goal.status !== 'active' || isExpired;
+                                const isExpanded = !!expandedMilestones[milestone.id];
+                                const notesDraft = milestoneNotesDraft[milestone.id] ?? '';
+                                const notesDraftTrimmed = notesDraft.trim();
+                                const isSaving = savingMilestoneNotes === milestone.id;
+                                const notesUpdatedAt = milestone.notesUpdatedAt;
+                                const notesHistory = milestone.notesHistory || [];
+                                const canSaveNotes = !isDisabled && !isSaving && notesDraftTrimmed.length > 0;
+                                const showSavedFlash = !!milestoneSavedFlash[milestone.id];
                                 
                                 return (
-                                    <motion.button
+                                    <motion.div
                                         key={milestone.id}
                                         layout
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: index * 0.05 }}
-                                        onClick={() => !isDisabled && handleMilestoneToggle(milestone.id)}
-                                        disabled={isDisabled || isToggling}
-                                        className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left group ${
+                                    >
+                                        <div className={`rounded-xl border transition-all ${
                                             milestone.isCompleted
                                                 ? 'bg-green-500/10 border-green-500/20'
-                                                : 'bg-white/5 border-white/10 hover:border-white/20'
-                                        } ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                                    >
-                                        {/* Checkbox */}
-                                        <motion.div
-                                            whileTap={!isDisabled ? { scale: 0.9 } : {}}
-                                            className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
-                                                milestone.isCompleted
-                                                    ? 'bg-green-500 border-green-500'
-                                                    : 'border-white/30 group-hover:border-primary-400'
-                                            }`}
-                                        >
-                                            {isToggling ? (
-                                                <motion.div
-                                                    animate={{ rotate: 360 }}
-                                                    transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
-                                                    className="w-3 h-3 border-2 rounded-full border-white/50 border-t-transparent"
-                                                />
-                                            ) : milestone.isCompleted ? (
-                                                <motion.div
-                                                    initial={{ scale: 0 }}
-                                                    animate={{ scale: 1 }}
-                                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                                : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/[0.07]'
+                                        } ${isDisabled ? 'opacity-60' : ''}`}>
+                                            {/* Header */}
+                                            <div
+                                                role="button"
+                                                tabIndex={isDisabled ? -1 : 0}
+                                                aria-expanded={isExpanded}
+                                                onClick={() => toggleMilestoneExpanded(milestone.id)}
+                                                onKeyDown={(e) => {
+                                                    if (isDisabled) return;
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        toggleMilestoneExpanded(milestone.id);
+                                                    }
+                                                }}
+                                                className={`w-full flex items-center gap-4 p-4 text-left group outline-none ${
+                                                    isDisabled ? 'cursor-default' : 'cursor-pointer'
+                                                } focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-0 rounded-xl`}
+                                            >
+                                                {/* Checkbox */}
+                                                <motion.button
+                                                    type="button"
+                                                    whileTap={!isDisabled ? { scale: 0.9 } : {}}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (!isDisabled) handleMilestoneToggle(milestone.id);
+                                                    }}
+                                                    disabled={isDisabled || isToggling}
+                                                    className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
+                                                        milestone.isCompleted
+                                                            ? 'bg-green-500 border-green-500'
+                                                            : 'border-white/30 group-hover:border-primary-400'
+                                                    } ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                                                 >
-                                                    <FiCheckCircle className="w-4 h-4 text-white" />
-                                                </motion.div>
-                                            ) : null}
-                                        </motion.div>
+                                                    {isToggling ? (
+                                                        <motion.div
+                                                            animate={{ rotate: 360 }}
+                                                            transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
+                                                            className="w-3 h-3 border-2 rounded-full border-white/50 border-t-transparent"
+                                                        />
+                                                    ) : milestone.isCompleted ? (
+                                                        <motion.div
+                                                            initial={{ scale: 0 }}
+                                                            animate={{ scale: 1 }}
+                                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                                        >
+                                                            <FiCheckCircle className="w-4 h-4 text-white" />
+                                                        </motion.div>
+                                                    ) : null}
+                                                </motion.button>
 
-                                        {/* Content */}
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`font-medium transition-all ${
-                                                milestone.isCompleted
-                                                    ? 'text-white/60 line-through'
-                                                    : 'text-white'
-                                            }`}>
-                                                {milestone.title}
-                                            </p>
-                                            {milestone.completedAt && (
-                                                <p className="text-xs text-green-400/60 mt-0.5">
-                                                    Completed {new Date(milestone.completedAt).toLocaleDateString('en-US', {
-                                                        month: 'short',
-                                                        day: 'numeric',
-                                                        hour: '2-digit',
-                                                        minute: '2-digit'
-                                                    })}
-                                                </p>
-                                            )}
-                                        </div>
+                                                {/* Title */}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`font-medium transition-all ${
+                                                        milestone.isCompleted
+                                                            ? 'text-white/60 line-through'
+                                                            : 'text-white'
+                                                    }`}>
+                                                        {milestone.title}
+                                                    </p>
+                                                    {milestone.completedAt && (
+                                                        <p className="text-xs text-green-400/60 mt-0.5">
+                                                            Completed {new Date(milestone.completedAt).toLocaleDateString('en-US', {
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </p>
+                                                    )}
+                                                </div>
 
-                                        {/* Weight Badge (if not default) */}
-                                        {milestone.weight > 1 && (
-                                            <div className="flex-shrink-0 px-2 py-1 border rounded-md bg-white/5 border-white/10">
-                                                <span className="text-xs text-white/60">×{milestone.weight}</span>
+                                                {/* Weight Badge */}
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex-shrink-0 px-2 py-1 border rounded-md bg-white/5 border-white/10">
+                                                        <span className="text-xs text-white/60">×{milestone.weight}</span>
+                                                    </div>
+                                                    <div className="p-1 rounded-md bg-white/5 border border-white/10 text-white/50 group-hover:text-white/80 transition-colors">
+                                                        {isExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        )}
-                                    </motion.button>
+
+                                            {/* Expanded content */}
+                                            <AnimatePresence initial={false}>
+                                                {isExpanded && (
+                                                    <motion.div
+                                                        key="content"
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: 'auto', opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        transition={{ duration: 0.2 }}
+                                                        className="overflow-hidden border-t border-white/10"
+                                                    >
+                                                        <div className="p-4">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    <FiMessageSquare className="w-4 h-4 text-primary-400" />
+                                                                    <span className="text-sm font-medium text-white/80">Notes</span>
+                                                                    {showSavedFlash && (
+                                                                        <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-green-500/15 border border-green-500/20 text-green-200">
+                                                                            Saved
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-xs text-white/40">
+                                                                    {notesUpdatedAt ? (
+                                                                        <span>
+                                                                            Last saved {new Date(notesUpdatedAt).toLocaleDateString('en-US', {
+                                                                                month: 'short',
+                                                                                day: 'numeric',
+                                                                                hour: '2-digit',
+                                                                                minute: '2-digit'
+                                                                            })}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span>Not saved yet</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-3">
+                                                                <textarea
+                                                                    value={notesDraft}
+                                                                    onChange={(e) => handleMilestoneNotesChange(milestone.id, e.target.value)}
+                                                                    rows={3}
+                                                                    placeholder="Scrivi una nota e salva (es. Fatto capitolo 1 e 2, manca il ripasso...)"
+                                                                    className="w-full px-1 py-1 text-sm text-white bg-transparent placeholder:text-white/30 focus:outline-none resize-none"
+                                                                    disabled={isDisabled}
+                                                                />
+                                                            </div>
+
+                                                            <div className="mt-3 flex justify-end">
+                                                                <motion.button
+                                                                    whileHover={!isDisabled ? { scale: 1.02 } : {}}
+                                                                    whileTap={!isDisabled ? { scale: 0.98 } : {}}
+                                                                    type="button"
+                                                                    onClick={() => !isDisabled && handleMilestoneNotesSave(milestone.id)}
+                                                                    disabled={!canSaveNotes}
+                                                                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-white transition-colors ${
+                                                                        !canSaveNotes
+                                                                            ? 'bg-white/10 cursor-not-allowed'
+                                                                            : 'bg-primary-500 hover:bg-primary-600'
+                                                                    }`}
+                                                                >
+                                                                    {isSaving ? (
+                                                                        <motion.div
+                                                                            animate={{ rotate: 360 }}
+                                                                            transition={{ duration: 0.7, repeat: Infinity, ease: "linear" }}
+                                                                            className="w-4 h-4 border-2 rounded-full border-white/50 border-t-transparent"
+                                                                        />
+                                                                    ) : (
+                                                                        <FiSave className="w-4 h-4" />
+                                                                    )}
+                                                                    Save
+                                                                </motion.button>
+                                                            </div>
+
+                                                            {notesHistory.length > 0 && (
+                                                                <div className="mt-4">
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        <span className="text-xs font-medium text-white/50">History</span>
+                                                                        <span className="text-xs text-white/30">{notesHistory.length} entries</span>
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        {notesHistory
+                                                                            .slice(-5)
+                                                                            .reverse()
+                                                                            .map((entry, idx) => (
+                                                                                <div
+                                                                                    key={`${milestone.id}-note-${idx}-${entry.savedAt}`}
+                                                                                    className="p-3 rounded-xl bg-white/[0.03] border border-white/10"
+                                                                                >
+                                                                                    <div className="flex items-start justify-between gap-3">
+                                                                                        <p className="text-sm text-white/85 whitespace-pre-wrap break-words leading-relaxed">
+                                                                                            {entry.text}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                    <p className="mt-2 text-[11px] text-white/35">
+                                                                                        {new Date(entry.savedAt).toLocaleDateString('en-US', {
+                                                                                            month: 'short',
+                                                                                            day: 'numeric',
+                                                                                            hour: '2-digit',
+                                                                                            minute: '2-digit'
+                                                                                        })}
+                                                                                    </p>
+                                                                                </div>
+                                                                            ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                    </motion.div>
                                 );
                             })}
                         </AnimatePresence>

@@ -23,6 +23,33 @@ const milestoneSchema = new mongoose.Schema({
         trim: true,
         maxlength: [100, 'Il titolo non può superare 100 caratteri'],
     },
+    notes: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [1000, 'Le note non possono superare 1000 caratteri'],
+    },
+    notesUpdatedAt: {
+        type: Date,
+        default: null,
+    },
+    notesHistory: {
+        type: [
+            {
+                text: {
+                    type: String,
+                    required: true,
+                    trim: true,
+                    maxlength: [1000, 'Le note non possono superare 1000 caratteri'],
+                },
+                savedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+            },
+        ],
+        default: [],
+    },
     isCompleted: {
         type: Boolean,
         default: false,

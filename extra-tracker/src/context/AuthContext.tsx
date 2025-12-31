@@ -8,7 +8,7 @@
  * - Gestione sessione scaduta
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { authService, type User, type LoginData, type RegisterData, type AuthResponse } from '../services/authService';
 
@@ -49,10 +49,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         error: null,
     });
 
+    const initialCheckDoneRef = useRef(false);
+    const checkInFlightRef = useRef(false);
+    const lastCheckAtRef = useRef(0);
+
     /**
      * Verifica sessione esistente all'avvio
      */
     const checkAuth = useCallback(async () => {
+        // Avoid spamming the backend (React StrictMode/HMR can mount effects multiple times)
+        if (checkInFlightRef.current) return;
+        const now = Date.now();
+        if (now - lastCheckAtRef.current < 3000) return; // 3s cooldown
+
+        checkInFlightRef.current = true;
+        lastCheckAtRef.current = now;
+
         try {
             setState((prev) => ({ ...prev, isLoading: true, error: null }));
             
@@ -80,6 +92,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 isLoading: false,
                 error: null,
             });
+        } finally {
+            checkInFlightRef.current = false;
         }
     }, []);
 
@@ -203,6 +217,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
      * Verifica sessione all'avvio
      */
     useEffect(() => {
+        if (initialCheckDoneRef.current) return;
+        initialCheckDoneRef.current = true;
         checkAuth();
     }, [checkAuth]);
 

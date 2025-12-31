@@ -29,6 +29,8 @@ export interface Milestone {
     weight: number;
     completedAt: string | null;
     notes?: string;
+    notesUpdatedAt?: string | null;
+    notesHistory?: Array<{ text: string; savedAt: string }>;
 }
 
 // DTO per creare una milestone (senza id e completedAt)

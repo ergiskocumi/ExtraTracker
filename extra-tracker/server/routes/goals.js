@@ -131,6 +131,38 @@ router.patch('/goals/:id/milestones/:milestoneId/toggle', asyncHandler(async (re
 }));
 
 /**
+ * PATCH /api/goals/:id/milestones/:milestoneId
+ * Aggiorna dati di una milestone (es. notes)
+ */
+router.patch('/goals/:id/milestones/:milestoneId', asyncHandler(async (req, res) => {
+    const notes = typeof req.body?.notes === 'string' ? req.body.notes : undefined;
+
+    const goal = await goalService.updateMilestone(
+        req.tenantScope,
+        req.params.id,
+        req.params.milestoneId,
+        { notes }
+    );
+
+    const checkIns = await checkInService.findByGoal(req.tenantScope, req.params.id);
+    const stats = calculateGoalStats(goal, checkIns);
+
+    res.json({
+        success: true,
+        data: {
+            goal: goal.toJSON(),
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+                milestoneProgress: goal.milestoneProgress,
+                completedMilestones: goal.completedMilestones,
+                totalMilestones: goal.milestones?.length || 0,
+            },
+        },
+    });
+}));
+
+/**
  * DELETE /api/goals/:id
  * Elimina obiettivo (cascade delete dei check-in)
  */
