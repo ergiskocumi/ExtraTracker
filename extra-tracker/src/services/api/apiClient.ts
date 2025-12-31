@@ -10,7 +10,9 @@ import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axio
  * - Gestione errori centralizzata
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Preferisci same-origin per evitare problemi di cookie/CORS (soprattutto da mobile).
+// In dev, Vite proxy inoltra /api al backend.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export interface ApiError {
     message: string;
