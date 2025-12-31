@@ -18,6 +18,24 @@ export type GoalStatus = 'active' | 'completed' | 'abandoned';
 // Mood per i check-in (1-3)
 export type Mood = 1 | 2 | 3;
 
+// =========================================
+// MILESTONE (Micro-obiettivo)
+// =========================================
+
+export interface Milestone {
+    id: string;
+    title: string;
+    isCompleted: boolean;
+    weight: number;
+    completedAt: string | null;
+}
+
+// DTO per creare una milestone (senza id e completedAt)
+export interface CreateMilestoneDTO {
+    title: string;
+    weight?: number;
+}
+
 // Interfaccia principale Goal
 export interface Goal {
     id: string;
@@ -30,6 +48,9 @@ export interface Goal {
     deadline: string;               // Data ISO
     status: GoalStatus;
     description: string;
+    milestones: Milestone[];        // Array di micro-obiettivi
+    milestoneProgress: number | null; // % calcolata dalle milestones (virtual)
+    completedMilestones: number;    // Conteggio milestones completate (virtual)
     createdAt: string;
 }
 
@@ -43,6 +64,7 @@ export interface CreateGoalDTO {
     frequency?: number;
     deadline: string;
     description?: string;
+    milestones?: CreateMilestoneDTO[]; // Milestones opzionali in fase di creazione
 }
 
 // DTO per aggiornare un obiettivo
@@ -89,6 +111,7 @@ export interface GoalWithProgress extends Goal {
     percentage: number;
     currentValue?: number;  // Valore corrente per target goals
     streak?: number;        // Streak per habit goals
+    // milestones, milestoneProgress e completedMilestones sono già in Goal
 }
 
 // Risposta dettaglio singolo goal

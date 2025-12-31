@@ -12,6 +12,33 @@
 const mongoose = require('mongoose');
 const { multiTenancyPlugin } = require('../plugins/multiTenancy');
 
+// =========================================
+// MILESTONE SUB-SCHEMA (Embedded Document)
+// =========================================
+
+const milestoneSchema = new mongoose.Schema({
+    title: {
+        type: String,
+        required: [true, 'Il titolo della milestone è obbligatorio'],
+        trim: true,
+        maxlength: [100, 'Il titolo non può superare 100 caratteri'],
+    },
+    isCompleted: {
+        type: Boolean,
+        default: false,
+    },
+    weight: {
+        type: Number,
+        default: 1,
+        min: [1, 'Il peso deve essere almeno 1'],
+        max: [10, 'Il peso non può superare 10'],
+    },
+    completedAt: {
+        type: Date,
+        default: null,
+    },
+}, { _id: true });
+
 const goalSchema = new mongoose.Schema({
     // Titolo dell'obiettivo
     title: { 
@@ -85,6 +112,18 @@ const goalSchema = new mongoose.Schema({
         maxlength: [500, 'La descrizione non può superare 500 caratteri'],
     },
     
+    // Micro-obiettivi (Milestones) - Embedded Documents
+    milestones: {
+        type: [milestoneSchema],
+        default: [],
+        validate: {
+            validator: function(v) {
+                return v.length <= 20; // Max 20 milestones per goal
+            },
+            message: 'Un obiettivo può avere al massimo 20 milestones',
+        },
+    },
+    
 }, {
     timestamps: true,
 });
@@ -96,6 +135,36 @@ const goalSchema = new mongoose.Schema({
 goalSchema.index({ user: 1, status: 1 });
 goalSchema.index({ user: 1, category: 1 });
 goalSchema.index({ user: 1, deadline: 1 });
+
+// =========================================
+// VIRTUALS
+// =========================================
+
+/**
+ * Calcola il progresso basato sulle milestones.
+ * Se il goal ha milestones, il progresso è la % di milestones completate (pesate).
+ * Altrimenti ritorna null (il progresso sarà calcolato dai check-ins).
+ */
+goalSchema.virtual('milestoneProgress').get(function() {
+    if (!this.milestones || this.milestones.length === 0) {
+        return null;
+    }
+    
+    const totalWeight = this.milestones.reduce((sum, m) => sum + m.weight, 0);
+    const completedWeight = this.milestones
+        .filter(m => m.isCompleted)
+        .reduce((sum, m) => sum + m.weight, 0);
+    
+    return totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : 0;
+});
+
+/**
+ * Conta le milestones completate.
+ */
+goalSchema.virtual('completedMilestones').get(function() {
+    if (!this.milestones) return 0;
+    return this.milestones.filter(m => m.isCompleted).length;
+});
 
 // =========================================
 // PLUGINS
@@ -131,6 +200,15 @@ goalSchema.set('toJSON', {
         ret.id = ret._id;
         delete ret._id;
         delete ret.user;
+        
+        // Trasforma anche gli _id delle milestones in id
+        if (ret.milestones && Array.isArray(ret.milestones)) {
+            ret.milestones = ret.milestones.map(m => ({
+                ...m,
+                id: m._id?.toString() || m.id,
+                _id: undefined,
+            }));
+        }
     }
 });
 

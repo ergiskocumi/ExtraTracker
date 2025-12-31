@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGoals } from '../../context/GoalsContext';
 import { GOAL_CATEGORIES } from './types';
-import type { GoalCategory, GoalType, CreateGoalDTO } from './types';
+import type { GoalCategory, GoalType, CreateGoalDTO, CreateMilestoneDTO } from './types';
 import {
     FiX,
     FiArrowRight,
@@ -15,14 +15,17 @@ import {
     FiUser,
     FiTarget,
     FiRefreshCw,
-    FiCalendar
+    FiCalendar,
+    FiPlus,
+    FiTrash2,
+    FiFlag
 } from 'react-icons/fi';
 
 interface GoalWizardProps {
     onClose: () => void;
 }
 
-type WizardStep = 'category' | 'type' | 'details' | 'confirm';
+type WizardStep = 'category' | 'type' | 'details' | 'milestones' | 'confirm';
 
 export const GoalWizard = ({ onClose }: GoalWizardProps) => {
     const { addGoal } = useGoals();
@@ -41,6 +44,31 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
         return date.toISOString().split('T')[0];
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // Milestones state
+    const [milestones, setMilestones] = useState<CreateMilestoneDTO[]>([]);
+    const [newMilestoneTitle, setNewMilestoneTitle] = useState('');
+
+    // Milestone handlers
+    const addMilestone = () => {
+        const trimmedTitle = newMilestoneTitle.trim();
+        if (!trimmedTitle) return;
+        if (milestones.length >= 20) return; // Max 20 milestones
+        
+        setMilestones([...milestones, { title: trimmedTitle, weight: 1 }]);
+        setNewMilestoneTitle('');
+    };
+
+    const removeMilestone = (index: number) => {
+        setMilestones(milestones.filter((_, i) => i !== index));
+    };
+
+    const handleMilestoneKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addMilestone();
+        }
+    };
 
     // Category icons
     const getCategoryIcon = (cat: string): React.ReactElement => {
@@ -96,6 +124,8 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
             type,
             deadline,
             description: description || undefined,
+            // Includi milestones solo se ce ne sono
+            ...(milestones.length > 0 && { milestones }),
             ...(type === 'target' && {
                 targetValue: Number(targetValue),
                 unit: unit || undefined,
@@ -120,13 +150,15 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
     const goNext = () => {
         if (step === 'category' && category) setStep('type');
         else if (step === 'type' && type) setStep('details');
-        else if (step === 'details' && title) setStep('confirm');
+        else if (step === 'details' && title) setStep('milestones');
+        else if (step === 'milestones') setStep('confirm');
     };
 
     const goBack = () => {
         if (step === 'type') setStep('category');
         else if (step === 'details') setStep('type');
-        else if (step === 'confirm') setStep('details');
+        else if (step === 'milestones') setStep('details');
+        else if (step === 'confirm') setStep('milestones');
     };
 
     const applyTemplate = (template: any) => {
@@ -163,6 +195,7 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                                 {step === 'category' && 'Choose a category for your goal'}
                                 {step === 'type' && 'Select the type of goal'}
                                 {step === 'details' && 'Fill in the details'}
+                                {step === 'milestones' && 'Break it down into milestones (optional)'}
                                 {step === 'confirm' && 'Review and confirm'}
                             </p>
                         </div>
@@ -176,10 +209,10 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
 
                     {/* Progress Steps */}
                     <div className="flex items-center gap-2 mt-6">
-                        {['category', 'type', 'details', 'confirm'].map((s, idx) => (
+                        {['category', 'type', 'details', 'milestones', 'confirm'].map((s, idx) => (
                             <div key={s} className="flex items-center flex-1">
                                 <div className={`flex-1 h-1 rounded-full transition-all ${
-                                    ['category', 'type', 'details', 'confirm'].indexOf(step) >= idx
+                                    ['category', 'type', 'details', 'milestones', 'confirm'].indexOf(step) >= idx
                                         ? 'bg-primary-500'
                                         : 'bg-white/10'
                                 }`} />
@@ -425,7 +458,113 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                             </motion.div>
                         )}
 
-                        {/* STEP 4: Confirm */}
+                        {/* STEP 4: Milestones */}
+                        {step === 'milestones' && (
+                            <motion.div
+                                key="milestones"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                className="space-y-6"
+                            >
+                                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-2 rounded-lg bg-primary-500/10 text-primary-400">
+                                            <FiFlag className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-white font-medium">Break it into smaller steps</h4>
+                                            <p className="text-sm text-white/60 mt-1">
+                                                Add milestones to track progress more granularly. 
+                                                This step is optional - you can skip it if you prefer.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Add Milestone Input */}
+                                <div>
+                                    <label className="block text-sm font-medium text-white/80 mb-2">
+                                        Add Milestone
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={newMilestoneTitle}
+                                            onChange={(e) => setNewMilestoneTitle(e.target.value)}
+                                            onKeyDown={handleMilestoneKeyDown}
+                                            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                                            placeholder="e.g., Research phase, First draft..."
+                                            maxLength={100}
+                                        />
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={addMilestone}
+                                            disabled={!newMilestoneTitle.trim() || milestones.length >= 20}
+                                            className="px-4 py-3 bg-primary-500/20 border border-primary-500/30 text-primary-400 rounded-xl hover:bg-primary-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <FiPlus className="w-5 h-5" />
+                                        </motion.button>
+                                    </div>
+                                    <p className="text-xs text-white/40 mt-2">
+                                        Press Enter to add • {milestones.length}/20 milestones
+                                    </p>
+                                </div>
+
+                                {/* Milestones List */}
+                                {milestones.length > 0 && (
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-white/80">
+                                            Your Milestones
+                                        </label>
+                                        <AnimatePresence mode="popLayout">
+                                            {milestones.map((milestone, index) => (
+                                                <motion.div
+                                                    key={`${milestone.title}-${index}`}
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                    className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl group"
+                                                >
+                                                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs text-white/60 font-medium">
+                                                        {index + 1}
+                                                    </div>
+                                                    <span className="flex-1 text-white truncate">
+                                                        {milestone.title}
+                                                    </span>
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.1 }}
+                                                        whileTap={{ scale: 0.9 }}
+                                                        onClick={() => removeMilestone(index)}
+                                                        className="p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100"
+                                                    >
+                                                        <FiTrash2 className="w-4 h-4" />
+                                                    </motion.button>
+                                                </motion.div>
+                                            ))}
+                                        </AnimatePresence>
+                                    </div>
+                                )}
+
+                                {/* Empty State */}
+                                {milestones.length === 0 && (
+                                    <div className="p-8 rounded-2xl border-2 border-dashed border-white/10 text-center">
+                                        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3">
+                                            <FiFlag className="w-6 h-6 text-white/40" />
+                                        </div>
+                                        <p className="text-white/60 text-sm">
+                                            No milestones added yet
+                                        </p>
+                                        <p className="text-white/40 text-xs mt-1">
+                                            Add milestones to track progress step by step, or skip this step
+                                        </p>
+                                    </div>
+                                )}
+                            </motion.div>
+                        )}
+
+                        {/* STEP 5: Confirm */}
                         {step === 'confirm' && (
                             <motion.div
                                 key="confirm"
@@ -492,6 +631,28 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                                             <div>
                                                 <p className="text-sm text-white/60 mb-1">Frequency</p>
                                                 <p className="text-white font-medium">{frequency}x per day</p>
+                                            </div>
+                                        )}
+
+                                        {/* Milestones Summary */}
+                                        {milestones.length > 0 && (
+                                            <div>
+                                                <p className="text-sm text-white/60 mb-2">
+                                                    Milestones ({milestones.length})
+                                                </p>
+                                                <div className="space-y-1">
+                                                    {milestones.map((m, idx) => (
+                                                        <div 
+                                                            key={idx}
+                                                            className="flex items-center gap-2 text-sm"
+                                                        >
+                                                            <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-xs text-white/60">
+                                                                {idx + 1}
+                                                            </div>
+                                                            <span className="text-white/80">{m.title}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         )}
                                     </div>
