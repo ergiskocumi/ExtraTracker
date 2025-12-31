@@ -1,62 +1,89 @@
-const mongoose = require('mongoose');
-
 /**
- * CheckIn Schema - Registra i singoli progressi verso un obiettivo
- * Questa tabella permette di:
- * 1. Calcolare il progresso totale (sommando i valori)
- * 2. Generare grafici temporali
- * 3. Tracciare lo stato emotivo nel tempo
+ * ✅ CHECKIN MODEL - Multi-Tenant
+ * ================================
+ * 
+ * Schema per i check-in/progressi verso un obiettivo.
+ * 
+ * RELAZIONI:
+ * - Appartiene a un User (multi-tenancy)
+ * - Appartiene a un Goal (referenza)
+ * 
+ * SICUREZZA RELAZIONI:
+ * Il goalId deve riferirsi a un goal dello STESSO utente.
  */
+
+const mongoose = require('mongoose');
+const { multiTenancyPlugin } = require('../plugins/multiTenancy');
+
 const checkInSchema = new mongoose.Schema({
-    // Riferimento all'obiettivo (relazione 1:N)
+    // Riferimento all'obiettivo (DEVE essere dello stesso utente)
     goalId: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Goal',
-        required: true 
+        required: [true, 'L\'obiettivo è obbligatorio'],
+        index: true,
     },
     
     // Data del check-in
     date: { 
         type: Date, 
-        required: true,
-        default: Date.now
+        required: [true, 'La data è obbligatoria'],
+        default: Date.now,
     },
     
     // Valore aggiunto in questo check-in
-    // Es: +50€ risparmiati, +2 ore studiate, +1 (per abitudini binarie)
     value: { 
         type: Number, 
-        required: true 
+        required: [true, 'Il valore è obbligatorio'],
     },
     
     // Stato emotivo (1=triste, 2=neutro, 3=felice)
-    // Utile per capire quando l'utente è più motivato
     mood: { 
         type: Number,
-        min: 1,
-        max: 3,
-        default: 2
+        min: [1, 'Il mood deve essere tra 1 e 3'],
+        max: [3, 'Il mood deve essere tra 1 e 3'],
+        default: 2,
     },
     
     // Note opzionali (micro-journaling)
     notes: { 
         type: String,
-        default: ''
+        default: '',
+        trim: true,
+        maxlength: [500, 'Le note non possono superare 500 caratteri'],
     },
     
-    // Timestamp di creazione
-    createdAt: { 
-        type: Date, 
-        default: Date.now 
-    }
+}, {
+    timestamps: true,
 });
 
-// Trasformazione ID per coerenza con frontend
+// =========================================
+// INDEXES
+// =========================================
+
+checkInSchema.index({ user: 1, goalId: 1, date: -1 });
+checkInSchema.index({ user: 1, date: -1 });
+
+// =========================================
+// PLUGINS
+// =========================================
+
+checkInSchema.plugin(multiTenancyPlugin, {
+    tenantField: 'user',
+    required: true,
+});
+
+// =========================================
+// SERIALIZATION
+// =========================================
+
 checkInSchema.set('toJSON', {
     virtuals: true,
     versionKey: false,
-    transform: function (doc, ret) {
+    transform: function(doc, ret) {
+        ret.id = ret._id;
         delete ret._id;
+        delete ret.user;
     }
 });
 

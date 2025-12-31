@@ -1,28 +1,59 @@
+/**
+ * 🎯 GOALS ROUTES - Multi-Tenant Protected
+ * ========================================
+ * 
+ * Routes per obiettivi e check-in.
+ * Tutte le query sono automaticamente filtrate per utente.
+ */
+
 const express = require('express');
 const router = express.Router();
-const Goal = require('../models/Goal');
-const CheckIn = require('../models/CheckIn');
-const { calculateGoalStats } = require('../services/goalStrategies');
+
+// Middleware
+const { requireAuth } = require('../middleware/auth');
+const { tenantContext } = require('../middleware/tenantContext');
 const { asyncHandler } = require('../middleware/errorHandler');
-const AppError = require('../utils/AppError');
 
-//! ==================== ROTTE PER GLI OBIETTIVI ====================
+// Services
+const goalService = require('../services/goalService');
+const checkInService = require('../services/checkInService');
 
-//! GET - Recupera tutti gli obiettivi
+// Strategies
+const { calculateGoalStats } = require('../services/goalStrategies');
+
+// =========================================
+// MIDDLEWARE: Applica a TUTTE le routes
+// =========================================
+
+router.use(requireAuth);
+router.use(tenantContext({ required: true }));
+
+// =========================================
+// GOALS ROUTES
+// =========================================
+
+/**
+ * GET /api/goals
+ * Lista tutti gli obiettivi dell'utente
+ */
 router.get('/goals', asyncHandler(async (req, res) => {
-    const goals = await Goal.find({});
+    const goals = await goalService.find(req.tenantScope);
     res.json({ success: true, data: goals });
 }));
 
-//! GET - Recupera un singolo obiettivo con i suoi check-in e progresso calcolato
+/**
+ * GET /api/goals/:id
+ * Dettaglio obiettivo con check-in e statistiche
+ */
 router.get('/goals/:id', asyncHandler(async (req, res) => {
-    const goal = await Goal.findById(req.params.id);
-    if (!goal) {
-        throw AppError.notFound('Obiettivo');
-    }
+    const goal = await goalService.findById(
+        req.tenantScope,
+        req.params.id,
+        { throwIfNotFound: true }
+    );
     
     // Recupera tutti i check-in per questo obiettivo
-    const checkIns = await CheckIn.find({ goalId: req.params.id }).sort({ date: -1 });
+    const checkIns = await checkInService.findByGoal(req.tenantScope, req.params.id);
     
     // Usa la strategy per calcolare le statistiche
     const stats = calculateGoalStats(goal, checkIns);
@@ -37,9 +68,12 @@ router.get('/goals/:id', asyncHandler(async (req, res) => {
     });
 }));
 
-//! POST - Crea un nuovo obiettivo
+/**
+ * POST /api/goals
+ * Crea nuovo obiettivo
+ */
 router.post('/goals', asyncHandler(async (req, res) => {
-    const goal = new Goal({
+    const goal = await goalService.create(req.tenantScope, {
         title: req.body.title,
         category: req.body.category,
         type: req.body.type,
@@ -47,76 +81,81 @@ router.post('/goals', asyncHandler(async (req, res) => {
         unit: req.body.unit,
         frequency: req.body.frequency,
         deadline: req.body.deadline,
-        description: req.body.description
+        description: req.body.description,
     });
-
-    const newGoal = await goal.save();
-    res.status(201).json({ success: true, data: newGoal });
+    res.status(201).json({ success: true, data: goal });
 }));
 
-//! PUT - Modifica un obiettivo esistente
+/**
+ * PUT /api/goals/:id
+ * Aggiorna obiettivo
+ */
 router.put('/goals/:id', asyncHandler(async (req, res) => {
-    const updatedGoal = await Goal.findByIdAndUpdate(
+    const goal = await goalService.update(
+        req.tenantScope,
         req.params.id,
-        req.body,
-        { new: true, runValidators: true }
+        req.body
     );
-    if (!updatedGoal) {
-        throw AppError.notFound('Obiettivo');
-    }
-    res.json({ success: true, data: updatedGoal });
+    res.json({ success: true, data: goal });
 }));
 
-//! DELETE - Elimina un obiettivo e tutti i suoi check-in
+/**
+ * DELETE /api/goals/:id
+ * Elimina obiettivo (cascade delete dei check-in)
+ */
 router.delete('/goals/:id', asyncHandler(async (req, res) => {
-    const deletedGoal = await Goal.findByIdAndDelete(req.params.id);
-    if (!deletedGoal) {
-        throw AppError.notFound('Obiettivo');
-    }
-    // Prima elimina tutti i check-in associati
-    await CheckIn.deleteMany({ goalId: req.params.id });
+    await goalService.delete(req.tenantScope, req.params.id);
     res.json({ success: true, message: 'Obiettivo e check-in eliminati' });
 }));
 
-//! ==================== ROTTE PER I CHECK-IN ====================
+// =========================================
+// CHECK-IN ROUTES
+// =========================================
 
-//! GET - Recupera tutti i check-in di un obiettivo
+/**
+ * GET /api/goals/:goalId/checkins
+ * Lista check-in di un obiettivo
+ */
 router.get('/goals/:goalId/checkins', asyncHandler(async (req, res) => {
-    const checkIns = await CheckIn.find({ goalId: req.params.goalId }).sort({ date: -1 });
+    // Verifica che il goal appartenga all'utente
+    await goalService.findById(req.tenantScope, req.params.goalId, {
+        throwIfNotFound: true,
+    });
+    
+    const checkIns = await checkInService.findByGoal(req.tenantScope, req.params.goalId);
     res.json({ success: true, data: checkIns });
 }));
 
-//! POST - Crea un nuovo check-in (aggiorna progresso)
+/**
+ * POST /api/goals/:goalId/checkins
+ * Crea check-in per un obiettivo
+ */
 router.post('/goals/:goalId/checkins', asyncHandler(async (req, res) => {
-    // Verifica che l'obiettivo esista
-    const goal = await Goal.findById(req.params.goalId);
-    if (!goal) {
-        throw AppError.notFound('Obiettivo');
-    }
-
-    const checkIn = new CheckIn({
+    // Il service verifica automaticamente che il goal appartenga all'utente
+    const checkIn = await checkInService.create(req.tenantScope, {
         goalId: req.params.goalId,
         date: req.body.date || new Date(),
         value: req.body.value,
         mood: req.body.mood,
-        notes: req.body.notes
+        notes: req.body.notes,
     });
-
-    const newCheckIn = await checkIn.save();
     
-    // Calcola le nuove statistiche usando la strategy
-    const allCheckIns = await CheckIn.find({ goalId: req.params.goalId });
+    // Ricalcola statistiche
+    const goal = await goalService.findById(req.tenantScope, req.params.goalId);
+    const allCheckIns = await checkInService.findByGoal(req.tenantScope, req.params.goalId);
     const stats = calculateGoalStats(goal, allCheckIns);
 
-    // Se l'obiettivo è raggiunto, aggiornalo automaticamente
+    // Se completato, aggiorna stato
     if (stats.isCompleted && goal.status === 'active') {
-        await Goal.findByIdAndUpdate(req.params.goalId, { status: 'completed' });
+        await goalService.update(req.tenantScope, req.params.goalId, {
+            status: 'completed',
+        });
     }
 
     res.status(201).json({
         success: true,
         data: {
-            checkIn: newCheckIn,
+            checkIn,
             stats: {
                 totalProgress: stats.totalProgress,
                 percentage: stats.percentage,
@@ -125,37 +164,41 @@ router.post('/goals/:goalId/checkins', asyncHandler(async (req, res) => {
     });
 }));
 
-//! DELETE - Elimina un check-in specifico
+/**
+ * DELETE /api/checkins/:id
+ * Elimina un check-in
+ */
 router.delete('/checkins/:id', asyncHandler(async (req, res) => {
-    const deletedCheckIn = await CheckIn.findByIdAndDelete(req.params.id);
-    if (!deletedCheckIn) {
-        throw AppError.notFound('Check-in');
-    }
+    await checkInService.delete(req.tenantScope, req.params.id);
     res.json({ success: true, message: 'Check-in eliminato' });
 }));
 
-//! ==================== ROTTE DASHBOARD ====================
+// =========================================
+// DASHBOARD ROUTES
+// =========================================
 
-//! GET - Statistiche generali per la dashboard
+/**
+ * GET /api/goals-stats
+ * Statistiche dashboard obiettivi
+ */
 router.get('/goals-stats', asyncHandler(async (req, res) => {
-    const goals = await Goal.find({});
-    const checkIns = await CheckIn.find({});
+    const { goals, stats } = await goalService.getDashboard(req.tenantScope);
     
-    // Statistiche generali
-    const activeGoals = goals.filter(g => g.status === 'active').length;
-    const completedGoals = goals.filter(g => g.status === 'completed').length;
+    // Calcola statistiche con strategy per ogni goal
+    const allCheckIns = await checkInService.find(req.tenantScope);
     
-    // Calcola progresso per ogni goal attivo usando la strategy
     const goalsWithProgress = await Promise.all(
         goals.filter(g => g.status === 'active').map(async (goal) => {
-            const goalCheckIns = checkIns.filter(ci => ci.goalId.toString() === goal._id.toString());
-            const stats = calculateGoalStats(goal, goalCheckIns);
+            const goalCheckIns = allCheckIns.filter(
+                ci => ci.goalId.toString() === goal.id.toString()
+            );
+            const goalStats = calculateGoalStats(goal, goalCheckIns);
             
             return {
-                ...goal.toJSON(),
-                totalProgress: stats.totalProgress,
-                percentage: stats.percentage,
-                ...(goal.type === 'habit' && { streak: stats.streak })
+                ...goal,
+                totalProgress: goalStats.totalProgress,
+                percentage: goalStats.percentage,
+                ...(goal.type === 'habit' && { streak: goalStats.streak }),
             };
         })
     );
@@ -165,13 +208,23 @@ router.get('/goals-stats', asyncHandler(async (req, res) => {
         data: {
             summary: {
                 totalGoals: goals.length,
-                activeGoals,
-                completedGoals,
-                totalCheckIns: checkIns.length,
+                activeGoals: goals.filter(g => g.status === 'active').length,
+                completedGoals: goals.filter(g => g.status === 'completed').length,
+                totalCheckIns: allCheckIns.length,
             },
             activeGoalsWithProgress: goalsWithProgress,
         },
     });
+}));
+
+/**
+ * GET /api/mood-stats
+ * Statistiche mood nel tempo
+ */
+router.get('/mood-stats', asyncHandler(async (req, res) => {
+    const days = parseInt(req.query.days) || 30;
+    const stats = await checkInService.getMoodStats(req.tenantScope, days);
+    res.json({ success: true, data: stats });
 }));
 
 module.exports = router;
