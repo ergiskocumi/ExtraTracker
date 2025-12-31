@@ -11,6 +11,9 @@ import { apiClient, type ApiResponse } from './api/apiClient';
 export interface User {
     id: string;
     email: string;
+    firstName?: string;
+    lastName?: string;
+    displayName?: string;
     isEmailVerified?: boolean;
     createdAt?: string;
 }

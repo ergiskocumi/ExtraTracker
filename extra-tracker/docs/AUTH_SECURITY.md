@@ -1,4 +1,4 @@
-# 🔐 Sistema di Autenticazione - Extra Tracker
+# 🔐 Sistema di Autenticazione - LifeOS
 
 ## Architettura
 

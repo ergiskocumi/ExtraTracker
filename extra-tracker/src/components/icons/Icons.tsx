@@ -1,4 +1,4 @@
-// Icone SVG minimaliste e professionali per Extra Tracker
+// Icone SVG minimaliste e professionali per LifeOS
 // Tutte le icone hanno dimensioni di default 20x20 e accettano className per personalizzazione
 
 interface IconProps {
@@ -292,7 +292,7 @@ export const FileTextIcon = ({ className = "", size = 20 }: IconProps) => (
   </svg>
 );
 
-// Logo Icon for Extra Tracker
+// Logo Icon for LifeOS
 export const LogoIcon = ({ className = "", size = 24 }: IconProps) => (
   <svg 
     width={size} 

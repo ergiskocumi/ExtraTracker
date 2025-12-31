@@ -91,7 +91,7 @@ const getBaseTemplate = (content) => `
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extra Tracker</title>
+    <title>LifeOS</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -165,13 +165,13 @@ const getBaseTemplate = (content) => `
 <body>
     <div class="container">
         <div class="logo">
-            <h1>🎯 Extra Tracker</h1>
+            <h1>🎯 LifeOS</h1>
         </div>
         <div class="content">
             ${content}
         </div>
         <div class="footer">
-            <p>© ${new Date().getFullYear()} Extra Tracker. Tutti i diritti riservati.</p>
+            <p>© ${new Date().getFullYear()} LifeOS. Tutti i diritti riservati.</p>
             <p>Questa email è stata inviata automaticamente, non rispondere.</p>
         </div>
     </div>
@@ -190,7 +190,7 @@ const getVerificationEmailTemplate = (verifyUrl, userName) => {
     return getBaseTemplate(`
         <h2>Verifica il tuo indirizzo email</h2>
         <p>Ciao${userName ? ` ${userName}` : ''}!</p>
-        <p>Grazie per esserti registrato su Extra Tracker. Per completare la registrazione, verifica il tuo indirizzo email cliccando il pulsante qui sotto:</p>
+        <p>Grazie per esserti registrato su LifeOS. Per completare la registrazione, verifica il tuo indirizzo email cliccando il pulsante qui sotto:</p>
         
         <a href="${verifyUrl}" class="button">Verifica Email</a>
         
@@ -213,7 +213,7 @@ const getPasswordResetTemplate = (resetUrl, userName) => {
     return getBaseTemplate(`
         <h2>Reset della Password</h2>
         <p>Ciao${userName ? ` ${userName}` : ''}!</p>
-        <p>Hai richiesto il reset della password per il tuo account Extra Tracker. Clicca il pulsante qui sotto per creare una nuova password:</p>
+        <p>Hai richiesto il reset della password per il tuo account LifeOS. Clicca il pulsante qui sotto per creare una nuova password:</p>
         
         <a href="${resetUrl}" class="button">Reimposta Password</a>
         
@@ -236,7 +236,7 @@ const getPasswordChangedTemplate = (userName) => {
     return getBaseTemplate(`
         <h2>Password Modificata</h2>
         <p>Ciao${userName ? ` ${userName}` : ''}!</p>
-        <p>Ti confermiamo che la password del tuo account Extra Tracker è stata modificata con successo.</p>
+        <p>Ti confermiamo che la password del tuo account LifeOS è stata modificata con successo.</p>
         
         <p style="margin-top: 20px;">📅 Data: <strong>${new Date().toLocaleString('it-IT')}</strong></p>
         
@@ -259,9 +259,9 @@ class EmailService {
         const verifyUrl = `${frontendUrl}/verify-email?token=${token}`;
         
         const mailOptions = {
-            from: `"Extra Tracker" <${process.env.SMTP_FROM || 'noreply@extratracker.com'}>`,
+            from: `"LifeOS" <${process.env.SMTP_FROM || 'noreply@extratracker.com'}>`,
             to: email,
-            subject: '✉️ Verifica il tuo indirizzo email - Extra Tracker',
+            subject: '✉️ Verifica il tuo indirizzo email - LifeOS',
             html: getVerificationEmailTemplate(verifyUrl),
         };
         
@@ -276,9 +276,9 @@ class EmailService {
         const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
         
         const mailOptions = {
-            from: `"Extra Tracker" <${process.env.SMTP_FROM || 'noreply@extratracker.com'}>`,
+            from: `"LifeOS" <${process.env.SMTP_FROM || 'noreply@extratracker.com'}>`,
             to: email,
-            subject: '🔐 Reset Password - Extra Tracker',
+            subject: '🔐 Reset Password - LifeOS',
             html: getPasswordResetTemplate(resetUrl),
         };
         
@@ -290,9 +290,9 @@ class EmailService {
      */
     async sendPasswordChangedEmail(email) {
         const mailOptions = {
-            from: `"Extra Tracker" <${process.env.SMTP_FROM || 'noreply@extratracker.com'}>`,
+            from: `"LifeOS" <${process.env.SMTP_FROM || 'noreply@extratracker.com'}>`,
             to: email,
-            subject: '✅ Password Modificata - Extra Tracker',
+            subject: '✅ Password Modificata - LifeOS',
             html: getPasswordChangedTemplate(),
         };
         

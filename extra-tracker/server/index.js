@@ -88,8 +88,8 @@ app.use('/api', goalsRoutes);
 
 app.get('/', (req, res) => {
     res.json({ 
-        message: 'Extra Tracker API',
-        version: '1.0.0',
+        message: 'LifeOS API',
+        version: '0.0.1',
     });
 });
 
