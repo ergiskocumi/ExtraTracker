@@ -129,6 +129,11 @@ export const apiClient = {
         return response.data;
     },
 
+    async patch<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
+        const response = await axiosInstance.patch<ApiResponse<T>>(url, data);
+        return response.data;
+    },
+
     async delete<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
         const response = await axiosInstance.delete<ApiResponse<T>>(url, { data });
         return response.data;

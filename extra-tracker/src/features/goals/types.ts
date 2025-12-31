@@ -28,6 +28,7 @@ export interface Milestone {
     isCompleted: boolean;
     weight: number;
     completedAt: string | null;
+    notes?: string;
 }
 
 // DTO per creare una milestone (senza id e completedAt)

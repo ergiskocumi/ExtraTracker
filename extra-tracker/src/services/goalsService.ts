@@ -109,6 +109,22 @@ const goalsService = {
         }
     },
 
+    /**
+     * Aggiorna le note di una specifica milestone
+     */
+    async updateMilestoneNotes(goalId: string, milestoneId: string, notes: string): Promise<MilestoneToggleResponse> {
+        try {
+            const response = await apiClient.patch<MilestoneToggleResponse>(
+                `/goals/${goalId}/milestones/${milestoneId}`,
+                { notes }
+            );
+            return unwrap(response, `Errore nel salvataggio note milestone ${milestoneId}`);
+        } catch (error) {
+            console.error(`Failed to update milestone notes ${milestoneId}:`, error);
+            throw error;
+        }
+    },
+
     // ==================== CHECK-INS ====================
 
     /**
