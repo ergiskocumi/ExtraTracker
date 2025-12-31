@@ -6,6 +6,7 @@ import { GOAL_CATEGORIES } from '../features/goals/types';
 import { BurndownChart } from '../features/goals/BurndownChart';
 import { ActivityHeatmap } from '../features/goals/ActivityHeatmap';
 import { MoodStats } from '../features/goals/MoodStats';
+import { useFormat } from '../hooks/useFormat';
 import type { GoalDetailResponse, CreateCheckInDTO, Mood, CheckIn } from '../features/goals/types';
 import {
     FiArrowLeft,
@@ -183,6 +184,7 @@ const getDailyTip = (goal: any): string => {
 
 export const GoalDetailPage = () => {
     const { id } = useParams<{ id: string }>();
+    const { showMotivationalMessages } = useFormat();
     
     const [data, setData] = useState<GoalDetailResponse | null>(null);
     const [loading, setLoading] = useState(true);
@@ -436,7 +438,7 @@ export const GoalDetailPage = () => {
                 </div>
 
                 {/* Encouragement Banner */}
-                {encouragement && (
+                {showMotivationalMessages && encouragement && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -721,12 +723,14 @@ export const GoalDetailPage = () => {
                                     </div>
 
                                     {/* Tip */}
-                                    <div className="p-4 rounded-lg bg-white/5 border border-white/10 mb-6">
-                                        <div className="flex items-start gap-3">
-                                            <FiStar className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                                            <p className="text-sm text-white/70">{dailyTip}</p>
+                                    {showMotivationalMessages && (
+                                        <div className="p-4 rounded-lg bg-white/5 border border-white/10 mb-6">
+                                            <div className="flex items-start gap-3">
+                                                <FiStar className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                                                <p className="text-sm text-white/70">{dailyTip}</p>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* Actions */}
                                     <div className="flex gap-3">

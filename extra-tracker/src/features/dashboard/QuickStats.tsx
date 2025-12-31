@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { FiClock, FiDollarSign, FiTrendingUp, FiActivity, FiCalendar } from 'react-icons/fi';
 import type { WorkLog } from '../tracker/type';
 import type { Project } from '../projects/type';
-import { formatCurrency } from '../../utils/currencyUtils';
+import { useFormat } from '../../hooks/useFormat';
 
 interface QuickStatsProps {
     logs: WorkLog[];
@@ -11,6 +11,8 @@ interface QuickStatsProps {
 }
 
 export const QuickStats = ({ logs, projects, allLogs }: QuickStatsProps) => {
+    const { formatMoney, formatHours } = useFormat();
+    
     // Calcola statistiche correnti
     const totalHours = logs.reduce((acc, log) => {
         const start = new Date(`2000-01-01T${log.startTime}`);
@@ -53,8 +55,8 @@ export const QuickStats = ({ logs, projects, allLogs }: QuickStatsProps) => {
     const stats = [
         {
             label: 'Ore Totali',
-            value: totalHours.toFixed(1),
-            suffix: 'h',
+            value: formatHours(totalHours),
+            suffix: '',
             icon: FiClock,
             color: 'from-blue-500 to-blue-600',
             bgColor: 'bg-blue-500/10',
@@ -64,7 +66,7 @@ export const QuickStats = ({ logs, projects, allLogs }: QuickStatsProps) => {
         },
         {
             label: 'Guadagno',
-            value: formatCurrency(totalEarnings),
+            value: formatMoney(totalEarnings),
             suffix: '',
             icon: FiDollarSign,
             color: 'from-emerald-500 to-emerald-600',

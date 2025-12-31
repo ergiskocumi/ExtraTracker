@@ -14,12 +14,22 @@ import { useState } from 'react';
 import type { WorkLog, WorkLogFormMode } from '../features/tracker/type';
 import DatePicker, { registerLocale } from "react-datepicker";
 import { it } from "date-fns/locale/it";
+import { enUS } from "date-fns/locale/en-US";
+import { es } from "date-fns/locale/es";
+import { de } from "date-fns/locale/de";
+import { fr } from "date-fns/locale/fr";
 import "react-datepicker/dist/react-datepicker.css";
+import { useFormat } from '../hooks/useFormat';
 
-// Registra la lingua italiana
+// Registra le lingue supportate (date-fns)
 registerLocale("it", it);
+registerLocale("en", enUS);
+registerLocale("es", es);
+registerLocale("de", de);
+registerLocale("fr", fr);
 
 export const DashboardPage = () => {
+    const { language } = useFormat();
     const { projects } = useProjects();
     const { logs, addWorkLog, deleteLog, updateLog } = useWorkLog();
     const { selectedMonth, setSelectedMonth, filteredLogs } = useFilterMonth(logs);
@@ -110,7 +120,7 @@ export const DashboardPage = () => {
                             }}
                             dateFormat="MMMM yyyy"
                             showMonthYearPicker
-                            locale="it"
+                            locale={language}
                             className="w-32 bg-transparent text-white capitalize cursor-pointer focus:outline-none text-sm"
                             calendarClassName="dark-calendar"
                             showPopperArrow={false}

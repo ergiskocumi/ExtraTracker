@@ -33,6 +33,182 @@ const userSchema = new mongoose.Schema(
             select: false,
         },
 
+        // ==========================================
+        // PROFILO UTENTE
+        // ==========================================
+        profile: {
+            firstName: {
+                type: String,
+                trim: true,
+                maxlength: [50, 'Nome troppo lungo'],
+            },
+            lastName: {
+                type: String,
+                trim: true,
+                maxlength: [50, 'Cognome troppo lungo'],
+            },
+            displayName: {
+                type: String,
+                trim: true,
+                maxlength: [100, 'Nome visualizzato troppo lungo'],
+            },
+            phone: {
+                type: String,
+                trim: true,
+            },
+            bio: {
+                type: String,
+                maxlength: [500, 'Bio troppo lunga'],
+            },
+            avatar: {
+                type: String, // URL avatar o base64
+            },
+            company: {
+                type: String,
+                trim: true,
+                maxlength: [100, 'Nome azienda troppo lungo'],
+            },
+            jobTitle: {
+                type: String,
+                trim: true,
+                maxlength: [100, 'Titolo professionale troppo lungo'],
+            },
+            location: {
+                type: String,
+                trim: true,
+            },
+            website: {
+                type: String,
+                trim: true,
+            },
+        },
+
+        // ==========================================
+        // PREFERENZE UTENTE
+        // ==========================================
+        preferences: {
+            // Preferenze generali
+            language: {
+                type: String,
+                enum: ['it', 'en', 'es', 'de', 'fr'],
+                default: 'it',
+            },
+            timezone: {
+                type: String,
+                default: 'Europe/Rome',
+            },
+            dateFormat: {
+                type: String,
+                enum: ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'],
+                default: 'DD/MM/YYYY',
+            },
+            timeFormat: {
+                type: String,
+                enum: ['24h', '12h'],
+                default: '24h',
+            },
+            
+            // Preferenze valuta/pagamenti
+            currency: {
+                type: String,
+                enum: ['EUR', 'USD', 'GBP', 'CHF'],
+                default: 'EUR',
+            },
+            defaultHourlyRate: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            
+            // Preferenze tema/UI
+            theme: {
+                type: String,
+                enum: ['dark', 'light', 'system'],
+                default: 'dark',
+            },
+            compactMode: {
+                type: Boolean,
+                default: false,
+            },
+            
+            // Preferenze dashboard
+            dashboardLayout: {
+                type: String,
+                enum: ['default', 'compact', 'expanded'],
+                default: 'default',
+            },
+            showMotivationalMessages: {
+                type: Boolean,
+                default: true,
+            },
+            defaultView: {
+                type: String,
+                enum: ['dashboard', 'timeline', 'goals'],
+                default: 'dashboard',
+            },
+            
+            // Preferenze lavoro
+            weekStartsOn: {
+                type: Number,
+                enum: [0, 1], // 0 = Domenica, 1 = Lunedì
+                default: 1,
+            },
+            workingDays: {
+                type: [Number],
+                default: [1, 2, 3, 4, 5], // Lun-Ven
+            },
+            dailyGoalHours: {
+                type: Number,
+                min: 0,
+                max: 24,
+                default: 8,
+            },
+            weeklyGoalHours: {
+                type: Number,
+                min: 0,
+                max: 168,
+                default: 40,
+            },
+        },
+
+        // ==========================================
+        // PREFERENZE NOTIFICHE
+        // ==========================================
+        notifications: {
+            email: {
+                enabled: {
+                    type: Boolean,
+                    default: true,
+                },
+                weeklyReport: {
+                    type: Boolean,
+                    default: true,
+                },
+                goalReminders: {
+                    type: Boolean,
+                    default: true,
+                },
+                projectUpdates: {
+                    type: Boolean,
+                    default: false,
+                },
+            },
+            push: {
+                enabled: {
+                    type: Boolean,
+                    default: false,
+                },
+                dailyReminder: {
+                    type: Boolean,
+                    default: false,
+                },
+                reminderTime: {
+                    type: String,
+                    default: '09:00',
+                },
+            },
+        },
+
         // Refresh token hashato (per invalidazione)
         refreshTokenHash: {
             type: String,

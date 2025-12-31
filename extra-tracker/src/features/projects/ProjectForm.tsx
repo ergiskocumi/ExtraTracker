@@ -1,5 +1,6 @@
 import type { Project } from "../projects/type";
 import { BuildingIcon, UserIcon, EuroIcon, SparklesIcon, FolderIcon, FileTextIcon, } from "../../components/icons";
+import { useFormat } from '../../hooks/useFormat';
 
 interface ProjectFormProps {
     projects: Project[];
@@ -8,6 +9,8 @@ interface ProjectFormProps {
 }
 
 export const ProjectForm = ({ projects, onAdd }: ProjectFormProps) => {
+  const { currencySymbol, defaultHourlyRate, formatMoney } = useFormat();
+
     return (
         <div className="space-y-6">
           {/* Form Card */}
@@ -62,9 +65,16 @@ export const ProjectForm = ({ projects, onAdd }: ProjectFormProps) => {
               {/* Tariffa */}
               <div>
                 <label className="label">
-                  <span className="flex items-center gap-1.5"><EuroIcon size={14} /> Tariffa Oraria (€) *</span>
+                  <span className="flex items-center gap-1.5"><EuroIcon size={14} /> Tariffa Oraria ({currencySymbol}) *</span>
                 </label>
-                <input name="rate" type="number" required placeholder="Es. 50" className="input" />
+                <input
+                  name="rate"
+                  type="number"
+                  required
+                  defaultValue={defaultHourlyRate > 0 ? defaultHourlyRate : undefined}
+                  placeholder="Es. 50"
+                  className="input"
+                />
               </div>
 
               {/* Descrizione (NUOVO - Opzionale) */}
@@ -119,7 +129,7 @@ export const ProjectForm = ({ projects, onAdd }: ProjectFormProps) => {
                       <p className="text-xs text-white/40 truncate max-w-[70%]">
                         {p.description || "Nessuna descrizione"}
                       </p>
-                      <p className="text-sm font-bold text-accent-400">{p.rate} €/h</p>
+                      <p className="text-sm font-bold text-accent-400">{formatMoney(p.rate)}/h</p>
                     </div>
                   </div>
                 ))}

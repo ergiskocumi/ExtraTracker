@@ -1,8 +1,8 @@
 import type { WorkLog } from "./type";
 import type { Project } from "../projects/type";
 import { calculateDurationInHours } from "../../utils/dateUtils";
-import { formatCurrency } from "../../utils/currencyUtils";
 import { ListIcon, TrashIcon, FileTextIcon, } from "../../components/icons";
+import { useFormat } from "../../hooks/useFormat";
 
 
 // import degli oggetti che vogliamo visualizzare poi a scermo
@@ -15,6 +15,17 @@ interface WorkLogListProps {
   }
 
 export const WorkLogList = ({ logs, projects, onDelete, onEdit, onDuplicate }: WorkLogListProps) => {
+    const { formatMoney, formatTime, formatHours, language } = useFormat();
+
+    const localeMap: Record<string, string> = {
+      it: 'it-IT',
+      en: 'en-GB',
+      es: 'es-ES',
+      de: 'de-DE',
+      fr: 'fr-FR',
+    };
+
+    const locale = localeMap[language] || 'it-IT';
     
     // funzione di utilità per ottenere il nome del progetto dato l'ID
     const getProjectName = (projectId: string) => {
@@ -22,11 +33,12 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit, onDuplicate }: W
         return project ? project.name : "Progetto sconosciuto"; // se trova il progetto ritorna il nome altrimenti "Progetto sconosciuto"
     };
 
-    //funzione che calcola gli euro in base alle ore lavorate e alla tariffa del progetto
-    const getHoursEuro = (log: WorkLog, projects: Project): string => {
-        const hours = calculateDurationInHours(log.startTime, log.endTime);
-        const euros = projects.rate * hours;
-        return formatCurrency(euros);
+    // Calcola importo in base alle ore lavorate e alla tariffa del progetto
+    const getLogAmountFormatted = (log: WorkLog): string => {
+      const project = projects.find(p => p.id === log.projectId);
+      if (!project) return formatMoney(0);
+      const hours = calculateDurationInHours(log.startTime, log.endTime);
+      return formatMoney(project.rate * hours);
     };
 
     const calculatedLogAmount = (log: WorkLog): number => {
@@ -46,12 +58,12 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit, onDuplicate }: W
     }, 0);
 
     // Formatta la data in modo leggibile
-    const formatDate = (dateString: string) => {
+    const formatDateShort = (dateString: string) => {
       const date = new Date(dateString);
-      return date.toLocaleDateString('it-IT', { 
-        weekday: 'short', 
-        day: 'numeric', 
-        month: 'short' 
+      return date.toLocaleDateString(locale, {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short'
       });
     };
 
@@ -97,7 +109,7 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit, onDuplicate }: W
             {logs.map((log, index) => (
               <tr key={log.id} className="animate-fade-in" style={{ animationDelay: `${index * 50}ms` }} >
                 <td>
-                  <span className="font-medium text-white/80">{formatDate(log.date)}</span>
+                  <span className="font-medium text-white/80">{formatDateShort(log.date)}</span>
                 </td>
                 <td>
                   <div className="flex items-center gap-2">
@@ -111,17 +123,17 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit, onDuplicate }: W
                 </td>
                 <td>
                   <span className="badge badge-neutral">
-                    {log.startTime} - {log.endTime}
+                    {formatTime(log.startTime)} - {formatTime(log.endTime)}
                   </span>
                 </td>
                 <td>
                   <span className="font-semibold text-white/80">
-                    {calculateDurationInHours(log.startTime, log.endTime).toFixed(2)} h
+                    {formatHours(calculateDurationInHours(log.startTime, log.endTime))}
                   </span>
                 </td>
                 <td>
                   <span className="font-bold text-accent-400">
-                    {getHoursEuro(log, projects.find(p => p.id === log.projectId)!)}
+                    {getLogAmountFormatted(log)}
                   </span>
                 </td>
                 
@@ -165,7 +177,7 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit, onDuplicate }: W
                 <span className="text-lg font-bold text-primary-400">{totalHours.toFixed(2)} h</span>
               </td>
               <td>
-                <span className="text-lg font-bold text-accent-400">{formatCurrency(totalAmount)}</span>
+                <span className="text-lg font-bold text-accent-400">{formatMoney(totalAmount)}</span>
               </td>
               <td></td>
             </tr>

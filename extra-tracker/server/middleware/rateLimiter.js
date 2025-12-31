@@ -10,12 +10,31 @@
 const rateLimit = require('express-rate-limit');
 const securityConfig = require('../config/security');
 
+const getClientIpForRateLimit = (req) => {
+    // In dev, when requests are proxied (e.g., Vite), the backend sees the proxy as localhost.
+    // Accept X-Forwarded-For only when the direct peer is loopback to avoid header spoofing.
+    const remoteAddress = req?.socket?.remoteAddress;
+    const isLoopback =
+        remoteAddress === '127.0.0.1' ||
+        remoteAddress === '::1' ||
+        remoteAddress === '::ffff:127.0.0.1';
+
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    if (isLoopback && typeof xForwardedFor === 'string' && xForwardedFor.length > 0) {
+        // XFF can be a list: client, proxy1, proxy2...
+        return xForwardedFor.split(',')[0].trim();
+    }
+
+    return req.ip;
+};
+
 /**
  * Rate limiter generale per tutte le API
  * 100 richieste per 15 minuti per IP
  */
 const generalLimiter = rateLimit({
     ...securityConfig.rateLimit.general,
+    keyGenerator: (req) => getClientIpForRateLimit(req),
     // Handler custom per errore
     handler: (req, res) => {
         res.status(429).json({
@@ -34,6 +53,7 @@ const generalLimiter = rateLimit({
  */
 const authLimiter = rateLimit({
     ...securityConfig.rateLimit.auth,
+    keyGenerator: (req) => getClientIpForRateLimit(req),
     handler: (req, res) => {
         res.status(429).json({
             success: false,
@@ -53,6 +73,7 @@ const authLimiter = rateLimit({
 const passwordResetLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 ora
     max: 3, // solo 3 richieste per ora
+    keyGenerator: (req) => getClientIpForRateLimit(req),
     message: {
         success: false,
         error: {

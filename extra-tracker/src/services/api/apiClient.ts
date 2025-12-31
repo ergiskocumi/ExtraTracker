@@ -10,7 +10,9 @@ import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axio
  * - Gestione errori centralizzata
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Preferisci same-origin per evitare problemi di cookie/CORS (soprattutto da mobile).
+// In dev, Vite proxy inoltra /api al backend.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export interface ApiError {
     message: string;
@@ -127,8 +129,8 @@ export const apiClient = {
         return response.data;
     },
 
-    async delete<T>(url: string): Promise<ApiResponse<T>> {
-        const response = await axiosInstance.delete<ApiResponse<T>>(url);
+    async delete<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
+        const response = await axiosInstance.delete<ApiResponse<T>>(url, { data });
         return response.data;
     },
 };

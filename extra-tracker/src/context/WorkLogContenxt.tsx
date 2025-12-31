@@ -40,9 +40,12 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
   const addWorkLog = async (data: Omit<WorkLog, 'id'>) => {
     try {
       const response = await apiClient.post<WorkLog>('/worklogs', data);
-      if (response.success && response.data) {
-        setLogs((prev) => [...prev, response.data]);
-      }
+      if (!response.success) return;
+
+      const createdLog = response.data;
+      if (!createdLog) return;
+
+      setLogs((prev) => [...prev, createdLog]);
     } catch (err) {
       console.error("Errore addLog:", err);
     }
@@ -68,12 +71,15 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
       const { id, ...dataToSend } = updatedLog;
       
       const response = await apiClient.put<WorkLog>(`/worklogs/${id}`, dataToSend);
-      if (response.success && response.data) {
-        // Aggiorniamo la lista locale sostituendo quello vecchio con quello nuovo
-        setLogs((prevLogs) =>
-          prevLogs.map((log) => (log.id === id ? response.data : log))
-        );
-      }
+      if (!response.success) return;
+
+      const savedLog = response.data;
+      if (!savedLog) return;
+
+      // Aggiorniamo la lista locale sostituendo quello vecchio con quello nuovo
+      setLogs((prevLogs) =>
+        prevLogs.map((log) => (log.id === id ? savedLog : log))
+      );
     } catch (err) {
       console.error("Errore updateLog:", err);
     }

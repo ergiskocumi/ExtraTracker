@@ -27,6 +27,7 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const apiRoutes = require('./routes/api');
 const goalsRoutes = require('./routes/goals');
 const authRoutes = require('./routes/auth');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -81,13 +82,14 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api', apiRoutes);
 app.use('/api', goalsRoutes);
 
 app.get('/', (req, res) => {
     res.json({ 
-        message: 'Extra Tracker API',
-        version: '1.0.0',
+        message: 'LifeOS API',
+        version: '0.0.1',
     });
 });
 
