@@ -1,8 +1,8 @@
 import type { WorkLog } from "./type";
 import type { Project } from "../projects/type";
-import { calculatesTotalsByProject } from "../../utils/calculations";
-import { useFormat } from "../../hooks/useFormat";
-import { ClockIcon, CurrencyIcon, ChartIcon, FileTextIcon } from "../../components/icons";
+import { calculatesTotalsByProject } from "../../shared/utils/calculations";
+import { useFormat } from "../../shared/hooks/useFormat";
+import { ClockIcon, CurrencyIcon, ChartIcon, FileTextIcon } from "../../shared/components/icons";
 
 // inizializzo le props che mi servono per questo componente
 interface ProjectSummaryProps {

@@ -178,13 +178,25 @@ router.delete('/goals/:id', asyncHandler(async (req, res) => {
 /**
  * POST /api/goals/:goalId/quick-checkin
  * Check-in rapido per habit/target senza body complesso
+ * 
+ * Supporta:
+ * - Goal type: habit, target (value=1 di default)
+ * - Custom value via req.body.value
+ * - Aggiorna automaticamente status se completato
+ * 
+ * TODO: Implementare MongoDB Transactions per evitare Race Condition
+ * tra creazione checkIn e aggiornamento status del goal.
+ * (Attualmente due operazioni separate: in alta concorrenza, il goal
+ * potrebbe essere aggiornato da un'altra richiesta nel mezzo)
  */
 router.post('/goals/:goalId/quick-checkin', asyncHandler(async (req, res) => {
     const goal = await goalService.findById(req.tenantScope, req.params.goalId, {
         throwIfNotFound: true,
     });
 
-    const value = goal.type === 'habit' || goal.type === 'target' ? 1 : null;
+    // Supporta sia default (1) che custom value da request body
+    const value = req.body.value ?? (goal.type === 'habit' || goal.type === 'target' ? 1 : null);
+    
     if (value == null) {
         return res.status(400).json({
             success: false,
@@ -196,11 +208,13 @@ router.post('/goals/:goalId/quick-checkin', asyncHandler(async (req, res) => {
         goalId: req.params.goalId,
         date: new Date(),
         value,
+        mood: 2, // Neutral di default
     });
 
     const allCheckIns = await checkInService.findByGoal(req.tenantScope, req.params.goalId);
     const stats = calculateGoalStats(goal, allCheckIns);
 
+    // Aggiorna status del goal se completato
     if (stats.isCompleted && goal.status === 'active') {
         await goalService.update(req.tenantScope, req.params.goalId, {
             status: 'completed',
@@ -214,6 +228,7 @@ router.post('/goals/:goalId/quick-checkin', asyncHandler(async (req, res) => {
             stats: {
                 totalProgress: stats.totalProgress,
                 percentage: stats.percentage,
+                streak: stats.streak,
             },
         },
     });
@@ -266,46 +281,6 @@ router.post('/goals/:goalId/checkins', asyncHandler(async (req, res) => {
             stats: {
                 totalProgress: stats.totalProgress,
                 percentage: stats.percentage,
-            },
-        },
-    });
-}));
-
-/**
- * POST /api/goals/:goalId/quick-checkin
- * Quick Check-in - Endpoint leggero per "Fatto!" con un click
- * Defaults: value=1, mood=2, date=now
- */
-router.post('/goals/:goalId/quick-checkin', asyncHandler(async (req, res) => {
-    const value = req.body.value ?? 1;
-    
-    const checkIn = await checkInService.create(req.tenantScope, {
-        goalId: req.params.goalId,
-        date: new Date(),
-        value: value,
-        mood: 2, // Neutral di default
-        notes: '',
-    });
-    
-    const goal = await goalService.findById(req.tenantScope, req.params.goalId);
-    const allCheckIns = await checkInService.findByGoal(req.tenantScope, req.params.goalId);
-    const stats = calculateGoalStats(goal, allCheckIns);
-
-    // Se completato, aggiorna stato
-    if (stats.isCompleted && goal.status === 'active') {
-        await goalService.update(req.tenantScope, req.params.goalId, {
-            status: 'completed',
-        });
-    }
-
-    res.status(201).json({
-        success: true,
-        data: {
-            checkIn,
-            stats: {
-                totalProgress: stats.totalProgress,
-                percentage: stats.percentage,
-                streak: stats.streak,
             },
         },
     });

@@ -104,8 +104,14 @@ app.use(errorHandler);
 // 7. DATABASE CONNECTION
 // ==========================================
 
-const MONGO_URI = process.env.MONGO_URI || 
-    'mongodb://admin:password123@localhost:27017/extra-tracker?authSource=admin';
+const MONGO_URI = process.env.MONGO_URI;
+
+// Fail Secure: non tollerare credenziali mancanti
+if (!MONGO_URI) {
+    console.error('❌ ERRORE CRITICO: Variabile di ambiente MONGO_URI non configurata');
+    console.error('📝 Configura MONGO_URI nel file .env prima di avviare il server');
+    process.exit(1);
+}
 
 const connectDB = async () => {
     try {

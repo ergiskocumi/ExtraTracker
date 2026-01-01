@@ -63,9 +63,11 @@ router.post(
  * @route   POST /api/auth/refresh
  * @desc    Rinnova access token
  * @access  Public (richiede refresh token cookie)
+ * @security Protetto con rate limiting per evitare token refresh attacks
  */
 router.post(
     '/refresh',
+    authLimiter,                   // Rate limit anti-brute force
     authController.refresh
 );
 

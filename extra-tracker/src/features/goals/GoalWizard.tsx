@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useGoals } from '../../context/GoalsContext';
+import { useGoals } from './context/GoalsContext';
 import { GOAL_CATEGORIES, GOAL_TYPES } from './types';
 import type { GoalCategory, GoalType, CreateGoalDTO, CreateMilestoneDTO } from './types';
 import {
@@ -8,20 +8,12 @@ import {
     FiArrowRight,
     FiArrowLeft,
     FiCheck,
-    FiDollarSign,
-    FiHeart,
-    FiBook,
-    FiBriefcase,
-    FiUser,
     FiTarget,
     FiRefreshCw,
     FiCalendar,
     FiPlus,
     FiTrash2,
     FiFlag,
-    FiUsers,
-    FiEdit3,
-    FiSun,
     FiZap,
     FiLayers,
     FiAward
@@ -89,21 +81,6 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
             e.preventDefault();
             addMilestone();
         }
-    };
-
-    // Category icons - expanded
-    const getCategoryIcon = (cat: string): React.ReactElement => {
-        const icons: Record<string, React.ReactElement> = {
-            finance: <FiDollarSign className="w-6 h-6" />,
-            health: <FiHeart className="w-6 h-6" />,
-            learning: <FiBook className="w-6 h-6" />,
-            career: <FiBriefcase className="w-6 h-6" />,
-            personal: <FiUser className="w-6 h-6" />,
-            relationships: <FiUsers className="w-6 h-6" />,
-            creativity: <FiEdit3 className="w-6 h-6" />,
-            mindfulness: <FiSun className="w-6 h-6" />,
-        };
-        return icons[cat] || <FiTarget className="w-6 h-6" />;
     };
 
     // Type icons
