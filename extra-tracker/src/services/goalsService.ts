@@ -53,10 +53,9 @@ const applyQuickCheckInOptimistic = (goal: GoalWithProgress, now: Date): GoalWit
 
     if (goal.type === 'target') {
         const nextTotalProgress = (goal.totalProgress || 0) + 1;
-        const targetValue = goal.targetValue ?? 0;
-        const percentage = targetValue > 0
-            ? Math.min(100, Math.round((nextTotalProgress / targetValue) * 100))
-            : 0;
+        const percentage = goal.targetValue
+            ? Math.min(100, Math.round((nextTotalProgress / goal.targetValue) * 100))
+            : goal.percentage;
         return {
             ...goal,
             totalProgress: nextTotalProgress,

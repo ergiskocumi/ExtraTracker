@@ -80,7 +80,7 @@ const goalSchema = new mongoose.Schema({
         type: String, 
         required: [true, 'La categoria è obbligatoria'],
         enum: {
-            values: ['finance', 'health', 'learning', 'career', 'personal'],
+            values: ['finance', 'health', 'learning', 'career', 'personal', 'relationships', 'creativity', 'mindfulness'],
             message: 'Categoria non valida',
         },
     },
@@ -90,22 +90,22 @@ const goalSchema = new mongoose.Schema({
         type: String, 
         required: [true, 'Il tipo è obbligatorio'],
         enum: {
-            values: ['target', 'habit'],
-            message: 'Tipo non valido (usa "target" o "habit")',
+            values: ['target', 'habit', 'milestone', 'challenge', 'project'],
+            message: 'Tipo non valido (usa "target", "habit", "milestone", "challenge" o "project")',
         },
     },
     
-    // Valore target da raggiungere (solo per type: 'target')
+    // Valore target da raggiungere (solo per type: 'target' e 'challenge')
     targetValue: { 
         type: Number, 
         default: null,
         min: [0, 'Il valore target non può essere negativo'],
     },
     
-    // Unità di misura (€, ore, km, libri, ecc.)
+    // Unità di misura (€, ore, km, libri, ecc.) - opzionale per habit/milestone/project
     unit: { 
         type: String, 
-        required: [true, 'L\'unità di misura è obbligatoria'],
+        default: '',
         trim: true,
         maxlength: [20, 'L\'unità non può superare 20 caratteri'],
     },

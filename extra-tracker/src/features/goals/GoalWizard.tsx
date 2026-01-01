@@ -194,22 +194,57 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
         return templates[cat] || [];
     };
 
+    // Validation state
+    const [submitError, setSubmitError] = useState<string | null>(null);
+
+    // Validate form before submit
+    const validateForm = (): string | null => {
+        if (!category) return 'Seleziona una categoria';
+        if (!type) return 'Seleziona un tipo di obiettivo';
+        if (!title.trim()) return 'Inserisci un titolo';
+        if (!deadline) return 'Seleziona una scadenza';
+        
+        if ((type === 'target' || type === 'challenge') && !targetValue) {
+            return 'Inserisci un valore target';
+        }
+        
+        if ((type === 'target' || type === 'challenge') && Number(targetValue) <= 0) {
+            return 'Il valore target deve essere maggiore di 0';
+        }
+
+        if ((type === 'target' || type === 'challenge') && !unit.trim()) {
+            return 'Specifica un\'unità di misura per questo obiettivo';
+        }
+        
+        if (type === 'habit' && (!frequency || Number(frequency) < 1)) {
+            return 'Seleziona una frequenza valida';
+        }
+        
+        return null;
+    };
+
     // Submit
     const handleSubmit = async () => {
-        if (!category || !type) return;
+        setSubmitError(null);
+        
+        const validationError = validateForm();
+        if (validationError) {
+            setSubmitError(validationError);
+            return;
+        }
 
         const goalData: CreateGoalDTO = {
-            title,
-            category,
-            type,
+            title: title.trim(),
+            category: category!,
+            type: type!,
             deadline,
-            description: description || undefined,
+            description: description.trim() || undefined,
             ...(milestones.length > 0 && { milestones }),
-            ...((type === 'target' || type === 'challenge') && {
+            ...((type === 'target' || type === 'challenge') && targetValue && {
                 targetValue: Number(targetValue),
-                unit: unit || undefined,
+                unit: unit.trim() || undefined,
             }),
-            ...(type === 'habit' && {
+            ...(type === 'habit' && frequency && {
                 frequency: Number(frequency),
             }),
         };
@@ -218,8 +253,11 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
         try {
             await addGoal(goalData);
             onClose();
-        } catch (error) {
-            alert('Errore nella creazione dell\'obiettivo');
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : 'Errore nella creazione dell\'obiettivo. Verifica di essere autenticato.';
+            setSubmitError(errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -227,6 +265,7 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
 
     // Navigation
     const goNext = () => {
+        setSubmitError(null);
         if (step === 'category' && category) setStep('type');
         else if (step === 'type' && type) setStep('details');
         else if (step === 'details' && title) setStep('milestones');
@@ -234,6 +273,7 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
     };
 
     const goBack = () => {
+        setSubmitError(null);
         if (step === 'type') setStep('category');
         else if (step === 'details') setStep('type');
         else if (step === 'milestones') setStep('details');
@@ -766,6 +806,22 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                     className="relative z-10 px-8 py-5 border-t border-white/[0.06]"
                     style={{ background: 'rgba(255,255,255,0.01)' }}
                 >
+                    {/* Error message */}
+                    <AnimatePresence>
+                        {submitError && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl"
+                            >
+                                <p className="text-sm text-red-400 text-center">
+                                    {submitError}
+                                </p>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                    
                     <div className="flex items-center justify-between">
                         {step !== 'category' ? (
                             <motion.button
