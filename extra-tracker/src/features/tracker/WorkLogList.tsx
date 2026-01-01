@@ -1,8 +1,8 @@
 import type { WorkLog } from "./type";
 import type { Project } from "../projects/type";
-import { calculateDurationInHours } from "../../utils/dateUtils";
-import { ListIcon, TrashIcon, FileTextIcon, } from "../../components/icons";
-import { useFormat } from "../../hooks/useFormat";
+import { calculateDurationInHours } from "../../shared/utils/dateUtils";
+import { ListIcon, TrashIcon, FileTextIcon, } from "../../shared/components/icons";
+import { useFormat } from "../../shared/hooks/useFormat";
 
 
 // import degli oggetti che vogliamo visualizzare poi a scermo

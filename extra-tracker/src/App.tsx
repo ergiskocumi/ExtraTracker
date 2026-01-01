@@ -7,26 +7,26 @@
  */
 
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { GoalsProvider } from './context/GoalsContext';
-import { ProjectsProvider } from './context/ProjectsContext';
-import { WorkLogProvider } from './context/WorkLogContenxt';
-import { SettingsProvider } from './context/SettingsContext';
-import { ProtectedRoute } from './context/AuthContext';
-import { AppLayout, AuthLayout } from './layouts';
-import { useSettings } from './context/SettingsContext';
+import { GoalsProvider } from './features/goals/context/GoalsContext';
+import { ProjectsProvider } from './features/projects/context/ProjectsContext';
+import { WorkLogProvider } from './features/tracker/context/WorkLogContext';
+import { SettingsProvider } from './features/settings/context/SettingsContext';
+import { ProtectedRoute } from './features/auth/context/AuthContext';
+import { AppLayout, AuthLayout } from './shared/layouts';
+import { useSettings } from './features/settings/context/SettingsContext';
 
 // Pagine
-import { DashboardPage } from './pages/DashboardPageNew';
-import { ProjectsPage } from './pages/ProjectsPage';
-import { SettingsPage } from './pages/SettingsPageNew';
-import { GoalsPage } from './pages/GoalsPage';
-import { GoalDetailPage } from './pages/GoalDetailPage';
-import { TimelinePage } from './pages/TimelinePage';
-import { LoginPage } from './pages/auth/LoginPage';
-import { RegisterPage } from './pages/auth/RegisterPage';
-import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
-import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
-import { VerifyEmailPage } from './pages/auth/VerifyEmailPage';
+import { DashboardPage } from './features/dashboard/pages/DashboardPageNew';
+import { ProjectsPage } from './features/projects/pages/ProjectsPage';
+import { SettingsPage } from './features/settings/pages/SettingsPageNew';
+import { GoalsPage } from './features/goals/pages/GoalsPage';
+import { GoalDetailPage } from './features/goals/pages/GoalDetailPage';
+import { TimelinePage } from './features/tracker/pages/TimelinePage';
+import { LoginPage } from './features/auth/pages/LoginPage';
+import { RegisterPage } from './features/auth/pages/RegisterPage';
+import { ForgotPasswordPage } from './features/auth/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './features/auth/pages/ResetPasswordPage';
+import { VerifyEmailPage } from './features/auth/pages/VerifyEmailPage';
 
 const HomeRedirect = () => {
     const { preferences, hasLoaded } = useSettings();

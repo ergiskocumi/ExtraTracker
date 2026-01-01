@@ -1,6 +1,6 @@
-import type { Project } from "../projects/type";
-import { BuildingIcon, UserIcon, EuroIcon, SparklesIcon, FileTextIcon, ClockIcon, ChartIcon } from "../../components/icons";
-import { useFormat } from '../../hooks/useFormat';
+import type { Project } from "./type";
+import { BuildingIcon, UserIcon, EuroIcon, SparklesIcon, FileTextIcon, ClockIcon, ChartIcon } from "../../shared/components/icons";
+import { useFormat } from '../../shared/hooks/useFormat';
 
 interface ProjectFormProps {
   projects?: Project[];

@@ -14,7 +14,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
-import { useGoals } from '../../../context/GoalsContext';
+import { useGoals } from '../context/GoalsContext';
 import type { GoalWithProgress } from '../types';
 
 // ============================================================================

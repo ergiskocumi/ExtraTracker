@@ -1,4 +1,4 @@
-import { useGoals } from '../../context/GoalsContext';
+import { useGoals } from '../goals/context/GoalsContext';
 import { GOAL_CATEGORIES } from '../goals/types';
 import { Link } from 'react-router-dom';
 import type { GoalWithProgress } from '../goals/types';

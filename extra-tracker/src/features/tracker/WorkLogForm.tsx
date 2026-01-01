@@ -1,12 +1,12 @@
 import type { Project } from "../projects/type";
 import { useEffect, useState } from "react";
-import { EditIcon, FolderIcon, CalendarIcon, PlayIcon, StopIcon, PlusIcon, FileTextIcon } from "../../components/icons";
+import { EditIcon, FolderIcon, CalendarIcon, PlayIcon, StopIcon, PlusIcon, FileTextIcon } from "../../shared/components/icons";
 import type { WorkLog, WorkLogFormMode } from "./type";
 import DatePicker, { registerLocale } from "react-datepicker";
 import { it } from "date-fns/locale/it";
 import "react-datepicker/dist/react-datepicker.css";
-import { generateTimeSlots } from "../../utils/dateUtils";
-import { TimeSelect } from "../../components/TimeSelect";
+import { generateTimeSlots } from "../../shared/utils/dateUtils";
+import { TimeSelect } from "../../shared/components/TimeSelect";
 
 // Registra la lingua italiana
 registerLocale("it", it);

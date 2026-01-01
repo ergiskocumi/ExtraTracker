@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { FiClock, FiDollarSign, FiTrendingUp, FiActivity, FiCalendar } from 'react-icons/fi';
 import type { WorkLog } from '../tracker/type';
 import type { Project } from '../projects/type';
-import { useFormat } from '../../hooks/useFormat';
+import { useFormat } from '../../shared/hooks/useFormat';
 
 interface QuickStatsProps {
     logs: WorkLog[];

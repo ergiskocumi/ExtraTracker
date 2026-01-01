@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import goalsService from '../../../services/goalsService';
-import { useFormat } from '../../../hooks/useFormat';
+import goalsService from '../services/goalsService';
+import { useFormat } from '../../../shared/hooks/useFormat';
 import type {
     GoalDetailResponse,
     CreateCheckInDTO,
