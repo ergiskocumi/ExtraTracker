@@ -9,79 +9,20 @@ import type {
     CheckInResponse,
     GoalsDashboardStats,
     MilestoneToggleResponse,
-    GoalWithProgress,
-    GoalStats,
 } from '../features/goals/types';
 
 /**
  * Goals Service
  * Gestisce tutte le chiamate API per obiettivi e check-in
+ * 
+ * NOTA: Questo service è UI-agnostico - non contiene riferimenti a React
+ * La logica di Optimistic UI è gestita nel GoalsContext
  */
 const unwrap = <T>(response: ApiResponse<T>, fallbackMessage: string): T => {
     if (!response.success || response.data === undefined) {
         throw new Error(response.error?.message || response.message || fallbackMessage);
     }
     return response.data;
-};
-
-type GoalsStateSetter = (
-    value: GoalWithProgress[] | ((prev: GoalWithProgress[]) => GoalWithProgress[])
-) => void;
-
-interface QuickCheckInOptions {
-    setGoals?: GoalsStateSetter;
-}
-
-const getHabitPercentage = (goal: GoalWithProgress, totalProgress: number, now: Date): number => {
-    const start = goal.createdAt ? new Date(goal.createdAt) : now;
-    const weeksPassed = Math.max(1, Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 7)));
-    const frequency = goal.frequency || 1;
-    const expectedCheckIns = frequency * weeksPassed;
-    if (!expectedCheckIns) return 0;
-    return Math.min(100, Math.round((totalProgress / expectedCheckIns) * 100));
-};
-
-const applyQuickCheckInOptimistic = (goal: GoalWithProgress, now: Date): GoalWithProgress => {
-    if (goal.type === 'habit') {
-        const nextTotalProgress = (goal.totalProgress || 0) + 1;
-        return {
-            ...goal,
-            totalProgress: nextTotalProgress,
-            percentage: getHabitPercentage(goal, nextTotalProgress, now),
-        };
-    }
-
-    if (goal.type === 'target') {
-        const nextTotalProgress = (goal.totalProgress || 0) + 1;
-        const percentage = goal.targetValue
-            ? Math.min(100, Math.round((nextTotalProgress / goal.targetValue) * 100))
-            : goal.percentage;
-        return {
-            ...goal,
-            totalProgress: nextTotalProgress,
-            currentValue: nextTotalProgress,
-            percentage,
-        };
-    }
-
-    return goal;
-};
-
-const applyQuickCheckInStats = (goal: GoalWithProgress, stats: GoalStats): GoalWithProgress => {
-    const updated = {
-        ...goal,
-        totalProgress: stats.totalProgress,
-        percentage: stats.percentage,
-    };
-
-    if (goal.type === 'target') {
-        return {
-            ...updated,
-            currentValue: stats.totalProgress,
-        };
-    }
-
-    return updated;
 };
 
 const goalsService = {
@@ -234,38 +175,14 @@ const goalsService = {
     },
 
     /**
-     * Quick check-in senza body complesso (optimistic UI)
+     * Quick check-in - Pura chiamata API
+     * L'optimistic UI è gestita dal GoalsContext
      */
-    async quickCheckIn(goalId: string, options: QuickCheckInOptions = {}): Promise<CheckInResponse> {
-        const { setGoals } = options;
-        const now = new Date();
-        let previousGoal: GoalWithProgress | null = null;
-
-        if (setGoals) {
-            setGoals(prevGoals => prevGoals.map(goal => {
-                if (goal.id !== goalId) return goal;
-                previousGoal = goal;
-                return applyQuickCheckInOptimistic(goal, now);
-            }));
-        }
-
+    async quickCheckIn(goalId: string): Promise<CheckInResponse> {
         try {
             const response = await apiClient.post<CheckInResponse>(`/goals/${goalId}/quick-checkin`, {});
-            const data = unwrap(response, `Errore nel quick check-in per obiettivo ${goalId}`);
-
-            if (setGoals) {
-                setGoals(prevGoals => prevGoals.map(goal => (
-                    goal.id === goalId ? applyQuickCheckInStats(goal, data.stats) : goal
-                )));
-            }
-
-            return data;
+            return unwrap(response, `Errore nel quick check-in per obiettivo ${goalId}`);
         } catch (error) {
-            if (setGoals && previousGoal) {
-                setGoals(prevGoals => prevGoals.map(goal => (
-                    goal.id === goalId ? previousGoal : goal
-                )));
-            }
             console.error(`Failed to quick check-in for goal ${goalId}:`, error);
             throw error;
         }

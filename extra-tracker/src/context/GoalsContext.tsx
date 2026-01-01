@@ -10,6 +10,72 @@ import type {
     GoalStats,
 } from '../features/goals/types';
 
+// ==================== OPTIMISTIC UI HELPERS ====================
+
+/**
+ * Calcola la percentuale per un goal di tipo "habit"
+ * basandosi sulle settimane trascorse dalla creazione
+ */
+const getHabitPercentage = (goal: GoalWithProgress, totalProgress: number, now: Date): number => {
+    const start = goal.createdAt ? new Date(goal.createdAt) : now;
+    const weeksPassed = Math.max(1, Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 7)));
+    const frequency = goal.frequency || 1;
+    const expectedCheckIns = frequency * weeksPassed;
+    if (!expectedCheckIns) return 0;
+    return Math.min(100, Math.round((totalProgress / expectedCheckIns) * 100));
+};
+
+/**
+ * Applica l'aggiornamento optimistico prima della risposta API
+ */
+const applyQuickCheckInOptimistic = (goal: GoalWithProgress, now: Date): GoalWithProgress => {
+    if (goal.type === 'habit') {
+        const nextTotalProgress = (goal.totalProgress || 0) + 1;
+        return {
+            ...goal,
+            totalProgress: nextTotalProgress,
+            percentage: getHabitPercentage(goal, nextTotalProgress, now),
+        };
+    }
+
+    if (goal.type === 'target') {
+        const nextTotalProgress = (goal.totalProgress || 0) + 1;
+        const percentage = goal.targetValue
+            ? Math.min(100, Math.round((nextTotalProgress / goal.targetValue) * 100))
+            : goal.percentage;
+        return {
+            ...goal,
+            totalProgress: nextTotalProgress,
+            currentValue: nextTotalProgress,
+            percentage,
+        };
+    }
+
+    return goal;
+};
+
+/**
+ * Applica le statistiche reali dal server dopo la risposta API
+ */
+const applyQuickCheckInStats = (goal: GoalWithProgress, stats: GoalStats): GoalWithProgress => {
+    const updated = {
+        ...goal,
+        totalProgress: stats.totalProgress,
+        percentage: stats.percentage,
+    };
+
+    if (goal.type === 'target') {
+        return {
+            ...updated,
+            currentValue: stats.totalProgress,
+        };
+    }
+
+    return updated;
+};
+
+// ==================== CONTEXT TYPES ====================
+
 // Tipo del contesto
 interface GoalsContextType {
     // Stato
@@ -133,22 +199,56 @@ export const GoalsProvider = ({ children }: { children: ReactNode }) => {
 
     /**
      * Quick Check-in con Optimistic UI
-     * Aggiorna istantaneamente la UI, poi sincronizza col backend
+     * 1. Aggiorna istantaneamente la UI (optimistic)
+     * 2. Chiama il backend
+     * 3. Applica la risposta reale del server
+     * 4. Rollback in caso di errore
      */
     const quickCheckIn = async (goalId: string): Promise<void> => {
+        const now = new Date();
+        let previousGoal: GoalWithProgress | null = null;
+
+        // 1. Optimistic update su goals
+        setGoals(prevGoals =>
+            prevGoals.map(goal => {
+                if (goal.id !== goalId) return goal;
+                previousGoal = goal;
+                return applyQuickCheckInOptimistic(goal, now);
+            })
+        );
+
+        // 2. Optimistic update su stats
         setStats(prevStats => ({
             ...prevStats,
             totalCheckIns: prevStats.totalCheckIns + 1,
         }));
 
         try {
-            await goalsService.quickCheckIn(goalId, { setGoals });
+            // 3. Chiamata API (service è ora UI-agnostico)
+            const response = await goalsService.quickCheckIn(goalId);
+
+            // 4. Applica i dati reali dal server
+            setGoals(prevGoals =>
+                prevGoals.map(goal =>
+                    goal.id === goalId ? applyQuickCheckInStats(goal, response.stats) : goal
+                )
+            );
         } catch (err: any) {
             console.error('Errore quick check-in:', err);
+
+            // 5. Rollback goals
+            if (previousGoal) {
+                setGoals(prevGoals =>
+                    prevGoals.map(goal => (goal.id === goalId ? previousGoal! : goal))
+                );
+            }
+
+            // 6. Rollback stats
             setStats(prevStats => ({
                 ...prevStats,
                 totalCheckIns: Math.max(0, prevStats.totalCheckIns - 1),
             }));
+
             throw new Error(err.message || 'Impossibile registrare il progresso');
         }
     };
