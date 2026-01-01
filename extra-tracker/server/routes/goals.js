@@ -82,6 +82,7 @@ router.post('/goals', asyncHandler(async (req, res) => {
         frequency: req.body.frequency,
         deadline: req.body.deadline,
         description: req.body.description,
+        milestones: req.body.milestones, // Supporto milestones
     });
     res.status(201).json({ success: true, data: goal });
 }));
@@ -100,6 +101,68 @@ router.put('/goals/:id', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * PATCH /api/goals/:id/milestones/:milestoneId/toggle
+ * Toggle isCompleted di una specifica milestone (operazione atomica)
+ */
+router.patch('/goals/:id/milestones/:milestoneId/toggle', asyncHandler(async (req, res) => {
+    const goal = await goalService.toggleMilestone(
+        req.tenantScope,
+        req.params.id,
+        req.params.milestoneId
+    );
+    
+    // Calcola statistiche aggiornate
+    const checkIns = await checkInService.findByGoal(req.tenantScope, req.params.id);
+    const stats = calculateGoalStats(goal, checkIns);
+    
+    res.json({ 
+        success: true, 
+        data: {
+            goal: goal.toJSON(),
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+                milestoneProgress: goal.milestoneProgress,
+                completedMilestones: goal.completedMilestones,
+                totalMilestones: goal.milestones?.length || 0
+            }
+        }
+    });
+}));
+
+/**
+ * PATCH /api/goals/:id/milestones/:milestoneId
+ * Aggiorna dati di una milestone (es. notes)
+ */
+router.patch('/goals/:id/milestones/:milestoneId', asyncHandler(async (req, res) => {
+    const notes = typeof req.body?.notes === 'string' ? req.body.notes : undefined;
+
+    const goal = await goalService.updateMilestone(
+        req.tenantScope,
+        req.params.id,
+        req.params.milestoneId,
+        { notes }
+    );
+
+    const checkIns = await checkInService.findByGoal(req.tenantScope, req.params.id);
+    const stats = calculateGoalStats(goal, checkIns);
+
+    res.json({
+        success: true,
+        data: {
+            goal: goal.toJSON(),
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+                milestoneProgress: goal.milestoneProgress,
+                completedMilestones: goal.completedMilestones,
+                totalMilestones: goal.milestones?.length || 0,
+            },
+        },
+    });
+}));
+
+/**
  * DELETE /api/goals/:id
  * Elimina obiettivo (cascade delete dei check-in)
  */
@@ -111,6 +174,50 @@ router.delete('/goals/:id', asyncHandler(async (req, res) => {
 // =========================================
 // CHECK-IN ROUTES
 // =========================================
+
+/**
+ * POST /api/goals/:goalId/quick-checkin
+ * Check-in rapido per habit/target senza body complesso
+ */
+router.post('/goals/:goalId/quick-checkin', asyncHandler(async (req, res) => {
+    const goal = await goalService.findById(req.tenantScope, req.params.goalId, {
+        throwIfNotFound: true,
+    });
+
+    const value = goal.type === 'habit' || goal.type === 'target' ? 1 : null;
+    if (value == null) {
+        return res.status(400).json({
+            success: false,
+            message: 'Tipo di obiettivo non supportato per quick check-in',
+        });
+    }
+
+    const checkIn = await checkInService.create(req.tenantScope, {
+        goalId: req.params.goalId,
+        date: new Date(),
+        value,
+    });
+
+    const allCheckIns = await checkInService.findByGoal(req.tenantScope, req.params.goalId);
+    const stats = calculateGoalStats(goal, allCheckIns);
+
+    if (stats.isCompleted && goal.status === 'active') {
+        await goalService.update(req.tenantScope, req.params.goalId, {
+            status: 'completed',
+        });
+    }
+
+    res.status(201).json({
+        success: true,
+        data: {
+            checkIn,
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+            },
+        },
+    });
+}));
 
 /**
  * GET /api/goals/:goalId/checkins
@@ -159,6 +266,46 @@ router.post('/goals/:goalId/checkins', asyncHandler(async (req, res) => {
             stats: {
                 totalProgress: stats.totalProgress,
                 percentage: stats.percentage,
+            },
+        },
+    });
+}));
+
+/**
+ * POST /api/goals/:goalId/quick-checkin
+ * Quick Check-in - Endpoint leggero per "Fatto!" con un click
+ * Defaults: value=1, mood=2, date=now
+ */
+router.post('/goals/:goalId/quick-checkin', asyncHandler(async (req, res) => {
+    const value = req.body.value ?? 1;
+    
+    const checkIn = await checkInService.create(req.tenantScope, {
+        goalId: req.params.goalId,
+        date: new Date(),
+        value: value,
+        mood: 2, // Neutral di default
+        notes: '',
+    });
+    
+    const goal = await goalService.findById(req.tenantScope, req.params.goalId);
+    const allCheckIns = await checkInService.findByGoal(req.tenantScope, req.params.goalId);
+    const stats = calculateGoalStats(goal, allCheckIns);
+
+    // Se completato, aggiorna stato
+    if (stats.isCompleted && goal.status === 'active') {
+        await goalService.update(req.tenantScope, req.params.goalId, {
+            status: 'completed',
+        });
+    }
+
+    res.status(201).json({
+        success: true,
+        data: {
+            checkIn,
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+                streak: stats.streak,
             },
         },
     });

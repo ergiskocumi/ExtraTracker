@@ -6,7 +6,14 @@ import { apiClient } from "../services/api/apiClient";
 
 interface ProjectsContextType {
   projects: Project[];
-  addProject: (name: string, code: string, rate: number, description?: string) => void;
+  addProject: (params: {
+    name: string;
+    code: string;
+    rate: number;
+    description?: string;
+    estimatedHours?: number;
+    progress?: number;
+  }) => void;
   loading: boolean;
   error: string | null;
   refreshProjects: () => void;
@@ -47,25 +54,29 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
   }, [refreshProjects]);
 
   // Aggiungi progetto
-  const addProject = async (name: string, code: string, rate: number, description?: string) => {
+  const addProject = async ({ name, code, rate, description, estimatedHours, progress }: {
+    name: string;
+    code: string;
+    rate: number;
+    description?: string;
+    estimatedHours?: number;
+    progress?: number;
+  }) => {
     try {
       const response = await apiClient.post<Project>('/projects', {
         name,
         code,
         rate: Number(rate),
         description,
+        estimatedHours,
+        progress,
       });
 
       if (!response.success) {
         throw new Error(response.error?.message || 'Errore salvataggio progetto');
       }
 
-      const createdProject = response.data;
-      if (!createdProject) {
-        throw new Error('Errore salvataggio progetto');
-      }
-
-      setProjects((prev) => [...prev, createdProject]);
+      await refreshProjects();
       
     } catch (err: any) {
       console.error(err);

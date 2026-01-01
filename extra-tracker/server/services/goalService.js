@@ -139,6 +139,152 @@ class GoalService extends BaseService {
         // Cascade delete dei check-in (solo quelli dell'utente corrente)
         await CheckIn.deleteMany({ user: userId, goalId: id });
     }
+
+    // =========================================
+    // MILESTONE METHODS
+    // =========================================
+
+    /**
+     * Toggle isCompleted di una specifica milestone.
+     * Usa l'operatore posizionale $ di MongoDB per update atomico.
+     * 
+     * 🔒 SICUREZZA ESPLICITA: Filtro per user + goalId + milestoneId
+     * 
+     * @param {Object} tenantScope - Oggetto req.tenantScope
+     * @param {string} goalId - ID del goal
+     * @param {string} milestoneId - ID della milestone
+     * @returns {Promise<Goal>} Goal aggiornato
+     * @throws {AppError} Se goal o milestone non trovati
+     */
+    async toggleMilestone(tenantScope, goalId, milestoneId) {
+        const userId = this._getUserId(tenantScope);
+        
+        // Prima trova il goal per verificare ownership e stato attuale
+        const goal = await Goal.findOne({ 
+            _id: goalId, 
+            user: userId,
+            'milestones._id': milestoneId
+        });
+        
+        if (!goal) {
+            throw AppError.notFound('Obiettivo o milestone');
+        }
+        
+        // Trova la milestone corrente per invertire lo stato
+        const milestone = goal.milestones.id(milestoneId);
+        if (!milestone) {
+            throw AppError.notFound('Milestone');
+        }
+        
+        const newIsCompleted = !milestone.isCompleted;
+        const completedAt = newIsCompleted ? new Date() : null;
+        
+        // Update atomico usando l'operatore posizionale $
+        const updatedGoal = await Goal.findOneAndUpdate(
+            { 
+                _id: goalId, 
+                user: userId,
+                'milestones._id': milestoneId 
+            },
+            { 
+                $set: { 
+                    'milestones.$.isCompleted': newIsCompleted,
+                    'milestones.$.completedAt': completedAt
+                } 
+            },
+            { new: true }
+        );
+        
+        if (!updatedGoal) {
+            throw AppError.notFound('Obiettivo o milestone');
+        }
+        
+        return updatedGoal;
+    }
+
+    /**
+     * Aggiorna campi di una milestone (es. notes).
+     * 
+     * 🔒 SICUREZZA ESPLICITA: Filtro per user + goalId + milestoneId
+     */
+    async updateMilestone(tenantScope, goalId, milestoneId, updates = {}) {
+        const userId = this._getUserId(tenantScope);
+
+        const normalize = (value) => {
+            if (typeof value !== 'string') return '';
+            // Normalize newlines + collapse whitespace for duplicate detection
+            return value.replace(/\r\n/g, '\n').trim().replace(/\s+/g, ' ');
+        };
+
+        // Load current milestone once to support duplicate detection
+        const currentGoal = await Goal.findOne({
+            _id: goalId,
+            user: userId,
+            'milestones._id': milestoneId,
+        });
+
+        if (!currentGoal) {
+            throw AppError.notFound('Obiettivo o milestone');
+        }
+
+        const currentMilestone = currentGoal.milestones.id(milestoneId);
+        if (!currentMilestone) {
+            throw AppError.notFound('Milestone');
+        }
+
+        // Consenti solo campi whitelistati
+        const $set = {};
+        const $push = {};
+        if (typeof updates.notes === 'string') {
+            const incomingRaw = updates.notes;
+            const incomingNorm = normalize(incomingRaw);
+            const currentNorm = normalize(currentMilestone.notes || '');
+
+            // If nothing really changed, return current goal without writing
+            if (incomingNorm === currentNorm) {
+                return currentGoal;
+            }
+
+            // Avoid duplicate history entries (compare with last history entry)
+            const history = Array.isArray(currentMilestone.notesHistory)
+                ? currentMilestone.notesHistory
+                : [];
+            const last = history.length > 0 ? history[history.length - 1] : null;
+            const lastNorm = last ? normalize(last.text) : null;
+
+            $set['milestones.$.notes'] = incomingRaw;
+            $set['milestones.$.notesUpdatedAt'] = new Date();
+
+            if (lastNorm == null || lastNorm !== incomingNorm) {
+                $push['milestones.$.notesHistory'] = { text: incomingRaw, savedAt: new Date() };
+            }
+        }
+
+        if (Object.keys($set).length === 0) {
+            throw AppError.validation('Nessun campo valido da aggiornare');
+        }
+
+        const update = { $set };
+        if (Object.keys($push).length > 0) {
+            update.$push = $push;
+        }
+
+        const updatedGoal = await Goal.findOneAndUpdate(
+            {
+                _id: goalId,
+                user: userId,
+                'milestones._id': milestoneId,
+            },
+            update,
+            { new: true }
+        );
+
+        if (!updatedGoal) {
+            throw AppError.notFound('Obiettivo o milestone');
+        }
+
+        return updatedGoal;
+    }
 }
 
 module.exports = new GoalService();

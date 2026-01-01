@@ -32,6 +32,7 @@ interface GoalsContextType {
 
     // Azioni Check-ins
     addCheckIn: (goalId: string, checkInData: CreateCheckInDTO) => Promise<GoalStats>;
+    quickCheckIn: (goalId: string) => Promise<void>;
 
     // Refresh
     refreshGoals: () => Promise<void>;
@@ -130,6 +131,28 @@ export const GoalsProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    /**
+     * Quick Check-in con Optimistic UI
+     * Aggiorna istantaneamente la UI, poi sincronizza col backend
+     */
+    const quickCheckIn = async (goalId: string): Promise<void> => {
+        setStats(prevStats => ({
+            ...prevStats,
+            totalCheckIns: prevStats.totalCheckIns + 1,
+        }));
+
+        try {
+            await goalsService.quickCheckIn(goalId, { setGoals });
+        } catch (err: any) {
+            console.error('Errore quick check-in:', err);
+            setStats(prevStats => ({
+                ...prevStats,
+                totalCheckIns: Math.max(0, prevStats.totalCheckIns - 1),
+            }));
+            throw new Error(err.message || 'Impossibile registrare il progresso');
+        }
+    };
+
     return (
         <GoalsContext.Provider
             value={{
@@ -141,6 +164,7 @@ export const GoalsProvider = ({ children }: { children: ReactNode }) => {
                 updateGoal,
                 deleteGoal,
                 addCheckIn,
+                quickCheckIn,
                 refreshGoals,
             }}
         >

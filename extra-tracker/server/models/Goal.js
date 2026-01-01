@@ -12,6 +12,60 @@
 const mongoose = require('mongoose');
 const { multiTenancyPlugin } = require('../plugins/multiTenancy');
 
+// =========================================
+// MILESTONE SUB-SCHEMA (Embedded Document)
+// =========================================
+
+const milestoneSchema = new mongoose.Schema({
+    title: {
+        type: String,
+        required: [true, 'Il titolo della milestone è obbligatorio'],
+        trim: true,
+        maxlength: [100, 'Il titolo non può superare 100 caratteri'],
+    },
+    notes: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [1000, 'Le note non possono superare 1000 caratteri'],
+    },
+    notesUpdatedAt: {
+        type: Date,
+        default: null,
+    },
+    notesHistory: {
+        type: [
+            {
+                text: {
+                    type: String,
+                    required: true,
+                    trim: true,
+                    maxlength: [1000, 'Le note non possono superare 1000 caratteri'],
+                },
+                savedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+            },
+        ],
+        default: [],
+    },
+    isCompleted: {
+        type: Boolean,
+        default: false,
+    },
+    weight: {
+        type: Number,
+        default: 1,
+        min: [1, 'Il peso deve essere almeno 1'],
+        max: [10, 'Il peso non può superare 10'],
+    },
+    completedAt: {
+        type: Date,
+        default: null,
+    },
+}, { _id: true });
+
 const goalSchema = new mongoose.Schema({
     // Titolo dell'obiettivo
     title: { 
@@ -26,7 +80,7 @@ const goalSchema = new mongoose.Schema({
         type: String, 
         required: [true, 'La categoria è obbligatoria'],
         enum: {
-            values: ['finance', 'health', 'learning', 'career', 'personal'],
+            values: ['finance', 'health', 'learning', 'career', 'personal', 'relationships', 'creativity', 'mindfulness'],
             message: 'Categoria non valida',
         },
     },
@@ -36,22 +90,22 @@ const goalSchema = new mongoose.Schema({
         type: String, 
         required: [true, 'Il tipo è obbligatorio'],
         enum: {
-            values: ['target', 'habit'],
-            message: 'Tipo non valido (usa "target" o "habit")',
+            values: ['target', 'habit', 'milestone', 'challenge', 'project'],
+            message: 'Tipo non valido (usa "target", "habit", "milestone", "challenge" o "project")',
         },
     },
     
-    // Valore target da raggiungere (solo per type: 'target')
+    // Valore target da raggiungere (solo per type: 'target' e 'challenge')
     targetValue: { 
         type: Number, 
         default: null,
         min: [0, 'Il valore target non può essere negativo'],
     },
     
-    // Unità di misura (€, ore, km, libri, ecc.)
+    // Unità di misura (€, ore, km, libri, ecc.) - opzionale per habit/milestone/project
     unit: { 
         type: String, 
-        required: [true, 'L\'unità di misura è obbligatoria'],
+        default: '',
         trim: true,
         maxlength: [20, 'L\'unità non può superare 20 caratteri'],
     },
@@ -85,6 +139,18 @@ const goalSchema = new mongoose.Schema({
         maxlength: [500, 'La descrizione non può superare 500 caratteri'],
     },
     
+    // Micro-obiettivi (Milestones) - Embedded Documents
+    milestones: {
+        type: [milestoneSchema],
+        default: [],
+        validate: {
+            validator: function(v) {
+                return v.length <= 20; // Max 20 milestones per goal
+            },
+            message: 'Un obiettivo può avere al massimo 20 milestones',
+        },
+    },
+    
 }, {
     timestamps: true,
 });
@@ -96,6 +162,36 @@ const goalSchema = new mongoose.Schema({
 goalSchema.index({ user: 1, status: 1 });
 goalSchema.index({ user: 1, category: 1 });
 goalSchema.index({ user: 1, deadline: 1 });
+
+// =========================================
+// VIRTUALS
+// =========================================
+
+/**
+ * Calcola il progresso basato sulle milestones.
+ * Se il goal ha milestones, il progresso è la % di milestones completate (pesate).
+ * Altrimenti ritorna null (il progresso sarà calcolato dai check-ins).
+ */
+goalSchema.virtual('milestoneProgress').get(function() {
+    if (!this.milestones || this.milestones.length === 0) {
+        return null;
+    }
+    
+    const totalWeight = this.milestones.reduce((sum, m) => sum + m.weight, 0);
+    const completedWeight = this.milestones
+        .filter(m => m.isCompleted)
+        .reduce((sum, m) => sum + m.weight, 0);
+    
+    return totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : 0;
+});
+
+/**
+ * Conta le milestones completate.
+ */
+goalSchema.virtual('completedMilestones').get(function() {
+    if (!this.milestones) return 0;
+    return this.milestones.filter(m => m.isCompleted).length;
+});
 
 // =========================================
 // PLUGINS
@@ -131,6 +227,15 @@ goalSchema.set('toJSON', {
         ret.id = ret._id;
         delete ret._id;
         delete ret.user;
+        
+        // Trasforma anche gli _id delle milestones in id
+        if (ret.milestones && Array.isArray(ret.milestones)) {
+            ret.milestones = ret.milestones.map(m => ({
+                ...m,
+                id: m._id?.toString() || m.id,
+                _id: undefined,
+            }));
+        }
     }
 });
 

@@ -35,6 +35,12 @@ const getClientIpForRateLimit = (req) => {
 const generalLimiter = rateLimit({
     ...securityConfig.rateLimit.general,
     keyGenerator: (req) => getClientIpForRateLimit(req),
+    // In dev (Vite/HMR + React StrictMode) the frontend can trigger many session checks.
+    // This endpoint is low-risk (requires auth) and should not be rate-limited like write endpoints.
+    skip: (req) => {
+        const url = req.originalUrl || '';
+        return req.method === 'GET' && url.startsWith('/api/auth/check');
+    },
     // Handler custom per errore
     handler: (req, res) => {
         res.status(429).json({
