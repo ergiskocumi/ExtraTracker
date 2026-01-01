@@ -16,7 +16,7 @@ import { AppLayout, AuthLayout } from './shared/layouts';
 import { useSettings } from './features/settings/context/SettingsContext';
 
 // Pagine
-import { DashboardPage } from './features/dashboard/pages/DashboardPageNew';
+import { DashboardPage } from './features/dashboard/pages/DashboardPage';
 import { ProjectsPage } from './features/projects/pages/ProjectsPage';
 import { SettingsPage } from './features/settings/pages/SettingsPageNew';
 import { GoalsPage } from './features/goals/pages/GoalsPage';
