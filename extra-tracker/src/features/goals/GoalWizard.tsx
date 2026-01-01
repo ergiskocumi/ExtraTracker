@@ -348,21 +348,21 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                                                 setCategory(key as GoalCategory);
                                                 autoAdvance('type');
                                             }}
-                                            className={\`relative p-4 rounded-2xl transition-all text-center group \${
+                                            className={`relative p-4 rounded-2xl transition-all text-center group ${
                                                 category === key
                                                     ? 'bg-primary-500/20 ring-2 ring-primary-500/50'
                                                     : 'bg-white/[0.03] hover:bg-white/[0.06]'
-                                            }\`}
+                                            }`}
                                             style={{
                                                 boxShadow: category === key 
                                                     ? '0 4px 20px rgba(99, 102, 241, 0.15)' 
                                                     : 'inset 0 1px 0 rgba(255,255,255,0.03)'
                                             }}
                                         >
-                                            <div className={\`text-3xl mb-2 transform group-hover:scale-110 transition-transform\`}>
+                                            <div className={`text-3xl mb-2 transform group-hover:scale-110 transition-transform`}>
                                                 {data.emoji}
                                             </div>
-                                            <span className={\`text-sm font-medium \${category === key ? 'text-white' : 'text-white/70'}\`}>
+                                            <span className={`text-sm font-medium ${category === key ? 'text-white' : 'text-white/70'}`}>
                                                 {data.label}
                                             </span>
                                         </motion.button>
@@ -392,20 +392,20 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                                                 setType(key as GoalType);
                                                 autoAdvance('details');
                                             }}
-                                            className={\`relative p-4 rounded-2xl transition-all text-left \${
+                                            className={`relative p-4 rounded-2xl transition-all text-left ${
                                                 type === key
                                                     ? 'ring-2 ring-primary-500/50'
                                                     : 'bg-white/[0.03] hover:bg-white/[0.06]'
-                                            }\`}
+                                            }`}
                                             style={{
                                                 background: type === key 
-                                                    ? \`linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%)\`
+                                                    ? `linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%)`
                                                     : undefined,
                                                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)'
                                             }}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className={\`p-2.5 rounded-xl bg-gradient-to-br \${data.color} bg-opacity-20\`}>
+                                                <div className={`p-2.5 rounded-xl bg-gradient-to-br ${data.color} bg-opacity-20`}>
                                                     {getTypeIcon(key)}
                                                 </div>
                                                 <div>
@@ -535,11 +535,11 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                                                     whileHover={{ scale: 1.05 }}
                                                     whileTap={{ scale: 0.95 }}
                                                     onClick={() => setFrequency(String(n))}
-                                                    className={\`w-12 h-12 rounded-xl font-medium transition-all \${
+                                                    className={`w-12 h-12 rounded-xl font-medium transition-all ${
                                                         frequency === String(n)
                                                             ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
                                                             : 'bg-white/[0.03] text-white/60 hover:bg-white/[0.06]'
-                                                    }\`}
+                                                    }`}
                                                 >
                                                     {n}x
                                                 </motion.button>
@@ -626,7 +626,7 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                                         <AnimatePresence mode="popLayout">
                                             {milestones.map((milestone, index) => (
                                                 <motion.div
-                                                    key={\`\${milestone.title}-\${index}\`}
+                                                    key={`${milestone.title}-${index}`}
                                                     initial={{ opacity: 0, x: -20 }}
                                                     animate={{ opacity: 1, x: 0 }}
                                                     exit={{ opacity: 0, x: 20 }}
