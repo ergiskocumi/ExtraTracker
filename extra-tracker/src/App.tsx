@@ -18,7 +18,7 @@ import { useSettings } from './features/settings/context/SettingsContext';
 // Pagine
 import { DashboardPage } from './features/dashboard/pages/DashboardPage';
 import { ProjectsPage } from './features/projects/pages/ProjectsPage';
-import { SettingsPage } from './features/settings/pages/SettingsPageNew';
+import { SettingsPage } from './features/settings/pages/SettingsPage';
 import { GoalsPage } from './features/goals/pages/GoalsPage';
 import { GoalDetailPage } from './features/goals/pages/GoalDetailPage';
 import { TimelinePage } from './features/tracker/pages/TimelinePage';
