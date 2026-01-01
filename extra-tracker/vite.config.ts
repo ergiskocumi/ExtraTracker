@@ -7,6 +7,11 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.1'),
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.ts',
+  },
   server: {
     host: true, // <--- AGGIUNGI QUESTA RIGA. Dice al server: "fatti vedere dalla rete"
     port: 5173, // Opzionale, per fissare la porta
