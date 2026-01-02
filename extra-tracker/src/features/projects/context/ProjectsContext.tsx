@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Project } from "../type";
 import { useAuth } from "../../auth/context/AuthContext";
 import { apiClient } from "../../../shared/services/apiClient";
+import { emitToast } from "../../../shared/components/toast";
 
 interface ProjectsContextType {
   projects: Project[];
@@ -78,9 +79,14 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
 
       await refreshProjects();
       
+      // ✅ Toast di successo
+      emitToast.success(`Progetto "${name}" creato con successo!`, {
+        title: 'Progetto Creato',
+      });
+      
     } catch (err: any) {
       console.error(err);
-      alert(`Impossibile salvare: ${err.message}`);
+      // Gli errori API sono già gestiti automaticamente dal toast
     }
   };
 

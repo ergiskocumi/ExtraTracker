@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { emitToast } from '../components/toast';
 
 /**
  * 🌐 API CLIENT - Configurato per Autenticazione Sicura
@@ -7,7 +8,14 @@ import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axio
  * Caratteristiche:
  * - withCredentials: true per inviare cookies HttpOnly
  * - Interceptor per refresh automatico del token
- * - Gestione errori centralizzata
+ * - Gestione errori centralizzata con Toast automatici
+ * 
+ * 🎓 ARCHITETTURA: Centralized Error Handling
+ * Intercettiamo TUTTI gli errori API in un unico punto.
+ * Vantaggi:
+ * 1. DRY (Don't Repeat Yourself): non devi gestire errori in ogni componente
+ * 2. Consistenza: tutti gli errori appaiono nello stesso modo
+ * 3. Manutenibilità: cambio il formato del toast in un solo posto
  */
 
 // Preferisci same-origin per evitare problemi di cookie/CORS (soprattutto da mobile).
@@ -103,6 +111,67 @@ axiosInstance.interceptors.response.use(
             } finally {
                 isRefreshing = false;
             }
+        }
+
+        return Promise.reject(error);
+    }
+);
+
+// ==========================================
+// INTERCEPTOR ERRORI - Toast Automatici
+// ==========================================
+
+/**
+ * 🎓 PATTERN: Response Interceptor per Error Handling
+ * 
+ * Questo interceptor cattura TUTTI gli errori HTTP e:
+ * 1. Estrae il messaggio di errore dal backend
+ * 2. Mostra un toast di errore automaticamente
+ * 3. Permette comunque al chiamante di gestire l'errore (il reject passa)
+ * 
+ * 🎓 NOTA: Non mostriamo toast per:
+ * - 401 (gestito separatamente con refresh/logout)
+ * - Errori di rete senza risposta (gestiamo a parte)
+ */
+axiosInstance.interceptors.response.use(
+    // Risposta OK: passa attraverso senza modifiche
+    (response: AxiosResponse) => response,
+    
+    // Errore: mostra toast e poi rilancia
+    (error: AxiosError<ApiResponse<unknown>>) => {
+        const status = error.response?.status;
+        const requestUrl = error.config?.url || '';
+        
+        // Skip toast per endpoint di auth (hanno gestione custom)
+        const isAuthEndpoint = NO_REFRESH_URLS.some(url => requestUrl.includes(url));
+        
+        // Skip toast per 401 (gestito dal refresh token flow)
+        if (status === 401) {
+            return Promise.reject(error);
+        }
+
+        // Estrai il messaggio di errore
+        let errorMessage = 'Si è verificato un errore imprevisto';
+        
+        if (error.response?.data?.error?.message) {
+            // Errore strutturato dal backend
+            errorMessage = error.response.data.error.message;
+        } else if (error.response?.data?.message) {
+            // Fallback: messaggio diretto
+            errorMessage = error.response.data.message;
+        } else if (error.message === 'Network Error') {
+            errorMessage = 'Errore di connessione. Verifica la tua rete.';
+        } else if (error.code === 'ECONNABORTED') {
+            errorMessage = 'Richiesta scaduta. Riprova più tardi.';
+        }
+
+        // Mostra toast di errore (solo se non è un endpoint di auth)
+        // Per auth, il componente gestisce manualmente il feedback
+        if (!isAuthEndpoint) {
+            emitToast.error(errorMessage, {
+                title: 'Errore',
+                duration: 6000, // Errori restano più a lungo
+            });
         }
 
         return Promise.reject(error);
