@@ -23,12 +23,15 @@ import {
     FiBookOpen,
     FiTag,
     FiAlertCircle,
-    FiZap
+    FiZap,
+    FiTrash2,
+    FiEye
 } from 'react-icons/fi';
 import { studyService, type Deck, type CreateDeckPayload, type AddCardPayload } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { CreateDeckModal } from '../components/CreateDeckModal';
 import { MagicGenerateModal } from '../components/MagicGenerateModal';
+import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
 
 // ============================================
 // HERO STATS COMPONENT - Bento Style
@@ -105,9 +108,12 @@ interface DeckCardProps {
     onStudy: (deckId: string) => void;
     onAddCard: (deckId: string) => void;
     onMagicGenerate: (deck: Deck) => void;
+    onViewDetail: (deckId: string) => void;
+    onDelete: (deck: Deck) => void;
 }
 
-const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onAddCard, onMagicGenerate }) => {
+const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onMagicGenerate, onViewDetail, onDelete }) => {
+    const [isHovered, setIsHovered] = useState(false);
     const hasDueCards = (deck.dueCount ?? 0) > 0;
     const totalCards = deck.totalCards ?? deck.cards?.length ?? 0;
     const masteryPercent = totalCards > 0 ? Math.round(((totalCards - (deck.dueCount ?? 0)) / totalCards) * 100) : 0;
@@ -117,6 +123,8 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onAddCard, onMagicGe
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ y: -4, scale: 1.01 }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             className={`
                 group relative overflow-hidden rounded-2xl backdrop-blur-xl border transition-all duration-300
                 ${hasDueCards 
@@ -126,6 +134,49 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onAddCard, onMagicGe
             `}
             style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)' }}
         >
+            {/* Hover Action Bar - Top */}
+            <AnimatePresence>
+                {isHovered && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center gap-1 px-3 py-2 bg-gradient-to-b from-black/60 to-transparent"
+                    >
+                        <button
+                            onClick={() => onStudy(deck.id)}
+                            disabled={totalCards === 0}
+                            className="p-2 rounded-lg bg-primary-500/20 hover:bg-primary-500/40 text-primary-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Studia"
+                        >
+                            <FiPlay className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => onViewDetail(deck.id)}
+                            className="p-2 rounded-lg bg-white/[0.15] hover:bg-white/[0.25] text-white/80 transition-all"
+                            title="Visualizza carte"
+                        >
+                            <FiEye className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => onMagicGenerate(deck)}
+                            className="p-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/40 text-amber-400 transition-all"
+                            title="✨ Magic Generate"
+                        >
+                            <FiZap className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => onDelete(deck)}
+                            className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-all"
+                            title="Elimina mazzo"
+                        >
+                            <FiTrash2 className="w-4 h-4" />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Due Badge */}
             {hasDueCards && (
                 <div className="absolute top-3 right-3 z-10">
@@ -140,7 +191,11 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onAddCard, onMagicGe
                 </div>
             )}
 
-            <div className="p-5">
+            {/* Card Content - Clickable */}
+            <div 
+                className="p-5 cursor-pointer"
+                onClick={() => onViewDetail(deck.id)}
+            >
                 {/* Header */}
                 <div className="flex items-start gap-3 mb-4">
                     <div className={`
@@ -179,7 +234,7 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onAddCard, onMagicGe
 
                 {/* Mastery Progress Bar */}
                 {totalCards > 0 && (
-                    <div className="mb-4">
+                    <div>
                         <div className="flex items-center justify-between mb-1.5">
                             <span className="text-xs text-white/40">Padronanza</span>
                             <span className="text-xs font-medium text-white/60">{masteryPercent}%</span>
@@ -195,15 +250,18 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onAddCard, onMagicGe
                     </div>
                 )}
 
-                {/* Actions */}
-                <div className="flex items-center gap-2">
+                {/* Quick Action - Study Button */}
+                <div className="mt-4 pt-4 border-t border-white/[0.06]">
                     <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => onStudy(deck.id)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onStudy(deck.id);
+                        }}
                         disabled={totalCards === 0}
                         className={`
-                            flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all text-sm
+                            w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all text-sm
                             ${hasDueCards
                                 ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md shadow-orange-500/20'
                                 : totalCards > 0
@@ -213,27 +271,7 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onAddCard, onMagicGe
                         `}
                     >
                         <FiPlay className="w-4 h-4" />
-                        {hasDueCards ? 'Ripassa' : 'Studia'}
-                    </motion.button>
-
-                    <motion.button
-                        whileHover={{ scale: 1.08 }}
-                        whileTap={{ scale: 0.92 }}
-                        onClick={() => onMagicGenerate(deck)}
-                        className="p-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-amber-500/20 border border-purple-500/30 text-amber-400 hover:from-purple-500/30 hover:to-amber-500/30 hover:border-amber-500/40 transition-all"
-                        title="✨ Magic Generate da PDF"
-                    >
-                        <FiZap className="w-4 h-4" />
-                    </motion.button>
-
-                    <motion.button
-                        whileHover={{ scale: 1.08 }}
-                        whileTap={{ scale: 0.92 }}
-                        onClick={() => onAddCard(deck.id)}
-                        className="p-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-white/60 hover:text-primary-400 hover:bg-primary-500/10 hover:border-primary-500/20 transition-all"
-                        title="Aggiungi Carta"
-                    >
-                        <FiPlus className="w-4 h-4" />
+                        {hasDueCards ? 'Ripassa' : totalCards > 0 ? 'Studia' : 'Nessuna carta'}
                     </motion.button>
                 </div>
             </div>
@@ -445,6 +483,7 @@ export const DecksDashboardPage: React.FC = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
     const [isMagicGenerateOpen, setIsMagicGenerateOpen] = useState(false);
+    const [deletingDeck, setDeletingDeck] = useState<Deck | null>(null);
     const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
 
     // Computed stats
@@ -475,6 +514,10 @@ export const DecksDashboardPage: React.FC = () => {
         navigate(`/study/${deckId}`);
     };
 
+    const handleViewDetail = (deckId: string) => {
+        navigate(`/study/deck/${deckId}`);
+    };
+
     const handleAddCard = (deckId: string) => {
         const deck = decks.find(d => d.id === deckId);
         if (deck) {
@@ -491,6 +534,18 @@ export const DecksDashboardPage: React.FC = () => {
     const handleMagicGenerateSuccess = async (_generatedCount: number) => {
         // Ricarica i mazzi per riflettere le nuove carte
         await loadDecks();
+    };
+
+    const handleDeleteDeck = async () => {
+        if (!deletingDeck) return;
+        try {
+            await studyService.deleteDeck(deletingDeck.id);
+            setDecks(prev => prev.filter(d => d.id !== deletingDeck.id));
+            setDeletingDeck(null);
+            emitToast.success('Mazzo eliminato!');
+        } catch (err: any) {
+            emitToast.error(err.message || 'Errore nell\'eliminazione');
+        }
     };
 
     const handleCreateDeck = async (data: CreateDeckPayload) => {
@@ -587,6 +642,8 @@ export const DecksDashboardPage: React.FC = () => {
                                     onStudy={handleStudy}
                                     onAddCard={handleAddCard}
                                     onMagicGenerate={handleMagicGenerate}
+                                    onViewDetail={handleViewDetail}
+                                    onDelete={setDeletingDeck}
                                 />
                             </motion.div>
                         ))}
@@ -620,6 +677,16 @@ export const DecksDashboardPage: React.FC = () => {
                         setSelectedDeck(null);
                     }}
                     onSuccess={handleMagicGenerateSuccess}
+                />
+
+                <ConfirmationModal
+                    isOpen={!!deletingDeck}
+                    title="Elimina Mazzo"
+                    description={`Sei sicuro di voler eliminare "${deletingDeck?.title}"? Tutte le carte verranno eliminate permanentemente.`}
+                    confirmLabel="Elimina"
+                    destructive
+                    onConfirm={handleDeleteDeck}
+                    onCancel={() => setDeletingDeck(null)}
                 />
             </div>
         </div>

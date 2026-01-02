@@ -95,6 +95,60 @@ class StudyService extends BaseService {
     }
 
     /**
+     * Modifica una card esistente in un mazzo.
+     */
+    async updateCard(tenantScope, deckId, cardId, { front, back }) {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOneAndUpdate(
+            {
+                _id: deckId,
+                user: userId,
+                'cards._id': cardId,
+            },
+            {
+                $set: {
+                    'cards.$.front': front,
+                    'cards.$.back': back,
+                },
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo o carta');
+        }
+
+        return deck;
+    }
+
+    /**
+     * Elimina una card da un mazzo.
+     */
+    async deleteCard(tenantScope, deckId, cardId) {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOneAndUpdate(
+            {
+                _id: deckId,
+                user: userId,
+            },
+            {
+                $pull: {
+                    cards: { _id: cardId },
+                },
+            },
+            { new: true }
+        );
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        return deck;
+    }
+
+    /**
      * Elimina un mazzo (e tutte le sue card).
      */
     async deleteDeck(tenantScope, deckId) {

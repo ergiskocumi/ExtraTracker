@@ -49,6 +49,8 @@ router.get('/dashboard', studyController.getDashboard);
 router.get('/:id', studyController.getDeckById);
 router.post('/', studyController.createDeck);
 router.post('/:id/cards', studyController.addCard);
+router.put('/:id/cards/:cardId', studyController.updateCard);
+router.delete('/:id/cards/:cardId', studyController.deleteCard);
 router.post('/:id/review', studyController.submitReview);
 router.delete('/:id', studyController.deleteDeck);
 

@@ -190,6 +190,24 @@ class StudyService {
     }
 
     /**
+     * Modifica una carta esistente
+     */
+    async updateCard(deckId: string, cardId: string, payload: AddCardPayload): Promise<Deck> {
+        const response = await apiClient.put<any>(`${this.baseUrl}/${deckId}/cards/${cardId}`, payload);
+        const raw = unwrap(response, 'Errore nella modifica della carta');
+        return normalizeDeck(raw);
+    }
+
+    /**
+     * Elimina una carta da un mazzo
+     */
+    async deleteCard(deckId: string, cardId: string): Promise<Deck> {
+        const response = await apiClient.delete<any>(`${this.baseUrl}/${deckId}/cards/${cardId}`);
+        const raw = unwrap(response, 'Errore nell\'eliminazione della carta');
+        return normalizeDeck(raw);
+    }
+
+    /**
      * Carica una sessione di studio per un mazzo specifico
      * Recupera i dati freschi dal backend (risolve il problema del refresh)
      */

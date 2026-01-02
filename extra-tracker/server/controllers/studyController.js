@@ -62,6 +62,38 @@ const addCard = asyncHandler(async (req, res) => {
     res.status(201).json({ success: true, data: deck });
 });
 
+/**
+ * PUT /api/study/:id/cards/:cardId
+ * Modifica una card esistente
+ */
+const updateCard = asyncHandler(async (req, res) => {
+    const deck = await studyService.updateCard(
+        req.tenantScope,
+        req.params.id,
+        req.params.cardId,
+        {
+            front: req.body.front,
+            back: req.body.back,
+        }
+    );
+
+    res.json({ success: true, data: deck });
+});
+
+/**
+ * DELETE /api/study/:id/cards/:cardId
+ * Elimina una card da un mazzo
+ */
+const deleteCard = asyncHandler(async (req, res) => {
+    const deck = await studyService.deleteCard(
+        req.tenantScope,
+        req.params.id,
+        req.params.cardId
+    );
+
+    res.json({ success: true, data: deck });
+});
+
 // =========================================
 // DASHBOARD
 // =========================================
@@ -152,6 +184,8 @@ module.exports = {
     deleteDeck,
     getDeckById,
     addCard,
+    updateCard,
+    deleteCard,
     getDashboard,
     submitReview,
     uploadAndGenerate,
