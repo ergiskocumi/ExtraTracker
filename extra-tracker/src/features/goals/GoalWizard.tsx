@@ -83,18 +83,6 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
         }
     };
 
-    // Type icons
-    const getTypeIcon = (goalType: string): React.ReactElement => {
-        const icons: Record<string, React.ReactElement> = {
-            target: <FiTarget className="w-6 h-6" />,
-            habit: <FiRefreshCw className="w-6 h-6" />,
-            milestone: <FiFlag className="w-6 h-6" />,
-            challenge: <FiZap className="w-6 h-6" />,
-            project: <FiLayers className="w-6 h-6" />,
-        };
-        return icons[goalType] || <FiTarget className="w-6 h-6" />;
-    };
-
     // Extended templates per categoria
     const getTemplates = (cat: GoalCategory): GoalTemplate[] => {
         const templates: Record<GoalCategory, GoalTemplate[]> = {
@@ -356,34 +344,48 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                                 className="space-y-3"
                             >
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {Object.entries(GOAL_CATEGORIES).map(([key, data]) => (
-                                        <motion.button
-                                            key={key}
-                                            whileHover={{ scale: 1.02, y: -2 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            onClick={() => {
-                                                setCategory(key as GoalCategory);
-                                                autoAdvance('type');
-                                            }}
-                                            className={`relative p-4 rounded-2xl transition-all text-center group ${
-                                                category === key
-                                                    ? 'bg-primary-500/20 ring-2 ring-primary-500/50'
-                                                    : 'bg-white/[0.03] hover:bg-white/[0.06]'
-                                            }`}
-                                            style={{
-                                                boxShadow: category === key 
-                                                    ? '0 4px 20px rgba(99, 102, 241, 0.15)' 
-                                                    : 'inset 0 1px 0 rgba(255,255,255,0.03)'
-                                            }}
-                                        >
-                                            <div className={`text-3xl mb-2 transform group-hover:scale-110 transition-transform`}>
-                                                {data.emoji}
-                                            </div>
-                                            <span className={`text-sm font-medium ${category === key ? 'text-white' : 'text-white/70'}`}>
-                                                {data.label}
-                                            </span>
-                                        </motion.button>
-                                    ))}
+                                    {Object.entries(GOAL_CATEGORIES).map(([key, data]) => {
+                                        const IconComponent = data.icon;
+                                        return (
+                                            <motion.button
+                                                key={key}
+                                                whileHover={{ scale: 1.02, y: -2 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => {
+                                                    setCategory(key as GoalCategory);
+                                                    autoAdvance('type');
+                                                }}
+                                                className={`relative p-5 rounded-2xl transition-all text-center group overflow-hidden ${
+                                                    category === key
+                                                        ? 'ring-2 ring-primary-500/50'
+                                                        : 'bg-white/[0.03] hover:bg-white/[0.06]'
+                                                }`}
+                                                style={{
+                                                    boxShadow: category === key 
+                                                        ? '0 4px 20px rgba(99, 102, 241, 0.15)' 
+                                                        : 'inset 0 1px 0 rgba(255,255,255,0.03)'
+                                                }}
+                                            >
+                                                {/* Background gradient effect */}
+                                                {category === key && (
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-primary-600/5" />
+                                                )}
+                                                
+                                                {/* Icon with glassmorphism */}
+                                                <div className={`relative mx-auto mb-3 w-14 h-14 rounded-xl flex items-center justify-center backdrop-blur-sm transition-all ${
+                                                    category === key 
+                                                        ? `${data.bgColor} ${data.color}` 
+                                                        : 'bg-white/[0.05] text-white/60 group-hover:bg-white/[0.08]'
+                                                }`}>
+                                                    <IconComponent className="w-6 h-6" />
+                                                </div>
+                                                
+                                                <span className={`relative text-sm font-medium ${category === key ? 'text-white' : 'text-white/70'}`}>
+                                                    {data.label}
+                                                </span>
+                                            </motion.button>
+                                        );
+                                    })}
                                 </div>
                             </motion.div>
                         )}
@@ -400,41 +402,41 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                             >
                                 {/* Goal Types Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    {Object.entries(GOAL_TYPES).map(([key, data]) => (
-                                        <motion.button
-                                            key={key}
-                                            whileHover={{ scale: 1.01, y: -2 }}
-                                            whileTap={{ scale: 0.99 }}
-                                            onClick={() => {
-                                                setType(key as GoalType);
-                                                autoAdvance('details');
-                                            }}
-                                            className={`relative p-4 rounded-2xl transition-all text-left ${
-                                                type === key
-                                                    ? 'ring-2 ring-primary-500/50'
-                                                    : 'bg-white/[0.03] hover:bg-white/[0.06]'
-                                            }`}
-                                            style={{
-                                                background: type === key 
-                                                    ? `linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%)`
-                                                    : undefined,
-                                                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)'
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2.5 rounded-xl bg-gradient-to-br ${data.color} bg-opacity-20`}>
-                                                    {getTypeIcon(key)}
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-lg">{data.emoji}</span>
-                                                        <span className="font-medium text-white">{data.label}</span>
+                                    {Object.entries(GOAL_TYPES).map(([key, data]) => {
+                                        const IconComponent = data.icon;
+                                        return (
+                                            <motion.button
+                                                key={key}
+                                                whileHover={{ scale: 1.01, y: -2 }}
+                                                whileTap={{ scale: 0.99 }}
+                                                onClick={() => {
+                                                    setType(key as GoalType);
+                                                    autoAdvance('details');
+                                                }}
+                                                className={`relative p-4 rounded-2xl transition-all text-left ${
+                                                    type === key
+                                                        ? 'ring-2 ring-primary-500/50'
+                                                        : 'bg-white/[0.03] hover:bg-white/[0.06]'
+                                                }`}
+                                                style={{
+                                                    background: type === key 
+                                                        ? `linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%)`
+                                                        : undefined,
+                                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)'
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-3 rounded-xl bg-gradient-to-br ${data.color}`}>
+                                                        <IconComponent className="w-5 h-5 text-white" />
                                                     </div>
-                                                    <p className="text-xs text-white/50 mt-0.5">{data.description}</p>
+                                                    <div className="flex-1">
+                                                        <span className="font-medium text-white block">{data.label}</span>
+                                                        <p className="text-xs text-white/50 mt-0.5">{data.description}</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </motion.button>
-                                    ))}
+                                            </motion.button>
+                                        );
+                                    })}
                                 </div>
 
                                 {/* Quick Templates - shown after type selection */}
@@ -691,88 +693,180 @@ export const GoalWizard = ({ onClose }: GoalWizardProps) => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -30 }}
                                 transition={{ duration: 0.2 }}
-                                className="space-y-4"
+                                className="space-y-6"
                             >
-                                <div 
-                                    className="p-6 rounded-2xl border border-white/[0.06]"
-                                    style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)' }}
+                                {/* Success Header */}
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+                                    className="text-center"
                                 >
-                                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                                        <FiCheck className="w-5 h-5 text-green-400" />
-                                        Riepilogo Obiettivo
+                                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500/20 to-primary-600/10 border border-primary-500/30 mb-4">
+                                        <FiCheck className="w-8 h-8 text-primary-400" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-white mb-2">
+                                        Tutto Pronto! 🎯
                                     </h3>
-                                    
-                                    <div className="space-y-4">
-                                        {/* Category & Type */}
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] rounded-lg">
-                                                <span className="text-lg">{category && GOAL_CATEGORIES[category].emoji}</span>
-                                                <span className="text-sm text-white/70">{category && GOAL_CATEGORIES[category].label}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] rounded-lg">
-                                                <span className="text-lg">{type && GOAL_TYPES[type].emoji}</span>
-                                                <span className="text-sm text-white/70">{type && GOAL_TYPES[type].label}</span>
-                                            </div>
-                                        </div>
+                                    <p className="text-white/50 text-sm">
+                                        Ecco il tuo nuovo obiettivo
+                                    </p>
+                                </motion.div>
 
-                                        {/* Title */}
-                                        <div>
-                                            <p className="text-xs text-white/40 mb-1">Titolo</p>
-                                            <p className="text-lg text-white font-medium">{title}</p>
+                                {/* Main Card - Glassmorphism */}
+                                <motion.div
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="relative overflow-hidden rounded-2xl backdrop-blur-xl border border-white/[0.08]"
+                                    style={{ 
+                                        background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+                                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)'
+                                    }}
+                                >
+                                    {/* Category & Type Badges */}
+                                    <div className="p-6 border-b border-white/[0.06]">
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            {category && (
+                                                <motion.div 
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    transition={{ delay: 0.3, type: "spring" }}
+                                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl ${GOAL_CATEGORIES[category].bgColor} backdrop-blur-sm border border-white/[0.08]`}
+                                                >
+                                                    <div className={GOAL_CATEGORIES[category].color}>
+                                                        {React.createElement(GOAL_CATEGORIES[category].icon, { className: "w-5 h-5" })}
+                                                    </div>
+                                                    <span className="text-sm font-medium text-white/90">{GOAL_CATEGORIES[category].label}</span>
+                                                </motion.div>
+                                            )}
+                                            {type && (
+                                                <motion.div 
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    transition={{ delay: 0.35, type: "spring" }}
+                                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500/15 backdrop-blur-sm border border-primary-500/20"
+                                                >
+                                                    <div className="text-primary-400">
+                                                        {React.createElement(GOAL_TYPES[type].icon, { className: "w-5 h-5" })}
+                                                    </div>
+                                                    <span className="text-sm font-medium text-white/90">{GOAL_TYPES[type].label}</span>
+                                                </motion.div>
+                                            )}
                                         </div>
+                                    </div>
+
+                                    {/* Title & Description */}
+                                    <div className="p-6 space-y-4">
+                                        <motion.div
+                                            initial={{ x: -20, opacity: 0 }}
+                                            animate={{ x: 0, opacity: 1 }}
+                                            transition={{ delay: 0.4 }}
+                                        >
+                                            <p className="text-xs font-semibold text-primary-400 mb-2 uppercase tracking-wider">
+                                                Titolo
+                                            </p>
+                                            <p className="text-2xl text-white font-bold leading-tight">{title}</p>
+                                        </motion.div>
 
                                         {description && (
-                                            <div>
-                                                <p className="text-xs text-white/40 mb-1">Descrizione</p>
-                                                <p className="text-sm text-white/70">{description}</p>
-                                            </div>
+                                            <motion.div
+                                                initial={{ x: -20, opacity: 0 }}
+                                                animate={{ x: 0, opacity: 1 }}
+                                                transition={{ delay: 0.45 }}
+                                                className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.05]"
+                                            >
+                                                <p className="text-xs font-semibold text-white/40 mb-2 uppercase tracking-wider">
+                                                    Descrizione
+                                                </p>
+                                                <p className="text-sm text-white/70 leading-relaxed">{description}</p>
+                                            </motion.div>
                                         )}
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        {/* Stats Grid */}
+                                        <motion.div 
+                                            initial={{ y: 20, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            transition={{ delay: 0.5 }}
+                                            className="grid grid-cols-2 gap-3 pt-2"
+                                        >
                                             {(type === 'target' || type === 'challenge') && targetValue && (
-                                                <div>
-                                                    <p className="text-xs text-white/40 mb-1">Target</p>
-                                                    <p className="text-white font-medium">{targetValue} {unit}</p>
+                                                <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <FiTarget className="w-4 h-4 text-emerald-400" />
+                                                        <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                                                            Target
+                                                        </p>
+                                                    </div>
+                                                    <p className="text-2xl font-bold text-white">{targetValue}</p>
+                                                    <p className="text-xs text-white/50 mt-1">{unit}</p>
                                                 </div>
                                             )}
                                             {type === 'habit' && (
-                                                <div>
-                                                    <p className="text-xs text-white/40 mb-1">Frequenza</p>
-                                                    <p className="text-white font-medium">{frequency}x al giorno</p>
+                                                <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <FiRefreshCw className="w-4 h-4 text-blue-400" />
+                                                        <p className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                                                            Frequenza
+                                                        </p>
+                                                    </div>
+                                                    <p className="text-2xl font-bold text-white">{frequency}x</p>
+                                                    <p className="text-xs text-white/50 mt-1">al giorno</p>
                                                 </div>
                                             )}
-                                            <div>
-                                                <p className="text-xs text-white/40 mb-1">Scadenza</p>
-                                                <p className="text-white font-medium">
+                                            <div className="p-4 rounded-xl bg-gradient-to-br from-primary-500/10 to-primary-600/5 border border-primary-500/20">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <FiCalendar className="w-4 h-4 text-primary-400" />
+                                                    <p className="text-xs font-semibold text-primary-400 uppercase tracking-wider">
+                                                        Scadenza
+                                                    </p>
+                                                </div>
+                                                <p className="text-lg font-bold text-white leading-tight">
                                                     {new Date(deadline).toLocaleDateString('it-IT', { 
                                                         day: 'numeric',
-                                                        month: 'long', 
-                                                        year: 'numeric' 
+                                                        month: 'short'
                                                     })}
                                                 </p>
+                                                <p className="text-xs text-white/50 mt-1">
+                                                    {new Date(deadline).getFullYear()}
+                                                </p>
                                             </div>
-                                        </div>
+                                        </motion.div>
 
                                         {/* Milestones */}
                                         {milestones.length > 0 && (
-                                            <div>
-                                                <p className="text-xs text-white/40 mb-2">
-                                                    Milestone ({milestones.length})
-                                                </p>
-                                                <div className="flex flex-wrap gap-2">
+                                            <motion.div
+                                                initial={{ y: 20, opacity: 0 }}
+                                                animate={{ y: 0, opacity: 1 }}
+                                                transition={{ delay: 0.55 }}
+                                                className="pt-4 border-t border-white/[0.06]"
+                                            >
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <FiFlag className="w-4 h-4 text-white/50" />
+                                                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">
+                                                        Milestone ({milestones.length})
+                                                    </p>
+                                                </div>
+                                                <div className="space-y-2">
                                                     {milestones.map((m, idx) => (
-                                                        <span 
+                                                        <motion.div
                                                             key={idx}
-                                                            className="px-3 py-1 bg-white/[0.03] rounded-lg text-xs text-white/60"
+                                                            initial={{ x: -20, opacity: 0 }}
+                                                            animate={{ x: 0, opacity: 1 }}
+                                                            transition={{ delay: 0.6 + (idx * 0.05) }}
+                                                            className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] transition-colors"
                                                         >
-                                                            {idx + 1}. {m.title}
-                                                        </span>
+                                                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white/[0.08] text-white/40 text-xs font-semibold">
+                                                                {idx + 1}
+                                                            </div>
+                                                            <span className="text-sm text-white/70 flex-1">{m.title}</span>
+                                                        </motion.div>
                                                     ))}
                                                 </div>
-                                            </div>
+                                            </motion.div>
                                         )}
                                     </div>
-                                </div>
+                                </motion.div>
                             </motion.div>
                         )}
                     </AnimatePresence>

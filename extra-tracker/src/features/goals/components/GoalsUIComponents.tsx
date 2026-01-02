@@ -21,11 +21,6 @@ import {
     FiCheckCircle,
     FiActivity,
     FiArrowRight,
-    FiDollarSign,
-    FiHeart,
-    FiBook,
-    FiBriefcase,
-    FiUser,
     FiFlag,
     FiZap,
     FiCheck,
@@ -40,14 +35,12 @@ import {
 // HELPER: Category Icon
 // ============================================================================
 export const getCategoryIcon = (category: string): React.ReactElement => {
-    const icons: Record<string, React.ReactElement> = {
-        finance: <FiDollarSign className="w-5 h-5" />,
-        health: <FiHeart className="w-5 h-5" />,
-        learning: <FiBook className="w-5 h-5" />,
-        career: <FiBriefcase className="w-5 h-5" />,
-        personal: <FiUser className="w-5 h-5" />,
-    };
-    return icons[category] || <FiTarget className="w-5 h-5" />;
+    const categoryData = GOAL_CATEGORIES[category as keyof typeof GOAL_CATEGORIES];
+    if (categoryData) {
+        const IconComponent = categoryData.icon;
+        return <IconComponent className="w-5 h-5" />;
+    }
+    return <FiTarget className="w-5 h-5" />;
 };
 
 // ============================================================================
