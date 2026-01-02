@@ -13,11 +13,13 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiArrowLeft, FiCheck, FiX, FiZap, FiAward, FiClock, FiTarget } from 'react-icons/fi';
 import { Flashcard, FlashcardSkeleton } from '../components/Flashcard';
-import { studyService, type StudySession, type ReviewRating } from '../services/studyService';
+import { QuizView } from '../components/QuizView';
+import { TypingView } from '../components/TypingView';
+import { studyService, type StudySession, type ReviewRating, type StudyMode, type Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 
 // ============================================
@@ -244,12 +246,97 @@ const SessionComplete: React.FC<SessionCompleteProps> = ({
 };
 
 // ============================================
+// UTILITIES
+// ============================================
+
+const shuffleArray = <T,>(values: T[]): T[] => {
+    const arr = [...values];
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+};
+
+const normalizeAnswer = (value: string) => {
+    return value
+        .toLowerCase()
+        .trim()
+        .replace(/[\s.,!?;:]+$/g, '')
+        .replace(/\s+/g, ' ');
+};
+
+const levenshteinDistance = (a: string, b: string) => {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+
+    const prev = new Array(b.length + 1);
+    const curr = new Array(b.length + 1);
+
+    for (let j = 0; j <= b.length; j += 1) {
+        prev[j] = j;
+    }
+
+    for (let i = 1; i <= a.length; i += 1) {
+        curr[0] = i;
+        const aChar = a[i - 1];
+
+        for (let j = 1; j <= b.length; j += 1) {
+            const cost = aChar === b[j - 1] ? 0 : 1;
+            curr[j] = Math.min(
+                prev[j] + 1,
+                curr[j - 1] + 1,
+                prev[j - 1] + cost
+            );
+        }
+
+        for (let j = 0; j <= b.length; j += 1) {
+            prev[j] = curr[j];
+        }
+    }
+
+    return prev[b.length];
+};
+
+const calculateSimilarity = (userAnswer: string, realAnswer: string) => {
+    const normalizedUser = normalizeAnswer(userAnswer);
+    const normalizedReal = normalizeAnswer(realAnswer);
+
+    if (!normalizedUser || !normalizedReal) {
+        return { correct: false, similarity: 0 };
+    }
+
+    if (normalizedUser === normalizedReal) {
+        return { correct: true, similarity: 1 };
+    }
+
+    const maxLen = Math.max(normalizedUser.length, normalizedReal.length);
+    if (!maxLen) {
+        return { correct: true, similarity: 1 };
+    }
+
+    const distance = levenshteinDistance(normalizedUser, normalizedReal);
+    const similarity = 1 - distance / maxLen;
+
+    return { correct: similarity >= 0.85, similarity };
+};
+
+// ============================================
 // MAIN STUDY SESSION PAGE
 // ============================================
 
 export const StudySessionPage: React.FC = () => {
     const { deckId } = useParams<{ deckId: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const requestedMode = (searchParams.get('mode') || 'flashcard').toLowerCase();
+    const mode: StudyMode = ['flashcard', 'quiz', 'typing'].includes(requestedMode)
+        ? (requestedMode as StudyMode)
+        : 'flashcard';
+    const shuffle = searchParams.get('shuffle') === 'true';
+    const reverse = searchParams.get('reverse') === 'true';
+    const effectiveReverse = mode === 'quiz' ? false : reverse;
 
     // State
     const [session, setSession] = useState<StudySession | null>(null);
@@ -260,7 +347,7 @@ export const StudySessionPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
-    const [startTime] = useState(Date.now());
+    const [startTime, setStartTime] = useState(Date.now());
     
     // Stats per la sessione
     const [sessionStats, setSessionStats] = useState({
@@ -282,16 +369,29 @@ export const StudySessionPage: React.FC = () => {
 
             try {
                 setIsLoading(true);
-                const data = await studyService.getSession(deckId);
-                
+                setError(null);
+                const data = await studyService.getSession(deckId, mode);
+
                 if (data.cards.length === 0) {
                     emitToast.info('Nessuna carta da studiare in questo mazzo!');
                     navigate('/study');
                     return;
                 }
 
-                setSession(data);
-                setSessionStats(prev => ({ ...prev, total: data.cards.length }));
+                const orderedCards = shuffle ? shuffleArray(data.cards) : data.cards;
+                setSession({ ...data, cards: orderedCards });
+                setCurrentCardIndex(0);
+                setIsFlipped(false);
+                setExitDirection(null);
+                setIsComplete(false);
+                setStartTime(Date.now());
+                setSessionStats({
+                    total: orderedCards.length,
+                    hard: 0,
+                    good: 0,
+                    easy: 0,
+                    duration: 0,
+                });
             } catch (err: any) {
                 setError(err.message || 'Errore nel caricamento della sessione');
                 emitToast.error('Impossibile caricare la sessione di studio');
@@ -301,65 +401,101 @@ export const StudySessionPage: React.FC = () => {
         };
 
         loadSession();
-    }, [deckId, navigate]);
+    }, [deckId, navigate, mode, shuffle]);
 
     // Carta corrente
     const currentCard = session?.cards[currentCardIndex] ?? null;
+    const displayCard: Card | null = currentCard && effectiveReverse
+        ? { ...currentCard, front: currentCard.back, back: currentCard.front }
+        : currentCard;
+    const isFlashcardMode = mode === 'flashcard';
+    const isQuizMode = mode === 'quiz';
+    const isTypingMode = mode === 'typing';
 
-    // Handlers
-    const handleFlip = useCallback(() => {
-        if (!isFlipped && !isSubmitting) {
-            setIsFlipped(true);
+    const advanceCard = useCallback(() => {
+        if (!session) return;
+
+        if (currentCardIndex + 1 >= session.cards.length) {
+            const duration = Math.floor((Date.now() - startTime) / 1000);
+            setSessionStats(prev => ({ ...prev, duration }));
+            setIsComplete(true);
+            return;
         }
-    }, [isFlipped, isSubmitting]);
 
-    const handleRating = useCallback(async (rating: ReviewRating) => {
-        if (!session || !currentCard || isSubmitting) return;
+        setCurrentCardIndex(prev => prev + 1);
+        setIsFlipped(false);
+        setExitDirection(null);
+    }, [session, currentCardIndex, startTime]);
+
+    const submitReview = useCallback(async (rating: ReviewRating) => {
+        if (!session || !currentCard || isSubmitting) return false;
 
         setIsSubmitting(true);
-
-        // Determina direzione animazione
-        const direction = rating === 1 ? 'left' : rating === 5 ? 'right' : 'up';
-        setExitDirection(direction);
-
-        // Aggiorna stats
-        setSessionStats(prev => ({
-            ...prev,
-            hard: prev.hard + (rating === 1 ? 1 : 0),
-            good: prev.good + (rating === 3 ? 1 : 0),
-            easy: prev.easy + (rating === 5 ? 1 : 0),
-        }));
-
         try {
-            // Invia al backend
             await studyService.submitReview(session.deck.id, {
                 cardId: currentCard.id,
-                rating
+                rating,
             });
 
-            // Attendi animazione uscita
-            await new Promise(resolve => setTimeout(resolve, 350));
+            setSessionStats(prev => ({
+                ...prev,
+                hard: prev.hard + (rating === 1 ? 1 : 0),
+                good: prev.good + (rating === 3 ? 1 : 0),
+                easy: prev.easy + (rating === 5 ? 1 : 0),
+            }));
 
-            // Prossima carta o fine
-            if (currentCardIndex + 1 >= session.cards.length) {
-                const duration = Math.floor((Date.now() - startTime) / 1000);
-                setSessionStats(prev => ({ ...prev, duration }));
-                setIsComplete(true);
-            } else {
-                setCurrentCardIndex(prev => prev + 1);
-                setIsFlipped(false);
-                setExitDirection(null);
-            }
+            return true;
         } catch (err: any) {
             emitToast.error('Errore nel salvataggio della risposta');
-            setExitDirection(null);
+            return false;
         } finally {
             setIsSubmitting(false);
         }
-    }, [session, currentCard, currentCardIndex, isSubmitting, startTime]);
+    }, [session, currentCard, isSubmitting]);
+
+    const handleFlip = useCallback(() => {
+        if (!isFlashcardMode || isFlipped || isSubmitting) return;
+        setIsFlipped(true);
+    }, [isFlashcardMode, isFlipped, isSubmitting]);
+
+    const handleRating = useCallback(async (rating: ReviewRating) => {
+        if (!currentCard || isSubmitting) return;
+
+        const direction = rating === 1 ? 'left' : rating === 5 ? 'right' : 'up';
+        setExitDirection(direction);
+
+        const saved = await submitReview(rating);
+        if (!saved) {
+            setExitDirection(null);
+            return;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 350));
+        advanceCard();
+    }, [currentCard, isSubmitting, submitReview, advanceCard]);
+
+    const handleVerifyTyping = useCallback(async (userAnswer: string) => {
+        if (!currentCard || !deckId) {
+            return { correct: false, similarity: 0 };
+        }
+
+        const expected = effectiveReverse ? currentCard.front : currentCard.back;
+
+        if (effectiveReverse) {
+            return calculateSimilarity(userAnswer, expected);
+        }
+
+        try {
+            const result = await studyService.verifyAnswer(deckId, currentCard.id, userAnswer);
+            return { correct: result.correct, similarity: result.similarity };
+        } catch {
+            return calculateSimilarity(userAnswer, expected);
+        }
+    }, [currentCard, deckId, effectiveReverse]);
 
     // Keyboard shortcuts per rating
     useEffect(() => {
+        if (!isFlashcardMode) return;
         const handleKeyDown = (e: KeyboardEvent) => {
             if (!isFlipped || isSubmitting) return;
 
@@ -370,16 +506,38 @@ export const StudySessionPage: React.FC = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isFlipped, isSubmitting, handleRating]);
+    }, [isFlashcardMode, isFlipped, isSubmitting, handleRating]);
 
     // Handlers per schermata finale
     const handleBackToDashboard = () => navigate('/study');
     const handleStudyAgain = () => {
+        if (!session) return;
+        const reshuffled = shuffle ? shuffleArray(session.cards) : session.cards;
+        setSession({ ...session, cards: reshuffled });
         setCurrentCardIndex(0);
         setIsFlipped(false);
+        setExitDirection(null);
         setIsComplete(false);
-        setSessionStats({ total: session?.cards.length || 0, hard: 0, good: 0, easy: 0, duration: 0 });
+        setStartTime(Date.now());
+        setSessionStats({
+            total: reshuffled.length,
+            hard: 0,
+            good: 0,
+            easy: 0,
+            duration: 0,
+        });
     };
+
+    const viewVariants = {
+        enter: { x: 40, opacity: 0 },
+        center: {
+            x: 0,
+            opacity: 1,
+            transition: { type: 'spring', stiffness: 220, damping: 24 },
+        },
+        exit: { x: -40, opacity: 0, transition: { duration: 0.2 } },
+    };
+    const totalSessionCards = session?.cards.length || 0;
 
     // ========== RENDER ==========
 
@@ -484,7 +642,7 @@ export const StudySessionPage: React.FC = () => {
                             transition={{ delay: idx * 0.02 }}
                             className={`
                                 h-2 rounded-full transition-all duration-300
-                                ${session.cards.length <= 10 ? 'w-6' : 'w-2'}
+                                ${totalSessionCards <= 10 ? 'w-6' : 'w-2'}
                                 ${idx < currentCardIndex 
                                     ? 'bg-emerald-500' 
                                     : idx === currentCardIndex 
@@ -497,24 +655,62 @@ export const StudySessionPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* ═══ FLASHCARD AREA - Centered ═══ */}
+            {/* ═══ STUDY AREA - Centered ═══ */}
             <div className="flex-1 flex items-center justify-center px-4 py-6 overflow-hidden">
                 <AnimatePresence mode="wait">
-                    {currentCard && (
+                    {currentCard && isFlashcardMode && displayCard && (
                         <Flashcard
                             key={currentCard.id}
-                            card={currentCard}
+                            card={displayCard}
                             isFlipped={isFlipped}
                             onFlip={handleFlip}
                             exitDirection={exitDirection}
                         />
+                    )}
+                    {currentCard && isQuizMode && (
+                        <motion.div
+                            key={currentCard.id}
+                            variants={viewVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                        >
+                            <QuizView
+                                card={currentCard}
+                                question={currentCard.front}
+                                options={currentCard.options ?? []}
+                                correctAnswer={currentCard.back}
+                                isSubmitting={isSubmitting}
+                                onSubmitReview={submitReview}
+                                onNext={advanceCard}
+                            />
+                        </motion.div>
+                    )}
+                    {currentCard && isTypingMode && displayCard && (
+                        <motion.div
+                            key={currentCard.id}
+                            variants={viewVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                        >
+                            <TypingView
+                                card={currentCard}
+                                question={displayCard.front}
+                                answer={displayCard.back}
+                                isSubmitting={isSubmitting}
+                                onVerify={handleVerifyTyping}
+                                onSubmitReview={submitReview}
+                                onNext={advanceCard}
+                            />
+                        </motion.div>
                     )}
                 </AnimatePresence>
             </div>
 
             {/* ═══ RATING BUTTONS - Large & Touch-Friendly ═══ */}
             <AnimatePresence>
-                {isFlipped && (
+                {isFlashcardMode && isFlipped && (
                     <motion.div
                         initial={{ opacity: 0, y: 60 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -523,7 +719,7 @@ export const StudySessionPage: React.FC = () => {
                         className="px-4 sm:px-6 py-6 sm:py-8 border-t border-white/[0.06]"
                     >
                         <p className="text-center text-white/40 text-xs sm:text-sm mb-4">
-                            Com'è andata?
+                            Com'e andata?
                         </p>
                         <div className="flex items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto">
                             <RatingButton

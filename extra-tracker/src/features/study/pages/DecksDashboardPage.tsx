@@ -31,6 +31,7 @@ import { studyService, type Deck, type CreateDeckPayload, type AddCardPayload } 
 import { emitToast } from '../../../shared/components/toast';
 import { CreateDeckModal } from '../components/CreateDeckModal';
 import { MagicGenerateModal } from '../components/MagicGenerateModal';
+import { StudyModeSelector, type StudyMode } from '../components/StudyModeSelector';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
 
 // ============================================
@@ -485,6 +486,8 @@ export const DecksDashboardPage: React.FC = () => {
     const [isMagicGenerateOpen, setIsMagicGenerateOpen] = useState(false);
     const [deletingDeck, setDeletingDeck] = useState<Deck | null>(null);
     const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
+    const [isStudyModeOpen, setIsStudyModeOpen] = useState(false);
+    const [studyDeck, setStudyDeck] = useState<Deck | null>(null);
 
     // Computed stats
     const totalCards = decks.reduce((sum, d) => sum + (d.totalCards ?? d.cards?.length ?? 0), 0);
@@ -511,7 +514,10 @@ export const DecksDashboardPage: React.FC = () => {
 
     // Handlers
     const handleStudy = (deckId: string) => {
-        navigate(`/study/${deckId}`);
+        const deck = decks.find(d => d.id === deckId);
+        if (!deck) return;
+        setStudyDeck(deck);
+        setIsStudyModeOpen(true);
     };
 
     const handleViewDetail = (deckId: string) => {
@@ -534,6 +540,17 @@ export const DecksDashboardPage: React.FC = () => {
     const handleMagicGenerateSuccess = async (_generatedCount: number) => {
         // Ricarica i mazzi per riflettere le nuove carte
         await loadDecks();
+    };
+
+    const handleStartSession = (config: { mode: StudyMode; shuffle: boolean; reverse: boolean }) => {
+        if (!studyDeck) return;
+        const params = new URLSearchParams();
+        params.set('mode', config.mode);
+        params.set('shuffle', config.shuffle ? 'true' : 'false');
+        params.set('reverse', config.reverse ? 'true' : 'false');
+        navigate(`/study/${studyDeck.id}/session?${params.toString()}`);
+        setIsStudyModeOpen(false);
+        setStudyDeck(null);
     };
 
     const handleDeleteDeck = async () => {
@@ -677,6 +694,16 @@ export const DecksDashboardPage: React.FC = () => {
                         setSelectedDeck(null);
                     }}
                     onSuccess={handleMagicGenerateSuccess}
+                />
+
+                <StudyModeSelector
+                    isOpen={isStudyModeOpen}
+                    deckTitle={studyDeck?.title}
+                    onClose={() => {
+                        setIsStudyModeOpen(false);
+                        setStudyDeck(null);
+                    }}
+                    onStart={handleStartSession}
                 />
 
                 <ConfirmationModal

@@ -6,11 +6,13 @@ import { apiClient, type ApiResponse } from '../../../shared/services/apiClient'
 
 export type ReviewRating = 1 | 3 | 5;
 export type CardStatus = 'new' | 'learning' | 'review' | 'mastered';
+export type StudyMode = 'flashcard' | 'quiz' | 'typing';
 
 export interface Card {
     id: string;
     front: string;
     back: string;
+    options?: string[];
     easinessFactor: number;
     interval: number;
     repetitions: number;
@@ -36,6 +38,7 @@ export interface StudySession {
     cards: Card[];
     remaining: number;
     total: number;
+    mode?: StudyMode;
 }
 
 export interface ReviewPayload {
@@ -54,6 +57,11 @@ export interface ReviewResult {
         nextReviewDate: string;
         nextReviewInDays: number;
     };
+}
+
+export interface VerifyAnswerResult {
+    correct: boolean;
+    similarity?: number;
 }
 
 export interface CreateDeckPayload {
@@ -92,6 +100,7 @@ const normalizeCard = (raw: any): Card => ({
     id: raw.id || raw._id,
     front: raw.front || '',
     back: raw.back || '',
+    options: Array.isArray(raw.options) ? raw.options : undefined,
     easinessFactor: safeNumber(raw.easinessFactor, 2.5),
     interval: safeNumber(raw.interval, 0),
     repetitions: safeNumber(raw.repetitions, 0),
@@ -135,6 +144,21 @@ const normalizeDashboard = (payload: unknown): StudyDashboardResponse => {
     }
 
     return { decks: [], dueCardCount: 0 };
+};
+
+const normalizeSession = (payload: any): StudySession => {
+    const deck = normalizeDeck(payload?.deck || payload || {});
+    const cards = Array.isArray(payload?.cards)
+        ? payload.cards.map(normalizeCard)
+        : deck.cards;
+
+    return {
+        deck,
+        cards,
+        remaining: safeNumber(payload?.remaining, cards.length),
+        total: safeNumber(payload?.total, deck.totalCards || cards.length),
+        mode: payload?.mode,
+    };
 };
 
 // ============================================
@@ -211,22 +235,10 @@ class StudyService {
      * Carica una sessione di studio per un mazzo specifico
      * Recupera i dati freschi dal backend (risolve il problema del refresh)
      */
-    async getSession(deckId: string): Promise<StudySession> {
-        const deck = await this.getDeckById(deckId);
-        
-        // Filtra solo le carte da ripassare (nextReviewDate <= now)
-        const now = new Date();
-        const dueCards = deck.cards.filter(card => {
-            const reviewDate = new Date(card.nextReviewDate);
-            return reviewDate <= now;
-        });
-
-        return {
-            deck,
-            cards: dueCards.length > 0 ? dueCards : deck.cards, // Se nessuna scaduta, mostra tutte
-            remaining: dueCards.length > 0 ? dueCards.length : deck.cards.length,
-            total: deck.totalCards,
-        };
+    async getSession(deckId: string, mode: StudyMode = 'flashcard'): Promise<StudySession> {
+        const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/session?mode=${mode}`);
+        const raw = unwrap(response, 'Errore nel recupero della sessione');
+        return normalizeSession(raw);
     }
 
     /**
@@ -238,6 +250,24 @@ class StudyService {
             payload
         );
         return unwrap(response, 'Errore nel salvataggio della review');
+    }
+
+    /**
+     * Verifica risposta per Typing Mode
+     */
+    async verifyAnswer(deckId: string, cardId: string, userAnswer: string): Promise<VerifyAnswerResult> {
+        const response = await apiClient.post<any>(
+            `${this.baseUrl}/${deckId}/verify-answer`,
+            { cardId, userAnswer }
+        );
+        const raw = unwrap(response, 'Errore nella verifica della risposta');
+        const similarity = typeof raw?.similarity === 'number' && Number.isFinite(raw.similarity)
+            ? raw.similarity
+            : undefined;
+        return {
+            correct: raw?.correct ?? raw?.isCorrect ?? false,
+            similarity,
+        };
     }
 
     /**

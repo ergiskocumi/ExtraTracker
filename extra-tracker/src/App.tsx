@@ -86,6 +86,7 @@ function App() {
                 <Route path="/study" element={<DecksDashboardPage />} />
                 <Route path="/study/deck/:id" element={<DeckDetailPage />} />
                 <Route path="/study/:deckId" element={<StudySessionPage />} />
+                <Route path="/study/:deckId/session" element={<StudySessionPage />} />
             </Route>
         </Routes>
     );
