@@ -163,6 +163,117 @@ router.patch('/goals/:id/milestones/:milestoneId', asyncHandler(async (req, res)
 }));
 
 /**
+ * DELETE /api/goals/:id/milestones/:milestoneId
+ * Elimina una milestone specifica (operazione atomica)
+ */
+router.delete('/goals/:id/milestones/:milestoneId', asyncHandler(async (req, res) => {
+    const goal = await goalService.deleteMilestone(
+        req.tenantScope,
+        req.params.id,
+        req.params.milestoneId
+    );
+
+    const checkIns = await checkInService.findByGoal(req.tenantScope, req.params.id);
+    const stats = calculateGoalStats(goal, checkIns);
+
+    res.json({
+        success: true,
+        data: {
+            goal: goal.toJSON(),
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+                milestoneProgress: goal.milestoneProgress,
+                completedMilestones: goal.completedMilestones,
+                totalMilestones: goal.milestones?.length || 0,
+            },
+        },
+    });
+}));
+
+/**
+ * DELETE /api/goals/:id/milestones
+ * Elimina più milestones in una singola operazione atomica
+ */
+router.delete('/goals/:id/milestones', asyncHandler(async (req, res) => {
+    const milestoneIds = Array.isArray(req.body?.milestoneIds) ? req.body.milestoneIds : [];
+
+    const goal = await goalService.bulkDeleteMilestones(
+        req.tenantScope,
+        req.params.id,
+        milestoneIds
+    );
+
+    const checkIns = await checkInService.findByGoal(req.tenantScope, req.params.id);
+    const stats = calculateGoalStats(goal, checkIns);
+
+    res.json({
+        success: true,
+        data: {
+            goal: goal.toJSON(),
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+                milestoneProgress: goal.milestoneProgress,
+                completedMilestones: goal.completedMilestones,
+                totalMilestones: goal.milestones?.length || 0,
+            },
+        },
+    });
+}));
+
+/**
+ * POST /api/goals/:id/milestones/bulk-delete
+ * Bulk delete milestones (fallback per client/proxy che non supportano DELETE body)
+ */
+router.post('/goals/:id/milestones/bulk-delete', asyncHandler(async (req, res) => {
+    const milestoneIds = Array.isArray(req.body?.milestoneIds) ? req.body.milestoneIds : [];
+
+    const goal = await goalService.bulkDeleteMilestones(
+        req.tenantScope,
+        req.params.id,
+        milestoneIds
+    );
+
+    const checkIns = await checkInService.findByGoal(req.tenantScope, req.params.id);
+    const stats = calculateGoalStats(goal, checkIns);
+
+    res.json({
+        success: true,
+        data: {
+            goal: goal.toJSON(),
+            stats: {
+                totalProgress: stats.totalProgress,
+                percentage: stats.percentage,
+                milestoneProgress: goal.milestoneProgress,
+                completedMilestones: goal.completedMilestones,
+                totalMilestones: goal.milestones?.length || 0,
+            },
+        },
+    });
+}));
+
+/**
+ * DELETE /api/goals
+ * Bulk delete goals (cascade delete dei check-in)
+ */
+router.delete('/goals', asyncHandler(async (req, res) => {
+    const goalIds = Array.isArray(req.body?.goalIds) ? req.body.goalIds : [];
+    const result = await goalService.bulkDelete(req.tenantScope, goalIds);
+    res.json({ success: true, data: result, message: 'Obiettivi eliminati' });
+}));
+
+/**
+ * POST /api/goals/bulk-delete
+ * Bulk delete goals (fallback per client/proxy che non supportano DELETE body)
+ */
+router.post('/goals/bulk-delete', asyncHandler(async (req, res) => {
+    const goalIds = Array.isArray(req.body?.goalIds) ? req.body.goalIds : [];
+    const result = await goalService.bulkDelete(req.tenantScope, goalIds);
+    res.json({ success: true, data: result, message: 'Obiettivi eliminati' });
+}));
+
+/**
  * DELETE /api/goals/:id
  * Elimina obiettivo (cascade delete dei check-in)
  */

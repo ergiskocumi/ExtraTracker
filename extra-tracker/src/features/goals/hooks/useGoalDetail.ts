@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import goalsService from '../services/goalsService';
 import { useFormat } from '../../../shared/hooks/useFormat';
+import { useSelection } from '../../../shared/hooks/useSelection';
+import { emitToast } from '../../../shared/components/toast';
 import type {
     GoalDetailResponse,
     CreateCheckInDTO,
@@ -270,6 +272,13 @@ export const useGoalDetail = () => {
         savedFlash: {},
     });
 
+    // Milestone selection + delete state
+    const milestoneSelection = useSelection();
+    const [pendingDeleteMilestoneId, setPendingDeleteMilestoneId] = useState<string | null>(null);
+    const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+    const [isDeletingMilestone, setIsDeletingMilestone] = useState(false);
+    const [isBulkDeletingMilestones, setIsBulkDeletingMilestones] = useState(false);
+
     // Active tab
     const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
 
@@ -495,6 +504,122 @@ export const useGoalDetail = () => {
         }
     }, [id, milestoneUI.savingNotesId, milestoneUI.notesDraft]);
 
+    const pruneMilestoneUIState = useCallback((milestoneIds: string[]) => {
+        if (milestoneIds.length === 0) return;
+
+        setMilestoneUI(prev => {
+            const nextExpanded = { ...prev.expandedIds };
+            const nextNotesDraft = { ...prev.notesDraft };
+            const nextSavedFlash = { ...prev.savedFlash };
+
+            milestoneIds.forEach(milestoneId => {
+                delete nextExpanded[milestoneId];
+                delete nextNotesDraft[milestoneId];
+                delete nextSavedFlash[milestoneId];
+            });
+
+            return {
+                ...prev,
+                expandedIds: nextExpanded,
+                notesDraft: nextNotesDraft,
+                savedFlash: nextSavedFlash,
+            };
+        });
+    }, []);
+
+    const requestDeleteMilestone = useCallback((milestoneId: string) => {
+        setPendingDeleteMilestoneId(milestoneId);
+    }, []);
+
+    const cancelDeleteMilestone = useCallback(() => {
+        setPendingDeleteMilestoneId(null);
+    }, []);
+
+    const confirmDeleteMilestone = useCallback(async () => {
+        if (!id || !pendingDeleteMilestoneId) return;
+
+        setIsDeletingMilestone(true);
+        try {
+            const response = await goalsService.deleteMilestone(id, pendingDeleteMilestoneId);
+
+            setData(prev => prev ? {
+                ...prev,
+                goal: {
+                    ...prev.goal,
+                    ...response.goal,
+                    percentage: response.stats.percentage,
+                    totalProgress: response.stats.totalProgress,
+                },
+                stats: response.stats,
+            } : null);
+
+            pruneMilestoneUIState([pendingDeleteMilestoneId]);
+
+            if (milestoneSelection.isSelected(pendingDeleteMilestoneId)) {
+                milestoneSelection.toggleSelection(pendingDeleteMilestoneId);
+            }
+
+            emitToast.success('Milestone eliminata', { title: 'Eliminata' });
+            setPendingDeleteMilestoneId(null);
+        } catch (err) {
+            console.error('Error deleting milestone:', err);
+        } finally {
+            setIsDeletingMilestone(false);
+        }
+    }, [
+        id,
+        pendingDeleteMilestoneId,
+        milestoneSelection,
+        pruneMilestoneUIState,
+    ]);
+
+    const requestBulkDeleteMilestones = useCallback(() => {
+        setIsBulkDeleteOpen(true);
+    }, []);
+
+    const cancelBulkDeleteMilestones = useCallback(() => {
+        setIsBulkDeleteOpen(false);
+    }, []);
+
+    const confirmBulkDeleteMilestones = useCallback(async () => {
+        if (!id) return;
+
+        const milestoneIds = Array.from(milestoneSelection.selectedIds);
+        if (milestoneIds.length === 0) return;
+
+        setIsBulkDeletingMilestones(true);
+        try {
+            const response = await goalsService.bulkDeleteMilestones(id, milestoneIds);
+
+            setData(prev => prev ? {
+                ...prev,
+                goal: {
+                    ...prev.goal,
+                    ...response.goal,
+                    percentage: response.stats.percentage,
+                    totalProgress: response.stats.totalProgress,
+                },
+                stats: response.stats,
+            } : null);
+
+            pruneMilestoneUIState(milestoneIds);
+            milestoneSelection.clearSelection();
+            milestoneSelection.setSelectionMode(false);
+
+            const count = milestoneIds.length;
+            emitToast.success(
+                count === 1 ? '1 milestone eliminata' : `${count} milestones eliminate`,
+                { title: 'Eliminazione completata' }
+            );
+
+            setIsBulkDeleteOpen(false);
+        } catch (err) {
+            console.error('Error bulk deleting milestones:', err);
+        } finally {
+            setIsBulkDeletingMilestones(false);
+        }
+    }, [id, milestoneSelection, pruneMilestoneUIState]);
+
     // ========================================
     // RETURN VALUE
     // ========================================
@@ -530,10 +655,21 @@ export const useGoalDetail = () => {
 
         // Milestones
         milestoneUI,
+        milestoneSelection,
         toggleMilestone,
         toggleMilestoneExpanded,
         updateMilestoneNotesDraft,
         saveMilestoneNotes,
+        requestDeleteMilestone,
+        cancelDeleteMilestone,
+        confirmDeleteMilestone,
+        pendingDeleteMilestoneId,
+        requestBulkDeleteMilestones,
+        cancelBulkDeleteMilestones,
+        confirmBulkDeleteMilestones,
+        isBulkDeleteOpen,
+        isDeletingMilestone,
+        isBulkDeletingMilestones,
 
         // Tabs
         activeTab,

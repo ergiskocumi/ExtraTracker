@@ -125,6 +125,51 @@ class GoalService extends BaseService {
         return { goals: goalsWithProgress, stats };
     }
 
+    /**
+     * Bulk delete goals con verifica ownership e cascade delete dei check-in.
+     *
+     * 🔒 SICUREZZA ESPLICITA: Verifica che tutti i goal appartengano all'utente
+     *
+     * @param {Object} tenantScope - Oggetto req.tenantScope
+     * @param {Array<string>} goalIds - Lista ID dei goal da eliminare
+     * @returns {Promise<{deletedGoals: number, deletedCheckIns: number}>}
+     */
+    async bulkDelete(tenantScope, goalIds = []) {
+        const userId = this._getUserId(tenantScope);
+
+        if (!Array.isArray(goalIds) || goalIds.length === 0) {
+            throw AppError.validation('Seleziona almeno un obiettivo');
+        }
+
+        const uniqueGoalIds = [...new Set(goalIds.map(id => String(id)))];
+
+        // 🔒 SICUREZZA: Verifica ownership per tutti i goal richiesti
+        const ownedGoals = await Goal.find({
+            _id: { $in: uniqueGoalIds },
+            user: userId,
+        }).select('_id');
+
+        if (ownedGoals.length !== uniqueGoalIds.length) {
+            throw AppError.notFound('Obiettivo');
+        }
+
+        // Cascade delete dei check-in associati
+        const checkInResult = await CheckIn.deleteMany({
+            user: userId,
+            goalId: { $in: uniqueGoalIds },
+        });
+
+        const goalResult = await Goal.deleteMany({
+            user: userId,
+            _id: { $in: uniqueGoalIds },
+        });
+
+        return {
+            deletedGoals: goalResult.deletedCount || 0,
+            deletedCheckIns: checkInResult.deletedCount || 0,
+        };
+    }
+
     // =========================================
     // LIFECYCLE HOOKS
     // =========================================
@@ -143,6 +188,82 @@ class GoalService extends BaseService {
     // =========================================
     // MILESTONE METHODS
     // =========================================
+
+    /**
+     * Elimina una milestone specifica (operazione atomica).
+     * Usa $pull per rimuovere l'embedded document.
+     *
+     * 🔒 SICUREZZA ESPLICITA: Filtro per user + goalId + milestoneId
+     */
+    async deleteMilestone(tenantScope, goalId, milestoneId) {
+        const userId = this._getUserId(tenantScope);
+
+        const updatedGoal = await Goal.findOneAndUpdate(
+            {
+                _id: goalId,
+                user: userId,
+                'milestones._id': milestoneId,
+            },
+            {
+                $pull: { milestones: { _id: milestoneId } },
+            },
+            { new: true }
+        );
+
+        if (!updatedGoal) {
+            throw AppError.notFound('Obiettivo o milestone');
+        }
+
+        return updatedGoal;
+    }
+
+    /**
+     * Elimina più milestones in una singola query atomica.
+     *
+     * 🔒 SICUREZZA ESPLICITA: Verifica ownership del goal e milestoneId presenti
+     */
+    async bulkDeleteMilestones(tenantScope, goalId, milestoneIds = []) {
+        const userId = this._getUserId(tenantScope);
+
+        if (!Array.isArray(milestoneIds) || milestoneIds.length === 0) {
+            throw AppError.validation('Seleziona almeno una milestone');
+        }
+
+        const uniqueMilestoneIds = [...new Set(milestoneIds.map(id => String(id)))];
+
+        const goal = await Goal.findOne({
+            _id: goalId,
+            user: userId,
+        }).select('milestones');
+
+        if (!goal) {
+            throw AppError.notFound('Obiettivo');
+        }
+
+        const milestoneIdSet = new Set(goal.milestones.map(m => m._id.toString()));
+        const missing = uniqueMilestoneIds.filter(id => !milestoneIdSet.has(id));
+
+        if (missing.length > 0) {
+            throw AppError.notFound('Milestone');
+        }
+
+        const updatedGoal = await Goal.findOneAndUpdate(
+            {
+                _id: goalId,
+                user: userId,
+            },
+            {
+                $pull: { milestones: { _id: { $in: uniqueMilestoneIds } } },
+            },
+            { new: true }
+        );
+
+        if (!updatedGoal) {
+            throw AppError.notFound('Obiettivo');
+        }
+
+        return updatedGoal;
+    }
 
     /**
      * Toggle isCompleted di una specifica milestone.

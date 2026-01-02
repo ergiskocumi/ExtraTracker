@@ -96,6 +96,7 @@ interface GoalsContextType {
     addGoal: (goalData: CreateGoalDTO) => Promise<Goal>;
     updateGoal: (id: string, goalData: UpdateGoalDTO) => Promise<void>;
     deleteGoal: (id: string) => Promise<void>;
+    bulkDeleteGoals: (goalIds: string[]) => Promise<void>;
 
     // Azioni Check-ins
     addCheckIn: (goalId: string, checkInData: CreateCheckInDTO) => Promise<GoalStats>;
@@ -188,6 +189,25 @@ export const GoalsProvider = ({ children }: { children: ReactNode }) => {
         } catch (err: any) {
             console.error('Errore eliminazione goal:', err);
             throw new Error(err.message || 'Impossibile eliminare obiettivo');
+        }
+    };
+
+    // Elimina più obiettivi
+    const bulkDeleteGoals = async (goalIds: string[]): Promise<void> => {
+        if (!Array.isArray(goalIds) || goalIds.length === 0) return;
+
+        try {
+            const result = await goalsService.bulkDeleteGoals(goalIds);
+            await refreshGoals();
+
+            const count = result.deletedGoals;
+            emitToast.success(
+                count === 1 ? '1 obiettivo eliminato' : `${count} obiettivi eliminati`,
+                { title: 'Eliminazione completata' }
+            );
+        } catch (err: any) {
+            console.error('Errore eliminazione multipla goals:', err);
+            throw new Error(err.message || 'Impossibile eliminare gli obiettivi selezionati');
         }
     };
 
@@ -291,6 +311,7 @@ export const GoalsProvider = ({ children }: { children: ReactNode }) => {
                 addGoal,
                 updateGoal,
                 deleteGoal,
+                bulkDeleteGoals,
                 addCheckIn,
                 quickCheckIn,
                 refreshGoals,

@@ -142,6 +142,12 @@ export interface CheckInResponse {
     stats: GoalStats;
 }
 
+// Risposta bulk delete goals
+export interface BulkDeleteGoalsResult {
+    deletedGoals: number;
+    deletedCheckIns: number;
+}
+
 // Statistiche dashboard
 export interface GoalsDashboardStats {
     summary: {

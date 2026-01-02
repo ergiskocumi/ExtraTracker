@@ -30,7 +30,9 @@ import {
     FiZap,
     FiCheck,
     FiStar,
-    FiCpu
+    FiCpu,
+    FiCheckSquare,
+    FiSquare
 } from 'react-icons/fi';
 
 // ============================================================================
@@ -481,6 +483,9 @@ interface GoalCardProps {
     getDaysRemaining: (deadline: string) => number;
     getProgressColor: (percentage: number) => string;
     canQuickCheckIn: boolean;
+    isSelectionMode: boolean;
+    isSelected: boolean;
+    onToggleSelect: (id: string) => void;
 }
 
 export const GoalCard: React.FC<GoalCardProps> = ({
@@ -493,6 +498,9 @@ export const GoalCard: React.FC<GoalCardProps> = ({
     getDaysRemaining,
     getProgressColor,
     canQuickCheckIn,
+    isSelectionMode,
+    isSelected,
+    onToggleSelect,
 }) => {
     const category = GOAL_CATEGORIES[goal.category];
     const daysRemaining = getDaysRemaining(goal.deadline);
@@ -502,6 +510,136 @@ export const GoalCard: React.FC<GoalCardProps> = ({
     const streak = goal.streak || 0;
     const hasStreak = streak > 0;
     const hotStreak = streak >= 3;
+
+    const selectionClass = isSelectionMode
+        ? isSelected
+            ? 'border-primary-500/50 ring-2 ring-primary-500/20 bg-primary-500/5'
+            : 'border-white/10 opacity-70'
+        : justCheckedIn
+            ? 'border-green-500/50 ring-2 ring-green-500/20'
+            : 'border-white/10 hover:border-white/20';
+
+    const cardContent = (
+        <div className={`relative overflow-hidden bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl border rounded-2xl p-6 transition-all h-full ${selectionClass}`}>
+            {/* Header */}
+            <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                    {isSelectionMode && (
+                        <div className={`flex items-center justify-center w-6 h-6 rounded-md border ${
+                            isSelected
+                                ? 'border-primary-400 bg-primary-500/15 text-primary-300'
+                                : 'border-white/20 text-white/40'
+                        }`}>
+                            {isSelected ? <FiCheckSquare className="w-4 h-4" /> : <FiSquare className="w-4 h-4" />}
+                        </div>
+                    )}
+                    <div className={`p-2.5 rounded-xl ${category.color} bg-white/5`}>
+                        {getCategoryIcon(goal.category)}
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-semibold text-white transition-colors group-hover:text-primary-400">
+                                {goal.title}
+                            </h3>
+                            {hasStreak && (
+                                <motion.div 
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                        hotStreak 
+                                            ? 'bg-orange-500/20 border border-orange-500/30 text-orange-400' 
+                                            : 'bg-white/10 border border-white/10 text-white/60'
+                                    }`}
+                                >
+                                    <FiZap className={`w-3 h-3 ${hotStreak ? 'text-orange-400' : 'text-white/50'}`} />
+                                    {streak}
+                                </motion.div>
+                            )}
+                        </div>
+                        <span className={`text-xs font-medium px-2 py-1 rounded-md ${category.color} bg-white/5`}>
+                            {category.label}
+                        </span>
+                    </div>
+                </div>
+                {!isSelectionMode && (
+                    <FiArrowRight className="w-5 h-5 transition-all text-white/40 group-hover:text-primary-400 group-hover:translate-x-1" />
+                )}
+            </div>
+
+            {/* Description */}
+            {goal.description && (
+                <p className="mb-4 text-sm text-white/60 line-clamp-2">
+                    {goal.description}
+                </p>
+            )}
+
+            {/* Progress Bar */}
+            <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-white/80">Progress</span>
+                    <span className="text-sm font-bold text-white">{goal.percentage.toFixed(0)}%</span>
+                </div>
+                <div className="relative h-2 overflow-hidden rounded-full bg-white/5">
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${goal.percentage}%` }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        className={`h-full bg-gradient-to-r ${getProgressColor(goal.percentage)} rounded-full`}
+                    />
+                </div>
+            </div>
+
+            {/* Stats Footer */}
+            <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                <div className="flex items-center gap-2 text-sm">
+                    <FiCalendar className="w-4 h-4 text-white/40" />
+                    <span className={`${isExpired ? 'text-red-400' : isUrgent ? 'text-yellow-400' : 'text-white/60'}`}>
+                        {isExpired 
+                            ? `Expired ${Math.abs(daysRemaining)} days ago`
+                            : `${daysRemaining} days left`
+                        }
+                    </span>
+                </div>
+
+                {goal.type === 'target' && goal.targetValue && (
+                    <div className="text-sm text-white/60">
+                        <span className="font-semibold text-white">{goal.currentValue}</span>
+                        <span className="mx-1">/</span>
+                        <span>{goal.targetValue}</span>
+                        {goal.unit && <span className="ml-1">{goal.unit}</span>}
+                    </div>
+                )}
+
+                {goal.type === 'habit' && (
+                    <div className="flex items-center gap-1.5">
+                        <FiActivity className="w-4 h-4 text-primary-400" />
+                        <span className="text-sm font-medium text-white">
+                            {streak} day streak
+                        </span>
+                    </div>
+                )}
+
+                {goal.milestones && goal.milestones.length > 0 && (
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-primary-500/10 border border-primary-500/20 rounded-lg">
+                        <FiFlag className="w-3.5 h-3.5 text-primary-400" />
+                        <span className="text-xs font-medium text-primary-400">
+                            {goal.completedMilestones || 0}/{goal.milestones.length}
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            {/* Status Badge */}
+            {isCompleted && (
+                <div className="absolute top-4 right-4">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-full">
+                        <FiCheckCircle className="w-4 h-4 text-green-400" />
+                        <span className="text-xs font-medium text-green-400">Completed</span>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <motion.div
@@ -513,123 +651,22 @@ export const GoalCard: React.FC<GoalCardProps> = ({
             whileHover={{ y: -4 }}
             className="relative group"
         >
-            <Link to={`/goals/${goal.id}`}>
-                <div className={`relative overflow-hidden bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl border rounded-2xl p-6 transition-all h-full ${
-                    justCheckedIn 
-                        ? 'border-green-500/50 ring-2 ring-green-500/20' 
-                        : 'border-white/10 hover:border-white/20'
-                }`}>
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                            <div className={`p-2.5 rounded-xl ${category.color} bg-white/5`}>
-                                {getCategoryIcon(goal.category)}
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h3 className="text-lg font-semibold text-white transition-colors group-hover:text-primary-400">
-                                        {goal.title}
-                                    </h3>
-                                    {hasStreak && (
-                                        <motion.div 
-                                            initial={{ scale: 0 }}
-                                            animate={{ scale: 1 }}
-                                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                                hotStreak 
-                                                    ? 'bg-orange-500/20 border border-orange-500/30 text-orange-400' 
-                                                    : 'bg-white/10 border border-white/10 text-white/60'
-                                            }`}
-                                        >
-                                            <FiZap className={`w-3 h-3 ${hotStreak ? 'text-orange-400' : 'text-white/50'}`} />
-                                            {streak}
-                                        </motion.div>
-                                    )}
-                                </div>
-                                <span className={`text-xs font-medium px-2 py-1 rounded-md ${category.color} bg-white/5`}>
-                                    {category.label}
-                                </span>
-                            </div>
-                        </div>
-                        <FiArrowRight className="w-5 h-5 transition-all text-white/40 group-hover:text-primary-400 group-hover:translate-x-1" />
-                    </div>
-
-                    {/* Description */}
-                    {goal.description && (
-                        <p className="mb-4 text-sm text-white/60 line-clamp-2">
-                            {goal.description}
-                        </p>
-                    )}
-
-                    {/* Progress Bar */}
-                    <div className="mb-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-white/80">Progress</span>
-                            <span className="text-sm font-bold text-white">{goal.percentage.toFixed(0)}%</span>
-                        </div>
-                        <div className="relative h-2 overflow-hidden rounded-full bg-white/5">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${goal.percentage}%` }}
-                                transition={{ duration: 0.5, ease: "easeOut" }}
-                                className={`h-full bg-gradient-to-r ${getProgressColor(goal.percentage)} rounded-full`}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Stats Footer */}
-                    <div className="flex items-center justify-between pt-4 border-t border-white/10">
-                        <div className="flex items-center gap-2 text-sm">
-                            <FiCalendar className="w-4 h-4 text-white/40" />
-                            <span className={`${isExpired ? 'text-red-400' : isUrgent ? 'text-yellow-400' : 'text-white/60'}`}>
-                                {isExpired 
-                                    ? `Expired ${Math.abs(daysRemaining)} days ago`
-                                    : `${daysRemaining} days left`
-                                }
-                            </span>
-                        </div>
-
-                        {goal.type === 'target' && goal.targetValue && (
-                            <div className="text-sm text-white/60">
-                                <span className="font-semibold text-white">{goal.currentValue}</span>
-                                <span className="mx-1">/</span>
-                                <span>{goal.targetValue}</span>
-                                {goal.unit && <span className="ml-1">{goal.unit}</span>}
-                            </div>
-                        )}
-
-                        {goal.type === 'habit' && (
-                            <div className="flex items-center gap-1.5">
-                                <FiActivity className="w-4 h-4 text-primary-400" />
-                                <span className="text-sm font-medium text-white">
-                                    {streak} day streak
-                                </span>
-                            </div>
-                        )}
-
-                        {goal.milestones && goal.milestones.length > 0 && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 bg-primary-500/10 border border-primary-500/20 rounded-lg">
-                                <FiFlag className="w-3.5 h-3.5 text-primary-400" />
-                                <span className="text-xs font-medium text-primary-400">
-                                    {goal.completedMilestones || 0}/{goal.milestones.length}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Status Badge */}
-                    {isCompleted && (
-                        <div className="absolute top-4 right-4">
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-full">
-                                <FiCheckCircle className="w-4 h-4 text-green-400" />
-                                <span className="text-xs font-medium text-green-400">Completed</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </Link>
+            {isSelectionMode ? (
+                <button
+                    type="button"
+                    onClick={() => onToggleSelect(goal.id)}
+                    className="w-full text-left"
+                >
+                    {cardContent}
+                </button>
+            ) : (
+                <Link to={`/goals/${goal.id}`}>
+                    {cardContent}
+                </Link>
+            )}
 
             {/* Quick Check-in Button */}
-            {!isCompleted && canQuickCheckIn && (
+            {!isSelectionMode && !isCompleted && canQuickCheckIn && (
                 <motion.button
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -686,6 +723,9 @@ interface GoalsListProps {
     getDaysRemaining: (deadline: string) => number;
     getProgressColor: (percentage: number) => string;
     canQuickCheckIn: (goal: GoalWithProgress) => boolean;
+    isSelectionMode: boolean;
+    isSelected: (id: string) => boolean;
+    onToggleSelect: (id: string) => void;
 }
 
 export const GoalsList: React.FC<GoalsListProps> = ({
@@ -699,6 +739,9 @@ export const GoalsList: React.FC<GoalsListProps> = ({
     getDaysRemaining,
     getProgressColor,
     canQuickCheckIn,
+    isSelectionMode,
+    isSelected,
+    onToggleSelect,
 }) => (
     <AnimatePresence mode="popLayout">
         {goals.length === 0 ? (
@@ -744,6 +787,9 @@ export const GoalsList: React.FC<GoalsListProps> = ({
                         getDaysRemaining={getDaysRemaining}
                         getProgressColor={getProgressColor}
                         canQuickCheckIn={canQuickCheckIn(goal)}
+                        isSelectionMode={isSelectionMode}
+                        isSelected={isSelected(goal.id)}
+                        onToggleSelect={onToggleSelect}
                     />
                 ))}
             </div>
