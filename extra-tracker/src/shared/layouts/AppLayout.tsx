@@ -204,7 +204,7 @@ export const AppLayout = () => {
                                                         {catIndex > 0 && (
                                                             <div className="my-2 mx-3 border-t border-white/[0.08]" />
                                                         )}
-                                                        <p className="px-4 py-2 text-[10px] font-bold text-white/50 uppercase tracking-wider">
+                                                        <p className="px-4 py-2 text-[10px] font-extrabold text-primary-300/60 uppercase tracking-[0.2em] select-none" style={{ letterSpacing: '0.2em' }}>
                                                             {category.label}
                                                         </p>
                                                         {category.items.map((item) => {
