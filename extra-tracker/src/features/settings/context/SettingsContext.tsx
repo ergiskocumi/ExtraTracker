@@ -17,6 +17,7 @@ import {
     type UserNotifications,
     type AllSettingsData,
 } from '../services/settingsService';
+import { emitToast } from '../../../shared/components/toast';
 
 // ==========================================
 // TIPI
@@ -165,6 +166,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
                     profile: { ...prev.profile, ...response.data?.profile },
                     isLoading: false,
                 }));
+                
+                // ✅ Toast di successo
+                emitToast.success('Profilo aggiornato con successo!', {
+                    title: 'Profilo Salvato',
+                });
+                
                 return true;
             } else {
                 setState(prev => ({
@@ -206,6 +213,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
                     applyTheme(data.theme);
                 }
 
+                // ✅ Toast di successo
+                emitToast.success('Preferenze aggiornate!', {
+                    title: 'Preferenze Salvate',
+                });
+
                 return true;
             } else {
                 setState(prev => ({
@@ -240,6 +252,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
                     notifications: { ...prev.notifications, ...response.data?.notifications },
                     isLoading: false,
                 }));
+                
+                // ✅ Toast di successo
+                emitToast.success('Notifiche aggiornate!', {
+                    title: 'Impostazioni Salvate',
+                });
+                
                 return true;
             } else {
                 setState(prev => ({

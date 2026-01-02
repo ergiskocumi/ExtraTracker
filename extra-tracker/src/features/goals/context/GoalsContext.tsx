@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import goalsService from '../services/goalsService';
+import { emitToast } from '../../../shared/components/toast';
 import type {
     Goal,
     GoalWithProgress,
@@ -145,6 +146,12 @@ export const GoalsProvider = ({ children }: { children: ReactNode }) => {
             const newGoal = await goalsService.create(goalData);
             // Refresh per aggiornare le statistiche
             await refreshGoals();
+            
+            // ✅ Toast di successo
+            emitToast.success('Obiettivo creato con successo!', {
+                title: 'Nuovo Obiettivo 🎯',
+            });
+            
             return newGoal;
         } catch (err: any) {
             console.error('Errore creazione goal:', err);
@@ -157,6 +164,11 @@ export const GoalsProvider = ({ children }: { children: ReactNode }) => {
         try {
             await goalsService.update(id, goalData);
             await refreshGoals();
+            
+            // ✅ Toast di successo
+            emitToast.success('Obiettivo aggiornato!', {
+                title: 'Modifiche Salvate',
+            });
         } catch (err: any) {
             console.error('Errore aggiornamento goal:', err);
             throw new Error(err.message || 'Impossibile aggiornare obiettivo');
@@ -168,6 +180,11 @@ export const GoalsProvider = ({ children }: { children: ReactNode }) => {
         try {
             await goalsService.delete(id);
             await refreshGoals();
+            
+            // ✅ Toast di successo
+            emitToast.success('Obiettivo eliminato', {
+                title: 'Eliminato',
+            });
         } catch (err: any) {
             console.error('Errore eliminazione goal:', err);
             throw new Error(err.message || 'Impossibile eliminare obiettivo');
@@ -190,6 +207,12 @@ export const GoalsProvider = ({ children }: { children: ReactNode }) => {
                         : goal
                 )
             );
+            
+            // ✅ Toast di successo
+            emitToast.success('Progresso registrato!', {
+                title: 'Check-in ✅',
+            });
+            
             return response.stats;
         } catch (err: any) {
             console.error('Errore creazione check-in:', err);
@@ -233,6 +256,11 @@ export const GoalsProvider = ({ children }: { children: ReactNode }) => {
                     goal.id === goalId ? applyQuickCheckInStats(goal, response.stats) : goal
                 )
             );
+            
+            // ✅ Toast di successo (silenzioso - solo conferma visiva)
+            emitToast.success('+1 completato!', {
+                duration: 2000,
+            });
         } catch (err: any) {
             console.error('Errore quick check-in:', err);
 

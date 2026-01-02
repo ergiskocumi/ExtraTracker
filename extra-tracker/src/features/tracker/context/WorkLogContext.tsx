@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { WorkLog } from "../type";
 import { useAuth } from "../../auth/context/AuthContext";
 import { apiClient } from "../../../shared/services/apiClient";
+import { emitToast } from "../../../shared/components/toast";
 
 interface WorkLogContextType {
   logs: WorkLog[];
@@ -46,6 +47,11 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
       if (!createdLog) return;
 
       setLogs((prev) => [...prev, createdLog]);
+      
+      // ✅ Toast di successo
+      emitToast.success('Ore registrate con successo!', {
+        title: 'Work Log Salvato',
+      });
     } catch (err) {
       console.error("Errore addLog:", err);
     }
@@ -58,6 +64,11 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
       if (response.success) {
         // Aggiorniamo la UI togliendo quello cancellato
         setLogs((prev) => prev.filter(log => log.id !== id));
+        
+        // ✅ Toast di successo
+        emitToast.success('Registro eliminato', {
+          title: 'Eliminato',
+        });
       }
     } catch (err) {
       console.error("Errore deleteLog:", err);
@@ -80,6 +91,11 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
       setLogs((prevLogs) =>
         prevLogs.map((log) => (log.id === id ? savedLog : log))
       );
+      
+      // ✅ Toast di successo
+      emitToast.success('Modifiche salvate!', {
+        title: 'Aggiornato',
+      });
     } catch (err) {
       console.error("Errore updateLog:", err);
     }

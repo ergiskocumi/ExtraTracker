@@ -1,21 +1,54 @@
-const timeToMinutes = (time: string): number => {
-    const [hoursStr, minutesStr] = time.split(':'); //divido la stringa in ore e minuti
+export const timeToMinutes = (time: string): number => {
+    // 1. Validazione Formato (HH:MM)
+    // Regex rigorosa: 
+    // ^       = inizio stringa
+    // \d{2}   = esattamente due cifre
+    // :       = due punti
+    // \d{2}   = esattamente due cifre
+    // $       = fine stringa
+    const timeRegex = /^\d{2}:\d{2}$/;
     
-    //dichiaro le variabili e le converto in numeri da stringhe
+    if (!timeRegex.test(time)) {
+        throw new Error("Formato non valido. Usa HH:MM (es. 09:30)");
+    }
+
+    const [hoursStr, minutesStr] = time.split(':');
     const hours = Number(hoursStr);
     const minutes = Number(minutesStr);
 
-    return hours * 60 + minutes; //converto tutto in minuti
+    // 2. Validazione Logica (Ore 0-23, Minuti 0-59)
+    if (hours < 0 || hours > 23) {
+        throw new Error("Le ore devono essere tra 00 e 23");
+    }
+    if (minutes < 0 || minutes > 59) {
+        throw new Error("I minuti devono essere tra 00 e 59");
+    }
+
+    return hours * 60 + minutes;
+
+    //TODO: aggiungere un trim per rimuovere spazi bianchi all'inizio e alla fine della stringa e pulire l'output in maniera che 
+    // anche se l'utente inserisce spazi bianchi non dia errore ma lo faccia proseguire normalmente
 }
+
 
 //funzione da usare poi nel calcolo delle ore lavorate 
 export const calculateDurationInHours = (startTime: string, endTime: string): number => {
-    const startTotalMinutes = timeToMinutes(startTime); //ottengo i minuti totali dall'inizio
-    const endTotalMinutes = timeToMinutes(endTime); //ottengo i minuti totali dalla fine
+    const startTotalMinutes = timeToMinutes(startTime);
+    let endTotalMinutes = timeToMinutes(endTime); // Uso 'let' perché potrei doverlo modificare
 
-    const diffMinutes = endTotalMinutes - startTotalMinutes; //calcolo la differenza in minuti
+    // GESTIONE MIDNIGHT CROSSING
+    // Se la fine è minore dell'inizio (es. 01:00 < 23:00), 
+    // assumiamo che sia il giorno successivo.
+    // Aggiungiamo 24 ore (24 * 60 = 1440 minuti) al totale della fine.
+    if (endTotalMinutes < startTotalMinutes) {
+        endTotalMinutes += 1440; 
+    }
 
-    return diffMinutes / 60; //converto i minuti in ore
+    const diffMinutes = endTotalMinutes - startTotalMinutes;
+
+    // Arrotondiamo a 2 decimali per pulizia (opzionale ma consigliato)
+    // es. 2.666666 -> 2.67
+    return Number((diffMinutes / 60).toFixed(2));
 }
 
 //funzione per andare a scaglioni di 30 minuti nella selezione dell'orario

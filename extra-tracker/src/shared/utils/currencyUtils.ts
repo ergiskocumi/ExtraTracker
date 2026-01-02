@@ -33,6 +33,7 @@ export const formatCurrency = (amount: number, currency: string = 'EUR'): string
         currency: currency,
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
+        useGrouping: true,
     }).format(amount);
 };
 
@@ -46,6 +47,7 @@ export const formatCurrencyCompact = (amount: number, currency: string = 'EUR'):
     const formatted = new Intl.NumberFormat('it-IT', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
+        useGrouping: true,
     }).format(amount);
     
     return `${symbol} ${formatted}`;
