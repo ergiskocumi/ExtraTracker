@@ -5,13 +5,14 @@
  * 
  * Features:
  * - Animazione 3D flip realistica con perspective
- * - Design pulito, bianco su bianco con ombreggiature sottili
- * - Tipografia grande e leggibile
+ * - Design pulito con ombreggiature sottili
+ * - Tipografia adattiva in base alla lunghezza del testo
+ * - Scroll interno per testi molto lunghi
  * - Mobile-first responsive
  * - Supporto tastiera e touch
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { Card } from '../services/studyService';
 
@@ -95,6 +96,22 @@ export const Flashcard: React.FC<FlashcardProps> = ({
 
     const status = statusConfig[card.status] || statusConfig.new;
 
+    // 📏 Calcola la dimensione del font in base alla lunghezza del testo
+    const getFontSize = (text: string, isBack: boolean = false) => {
+        const len = text.length;
+        if (len < 50) return isBack ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl';
+        if (len < 100) return isBack ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl';
+        if (len < 200) return isBack ? 'text-base sm:text-lg' : 'text-lg sm:text-xl';
+        if (len < 400) return 'text-base sm:text-lg';
+        return 'text-sm sm:text-base';
+    };
+
+    const frontFontSize = useMemo(() => getFontSize(card.front), [card.front]);
+    const backFontSize = useMemo(() => getFontSize(card.back, true), [card.back]);
+
+    // Determina se il testo è lungo abbastanza da necessitare scroll
+    const needsScroll = (text: string) => text.length > 300;
+
     return (
         <motion.div
             key={card.id}
@@ -102,7 +119,7 @@ export const Flashcard: React.FC<FlashcardProps> = ({
             initial="enter"
             animate="center"
             exit={getExitVariant()}
-            className="w-full max-w-md mx-auto px-4"
+            className="w-full max-w-lg mx-auto px-4"
             style={{ perspective: '1200px' }}
         >
             <motion.div
@@ -118,13 +135,13 @@ export const Flashcard: React.FC<FlashcardProps> = ({
                     transformStyle: 'preserve-3d',
                     cursor: !isFlipped ? 'pointer' : 'default'
                 }}
-                className="relative w-full aspect-[4/3] sm:aspect-[3/2]"
+                className="relative w-full min-h-[280px] sm:min-h-[320px] md:min-h-[360px]"
             >
                 {/* ═══════════════════════════════════════════
                     FRONTE DELLA CARTA
                     ═══════════════════════════════════════════ */}
                 <div
-                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/20 flex flex-col items-center justify-center p-6 sm:p-8"
+                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/20 flex flex-col p-5 sm:p-6"
                     style={{ 
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
@@ -132,22 +149,22 @@ export const Flashcard: React.FC<FlashcardProps> = ({
                     }}
                 >
                     {/* Status Badge */}
-                    <div className="absolute top-4 right-4">
+                    <div className="flex justify-end mb-2">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${status.bg} ${status.text} border ${status.border}`}>
                             {status.label}
                         </span>
                     </div>
 
-                    {/* Contenuto Fronte */}
-                    <div className="flex-1 flex items-center justify-center w-full">
-                        <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-white text-center leading-relaxed whitespace-pre-wrap break-words">
+                    {/* Contenuto Fronte - con scroll se necessario */}
+                    <div className={`flex-1 flex items-center justify-center w-full ${needsScroll(card.front) ? 'overflow-y-auto' : ''}`}>
+                        <p className={`${frontFontSize} font-semibold text-white text-center leading-relaxed whitespace-pre-wrap break-words max-w-full`}>
                             {card.front}
                         </p>
                     </div>
 
                     {/* Hint per flip */}
                     <motion.div 
-                        className="flex items-center gap-2 text-white/30"
+                        className="flex items-center justify-center gap-2 text-white/30 mt-3 pt-3 border-t border-white/[0.05]"
                         animate={{ opacity: [0.3, 0.6, 0.3] }}
                         transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
                     >
@@ -163,7 +180,7 @@ export const Flashcard: React.FC<FlashcardProps> = ({
                     RETRO DELLA CARTA
                     ═══════════════════════════════════════════ */}
                 <div
-                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/20 flex flex-col items-center justify-center p-6 sm:p-8"
+                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/20 flex flex-col p-5 sm:p-6"
                     style={{ 
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
@@ -172,18 +189,21 @@ export const Flashcard: React.FC<FlashcardProps> = ({
                     }}
                 >
                     {/* Label Risposta */}
-                    <div className="absolute top-4 left-4">
+                    <div className="flex justify-start mb-2">
                         <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                             Risposta
                         </span>
                     </div>
 
-                    {/* Contenuto Retro */}
-                    <div className="flex-1 flex items-center justify-center w-full">
-                        <p className="text-lg sm:text-xl md:text-2xl text-white/90 text-center leading-relaxed whitespace-pre-wrap break-words">
+                    {/* Contenuto Retro - con scroll se necessario */}
+                    <div className={`flex-1 flex items-center justify-center w-full ${needsScroll(card.back) ? 'overflow-y-auto' : ''}`}>
+                        <p className={`${backFontSize} text-white/90 text-center leading-relaxed whitespace-pre-wrap break-words max-w-full`}>
                             {card.back}
                         </p>
                     </div>
+
+                    {/* Spacer per bilanciare con il footer del fronte */}
+                    <div className="h-8 mt-3" />
                 </div>
             </motion.div>
         </motion.div>
