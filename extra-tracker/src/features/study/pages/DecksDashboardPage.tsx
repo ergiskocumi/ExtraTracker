@@ -76,7 +76,7 @@ const HeroStats: React.FC<HeroStatsProps> = ({ totalDecks, totalCards, dueCards 
     ];
 
     return (
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 sm:gap-6 mb-10">
             {stats.map((stat, idx) => (
                 <motion.div
                     key={stat.label}
@@ -84,15 +84,15 @@ const HeroStats: React.FC<HeroStatsProps> = ({ totalDecks, totalCards, dueCards 
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 }}
                     className={`
-                        relative p-4 sm:p-5 rounded-2xl border transition-all duration-300
+                        relative p-5 sm:p-6 rounded-2xl border transition-all duration-300
                         ${stat.bgClass} ${stat.borderClass}
                     `}
                 >
-                    <stat.icon className={`w-5 h-5 ${stat.iconClass} mb-2`} />
+                    <stat.icon className={`w-6 h-6 ${stat.iconClass} mb-3`} />
                     <p className={`text-2xl sm:text-3xl font-bold ${stat.textClass}`}>
                         {stat.value}
                     </p>
-                    <p className="text-xs sm:text-sm text-white/50 mt-0.5">{stat.label}</p>
+                    <p className="text-sm sm:text-base text-white/60 mt-1">{stat.label}</p>
                 </motion.div>
             ))}
         </div>
@@ -193,23 +193,23 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onMagicGenerate, onV
 
             {/* Card Content - Clickable */}
             <div 
-                className="p-5 cursor-pointer"
+                className="p-6 cursor-pointer"
                 onClick={() => onViewDetail(deck.id)}
             >
                 {/* Header */}
-                <div className="flex items-start gap-3 mb-4">
+                <div className="flex items-start gap-4 mb-5">
                     <div className={`
-                        p-2.5 rounded-xl transition-colors
+                        p-3 rounded-xl transition-colors
                         ${hasDueCards ? 'bg-orange-500/15' : 'bg-primary-500/15'}
                     `}>
-                        <FiLayers className={`w-5 h-5 ${hasDueCards ? 'text-orange-400' : 'text-primary-400'}`} />
+                        <FiLayers className={`w-6 h-6 ${hasDueCards ? 'text-orange-400' : 'text-primary-400'}`} />
                     </div>
-                    <div className="flex-1 min-w-0 pr-10">
-                        <h3 className="text-base font-semibold text-white truncate group-hover:text-primary-400 transition-colors">
+                    <div className="flex-1 min-w-0 pr-12">
+                        <h3 className="text-lg font-semibold text-white truncate group-hover:text-primary-400 transition-colors">
                             {deck.title}
                         </h3>
                         {deck.description && (
-                            <p className="text-sm text-white/50 mt-0.5 line-clamp-1">
+                            <p className="text-sm text-white/50 mt-1 line-clamp-2">
                                 {deck.description}
                             </p>
                         )}
@@ -217,14 +217,14 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onMagicGenerate, onV
                 </div>
 
                 {/* Mini Stats */}
-                <div className="flex items-center gap-4 mb-4 text-sm text-white/50">
-                    <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-6 mb-5 text-sm text-white/50">
+                    <div className="flex items-center gap-2">
                         <FiBookOpen className="w-4 h-4 text-white/40" />
                         <span>{totalCards} carte</span>
                     </div>
                     {deck.tags && deck.tags.length > 0 && (
-                        <div className="flex items-center gap-1">
-                            <FiTag className="w-3 h-3 text-white/30" />
+                        <div className="flex items-center gap-1.5">
+                            <FiTag className="w-4 h-4 text-white/30" />
                             <span className="text-xs text-white/40">
                                 {deck.tags.slice(0, 2).join(', ')}
                             </span>
@@ -235,11 +235,11 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onMagicGenerate, onV
                 {/* Mastery Progress Bar */}
                 {totalCards > 0 && (
                     <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs text-white/40">Padronanza</span>
-                            <span className="text-xs font-medium text-white/60">{masteryPercent}%</span>
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-white/50">Padronanza</span>
+                            <span className="text-sm font-medium text-white/70">{masteryPercent}%</span>
                         </div>
-                        <div className="h-1.5 bg-white/[0.08] rounded-full overflow-hidden">
+                        <div className="h-2 bg-white/[0.08] rounded-full overflow-hidden">
                             <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${masteryPercent}%` }}
@@ -251,7 +251,7 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onMagicGenerate, onV
                 )}
 
                 {/* Quick Action - Study Button */}
-                <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                <div className="mt-6 pt-5 border-t border-white/[0.06]">
                     <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
@@ -261,7 +261,7 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onMagicGenerate, onV
                         }}
                         disabled={totalCards === 0}
                         className={`
-                            w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all text-sm
+                            w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-xl font-medium transition-all text-sm
                             ${hasDueCards
                                 ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md shadow-orange-500/20'
                                 : totalCards > 0
@@ -337,11 +337,11 @@ const AddCardModal: React.FC<AddCardModalProps> = ({
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.95, opacity: 0, y: 20 }}
                         onClick={e => e.stopPropagation()}
-                        className="w-full max-w-md rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden"
+                        className="w-full max-w-lg rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden"
                         style={{ background: 'linear-gradient(145deg, rgba(30, 27, 45, 0.98) 0%, rgba(20, 18, 35, 0.98) 100%)' }}
                     >
                         {/* Header */}
-                        <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
+                        <div className="px-8 py-6 border-b border-white/[0.08] flex items-center justify-between">
                             <div>
                                 <h2 className="text-lg font-semibold text-white">Nuova Carta</h2>
                                 <p className="text-sm text-white/50">{deckTitle}</p>
@@ -355,7 +355,7 @@ const AddCardModal: React.FC<AddCardModalProps> = ({
                         </div>
 
                         {/* Form */}
-                        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
                             <div>
                                 <label className="block text-sm font-medium text-white/70 mb-2">
                                     Fronte (Domanda) <span className="text-red-400">*</span>
@@ -383,18 +383,18 @@ const AddCardModal: React.FC<AddCardModalProps> = ({
                                 />
                             </div>
 
-                            <div className="flex items-center gap-3 pt-2">
+                            <div className="flex items-center gap-4 pt-3">
                                 <button
                                     type="button"
                                     onClick={handleClose}
-                                    className="px-4 py-3 rounded-xl bg-white/[0.05] text-white/70 hover:bg-white/[0.1] transition-all"
+                                    className="px-5 py-3.5 rounded-xl bg-white/[0.05] text-white/70 hover:bg-white/[0.1] transition-all"
                                 >
                                     Chiudi
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={!front.trim() || !back.trim() || isSubmitting}
-                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-lg shadow-primary-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    className="flex-1 flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-lg shadow-primary-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                                 >
                                     <FiPlus className="w-4 h-4" />
                                     {isSubmitting ? 'Aggiungendo...' : 'Aggiungi Carta'}
@@ -577,7 +577,7 @@ export const DecksDashboardPage: React.FC = () => {
                             <p className="text-xs font-semibold text-primary-400 uppercase tracking-[0.2em] mb-1">
                                 Learning
                             </p>
-                            <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                            <h1 className="text-3xl sm:text-4xl font-bold text-white">
                                 Flashcards
                             </h1>
                         </div>
@@ -585,7 +585,7 @@ export const DecksDashboardPage: React.FC = () => {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-lg shadow-primary-500/25 transition-all"
+                            className="flex items-center gap-3 px-5 sm:px-6 py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-lg shadow-primary-500/25 transition-all text-sm sm:text-base"
                         >
                             <FiPlus className="w-5 h-5" />
                             <span className="hidden sm:inline">Nuovo Mazzo</span>
@@ -604,7 +604,7 @@ export const DecksDashboardPage: React.FC = () => {
 
                 {/* ═══ CONTENT ═══ */}
                 {isLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                         {[...Array(6)].map((_, i) => (
                             <DeckSkeleton key={i} />
                         ))}
@@ -628,7 +628,7 @@ export const DecksDashboardPage: React.FC = () => {
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"
+                        className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8"
                     >
                         {decks.map((deck, index) => (
                             <motion.div

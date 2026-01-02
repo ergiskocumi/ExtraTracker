@@ -62,7 +62,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onEdit, onDelete, onDuplicate
             exit={{ opacity: 0, scale: 0.95 }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.15] transition-all duration-200 overflow-hidden"
+            className="relative rounded-3xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.15] transition-all duration-200 overflow-hidden min-h-[200px] sm:min-h-[240px]"
         >
             {/* Action Buttons - Hover */}
             <AnimatePresence>
@@ -75,51 +75,51 @@ const CardItem: React.FC<CardItemProps> = ({ card, onEdit, onDelete, onDuplicate
                     >
                         <button
                             onClick={() => onDuplicate(card)}
-                            className="p-1.5 rounded-lg bg-white/[0.1] hover:bg-white/[0.2] text-white/60 hover:text-white transition-all"
+                            className="p-2 rounded-xl bg-white/[0.1] hover:bg-white/[0.2] text-white/60 hover:text-white transition-all shadow-sm"
                             title="Duplica"
                         >
-                            <FiCopy className="w-3.5 h-3.5" />
+                            <FiCopy className="w-4 h-4" />
                         </button>
                         <button
                             onClick={() => onEdit(card)}
-                            className="p-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all"
+                            className="p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all shadow-sm"
                             title="Modifica"
                         >
-                            <FiEdit2 className="w-3.5 h-3.5" />
+                            <FiEdit2 className="w-4 h-4" />
                         </button>
                         <button
                             onClick={() => onDelete(card.id)}
-                            className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-all"
+                            className="p-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-all shadow-sm"
                             title="Elimina"
                         >
-                            <FiTrash2 className="w-3.5 h-3.5" />
+                            <FiTrash2 className="w-4 h-4" />
                         </button>
                     </motion.div>
                 )}
             </AnimatePresence>
 
             {/* Status Badge */}
-            <div className="absolute top-3 left-3">
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${status.bg} ${status.text} border ${status.border}`}>
+            <div className="absolute top-4 left-4">
+                <span className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider ${status.bg} ${status.text} border ${status.border}`}>
                     {status.label}
                 </span>
             </div>
 
             {/* Card Content */}
-            <div className="p-5 pt-10">
+            <div className="p-6 pt-16">
                 {/* Front - Question */}
-                <div className="mb-4">
-                    <p className="text-sm font-semibold text-white leading-relaxed">
+                <div className="mb-6">
+                    <p className="text-base font-semibold text-white leading-relaxed min-h-[2.5rem]">
                         {card.front}
                     </p>
                 </div>
 
                 {/* Divider */}
-                <div className="border-t border-white/[0.08] my-3" />
+                <div className="border-t border-white/[0.08] my-4" />
 
                 {/* Back - Answer */}
                 <div>
-                    <p className="text-sm text-white/70 leading-relaxed">
+                    <p className="text-base text-white/70 leading-relaxed min-h-[2.5rem]">
                         {card.back}
                     </p>
                 </div>
@@ -281,12 +281,12 @@ const AddCardInline: React.FC<AddCardInlineProps> = ({ onAdd }) => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setIsExpanded(true)}
-                className="w-full h-full min-h-[200px] rounded-2xl border-2 border-dashed border-white/[0.15] hover:border-primary-500/40 bg-white/[0.02] hover:bg-primary-500/5 flex flex-col items-center justify-center gap-3 transition-all"
+                className="w-full h-full min-h-[200px] sm:min-h-[240px] rounded-3xl border-2 border-dashed border-white/[0.15] hover:border-primary-500/40 bg-white/[0.02] hover:bg-primary-500/5 flex flex-col items-center justify-center gap-4 transition-all"
             >
-                <div className="p-3 rounded-xl bg-primary-500/15 border border-primary-500/20">
-                    <FiPlus className="w-6 h-6 text-primary-400" />
+                <div className="p-4 rounded-2xl bg-primary-500/15 border border-primary-500/20">
+                    <FiPlus className="w-8 h-8 text-primary-400" />
                 </div>
-                <span className="text-sm font-medium text-white/50">Aggiungi Carta</span>
+                <span className="text-base font-medium text-white/50">Aggiungi Carta</span>
             </motion.button>
         );
     }
@@ -295,37 +295,37 @@ const AddCardInline: React.FC<AddCardInlineProps> = ({ onAdd }) => {
         <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="rounded-2xl border border-primary-500/30 bg-primary-500/5 p-4"
+            className="rounded-3xl border border-primary-500/30 bg-primary-500/5 p-6"
         >
-            <div className="space-y-3">
+            <div className="space-y-4">
                 <textarea
                     value={front}
                     onChange={e => setFront(e.target.value)}
                     placeholder="Domanda..."
-                    rows={2}
-                    className="w-full px-3 py-2 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white text-sm placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all resize-none"
+                    rows={3}
+                    className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white text-base placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all resize-none"
                     autoFocus
                 />
                 <textarea
                     value={back}
                     onChange={e => setBack(e.target.value)}
                     placeholder="Risposta..."
-                    rows={2}
-                    className="w-full px-3 py-2 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white text-sm placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all resize-none"
+                    rows={3}
+                    className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white text-base placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all resize-none"
                 />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 pt-2">
                     <button
                         onClick={() => setIsExpanded(false)}
-                        className="px-3 py-2 rounded-lg text-sm text-white/60 hover:bg-white/[0.1] transition-all"
+                        className="px-4 py-3 rounded-xl text-sm text-white/60 hover:bg-white/[0.1] transition-all"
                     >
                         Annulla
                     </button>
                     <button
                         onClick={handleAdd}
                         disabled={!front.trim() || !back.trim() || isAdding}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium disabled:opacity-40 transition-all"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary-500 text-white text-sm font-medium disabled:opacity-40 transition-all"
                     >
-                        <FiPlus className="w-4 h-4" />
+                        <FiPlus className="w-5 h-5" />
                         {isAdding ? 'Aggiungendo...' : 'Aggiungi'}
                     </button>
                 </div>
@@ -549,23 +549,23 @@ export const DeckDetailPage: React.FC = () => {
                     </div>
 
                     {/* Filters & Search */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
                         <FilterTabs active={filter} onChange={setFilter} counts={counts} />
-                        <div className="relative flex-1 max-w-xs">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <div className="relative flex-1 max-w-sm">
+                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 placeholder="Cerca carte..."
-                                className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/[0.05] border border-white/[0.1] text-white text-sm placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all"
+                                className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.1] text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all"
                             />
                         </div>
                     </div>
                 </header>
 
                 {/* Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
                     {/* Add Card Button - Always First */}
                     <AddCardInline onAdd={handleAddCard} />
 
