@@ -6,9 +6,11 @@
  * - Componenti UI → GoalsUIComponents
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiTarget, FiPlus } from 'react-icons/fi';
+import { FiTarget, FiPlus, FiCheckSquare, FiTrash2, FiX } from 'react-icons/fi';
+import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
+import { useSelection } from '../../../shared/hooks/useSelection';
 
 // Hook con tutta la logica
 import { useGoalsManager } from '../hooks/useGoalsManager';
@@ -44,10 +46,82 @@ export const GoalsPage = () => {
         handleQuickCheckIn,
         smartLogic,
         helpers,
+        bulkDeleteGoals,
+        deleteGoal,
     } = useGoalsManager();
 
     // ========== UI STATE: Solo modale wizard ==========
     const [showWizard, setShowWizard] = useState(false);
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const [pendingDeleteGoalId, setPendingDeleteGoalId] = useState<string | null>(null);
+    const [isDeletingGoal, setIsDeletingGoal] = useState(false);
+
+    const selection = useSelection();
+    const selectedCount = selection.selectedCount;
+    const { selectedLabel, selectedGoalsLabel } = useMemo(() => {
+        if (selectedCount === 1) {
+            return { selectedLabel: '1 selezionato', selectedGoalsLabel: '1 obiettivo' };
+        }
+        return {
+            selectedLabel: `${selectedCount} selezionati`,
+            selectedGoalsLabel: `${selectedCount} obiettivi`,
+        };
+    }, [selectedCount]);
+
+    const handleExitSelection = () => {
+        selection.clearSelection();
+        selection.setSelectionMode(false);
+        setShowBulkDeleteConfirm(false);
+    };
+
+    const handleToggleSelectionMode = () => {
+        if (selection.isSelectionMode) {
+            handleExitSelection();
+        } else {
+            selection.setSelectionMode(true);
+        }
+    };
+
+    const handleConfirmBulkDelete = async () => {
+        if (selection.selectedIds.size === 0) return;
+
+        setIsBulkDeleting(true);
+        try {
+            await bulkDeleteGoals(Array.from(selection.selectedIds));
+            handleExitSelection();
+        } catch (err) {
+            console.error('Bulk delete failed:', err);
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
+
+    const handleRequestDeleteGoal = (goalId: string) => {
+        setPendingDeleteGoalId(goalId);
+    };
+
+    const handleCancelDeleteGoal = () => {
+        if (!isDeletingGoal) {
+            setPendingDeleteGoalId(null);
+        }
+    };
+
+    const handleConfirmDeleteGoal = async () => {
+        if (!pendingDeleteGoalId) return;
+
+        setIsDeletingGoal(true);
+        try {
+            await deleteGoal(pendingDeleteGoalId);
+        } catch (err) {
+            console.error('Delete goal failed:', err);
+        } finally {
+            setIsDeletingGoal(false);
+            setPendingDeleteGoalId(null);
+        }
+    };
+
+    const pendingDeleteGoalTitle = goals.find(goal => goal.id === pendingDeleteGoalId)?.title || 'questo obiettivo';
 
     // ========== LOADING ==========
     if (loading) {
@@ -100,15 +174,32 @@ export const GoalsPage = () => {
                         <p className="text-white/60">Track your objectives and measure progress</p>
                     </div>
                     
-                    <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setShowWizard(true)}
-                        className="flex items-center gap-2 px-6 py-3 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl shadow-primary-500/25 hover:shadow-primary-500/40"
-                    >
-                        <FiPlus className="w-5 h-5" />
-                        New Goal
-                    </motion.button>
+                    <div className="flex items-center gap-3">
+                        <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handleToggleSelectionMode}
+                            disabled={goals.length === 0}
+                            className={`flex items-center gap-2 px-4 py-3 font-medium rounded-xl transition-all border ${
+                                selection.isSelectionMode
+                                    ? 'bg-white/10 border-white/20 text-white'
+                                    : 'bg-white/5 border-white/10 text-white/70 hover:text-white hover:border-white/20'
+                            } ${goals.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {selection.isSelectionMode ? <FiX className="w-4 h-4" /> : <FiCheckSquare className="w-4 h-4" />}
+                            {selection.isSelectionMode ? 'Fine' : 'Gestisci'}
+                        </motion.button>
+
+                        <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => setShowWizard(true)}
+                            className="flex items-center gap-2 px-6 py-3 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl shadow-primary-500/25 hover:shadow-primary-500/40"
+                        >
+                            <FiPlus className="w-5 h-5" />
+                            New Goal
+                        </motion.button>
+                    </div>
                 </div>
 
                 {/* STATS */}
@@ -156,6 +247,82 @@ export const GoalsPage = () => {
                 getDaysRemaining={helpers.getDaysRemaining}
                 getProgressColor={helpers.getProgressColor}
                 canQuickCheckIn={helpers.canQuickCheckIn}
+                isSelectionMode={selection.isSelectionMode}
+                isSelected={selection.isSelected}
+                onToggleSelect={selection.toggleSelection}
+                onRequestDeleteGoal={handleRequestDeleteGoal}
+                isDeletingGoal={isDeletingGoal}
+            />
+
+            {/* FLOATING ACTION BAR */}
+            <AnimatePresence>
+                {selection.isSelectionMode && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        className="fixed bottom-6 left-1/2 z-50 w-[min(680px,92vw)] -translate-x-1/2"
+                    >
+                        <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-dark-500/90 px-5 py-3 shadow-2xl shadow-black/40 backdrop-blur-xl">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-500/15 text-primary-300">
+                                    <FiCheckSquare className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-white">{selectedLabel}</p>
+                                    <p className="text-xs text-white/50">Seleziona gli obiettivi da eliminare</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleExitSelection}
+                                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10"
+                                >
+                                    Annulla
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkDeleteConfirm(true)}
+                                    disabled={selectedCount === 0}
+                                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all ${
+                                        selectedCount === 0
+                                            ? 'bg-white/10 cursor-not-allowed'
+                                            : 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30'
+                                    }`}
+                                >
+                                    <FiTrash2 className="h-4 w-4" />
+                                    Elimina
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* CONFIRMATION MODAL */}
+            <ConfirmationModal
+                isOpen={showBulkDeleteConfirm}
+                title="Eliminare gli obiettivi selezionati?"
+                description={`Stai per eliminare ${selectedGoalsLabel}. Questa azione e' irreversibile.`}
+                confirmLabel="Elimina"
+                cancelLabel="Annulla"
+                onConfirm={handleConfirmBulkDelete}
+                onCancel={() => setShowBulkDeleteConfirm(false)}
+                isLoading={isBulkDeleting}
+                destructive
+            />
+
+            <ConfirmationModal
+                isOpen={Boolean(pendingDeleteGoalId)}
+                title="Eliminare questo obiettivo?"
+                description={`"${pendingDeleteGoalTitle}" verra' eliminato definitivamente.`}
+                confirmLabel="Elimina"
+                cancelLabel="Annulla"
+                onConfirm={handleConfirmDeleteGoal}
+                onCancel={handleCancelDeleteGoal}
+                isLoading={isDeletingGoal}
+                destructive
             />
 
             {/* WIZARD MODAL */}

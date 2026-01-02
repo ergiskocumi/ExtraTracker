@@ -86,6 +86,12 @@ export interface UseGoalsManagerReturn {
     // Quick Check-in
     quickCheckInState: QuickCheckInState;
     handleQuickCheckIn: (e: React.MouseEvent, goalId: string) => Promise<void>;
+
+    // Bulk delete
+    bulkDeleteGoals: (goalIds: string[]) => Promise<void>;
+
+    // Single delete
+    deleteGoal: (id: string) => Promise<void>;
     
     // Smart Logic
     smartLogic: SmartLogicResult;
@@ -248,7 +254,7 @@ const createHelpers = (): GoalUIHelpers => ({
 
 export const useGoalsManager = (): UseGoalsManagerReturn => {
     // Context data
-    const { goals, loading, error, stats, quickCheckIn } = useGoals();
+    const { goals, loading, error, stats, quickCheckIn, bulkDeleteGoals, deleteGoal } = useGoals();
     
     // Filter state
     const [searchQuery, setSearchQuery] = useState('');
@@ -389,6 +395,12 @@ export const useGoalsManager = (): UseGoalsManagerReturn => {
         // Quick Check-in
         quickCheckInState,
         handleQuickCheckIn,
+
+        // Bulk delete
+        bulkDeleteGoals,
+
+        // Single delete
+        deleteGoal,
         
         // Smart Logic
         smartLogic,

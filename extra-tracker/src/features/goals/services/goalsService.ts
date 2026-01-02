@@ -9,6 +9,7 @@ import type {
     CheckInResponse,
     GoalsDashboardStats,
     MilestoneToggleResponse,
+    BulkDeleteGoalsResult,
 } from '../types';
 
 /**
@@ -95,6 +96,19 @@ const goalsService = {
         }
     },
 
+    /**
+     * Bulk delete goals
+     */
+    async bulkDeleteGoals(goalIds: string[]): Promise<BulkDeleteGoalsResult> {
+        try {
+            const response = await apiClient.post<BulkDeleteGoalsResult>('/goals/bulk-delete', { goalIds });
+            return unwrap(response, 'Errore nella cancellazione multipla degli obiettivi');
+        } catch (error) {
+            console.error('Failed to bulk delete goals:', error);
+            throw error;
+        }
+    },
+
     // ==================== MILESTONES ====================
 
     /**
@@ -124,6 +138,37 @@ const goalsService = {
             return unwrap(response, `Errore nel salvataggio note milestone ${milestoneId}`);
         } catch (error) {
             console.error(`Failed to update milestone notes ${milestoneId}:`, error);
+            throw error;
+        }
+    },
+
+    /**
+     * Elimina una milestone specifica
+     */
+    async deleteMilestone(goalId: string, milestoneId: string): Promise<MilestoneToggleResponse> {
+        try {
+            const response = await apiClient.delete<MilestoneToggleResponse>(
+                `/goals/${goalId}/milestones/${milestoneId}`
+            );
+            return unwrap(response, `Errore nell'eliminazione milestone ${milestoneId}`);
+        } catch (error) {
+            console.error(`Failed to delete milestone ${milestoneId}:`, error);
+            throw error;
+        }
+    },
+
+    /**
+     * Bulk delete milestones
+     */
+    async bulkDeleteMilestones(goalId: string, milestoneIds: string[]): Promise<MilestoneToggleResponse> {
+        try {
+            const response = await apiClient.post<MilestoneToggleResponse>(
+                `/goals/${goalId}/milestones/bulk-delete`,
+                { milestoneIds }
+            );
+            return unwrap(response, 'Errore nella cancellazione multipla delle milestones');
+        } catch (error) {
+            console.error('Failed to bulk delete milestones:', error);
             throw error;
         }
     },

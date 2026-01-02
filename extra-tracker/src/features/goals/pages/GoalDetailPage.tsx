@@ -13,6 +13,7 @@ import {
     HistoryTab,
     InsightsTab,
 } from '../components/GoalDetailComponents';
+import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
 
 /**
  * GoalDetailPage - Pagina dettaglio singolo obiettivo
@@ -51,10 +52,21 @@ export const GoalDetailPage = () => {
 
         // Milestones
         milestoneUI,
+        milestoneSelection,
         toggleMilestone,
         toggleMilestoneExpanded,
         updateMilestoneNotesDraft,
         saveMilestoneNotes,
+        requestDeleteMilestone,
+        cancelDeleteMilestone,
+        confirmDeleteMilestone,
+        pendingDeleteMilestoneId,
+        requestBulkDeleteMilestones,
+        cancelBulkDeleteMilestones,
+        confirmBulkDeleteMilestones,
+        isBulkDeleteOpen,
+        isDeletingMilestone,
+        isBulkDeletingMilestones,
 
         // Tabs
         activeTab,
@@ -70,6 +82,12 @@ export const GoalDetailPage = () => {
     if (error || !data || !goal) {
         return <ErrorState error={error} />;
     }
+
+    const selectedMilestoneCount = milestoneSelection.selectedCount;
+    const pendingMilestoneTitle = goal.milestones?.find(m => m.id === pendingDeleteMilestoneId)?.title || 'questa milestone';
+    const milestoneCountLabel = selectedMilestoneCount === 1
+        ? '1 milestone'
+        : `${selectedMilestoneCount} milestones`;
 
     return (
         <div className="min-h-screen pb-12">
@@ -96,10 +114,38 @@ export const GoalDetailPage = () => {
             <MilestonesSection
                 goal={goal}
                 milestoneUI={milestoneUI}
+                milestoneSelection={milestoneSelection}
                 onToggleMilestone={toggleMilestone}
                 onToggleExpanded={toggleMilestoneExpanded}
                 onNotesChange={updateMilestoneNotesDraft}
                 onNotesSave={saveMilestoneNotes}
+                onRequestDeleteMilestone={requestDeleteMilestone}
+                onRequestBulkDelete={requestBulkDeleteMilestones}
+                isDeleting={isDeletingMilestone || isBulkDeletingMilestones}
+            />
+
+            <ConfirmationModal
+                isOpen={Boolean(pendingDeleteMilestoneId)}
+                title="Eliminare questa milestone?"
+                description={`"${pendingMilestoneTitle}" verra' eliminata definitivamente.`}
+                confirmLabel="Elimina"
+                cancelLabel="Annulla"
+                onConfirm={confirmDeleteMilestone}
+                onCancel={cancelDeleteMilestone}
+                isLoading={isDeletingMilestone}
+                destructive
+            />
+
+            <ConfirmationModal
+                isOpen={isBulkDeleteOpen}
+                title="Eliminare le milestones selezionate?"
+                description={`Stai per eliminare ${milestoneCountLabel}. Questa azione e' irreversibile.`}
+                confirmLabel="Elimina"
+                cancelLabel="Annulla"
+                onConfirm={confirmBulkDeleteMilestones}
+                onCancel={cancelBulkDeleteMilestones}
+                isLoading={isBulkDeletingMilestones}
+                destructive
             />
 
             {/* Today's Journal */}

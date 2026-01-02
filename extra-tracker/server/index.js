@@ -26,6 +26,7 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 // Routes
 const apiRoutes = require('./routes/api');
 const goalsRoutes = require('./routes/goals');
+const studyRoutes = require('./routes/study');
 const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
 
@@ -85,6 +86,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api', apiRoutes);
 app.use('/api', goalsRoutes);
+app.use('/api/study', studyRoutes);
 
 app.get('/', (req, res) => {
     res.json({ 

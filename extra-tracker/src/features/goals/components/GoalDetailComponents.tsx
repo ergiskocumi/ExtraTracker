@@ -48,8 +48,13 @@ import {
     FiFlag,
     FiChevronDown,
     FiChevronUp,
-    FiSave
+    FiSave,
+    FiTrash2,
+    FiCheckSquare,
+    FiSquare,
+    FiX
 } from 'react-icons/fi';
+import type { SelectionState } from '../../../shared/hooks/useSelection';
 
 // ========================================
 // HELPER COMPONENTS
@@ -344,25 +349,53 @@ export const GoalHeaderCard: React.FC<GoalHeaderProps> = ({ goal, checkInsCount 
 interface MilestonesSectionProps {
     goal: GoalDetailResponse['goal'];
     milestoneUI: MilestoneUIState;
+    milestoneSelection: SelectionState;
     onToggleMilestone: (id: string) => void;
     onToggleExpanded: (id: string) => void;
     onNotesChange: (id: string, value: string) => void;
     onNotesSave: (id: string) => void;
+    onRequestDeleteMilestone: (id: string) => void;
+    onRequestBulkDelete: () => void;
+    isDeleting: boolean;
 }
 
 export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
     goal,
     milestoneUI,
+    milestoneSelection,
     onToggleMilestone,
     onToggleExpanded,
     onNotesChange,
     onNotesSave,
+    onRequestDeleteMilestone,
+    onRequestBulkDelete,
+    isDeleting,
 }) => {
     if (!goal.milestones || goal.milestones.length === 0) return null;
 
     const daysRemaining = getDaysRemaining(goal.deadline);
     const isExpired = daysRemaining < 0;
     const isDisabled = goal.status !== 'active' || isExpired;
+    const {
+        isSelectionMode,
+        selectedCount,
+        isSelected,
+        toggleSelection,
+        clearSelection,
+        setSelectionMode,
+    } = milestoneSelection;
+
+    const selectionLabel = selectedCount === 1 ? '1 selezionata' : `${selectedCount} selezionate`;
+
+    const handleToggleSelectionMode = () => {
+        if (isDisabled) return;
+        if (isSelectionMode) {
+            clearSelection();
+            setSelectionMode(false);
+        } else {
+            setSelectionMode(true);
+        }
+    };
 
     return (
         <motion.div
@@ -385,19 +418,37 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                     </div>
                 </div>
 
-                {/* Milestone Progress Badge */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full">
-                    <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${goal.milestoneProgress || 0}%` }}
-                            transition={{ duration: 0.5 }}
-                            className="h-full rounded-full bg-primary-500"
-                        />
+                <div className="flex items-center gap-2">
+                    <motion.button
+                        whileHover={!isDisabled ? { scale: 1.02 } : {}}
+                        whileTap={!isDisabled ? { scale: 0.98 } : {}}
+                        type="button"
+                        onClick={handleToggleSelectionMode}
+                        disabled={isDisabled}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${
+                            isSelectionMode
+                                ? 'border-white/20 bg-white/10 text-white'
+                                : 'border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white/20'
+                        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                        {isSelectionMode ? <FiX className="w-4 h-4" /> : <FiCheckSquare className="w-4 h-4" />}
+                        {isSelectionMode ? 'Fine' : 'Seleziona'}
+                    </motion.button>
+
+                    {/* Milestone Progress Badge */}
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full">
+                        <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${goal.milestoneProgress || 0}%` }}
+                                transition={{ duration: 0.5 }}
+                                className="h-full rounded-full bg-primary-500"
+                            />
+                        </div>
+                        <span className="text-xs font-medium text-white/80">
+                            {goal.milestoneProgress || 0}%
+                        </span>
                     </div>
-                    <span className="text-xs font-medium text-white/80">
-                        {goal.milestoneProgress || 0}%
-                    </span>
                 </div>
             </div>
 
@@ -410,8 +461,14 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                         const notesDraft = milestoneUI.notesDraft[milestone.id] ?? '';
                         const notesDraftTrimmed = notesDraft.trim();
                         const isSaving = milestoneUI.savingNotesId === milestone.id;
-                        const canSaveNotes = !isDisabled && !isSaving && notesDraftTrimmed.length > 0;
+                        const canSaveNotes = !isDisabled && !isSelectionMode && !isSaving && notesDraftTrimmed.length > 0;
                         const showSavedFlash = !!milestoneUI.savedFlash[milestone.id];
+                        const selected = isSelected(milestone.id);
+                        const selectionTone = isSelectionMode
+                            ? selected
+                                ? 'border-primary-500/40 ring-2 ring-primary-500/20 bg-primary-500/10'
+                                : 'border-white/10 opacity-70'
+                            : '';
 
                         return (
                             <motion.div
@@ -425,18 +482,29 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                                     milestone.isCompleted
                                         ? 'bg-green-500/10 border-green-500/20'
                                         : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/[0.07]'
-                                } ${isDisabled ? 'opacity-60' : ''}`}>
+                                } ${isDisabled ? 'opacity-60' : ''} ${selectionTone}`}>
                                     {/* Header */}
                                     <div
                                         role="button"
                                         tabIndex={isDisabled ? -1 : 0}
-                                        aria-expanded={isExpanded}
-                                        onClick={() => onToggleExpanded(milestone.id)}
+                                        aria-expanded={!isSelectionMode ? isExpanded : undefined}
+                                        onClick={() => {
+                                            if (isDisabled) return;
+                                            if (isSelectionMode) {
+                                                toggleSelection(milestone.id);
+                                            } else {
+                                                onToggleExpanded(milestone.id);
+                                            }
+                                        }}
                                         onKeyDown={(e) => {
                                             if (isDisabled) return;
                                             if (e.key === 'Enter' || e.key === ' ') {
                                                 e.preventDefault();
-                                                onToggleExpanded(milestone.id);
+                                                if (isSelectionMode) {
+                                                    toggleSelection(milestone.id);
+                                                } else {
+                                                    onToggleExpanded(milestone.id);
+                                                }
                                             }
                                         }}
                                         className={`w-full flex items-center gap-4 p-4 text-left group outline-none ${
@@ -444,36 +512,56 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                                         } focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-0 rounded-xl`}
                                     >
                                         {/* Checkbox */}
-                                        <motion.button
-                                            type="button"
-                                            whileTap={!isDisabled ? { scale: 0.9 } : {}}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (!isDisabled) onToggleMilestone(milestone.id);
-                                            }}
-                                            disabled={isDisabled || isToggling}
-                                            className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
-                                                milestone.isCompleted
-                                                    ? 'bg-green-500 border-green-500'
-                                                    : 'border-white/30 group-hover:border-primary-400'
-                                            } ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                                        >
-                                            {isToggling ? (
-                                                <motion.div
-                                                    animate={{ rotate: 360 }}
-                                                    transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
-                                                    className="w-3 h-3 border-2 rounded-full border-white/50 border-t-transparent"
-                                                />
-                                            ) : milestone.isCompleted ? (
-                                                <motion.div
-                                                    initial={{ scale: 0 }}
-                                                    animate={{ scale: 1 }}
-                                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                                >
-                                                    <FiCheckCircle className="w-4 h-4 text-white" />
-                                                </motion.div>
-                                            ) : null}
-                                        </motion.button>
+                                        {isSelectionMode ? (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (!isDisabled) toggleSelection(milestone.id);
+                                                }}
+                                                disabled={isDisabled}
+                                                className={`flex-shrink-0 w-6 h-6 rounded-md border flex items-center justify-center transition-all ${
+                                                    selected
+                                                        ? 'border-primary-400 bg-primary-500/15 text-primary-300'
+                                                        : 'border-white/30 text-white/40'
+                                                } ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                                aria-pressed={selected}
+                                                aria-label={selected ? 'Deseleziona milestone' : 'Seleziona milestone'}
+                                            >
+                                                {selected ? <FiCheckSquare className="w-4 h-4" /> : <FiSquare className="w-4 h-4" />}
+                                            </button>
+                                        ) : (
+                                            <motion.button
+                                                type="button"
+                                                whileTap={!isDisabled ? { scale: 0.9 } : {}}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (!isDisabled) onToggleMilestone(milestone.id);
+                                                }}
+                                                disabled={isDisabled || isToggling}
+                                                className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
+                                                    milestone.isCompleted
+                                                        ? 'bg-green-500 border-green-500'
+                                                        : 'border-white/30 group-hover:border-primary-400'
+                                                } ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                            >
+                                                {isToggling ? (
+                                                    <motion.div
+                                                        animate={{ rotate: 360 }}
+                                                        transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
+                                                        className="w-3 h-3 border-2 rounded-full border-white/50 border-t-transparent"
+                                                    />
+                                                ) : milestone.isCompleted ? (
+                                                    <motion.div
+                                                        initial={{ scale: 0 }}
+                                                        animate={{ scale: 1 }}
+                                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                                    >
+                                                        <FiCheckCircle className="w-4 h-4 text-white" />
+                                                    </motion.div>
+                                                ) : null}
+                                            </motion.button>
+                                        )}
 
                                         {/* Title */}
                                         <div className="flex-1 min-w-0">
@@ -501,15 +589,33 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                                             <div className="flex-shrink-0 px-2 py-1 border rounded-md bg-white/5 border-white/10">
                                                 <span className="text-xs text-white/60">×{milestone.weight}</span>
                                             </div>
-                                            <div className="p-1 rounded-md bg-white/5 border border-white/10 text-white/50 group-hover:text-white/80 transition-colors">
-                                                {isExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
-                                            </div>
+                                            {!isSelectionMode && (
+                                                <div className="p-1 rounded-md bg-white/5 border border-white/10 text-white/50 group-hover:text-white/80 transition-colors">
+                                                    {isExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
+                                                </div>
+                                            )}
+                                            {!isSelectionMode && !isDisabled && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        if (!isDeleting) {
+                                                            onRequestDeleteMilestone(milestone.id);
+                                                        }
+                                                    }}
+                                                    disabled={isDeleting}
+                                                    className="p-1.5 rounded-md border border-red-500/20 bg-red-500/10 text-red-300 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/20"
+                                                    aria-label="Elimina milestone"
+                                                >
+                                                    <FiTrash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
 
                                     {/* Expanded content */}
                                     <AnimatePresence initial={false}>
-                                        {isExpanded && (
+                                        {!isSelectionMode && isExpanded && (
                                             <motion.div
                                                 key="content"
                                                 initial={{ height: 0, opacity: 0 }}
@@ -551,7 +657,7 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                                                             rows={3}
                                                             placeholder="Scrivi una nota e salva (es. Fatto capitolo 1 e 2, manca il ripasso...)"
                                                             className="w-full px-1 py-1 text-sm text-white bg-transparent placeholder:text-white/30 focus:outline-none resize-none"
-                                                            disabled={isDisabled}
+                                                            disabled={isDisabled || isSelectionMode}
                                                         />
                                                     </div>
 
@@ -560,7 +666,7 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                                                             whileHover={!isDisabled ? { scale: 1.02 } : {}}
                                                             whileTap={!isDisabled ? { scale: 0.98 } : {}}
                                                             type="button"
-                                                            onClick={() => !isDisabled && onNotesSave(milestone.id)}
+                                                            onClick={() => !isDisabled && !isSelectionMode && onNotesSave(milestone.id)}
                                                             disabled={!canSaveNotes}
                                                             className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-white transition-colors ${
                                                                 !canSaveNotes
@@ -624,6 +730,52 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                     })}
                 </AnimatePresence>
             </div>
+
+            {/* Bulk action bar */}
+            <AnimatePresence>
+                {isSelectionMode && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="mt-4"
+                    >
+                        <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-500/15 text-primary-300">
+                                    <FiCheckSquare className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-white">{selectionLabel}</p>
+                                    <p className="text-xs text-white/50">Seleziona le milestone da eliminare</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleToggleSelectionMode}
+                                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10"
+                                >
+                                    Annulla
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onRequestBulkDelete}
+                                    disabled={selectedCount === 0 || isDisabled || isDeleting}
+                                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-all ${
+                                        selectedCount === 0 || isDisabled || isDeleting
+                                            ? 'bg-white/10 cursor-not-allowed'
+                                            : 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30'
+                                    }`}
+                                >
+                                    <FiTrash2 className="h-4 w-4" />
+                                    Elimina
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Info text for disabled state */}
             {isDisabled && (

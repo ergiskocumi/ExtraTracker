@@ -9,6 +9,23 @@
  * - PROJECT: progetti con deliverables (es. "Completare il corso")
  */
 
+import { 
+    FiDollarSign, 
+    FiActivity, 
+    FiBookOpen, 
+    FiBriefcase, 
+    FiUser, 
+    FiHeart, 
+    FiFeather, 
+    FiSun,
+    FiTarget,
+    FiRepeat,
+    FiFlag,
+    FiZap,
+    FiLayers
+} from 'react-icons/fi';
+import type { IconType } from 'react-icons';
+
 // Categorie disponibili per gli obiettivi
 export type GoalCategory = 'finance' | 'health' | 'learning' | 'career' | 'personal' | 'relationships' | 'creativity' | 'mindfulness';
 
@@ -142,6 +159,12 @@ export interface CheckInResponse {
     stats: GoalStats;
 }
 
+// Risposta bulk delete goals
+export interface BulkDeleteGoalsResult {
+    deletedGoals: number;
+    deletedCheckIns: number;
+}
+
 // Statistiche dashboard
 export interface GoalsDashboardStats {
     summary: {
@@ -154,46 +177,46 @@ export interface GoalsDashboardStats {
 }
 
 // Helper per le categorie (per UI)
-export const GOAL_CATEGORIES: Record<GoalCategory, { label: string; emoji: string; color: string }> = {
-    finance: { label: 'Finanza', emoji: '💰', color: 'text-green-400' },
-    health: { label: 'Salute', emoji: '💪', color: 'text-red-400' },
-    learning: { label: 'Apprendimento', emoji: '📚', color: 'text-blue-400' },
-    career: { label: 'Carriera', emoji: '💼', color: 'text-purple-400' },
-    personal: { label: 'Personale', emoji: '🎯', color: 'text-yellow-400' },
-    relationships: { label: 'Relazioni', emoji: '❤️', color: 'text-pink-400' },
-    creativity: { label: 'Creatività', emoji: '🎨', color: 'text-orange-400' },
-    mindfulness: { label: 'Mindfulness', emoji: '🧘', color: 'text-cyan-400' },
+export const GOAL_CATEGORIES: Record<GoalCategory, { label: string; icon: IconType; color: string; bgColor: string }> = {
+    finance: { label: 'Finanza', icon: FiDollarSign, color: 'text-emerald-400', bgColor: 'bg-emerald-500/15' },
+    health: { label: 'Salute', icon: FiActivity, color: 'text-red-400', bgColor: 'bg-red-500/15' },
+    learning: { label: 'Apprendimento', icon: FiBookOpen, color: 'text-blue-400', bgColor: 'bg-blue-500/15' },
+    career: { label: 'Carriera', icon: FiBriefcase, color: 'text-primary-400', bgColor: 'bg-primary-500/15' },
+    personal: { label: 'Personale', icon: FiUser, color: 'text-amber-400', bgColor: 'bg-amber-500/15' },
+    relationships: { label: 'Relazioni', icon: FiHeart, color: 'text-pink-400', bgColor: 'bg-pink-500/15' },
+    creativity: { label: 'Creatività', icon: FiFeather, color: 'text-orange-400', bgColor: 'bg-orange-500/15' },
+    mindfulness: { label: 'Mindfulness', icon: FiSun, color: 'text-cyan-400', bgColor: 'bg-cyan-500/15' },
 };
 
 // Helper per i tipi di goal (per UI)
-export const GOAL_TYPES: Record<GoalType, { label: string; emoji: string; description: string; color: string }> = {
+export const GOAL_TYPES: Record<GoalType, { label: string; icon: IconType; description: string; color: string }> = {
     target: { 
         label: 'Obiettivo Target', 
-        emoji: '🎯', 
+        icon: FiTarget, 
         description: 'Raggiungi un valore specifico misurabile',
         color: 'from-blue-500 to-blue-600'
     },
     habit: { 
         label: 'Abitudine', 
-        emoji: '🔄', 
+        icon: FiRepeat, 
         description: 'Costruisci costanza con attività ricorrenti',
         color: 'from-green-500 to-green-600'
     },
     milestone: { 
         label: 'Milestone', 
-        emoji: '🏁', 
+        icon: FiFlag, 
         description: 'Dividi in step progressivi da completare',
         color: 'from-purple-500 to-purple-600'
     },
     challenge: { 
         label: 'Sfida', 
-        emoji: '⚡', 
+        icon: FiZap, 
         description: 'Sfida a tempo limitato con deadline',
         color: 'from-orange-500 to-orange-600'
     },
     project: { 
         label: 'Progetto', 
-        emoji: '📋', 
+        icon: FiLayers, 
         description: 'Progetto con deliverables specifici',
         color: 'from-pink-500 to-pink-600'
     },
