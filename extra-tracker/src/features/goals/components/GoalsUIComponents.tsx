@@ -566,8 +566,36 @@ export const GoalCard: React.FC<GoalCardProps> = ({
                         </span>
                     </div>
                 </div>
-                {!isSelectionMode && (
-                    <FiArrowRight className="w-5 h-5 transition-all text-white/40 group-hover:text-primary-400 group-hover:translate-x-1" />
+                {(!isSelectionMode || isCompleted) && (
+                    <div className="flex flex-col items-end gap-2">
+                        {!isSelectionMode && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        if (!isDeletingGoal) {
+                                            onRequestDeleteGoal(goal.id);
+                                        }
+                                    }}
+                                    disabled={isDeletingGoal}
+                                    className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-200 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:pointer-events-none sm:group-hover:pointer-events-auto hover:bg-red-500/25"
+                                    aria-label="Elimina obiettivo"
+                                >
+                                    <FiTrash2 className="h-3.5 w-3.5" />
+                                    ELIMINA
+                                </button>
+                                <FiArrowRight className="w-5 h-5 transition-all text-white/40 group-hover:text-primary-400 group-hover:translate-x-1" />
+                            </div>
+                        )}
+                        {isCompleted && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-full">
+                                <FiCheckCircle className="w-4 h-4 text-green-400" />
+                                <span className="text-xs font-medium text-green-400">Completed</span>
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
 
@@ -634,35 +662,6 @@ export const GoalCard: React.FC<GoalCardProps> = ({
                 )}
             </div>
 
-            {/* Quick delete + Status */}
-            {(!isSelectionMode || isCompleted) && (
-                <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-                    {!isSelectionMode && (
-                        <button
-                            type="button"
-                            onClick={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                if (!isDeletingGoal) {
-                                    onRequestDeleteGoal(goal.id);
-                                }
-                            }}
-                            disabled={isDeletingGoal}
-                            className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-200 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/25"
-                            aria-label="Elimina obiettivo"
-                        >
-                            <FiTrash2 className="h-3.5 w-3.5" />
-                            ELIMINA
-                        </button>
-                    )}
-                    {isCompleted && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-full">
-                            <FiCheckCircle className="w-4 h-4 text-green-400" />
-                            <span className="text-xs font-medium text-green-400">Completed</span>
-                        </div>
-                    )}
-                </div>
-            )}
         </div>
     );
 
