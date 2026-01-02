@@ -47,12 +47,15 @@ export const GoalsPage = () => {
         smartLogic,
         helpers,
         bulkDeleteGoals,
+        deleteGoal,
     } = useGoalsManager();
 
     // ========== UI STATE: Solo modale wizard ==========
     const [showWizard, setShowWizard] = useState(false);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const [pendingDeleteGoalId, setPendingDeleteGoalId] = useState<string | null>(null);
+    const [isDeletingGoal, setIsDeletingGoal] = useState(false);
 
     const selection = useSelection();
     const selectedCount = selection.selectedCount;
@@ -93,6 +96,32 @@ export const GoalsPage = () => {
             setIsBulkDeleting(false);
         }
     };
+
+    const handleRequestDeleteGoal = (goalId: string) => {
+        setPendingDeleteGoalId(goalId);
+    };
+
+    const handleCancelDeleteGoal = () => {
+        if (!isDeletingGoal) {
+            setPendingDeleteGoalId(null);
+        }
+    };
+
+    const handleConfirmDeleteGoal = async () => {
+        if (!pendingDeleteGoalId) return;
+
+        setIsDeletingGoal(true);
+        try {
+            await deleteGoal(pendingDeleteGoalId);
+        } catch (err) {
+            console.error('Delete goal failed:', err);
+        } finally {
+            setIsDeletingGoal(false);
+            setPendingDeleteGoalId(null);
+        }
+    };
+
+    const pendingDeleteGoalTitle = goals.find(goal => goal.id === pendingDeleteGoalId)?.title || 'questo obiettivo';
 
     // ========== LOADING ==========
     if (loading) {
@@ -221,6 +250,8 @@ export const GoalsPage = () => {
                 isSelectionMode={selection.isSelectionMode}
                 isSelected={selection.isSelected}
                 onToggleSelect={selection.toggleSelection}
+                onRequestDeleteGoal={handleRequestDeleteGoal}
+                isDeletingGoal={isDeletingGoal}
             />
 
             {/* FLOATING ACTION BAR */}
@@ -279,6 +310,18 @@ export const GoalsPage = () => {
                 onConfirm={handleConfirmBulkDelete}
                 onCancel={() => setShowBulkDeleteConfirm(false)}
                 isLoading={isBulkDeleting}
+                destructive
+            />
+
+            <ConfirmationModal
+                isOpen={Boolean(pendingDeleteGoalId)}
+                title="Eliminare questo obiettivo?"
+                description={`"${pendingDeleteGoalTitle}" verra' eliminato definitivamente.`}
+                confirmLabel="Elimina"
+                cancelLabel="Annulla"
+                onConfirm={handleConfirmDeleteGoal}
+                onCancel={handleCancelDeleteGoal}
+                isLoading={isDeletingGoal}
                 destructive
             />
 

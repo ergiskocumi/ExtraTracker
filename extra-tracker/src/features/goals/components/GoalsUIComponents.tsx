@@ -32,7 +32,8 @@ import {
     FiStar,
     FiCpu,
     FiCheckSquare,
-    FiSquare
+    FiSquare,
+    FiTrash2
 } from 'react-icons/fi';
 
 // ============================================================================
@@ -486,6 +487,8 @@ interface GoalCardProps {
     isSelectionMode: boolean;
     isSelected: boolean;
     onToggleSelect: (id: string) => void;
+    onRequestDeleteGoal: (id: string) => void;
+    isDeletingGoal: boolean;
 }
 
 export const GoalCard: React.FC<GoalCardProps> = ({
@@ -501,6 +504,8 @@ export const GoalCard: React.FC<GoalCardProps> = ({
     isSelectionMode,
     isSelected,
     onToggleSelect,
+    onRequestDeleteGoal,
+    isDeletingGoal,
 }) => {
     const category = GOAL_CATEGORIES[goal.category];
     const daysRemaining = getDaysRemaining(goal.deadline);
@@ -629,13 +634,33 @@ export const GoalCard: React.FC<GoalCardProps> = ({
                 )}
             </div>
 
-            {/* Status Badge */}
-            {isCompleted && (
-                <div className="absolute top-4 right-4">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-full">
-                        <FiCheckCircle className="w-4 h-4 text-green-400" />
-                        <span className="text-xs font-medium text-green-400">Completed</span>
-                    </div>
+            {/* Quick delete + Status */}
+            {(!isSelectionMode || isCompleted) && (
+                <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+                    {!isSelectionMode && (
+                        <button
+                            type="button"
+                            onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                if (!isDeletingGoal) {
+                                    onRequestDeleteGoal(goal.id);
+                                }
+                            }}
+                            disabled={isDeletingGoal}
+                            className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-200 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/25"
+                            aria-label="Elimina obiettivo"
+                        >
+                            <FiTrash2 className="h-3.5 w-3.5" />
+                            ELIMINA
+                        </button>
+                    )}
+                    {isCompleted && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-full">
+                            <FiCheckCircle className="w-4 h-4 text-green-400" />
+                            <span className="text-xs font-medium text-green-400">Completed</span>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
@@ -726,6 +751,8 @@ interface GoalsListProps {
     isSelectionMode: boolean;
     isSelected: (id: string) => boolean;
     onToggleSelect: (id: string) => void;
+    onRequestDeleteGoal: (id: string) => void;
+    isDeletingGoal: boolean;
 }
 
 export const GoalsList: React.FC<GoalsListProps> = ({
@@ -742,6 +769,8 @@ export const GoalsList: React.FC<GoalsListProps> = ({
     isSelectionMode,
     isSelected,
     onToggleSelect,
+    onRequestDeleteGoal,
+    isDeletingGoal,
 }) => (
     <AnimatePresence mode="popLayout">
         {goals.length === 0 ? (
@@ -790,6 +819,8 @@ export const GoalsList: React.FC<GoalsListProps> = ({
                         isSelectionMode={isSelectionMode}
                         isSelected={isSelected(goal.id)}
                         onToggleSelect={onToggleSelect}
+                        onRequestDeleteGoal={onRequestDeleteGoal}
+                        isDeletingGoal={isDeletingGoal}
                     />
                 ))}
             </div>

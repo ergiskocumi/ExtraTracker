@@ -89,6 +89,9 @@ export interface UseGoalsManagerReturn {
 
     // Bulk delete
     bulkDeleteGoals: (goalIds: string[]) => Promise<void>;
+
+    // Single delete
+    deleteGoal: (id: string) => Promise<void>;
     
     // Smart Logic
     smartLogic: SmartLogicResult;
@@ -251,7 +254,7 @@ const createHelpers = (): GoalUIHelpers => ({
 
 export const useGoalsManager = (): UseGoalsManagerReturn => {
     // Context data
-    const { goals, loading, error, stats, quickCheckIn, bulkDeleteGoals } = useGoals();
+    const { goals, loading, error, stats, quickCheckIn, bulkDeleteGoals, deleteGoal } = useGoals();
     
     // Filter state
     const [searchQuery, setSearchQuery] = useState('');
@@ -395,6 +398,9 @@ export const useGoalsManager = (): UseGoalsManagerReturn => {
 
         // Bulk delete
         bulkDeleteGoals,
+
+        // Single delete
+        deleteGoal,
         
         // Smart Logic
         smartLogic,
