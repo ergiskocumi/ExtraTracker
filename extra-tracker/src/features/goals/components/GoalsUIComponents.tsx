@@ -521,7 +521,7 @@ export const GoalCard: React.FC<GoalCardProps> = ({
         <div className={`relative overflow-hidden bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl border rounded-2xl p-6 transition-all h-full ${selectionClass}`}>
             {/* Header */}
             <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                     {isSelectionMode && (
                         <div className={`flex items-center justify-center w-6 h-6 rounded-md border ${
                             isSelected
@@ -534,9 +534,9 @@ export const GoalCard: React.FC<GoalCardProps> = ({
                     <div className={`p-2.5 rounded-xl ${category.color} bg-white/5`}>
                         {getCategoryIcon(goal.category)}
                     </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-semibold text-white transition-colors group-hover:text-primary-400">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <h3 className="min-w-0 text-lg font-semibold text-white transition-colors group-hover:text-primary-400 truncate">
                                 {goal.title}
                             </h3>
                             {hasStreak && (
@@ -560,9 +560,9 @@ export const GoalCard: React.FC<GoalCardProps> = ({
                     </div>
                 </div>
                 {(!isSelectionMode || isCompleted) && (
-                    <div className="flex flex-col items-end gap-2">
+                    <div className="flex flex-col items-end gap-2 shrink-0">
                         {!isSelectionMode && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3 shrink-0">
                                 <button
                                     type="button"
                                     onClick={(event) => {
@@ -579,7 +579,7 @@ export const GoalCard: React.FC<GoalCardProps> = ({
                                     <FiTrash2 className="h-3.5 w-3.5" />
                                     ELIMINA
                                 </button>
-                                <FiArrowRight className="w-5 h-5 transition-all text-white/40 group-hover:text-primary-400 group-hover:translate-x-1" />
+                                <FiArrowRight className="w-5 h-5 shrink-0 transition-all text-white/40 group-hover:text-primary-400 group-hover:translate-x-1" />
                             </div>
                         )}
                         {isCompleted && (

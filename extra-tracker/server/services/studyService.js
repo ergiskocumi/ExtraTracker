@@ -93,12 +93,75 @@ class StudyService extends BaseService {
         return this.delete(tenantScope, deckId);
     }
 
+    /**
+     * Restituisce un singolo mazzo con tutte le sue carte.
+     * Usato per il refresh della sessione di studio.
+     */
+    async getDeckById(tenantScope, deckId) {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOne({
+            _id: deckId,
+            user: userId,
+        });
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        return deck.toJSON();
+    }
+
     // =========================================
     // DASHBOARD
     // =========================================
 
     /**
+     * Restituisce TUTTI i deck dell'utente per la dashboard.
+     * Calcola quante carte sono in scadenza per ogni mazzo.
+     *
+     * @param {Object} tenantScope
+     * @returns {Promise<Object>} { decks, dueCardCount }
+     */
+    async getAllDecks(tenantScope) {
+        const userId = this._getUserId(tenantScope);
+        const now = new Date();
+
+        // Recupera TUTTI i mazzi dell'utente
+        const decks = await Deck.find({ user: userId })
+            .sort({ createdAt: -1 });
+
+        let totalDueCount = 0;
+
+        const normalizedDecks = decks.map(deck => {
+            const deckJson = deck.toJSON();
+            const cards = Array.isArray(deckJson.cards) ? deckJson.cards : [];
+            
+            // Calcola carte in scadenza
+            const dueCards = cards.filter(card => {
+                const nextReview = new Date(card.nextReviewDate);
+                return nextReview <= now;
+            });
+
+            totalDueCount += dueCards.length;
+
+            return {
+                ...deckJson,
+                totalCards: cards.length,
+                dueCount: dueCards.length,
+                // NON filtrare le carte qui, restituisci il totale
+            };
+        });
+
+        return {
+            decks: normalizedDecks,
+            dueCardCount: totalDueCount,
+        };
+    }
+
+    /**
      * Restituisce tutti i deck che hanno card in scadenza.
+     * @deprecated Usa getAllDecks per la dashboard
      *
      * @param {Object} tenantScope
      * @returns {Promise<Array<Object>>} Deck con sole card in scadenza

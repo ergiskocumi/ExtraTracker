@@ -27,6 +27,7 @@ router.use(tenantContext({ required: true }));
 // =========================================
 
 router.get('/dashboard', studyController.getDashboard);
+router.get('/:id', studyController.getDeckById);
 router.post('/', studyController.createDeck);
 router.post('/:id/cards', studyController.addCard);
 router.post('/:id/review', studyController.submitReview);

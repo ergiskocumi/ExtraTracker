@@ -3,7 +3,7 @@
  * 
  * Sistema di routing:
  * - /login, /register, /forgot-password, /reset-password, /verify-email → Pagine pubbliche (AuthLayout)
- * - /, /goals, /settings, /timeline → Pagine protette (AppLayout)
+ * - /, /goals, /settings, /timeline, /study → Pagine protette (AppLayout)
  */
 
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -27,6 +27,9 @@ import { RegisterPage } from './features/auth/pages/RegisterPage';
 import { ForgotPasswordPage } from './features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './features/auth/pages/ResetPasswordPage';
 import { VerifyEmailPage } from './features/auth/pages/VerifyEmailPage';
+
+// Study / Flashcards Pages
+import { DecksDashboardPage, StudySessionPage } from './features/study/pages';
 
 const HomeRedirect = () => {
     const { preferences, hasLoaded } = useSettings();
@@ -78,6 +81,10 @@ function App() {
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/timeline" element={<TimelinePage />} />
+                
+                {/* Study / Flashcards */}
+                <Route path="/study" element={<DecksDashboardPage />} />
+                <Route path="/study/:deckId" element={<StudySessionPage />} />
             </Route>
         </Routes>
     );

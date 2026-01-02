@@ -36,6 +36,15 @@ const deleteDeck = asyncHandler(async (req, res) => {
     res.json({ success: true, message: 'Mazzo eliminato' });
 });
 
+/**
+ * GET /api/study/:id
+ * Recupera un singolo mazzo con tutte le sue carte
+ */
+const getDeckById = asyncHandler(async (req, res) => {
+    const deck = await studyService.getDeckById(req.tenantScope, req.params.id);
+    res.json({ success: true, data: deck });
+});
+
 // =========================================
 // CARDS
 // =========================================
@@ -59,11 +68,11 @@ const addCard = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/study/dashboard
- * Restituisce i mazzi con card da ripassare
+ * Restituisce TUTTI i mazzi dell'utente con conteggio carte in scadenza
  */
 const getDashboard = asyncHandler(async (req, res) => {
-    const decks = await studyService.getDueCards(req.tenantScope);
-    res.json({ success: true, data: decks });
+    const result = await studyService.getAllDecks(req.tenantScope);
+    res.json({ success: true, data: result });
 });
 
 // =========================================
@@ -88,6 +97,7 @@ const submitReview = asyncHandler(async (req, res) => {
 module.exports = {
     createDeck,
     deleteDeck,
+    getDeckById,
     addCard,
     getDashboard,
     submitReview,

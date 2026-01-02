@@ -16,7 +16,8 @@ import {
     FiLogOut, 
     FiChevronDown,
     FiFolder,
-    FiMenu
+    FiMenu,
+    FiBookOpen
 } from 'react-icons/fi';
 import { useAuth } from '../../features/auth/context/AuthContext';
 import { useSettings } from '../../features/settings/context/SettingsContext';
@@ -85,6 +86,7 @@ export const AppLayout = () => {
             items: [
                 { path: '/goals', label: 'Obiettivi', icon: FiTarget, description: 'I tuoi traguardi' },
                 { path: '/projects', label: 'Progetti', icon: FiFolder, description: 'Clienti e commesse' },
+                { path: '/study', label: 'Flashcards', icon: FiBookOpen, description: 'Ripetizione spaziata' },
             ]
         },
         {
