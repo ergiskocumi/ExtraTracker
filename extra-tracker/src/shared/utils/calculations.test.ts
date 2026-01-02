@@ -51,12 +51,17 @@ describe('calculatesTotalsByProject', () => {
     expect(result).toHaveLength(0);
   });
 
-  it('filtra log con durata negativa (end < start)', () => {
-    const projects = [makeProject('p1', 'Alpha', 50)];
-    const logs = [makeLog('p1', '12:00', '11:00')]; // -1h -> viene escluso perché totalHours sarebbe <= 0
+  it('gestisce correttamente il midnight crossing (es. 23:00 -> 01:00)', () => {
+    const projects = [makeProject('p1', 'NightShift', 100)]; // 100€/ora
+    
+    // Log che attraversa la mezzanotte: 2 ore totali
+    const logs = [makeLog('p1', '23:00', '01:00')]; 
 
     const result = calculatesTotalsByProject(logs as any, projects as any);
+    const summary = result.find(r => r.projectId === 'p1');
 
-    expect(result).toHaveLength(0);
+    expect(summary).toBeDefined();
+    expect(summary?.totalHours).toBe(2); // Non deve essere filtrato, deve essere 2 ore!
+    expect(summary?.totalAmount).toBe(200); // 2 ore * 100€
   });
 });
