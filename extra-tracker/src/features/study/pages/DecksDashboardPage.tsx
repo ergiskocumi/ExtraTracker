@@ -28,6 +28,7 @@ import {
 import { studyService, type Deck, type CreateDeckPayload, type AddCardPayload } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { CreateDeckModal } from '../components/CreateDeckModal';
+import { MagicGenerateModal } from '../components/MagicGenerateModal';
 
 // ============================================
 // HERO STATS COMPONENT - Bento Style
@@ -103,9 +104,10 @@ interface DeckCardProps {
     deck: Deck;
     onStudy: (deckId: string) => void;
     onAddCard: (deckId: string) => void;
+    onMagicGenerate: (deck: Deck) => void;
 }
 
-const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onAddCard }) => {
+const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onAddCard, onMagicGenerate }) => {
     const hasDueCards = (deck.dueCount ?? 0) > 0;
     const totalCards = deck.totalCards ?? deck.cards?.length ?? 0;
     const masteryPercent = totalCards > 0 ? Math.round(((totalCards - (deck.dueCount ?? 0)) / totalCards) * 100) : 0;
@@ -212,6 +214,16 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onAddCard }) => {
                     >
                         <FiPlay className="w-4 h-4" />
                         {hasDueCards ? 'Ripassa' : 'Studia'}
+                    </motion.button>
+
+                    <motion.button
+                        whileHover={{ scale: 1.08 }}
+                        whileTap={{ scale: 0.92 }}
+                        onClick={() => onMagicGenerate(deck)}
+                        className="p-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-amber-500/20 border border-purple-500/30 text-amber-400 hover:from-purple-500/30 hover:to-amber-500/30 hover:border-amber-500/40 transition-all"
+                        title="✨ Magic Generate da PDF"
+                    >
+                        <FiZap className="w-4 h-4" />
                     </motion.button>
 
                     <motion.button
@@ -432,6 +444,7 @@ export const DecksDashboardPage: React.FC = () => {
     // Modal state
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
+    const [isMagicGenerateOpen, setIsMagicGenerateOpen] = useState(false);
     const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
 
     // Computed stats
@@ -468,6 +481,16 @@ export const DecksDashboardPage: React.FC = () => {
             setSelectedDeck(deck);
             setIsAddCardModalOpen(true);
         }
+    };
+
+    const handleMagicGenerate = (deck: Deck) => {
+        setSelectedDeck(deck);
+        setIsMagicGenerateOpen(true);
+    };
+
+    const handleMagicGenerateSuccess = async (_generatedCount: number) => {
+        // Ricarica i mazzi per riflettere le nuove carte
+        await loadDecks();
     };
 
     const handleCreateDeck = async (data: CreateDeckPayload) => {
@@ -563,6 +586,7 @@ export const DecksDashboardPage: React.FC = () => {
                                     deck={deck}
                                     onStudy={handleStudy}
                                     onAddCard={handleAddCard}
+                                    onMagicGenerate={handleMagicGenerate}
                                 />
                             </motion.div>
                         ))}
@@ -585,6 +609,17 @@ export const DecksDashboardPage: React.FC = () => {
                         setSelectedDeck(null);
                     }}
                     onSubmit={handleSubmitCard}
+                />
+
+                <MagicGenerateModal
+                    isOpen={isMagicGenerateOpen}
+                    deckId={selectedDeck?.id ?? ''}
+                    deckTitle={selectedDeck?.title ?? ''}
+                    onClose={() => {
+                        setIsMagicGenerateOpen(false);
+                        setSelectedDeck(null);
+                    }}
+                    onSuccess={handleMagicGenerateSuccess}
                 />
             </div>
         </div>

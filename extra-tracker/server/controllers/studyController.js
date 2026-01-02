@@ -94,6 +94,59 @@ const submitReview = asyncHandler(async (req, res) => {
     res.json({ success: true, data: result });
 });
 
+// =========================================
+// 🪄 MAGIC GENERATE FROM PDF
+// =========================================
+
+/**
+ * POST /api/study/:id/generate-pdf
+ * Carica un PDF e genera flashcards con AI
+ */
+const uploadAndGenerate = asyncHandler(async (req, res) => {
+    console.log('🪄 uploadAndGenerate called');
+    console.log('   - req.file:', req.file ? `${req.file.originalname} (${req.file.size} bytes)` : 'UNDEFINED');
+    console.log('   - req.params.id:', req.params.id);
+    console.log('   - req.tenantScope:', req.tenantScope?.userId);
+
+    // Verifica che il file sia stato caricato
+    if (!req.file) {
+        console.log('❌ No file in request');
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Nessun file caricato. Carica un file PDF.' },
+        });
+    }
+
+    // Verifica che sia un PDF
+    if (req.file.mimetype !== 'application/pdf') {
+        return res.status(400).json({
+            success: false,
+            error: 'Il file deve essere un PDF.',
+        });
+    }
+
+    // Limite dimensione file (10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (req.file.size > maxSize) {
+        return res.status(400).json({
+            success: false,
+            error: 'Il file è troppo grande. Massimo 10MB.',
+        });
+    }
+
+    const result = await studyService.generateCardsFromPDF(
+        req.tenantScope,
+        req.params.id,
+        req.file.buffer
+    );
+
+    res.json({
+        success: true,
+        data: result,
+        message: `✨ Generate ${result.generatedCount} flashcard con successo!`,
+    });
+});
+
 module.exports = {
     createDeck,
     deleteDeck,
@@ -101,4 +154,5 @@ module.exports = {
     addCard,
     getDashboard,
     submitReview,
+    uploadAndGenerate,
 };

@@ -221,6 +221,64 @@ class StudyService {
         );
         return unwrap(response, 'Errore nel salvataggio della review');
     }
+
+    /**
+     * 🪄 MAGIC GENERATE - Genera flashcard da PDF usando AI
+     * 
+     * Carica un file PDF e usa OpenAI per generare automaticamente
+     * 10-15 flashcard di qualità basate sul contenuto.
+     */
+    async generateFromPDF(deckId: string, file: File): Promise<{ generatedCount: number; deck: Deck }> {
+        // Validazione client-side
+        if (!file) {
+            throw new Error('Nessun file selezionato');
+        }
+        if (file.type !== 'application/pdf') {
+            throw new Error('Solo file PDF sono supportati');
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            throw new Error('Il file supera il limite di 10MB');
+        }
+
+        // Costruisci FormData per upload
+        const formData = new FormData();
+        formData.append('pdf', file);
+
+        console.log('📤 Uploading PDF:', file.name, file.size, 'bytes');
+
+        // Chiamata API con FormData
+        // NOTA: withCredentials: true per inviare cookies HttpOnly (auth)
+        // NOTA: NON impostare Content-Type manualmente, il browser lo fa con boundary
+        const response = await fetch(`/api${this.baseUrl}/${deckId}/generate-pdf`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include', // Include cookies per auth
+        });
+
+        console.log('📥 Response status:', response.status);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('❌ Error response:', errorData);
+            throw new Error(
+                errorData.error?.message || 
+                errorData.message || 
+                `Errore ${response.status}: generazione fallita`
+            );
+        }
+
+        const result = await response.json();
+        console.log('✅ Result:', result);
+        
+        if (!result.success) {
+            throw new Error(result.error?.message || result.message || 'Generazione fallita');
+        }
+
+        return {
+            generatedCount: result.data?.generatedCount || 0,
+            deck: normalizeDeck(result.data?.deck || {}),
+        };
+    }
 }
 
 export const studyService = new StudyService();
