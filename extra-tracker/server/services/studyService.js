@@ -378,7 +378,7 @@ class StudyService extends BaseService {
                     { role: 'user', content: `Analizza questo testo e genera le flashcard:\n\n${truncatedText}` }
                 ],
                 temperature: 0.7,
-                max_tokens: 2000,
+                max_completion_tokens: 2000,
                 response_format: { type: 'json_object' },
             });
 
