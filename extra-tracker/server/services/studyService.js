@@ -12,12 +12,19 @@ const BaseService = require('./BaseService');
 const Deck = require('../models/Deck');
 const Goal = require('../models/Goal');
 const AppError = require('../utils/AppError');
+const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
 const OpenAI = require('openai');
 const { PDFParse } = require('pdf-parse');
 
 const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
 const MAX_PDF_TEXT_LENGTH = 15000; // Limite caratteri per evitare costi eccessivi
+const QUIZ_FALLBACK_OPTIONS = [
+    'Nessuna delle precedenti',
+    'Altro',
+    'Non specificato',
+    'Informazione non presente',
+];
 
 // Inizializza OpenAI client
 const openai = new OpenAI({
@@ -175,6 +182,62 @@ class StudyService extends BaseService {
     }
 
     // =========================================
+    // STUDY SESSION
+    // =========================================
+
+    /**
+     * Restituisce una sessione di studio per un mazzo specifico.
+     * Supporta modes: flashcard | quiz | typing
+     */
+    async getStudySession(tenantScope, deckId, mode = 'flashcard') {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOne({
+            _id: deckId,
+            user: userId,
+        });
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        const deckJson = deck.toJSON();
+        const cards = Array.isArray(deckJson.cards) ? deckJson.cards : [];
+        const now = new Date();
+
+        const dueCards = cards.filter(card => {
+            const nextReview = new Date(card.nextReviewDate);
+            return nextReview <= now;
+        });
+
+        const sessionCards = dueCards.length > 0 ? dueCards : cards;
+
+        let enrichedCards = sessionCards;
+        if (mode === 'quiz') {
+            const allAnswers = cards
+                .map(card => card.back)
+                .filter(answer => typeof answer === 'string' && answer.trim().length > 0);
+
+            enrichedCards = sessionCards.map(card => ({
+                ...card,
+                options: this._buildQuizOptions(card.back, allAnswers),
+            }));
+        }
+
+        return {
+            deck: {
+                ...deckJson,
+                totalCards: cards.length,
+                dueCount: dueCards.length,
+            },
+            cards: enrichedCards,
+            remaining: sessionCards.length,
+            total: cards.length,
+            mode,
+        };
+    }
+
+    // =========================================
     // DASHBOARD
     // =========================================
 
@@ -250,6 +313,37 @@ class StudyService extends BaseService {
                 dueCount: dueCards.length,
             };
         });
+    }
+
+    // =========================================
+    // TYPING MODE - ANSWER VERIFY
+    // =========================================
+
+    async verifyAnswer(tenantScope, deckId, cardId, userAnswer) {
+        const userId = this._getUserId(tenantScope);
+
+        if (!userAnswer || typeof userAnswer !== 'string') {
+            throw AppError.validation('La risposta e\' obbligatoria');
+        }
+
+        const deck = await Deck.findOne({
+            _id: deckId,
+            user: userId,
+            'cards._id': cardId,
+        });
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        const card = deck.cards.id(cardId);
+        if (!card) {
+            throw AppError.notFound('Card');
+        }
+
+        return {
+            isCorrect: checkAnswerSimilarity(userAnswer, card.back),
+        };
     }
 
     // =========================================
@@ -527,15 +621,8 @@ class StudyService extends BaseService {
         delete obj._id;
         return obj;
     }
-    _normalizeGeneratedCard(card) {
-        if (!card || typeof card !== 'object') return {};
-        return {
-            front: card.front ?? card.question ?? card.q,
-            back: card.back ?? card.answer ?? card.a,
-        };
-    }
 
- _extractGeneratedCards(parsed) {
+    _extractGeneratedCards(parsed) {
         if (Array.isArray(parsed)) return parsed;
         if (!parsed || typeof parsed !== 'object') return [];
 
@@ -559,6 +646,59 @@ class StudyService extends BaseService {
         };
     }
 
-};
+    _buildQuizOptions(correctAnswer, allAnswers = []) {
+        const normalizedCorrect = this._normalizeAnswerValue(correctAnswer);
+        const candidates = allAnswers
+            .filter(answer => typeof answer === 'string' && answer.trim().length > 0)
+            .filter(answer => this._normalizeAnswerValue(answer) !== normalizedCorrect);
+
+        const shuffledCandidates = this._shuffleArray([...candidates]);
+        const options = [];
+        const seen = new Set();
+
+        if (correctAnswer !== undefined && correctAnswer !== null) {
+            options.push(String(correctAnswer));
+            seen.add(normalizedCorrect);
+        }
+
+        for (const answer of shuffledCandidates) {
+            const normalized = this._normalizeAnswerValue(answer);
+            if (!normalized || seen.has(normalized)) continue;
+            options.push(answer);
+            seen.add(normalized);
+            if (options.length === 4) break;
+        }
+
+        if (options.length < 4) {
+            for (const fallback of QUIZ_FALLBACK_OPTIONS) {
+                const normalized = this._normalizeAnswerValue(fallback);
+                if (seen.has(normalized)) continue;
+                options.push(fallback);
+                seen.add(normalized);
+                if (options.length === 4) break;
+            }
+        }
+
+        while (options.length < 4) {
+            options.push('Nessuna delle precedenti');
+        }
+
+        return this._shuffleArray(options);
+    }
+
+    _normalizeAnswerValue(value) {
+        if (value === null || value === undefined) return '';
+        return String(value).trim().toLowerCase();
+    }
+
+    _shuffleArray(values = []) {
+        const arr = [...values];
+        for (let i = arr.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+}
 
 module.exports = new StudyService();

@@ -45,6 +45,25 @@ const getDeckById = asyncHandler(async (req, res) => {
     res.json({ success: true, data: deck });
 });
 
+/**
+ * GET /api/study/:id/session
+ * Recupera una sessione di studio (flashcard | quiz | typing)
+ */
+const getSession = asyncHandler(async (req, res) => {
+    const requestedMode = String(req.query.mode || 'flashcard').toLowerCase();
+    const mode = ['flashcard', 'quiz', 'typing'].includes(requestedMode)
+        ? requestedMode
+        : 'flashcard';
+
+    const session = await studyService.getStudySession(
+        req.tenantScope,
+        req.params.id,
+        mode
+    );
+
+    res.json({ success: true, data: session });
+});
+
 // =========================================
 // CARDS
 // =========================================
@@ -126,6 +145,21 @@ const submitReview = asyncHandler(async (req, res) => {
     res.json({ success: true, data: result });
 });
 
+/**
+ * POST /api/study/:id/verify-answer
+ * Verifica una risposta per Typing Mode
+ */
+const verifyAnswer = asyncHandler(async (req, res) => {
+    const result = await studyService.verifyAnswer(
+        req.tenantScope,
+        req.params.id,
+        req.body.cardId,
+        req.body.userAnswer
+    );
+
+    res.json({ success: true, data: result });
+});
+
 // =========================================
 // 🪄 MAGIC GENERATE FROM PDF
 // =========================================
@@ -183,10 +217,12 @@ module.exports = {
     createDeck,
     deleteDeck,
     getDeckById,
+    getSession,
     addCard,
     updateCard,
     deleteCard,
     getDashboard,
     submitReview,
+    verifyAnswer,
     uploadAndGenerate,
 };
