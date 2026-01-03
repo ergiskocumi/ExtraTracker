@@ -18,6 +18,7 @@ const OpenAI = require('openai');
 const { PDFParse } = require('pdf-parse');
 const fs = require('fs/promises');
 const path = require('path');
+const vectorStoreService = require('./vectorStoreService');
 
 const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
@@ -608,6 +609,13 @@ class StudyService extends BaseService {
         );
         await deck.save({ validateModifiedOnly: true });
 
+        // 2.b Ingestione vettoriale (best-effort, non blocca l'utente)
+        try {
+            await vectorStoreService.ingestDeck(deckId, normalizedExtracted);
+        } catch (err) {
+            console.error('⚠️ Vector ingest error:', err.message);
+        }
+
         // 3. Taglia il testo se troppo lungo
         const truncatedText = normalizedExtracted.length > MAX_PDF_TEXT_LENGTH 
             ? normalizedExtracted.slice(0, MAX_PDF_TEXT_LENGTH) + '\n\n[...testo troncato per limiti di elaborazione...]'
@@ -799,6 +807,30 @@ class StudyService extends BaseService {
             await extractAndStorePdfText({ strict: false });
         }
 
+        // Recupera contesto dai vettori (RAG)
+        let context = '';
+        try {
+            const matches = await vectorStoreService.queryDeck(deckId, cleanMessage, 5);
+            if (Array.isArray(matches) && matches.length > 0) {
+                context = matches.join('\n\n---\n\n');
+            }
+        } catch (err) {
+            console.error('⚠️ Vector query error:', err.message);
+        }
+
+        // Se il vettore non esiste o è vuoto, prova a creare sul momento
+        if (!context && extractedText) {
+            try {
+                await vectorStoreService.ingestDeck(deckId, extractedText);
+                const matches = await vectorStoreService.queryDeck(deckId, cleanMessage, 5);
+                if (Array.isArray(matches) && matches.length > 0) {
+                    context = matches.join('\n\n---\n\n');
+                }
+            } catch (err) {
+                console.error('⚠️ Vector ingest+query fallback error:', err.message);
+            }
+        }
+
         const model = process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
         const contextLimit = model.includes('gpt-3.5')
             ? 15000
@@ -806,13 +838,19 @@ class StudyService extends BaseService {
                 ? 50000
                 : MAX_TUTOR_CONTEXT_LENGTH;
 
-        const context = this._buildTutorContext(extractedText, cleanMessage, contextLimit);
+        // Fallback: usa extractedText se RAG non ha dato risultati
+        if (!context) {
+            const built = this._buildTutorContext(extractedText, cleanMessage, contextLimit);
+            context = built;
+        }
+
         if (!context || context.trim().length < 20) {
             throw AppError.validation(
-                'Il PDF non ha testo leggibile per la chat (potrebbe essere una scansione immagine). ' +
-                'Prova a caricare un PDF testuale oppure usa OCR.'
+                'Non ci sono abbastanza dati per rispondere: prova a rigenerare il PDF con testo selezionabile o ripeti la domanda con più dettagli.'
             );
         }
+
+        context = this._truncateText(context, contextLimit, '\n\n[...contesto troncato per limiti di token...]');
 
         const systemPrompt =
             'Sei un Tutor Esperto e Socratico: chiaro, rigoroso e incoraggiante.\n' +
