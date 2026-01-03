@@ -83,6 +83,16 @@ const deckSchema = new mongoose.Schema({
         trim: true,
         maxlength: [500, 'La descrizione non puo\' superare 500 caratteri'],
     },
+    pdfUrl: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+    extractedText: {
+        type: String,
+        default: '',
+        select: false,
+    },
     tags: {
         type: [String],
         default: [],
@@ -123,6 +133,7 @@ deckSchema.set('toJSON', {
         ret.id = ret._id;
         delete ret._id;
         delete ret.user;
+        delete ret.extractedText;
 
         if (Array.isArray(ret.cards)) {
             ret.cards = ret.cards.map(card => ({

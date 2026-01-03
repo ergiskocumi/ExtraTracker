@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.2'),
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.3'),
   },
   test: {
     globals: true,
@@ -17,6 +17,11 @@ export default defineConfig({
     port: 5173, // Opzionale, per fissare la porta
     proxy: {
       '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        xfwd: true,
+      },
+      '/uploads': {
         target: 'http://localhost:3001',
         changeOrigin: true,
         xfwd: true,

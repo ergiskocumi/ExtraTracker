@@ -6,11 +6,14 @@ import { apiClient, type ApiResponse } from '../../../shared/services/apiClient'
 
 export type ReviewRating = 1 | 3 | 5;
 export type CardStatus = 'new' | 'learning' | 'review' | 'mastered';
+export type StudyMode = 'flashcard' | 'quiz' | 'typing';
+export type ChatRole = 'user' | 'assistant';
 
 export interface Card {
     id: string;
     front: string;
     back: string;
+    options?: string[];
     easinessFactor: number;
     interval: number;
     repetitions: number;
@@ -23,6 +26,7 @@ export interface Deck {
     goalId?: string;
     title: string;
     description?: string;
+    pdfUrl?: string | null;
     tags: string[];
     cards: Card[];
     totalCards: number;
@@ -31,11 +35,17 @@ export interface Deck {
     updatedAt?: string;
 }
 
+export interface ChatMessage {
+    role: ChatRole;
+    content: string;
+}
+
 export interface StudySession {
     deck: Deck;
     cards: Card[];
     remaining: number;
     total: number;
+    mode?: StudyMode;
 }
 
 export interface ReviewPayload {
@@ -56,6 +66,33 @@ export interface ReviewResult {
     };
 }
 
+export interface VerifyAnswerResult {
+    correct: boolean;
+    similarity?: number;
+}
+
+export interface SessionCompletePayload {
+    mode: StudyMode;
+    stats: {
+        correct: number;
+        wrong: number;
+        timeSeconds: number;
+    };
+}
+
+export interface SessionCompleteResult {
+    xpEarned: number;
+    leveledUp: boolean;
+    newLevel: number;
+    xpBreakdown?: {
+        base: number;
+        correct: number;
+        speedBonus: number;
+        streakBonus: number;
+        total: number;
+    };
+}
+
 export interface CreateDeckPayload {
     goalId: string;
     title: string;
@@ -71,6 +108,10 @@ export interface AddCardPayload {
 export interface StudyDashboardResponse {
     decks: Deck[];
     dueCardCount: number;
+}
+
+export interface TutorReply {
+    reply: string;
 }
 
 // ============================================
@@ -92,6 +133,7 @@ const normalizeCard = (raw: any): Card => ({
     id: raw.id || raw._id,
     front: raw.front || '',
     back: raw.back || '',
+    options: Array.isArray(raw.options) ? raw.options : undefined,
     easinessFactor: safeNumber(raw.easinessFactor, 2.5),
     interval: safeNumber(raw.interval, 0),
     repetitions: safeNumber(raw.repetitions, 0),
@@ -106,6 +148,7 @@ const normalizeDeck = (raw: any): Deck => {
         goalId: raw.goalId,
         title: raw.title || 'Senza titolo',
         description: raw.description,
+        pdfUrl: typeof raw.pdfUrl === 'string' && raw.pdfUrl.length > 0 ? raw.pdfUrl : null,
         tags: Array.isArray(raw.tags) ? raw.tags : [],
         cards,
         totalCards: safeNumber(raw.totalCards, cards.length),
@@ -135,6 +178,21 @@ const normalizeDashboard = (payload: unknown): StudyDashboardResponse => {
     }
 
     return { decks: [], dueCardCount: 0 };
+};
+
+const normalizeSession = (payload: any): StudySession => {
+    const deck = normalizeDeck(payload?.deck || payload || {});
+    const cards = Array.isArray(payload?.cards)
+        ? payload.cards.map(normalizeCard)
+        : deck.cards;
+
+    return {
+        deck,
+        cards,
+        remaining: safeNumber(payload?.remaining, cards.length),
+        total: safeNumber(payload?.total, deck.totalCards || cards.length),
+        mode: payload?.mode,
+    };
 };
 
 // ============================================
@@ -190,25 +248,31 @@ class StudyService {
     }
 
     /**
+     * Modifica una carta esistente
+     */
+    async updateCard(deckId: string, cardId: string, payload: AddCardPayload): Promise<Deck> {
+        const response = await apiClient.put<any>(`${this.baseUrl}/${deckId}/cards/${cardId}`, payload);
+        const raw = unwrap(response, 'Errore nella modifica della carta');
+        return normalizeDeck(raw);
+    }
+
+    /**
+     * Elimina una carta da un mazzo
+     */
+    async deleteCard(deckId: string, cardId: string): Promise<Deck> {
+        const response = await apiClient.delete<any>(`${this.baseUrl}/${deckId}/cards/${cardId}`);
+        const raw = unwrap(response, 'Errore nell\'eliminazione della carta');
+        return normalizeDeck(raw);
+    }
+
+    /**
      * Carica una sessione di studio per un mazzo specifico
      * Recupera i dati freschi dal backend (risolve il problema del refresh)
      */
-    async getSession(deckId: string): Promise<StudySession> {
-        const deck = await this.getDeckById(deckId);
-        
-        // Filtra solo le carte da ripassare (nextReviewDate <= now)
-        const now = new Date();
-        const dueCards = deck.cards.filter(card => {
-            const reviewDate = new Date(card.nextReviewDate);
-            return reviewDate <= now;
-        });
-
-        return {
-            deck,
-            cards: dueCards.length > 0 ? dueCards : deck.cards, // Se nessuna scaduta, mostra tutte
-            remaining: dueCards.length > 0 ? dueCards.length : deck.cards.length,
-            total: deck.totalCards,
-        };
+    async getSession(deckId: string, mode: StudyMode = 'flashcard'): Promise<StudySession> {
+        const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/session?mode=${mode}`);
+        const raw = unwrap(response, 'Errore nel recupero della sessione');
+        return normalizeSession(raw);
     }
 
     /**
@@ -220,6 +284,35 @@ class StudyService {
             payload
         );
         return unwrap(response, 'Errore nel salvataggio della review');
+    }
+
+    /**
+     * Verifica risposta per Typing Mode
+     */
+    async verifyAnswer(deckId: string, cardId: string, userAnswer: string): Promise<VerifyAnswerResult> {
+        const response = await apiClient.post<any>(
+            `${this.baseUrl}/${deckId}/verify-answer`,
+            { cardId, userAnswer }
+        );
+        const raw = unwrap(response, 'Errore nella verifica della risposta');
+        const similarity = typeof raw?.similarity === 'number' && Number.isFinite(raw.similarity)
+            ? raw.similarity
+            : undefined;
+        return {
+            correct: raw?.correct ?? raw?.isCorrect ?? false,
+            similarity,
+        };
+    }
+
+    /**
+     * Finalizza la sessione e assegna XP (gamification).
+     */
+    async completeSession(deckId: string, payload: SessionCompletePayload): Promise<SessionCompleteResult> {
+        const response = await apiClient.post<SessionCompleteResult>(
+            `${this.baseUrl}/${deckId}/session-complete`,
+            payload
+        );
+        return unwrap(response, 'Errore nel completamento della sessione');
     }
 
     /**
@@ -278,6 +371,25 @@ class StudyService {
             generatedCount: result.data?.generatedCount || 0,
             deck: normalizeDeck(result.data?.deck || {}),
         };
+    }
+
+    /**
+     * 🤖 AI Tutor - Chat con PDF (RAG lite)
+     */
+    async askTutor(deckId: string, message: string, history: ChatMessage[] = []): Promise<string> {
+        const response = await apiClient.post<TutorReply>(`${this.baseUrl}/${deckId}/chat`, {
+            message,
+            history,
+        });
+
+        const raw = unwrap(response, 'Errore nella chat AI');
+        const reply = typeof raw?.reply === 'string' ? raw.reply : '';
+
+        if (!reply.trim()) {
+            throw new Error('Risposta AI vuota');
+        }
+
+        return reply;
     }
 }
 

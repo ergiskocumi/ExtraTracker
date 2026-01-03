@@ -22,6 +22,7 @@ import {
 import { useAuth } from '../../features/auth/context/AuthContext';
 import { useSettings } from '../../features/settings/context/SettingsContext';
 import { LogoIcon } from '../components/icons';
+import { UserLevelWidget } from '../../features/gamification/UserLevelWidget';
 
 export const AppLayout = () => {
     const location = useLocation();
@@ -49,6 +50,12 @@ export const AppLayout = () => {
         if (firstName && lastName) return `${firstName} ${lastName}`;
         return user?.email || 'User';
     })();
+
+    const gamification = user?.gamification;
+    const level = gamification?.level ?? 1;
+    const xp = gamification?.xp ?? 0;
+    const streakCurrent = gamification?.streak?.current ?? 0;
+    const nextLevelXp = Math.max(100, Math.pow(level, 2) * 100);
 
     const handleLogout = async () => {
         setIsMenuOpen(false);
@@ -184,7 +191,7 @@ export const AppLayout = () => {
                                         >
                                             {/* Header Menu - Info Utente */}
                                             <div className="px-4 py-4 border-b border-white/[0.1]" style={{ background: 'rgba(139, 92, 246, 0.12)' }}>
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-3 mb-3">
                                                     <div className="flex items-center justify-center w-12 h-12 text-lg font-bold text-white rounded-full shadow-lg bg-gradient-to-br from-primary-500 to-primary-600 shadow-primary-500/30">
                                                         {userInitials}
                                                     </div>
@@ -196,6 +203,19 @@ export const AppLayout = () => {
                                                             {user?.email}
                                                         </p>
                                                     </div>
+                                                </div>
+                                                
+                                                {/* Gamification Widget nel menu */}
+                                                <div className="mt-3">
+                                                    <UserLevelWidget
+                                                        avatarUrl={profile?.avatar}
+                                                        displayName={userLabel}
+                                                        level={level}
+                                                        xp={xp}
+                                                        nextLevelXp={nextLevelXp}
+                                                        streakCurrent={streakCurrent}
+                                                        compact={true}
+                                                    />
                                                 </div>
                                             </div>
 

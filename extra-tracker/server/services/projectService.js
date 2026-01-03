@@ -21,8 +21,10 @@ const BaseService = require('./BaseService');
 const Project = require('../models/Project');
 const WorkLog = require('../models/WorkLog');
 const AppError = require('../utils/AppError');
+const activityService = require('./activityService');
 
 const MINUTES_IN_HOUR = 60;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const HEALTH_CONFIG = {
     warningUsage: 0.75,
     criticalUsage: 1.1,
@@ -101,6 +103,47 @@ class ProjectService extends BaseService {
             },
             metrics,
         }));
+    }
+
+    // =========================================
+    // WRITE OVERRIDES
+    // =========================================
+
+    /**
+     * Override create per registrare PROJECT_CREATED.
+     */
+    async create(tenantScope, data) {
+        const created = await super.create(tenantScope, data);
+        const userId = this._getUserId(tenantScope);
+
+        try {
+            await activityService.recordActivity(userId, 'PROJECT_CREATED', {
+                entityId: created._id,
+                category: 'work',
+                metadata: {
+                    entityId: created._id,
+                    projectName: created.name,
+                    projectCode: created.code,
+                    status: created.status,
+                },
+            });
+        } catch (err) {
+            console.error('❌ Activity log error (PROJECT_CREATED):', err.message);
+        }
+
+        return created;
+    }
+
+    /**
+     * Override update per registrare PROJECT_COMPLETED.
+     */
+    async update(tenantScope, id, data, options = {}) {
+        const previous = await this.findById(tenantScope, id, { throwIfNotFound: true });
+        const updated = await super.update(tenantScope, id, data, options);
+
+        await this._recordProjectCompletionActivity(tenantScope, previous, updated);
+
+        return updated;
     }
 
     // =========================================
@@ -286,6 +329,37 @@ class ProjectService extends BaseService {
             velocityMessage,
             daysSinceLastLog,
         };
+    }
+
+    _calculateDaysDiff(startDate, endDate) {
+        if (!startDate || !endDate) return null;
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        return Math.max(0, Math.ceil((end - start) / MS_PER_DAY));
+    }
+
+    async _recordProjectCompletionActivity(tenantScope, previous, updated) {
+        if (!previous || !updated) return;
+        if (previous.status === updated.status) return;
+        if (updated.status !== 'completed') return;
+
+        const userId = this._getUserId(tenantScope);
+        const now = new Date();
+        const daysToComplete = this._calculateDaysDiff(updated.createdAt, now);
+
+        try {
+            await activityService.recordActivity(userId, 'PROJECT_COMPLETED', {
+                entityId: updated._id,
+                category: 'work',
+                metadata: {
+                    entityId: updated._id,
+                    daysToComplete,
+                    status: updated.status,
+                },
+            });
+        } catch (err) {
+            console.error('❌ Activity log error (PROJECT_COMPLETED):', err.message);
+        }
     }
 
     // =========================================

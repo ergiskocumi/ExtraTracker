@@ -45,6 +45,25 @@ const getDeckById = asyncHandler(async (req, res) => {
     res.json({ success: true, data: deck });
 });
 
+/**
+ * GET /api/study/:id/session
+ * Recupera una sessione di studio (flashcard | quiz | typing)
+ */
+const getSession = asyncHandler(async (req, res) => {
+    const requestedMode = String(req.query.mode || 'flashcard').toLowerCase();
+    const mode = ['flashcard', 'quiz', 'typing'].includes(requestedMode)
+        ? requestedMode
+        : 'flashcard';
+
+    const session = await studyService.getStudySession(
+        req.tenantScope,
+        req.params.id,
+        mode
+    );
+
+    res.json({ success: true, data: session });
+});
+
 // =========================================
 // CARDS
 // =========================================
@@ -60,6 +79,38 @@ const addCard = asyncHandler(async (req, res) => {
     });
 
     res.status(201).json({ success: true, data: deck });
+});
+
+/**
+ * PUT /api/study/:id/cards/:cardId
+ * Modifica una card esistente
+ */
+const updateCard = asyncHandler(async (req, res) => {
+    const deck = await studyService.updateCard(
+        req.tenantScope,
+        req.params.id,
+        req.params.cardId,
+        {
+            front: req.body.front,
+            back: req.body.back,
+        }
+    );
+
+    res.json({ success: true, data: deck });
+});
+
+/**
+ * DELETE /api/study/:id/cards/:cardId
+ * Elimina una card da un mazzo
+ */
+const deleteCard = asyncHandler(async (req, res) => {
+    const deck = await studyService.deleteCard(
+        req.tenantScope,
+        req.params.id,
+        req.params.cardId
+    );
+
+    res.json({ success: true, data: deck });
 });
 
 // =========================================
@@ -80,6 +131,23 @@ const getDashboard = asyncHandler(async (req, res) => {
 // =========================================
 
 /**
+ * POST /api/study/:id/session-complete
+ * Salva le statistiche di fine sessione e assegna XP
+ */
+const completeSession = asyncHandler(async (req, res) => {
+    const result = await studyService.completeSession(
+        req.tenantScope,
+        req.params.id,
+        {
+            mode: req.body.mode,
+            stats: req.body.stats,
+        }
+    );
+
+    res.json({ success: true, data: result });
+});
+
+/**
  * POST /api/study/:id/review
  * Processa una review SM-2
  */
@@ -88,7 +156,23 @@ const submitReview = asyncHandler(async (req, res) => {
         req.tenantScope,
         req.params.id,
         req.body.cardId,
-        req.body.rating
+        req.body.rating,
+        req.body.sessionMeta || req.body.sessionSummary || null
+    );
+
+    res.json({ success: true, data: result });
+});
+
+/**
+ * POST /api/study/:id/verify-answer
+ * Verifica una risposta per Typing Mode
+ */
+const verifyAnswer = asyncHandler(async (req, res) => {
+    const result = await studyService.verifyAnswer(
+        req.tenantScope,
+        req.params.id,
+        req.body.cardId,
+        req.body.userAnswer
     );
 
     res.json({ success: true, data: result });
@@ -137,7 +221,7 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
     const result = await studyService.generateCardsFromPDF(
         req.tenantScope,
         req.params.id,
-        req.file.buffer
+        req.file.path
     );
 
     res.json({
@@ -147,12 +231,33 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * POST /api/study/:id/chat
+ * Chat contestuale con AI Tutor (RAG Lite sul testo estratto dal PDF).
+ */
+const chatWithTutor = asyncHandler(async (req, res) => {
+    const result = await studyService.askTutor(
+        req.tenantScope,
+        req.params.id,
+        req.body?.message,
+        req.body?.history
+    );
+
+    res.json({ success: true, data: result });
+});
+
 module.exports = {
     createDeck,
     deleteDeck,
     getDeckById,
+    getSession,
     addCard,
+    updateCard,
+    deleteCard,
     getDashboard,
+    completeSession,
     submitReview,
+    verifyAnswer,
     uploadAndGenerate,
+    chatWithTutor,
 };

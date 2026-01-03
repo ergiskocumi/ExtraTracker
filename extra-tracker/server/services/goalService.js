@@ -12,6 +12,9 @@ const BaseService = require('./BaseService');
 const Goal = require('../models/Goal');
 const CheckIn = require('../models/CheckIn');
 const AppError = require('../utils/AppError');
+const activityService = require('./activityService');
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 class GoalService extends BaseService {
     constructor() {
@@ -168,6 +171,47 @@ class GoalService extends BaseService {
             deletedGoals: goalResult.deletedCount || 0,
             deletedCheckIns: checkInResult.deletedCount || 0,
         };
+    }
+
+    /**
+     * Override create per registrare GOAL_CREATED.
+     */
+    async create(tenantScope, data) {
+        const created = await super.create(tenantScope, data);
+
+        const userId = this._getUserId(tenantScope);
+        try {
+            const metadata = {
+                entityId: created._id,
+                deadline: created.deadline,
+                category: created.category,
+            };
+            if (created.priority != null) {
+                metadata.priority = created.priority;
+            }
+
+            await activityService.recordActivity(userId, 'GOAL_CREATED', {
+                entityId: created._id,
+                category: created.category,
+                metadata,
+            });
+        } catch (err) {
+            console.error('❌ Activity log error (GOAL_CREATED):', err.message);
+        }
+
+        return created;
+    }
+
+    /**
+     * Override update per registrare eventi di completion/archiviazione.
+     */
+    async update(tenantScope, id, data, options = {}) {
+        const previous = await this.findById(tenantScope, id, { throwIfNotFound: true });
+        const updated = await super.update(tenantScope, id, data, options);
+
+        await this._recordGoalUpdateActivity(tenantScope, previous, updated);
+
+        return updated;
     }
 
     // =========================================
@@ -405,6 +449,57 @@ class GoalService extends BaseService {
         }
 
         return updatedGoal;
+    }
+
+    _calculateDaysDiff(startDate, endDate) {
+        if (!startDate || !endDate) return null;
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        return Math.max(0, Math.ceil((end - start) / MS_PER_DAY));
+    }
+
+    async _recordGoalUpdateActivity(tenantScope, previous, updated) {
+        if (!previous || !updated) return;
+        if (previous.status === updated.status) return;
+
+        const status = updated.status;
+        const activityType = status === 'completed'
+            ? 'GOAL_COMPLETED'
+            : status === 'abandoned'
+                ? 'GOAL_ARCHIVED'
+                : null;
+
+        if (!activityType) return;
+
+        const userId = this._getUserId(tenantScope);
+        const now = new Date();
+        const daysToComplete = this._calculateDaysDiff(updated.createdAt, now);
+        const deadline = updated.deadline ? new Date(updated.deadline) : null;
+        const isOverdue = !!deadline && now > deadline;
+        const daysOverdue = isOverdue ? this._calculateDaysDiff(deadline, now) : 0;
+
+        const metadata = {
+            entityId: updated._id,
+            deadline: updated.deadline,
+            category: updated.category,
+            daysToComplete,
+            isOverdue,
+            daysOverdue,
+        };
+
+        if (updated.priority != null) {
+            metadata.priority = updated.priority;
+        }
+
+        try {
+            await activityService.recordActivity(userId, activityType, {
+                entityId: updated._id,
+                category: updated.category,
+                metadata,
+            });
+        } catch (err) {
+            console.error(`❌ Activity log error (${activityType}):`, err.message);
+        }
     }
 }
 

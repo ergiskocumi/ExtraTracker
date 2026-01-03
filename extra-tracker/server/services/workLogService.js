@@ -15,6 +15,7 @@ const BaseService = require('./BaseService');
 const WorkLog = require('../models/WorkLog');
 const Project = require('../models/Project');
 const AppError = require('../utils/AppError');
+const activityService = require('./activityService');
 
 class WorkLogService extends BaseService {
     constructor() {
@@ -137,6 +138,40 @@ class WorkLogService extends BaseService {
     }
 
     /**
+     * Override create per registrare WORK_SESSION_LOGGED.
+     */
+    async create(tenantScope, data) {
+        const created = await super.create(tenantScope, data);
+        const userId = this._getUserId(tenantScope);
+        const durationMinutes = Number.isFinite(created.durationMinutes)
+            ? created.durationMinutes
+            : null;
+        const tags = Array.isArray(data?.tags) ? data.tags : [];
+        const timeOfDay = this._getTimeOfDayLabel(new Date());
+
+        try {
+            await activityService.recordActivity(userId, 'WORK_SESSION_LOGGED', {
+                entityId: created._id,
+                category: 'work',
+                metadata: {
+                    entityId: created._id,
+                    projectId: created.projectId,
+                    durationMinutes,
+                    tags,
+                    timeOfDay,
+                    date: created.date,
+                    startTime: created.startTime,
+                    endTime: created.endTime,
+                },
+            });
+        } catch (err) {
+            console.error('❌ Activity log error (WORK_SESSION_LOGGED):', err.message);
+        }
+
+        return created;
+    }
+
+    /**
      * Validazione pre-update:
      * - Se si cambia progetto, verifica ownership
      */
@@ -207,6 +242,15 @@ class WorkLogService extends BaseService {
         if (startMinutes === endMinutes) {
             throw AppError.validation('L\'ora di fine deve essere diversa dall\'ora di inizio');
         }
+    }
+
+    _getTimeOfDayLabel(date) {
+        const hour = date.getHours();
+
+        if (hour >= 5 && hour < 12) return 'morning';
+        if (hour >= 12 && hour < 17) return 'afternoon';
+        if (hour >= 17 && hour < 21) return 'evening';
+        return 'night';
     }
 }
 

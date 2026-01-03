@@ -16,6 +16,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const hpp = require('hpp');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 // Config e Middleware
@@ -29,6 +31,8 @@ const goalsRoutes = require('./routes/goals');
 const studyRoutes = require('./routes/study');
 const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
+const analyticsRoutes = require('./routes/analytics');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -73,6 +77,12 @@ app.use('/api', generalLimiter);
 // 5. ROUTES
 // ==========================================
 
+// Static uploads (PDF, ecc.)
+const uploadsDir = path.join(__dirname, 'uploads');
+const pdfUploadsDir = path.join(uploadsDir, 'pdfs');
+fs.mkdirSync(pdfUploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
+
 // Health check
 app.get('/health', (req, res) => {
     res.status(200).json({ 
@@ -84,6 +94,8 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api', apiRoutes);
 app.use('/api', goalsRoutes);
 app.use('/api/study', studyRoutes);
