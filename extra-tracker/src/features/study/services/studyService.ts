@@ -7,6 +7,7 @@ import { apiClient, type ApiResponse } from '../../../shared/services/apiClient'
 export type ReviewRating = 1 | 3 | 5;
 export type CardStatus = 'new' | 'learning' | 'review' | 'mastered';
 export type StudyMode = 'flashcard' | 'quiz' | 'typing';
+export type ChatRole = 'user' | 'assistant';
 
 export interface Card {
     id: string;
@@ -32,6 +33,11 @@ export interface Deck {
     dueCount: number;
     createdAt?: string;
     updatedAt?: string;
+}
+
+export interface ChatMessage {
+    role: ChatRole;
+    content: string;
 }
 
 export interface StudySession {
@@ -102,6 +108,10 @@ export interface AddCardPayload {
 export interface StudyDashboardResponse {
     decks: Deck[];
     dueCardCount: number;
+}
+
+export interface TutorReply {
+    reply: string;
 }
 
 // ============================================
@@ -361,6 +371,25 @@ class StudyService {
             generatedCount: result.data?.generatedCount || 0,
             deck: normalizeDeck(result.data?.deck || {}),
         };
+    }
+
+    /**
+     * 🤖 AI Tutor - Chat con PDF (RAG lite)
+     */
+    async askTutor(deckId: string, message: string, history: ChatMessage[] = []): Promise<string> {
+        const response = await apiClient.post<TutorReply>(`${this.baseUrl}/${deckId}/chat`, {
+            message,
+            history,
+        });
+
+        const raw = unwrap(response, 'Errore nella chat AI');
+        const reply = typeof raw?.reply === 'string' ? raw.reply : '';
+
+        if (!reply.trim()) {
+            throw new Error('Risposta AI vuota');
+        }
+
+        return reply;
     }
 }
 

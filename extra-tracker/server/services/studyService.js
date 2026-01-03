@@ -22,6 +22,11 @@ const path = require('path');
 const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
 const MAX_PDF_TEXT_LENGTH = 15000; // Limite caratteri per evitare costi eccessivi
+const MAX_EXTRACTED_TEXT_STORE_LENGTH = 200000; // Limite DB: evita documenti enormi
+const MAX_TUTOR_CONTEXT_LENGTH = 12000; // Contesto massimo inviato al modello (RAG-lite)
+const MAX_TUTOR_MESSAGE_LENGTH = 2000;
+const MAX_TUTOR_HISTORY_MESSAGES = 12;
+const MAX_TUTOR_HISTORY_MESSAGE_LENGTH = 1000;
 const SESSION_BASE_XP = 10;
 const QUIZ_FALLBACK_OPTIONS = [
     'Nessuna delle precedenti',
@@ -595,10 +600,18 @@ class StudyService extends BaseService {
             throw AppError.validation('Il PDF non contiene abbastanza testo da elaborare.');
         }
 
+        const normalizedExtracted = this._normalizeExtractedText(pdfText);
+        deck.extractedText = this._truncateText(
+            normalizedExtracted,
+            MAX_EXTRACTED_TEXT_STORE_LENGTH,
+            '\n\n[...testo troncato per limiti di storage...]'
+        );
+        await deck.save({ validateModifiedOnly: true });
+
         // 3. Taglia il testo se troppo lungo
-        const truncatedText = pdfText.length > MAX_PDF_TEXT_LENGTH 
-            ? pdfText.slice(0, MAX_PDF_TEXT_LENGTH) + '\n\n[...testo troncato per limiti di elaborazione...]'
-            : pdfText;
+        const truncatedText = normalizedExtracted.length > MAX_PDF_TEXT_LENGTH 
+            ? normalizedExtracted.slice(0, MAX_PDF_TEXT_LENGTH) + '\n\n[...testo troncato per limiti di elaborazione...]'
+            : normalizedExtracted;
 
         // 4. Chiama OpenAI per generare le flashcards
         const systemPrompt = `Sei un esperto insegnante universitario che si chiama Silvija. Il tuo compito è analizzare il testo fornito e creare flashcard di alta qualità per uno studente che deve preparare un esame.
@@ -682,6 +695,133 @@ class StudyService extends BaseService {
     }
 
     /**
+     * 🤖 AI TUTOR - Chat contestuale con PDF (RAG Lite)
+     *
+     * @param {Object} tenantScope
+     * @param {string} deckId
+     * @param {string} message
+     * @param {Array<{role: 'user'|'assistant', content: string}>} history
+     * @returns {Promise<{reply: string}>}
+     */
+    async askTutor(tenantScope, deckId, message, history = []) {
+        const userId = this._getUserId(tenantScope);
+
+        if (!message || typeof message !== 'string') {
+            throw AppError.validation('Il messaggio e\' obbligatorio');
+        }
+
+        const cleanMessage = message.trim();
+        if (!cleanMessage) {
+            throw AppError.validation('Il messaggio non puo\' essere vuoto');
+        }
+        if (cleanMessage.length > MAX_TUTOR_MESSAGE_LENGTH) {
+            throw AppError.validation(`Messaggio troppo lungo (max ${MAX_TUTOR_MESSAGE_LENGTH} caratteri)`);
+        }
+
+        const deck = await Deck.findOne({ _id: deckId, user: userId })
+            .select('title pdfUrl +extractedText');
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        let extractedText = typeof deck.extractedText === 'string' ? deck.extractedText : '';
+
+        // Fallback: vecchi deck potrebbero non avere extractedText salvato
+        if (!extractedText || extractedText.trim().length < 50) {
+            if (!deck.pdfUrl || typeof deck.pdfUrl !== 'string') {
+                throw AppError.validation('Nessun PDF collegato a questo mazzo');
+            }
+
+            const pdfFileName = path.basename(deck.pdfUrl);
+            const pdfFilePath = path.join(__dirname, '..', 'uploads', 'pdfs', pdfFileName);
+
+            let pdfBuffer;
+            try {
+                pdfBuffer = await fs.readFile(pdfFilePath);
+            } catch (err) {
+                console.error('❌ PDF Read Error (Tutor):', err.message);
+                throw AppError.validation('PDF non trovato sul server. Ricaricalo e riprova.');
+            }
+
+            let pdfText;
+            let parser;
+            try {
+                parser = new PDFParse({ data: pdfBuffer });
+                const pdfData = await parser.getText();
+                pdfText = pdfData.text;
+            } catch (err) {
+                console.error('❌ PDF Parse Error (Tutor):', err.message);
+                throw AppError.validation('Impossibile leggere il PDF per la chat. Riprova con un PDF valido.');
+            } finally {
+                if (parser?.destroy) {
+                    await parser.destroy();
+                }
+            }
+
+            const normalizedExtracted = this._normalizeExtractedText(pdfText);
+            if (!normalizedExtracted || normalizedExtracted.length < 50) {
+                throw AppError.validation('Il PDF non contiene abbastanza testo da elaborare.');
+            }
+            deck.extractedText = this._truncateText(
+                normalizedExtracted,
+                MAX_EXTRACTED_TEXT_STORE_LENGTH,
+                '\n\n[...testo troncato per limiti di storage...]'
+            );
+            await deck.save({ validateModifiedOnly: true });
+            extractedText = deck.extractedText;
+        }
+
+        const context = this._buildTutorContext(extractedText, cleanMessage);
+        if (!context || context.trim().length < 20) {
+            throw AppError.validation('Contesto PDF non disponibile per la chat. Riprova dopo aver generato le carte dal PDF.');
+        }
+
+        const systemPrompt =
+            'Sei un tutor utile. Rispondi alla domanda dell\'utente basandoti ESCLUSIVAMENTE sul seguente contesto estratto dal PDF. ' +
+            'Se la risposta non è nel testo, dillo chiaramente.\n\n' +
+            'CONTESTO (estratto dal PDF):\n' +
+            '"""\n' +
+            `${context}\n` +
+            '"""\n\n' +
+            'Regole:\n' +
+            '- Rispondi in italiano.\n' +
+            '- Non inventare informazioni non presenti nel contesto.\n' +
+            '- Se utile, cita brevi frasi dal contesto tra virgolette.';
+
+        const safeHistory = this._sanitizeTutorHistory(history);
+
+        let aiResponse;
+        try {
+            const completion = await openai.chat.completions.create({
+                model: process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    ...safeHistory,
+                    { role: 'user', content: cleanMessage },
+                ],
+                temperature: 0.2,
+                max_completion_tokens: 600,
+            });
+
+            aiResponse = completion.choices[0]?.message?.content;
+        } catch (err) {
+            console.error('❌ OpenAI Tutor Error:', err.message);
+            if (err.code === 'insufficient_quota') {
+                throw AppError.internal('Quota OpenAI esaurita. Contatta l\'amministratore.');
+            }
+            throw AppError.internal('Errore nella risposta AI. Riprova più tardi.');
+        }
+
+        const reply = typeof aiResponse === 'string' ? aiResponse.trim() : '';
+        if (!reply) {
+            throw AppError.internal('Risposta AI vuota. Riprova.');
+        }
+
+        return { reply };
+    }
+
+    /**
      * Placeholder per future integrazioni AI (generation).
      * @param {Object} _tenantScope
      * @param {Object} _payload
@@ -741,6 +881,136 @@ class StudyService extends BaseService {
             front: card.front ?? card.question ?? card.q,
             back: card.back ?? card.answer ?? card.a,
         };
+    }
+
+    _sanitizeTutorHistory(history) {
+        if (!Array.isArray(history)) return [];
+
+        return history
+            .filter((item) => item && typeof item === 'object')
+            .map((item) => {
+                const role = item.role === 'assistant' ? 'assistant' : item.role === 'user' ? 'user' : null;
+                const content = typeof item.content === 'string' ? item.content.trim() : '';
+                if (!role || !content) return null;
+                return {
+                    role,
+                    content: this._truncateText(content, MAX_TUTOR_HISTORY_MESSAGE_LENGTH),
+                };
+            })
+            .filter(Boolean)
+            .slice(-MAX_TUTOR_HISTORY_MESSAGES);
+    }
+
+    _buildTutorContext(extractedText, question) {
+        const normalizedText = this._normalizeExtractedText(extractedText);
+        if (!normalizedText) return '';
+        if (normalizedText.length <= MAX_TUTOR_CONTEXT_LENGTH) return normalizedText;
+
+        const tokens = this._extractQueryTokens(question);
+        if (tokens.length === 0) {
+            return this._truncateText(normalizedText, MAX_TUTOR_CONTEXT_LENGTH, '\n\n[...contesto parziale...]');
+        }
+
+        const chunkSize = 1400;
+        const step = 1000;
+        const chunks = [];
+
+        for (let start = 0; start < normalizedText.length; start += step) {
+            const text = normalizedText.slice(start, start + chunkSize);
+            const haystack = text.toLowerCase();
+            const score = tokens.reduce((acc, token) => (haystack.includes(token) ? acc + 1 : acc), 0);
+            chunks.push({ start, score, text });
+        }
+
+        const best = chunks
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 5)
+            .filter((chunk) => chunk.score > 0)
+            .sort((a, b) => a.start - b.start);
+
+        if (best.length === 0) {
+            return this._truncateText(normalizedText, MAX_TUTOR_CONTEXT_LENGTH, '\n\n[...contesto parziale...]');
+        }
+
+        const stitched = best.map((chunk) => chunk.text.trim()).join('\n\n---\n\n');
+        return this._truncateText(stitched, MAX_TUTOR_CONTEXT_LENGTH, '\n\n[...contesto parziale...]');
+    }
+
+    _extractQueryTokens(question) {
+        if (!question || typeof question !== 'string') return [];
+
+        const stopwords = new Set([
+            'come',
+            'cosa',
+            'cos',
+            'che',
+            'per',
+            'una',
+            'uno',
+            'dei',
+            'del',
+            'della',
+            'delle',
+            'degli',
+            'gli',
+            'alla',
+            'alle',
+            'allo',
+            'sul',
+            'sulla',
+            'sulle',
+            'nel',
+            'nella',
+            'nelle',
+            'dai',
+            'dal',
+            'dallo',
+            'ai',
+            'al',
+            'allo',
+            'il',
+            'lo',
+            'la',
+            'le',
+            'i',
+            'e',
+            'o',
+            'di',
+            'da',
+            'in',
+            'su',
+            'con',
+            'spiega',
+            'spiegami',
+            'spiegare',
+            'pagina',
+            'pagine',
+        ]);
+
+        const tokens = question
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .split(/\s+/)
+            .map((t) => t.trim())
+            .filter((t) => t.length >= 4 && !stopwords.has(t));
+
+        return [...new Set(tokens)].slice(0, 20);
+    }
+
+    _normalizeExtractedText(text) {
+        if (!text || typeof text !== 'string') return '';
+        return text
+            .replace(/\r\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    _truncateText(text, maxLength, suffix = '') {
+        if (!text || typeof text !== 'string') return '';
+        if (!Number.isFinite(maxLength) || maxLength <= 0) return '';
+        if (text.length <= maxLength) return text;
+        const safeSuffix = typeof suffix === 'string' ? suffix : '';
+        return text.slice(0, maxLength) + safeSuffix;
     }
 
     _buildQuizOptions(correctAnswer, allAnswers = []) {

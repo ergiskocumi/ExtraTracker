@@ -76,6 +76,7 @@ router.delete('/:id/cards/:cardId', studyController.deleteCard);
 router.post('/:id/session-complete', studyController.completeSession);
 router.post('/:id/review', studyController.submitReview);
 router.post('/:id/verify-answer', studyController.verifyAnswer);
+router.post('/:id/chat', studyController.chatWithTutor);
 router.delete('/:id', studyController.deleteDeck);
 
 // 🪄 Magic Generate from PDF (con multer middleware)

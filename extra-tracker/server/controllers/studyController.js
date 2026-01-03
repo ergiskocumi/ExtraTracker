@@ -231,6 +231,21 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * POST /api/study/:id/chat
+ * Chat contestuale con AI Tutor (RAG Lite sul testo estratto dal PDF).
+ */
+const chatWithTutor = asyncHandler(async (req, res) => {
+    const result = await studyService.askTutor(
+        req.tenantScope,
+        req.params.id,
+        req.body?.message,
+        req.body?.history
+    );
+
+    res.json({ success: true, data: result });
+});
+
 module.exports = {
     createDeck,
     deleteDeck,
@@ -244,4 +259,5 @@ module.exports = {
     submitReview,
     verifyAnswer,
     uploadAndGenerate,
+    chatWithTutor,
 };
