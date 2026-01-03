@@ -21,6 +21,11 @@ export default defineConfig({
         changeOrigin: true,
         xfwd: true,
       },
+      '/uploads': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        xfwd: true,
+      },
     },
   }
 })

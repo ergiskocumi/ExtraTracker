@@ -33,6 +33,7 @@ import {
 import { dashboardService, type DashboardSummary, type RecentItem } from '../services/dashboardService';
 import { ProductivityChart } from '../../analytics/components/ProductivityChart';
 import { analyticsService, type WeeklyAnalyticsResponse } from '../../analytics/services/analyticsService';
+import { AIInsightsWidget } from '../AIInsightsWidget';
 
 // =========================================
 // SKELETON LOADERS
@@ -633,6 +634,8 @@ export const DashboardPage = () => {
                             </div>
                         </motion.div>
                     )}
+
+                    <AIInsightsWidget />
                 </>
             )}
         </div>

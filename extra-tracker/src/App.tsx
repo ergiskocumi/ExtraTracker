@@ -29,7 +29,7 @@ import { ResetPasswordPage } from './features/auth/pages/ResetPasswordPage';
 import { VerifyEmailPage } from './features/auth/pages/VerifyEmailPage';
 
 // Study / Flashcards Pages
-import { DecksDashboardPage, StudySessionPage, DeckDetailPage } from './features/study/pages';
+import { DecksDashboardPage, StudySessionPage, DeckDetailPage, SplitStudyPage } from './features/study/pages';
 
 const HomeRedirect = () => {
     const { preferences, hasLoaded } = useSettings();
@@ -85,6 +85,7 @@ function App() {
                 {/* Study / Flashcards */}
                 <Route path="/study" element={<DecksDashboardPage />} />
                 <Route path="/study/deck/:id" element={<DeckDetailPage />} />
+                <Route path="/study/:deckId/split" element={<SplitStudyPage />} />
                 <Route path="/study/:deckId" element={<StudySessionPage />} />
                 <Route path="/study/:deckId/session" element={<StudySessionPage />} />
             </Route>

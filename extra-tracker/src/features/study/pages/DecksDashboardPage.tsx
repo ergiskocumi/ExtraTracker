@@ -110,14 +110,16 @@ interface DeckCardProps {
     onAddCard: (deckId: string) => void;
     onMagicGenerate: (deck: Deck) => void;
     onViewDetail: (deckId: string) => void;
+    onSplitStudy: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
 }
 
-const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onMagicGenerate, onViewDetail, onDelete }) => {
+const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onMagicGenerate, onViewDetail, onSplitStudy, onDelete }) => {
     const [isHovered, setIsHovered] = useState(false);
     const hasDueCards = (deck.dueCount ?? 0) > 0;
     const totalCards = deck.totalCards ?? deck.cards?.length ?? 0;
     const masteryPercent = totalCards > 0 ? Math.round(((totalCards - (deck.dueCount ?? 0)) / totalCards) * 100) : 0;
+    const hasPdf = !!deck.pdfUrl;
 
     return (
         <motion.div
@@ -253,27 +255,44 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onMagicGenerate, onV
 
                 {/* Quick Action - Study Button */}
                 <div className="mt-6 pt-5 border-t border-white/[0.06]">
-                    <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onStudy(deck.id);
-                        }}
-                        disabled={totalCards === 0}
-                        className={`
-                            w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-xl font-medium transition-all text-sm
-                            ${hasDueCards
-                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md shadow-orange-500/20'
-                                : totalCards > 0
-                                    ? 'bg-white/[0.08] text-white/80 hover:bg-white/[0.12]'
-                                    : 'bg-white/[0.03] text-white/30 cursor-not-allowed'
-                            }
-                        `}
-                    >
-                        <FiPlay className="w-4 h-4" />
-                        {hasDueCards ? 'Ripassa' : totalCards > 0 ? 'Studia' : 'Nessuna carta'}
-                    </motion.button>
+                    <div className={hasPdf ? 'grid grid-cols-1 sm:grid-cols-2 gap-2' : ''}>
+                        <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onStudy(deck.id);
+                            }}
+                            disabled={totalCards === 0}
+                            className={`
+                                w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-xl font-medium transition-all text-sm
+                                ${hasDueCards
+                                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md shadow-orange-500/20'
+                                    : totalCards > 0
+                                        ? 'bg-white/[0.08] text-white/80 hover:bg-white/[0.12]'
+                                        : 'bg-white/[0.03] text-white/30 cursor-not-allowed'
+                                }
+                            `}
+                        >
+                            <FiPlay className="w-4 h-4" />
+                            {hasDueCards ? 'Ripassa' : totalCards > 0 ? 'Studia' : 'Nessuna carta'}
+                        </motion.button>
+
+                        {hasPdf && (
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSplitStudy(deck.id);
+                                }}
+                                className="w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-xl font-medium transition-all text-sm bg-gradient-to-r from-blue-500/80 to-violet-500/80 text-white hover:from-blue-500 hover:to-violet-500 shadow-md shadow-blue-500/15"
+                            >
+                                <FiBookOpen className="w-4 h-4" />
+                                📖 Leggi & Studia
+                            </motion.button>
+                        )}
+                    </div>
                 </div>
             </div>
         </motion.div>
@@ -524,6 +543,10 @@ export const DecksDashboardPage: React.FC = () => {
         navigate(`/study/deck/${deckId}`);
     };
 
+    const handleSplitStudy = (deckId: string) => {
+        navigate(`/study/${deckId}/split`);
+    };
+
     const handleAddCard = (deckId: string) => {
         const deck = decks.find(d => d.id === deckId);
         if (deck) {
@@ -660,6 +683,7 @@ export const DecksDashboardPage: React.FC = () => {
                                     onAddCard={handleAddCard}
                                     onMagicGenerate={handleMagicGenerate}
                                     onViewDetail={handleViewDetail}
+                                    onSplitStudy={handleSplitStudy}
                                     onDelete={setDeletingDeck}
                                 />
                             </motion.div>

@@ -83,6 +83,11 @@ const deckSchema = new mongoose.Schema({
         trim: true,
         maxlength: [500, 'La descrizione non puo\' superare 500 caratteri'],
     },
+    pdfUrl: {
+        type: String,
+        default: '',
+        trim: true,
+    },
     tags: {
         type: [String],
         default: [],

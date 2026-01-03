@@ -16,5 +16,6 @@ router.use(requireAuth);
 router.use(tenantContext({ required: true }));
 
 router.get('/weekly', analyticsController.getWeekly);
+router.get('/insights', analyticsController.getInsights);
 
 module.exports = router;

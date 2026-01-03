@@ -8,6 +8,8 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 
 // Middleware
 const { requireAuth } = require('../middleware/auth');
@@ -17,11 +19,30 @@ const { tenantContext } = require('../middleware/tenantContext');
 const studyController = require('../controllers/studyController');
 
 // =========================================
-// MULTER CONFIG - Memory Storage per PDF
+// MULTER CONFIG - Disk Storage per PDF (persistente)
 // =========================================
 
+const PDF_UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'pdfs');
+fs.mkdirSync(PDF_UPLOAD_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+    destination: (req, _file, cb) => {
+        try {
+            fs.mkdirSync(PDF_UPLOAD_DIR, { recursive: true });
+            cb(null, PDF_UPLOAD_DIR);
+        } catch (err) {
+            cb(err);
+        }
+    },
+    filename: (req, _file, cb) => {
+        const deckId = req.params?.id || 'deck';
+        const timestamp = Date.now();
+        cb(null, `${deckId}-${timestamp}.pdf`);
+    },
+});
+
 const upload = multer({
-    storage: multer.memoryStorage(),
+    storage,
     limits: {
         fileSize: 10 * 1024 * 1024, //! 10MB max
     },

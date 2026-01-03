@@ -7,6 +7,7 @@
 
 const User = require('../models/User');
 const UserActivity = require('../models/UserActivity');
+const insightService = require('../services/insightService');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -151,6 +152,21 @@ const getWeekly = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * GET /api/analytics/insights
+ * Genera consigli intelligenti ("AI Coach") dagli ultimi 30 giorni.
+ */
+const getInsights = asyncHandler(async (req, res) => {
+    const userId = req.tenantScope?.tenantId;
+    const insights = await insightService.generateInsights(userId);
+
+    res.json({
+        success: true,
+        data: insights,
+    });
+});
+
 module.exports = {
     getWeekly,
+    getInsights,
 };

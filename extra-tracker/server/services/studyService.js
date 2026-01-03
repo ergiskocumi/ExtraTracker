@@ -16,6 +16,8 @@ const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
 const activityService = require('./activityService');
 const OpenAI = require('openai');
 const { PDFParse } = require('pdf-parse');
+const fs = require('fs/promises');
+const path = require('path');
 
 const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
@@ -542,16 +544,35 @@ class StudyService extends BaseService {
      * 
      * @param {Object} tenantScope
      * @param {string} deckId - ID del mazzo dove aggiungere le carte
-     * @param {Buffer} pdfBuffer - Buffer del file PDF
+     * @param {string} pdfFilePath - Path del file PDF salvato su disco
      * @returns {Promise<{deck: Object, generatedCount: number}>}
      */
-    async generateCardsFromPDF(tenantScope, deckId, pdfBuffer) {
+    async generateCardsFromPDF(tenantScope, deckId, pdfFilePath) {
         const userId = this._getUserId(tenantScope);
 
         // 1. Verifica che il mazzo esista e appartenga all'utente
         const deck = await Deck.findOne({ _id: deckId, user: userId });
         if (!deck) {
             throw AppError.notFound('Mazzo');
+        }
+
+        if (!pdfFilePath || typeof pdfFilePath !== 'string') {
+            throw AppError.validation('Path PDF non valido');
+        }
+
+        const pdfFileName = path.basename(pdfFilePath);
+        const pdfUrl = `/uploads/pdfs/${pdfFileName}`;
+
+        // Collega subito il PDF al deck (anche se la generazione fallisce, il file resta accessibile).
+        deck.pdfUrl = pdfUrl;
+        await deck.save({ validateModifiedOnly: true });
+
+        let pdfBuffer;
+        try {
+            pdfBuffer = await fs.readFile(pdfFilePath);
+        } catch (err) {
+            console.error('❌ PDF Read Error:', err.message);
+            throw AppError.validation('Impossibile leggere il PDF caricato. Riprova.');
         }
 
         // 2. Estrai testo dal PDF

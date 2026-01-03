@@ -16,6 +16,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const hpp = require('hpp');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 // Config e Middleware
@@ -74,6 +76,12 @@ app.use('/api', generalLimiter);
 // ==========================================
 // 5. ROUTES
 // ==========================================
+
+// Static uploads (PDF, ecc.)
+const uploadsDir = path.join(__dirname, 'uploads');
+const pdfUploadsDir = path.join(uploadsDir, 'pdfs');
+fs.mkdirSync(pdfUploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
 
 // Health check
 app.get('/health', (req, res) => {

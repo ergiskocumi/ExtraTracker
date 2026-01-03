@@ -221,7 +221,7 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
     const result = await studyService.generateCardsFromPDF(
         req.tenantScope,
         req.params.id,
-        req.file.buffer
+        req.file.path
     );
 
     res.json({

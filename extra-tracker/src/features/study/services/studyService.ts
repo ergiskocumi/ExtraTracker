@@ -25,6 +25,7 @@ export interface Deck {
     goalId?: string;
     title: string;
     description?: string;
+    pdfUrl?: string | null;
     tags: string[];
     cards: Card[];
     totalCards: number;
@@ -137,6 +138,7 @@ const normalizeDeck = (raw: any): Deck => {
         goalId: raw.goalId,
         title: raw.title || 'Senza titolo',
         description: raw.description,
+        pdfUrl: typeof raw.pdfUrl === 'string' && raw.pdfUrl.length > 0 ? raw.pdfUrl : null,
         tags: Array.isArray(raw.tags) ? raw.tags : [],
         cards,
         totalCards: safeNumber(raw.totalCards, cards.length),
