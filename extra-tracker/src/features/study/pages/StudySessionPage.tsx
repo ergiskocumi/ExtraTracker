@@ -455,7 +455,7 @@ export const StudySessionPage: React.FC = () => {
         center: {
             x: 0,
             opacity: 1,
-            transition: { type: 'spring', stiffness: 220, damping: 24 },
+            transition: { type: 'spring' as const, stiffness: 220, damping: 24 },
         },
         exit: { x: -40, opacity: 0, transition: { duration: 0.2 } },
     };
