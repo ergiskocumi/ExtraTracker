@@ -25,6 +25,11 @@ interface StudySidebarProps {
     compactMode?: boolean;
     /** When in compact mode, which tab to show */
     activeTabOverride?: 'flashcards' | 'chat';
+    /** Programmatic tab switch (id must change to trigger) */
+    tabRequest?: { id: string; tab: 'flashcards' | 'chat' } | null;
+    /** Programmatic message send in AI Tutor */
+    pendingChatMessage?: { id: string; content: string } | null;
+    onConsumePendingChatMessage?: (id: string) => void;
 }
 
 export const StudySidebar: React.FC<StudySidebarProps> = ({
@@ -37,9 +42,20 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
     className = '',
     compactMode = false,
     activeTabOverride,
+    tabRequest,
+    pendingChatMessage,
+    onConsumePendingChatMessage,
 }) => {
     const [activeTab, setActiveTab] = useState<'flashcards' | 'chat'>('flashcards');
     const currentTab = activeTabOverride ?? activeTab;
+    const lastTabRequestIdRef = React.useRef<string | null>(null);
+
+    React.useEffect(() => {
+        if (!tabRequest?.id) return;
+        if (lastTabRequestIdRef.current === tabRequest.id) return;
+        lastTabRequestIdRef.current = tabRequest.id;
+        setActiveTab(tabRequest.tab);
+    }, [tabRequest?.id, tabRequest?.tab]);
 
     // Compact mode: just render the content
     if (compactMode) {
@@ -55,7 +71,12 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         showHeader
                     />
                 ) : (
-                    <PDFChat deckId={deck.id} disabled={!pdfSrc} />
+                    <PDFChat
+                        deckId={deck.id}
+                        disabled={!pdfSrc}
+                        pendingMessage={pendingChatMessage}
+                        onConsumePendingMessage={onConsumePendingChatMessage}
+                    />
                 )}
             </div>
         );
@@ -140,7 +161,12 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         onEditCard={onEditCard}
                     />
                 ) : (
-                    <PDFChat deckId={deck.id} disabled={!pdfSrc} />
+                    <PDFChat
+                        deckId={deck.id}
+                        disabled={!pdfSrc}
+                        pendingMessage={pendingChatMessage}
+                        onConsumePendingMessage={onConsumePendingChatMessage}
+                    />
                 )}
             </div>
         </div>

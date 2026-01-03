@@ -6,7 +6,7 @@
  * L'AI risponde basandosi sul testo estratto dal PDF (RAG-lite).
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiSend, FiCpu, FiAlertCircle } from 'react-icons/fi';
 import { emitToast } from '../../../shared/components/toast';
@@ -15,6 +15,8 @@ import { studyService, type ChatMessage } from '../services/studyService';
 interface PDFChatProps {
     deckId: string;
     disabled?: boolean;
+    pendingMessage?: { id: string; content: string } | null;
+    onConsumePendingMessage?: (id: string) => void;
 }
 
 const LoadingBubble = () => (
@@ -28,7 +30,12 @@ const LoadingBubble = () => (
     </div>
 );
 
-export const PDFChat: React.FC<PDFChatProps> = ({ deckId, disabled = false }) => {
+export const PDFChat: React.FC<PDFChatProps> = ({
+    deckId,
+    disabled = false,
+    pendingMessage = null,
+    onConsumePendingMessage,
+}) => {
     const [messages, setMessages] = useState<ChatMessage[]>([
         {
             role: 'assistant',
@@ -41,6 +48,12 @@ export const PDFChat: React.FC<PDFChatProps> = ({ deckId, disabled = false }) =>
     const [error, setError] = useState<string | null>(null);
 
     const bottomRef = useRef<HTMLDivElement | null>(null);
+    const messagesRef = useRef<ChatMessage[]>(messages);
+    const lastPendingIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -53,32 +66,53 @@ export const PDFChat: React.FC<PDFChatProps> = ({ deckId, disabled = false }) =>
         return input.trim().length > 0;
     }, [deckId, disabled, input, isSending]);
 
+    const sendMessage = useCallback(
+        async (raw: string) => {
+            if (disabled) return;
+            if (isSending) return;
+            if (!deckId) return;
+
+            const content = raw.trim();
+            if (!content) return;
+
+            setInput('');
+            setError(null);
+            setIsSending(true);
+            setMessages((prev) => [...prev, { role: 'user', content }]);
+
+            try {
+                const history = messagesRef.current
+                    .filter((m) => m.role === 'user' || m.role === 'assistant')
+                    .slice(-12);
+
+                const reply = await studyService.askTutor(deckId, content, history);
+                setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
+            } catch (err: any) {
+                const msg = err?.message || 'Errore nella chat con l’AI';
+                setError(msg);
+                emitToast.error(msg, { title: 'AI Tutor' });
+            } finally {
+                setIsSending(false);
+            }
+        },
+        [deckId, disabled, isSending]
+    );
+
     const handleSend = async () => {
         if (!canSend) return;
-
-        const content = input.trim();
-        setInput('');
-        setError(null);
-
-        const nextMessages: ChatMessage[] = [...messages, { role: 'user', content }];
-        setMessages(nextMessages);
-        setIsSending(true);
-
-        try {
-            const history = messages
-                .filter((m) => m.role === 'user' || m.role === 'assistant')
-                .slice(-12);
-
-            const reply = await studyService.askTutor(deckId, content, history);
-            setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
-        } catch (err: any) {
-            const msg = err?.message || 'Errore nella chat con l’AI';
-            setError(msg);
-            emitToast.error(msg, { title: 'AI Tutor' });
-        } finally {
-            setIsSending(false);
-        }
+        await sendMessage(input);
     };
+
+    useEffect(() => {
+        if (!pendingMessage?.id) return;
+        if (disabled) return;
+        if (isSending) return;
+        if (lastPendingIdRef.current === pendingMessage.id) return;
+
+        lastPendingIdRef.current = pendingMessage.id;
+        onConsumePendingMessage?.(pendingMessage.id);
+        void sendMessage(pendingMessage.content);
+    }, [disabled, isSending, onConsumePendingMessage, pendingMessage?.content, pendingMessage?.id, sendMessage]);
 
     return (
         <div className="h-full flex flex-col">

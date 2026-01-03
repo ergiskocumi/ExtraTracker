@@ -33,6 +33,7 @@ import { studyService, type Deck, type Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { useIsDesktop } from '../../../shared/hooks/useMediaQuery';
 import { StudySidebar, CardModal } from '../components/StudySidebar';
+import { InteractivePDFReader } from '../components/InteractivePDFReader';
 
 // ─────────────────────────────────────────────────────────────
 // Desktop Resize Handle
@@ -226,16 +227,18 @@ const MobileDock: React.FC<MobileDockProps> = ({
 
 interface PDFViewerProps {
     pdfSrc: string | null;
-    deckTitle: string;
     className?: string;
     fullHeight?: boolean;
+    onAskAI: (selectedText: string) => void;
+    onCreateFlashcard: (selectedText: string) => void;
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({ 
     pdfSrc, 
-    deckTitle, 
     className = '',
-    fullHeight = false 
+    fullHeight = false,
+    onAskAI,
+    onCreateFlashcard,
 }) => {
     return (
         <div className={`rounded-3xl border border-white/10 bg-white/[0.02] overflow-hidden flex flex-col ${className}`}>
@@ -253,12 +256,13 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
             </div>
 
             {/* PDF Content */}
-            <div className={`${fullHeight ? 'flex-1' : 'h-[70vh]'} bg-black/10`}>
+            <div className={`${fullHeight ? 'flex-1' : 'h-[70vh]'} bg-black/10 overflow-auto`}>
                 {pdfSrc ? (
-                    <iframe
-                        title={`PDF - ${deckTitle}`}
+                    <InteractivePDFReader
                         src={pdfSrc}
-                        className="w-full h-full"
+                        onAskAI={onAskAI}
+                        onCreateFlashcard={onCreateFlashcard}
+                        className="w-full"
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center p-8">
@@ -296,6 +300,9 @@ export const SplitStudyPage: React.FC = () => {
     const [editMode, setEditMode] = useState(false);
     const [editingCard, setEditingCard] = useState<Card | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
+    const [addPrefill, setAddPrefill] = useState<{ front: string; back: string } | null>(null);
+    const [tabRequest, setTabRequest] = useState<{ id: string; tab: 'flashcards' | 'chat' } | null>(null);
+    const [pendingChatMessage, setPendingChatMessage] = useState<{ id: string; content: string } | null>(null);
     
     // Mobile drawer state
     const [drawerMode, setDrawerMode] = useState<'flashcards' | 'chat' | null>(null);
@@ -341,6 +348,39 @@ export const SplitStudyPage: React.FC = () => {
         const updated = await studyService.updateCard(deckId, editingCard.id, { front, back });
         setDeck(updated);
         emitToast.success('Carta aggiornata', { title: 'Ok' });
+    };
+
+    const makeRequestId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const handleAskAIFromSelection = (selectedText: string) => {
+        const clean = selectedText.trim();
+        if (!clean) return;
+
+        const id = makeRequestId();
+        setTabRequest({ id, tab: 'chat' });
+        setPendingChatMessage({ id, content: `Spiegami questo:\n\n${clean}` });
+
+        if (!isDesktop) {
+            setDrawerMode('chat');
+        }
+    };
+
+    const handleCreateFlashcardFromSelection = (selectedText: string) => {
+        const clean = selectedText.trim();
+        if (!clean) return;
+
+        const oneLine = clean.replace(/\s+/g, ' ');
+        const preview = oneLine.length > 120 ? `${oneLine.slice(0, 117)}...` : oneLine;
+
+        setAddPrefill({
+            front: `Spiega questo passaggio: "${preview}"`,
+            back: clean,
+        });
+        setIsAddOpen(true);
+    };
+
+    const handleConsumePendingChatMessage = (id: string) => {
+        setPendingChatMessage((prev) => (prev?.id === id ? null : prev));
     };
 
     // ─── Loading State ───────────────────────────────────────
@@ -447,9 +487,10 @@ export const SplitStudyPage: React.FC = () => {
                         >
                             <PDFViewer 
                                 pdfSrc={pdfSrc} 
-                                deckTitle={deck.title}
                                 className="h-full"
                                 fullHeight
+                                onAskAI={handleAskAIFromSelection}
+                                onCreateFlashcard={handleCreateFlashcardFromSelection}
                             />
                         </Panel>
 
@@ -469,8 +510,14 @@ export const SplitStudyPage: React.FC = () => {
                                     pdfSrc={pdfSrc}
                                     editMode={editMode}
                                     setEditMode={setEditMode}
-                                    onAddCard={() => setIsAddOpen(true)}
+                                    onAddCard={() => {
+                                        setAddPrefill(null);
+                                        setIsAddOpen(true);
+                                    }}
                                     onEditCard={setEditingCard}
+                                    tabRequest={tabRequest}
+                                    pendingChatMessage={pendingChatMessage}
+                                    onConsumePendingChatMessage={handleConsumePendingChatMessage}
                                 />
                             </div>
                         </Panel>
@@ -480,8 +527,13 @@ export const SplitStudyPage: React.FC = () => {
                     <CardModal
                         isOpen={isAddOpen}
                         title="Aggiungi una carta"
+                        initialFront={addPrefill?.front}
+                        initialBack={addPrefill?.back}
                         confirmLabel="Aggiungi"
-                        onClose={() => setIsAddOpen(false)}
+                        onClose={() => {
+                            setIsAddOpen(false);
+                            setAddPrefill(null);
+                        }}
                         onConfirm={handleAddCard}
                     />
 
@@ -524,12 +576,13 @@ export const SplitStudyPage: React.FC = () => {
             </header>
 
             {/* Full Screen PDF */}
-            <div className="flex-1 overflow-hidden pb-20">
+            <div className="flex-1 overflow-auto pb-20">
                 {pdfSrc ? (
-                    <iframe
-                        title={`PDF - ${deck.title}`}
+                    <InteractivePDFReader
                         src={pdfSrc}
-                        className="w-full h-full"
+                        onAskAI={handleAskAIFromSelection}
+                        onCreateFlashcard={handleCreateFlashcardFromSelection}
+                        className="w-full"
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center p-8 bg-black/10">
@@ -565,10 +618,16 @@ export const SplitStudyPage: React.FC = () => {
                     pdfSrc={pdfSrc}
                     editMode={editMode}
                     setEditMode={setEditMode}
-                    onAddCard={() => setIsAddOpen(true)}
+                    onAddCard={() => {
+                        setAddPrefill(null);
+                        setIsAddOpen(true);
+                    }}
                     onEditCard={setEditingCard}
                     compactMode
                     activeTabOverride="flashcards"
+                    tabRequest={tabRequest}
+                    pendingChatMessage={pendingChatMessage}
+                    onConsumePendingChatMessage={handleConsumePendingChatMessage}
                 />
             </MobileDrawer>
 
@@ -584,10 +643,16 @@ export const SplitStudyPage: React.FC = () => {
                     pdfSrc={pdfSrc}
                     editMode={editMode}
                     setEditMode={setEditMode}
-                    onAddCard={() => setIsAddOpen(true)}
+                    onAddCard={() => {
+                        setAddPrefill(null);
+                        setIsAddOpen(true);
+                    }}
                     onEditCard={setEditingCard}
                     compactMode
                     activeTabOverride="chat"
+                    tabRequest={tabRequest}
+                    pendingChatMessage={pendingChatMessage}
+                    onConsumePendingChatMessage={handleConsumePendingChatMessage}
                 />
             </MobileDrawer>
 
@@ -595,8 +660,13 @@ export const SplitStudyPage: React.FC = () => {
             <CardModal
                 isOpen={isAddOpen}
                 title="Aggiungi una carta"
+                initialFront={addPrefill?.front}
+                initialBack={addPrefill?.back}
                 confirmLabel="Aggiungi"
-                onClose={() => setIsAddOpen(false)}
+                onClose={() => {
+                    setIsAddOpen(false);
+                    setAddPrefill(null);
+                }}
                 onConfirm={handleAddCard}
             />
 

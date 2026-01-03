@@ -586,7 +586,7 @@ class StudyService extends BaseService {
         try {
             parser = new PDFParse({ data: pdfBuffer });
             const pdfData = await parser.getText();
-            pdfText = pdfData.text;
+            pdfText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
             console.error('❌ PDF Parse Error:', err.message);
             throw AppError.validation('Impossibile leggere il PDF. Assicurati che sia un file PDF valido e non protetto.');
@@ -727,11 +727,14 @@ class StudyService extends BaseService {
         }
 
         let extractedText = typeof deck.extractedText === 'string' ? deck.extractedText : '';
+        const hasPageMarkers = /--- Pagina \d+ ---/.test(extractedText);
 
-        // Fallback: vecchi deck potrebbero non avere extractedText salvato
-        if (!extractedText || extractedText.trim().length < 50) {
+        const extractAndStorePdfText = async ({ strict = true } = {}) => {
             if (!deck.pdfUrl || typeof deck.pdfUrl !== 'string') {
-                throw AppError.validation('Nessun PDF collegato a questo mazzo');
+                if (strict) {
+                    throw AppError.validation('Nessun PDF collegato a questo mazzo');
+                }
+                return null;
             }
 
             const pdfFileName = path.basename(deck.pdfUrl);
@@ -742,7 +745,10 @@ class StudyService extends BaseService {
                 pdfBuffer = await fs.readFile(pdfFilePath);
             } catch (err) {
                 console.error('❌ PDF Read Error (Tutor):', err.message);
-                throw AppError.validation('PDF non trovato sul server. Ricaricalo e riprova.');
+                if (strict) {
+                    throw AppError.validation('PDF non trovato sul server. Ricaricalo e riprova.');
+                }
+                return null;
             }
 
             let pdfText;
@@ -750,10 +756,13 @@ class StudyService extends BaseService {
             try {
                 parser = new PDFParse({ data: pdfBuffer });
                 const pdfData = await parser.getText();
-                pdfText = pdfData.text;
+                pdfText = this._formatPdfTextWithPages(pdfData);
             } catch (err) {
                 console.error('❌ PDF Parse Error (Tutor):', err.message);
-                throw AppError.validation('Impossibile leggere il PDF per la chat. Riprova con un PDF valido.');
+                if (strict) {
+                    throw AppError.validation('Impossibile leggere il PDF per la chat. Riprova con un PDF valido.');
+                }
+                return null;
             } finally {
                 if (parser?.destroy) {
                     await parser.destroy();
@@ -762,11 +771,15 @@ class StudyService extends BaseService {
 
             const normalizedExtracted = this._normalizeExtractedText(pdfText);
             if (!normalizedExtracted || normalizedExtracted.length < 50) {
-                throw AppError.validation(
-                    'Il PDF non contiene testo leggibile (potrebbe essere una scansione immagine). ' +
-                    'Prova un PDF con testo selezionabile oppure usa OCR.'
-                );
+                if (strict) {
+                    throw AppError.validation(
+                        'Il PDF non contiene testo leggibile (potrebbe essere una scansione immagine). ' +
+                        'Prova un PDF con testo selezionabile oppure usa OCR.'
+                    );
+                }
+                return null;
             }
+
             deck.extractedText = this._truncateText(
                 normalizedExtracted,
                 MAX_EXTRACTED_TEXT_STORE_LENGTH,
@@ -774,6 +787,16 @@ class StudyService extends BaseService {
             );
             await deck.save({ validateModifiedOnly: true });
             extractedText = deck.extractedText;
+
+            return extractedText;
+        };
+
+        // Fallback: vecchi deck potrebbero non avere extractedText salvato
+        if (!extractedText || extractedText.trim().length < 50) {
+            await extractAndStorePdfText({ strict: true });
+        } else if (!hasPageMarkers) {
+            // Upgrade best-effort: aggiungi marker di pagina per domande tipo "pagina X"
+            await extractAndStorePdfText({ strict: false });
         }
 
         const model = process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
@@ -1062,6 +1085,21 @@ class StudyService extends BaseService {
             .replace(/\r\n/g, '\n')
             .replace(/\n{3,}/g, '\n\n')
             .trim();
+    }
+
+    _formatPdfTextWithPages(pdfTextResult) {
+        const pages = Array.isArray(pdfTextResult?.pages) ? pdfTextResult.pages : [];
+        const fallback = typeof pdfTextResult?.text === 'string' ? pdfTextResult.text : '';
+
+        if (pages.length === 0) return fallback;
+
+        return pages
+            .map((page, index) => {
+                const pageNumber = Number.isFinite(Number(page?.num)) ? Number(page.num) : index + 1;
+                const text = typeof page?.text === 'string' ? page.text : '';
+                return `\n--- Pagina ${pageNumber} ---\n${text}`;
+            })
+            .join('\n');
     }
 
     _truncateText(text, maxLength, suffix = '') {
