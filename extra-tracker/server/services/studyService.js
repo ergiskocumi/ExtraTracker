@@ -23,7 +23,7 @@ const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
 const MAX_PDF_TEXT_LENGTH = 15000; // Limite caratteri per evitare costi eccessivi
 const MAX_EXTRACTED_TEXT_STORE_LENGTH = 200000; // Limite DB: evita documenti enormi
-const MAX_TUTOR_CONTEXT_LENGTH = 12000; // Contesto massimo inviato al modello (RAG-lite)
+const MAX_TUTOR_CONTEXT_LENGTH = 50000; // Default sicuro (override per modelli più piccoli)
 const MAX_TUTOR_MESSAGE_LENGTH = 2000;
 const MAX_TUTOR_HISTORY_MESSAGES = 12;
 const MAX_TUTOR_HISTORY_MESSAGE_LENGTH = 1000;
@@ -718,8 +718,9 @@ class StudyService extends BaseService {
             throw AppError.validation(`Messaggio troppo lungo (max ${MAX_TUTOR_MESSAGE_LENGTH} caratteri)`);
         }
 
+        // ⚠️ BUG FIX: extractedText ha select:false → serve includerlo esplicitamente
         const deck = await Deck.findOne({ _id: deckId, user: userId })
-            .select('title pdfUrl +extractedText');
+            .select('+extractedText');
 
         if (!deck) {
             throw AppError.notFound('Mazzo');
@@ -761,7 +762,10 @@ class StudyService extends BaseService {
 
             const normalizedExtracted = this._normalizeExtractedText(pdfText);
             if (!normalizedExtracted || normalizedExtracted.length < 50) {
-                throw AppError.validation('Il PDF non contiene abbastanza testo da elaborare.');
+                throw AppError.validation(
+                    'Il PDF non contiene testo leggibile (potrebbe essere una scansione immagine). ' +
+                    'Prova un PDF con testo selezionabile oppure usa OCR.'
+                );
             }
             deck.extractedText = this._truncateText(
                 normalizedExtracted,
@@ -772,29 +776,41 @@ class StudyService extends BaseService {
             extractedText = deck.extractedText;
         }
 
-        const context = this._buildTutorContext(extractedText, cleanMessage);
+        const model = process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+        const contextLimit = model.includes('gpt-3.5')
+            ? 15000
+            : model.includes('gpt-4o-mini') || model.includes('gpt-4o')
+                ? 50000
+                : MAX_TUTOR_CONTEXT_LENGTH;
+
+        const context = this._buildTutorContext(extractedText, cleanMessage, contextLimit);
         if (!context || context.trim().length < 20) {
-            throw AppError.validation('Contesto PDF non disponibile per la chat. Riprova dopo aver generato le carte dal PDF.');
+            throw AppError.validation(
+                'Il PDF non ha testo leggibile per la chat (potrebbe essere una scansione immagine). ' +
+                'Prova a caricare un PDF testuale oppure usa OCR.'
+            );
         }
 
         const systemPrompt =
-            'Sei un tutor utile. Rispondi alla domanda dell\'utente basandoti ESCLUSIVAMENTE sul seguente contesto estratto dal PDF. ' +
-            'Se la risposta non è nel testo, dillo chiaramente.\n\n' +
+            'Sei un Tutor Esperto e Socratico: chiaro, rigoroso e incoraggiante.\n' +
+            'Rispondi alla domanda dell\'utente basandoti ESCLUSIVAMENTE sul CONTESTO fornito.\n' +
+            'Se la risposta non è nel contesto, dillo chiaramente e chiedi all\'utente di incollare il passaggio rilevante.\n' +
+            'Non inventare informazioni non presenti nel contesto.\n\n' +
             'CONTESTO (estratto dal PDF):\n' +
             '"""\n' +
             `${context}\n` +
             '"""\n\n' +
             'Regole:\n' +
             '- Rispondi in italiano.\n' +
-            '- Non inventare informazioni non presenti nel contesto.\n' +
-            '- Se utile, cita brevi frasi dal contesto tra virgolette.';
+            '- Se utile, cita brevi frasi dal contesto tra virgolette.\n' +
+            '- Se l\'utente chiede “pagina X” ma nel contesto non ci sono numeri di pagina, spiega il limite e guida la domanda.';
 
         const safeHistory = this._sanitizeTutorHistory(history);
 
         let aiResponse;
         try {
             const completion = await openai.chat.completions.create({
-                model: process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                model,
                 messages: [
                     { role: 'system', content: systemPrompt },
                     ...safeHistory,
@@ -806,16 +822,33 @@ class StudyService extends BaseService {
 
             aiResponse = completion.choices[0]?.message?.content;
         } catch (err) {
-            console.error('❌ OpenAI Tutor Error:', err.message);
-            if (err.code === 'insufficient_quota') {
-                throw AppError.internal('Quota OpenAI esaurita. Contatta l\'amministratore.');
+            const errorMessage = err?.message || '';
+            const errorCode = err?.code || err?.error?.code || err?.type;
+
+            console.error('❌ OpenAI Tutor Error:', errorMessage);
+
+            if (errorCode === 'insufficient_quota') {
+                throw AppError.validation('Quota OpenAI esaurita. Riprova più tardi o contatta l\'amministratore.');
             }
-            throw AppError.internal('Errore nella risposta AI. Riprova più tardi.');
+
+            if (
+                errorCode === 'context_length_exceeded' ||
+                errorMessage.toLowerCase().includes('context length') ||
+                errorMessage.toLowerCase().includes('maximum context') ||
+                errorMessage.toLowerCase().includes('tokens')
+            ) {
+                throw AppError.validation(
+                    'Il documento è troppo lungo per essere analizzato in una sola richiesta. ' +
+                    'Prova con una domanda più specifica o con un PDF più breve.'
+                );
+            }
+
+            throw AppError.validation('Errore nella risposta AI. Riprova più tardi.');
         }
 
         const reply = typeof aiResponse === 'string' ? aiResponse.trim() : '';
         if (!reply) {
-            throw AppError.internal('Risposta AI vuota. Riprova.');
+            throw AppError.validation('Risposta AI vuota. Riprova.');
         }
 
         return { reply };
@@ -901,18 +934,23 @@ class StudyService extends BaseService {
             .slice(-MAX_TUTOR_HISTORY_MESSAGES);
     }
 
-    _buildTutorContext(extractedText, question) {
+    _buildTutorContext(extractedText, question, maxLength = MAX_TUTOR_CONTEXT_LENGTH) {
         const normalizedText = this._normalizeExtractedText(extractedText);
         if (!normalizedText) return '';
-        if (normalizedText.length <= MAX_TUTOR_CONTEXT_LENGTH) return normalizedText;
+        const safeMax = Number.isFinite(Number(maxLength)) ? Math.max(2000, Number(maxLength)) : MAX_TUTOR_CONTEXT_LENGTH;
+        if (normalizedText.length <= safeMax) return normalizedText;
 
         const tokens = this._extractQueryTokens(question);
+        const truncatedSuffix = '\n\n[...contesto parziale...]';
+
         if (tokens.length === 0) {
-            return this._truncateText(normalizedText, MAX_TUTOR_CONTEXT_LENGTH, '\n\n[...contesto parziale...]');
+            // Fallback: usa la parte finale (spesso corrisponde alle pagine "avanti")
+            const tail = normalizedText.slice(-safeMax);
+            return `${tail}${truncatedSuffix}`;
         }
 
-        const chunkSize = 1400;
-        const step = 1000;
+        const chunkSize = Math.min(2600, safeMax);
+        const step = Math.max(900, Math.floor(chunkSize * 0.6));
         const chunks = [];
 
         for (let start = 0; start < normalizedText.length; start += step) {
@@ -922,18 +960,39 @@ class StudyService extends BaseService {
             chunks.push({ start, score, text });
         }
 
-        const best = chunks
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 5)
+        const ranked = chunks
             .filter((chunk) => chunk.score > 0)
-            .sort((a, b) => a.start - b.start);
+            .sort((a, b) => b.score - a.score);
 
-        if (best.length === 0) {
-            return this._truncateText(normalizedText, MAX_TUTOR_CONTEXT_LENGTH, '\n\n[...contesto parziale...]');
+        if (ranked.length === 0) {
+            const tail = normalizedText.slice(-safeMax);
+            return `${tail}${truncatedSuffix}`;
         }
 
-        const stitched = best.map((chunk) => chunk.text.trim()).join('\n\n---\n\n');
-        return this._truncateText(stitched, MAX_TUTOR_CONTEXT_LENGTH, '\n\n[...contesto parziale...]');
+        const selected = [];
+        for (const candidate of ranked) {
+            if (selected.length >= 10) break;
+            const overlaps = selected.some((s) => Math.abs(s.start - candidate.start) < step);
+            if (overlaps) continue;
+            selected.push(candidate);
+        }
+
+        selected.sort((a, b) => a.start - b.start);
+
+        let stitched = '';
+        for (const chunk of selected) {
+            const piece = chunk.text.trim();
+            const separator = stitched.length ? '\n\n---\n\n' : '';
+            if (stitched.length + separator.length + piece.length > safeMax) break;
+            stitched += separator + piece;
+        }
+
+        if (!stitched) {
+            const tail = normalizedText.slice(-safeMax);
+            return `${tail}${truncatedSuffix}`;
+        }
+
+        return `${stitched}${truncatedSuffix}`;
     }
 
     _extractQueryTokens(question) {
