@@ -131,6 +131,23 @@ const getDashboard = asyncHandler(async (req, res) => {
 // =========================================
 
 /**
+ * POST /api/study/:id/session-complete
+ * Salva le statistiche di fine sessione e assegna XP
+ */
+const completeSession = asyncHandler(async (req, res) => {
+    const result = await studyService.completeSession(
+        req.tenantScope,
+        req.params.id,
+        {
+            mode: req.body.mode,
+            stats: req.body.stats,
+        }
+    );
+
+    res.json({ success: true, data: result });
+});
+
+/**
  * POST /api/study/:id/review
  * Processa una review SM-2
  */
@@ -139,7 +156,8 @@ const submitReview = asyncHandler(async (req, res) => {
         req.tenantScope,
         req.params.id,
         req.body.cardId,
-        req.body.rating
+        req.body.rating,
+        req.body.sessionMeta || req.body.sessionSummary || null
     );
 
     res.json({ success: true, data: result });
@@ -222,6 +240,7 @@ module.exports = {
     updateCard,
     deleteCard,
     getDashboard,
+    completeSession,
     submitReview,
     verifyAnswer,
     uploadAndGenerate,

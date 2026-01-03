@@ -12,15 +12,17 @@
  * - Schermata riepilogo celebrativa
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiArrowLeft, FiCheck, FiX, FiZap, FiAward, FiClock, FiTarget } from 'react-icons/fi';
+import { FiArrowLeft, FiX } from 'react-icons/fi';
 import { Flashcard, FlashcardSkeleton } from '../components/Flashcard';
 import { QuizView } from '../components/QuizView';
 import { TypingView } from '../components/TypingView';
 import { studyService, type StudySession, type ReviewRating, type StudyMode, type Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
+import { SessionSummaryModal, type SessionSummary } from '../../gamification/SessionSummaryModal';
+import { useAuth } from '../../auth/context/AuthContext';
 
 // ============================================
 // RATING BUTTON COMPONENT - Large Touch-Friendly
@@ -73,175 +75,20 @@ const RatingButton: React.FC<RatingButtonProps> = ({
             onClick={onClick}
             disabled={disabled}
             className={`
-                relative flex flex-col items-center justify-center gap-1
-                w-full sm:w-28 h-20 sm:h-24 rounded-2xl
+                relative flex flex-col items-center justify-center gap-2
+                w-full sm:w-32 h-24 sm:h-28 rounded-2xl
                 ${cfg.bg} ${cfg.text} ${cfg.border}
                 border transition-all duration-200
                 focus:outline-none focus:ring-4 ${cfg.ring}
                 disabled:opacity-40 disabled:cursor-not-allowed
             `}
         >
-            <span className="text-2xl sm:text-3xl">{emoji}</span>
-            <span className="text-xs font-semibold uppercase tracking-wide">{label}</span>
-            <kbd className="absolute bottom-1.5 right-2 text-[10px] font-mono opacity-40 hidden sm:block">
+            <span className="text-3xl sm:text-4xl">{emoji}</span>
+            <span className="text-sm font-semibold uppercase tracking-wide">{label}</span>
+            <kbd className="absolute bottom-2 right-2.5 text-xs font-mono opacity-40 hidden sm:block">
                 {shortcut}
             </kbd>
         </motion.button>
-    );
-};
-
-// ============================================
-// SESSION COMPLETE SCREEN - Celebrativo e pulito
-// ============================================
-
-interface SessionCompleteProps {
-    stats: {
-        total: number;
-        hard: number;
-        good: number;
-        easy: number;
-        duration: number;
-    };
-    deckTitle: string;
-    onBackToDashboard: () => void;
-    onStudyAgain: () => void;
-}
-
-const SessionComplete: React.FC<SessionCompleteProps> = ({ 
-    stats, 
-    deckTitle,
-    onBackToDashboard,
-    onStudyAgain 
-}) => {
-    const formatDuration = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    const accuracy = stats.total > 0 
-        ? Math.round(((stats.good + stats.easy) / stats.total) * 100)
-        : 0;
-
-    return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 bg-gradient-to-br from-dark-500 to-dark-400 flex flex-col items-center justify-center px-6"
-        >
-            {/* Celebrazione confetti-like */}
-            <motion.div
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', delay: 0.15, stiffness: 200 }}
-                className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/10"
-            >
-                <FiAward className="w-10 h-10 text-emerald-400" />
-            </motion.div>
-
-            <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                className="text-2xl sm:text-3xl font-bold text-white mb-1 text-center"
-            >
-                Ottimo lavoro! 🎉
-            </motion.h1>
-
-            <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.35 }}
-                className="text-white/50 mb-8 text-center"
-            >
-                Hai completato <span className="font-medium text-white/80">{deckTitle}</span>
-            </motion.p>
-
-            {/* Stats Grid - Clean cards */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.45 }}
-                className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8 w-full max-w-xl"
-            >
-                <div className="p-4 rounded-2xl bg-white/[0.05] border border-white/[0.08] text-center">
-                    <FiTarget className="w-5 h-5 text-primary-400 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-white">{stats.total}</p>
-                    <span className="text-xs text-white/50 uppercase tracking-wide">Carte</span>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white/[0.05] border border-white/[0.08] text-center">
-                    <FiClock className="w-5 h-5 text-blue-400 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-white">{formatDuration(stats.duration)}</p>
-                    <span className="text-xs text-white/50 uppercase tracking-wide">Tempo</span>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white/[0.05] border border-white/[0.08] text-center">
-                    <FiZap className="w-5 h-5 text-amber-400 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-white">{accuracy}%</p>
-                    <span className="text-xs text-white/50 uppercase tracking-wide">Precisione</span>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-                    <FiCheck className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-emerald-400">{stats.easy}</p>
-                    <span className="text-xs text-emerald-400/70 uppercase tracking-wide">Facili</span>
-                </div>
-            </motion.div>
-
-            {/* Breakdown visuale minimalista */}
-            <motion.div
-                initial={{ opacity: 0, scaleX: 0 }}
-                animate={{ opacity: 1, scaleX: 1 }}
-                transition={{ delay: 0.55 }}
-                className="flex items-center gap-0.5 h-2 w-full max-w-md rounded-full overflow-hidden mb-10"
-            >
-                {stats.hard > 0 && (
-                    <div 
-                        className="h-full bg-red-500 first:rounded-l-full last:rounded-r-full"
-                        style={{ width: `${(stats.hard / stats.total) * 100}%` }}
-                    />
-                )}
-                {stats.good > 0 && (
-                    <div 
-                        className="h-full bg-amber-500 first:rounded-l-full last:rounded-r-full"
-                        style={{ width: `${(stats.good / stats.total) * 100}%` }}
-                    />
-                )}
-                {stats.easy > 0 && (
-                    <div 
-                        className="h-full bg-emerald-500 first:rounded-l-full last:rounded-r-full"
-                        style={{ width: `${(stats.easy / stats.total) * 100}%` }}
-                    />
-                )}
-            </motion.div>
-
-            {/* Azioni */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.65 }}
-                className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-sm"
-            >
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={onStudyAgain}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white/[0.05] border border-white/[0.1] text-white/80 font-medium hover:bg-white/[0.1] transition-all"
-                >
-                    Studia di Nuovo
-                </motion.button>
-
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={onBackToDashboard}
-                    className="w-full sm:flex-1 px-8 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold hover:from-primary-400 hover:to-primary-500 transition-all shadow-lg shadow-primary-500/25"
-                >
-                    Torna ai Mazzi
-                </motion.button>
-            </motion.div>
-        </motion.div>
     );
 };
 
@@ -322,6 +169,29 @@ const calculateSimilarity = (userAnswer: string, realAnswer: string) => {
     return { correct: similarity >= 0.85, similarity };
 };
 
+const SESSION_BASE_XP = 10;
+
+const calculateSessionXpBreakdown = (
+    correctCount: number,
+    wrongCount: number,
+    timeSpentSeconds: number
+) => {
+    const totalCards = correctCount + wrongCount;
+    const timePerCard = totalCards > 0 ? timeSpentSeconds / totalCards : 0;
+    const speedBonus = timePerCard > 0
+        ? Math.max(0, Math.round(10 - timePerCard / 3))
+        : 0;
+    const correctXp = correctCount * 2;
+
+    return {
+        base: SESSION_BASE_XP,
+        correct: correctXp,
+        speedBonus,
+        streakBonus: 0,
+        total: SESSION_BASE_XP + correctXp + speedBonus,
+    };
+};
+
 // ============================================
 // MAIN STUDY SESSION PAGE
 // ============================================
@@ -329,6 +199,7 @@ const calculateSimilarity = (userAnswer: string, realAnswer: string) => {
 export const StudySessionPage: React.FC = () => {
     const { deckId } = useParams<{ deckId: string }>();
     const navigate = useNavigate();
+    const { checkAuth } = useAuth();
     const [searchParams] = useSearchParams();
     const requestedMode = (searchParams.get('mode') || 'flashcard').toLowerCase();
     const mode: StudyMode = ['flashcard', 'quiz', 'typing'].includes(requestedMode)
@@ -348,7 +219,7 @@ export const StudySessionPage: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
     const [startTime, setStartTime] = useState(Date.now());
-    
+
     // Stats per la sessione
     const [sessionStats, setSessionStats] = useState({
         total: 0,
@@ -357,6 +228,16 @@ export const StudySessionPage: React.FC = () => {
         easy: 0,
         duration: 0
     });
+    const sessionStatsRef = useRef(sessionStats);
+    const [summary, setSummary] = useState<SessionSummary | null>(null);
+    const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+    const [isFinalizing, setIsFinalizing] = useState(false);
+
+    const updateSessionStats = useCallback((updater: (prev: typeof sessionStats) => typeof sessionStats) => {
+        const next = updater(sessionStatsRef.current);
+        sessionStatsRef.current = next;
+        setSessionStats(next);
+    }, []);
 
     // Carica sessione
     useEffect(() => {
@@ -385,13 +266,16 @@ export const StudySessionPage: React.FC = () => {
                 setExitDirection(null);
                 setIsComplete(false);
                 setStartTime(Date.now());
-                setSessionStats({
+                updateSessionStats(() => ({
                     total: orderedCards.length,
                     hard: 0,
                     good: 0,
                     easy: 0,
                     duration: 0,
-                });
+                }));
+                setSummary(null);
+                setIsSummaryOpen(false);
+                setIsFinalizing(false);
             } catch (err: any) {
                 setError(err.message || 'Errore nel caricamento della sessione');
                 emitToast.error('Impossibile caricare la sessione di studio');
@@ -401,7 +285,7 @@ export const StudySessionPage: React.FC = () => {
         };
 
         loadSession();
-    }, [deckId, navigate, mode, shuffle]);
+    }, [deckId, navigate, mode, shuffle, updateSessionStats]);
 
     // Carta corrente
     const currentCard = session?.cards[currentCardIndex] ?? null;
@@ -412,20 +296,72 @@ export const StudySessionPage: React.FC = () => {
     const isQuizMode = mode === 'quiz';
     const isTypingMode = mode === 'typing';
 
+    const finalizeSession = useCallback(async (durationSeconds: number) => {
+        if (!deckId || !session || isFinalizing || summary) return;
+
+        const statsSnapshot = sessionStatsRef.current;
+        const correctCount = statsSnapshot.good + statsSnapshot.easy;
+        const wrongCount = statsSnapshot.hard;
+
+        setIsFinalizing(true);
+        try {
+            const result = await studyService.completeSession(deckId, {
+                mode,
+                stats: {
+                    correct: correctCount,
+                    wrong: wrongCount,
+                    timeSeconds: durationSeconds,
+                },
+            });
+
+            const fallbackBreakdown = calculateSessionXpBreakdown(
+                correctCount,
+                wrongCount,
+                durationSeconds
+            );
+            const breakdown = result.xpBreakdown ?? fallbackBreakdown;
+            const totalXp = Number.isFinite(result.xpEarned) ? result.xpEarned : breakdown.total;
+
+            setSummary({
+                correctCount,
+                wrongCount,
+                timeSpentSeconds: durationSeconds,
+                xp: {
+                    base: breakdown.base,
+                    correct: breakdown.correct,
+                    speedBonus: breakdown.speedBonus,
+                    streakBonus: breakdown.streakBonus,
+                    total: totalXp,
+                },
+            });
+            setIsSummaryOpen(true);
+            try {
+                await checkAuth();
+            } catch {
+                // Non bloccare la sessione se il refresh utente fallisce.
+            }
+        } catch {
+            emitToast.error('Errore nel completamento della sessione');
+        } finally {
+            setIsFinalizing(false);
+        }
+    }, [deckId, session, isFinalizing, summary, mode, checkAuth]);
+
     const advanceCard = useCallback(() => {
         if (!session) return;
 
         if (currentCardIndex + 1 >= session.cards.length) {
             const duration = Math.floor((Date.now() - startTime) / 1000);
-            setSessionStats(prev => ({ ...prev, duration }));
+            updateSessionStats(prev => ({ ...prev, duration }));
             setIsComplete(true);
+            finalizeSession(duration);
             return;
         }
 
         setCurrentCardIndex(prev => prev + 1);
         setIsFlipped(false);
         setExitDirection(null);
-    }, [session, currentCardIndex, startTime]);
+    }, [session, currentCardIndex, startTime, updateSessionStats, finalizeSession]);
 
     const submitReview = useCallback(async (rating: ReviewRating) => {
         if (!session || !currentCard || isSubmitting) return false;
@@ -437,7 +373,7 @@ export const StudySessionPage: React.FC = () => {
                 rating,
             });
 
-            setSessionStats(prev => ({
+            updateSessionStats(prev => ({
                 ...prev,
                 hard: prev.hard + (rating === 1 ? 1 : 0),
                 good: prev.good + (rating === 3 ? 1 : 0),
@@ -451,12 +387,12 @@ export const StudySessionPage: React.FC = () => {
         } finally {
             setIsSubmitting(false);
         }
-    }, [session, currentCard, isSubmitting]);
+    }, [session, currentCard, isSubmitting, updateSessionStats]);
 
     const handleFlip = useCallback(() => {
-        if (!isFlashcardMode || isFlipped || isSubmitting) return;
+        if (!isFlashcardMode || isFlipped || isSubmitting || isComplete) return;
         setIsFlipped(true);
-    }, [isFlashcardMode, isFlipped, isSubmitting]);
+    }, [isFlashcardMode, isFlipped, isSubmitting, isComplete]);
 
     const handleRating = useCallback(async (rating: ReviewRating) => {
         if (!currentCard || isSubmitting) return;
@@ -497,7 +433,7 @@ export const StudySessionPage: React.FC = () => {
     useEffect(() => {
         if (!isFlashcardMode) return;
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (!isFlipped || isSubmitting) return;
+            if (!isFlipped || isSubmitting || isComplete) return;
 
             if (e.key === '1') handleRating(1);
             if (e.key === '2') handleRating(3);
@@ -506,27 +442,13 @@ export const StudySessionPage: React.FC = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isFlashcardMode, isFlipped, isSubmitting, handleRating]);
+    }, [isFlashcardMode, isFlipped, isSubmitting, isComplete, handleRating]);
 
-    // Handlers per schermata finale
-    const handleBackToDashboard = () => navigate('/study');
-    const handleStudyAgain = () => {
-        if (!session) return;
-        const reshuffled = shuffle ? shuffleArray(session.cards) : session.cards;
-        setSession({ ...session, cards: reshuffled });
-        setCurrentCardIndex(0);
-        setIsFlipped(false);
-        setExitDirection(null);
-        setIsComplete(false);
-        setStartTime(Date.now());
-        setSessionStats({
-            total: reshuffled.length,
-            hard: 0,
-            good: 0,
-            easy: 0,
-            duration: 0,
-        });
-    };
+    // Handler per uscire dalla sessione
+    const handleBackToDashboard = useCallback(() => {
+        setIsSummaryOpen(false);
+        navigate('/study');
+    }, [navigate]);
 
     const viewVariants = {
         enter: { x: 40, opacity: 0 },
@@ -587,18 +509,6 @@ export const StudySessionPage: React.FC = () => {
                     </button>
                 </div>
             </div>
-        );
-    }
-
-    // Session Complete
-    if (isComplete && session) {
-        return (
-            <SessionComplete
-                stats={sessionStats}
-                deckTitle={session.deck.title}
-                onBackToDashboard={handleBackToDashboard}
-                onStudyAgain={handleStudyAgain}
-            />
         );
     }
 
@@ -680,7 +590,7 @@ export const StudySessionPage: React.FC = () => {
                                 question={currentCard.front}
                                 options={currentCard.options ?? []}
                                 correctAnswer={currentCard.back}
-                                isSubmitting={isSubmitting}
+                                isSubmitting={isSubmitting || isComplete}
                                 onSubmitReview={submitReview}
                                 onNext={advanceCard}
                             />
@@ -698,7 +608,7 @@ export const StudySessionPage: React.FC = () => {
                                 card={currentCard}
                                 question={displayCard.front}
                                 answer={displayCard.back}
-                                isSubmitting={isSubmitting}
+                                isSubmitting={isSubmitting || isComplete}
                                 onVerify={handleVerifyTyping}
                                 onSubmitReview={submitReview}
                                 onNext={advanceCard}
@@ -710,7 +620,7 @@ export const StudySessionPage: React.FC = () => {
 
             {/* ═══ RATING BUTTONS - Large & Touch-Friendly ═══ */}
             <AnimatePresence>
-                {isFlashcardMode && isFlipped && (
+                {isFlashcardMode && isFlipped && !isComplete && (
                     <motion.div
                         initial={{ opacity: 0, y: 60 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -750,6 +660,15 @@ export const StudySessionPage: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {summary && (
+                <SessionSummaryModal
+                    isOpen={isSummaryOpen}
+                    title={session?.deck.title ? `Sessione completata • ${session.deck.title}` : 'Sessione completata'}
+                    summary={summary}
+                    onClose={handleBackToDashboard}
+                />
+            )}
         </div>
     );
 };

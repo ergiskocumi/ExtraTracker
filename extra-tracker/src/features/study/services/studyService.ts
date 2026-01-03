@@ -64,6 +64,28 @@ export interface VerifyAnswerResult {
     similarity?: number;
 }
 
+export interface SessionCompletePayload {
+    mode: StudyMode;
+    stats: {
+        correct: number;
+        wrong: number;
+        timeSeconds: number;
+    };
+}
+
+export interface SessionCompleteResult {
+    xpEarned: number;
+    leveledUp: boolean;
+    newLevel: number;
+    xpBreakdown?: {
+        base: number;
+        correct: number;
+        speedBonus: number;
+        streakBonus: number;
+        total: number;
+    };
+}
+
 export interface CreateDeckPayload {
     goalId: string;
     title: string;
@@ -268,6 +290,17 @@ class StudyService {
             correct: raw?.correct ?? raw?.isCorrect ?? false,
             similarity,
         };
+    }
+
+    /**
+     * Finalizza la sessione e assegna XP (gamification).
+     */
+    async completeSession(deckId: string, payload: SessionCompletePayload): Promise<SessionCompleteResult> {
+        const response = await apiClient.post<SessionCompleteResult>(
+            `${this.baseUrl}/${deckId}/session-complete`,
+            payload
+        );
+        return unwrap(response, 'Errore nel completamento della sessione');
     }
 
     /**

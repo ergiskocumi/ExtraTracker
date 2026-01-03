@@ -13,12 +13,14 @@ const Deck = require('../models/Deck');
 const Goal = require('../models/Goal');
 const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
+const activityService = require('./activityService');
 const OpenAI = require('openai');
 const { PDFParse } = require('pdf-parse');
 
 const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
 const MAX_PDF_TEXT_LENGTH = 15000; // Limite caratteri per evitare costi eccessivi
+const SESSION_BASE_XP = 10;
 const QUIZ_FALLBACK_OPTIONS = [
     'Nessuna delle precedenti',
     'Altro',
@@ -347,6 +349,61 @@ class StudyService extends BaseService {
     }
 
     // =========================================
+    // SESSION COMPLETE (GAMIFICATION)
+    // =========================================
+
+    /**
+     * Registra la fine di una sessione di studio e assegna XP.
+     *
+     * @param {Object} tenantScope
+     * @param {string} deckId
+     * @param {Object} sessionData
+     * @returns {Promise<Object>}
+     */
+    async completeSession(tenantScope, deckId, sessionData = {}) {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOne({ _id: deckId, user: userId }).select('_id');
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        const stats = sessionData?.stats && typeof sessionData.stats === 'object'
+            ? sessionData.stats
+            : {};
+        const mode = typeof sessionData?.mode === 'string'
+            ? sessionData.mode.toLowerCase()
+            : 'flashcard';
+
+        const correctCount = this._toNumber(stats.correct ?? stats.correctCount, 0);
+        const wrongCount = this._toNumber(stats.wrong ?? stats.wrongCount, 0);
+        const timeSpentSeconds = this._toNumber(stats.timeSeconds ?? stats.timeSpentSeconds, 0);
+        const totalCards = this._toNumber(stats.totalCards, correctCount + wrongCount);
+
+        const metadata = {
+            correctCount,
+            wrongCount,
+            timeSpentSeconds,
+            totalCards,
+            deckId,
+            mode,
+        };
+
+        const xpBreakdown = this._calculateSessionXpBreakdown(metadata);
+        const result = await activityService.recordActivity(userId, 'SESSION_COMPLETE', {
+            entityId: deckId,
+            category: 'study',
+            metadata,
+        });
+
+        return {
+            ...result,
+            xpBreakdown,
+            stats: metadata,
+        };
+    }
+
+    // =========================================
     // SM-2 REVIEW LOGIC
     // =========================================
 
@@ -368,9 +425,10 @@ class StudyService extends BaseService {
      * @param {string} deckId - ID del mazzo
      * @param {string} cardId - ID della card
      * @param {number} rating - 1..5 (1=Forgot, 3=Good, 5=Easy)
+     * @param {Object} sessionMeta - opzionale, usato a fine sessione
      * @returns {Promise<{card: Object, stats: Object}>}
      */
-    async processCardReview(tenantScope, deckId, cardId, rating) {
+    async processCardReview(tenantScope, deckId, cardId, rating, sessionMeta = null) {
         const userId = this._getUserId(tenantScope);
         const quality = Number(rating);
 
@@ -439,6 +497,23 @@ class StudyService extends BaseService {
 
         await deck.save();
 
+        let gamification = null;
+        const shouldRecord = sessionMeta?.isComplete || sessionMeta?.completed;
+        if (shouldRecord) {
+            try {
+                gamification = await activityService.recordActivity(userId, 'SESSION_COMPLETE', {
+                    entityId: deckId,
+                    category: 'study',
+                    metadata: {
+                        ...sessionMeta,
+                        deckId,
+                    },
+                });
+            } catch (err) {
+                console.error('❌ Gamification error:', err.message);
+            }
+        }
+
         const updatedCard = this._serializeCard(card);
 
         return {
@@ -452,6 +527,7 @@ class StudyService extends BaseService {
                 nextReviewDate,
                 nextReviewInDays: updatedInterval,
             },
+            gamification,
         };
     }
 
@@ -698,6 +774,34 @@ class StudyService extends BaseService {
             [arr[i], arr[j]] = [arr[j], arr[i]];
         }
         return arr;
+    }
+
+    _calculateSessionXpBreakdown(metadata = {}) {
+        const correctCount = this._toNumber(metadata.correctCount, 0);
+        const wrongCount = this._toNumber(metadata.wrongCount, 0);
+        const timeSpentSeconds = this._toNumber(metadata.timeSpentSeconds, 0);
+        const totalCards = this._toNumber(metadata.totalCards, correctCount + wrongCount);
+        const streakBonus = this._toNumber(metadata.streakBonus, 0);
+
+        const timePerCard = totalCards > 0 ? timeSpentSeconds / totalCards : 0;
+        const speedBonus = timePerCard > 0
+            ? Math.max(0, Math.round(10 - timePerCard / 3))
+            : 0;
+
+        const correctXp = correctCount * 2;
+        const total = SESSION_BASE_XP + correctXp + speedBonus + streakBonus;
+
+        return {
+            base: SESSION_BASE_XP,
+            correct: correctXp,
+            speedBonus,
+            streakBonus,
+            total,
+        };
+    }
+
+    _toNumber(value, fallback = 0) {
+        return Number.isFinite(Number(value)) ? Number(value) : fallback;
     }
 }
 

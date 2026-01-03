@@ -209,6 +209,48 @@ const userSchema = new mongoose.Schema(
             },
         },
 
+        // ==========================================
+        // GAMIFICATION & STATS
+        // ==========================================
+        gamification: {
+            xp: {
+                type: Number,
+                default: 0,
+            },
+            level: {
+                type: Number,
+                default: 1,
+            },
+            streak: {
+                current: {
+                    type: Number,
+                    default: 0,
+                },
+                lastActivityDate: {
+                    type: Date,
+                    default: null,
+                },
+                best: {
+                    type: Number,
+                    default: 0,
+                },
+            },
+            stats: {
+                totalStudySessions: {
+                    type: Number,
+                    default: 0,
+                },
+                totalFlashcardsReviewed: {
+                    type: Number,
+                    default: 0,
+                },
+                correctAnswers: {
+                    type: Number,
+                    default: 0,
+                },
+            },
+        },
+
         // Refresh token hashato (per invalidazione)
         refreshTokenHash: {
             type: String,

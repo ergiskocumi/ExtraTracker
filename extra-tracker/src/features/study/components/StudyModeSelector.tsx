@@ -52,16 +52,16 @@ const ToggleRow: React.FC<{
         role="switch"
         aria-checked={checked}
         onClick={onChange}
-        className="w-full flex items-center justify-between gap-4 px-4 py-3 rounded-2xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-all"
+        className="w-full flex items-center justify-between gap-4 px-5 py-4 rounded-2xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-all"
     >
-        <span className="text-sm font-medium text-white/80">{label}</span>
+        <span className="text-base font-medium text-white/80">{label}</span>
         <span
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
                 checked ? 'bg-indigo-500/70' : 'bg-white/10'
             }`}
         >
             <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
                     checked ? 'translate-x-5' : 'translate-x-1'
                 }`}
             />
@@ -114,25 +114,25 @@ export const StudyModeSelector: React.FC<StudyModeSelectorProps> = ({
                             boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.6)',
                         }}
                     >
-                        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
+                        <div className="flex items-center justify-between px-8 py-6 border-b border-white/10">
                             <div>
-                                <h2 className="text-lg font-semibold text-white">Scegli come studiare</h2>
+                                <h2 className="text-2xl font-bold text-white">Scegli come studiare</h2>
                                 {deckTitle && (
-                                    <p className="text-xs text-white/50 mt-1">{deckTitle}</p>
+                                    <p className="text-sm text-white/60 mt-1">{deckTitle}</p>
                                 )}
                             </div>
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 transition-all"
+                                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 transition-all"
                                 aria-label="Chiudi"
                             >
-                                <FiX className="w-4 h-4" />
+                                <FiX className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="p-8">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                                 {MODES.map((mode) => {
                                     const Icon = mode.icon;
                                     const isSelected = selectedMode === mode.id;
@@ -144,25 +144,25 @@ export const StudyModeSelector: React.FC<StudyModeSelectorProps> = ({
                                             whileHover={{ scale: 1.05 }}
                                             whileTap={{ scale: 0.98 }}
                                             onClick={() => setSelectedMode(mode.id)}
-                                            className={`text-left p-5 rounded-2xl border transition-all ${
+                                            className={`text-left p-6 rounded-2xl border transition-all ${
                                                 isSelected
                                                     ? 'border-indigo-400/40 bg-indigo-500/10 ring-2 ring-indigo-500/70'
                                                     : 'border-white/10 bg-white/[0.04] hover:border-white/20'
                                             }`}
                                         >
-                                            <div className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4 ${
+                                            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5 ${
                                                 isSelected ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/10 text-white/60'
                                             }`}>
-                                                <Icon className="w-6 h-6" />
+                                                <Icon className="w-8 h-8" />
                                             </div>
-                                            <h3 className="text-base font-semibold text-white mb-1">{mode.title}</h3>
-                                            <p className="text-xs text-white/60">{mode.description}</p>
+                                            <h3 className="text-lg font-semibold text-white mb-2">{mode.title}</h3>
+                                            <p className="text-sm text-white/60">{mode.description}</p>
                                         </motion.button>
                                     );
                                 })}
                             </div>
 
-                            <div className="mt-6 space-y-3">
+                            <div className="mt-8 space-y-4">
                                 <ToggleRow
                                     label="🔀 Mischia carte"
                                     checked={shuffle}
@@ -180,7 +180,7 @@ export const StudyModeSelector: React.FC<StudyModeSelectorProps> = ({
                                 whileTap={{ scale: selectedMode ? 0.98 : 1 }}
                                 onClick={handleStart}
                                 disabled={!selectedMode}
-                                className={`mt-6 w-full py-3.5 rounded-2xl text-sm font-semibold transition-all ${
+                                className={`mt-8 w-full py-4 rounded-2xl text-base font-semibold transition-all ${
                                     selectedMode
                                         ? 'bg-gradient-to-r from-indigo-500 to-primary-500 text-white shadow-lg shadow-indigo-500/30'
                                         : 'bg-white/[0.06] text-white/40 cursor-not-allowed'
