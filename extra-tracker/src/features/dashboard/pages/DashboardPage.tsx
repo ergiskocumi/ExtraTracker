@@ -1,262 +1,161 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
-import { FiCalendar, FiPlus, FiLayout, FiFlag, FiClock, FiTarget } from 'react-icons/fi';
-import DatePicker, { registerLocale } from 'react-datepicker';
-import { it } from 'date-fns/locale/it';
-import { enUS } from 'date-fns/locale/en-US';
-import { es } from 'date-fns/locale/es';
-import { de } from 'date-fns/locale/de';
-import { fr } from 'date-fns/locale/fr';
-import 'react-datepicker/dist/react-datepicker.css';
+import { useEffect, useMemo, useState } from 'react';
+import { Brain, Flame, Sparkles, Timer } from 'lucide-react';
 
-import { ProjectSummary } from '../../tracker/ProjectSummary';
-import { WorkLogList } from '../../tracker/WorkLogList';
-import { WorkLogForm } from '../../tracker/WorkLogFormSmart';
-import { QuickStats } from '../QuickStats';
-import { QuickActions } from '../QuickActions';
-import { WeeklyMiniChart } from '../WeeklyMiniChart';
-import { GoalsWidget } from '../GoalsWidget';
-import { useFormat } from '../../../shared/hooks/useFormat';
-import { useDashboard } from '../hooks/useDashboard';
+import { useAuth } from '../../auth/context/AuthContext';
+import { ActivityFeed } from '../../analytics/components/ActivityFeed';
+import { ProductivityChart } from '../../analytics/components/ProductivityChart';
+import { analyticsService, type WeeklyAnalyticsResponse } from '../../analytics/services/analyticsService';
 
-// Registra le lingue supportate (date-fns)
-registerLocale('it', it);
-registerLocale('en', enUS);
-registerLocale('es', es);
-registerLocale('de', de);
-registerLocale('fr', fr);
+type AnalyticsRange = '7d' | '30d';
 
 export const DashboardPage = () => {
-  const { language, formatMoney, formatHours } = useFormat();
-  const {
-    logs,
-    filteredLogs,
-    projects,
-    selectedMonth,
-    stats,
-    upcomingGoals,
-    recentActivity,
-    greeting,
-    formMode,
-    formData,
-    showForm,
-    setSelectedMonth,
-    setShowForm,
-    handleSave,
-    handleDuplicate,
-    handleEdit,
-    handleQuickAdd,
-    deleteLog,
-    resetFormState,
-  } = useDashboard();
+  const { user } = useAuth();
+  const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRange>('7d');
+  const [analyticsData, setAnalyticsData] = useState<WeeklyAnalyticsResponse | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
 
-  // Mostra la form di default se non ci sono log
-  const autoShowForm = useState(() => logs.length === 0)[0];
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAnalytics = async () => {
+      setAnalyticsLoading(true);
+      setAnalyticsError(null);
+
+      try {
+        const data = await analyticsService.getWeekly();
+        if (isMounted) {
+          setAnalyticsData(data);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setAnalyticsError('Impossibile caricare le analytics.');
+        }
+      } finally {
+        if (isMounted) {
+          setAnalyticsLoading(false);
+        }
+      }
+    };
+
+    loadAnalytics();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [analyticsRange]);
+
+  const overview = analyticsData?.overview;
+  const dailyActivity = analyticsData?.dailyActivity ?? [];
+
+  const totals = useMemo(() => {
+    return dailyActivity.reduce(
+      (acc, entry) => {
+        acc.study += entry.study;
+        acc.work += entry.work;
+        acc.xp += entry.xp;
+        return acc;
+      },
+      { study: 0, work: 0, xp: 0 }
+    );
+  }, [dailyActivity]);
+
+  const name = user?.displayName || user?.firstName || 'Benvenuto';
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+        className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent p-6"
       >
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-            <FiLayout className="text-primary-400" />
-            {greeting.title}
-          </h1>
-          <p className="text-white/50">{greeting.subtitle}</p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Month Picker */}
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            <FiCalendar className="text-white/50" size={18} />
-            <DatePicker
-              selected={selectedMonth ? new Date(`${selectedMonth}-01`) : new Date()}
-              onChange={(date: Date | null) => {
-                if (date) {
-                  const year = date.getFullYear();
-                  const month = String(date.getMonth() + 1).padStart(2, '0');
-                  setSelectedMonth(`${year}-${month}`);
-                }
-              }}
-              dateFormat="MMMM yyyy"
-              showMonthYearPicker
-              locale={language}
-              className="w-32 bg-transparent text-white capitalize cursor-pointer focus:outline-none text-sm"
-              calendarClassName="dark-calendar"
-              showPopperArrow={false}
-              popperPlacement="bottom-end"
-              popperProps={{ strategy: 'fixed' }}
-              portalId="datepicker-portal"
-            />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-white/40">Analytics Dashboard</p>
+            <h1 className="mt-2 text-3xl font-semibold text-white">
+              Ciao {name}, ecco la tua settimana
+            </h1>
+            <p className="mt-1 text-sm text-white/50">
+              Studio, produttivita e progressi in una vista unica.
+            </p>
           </div>
 
-          {/* New Entry Button */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              setShowForm(!showForm);
-              if (!showForm) {
-                resetFormState();
-              }
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 transition-all text-white font-medium text-sm shadow-lg shadow-primary-500/20"
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2">
+            <Sparkles className="text-amber-300" size={16} />
+            <span className="text-sm text-white">Livello {overview?.level ?? 1}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={analyticsRange}
+            onChange={(event) => setAnalyticsRange(event.target.value as AnalyticsRange)}
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white"
           >
-            <FiPlus size={18} />
-            Nuovo Log
-          </motion.button>
+            <option value="7d">Ultimi 7 giorni</option>
+            <option value="30d" disabled>Ultimo mese (coming soon)</option>
+          </select>
+          {analyticsError && (
+            <span className="text-xs text-rose-300">{analyticsError}</span>
+          )}
         </div>
       </motion.div>
 
-      {/* SUMMARY STRIP */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary-500/15 flex items-center justify-center">
-            <FiClock className="text-primary-300" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+          <div className="flex items-center gap-2 text-xs text-white/50">
+            <Brain size={14} className="text-indigo-300" />
+            XP Totali
           </div>
-          <div>
-            <p className="text-xs text-white/50">Ore nel periodo</p>
-            <p className="text-white font-semibold">{formatHours(stats.totalHours)}</p>
-          </div>
+          <p className="mt-2 text-2xl font-semibold text-white">
+            {analyticsLoading ? '...' : overview?.totalXP ?? 0}
+          </p>
         </div>
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center">
-            <FiTarget className="text-emerald-300" />
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+          <div className="flex items-center gap-2 text-xs text-white/50">
+            <Flame size={14} className="text-rose-300" />
+            Streak attuale
           </div>
-          <div>
-            <p className="text-xs text-white/50">Goal completati</p>
-            <p className="text-white font-semibold">{stats.completedGoals}</p>
-          </div>
+          <p className="mt-2 text-2xl font-semibold text-white">
+            {analyticsLoading ? '...' : overview?.currentStreak ?? 0}
+          </p>
         </div>
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center">
-            <FiPlus className="text-amber-300" />
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+          <div className="flex items-center gap-2 text-xs text-white/50">
+            <Timer size={14} className="text-emerald-300" />
+            Studio (min)
           </div>
-          <div>
-            <p className="text-xs text-white/50">Progetti attivi</p>
-            <p className="text-white font-semibold">{stats.totalProjects}</p>
-          </div>
+          <p className="mt-2 text-2xl font-semibold text-white">
+            {analyticsLoading ? '...' : totals.study}
+          </p>
         </div>
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-sky-500/15 flex items-center justify-center">
-            <FiLayout className="text-sky-300" />
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+          <div className="flex items-center gap-2 text-xs text-white/50">
+            <Timer size={14} className="text-sky-300" />
+            Lavoro (min)
           </div>
-          <div>
-            <p className="text-xs text-white/50">Ricavi stimati</p>
-            <p className="text-white font-semibold">{formatMoney(stats.totalEarnings)}</p>
+          <p className="mt-2 text-2xl font-semibold text-white">
+            {analyticsLoading ? '...' : totals.work}
+          </p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+          <div className="flex items-center gap-2 text-xs text-white/50">
+            <Sparkles size={14} className="text-amber-300" />
+            XP settimana
           </div>
-        </div>
-      </div>
-
-      {/* QUICK STATS */}
-      <QuickStats logs={filteredLogs} projects={projects} allLogs={logs} />
-
-      {/* MAIN GRID */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left Column - 2/3 */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Form (collapsible) */}
-          {(showForm || autoShowForm) && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-            >
-              <WorkLogForm
-                key={`${formMode}-${formData?.id ?? 'new'}`}
-                projects={projects}
-                onSave={handleSave}
-                initialData={formData}
-                mode={formMode}
-                onCancel={resetFormState}
-              />
-            </motion.div>
-          )}
-
-          {/* Project Summary */}
-          <ProjectSummary logs={filteredLogs} projects={projects} />
-
-          {/* Work Log List */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <WorkLogList
-              logs={filteredLogs}
-              projects={projects}
-              onDelete={deleteLog}
-              onEdit={handleEdit}
-              onDuplicate={handleDuplicate}
-            />
-          </motion.div>
-        </div>
-
-        {/* Right Column - 1/3 */}
-        <div className="space-y-6">
-          {/* Weekly Mini Chart */}
-          <WeeklyMiniChart logs={logs} projects={projects} />
-
-          {/* Quick Actions */}
-          <QuickActions
-            logs={logs}
-            projects={projects}
-            onQuickAdd={handleQuickAdd}
-            onDuplicate={handleDuplicate}
-          />
-
-          {/* Goals Widget */}
-                    <GoalsWidget />
-
-          {/* Upcoming Goals */}
-          {upcomingGoals.length > 0 && (
-            <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                  <FiFlag className="text-indigo-400" size={16} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">Prossime scadenze</h3>
-                  <p className="text-xs text-white/50">I tuoi goal in arrivo</p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {upcomingGoals.map(goal => (
-                  <div key={goal.id} className="flex items-center justify-between py-2 px-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-                    <div>
-                      <p className="text-white font-medium text-sm">{goal.title}</p>
-                      <p className="text-xs text-white/50">Scadenza: {goal.deadline}</p>
-                    </div>
-                    <span className="text-xs px-3 py-1 rounded-full bg-indigo-500/15 text-indigo-200 border border-indigo-500/25">
-                      {goal.status === 'active' ? 'Attivo' : 'In corso'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <p className="mt-2 text-2xl font-semibold text-white">
+            {analyticsLoading ? '...' : totals.xp}
+          </p>
         </div>
       </div>
 
-      {/* Recent Activity */}
-      {recentActivity.length > 0 && (
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-5">
-          <h3 className="text-white font-semibold mb-4">Attività recente</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {recentActivity.map(item => (
-              <div key={item.id} className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-                <p className="text-white font-medium text-sm">{item.projectName}</p>
-                <p className="text-xs text-white/50">{item.date}</p>
-                <p className="text-primary-300 font-semibold mt-2">{item.durationHours.toFixed(1)}h</p>
-              </div>
-            ))}
-          </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <ProductivityChart data={dailyActivity} isLoading={analyticsLoading} />
         </div>
-      )}
+        <ActivityFeed items={analyticsData?.recentActivities ?? []} isLoading={analyticsLoading} />
+      </div>
     </div>
   );
 };
