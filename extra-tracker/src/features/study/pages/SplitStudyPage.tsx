@@ -53,7 +53,7 @@ const ResizeHandle: React.FC<{ className?: string }> = ({ className = '' }) => {
             `}
         >
             {/* Grip Icon */}
-            <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div className="absolute transition-opacity duration-200 opacity-0 group-hover:opacity-100">
                 <GripVertical className="w-4 h-4 text-blue-400" />
             </div>
             
@@ -108,7 +108,7 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({
                         }}
                     >
                         {/* Drawer Handle */}
-                        <div className="absolute top-0 inset-x-0 h-12 flex items-center justify-center">
+                        <div className="absolute inset-x-0 top-0 flex items-center justify-center h-12">
                             <button
                                 onClick={onClose}
                                 className="w-12 h-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
@@ -163,7 +163,7 @@ const MobileDock: React.FC<MobileDockProps> = ({
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, type: 'spring', damping: 20 }}
-            className="fixed bottom-4 left-4 right-4 z-30"
+            className="fixed z-30 bottom-4 left-4 right-4"
         >
             <div className="
                 flex items-center justify-center gap-3
@@ -199,16 +199,7 @@ const MobileDock: React.FC<MobileDockProps> = ({
                 {/* AI Tutor Button */}
                 <button
                     onClick={onOpenChat}
-                    className="
-                        flex-1 flex items-center justify-center gap-3
-                        px-4 py-3
-                        bg-gradient-to-r from-primary-500/20 to-primary-600/20
-                        hover:from-primary-500/30 hover:to-primary-600/30
-                        border border-primary-500/20
-                        rounded-xl
-                        transition-all duration-200
-                        active:scale-95
-                    "
+                    className="flex items-center justify-center flex-1 gap-3 px-4 py-3 transition-all duration-200 border bg-gradient-to-r from-primary-500/20 to-primary-600/20 hover:from-primary-500/30 hover:to-primary-600/30 border-primary-500/20 rounded-xl active:scale-95"
                 >
                     <MessageCircle className="w-5 h-5 text-primary-300" />
                     <div className="text-left">
@@ -265,13 +256,13 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
                         className="w-full"
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center p-8">
-                        <div className="text-center max-w-md">
+                    <div className="flex items-center justify-center w-full h-full p-8">
+                        <div className="max-w-md text-center">
                             <div className="w-14 h-14 mx-auto rounded-2xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center mb-4">
                                 <BookOpen className="w-6 h-6 text-white/50" />
                             </div>
                             <h3 className="text-base font-semibold text-white">Nessun PDF collegato</h3>
-                            <p className="text-sm text-white/60 mt-1">
+                            <p className="mt-1 text-sm text-white/60">
                                 Per attivare la Split View, genera le carte da un PDF e il file verrà salvato e collegato al mazzo.
                             </p>
                         </div>
@@ -387,13 +378,13 @@ export const SplitStudyPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen px-4 sm:px-6 py-6 sm:py-8">
-                <div className="max-w-7xl mx-auto">
+            <div className="min-h-screen px-4 py-6 sm:px-6 sm:py-8">
+                <div className="mx-auto max-w-7xl">
                     <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 animate-pulse">
-                        <div className="h-6 w-1/3 rounded bg-white/10" />
-                        <div className="mt-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <div className="w-1/3 h-6 rounded bg-white/10" />
+                        <div className="grid grid-cols-1 gap-6 mt-6 lg:grid-cols-5">
                             <div className="lg:col-span-3 h-[70vh] rounded-3xl bg-white/10" />
-                            <div className="lg:col-span-2 space-y-3">
+                            <div className="space-y-3 lg:col-span-2">
                                 {[...Array(4)].map((_, i) => (
                                     <div key={i} className="h-20 rounded-2xl bg-white/10" />
                                 ))}
@@ -409,16 +400,16 @@ export const SplitStudyPage: React.FC = () => {
 
     if (error || !deck) {
         return (
-            <div className="min-h-screen px-4 sm:px-6 py-6 sm:py-8">
+            <div className="min-h-screen px-4 py-6 sm:px-6 sm:py-8">
                 <div className="max-w-3xl mx-auto">
-                    <div className="rounded-3xl border border-rose-500/20 bg-rose-500/10 p-6">
+                    <div className="p-6 border rounded-3xl border-rose-500/20 bg-rose-500/10">
                         <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-xl bg-rose-500/20 border border-rose-500/30">
+                            <div className="p-2 border rounded-xl bg-rose-500/20 border-rose-500/30">
                                 <AlertCircle className="w-5 h-5 text-rose-300" />
                             </div>
                             <div className="flex-1">
                                 <h2 className="text-lg font-semibold text-white">Impossibile aprire la pagina</h2>
-                                <p className="text-sm text-white/70 mt-1">{error || 'Mazzo non trovato'}</p>
+                                <p className="mt-1 text-sm text-white/70">{error || 'Mazzo non trovato'}</p>
                                 <div className="mt-4">
                                     <button
                                         onClick={() => navigate('/study')}
@@ -439,7 +430,7 @@ export const SplitStudyPage: React.FC = () => {
 
     if (isDesktop) {
         return (
-            <div className="min-h-screen px-4 sm:px-6 py-6 sm:py-8">
+            <div className="min-h-screen px-4 py-6 sm:px-6 sm:py-8">
                 <div className="max-w-[1800px] mx-auto h-[calc(100vh-4rem)]">
                     {/* Header */}
                     <header className="mb-4">
@@ -451,7 +442,7 @@ export const SplitStudyPage: React.FC = () => {
                                 <ArrowLeft className="w-5 h-5" />
                             </button>
                             <div className="flex-1 min-w-0">
-                                <h1 className="text-xl sm:text-2xl font-bold text-white truncate">
+                                <h1 className="text-xl font-bold text-white truncate sm:text-2xl">
                                     {deck.title}
                                 </h1>
                                 <p className="text-sm text-white/50 mt-0.5">
@@ -554,7 +545,7 @@ export const SplitStudyPage: React.FC = () => {
     // ─── Mobile Layout ───────────────────────────────────────
 
     return (
-        <div className="h-screen flex flex-col overflow-hidden">
+        <div className="flex flex-col h-screen overflow-hidden">
             {/* Mobile Header */}
             <header className="flex-shrink-0 px-4 py-3 border-b border-white/[0.08] bg-black/20 backdrop-blur-lg z-20">
                 <div className="flex items-center gap-3">
@@ -576,7 +567,7 @@ export const SplitStudyPage: React.FC = () => {
             </header>
 
             {/* Full Screen PDF */}
-            <div className="flex-1 overflow-auto pb-20">
+            <div className="flex-1 pb-20 overflow-auto">
                 {pdfSrc ? (
                     <InteractivePDFReader
                         src={pdfSrc}
@@ -585,13 +576,13 @@ export const SplitStudyPage: React.FC = () => {
                         className="w-full"
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center p-8 bg-black/10">
-                        <div className="text-center max-w-xs">
+                    <div className="flex items-center justify-center w-full h-full p-8 bg-black/10">
+                        <div className="max-w-xs text-center">
                             <div className="w-14 h-14 mx-auto rounded-2xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center mb-4">
                                 <BookOpen className="w-6 h-6 text-white/50" />
                             </div>
                             <h3 className="text-base font-semibold text-white">Nessun PDF</h3>
-                            <p className="text-sm text-white/60 mt-1">
+                            <p className="mt-1 text-sm text-white/60">
                                 Genera le carte da un PDF per visualizzarlo qui.
                             </p>
                         </div>

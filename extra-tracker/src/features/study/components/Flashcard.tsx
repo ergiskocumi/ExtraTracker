@@ -12,8 +12,8 @@
  * - Supporto tastiera e touch
  */
 
-import { useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useMemo } from 'react';
+import { motion, useMotionValue, useTransform } from 'framer-motion';
 import type { Card } from '../services/studyService';
 
 interface FlashcardProps {
@@ -21,6 +21,16 @@ interface FlashcardProps {
     isFlipped: boolean;
     onFlip: () => void;
     exitDirection?: 'left' | 'right' | 'up' | null;
+
+    // Swipe-to-study
+    draggable?: boolean;
+    swipeThreshold?: number;
+    onSwipeLeft?: () => void;
+    onSwipeRight?: () => void;
+
+    // Deck stack (0 = top)
+    stackIndex?: 0 | 1 | 2;
+    className?: string;
 }
 
 // Varianti per l'animazione della carta
@@ -64,20 +74,23 @@ export const Flashcard: React.FC<FlashcardProps> = ({
     card, 
     isFlipped, 
     onFlip,
-    exitDirection = null 
+    exitDirection = null,
+    draggable = false,
+    swipeThreshold = 120,
+    onSwipeLeft,
+    onSwipeRight,
+    stackIndex = 0,
+    className = '',
 }) => {
-    // Gestione tastiera (Spazio per flip)
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.code === 'Space' && !isFlipped) {
-                e.preventDefault();
-                onFlip();
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isFlipped, onFlip]);
+    const x = useMotionValue(0);
+    const rotate = useTransform(x, [-240, 0, 240], [-10, 0, 10]);
+    const overlayOpacity = useTransform(x, [-240, -80, 0, 80, 240], [0.45, 0.2, 0, 0.2, 0.45]);
+    const overlayColor = useTransform(
+        x,
+        [-240, 0, 240],
+        ['rgba(239, 68, 68, 0.22)', 'rgba(0, 0, 0, 0)', 'rgba(16, 185, 129, 0.22)']
+    );
+    const badgeOpacity = useTransform(x, [-240, -80, 0, 80, 240], [1, 0.9, 0, 0.9, 1]);
 
     const getExitVariant = () => {
         if (exitDirection === 'left') return 'exitLeft';
@@ -112,6 +125,12 @@ export const Flashcard: React.FC<FlashcardProps> = ({
     // Determina se il testo è lungo abbastanza da necessitare scroll
     const needsScroll = (text: string) => text.length > 300;
 
+    const stackTransform = {
+        0: { scale: 1, y: 0, opacity: 1 },
+        1: { scale: 0.97, y: 10, opacity: 0.65 },
+        2: { scale: 0.94, y: 20, opacity: 0.4 },
+    }[stackIndex];
+
     return (
         <motion.div
             key={card.id}
@@ -119,33 +138,80 @@ export const Flashcard: React.FC<FlashcardProps> = ({
             initial="enter"
             animate="center"
             exit={getExitVariant()}
-            className="w-full max-w-lg mx-auto px-4"
+            className={`w-full ${className}`}
             style={{ perspective: '1200px' }}
         >
             <motion.div
-                onClick={!isFlipped ? onFlip : undefined}
-                animate={{ rotateY: isFlipped ? 180 : 0 }}
+                drag={draggable ? 'x' : false}
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.25}
+                dragMomentum
+                onDragEnd={(_, info) => {
+                    if (!draggable) return;
+
+                    if (info.offset.x > swipeThreshold) {
+                        onSwipeRight?.();
+                        return;
+                    }
+                    if (info.offset.x < -swipeThreshold) {
+                        onSwipeLeft?.();
+                        return;
+                    }
+                }}
+                onTap={onFlip}
+                style={{ 
+                    transformStyle: 'preserve-3d',
+                    cursor: 'pointer',
+                    x,
+                    rotate,
+                }}
+                animate={{ 
+                    rotateY: isFlipped ? 180 : 0,
+                    scale: stackTransform.scale,
+                    y: stackTransform.y,
+                    opacity: stackTransform.opacity,
+                }}
                 transition={{ 
                     duration: 0.55, 
                     type: 'spring', 
                     stiffness: 80,
                     damping: 15
                 }}
-                style={{ 
-                    transformStyle: 'preserve-3d',
-                    cursor: !isFlipped ? 'pointer' : 'default'
-                }}
-                className="relative w-full min-h-[280px] sm:min-h-[320px] md:min-h-[360px]"
+                className="relative w-full min-h-[300px] sm:min-h-[340px] md:min-h-[380px]"
             >
+                {/* Drag feedback overlay */}
+                <motion.div
+                    aria-hidden
+                    className="absolute inset-0 rounded-3xl pointer-events-none z-20"
+                    style={{ opacity: overlayOpacity, backgroundColor: overlayColor }}
+                />
+
+                {/* Drag badges (LEFT/RIGHT) */}
+                {draggable && (
+                    <>
+                        <motion.div
+                            className="absolute top-5 left-5 z-30 px-3 py-1.5 rounded-2xl bg-red-500/15 border border-red-500/25 text-red-300 text-xs font-semibold tracking-wide"
+                            style={{ opacity: badgeOpacity }}
+                        >
+                            NON SO
+                        </motion.div>
+                        <motion.div
+                            className="absolute top-5 right-5 z-30 px-3 py-1.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-xs font-semibold tracking-wide"
+                            style={{ opacity: badgeOpacity }}
+                        >
+                            LO SO
+                        </motion.div>
+                    </>
+                )}
+
                 {/* ═══════════════════════════════════════════
                     FRONTE DELLA CARTA
                     ═══════════════════════════════════════════ */}
                 <div
-                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/20 flex flex-col p-5 sm:p-6"
+                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/30 flex flex-col p-5 sm:p-6 bg-zinc-900/70"
                     style={{ 
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        background: 'linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)'
                     }}
                 >
                     {/* Status Badge */}
@@ -169,10 +235,8 @@ export const Flashcard: React.FC<FlashcardProps> = ({
                         transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
                     >
                         <span className="text-xs font-medium">Tocca per girare</span>
-                        <span className="hidden sm:inline text-xs">•</span>
-                        <kbd className="hidden sm:inline px-1.5 py-0.5 bg-white/10 text-white/40 rounded text-[10px] font-mono">
-                            Spazio
-                        </kbd>
+                        <span className="text-xs">•</span>
+                        <span className="text-xs font-medium">Swipe per votare</span>
                     </motion.div>
                 </div>
 
@@ -180,12 +244,11 @@ export const Flashcard: React.FC<FlashcardProps> = ({
                     RETRO DELLA CARTA
                     ═══════════════════════════════════════════ */}
                 <div
-                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/20 flex flex-col p-5 sm:p-6"
+                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/30 flex flex-col p-5 sm:p-6 bg-zinc-900/70"
                     style={{ 
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
                         transform: 'rotateY(180deg)',
-                        background: 'linear-gradient(145deg, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.03) 100%)'
                     }}
                 >
                     {/* Label Risposta */}

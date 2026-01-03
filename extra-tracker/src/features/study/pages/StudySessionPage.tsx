@@ -21,8 +21,9 @@ import { QuizView } from '../components/QuizView';
 import { TypingView } from '../components/TypingView';
 import { studyService, type StudySession, type ReviewRating, type StudyMode, type Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
-import { SessionSummaryModal, type SessionSummary } from '../../gamification/SessionSummaryModal';
+import type { SessionSummary } from '../../gamification/SessionSummaryModal';
 import { useAuth } from '../../auth/context/AuthContext';
+import { SessionSummary as SessionSummaryScreen } from '../components/SessionSummary';
 
 // ============================================
 // RATING BUTTON COMPONENT - Large Touch-Friendly
@@ -390,9 +391,9 @@ export const StudySessionPage: React.FC = () => {
     }, [session, currentCard, isSubmitting, updateSessionStats]);
 
     const handleFlip = useCallback(() => {
-        if (!isFlashcardMode || isFlipped || isSubmitting || isComplete) return;
-        setIsFlipped(true);
-    }, [isFlashcardMode, isFlipped, isSubmitting, isComplete]);
+        if (!isFlashcardMode || isSubmitting || isComplete) return;
+        setIsFlipped(prev => !prev);
+    }, [isFlashcardMode, isSubmitting, isComplete]);
 
     const handleRating = useCallback(async (rating: ReviewRating) => {
         if (!currentCard || isSubmitting) return;
@@ -433,16 +434,39 @@ export const StudySessionPage: React.FC = () => {
     useEffect(() => {
         if (!isFlashcardMode) return;
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (!isFlipped || isSubmitting || isComplete) return;
+            const target = e.target as HTMLElement | null;
+            if (
+                target &&
+                (target.tagName === 'INPUT' ||
+                    target.tagName === 'TEXTAREA' ||
+                    target.isContentEditable)
+            ) {
+                return;
+            }
 
-            if (e.key === '1') handleRating(1);
-            if (e.key === '2') handleRating(3);
-            if (e.key === '3') handleRating(5);
+            if (isSubmitting || isComplete) return;
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                handleFlip();
+                return;
+            }
+
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                handleRating(1);
+                return;
+            }
+
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                handleRating(5);
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isFlashcardMode, isFlipped, isSubmitting, isComplete, handleRating]);
+    }, [isFlashcardMode, isSubmitting, isComplete, handleRating, handleFlip]);
 
     // Handler per uscire dalla sessione
     const handleBackToDashboard = useCallback(() => {
@@ -512,6 +536,21 @@ export const StudySessionPage: React.FC = () => {
         );
     }
 
+    if (summary && isSummaryOpen) {
+        return (
+            <SessionSummaryScreen
+                deckTitle={session?.deck.title}
+                summary={{
+                    correctCount: summary.correctCount,
+                    wrongCount: summary.wrongCount,
+                    timeSpentSeconds: summary.timeSpentSeconds,
+                    xpTotal: summary.xp.total,
+                }}
+                onExit={handleBackToDashboard}
+            />
+        );
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // MAIN ZEN MODE UI - Full screen, distraction-free
     // ═══════════════════════════════════════════════════════════════════
@@ -568,14 +607,60 @@ export const StudySessionPage: React.FC = () => {
             {/* ═══ STUDY AREA - Centered ═══ */}
             <div className="flex-1 flex items-center justify-center px-4 py-6 overflow-hidden">
                 <AnimatePresence mode="wait">
-                    {currentCard && isFlashcardMode && displayCard && (
-                        <Flashcard
+                    {currentCard && isFlashcardMode && (
+                        <motion.div
                             key={currentCard.id}
-                            card={displayCard}
-                            isFlipped={isFlipped}
-                            onFlip={handleFlip}
-                            exitDirection={exitDirection}
-                        />
+                            className="relative w-full max-w-md"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                        >
+                            <div className="relative w-full min-h-[300px] sm:min-h-[340px] md:min-h-[380px]">
+                                {(() => {
+                                    const slice = session?.cards.slice(currentCardIndex, currentCardIndex + 3) ?? [];
+                                    const stack = slice.map(cardItem =>
+                                        effectiveReverse
+                                            ? { ...cardItem, front: cardItem.back, back: cardItem.front }
+                                            : cardItem
+                                    );
+
+                                    return (
+                                        <>
+                                            {[2, 1].map(idx => {
+                                                const cardItem = stack[idx];
+                                                if (!cardItem) return null;
+                                                return (
+                                                    <Flashcard
+                                                        key={cardItem.id}
+                                                        card={cardItem}
+                                                        isFlipped={false}
+                                                        onFlip={() => {}}
+                                                        exitDirection={null}
+                                                        draggable={false}
+                                                        stackIndex={idx as 1 | 2}
+                                                        className="absolute inset-0"
+                                                    />
+                                                );
+                                            })}
+                                            {stack[0] && (
+                                                <Flashcard
+                                                    key={stack[0].id}
+                                                    card={stack[0]}
+                                                    isFlipped={isFlipped}
+                                                    onFlip={handleFlip}
+                                                    exitDirection={exitDirection}
+                                                    draggable={!isSubmitting && !isComplete}
+                                                    onSwipeLeft={() => handleRating(1)}
+                                                    onSwipeRight={() => handleRating(5)}
+                                                    stackIndex={0}
+                                                    className="absolute inset-0"
+                                                />
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </motion.div>
                     )}
                     {currentCard && isQuizMode && (
                         <motion.div
@@ -620,7 +705,7 @@ export const StudySessionPage: React.FC = () => {
 
             {/* ═══ RATING BUTTONS - Large & Touch-Friendly ═══ */}
             <AnimatePresence>
-                {isFlashcardMode && isFlipped && !isComplete && (
+                {isFlashcardMode && !isComplete && (
                     <motion.div
                         initial={{ opacity: 0, y: 60 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -629,29 +714,21 @@ export const StudySessionPage: React.FC = () => {
                         className="px-4 sm:px-6 py-6 sm:py-8 border-t border-white/[0.06]"
                     >
                         <p className="text-center text-white/40 text-xs sm:text-sm mb-4">
-                            Com'e andata?
+                            Swipe o usa i pulsanti
                         </p>
                         <div className="flex items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto">
                             <RatingButton
-                                label="Difficile"
-                                emoji="😓"
-                                shortcut="1"
+                                label="Non lo so"
+                                emoji="🙅"
+                                shortcut="←"
                                 color="red"
                                 onClick={() => handleRating(1)}
                                 disabled={isSubmitting}
                             />
                             <RatingButton
-                                label="Ok"
-                                emoji="🤔"
-                                shortcut="2"
-                                color="amber"
-                                onClick={() => handleRating(3)}
-                                disabled={isSubmitting}
-                            />
-                            <RatingButton
-                                label="Facile"
-                                emoji="😊"
-                                shortcut="3"
+                                label="Lo so"
+                                emoji="✅"
+                                shortcut="→"
                                 color="green"
                                 onClick={() => handleRating(5)}
                                 disabled={isSubmitting}
@@ -660,15 +737,6 @@ export const StudySessionPage: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            {summary && (
-                <SessionSummaryModal
-                    isOpen={isSummaryOpen}
-                    title={session?.deck.title ? `Sessione completata • ${session.deck.title}` : 'Sessione completata'}
-                    summary={summary}
-                    onClose={handleBackToDashboard}
-                />
-            )}
         </div>
     );
 };
