@@ -160,7 +160,7 @@ export const SmartHeroSection: React.FC<SmartHeroSectionProps> = ({
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="flex flex-col items-center justify-center p-6 border bg-white/[0.03] rounded-2xl border-white/5"
+                    className="flex flex-col items-center justify-center p-6 border bg-white/[0.05] backdrop-blur-sm rounded-3xl border-white/[0.1] card"
                 >
                     <RadialProgress value={dailyScore} />
                     <div className="mt-4 text-center">
@@ -278,7 +278,7 @@ export const SmartHeroSection: React.FC<SmartHeroSectionProps> = ({
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.4 }}
-                    className="relative flex flex-col justify-center p-6 border bg-white/[0.03] rounded-2xl border-white/5"
+                    className="relative flex flex-col justify-center p-6 border bg-white/[0.05] backdrop-blur-sm rounded-3xl border-white/[0.1] card"
                 >
                     <div className="absolute text-6xl font-serif top-4 left-4 text-white/5">"</div>
                     <div className="absolute text-6xl font-serif bottom-4 right-4 text-white/5">"</div>
@@ -341,18 +341,18 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ stats }) => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 }}
-                    className="relative overflow-hidden bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all group"
+                    className="relative overflow-hidden bg-gradient-to-br from-white/[0.08] to-white/[0.03] backdrop-blur-xl border border-white/12 rounded-3xl p-6 hover:border-white/20 transition-all group card"
                 >
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="mb-1 text-sm font-medium text-white/60">{stat.label}</p>
+                            <p className="mb-2 text-sm font-medium text-white/60 uppercase tracking-wide">{stat.label}</p>
                             <p className="text-3xl font-bold text-white">{stat.value}</p>
                         </div>
-                        <div className={`p-3 rounded-xl bg-${stat.color}-500/10 text-${stat.color}-400 group-hover:scale-110 transition-transform`}>
+                        <div className={`p-3 rounded-xl bg-${stat.color}-500/15 text-${stat.color}-400 group-hover:scale-110 transition-transform shadow-lg shadow-${stat.color}-500/10`}>
                             <stat.icon className="w-6 h-6" />
                         </div>
                     </div>
-                    <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-${stat.color}-500 to-${stat.color}-600`} />
+                    <div className={`absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-${stat.color}-500 via-${stat.color}-400 to-${stat.color}-600 rounded-b-3xl`} />
                 </motion.div>
             ))}
         </div>
@@ -389,7 +389,7 @@ export const FiltersSection: React.FC<FiltersSectionProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-6"
+        className="bg-gradient-to-br from-white/[0.08] to-white/[0.03] backdrop-blur-xl border border-white/[0.12] rounded-3xl p-6 card"
     >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
             <div className="relative md:col-span-5">
@@ -399,7 +399,7 @@ export const FiltersSection: React.FC<FiltersSectionProps> = ({
                     placeholder="Search goals..."
                     value={filters.searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full py-3 pl-12 pr-4 text-white transition-all border bg-white/5 border-white/10 rounded-xl placeholder-white/40 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full py-3 pl-12 pr-4 text-white transition-all border bg-white/[0.06] border-white/[0.12] rounded-xl placeholder-white/40 focus:border-primary-500/60 focus:outline-none focus:ring-2 focus:ring-primary-500/30 backdrop-blur-sm"
                 />
             </div>
 
@@ -421,7 +421,7 @@ export const FiltersSection: React.FC<FiltersSectionProps> = ({
                 <select
                     value={filters.status}
                     onChange={(e) => setFilterStatus(e.target.value as StatusFilter)}
-                    className="w-full px-4 py-3 text-white transition-all border appearance-none cursor-pointer bg-white/5 border-white/10 rounded-xl focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full px-4 py-3 text-white transition-all border appearance-none cursor-pointer bg-white/[0.06] border-white/[0.12] rounded-xl focus:border-primary-500/60 focus:outline-none focus:ring-2 focus:ring-primary-500/30 backdrop-blur-sm"
                 >
                     <option value="all">All Status</option>
                     <option value="active">Active</option>
@@ -433,7 +433,7 @@ export const FiltersSection: React.FC<FiltersSectionProps> = ({
                 <select
                     value={filters.sortBy}
                     onChange={(e) => setSortBy(e.target.value as SortOption)}
-                    className="w-full px-4 py-3 text-white transition-all border appearance-none cursor-pointer bg-white/5 border-white/10 rounded-xl focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full px-4 py-3 text-white transition-all border appearance-none cursor-pointer bg-white/[0.06] border-white/[0.12] rounded-xl focus:border-primary-500/60 focus:outline-none focus:ring-2 focus:ring-primary-500/30 backdrop-blur-sm"
                 >
                     <option value="percentage">Progress</option>
                     <option value="deadline">Deadline</option>
@@ -518,7 +518,7 @@ export const GoalCard: React.FC<GoalCardProps> = React.memo(({
             : 'border-white/10 hover:border-white/20';
 
     const cardContent = (
-        <div className={`relative overflow-hidden bg-gradient-to-br from-white/[0.07] to-white/[0.02] backdrop-blur-xl border rounded-2xl p-6 transition-all h-full ${selectionClass}`}>
+        <div className={`relative overflow-hidden bg-gradient-to-br from-white/[0.08] to-white/[0.03] backdrop-blur-xl border rounded-3xl p-6 transition-all h-full ${selectionClass} card`}>
             {/* Header */}
             <div className="flex items-start justify-between mb-4">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -531,7 +531,7 @@ export const GoalCard: React.FC<GoalCardProps> = React.memo(({
                             {isSelected ? <FiCheckSquare className="w-4 h-4" /> : <FiSquare className="w-4 h-4" />}
                         </div>
                     )}
-                    <div className={`p-2.5 rounded-xl ${category.color} bg-white/5`}>
+                    <div className={`p-3 rounded-xl ${category.color} bg-white/[0.08] shadow-lg shadow-primary-500/5`}>
                         {getCategoryIcon(goal.category)}
                     </div>
                     <div className="min-w-0">
@@ -601,22 +601,23 @@ export const GoalCard: React.FC<GoalCardProps> = React.memo(({
 
             {/* Progress Bar */}
             <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-white/80">Progress</span>
+                <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-sm font-semibold text-white/80">Progresso</span>
                     <span className="text-sm font-bold text-white">{goal.percentage.toFixed(0)}%</span>
                 </div>
-                <div className="relative h-2 overflow-hidden rounded-full bg-white/5">
+                <div className="relative h-2.5 overflow-hidden rounded-full bg-white/[0.08] shadow-inner">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${goal.percentage}%` }}
-                        transition={{ duration: 0.5, ease: "easeOut" }}
-                        className={`h-full bg-gradient-to-r ${getProgressColor(goal.percentage)} rounded-full`}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
+                        className={`h-full bg-gradient-to-r ${getProgressColor(goal.percentage)} rounded-full shadow-sm`}
+                        style={{ boxShadow: '0 0 8px rgba(124, 58, 237, 0.3)' }}
                     />
                 </div>
             </div>
 
             {/* Stats Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-white/10">
+            <div className="flex items-center justify-between pt-4 border-t border-white/[0.08]">
                 <div className="flex items-center gap-2 text-sm">
                     <FiCalendar className="w-4 h-4 text-white/40" />
                     <span className={`${isExpired ? 'text-red-400' : isUrgent ? 'text-yellow-400' : 'text-white/60'}`}>
@@ -691,12 +692,12 @@ export const GoalCard: React.FC<GoalCardProps> = React.memo(({
                     whileTap={{ scale: 0.9 }}
                     onClick={(e) => onQuickCheckIn(e, goal.id)}
                     disabled={isCheckingIn}
-                    className={`absolute -bottom-3 right-6 w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all z-10 ${
+                    className={`absolute -bottom-3 right-6 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all z-10 ring-2 ring-white/10 ${
                         justCheckedIn
-                            ? 'bg-green-500 shadow-green-500/30'
+                            ? 'bg-green-500 shadow-green-500/40 ring-green-500/30'
                             : isCheckingIn
-                            ? 'bg-primary-500/50 cursor-wait'
-                            : 'bg-gradient-to-r from-primary-500 to-primary-600 shadow-primary-500/30 hover:shadow-primary-500/50'
+                            ? 'bg-primary-500/50 cursor-wait ring-primary-500/20'
+                            : 'bg-gradient-to-r from-primary-500 to-primary-600 shadow-primary-500/40 hover:shadow-primary-500/60 ring-primary-500/20'
                     }`}
                     title="Quick Check-in"
                 >

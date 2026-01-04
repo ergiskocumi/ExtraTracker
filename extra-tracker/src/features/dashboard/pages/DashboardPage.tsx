@@ -67,7 +67,7 @@ const LazyAnalyticsChart = ({ data }: { data: any[] }) => {
             animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.6 }}
             style={{ willChange: 'transform, opacity' }}
-            className="rounded-3xl border border-white/10 bg-white/[0.02] p-6"
+            className="rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-6 card"
         >
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -157,10 +157,11 @@ const StudyActionCard: React.FC<StudyActionCardProps> = React.memo(({ dueCards, 
             animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.1 }}
             style={{ willChange: 'transform, opacity' }}
-            className="relative rounded-3xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent p-6 overflow-hidden group"
+            className="relative rounded-3xl border border-violet-500/25 bg-gradient-to-br from-violet-500/12 via-violet-500/6 to-transparent p-6 overflow-hidden group card-action"
         >
             {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-violet-500/10 rounded-full blur-3xl" />
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-violet-500/15 rounded-full blur-3xl" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-violet-500/8 rounded-full blur-2xl" />
             
             <div className="relative">
                 {/* Header */}
@@ -198,10 +199,10 @@ const StudyActionCard: React.FC<StudyActionCardProps> = React.memo(({ dueCards, 
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handleStudy}
-                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-medium transition-all ${
+                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-semibold transition-all ${
                         dueCards > 0
-                            ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/25 hover:bg-violet-600'
-                            : 'bg-white/10 text-white/80 hover:bg-white/15'
+                            ? 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/30 hover:from-violet-400 hover:to-violet-500 hover:shadow-violet-500/40'
+                            : 'bg-white/[0.08] text-white/80 hover:bg-white/[0.12] border border-white/[0.1]'
                     }`}
                 >
                     {dueCards > 0 ? (
@@ -247,10 +248,11 @@ const GoalActionCard: React.FC<GoalActionCardProps> = React.memo(({ activeCount,
             animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.2 }}
             style={{ willChange: 'transform, opacity' }}
-            className="relative rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-6 overflow-hidden"
+            className="relative rounded-3xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/12 via-emerald-500/6 to-transparent p-6 overflow-hidden card-action"
         >
             {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/15 rounded-full blur-3xl" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-500/8 rounded-full blur-2xl" />
             
             <div className="relative">
                 {/* Header */}
@@ -299,10 +301,10 @@ const GoalActionCard: React.FC<GoalActionCardProps> = React.memo(({ activeCount,
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => navigate(topPriority ? `/goals/${topPriority.id}` : '/goals')}
-                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-medium transition-all ${
+                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-semibold transition-all ${
                         overdueCount > 0
-                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 hover:bg-emerald-600'
-                            : 'bg-white/10 text-white/80 hover:bg-white/15'
+                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-500/40'
+                            : 'bg-white/[0.08] text-white/80 hover:bg-white/[0.12] border border-white/[0.1]'
                     }`}
                 >
                     {topPriority ? (
@@ -337,10 +339,11 @@ const WorkActionCard: React.FC<WorkActionCardProps> = React.memo(({ todayFormatt
             animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.3 }}
             style={{ willChange: 'transform, opacity' }}
-            className="relative rounded-3xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent p-6 overflow-hidden"
+            className="relative rounded-3xl border border-blue-500/25 bg-gradient-to-br from-blue-500/12 via-blue-500/6 to-transparent p-6 overflow-hidden card-action"
         >
             {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl" />
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/15 rounded-full blur-3xl" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/8 rounded-full blur-2xl" />
             
             <div className="relative">
                 {/* Header */}
@@ -374,7 +377,7 @@ const WorkActionCard: React.FC<WorkActionCardProps> = React.memo(({ todayFormatt
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => navigate('/timeline')}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white/10 text-white/80 hover:bg-white/15 font-medium transition-all"
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white/[0.08] text-white/80 hover:bg-white/[0.12] border border-white/[0.1] font-semibold transition-all"
                 >
                     <Plus className="w-4 h-4" />
                     Registra Lavoro
@@ -426,7 +429,7 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
             animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.4 }}
             style={{ willChange: 'transform, opacity' }}
-            className="rounded-3xl border border-white/10 bg-white/[0.02] p-6"
+            className="rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-6 card"
         >
             <div className="flex items-center justify-between mb-5">
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -489,15 +492,18 @@ const GamificationWidget: React.FC<GamificationWidgetProps> = React.memo(({ stre
         animate={{ opacity: 1, transform: 'translateY(0)' }}
         transition={{ delay: 0.35 }}
         style={{ willChange: 'transform, opacity' }}
-        className="rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-6"
+        className="relative rounded-3xl border border-amber-500/25 bg-gradient-to-br from-amber-500/12 via-amber-500/6 to-transparent p-6 overflow-hidden card-action"
     >
-        <div className="flex items-center gap-6">
+        {/* Background decoration */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl" />
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-amber-500/8 rounded-full blur-2xl" />
+        <div className="relative flex items-center gap-6">
             {/* Level Badge */}
             <div className="relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 ring-2 ring-amber-500/20">
                     <Trophy className="w-8 h-8 text-white" />
                 </div>
-                <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white text-amber-600 text-xs font-bold flex items-center justify-center shadow">
+                <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white text-amber-600 text-xs font-bold flex items-center justify-center shadow-lg ring-2 ring-amber-500/30">
                     {level}
                 </span>
             </div>

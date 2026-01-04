@@ -126,10 +126,10 @@ export const Flashcard: React.FC<FlashcardProps> = ({
                 onClick={!isFlipped ? onFlip : undefined}
                 animate={{ rotateY: isFlipped ? 180 : 0 }}
                 transition={{ 
-                    duration: 0.55, 
+                    duration: 0.6, 
                     type: 'spring', 
-                    stiffness: 80,
-                    damping: 15
+                    stiffness: 100,
+                    damping: 18
                 }}
                 style={{ 
                     transformStyle: 'preserve-3d',
@@ -141,36 +141,37 @@ export const Flashcard: React.FC<FlashcardProps> = ({
                     FRONTE DELLA CARTA
                     ═══════════════════════════════════════════ */}
                 <div
-                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/20 flex flex-col p-5 sm:p-6"
+                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.15] shadow-2xl flex flex-col p-5 sm:p-6"
                     style={{ 
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        background: 'linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)'
+                        background: 'linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)',
+                        boxShadow: '0 8px 32px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)'
                     }}
                 >
                     {/* Status Badge */}
-                    <div className="flex justify-end mb-2">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${status.bg} ${status.text} border ${status.border}`}>
+                    <div className="flex justify-end mb-3">
+                        <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${status.bg} ${status.text} border ${status.border} shadow-sm`}>
                             {status.label}
                         </span>
                     </div>
 
                     {/* Contenuto Fronte - con scroll se necessario */}
-                    <div className={`flex-1 flex items-center justify-center w-full ${needsScroll(card.front) ? 'overflow-y-auto' : ''}`}>
-                        <p className={`${frontFontSize} font-semibold text-white text-center leading-relaxed whitespace-pre-wrap break-words max-w-full`}>
+                    <div className={`flex-1 flex items-center justify-center w-full ${needsScroll(card.front) ? 'overflow-y-auto custom-scrollbar' : ''}`}>
+                        <p className={`${frontFontSize} font-bold text-white text-center leading-relaxed whitespace-pre-wrap break-words max-w-full drop-shadow-sm`}>
                             {card.front}
                         </p>
                     </div>
 
                     {/* Hint per flip */}
                     <motion.div 
-                        className="flex items-center justify-center gap-2 text-white/30 mt-3 pt-3 border-t border-white/[0.05]"
-                        animate={{ opacity: [0.3, 0.6, 0.3] }}
+                        className="flex items-center justify-center gap-2 text-white/40 mt-4 pt-4 border-t border-white/[0.08]"
+                        animate={{ opacity: [0.4, 0.7, 0.4] }}
                         transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
                     >
-                        <span className="text-xs font-medium">Tocca per girare</span>
+                        <span className="text-xs font-semibold">Tocca per girare</span>
                         <span className="hidden sm:inline text-xs">•</span>
-                        <kbd className="hidden sm:inline px-1.5 py-0.5 bg-white/10 text-white/40 rounded text-[10px] font-mono">
+                        <kbd className="hidden sm:inline px-2 py-1 bg-white/[0.12] text-white/50 rounded-lg text-[10px] font-mono border border-white/[0.1] shadow-sm">
                             Spazio
                         </kbd>
                     </motion.div>
@@ -180,24 +181,25 @@ export const Flashcard: React.FC<FlashcardProps> = ({
                     RETRO DELLA CARTA
                     ═══════════════════════════════════════════ */}
                 <div
-                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/20 flex flex-col p-5 sm:p-6"
+                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.15] shadow-2xl flex flex-col p-5 sm:p-6"
                     style={{ 
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
                         transform: 'rotateY(180deg)',
-                        background: 'linear-gradient(145deg, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.03) 100%)'
+                        background: 'linear-gradient(145deg, rgba(139, 92, 246, 0.12) 0%, rgba(99, 102, 241, 0.05) 100%)',
+                        boxShadow: '0 8px 32px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.2), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)'
                     }}
                 >
                     {/* Label Risposta */}
-                    <div className="flex justify-start mb-2">
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    <div className="flex justify-start mb-3">
+                        <span className="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm">
                             Risposta
                         </span>
                     </div>
 
                     {/* Contenuto Retro - con scroll se necessario */}
-                    <div className={`flex-1 flex items-center justify-center w-full ${needsScroll(card.back) ? 'overflow-y-auto' : ''}`}>
-                        <p className={`${backFontSize} text-white/90 text-center leading-relaxed whitespace-pre-wrap break-words max-w-full`}>
+                    <div className={`flex-1 flex items-center justify-center w-full ${needsScroll(card.back) ? 'overflow-y-auto custom-scrollbar' : ''}`}>
+                        <p className={`${backFontSize} font-semibold text-white/95 text-center leading-relaxed whitespace-pre-wrap break-words max-w-full drop-shadow-sm`}>
                             {card.back}
                         </p>
                     </div>

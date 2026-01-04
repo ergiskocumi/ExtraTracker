@@ -55,21 +55,29 @@
 }
 
 @layer components {
-  /* Card Styles - Dark Glassmorphism */
+  /* Card Styles - Premium Dark Glassmorphism */
   .card {
-    @apply bg-white/[0.03] backdrop-blur-xl rounded-2xl 
-           border border-white/[0.08] shadow-card
+    @apply bg-white/[0.04] backdrop-blur-xl rounded-3xl 
+           border border-white/[0.1] shadow-card
            transition-all duration-300 ease-out;
+    background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.3), 
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
   }
   
   .card:hover {
-    @apply bg-white/[0.05] border-white/[0.12] transform -translate-y-0.5;
-    box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    @apply bg-white/[0.06] border-white/[0.15] transform -translate-y-1;
+    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.4), 
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+                0 0 20px rgba(124, 58, 237, 0.1);
   }
 
   .card-glass {
-    @apply bg-white/[0.05] backdrop-blur-xl rounded-2xl 
-           border border-white/[0.1] shadow-card;
+    @apply bg-white/[0.06] backdrop-blur-xl rounded-3xl 
+           border border-white/[0.12] shadow-card;
+    background: linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
   }
 
   .card-glow {
@@ -78,54 +86,113 @@
 
   .card-glow::before {
     content: '';
-    @apply absolute inset-0 transition-opacity duration-300 opacity-0 rounded-2xl;
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, transparent 50%);
+    @apply absolute inset-0 transition-opacity duration-300 opacity-0 rounded-3xl;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(139, 92, 246, 0.08) 50%, transparent 100%);
   }
 
   .card-glow:hover::before {
     @apply opacity-100;
   }
 
-  /* Button Styles */
+  /* Premium Action Card - For Dashboard */
+  .card-action {
+    @apply relative overflow-hidden rounded-3xl border backdrop-blur-xl p-6
+           transition-all duration-300 ease-out;
+    background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.3), 
+                0 0 0 1px rgba(255, 255, 255, 0.08),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .card-action:hover {
+    @apply transform -translate-y-1;
+    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.4), 
+                0 0 0 1px rgba(255, 255, 255, 0.12),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* Button Styles - Premium */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 
            font-semibold text-sm rounded-xl transition-all duration-200 
            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-dark-500
            disabled:opacity-50 disabled:cursor-not-allowed
            active:scale-[0.98];
+    position: relative;
+    overflow: hidden;
   }
 
   .btn-primary {
-    @apply text-white bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 focus:ring-primary-500 shadow-glow-sm hover:shadow-glow;
+    @apply text-white bg-gradient-to-r from-primary-600 to-primary-500 
+           hover:from-primary-500 hover:to-primary-400 focus:ring-primary-500;
+    box-shadow: 0 4px 16px -4px rgba(124, 58, 237, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 6px 24px -4px rgba(124, 58, 237, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+                0 0 20px rgba(124, 58, 237, 0.3);
   }
 
   .btn-success {
-    @apply text-white bg-gradient-to-r from-accent-600 to-accent-500 hover:from-accent-500 hover:to-accent-400 focus:ring-accent-500 shadow-glow-accent-sm hover:shadow-glow-accent;
+    @apply text-white bg-gradient-to-r from-accent-600 to-accent-500 
+           hover:from-accent-500 hover:to-accent-400 focus:ring-accent-500;
+    box-shadow: 0 4px 16px -4px rgba(16, 185, 129, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .btn-success:hover {
+    box-shadow: 0 6px 24px -4px rgba(16, 185, 129, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+                0 0 20px rgba(16, 185, 129, 0.3);
   }
 
   .btn-danger {
-    @apply text-white bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 focus:ring-rose-500;
+    @apply text-white bg-gradient-to-r from-rose-600 to-rose-500 
+           hover:from-rose-500 hover:to-rose-400 focus:ring-rose-500;
+    box-shadow: 0 4px 16px -4px rgba(244, 63, 94, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .btn-danger:hover {
+    box-shadow: 0 6px 24px -4px rgba(244, 63, 94, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.15) inset;
   }
 
   .btn-ghost {
-    @apply bg-white/[0.05] text-white/80 hover:bg-white/[0.1] hover:text-white
-           border border-white/[0.1] focus:ring-white/30;
+    @apply bg-white/[0.06] text-white/80 hover:bg-white/[0.12] hover:text-white
+           border border-white/[0.12] focus:ring-white/30;
+    backdrop-filter: blur(12px);
   }
 
   .btn-outline {
-    @apply bg-transparent border text-primary-400 border-primary-500/50 hover:bg-primary-500/10 hover:border-primary-400 focus:ring-primary-500;
+    @apply bg-transparent border text-primary-400 border-primary-500/50 
+           hover:bg-primary-500/10 hover:border-primary-400 focus:ring-primary-500;
+    backdrop-filter: blur(12px);
   }
 
-  /* Input Styles */
+  /* Input Styles - Premium */
   .input {
-    @apply w-full px-4 py-3 bg-white/[0.05] border border-white/[0.1] rounded-xl 
+    @apply w-full px-4 py-3 bg-white/[0.06] border border-white/[0.12] rounded-xl 
            text-white placeholder:text-white/40
-           focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500/50
+           focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500/60
            transition-all duration-200;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
   }
 
   .input:hover {
-    @apply border-white/20 bg-white/[0.07];
+    @apply border-white/25 bg-white/[0.08];
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.25),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .input:focus {
+    box-shadow: 0 4px 16px -4px rgba(124, 58, 237, 0.3),
+                0 0 0 3px rgba(124, 58, 237, 0.1),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
   }
 
   .select {
@@ -200,14 +267,22 @@
     @apply border bg-amber-500/20 text-amber-300 border-amber-500/30;
   }
 
-  /* Stat Card */
+  /* Stat Card - Premium */
   .stat-card {
     @apply relative p-6 overflow-hidden card;
   }
 
   .stat-card::before {
     content: '';
-    @apply absolute inset-0 pointer-events-none bg-gradient-to-br from-primary-500/5 to-transparent;
+    @apply absolute inset-0 pointer-events-none rounded-3xl;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, transparent 60%);
+  }
+
+  .stat-card::after {
+    content: '';
+    @apply absolute bottom-0 left-0 right-0 h-1 pointer-events-none;
+    background: linear-gradient(90deg, rgba(124, 58, 237, 0.6) 0%, rgba(139, 92, 246, 0.4) 100%);
+    border-radius: 0 0 1.5rem 1.5rem;
   }
 
   /* Navigation */

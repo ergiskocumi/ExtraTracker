@@ -129,13 +129,13 @@ const DeckCard: React.FC<DeckCardProps> = ({ deck, onStudy, onMagicGenerate, onV
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             className={`
-                group relative overflow-hidden rounded-2xl backdrop-blur-xl border transition-all duration-300
+                group relative overflow-hidden rounded-3xl backdrop-blur-xl border transition-all duration-300 card
                 ${hasDueCards 
-                    ? 'border-orange-500/30 shadow-lg shadow-orange-500/10' 
-                    : 'border-white/[0.08] hover:border-white/[0.15]'
+                    ? 'border-orange-500/35 shadow-lg shadow-orange-500/15' 
+                    : 'border-white/[0.12] hover:border-white/[0.18]'
                 }
             `}
-            style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)' }}
+            style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%)' }}
         >
             {/* Hover Action Bar - Top */}
             <AnimatePresence>

@@ -163,7 +163,7 @@ export const AIInsightsWidget = () => {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.05 * index }}
-                            className={`rounded-2xl border p-4 ${borderClass}`}
+                            className={`rounded-2xl border border-white/[0.1] p-5 backdrop-blur-sm ${borderClass}`}
                         >
                             <div className="flex items-start gap-3">
                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconWrapClass}`}>
@@ -202,7 +202,7 @@ export const AIInsightsWidget = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65 }}
-            className="rounded-3xl border border-white/10 bg-white/[0.02] p-6"
+            className="rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-6 card"
         >
             <div className="flex items-center justify-between mb-5">
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
