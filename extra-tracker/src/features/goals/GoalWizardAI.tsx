@@ -190,7 +190,7 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
     return (
         <motion.div
             layout
-            className="overflow-hidden border-2 bg-dark-800/60 rounded-2xl border-dark-600/50 shadow-lg backdrop-blur-sm"
+            className="overflow-hidden border bg-white/[0.03] rounded-xl border-white/10"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -198,11 +198,11 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
         >
             {/* Header - Always visible */}
             <div
-                className="flex items-center justify-between p-5 transition-all cursor-pointer hover:bg-dark-700/40"
+                className="flex items-center justify-between p-4 transition-all cursor-pointer hover:bg-white/[0.05]"
                 onClick={onToggle}
             >
-                <div className="flex items-center flex-1 min-w-0 space-x-4">
-                    <div className="flex items-center justify-center flex-shrink-0 w-10 h-10 text-base font-bold rounded-full bg-gradient-to-br from-primary-500 to-purple-600 text-white shadow-lg">
+                <div className="flex items-center flex-1 min-w-0 space-x-3">
+                    <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 text-sm font-semibold border rounded-lg bg-primary-500/20 text-primary-400 border-primary-500/30">
                         {index + 1}
                     </div>
                     
@@ -214,26 +214,25 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
                             onBlur={handleSaveTitle}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex-1 px-4 py-2 text-white border-2 rounded-xl bg-dark-700 border-primary-500/50 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+                            className="flex-1 px-3 py-2 text-white border rounded-lg bg-white/[0.03] border-white/10 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             autoFocus
                         />
                     ) : (
-                        <span className="text-lg font-semibold text-white truncate">{milestone.title}</span>
+                        <span className="font-medium text-white truncate">{milestone.title}</span>
                     )}
                 </div>
 
-                <div className="flex items-center flex-shrink-0 space-x-4">
-                    <div className="flex items-center px-3 py-1.5 space-x-2 text-sm text-gray-300 rounded-lg bg-dark-700/50">
-                        <FiCalendar className="w-4 h-4" />
-                        <span className="font-medium">{formatDate(milestone.deadline)}</span>
+                <div className="flex items-center flex-shrink-0 space-x-3">
+                    <div className="flex items-center px-2 py-1 space-x-1 text-xs text-white/60 rounded-md bg-white/[0.05]">
+                        <FiCalendar className="w-3 h-3" />
+                        <span>{formatDate(milestone.deadline)}</span>
                     </div>
                     
                     <motion.div
                         animate={{ rotate: isExpanded ? 180 : 0 }}
                         transition={{ duration: 0.2 }}
-                        className="p-1"
                     >
-                        <FiChevronDown className="w-5 h-5 text-gray-400" />
+                        <FiChevronDown className="w-4 h-4 text-white/40" />
                     </motion.div>
                 </div>
             </div>
@@ -246,13 +245,13 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="border-t border-dark-600/50"
+                        className="border-t border-white/10"
                     >
-                        <div className="p-6 space-y-6 bg-dark-800/30">
+                        <div className="p-4 space-y-4">
                             {/* Description */}
-                            <div className="space-y-3">
-                                <h4 className="text-sm font-semibold tracking-wide uppercase text-primary-400">Description</h4>
-                                <p className="text-base leading-relaxed text-gray-300">
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-semibold text-primary-400">Description</h4>
+                                <p className="text-sm leading-relaxed text-white/80">
                                     {milestone.description}
                                 </p>
                             </div>
@@ -264,7 +263,7 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
                                         <FiTarget className="w-4 h-4" />
                                         <span>Strategic Reasoning</span>
                                     </h4>
-                                    <blockquote className="pl-4 text-sm italic text-zinc-400 border-l-2 border-primary-500">
+                                    <blockquote className="pl-4 text-sm italic border-l-2 text-zinc-400 border-primary-500">
                                         {milestone.reasoning}
                                     </blockquote>
                                 </div>
@@ -272,20 +271,16 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
 
                             {/* Action Steps */}
                             {milestone.actionSteps && milestone.actionSteps.length > 0 && (
-                                <div className="space-y-4">
-                                    <h4 className="flex items-center space-x-2 text-sm font-semibold tracking-wide uppercase text-primary-400">
-                                        <FiCheckCircle className="w-4 h-4" />
+                                <div className="space-y-2">
+                                    <h4 className="flex items-center space-x-2 text-sm font-semibold text-primary-400">
+                                        <FiCheckCircle className="w-3 h-3" />
                                         <span>Action Steps</span>
                                     </h4>
-                                    <div className="space-y-2">
+                                    <div className="space-y-1">
                                         {milestone.actionSteps.map((step, i) => (
-                                            <div key={i} className="flex items-start space-x-3 group">
-                                                <div className="flex items-center justify-center flex-shrink-0 w-5 h-5 mt-0.5 border-2 rounded border-primary-500/50 group-hover:border-primary-400 group-hover:bg-primary-500/10">
-                                                    <div className="w-2 h-2 rounded-full bg-primary-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                                </div>
-                                                <span className="text-gray-300 group-hover:text-white transition-colors">
-                                                    {step}
-                                                </span>
+                                            <div key={i} className="flex items-start space-x-2 text-sm">
+                                                <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary-400 mt-2"></span>
+                                                <span className="text-white/70">{step}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -294,31 +289,16 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
 
                             {/* Resources */}
                             {milestone.resources && milestone.resources.length > 0 && (
-                                <div className="space-y-4">
-                                    <h4 className="flex items-center space-x-2 text-sm font-semibold tracking-wide uppercase text-primary-400">
-                                        <FiBook className="w-4 h-4" />
+                                <div className="space-y-2">
+                                    <h4 className="flex items-center space-x-2 text-sm font-semibold text-primary-400">
+                                        <FiBook className="w-3 h-3" />
                                         <span>Resources</span>
                                     </h4>
-                                    <div className="grid gap-3">
+                                    <div className="space-y-1">
                                         {milestone.resources.map((resource, i) => (
-                                            <div
-                                                key={i}
-                                                className="flex items-start p-3 transition-all border rounded-lg bg-dark-700/40 border-dark-600/50 hover:bg-dark-700/60 hover:border-primary-500/30 group cursor-pointer"
-                                            >
-                                                <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 mr-3 rounded-lg bg-primary-500/20 text-primary-400 group-hover:bg-primary-500/30">
-                                                    <FiExternalLink className="w-4 h-4" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h5 className="font-medium text-white truncate group-hover:text-primary-200">
-                                                        {resource}
-                                                    </h5>
-                                                    <p className="text-sm text-gray-400 group-hover:text-gray-300">
-                                                        Recommended resource
-                                                    </p>
-                                                </div>
-                                                <button className="flex items-center justify-center flex-shrink-0 w-8 h-8 ml-2 transition-all rounded-lg text-primary-400 hover:bg-primary-500/20 hover:text-primary-300">
-                                                    <FiExternalLink className="w-4 h-4" />
-                                                </button>
+                                            <div key={i} className="flex items-center space-x-2 text-sm transition-colors text-primary-400 hover:text-primary-300">
+                                                <FiExternalLink className="flex-shrink-0 w-3 h-3" />
+                                                <span>{resource}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -326,25 +306,25 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
                             )}
 
                             {/* Actions */}
-                            <div className="flex items-center justify-end pt-4 space-x-3 border-t border-dark-600/50">
+                            <div className="flex items-center justify-end pt-3 space-x-2 border-t border-white/10">
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setIsEditing(true);
                                     }}
-                                    className="flex items-center px-4 py-2 space-x-2 text-sm transition-all border rounded-lg text-primary-400 border-primary-500/50 hover:bg-primary-500/10 hover:border-primary-400 hover:text-primary-300"
+                                    className="flex items-center px-3 py-1.5 space-x-1 text-xs transition-all rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05]"
                                 >
-                                    <FiEdit3 className="w-4 h-4" />
-                                    <span>Edit Title</span>
+                                    <FiEdit3 className="w-3 h-3" />
+                                    <span>Edit</span>
                                 </button>
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onDelete();
                                     }}
-                                    className="flex items-center px-4 py-2 space-x-2 text-sm transition-all border rounded-lg text-red-400 border-red-500/50 hover:bg-red-500/10 hover:border-red-400 hover:text-red-300"
+                                    className="flex items-center px-3 py-1.5 space-x-1 text-xs transition-all rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10"
                                 >
-                                    <FiTrash2 className="w-4 h-4" />
+                                    <FiTrash2 className="w-3 h-3" />
                                     <span>Delete</span>
                                 </button>
                             </div>
@@ -515,7 +495,7 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
                 <h2 className="text-2xl font-bold text-white">
                     🎯 Scegli la categoria
                 </h2>
-                <p className="text-gray-400">
+                <p className="text-white/60">
                     In quale area vuoi migliorare?
                 </p>
             </div>
@@ -531,17 +511,17 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
                             onClick={() => handleCategorySelect(key)}
                             className={`
                                 flex flex-col items-center justify-center p-4 rounded-xl
-                                border-2 transition-all duration-200
+                                border transition-all duration-200
                                 ${isSelected 
-                                    ? `${cat.bgColor} border-current ${cat.color}` 
-                                    : 'bg-dark-700/50 border-dark-600 hover:border-dark-500'
+                                    ? 'bg-primary-500/20 border-primary-500 shadow-lg shadow-primary-500/20' 
+                                    : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                                 }
                             `}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            whileHover={{ scale: 1.03, y: -2 }}
+                            whileTap={{ scale: 0.97 }}
                         >
-                            <Icon className={`w-8 h-8 mb-2 ${isSelected ? cat.color : 'text-gray-400'}`} />
-                            <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                            <Icon className={`w-7 h-7 mb-2 ${isSelected ? 'text-primary-400' : 'text-white/60'}`} />
+                            <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-white/80'}`}>
                                 {cat.label}
                             </span>
                         </motion.button>
@@ -551,10 +531,10 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
 
             {/* Link to Manual Mode */}
             {onSwitchToManual && (
-                <div className="pt-4 text-center border-t border-dark-700">
+                <div className="pt-4 text-center border-t border-white/10">
                     <button
                         onClick={onSwitchToManual}
-                        className="text-sm text-gray-500 transition-colors hover:text-primary-400"
+                        className="text-sm transition-colors text-white/50 hover:text-primary-400"
                     >
                         Preferisci inserire i dettagli a mano? <span className="underline">Passa alla modalità Manuale</span>
                     </button>
@@ -574,72 +554,63 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
                 <h2 className="text-2xl font-bold text-white">
                     ✨ Esprimi il tuo desiderio
                 </h2>
-                <p className="text-gray-400">
+                <p className="text-white/60">
                     Descrivi cosa vuoi raggiungere. L'AI creerà un piano strategico per te.
                 </p>
             </div>
 
             {/* Magic Input */}
-            <div className="space-y-3">
-                <div className="relative">
-                    <textarea
-                        value={userQuery}
-                        onChange={(e) => setUserQuery(e.target.value)}
-                        placeholder="Es: Voglio imparare a suonare la chitarra, partendo da zero, fino a poter suonare le mie canzoni preferite..."
-                        className="w-full h-36 p-6 text-lg leading-relaxed text-white placeholder-gray-400 border-2 resize-none bg-white/5 border-dark-500/50 rounded-2xl transition-all duration-200 focus:outline-none focus:border-primary-400/60 focus:ring-2 focus:ring-primary-500/20 focus:bg-white/8"
-                        maxLength={500}
-                    />
-                    <div className="absolute bottom-4 right-4">
-                        <span className={`text-sm font-medium ${
-                            userQuery.length > 450 ? 'text-orange-400' : 
-                            userQuery.length > 400 ? 'text-yellow-400' : 
-                            'text-gray-500'
-                        }`}>
-                            {userQuery.length}/500
-                        </span>
-                    </div>
+            <div className="relative">
+                <textarea
+                    value={userQuery}
+                    onChange={(e) => setUserQuery(e.target.value)}
+                    placeholder="Es: Voglio imparare a suonare la chitarra, partendo da zero, fino a poter suonare le mie canzoni preferite..."
+                    className="w-full p-4 text-base leading-relaxed text-white transition-all duration-200 border resize-none h-28 placeholder-white/40 bg-white/5 border-white/10 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:bg-white/10"
+                    maxLength={500}
+                />
+                <div className="absolute bottom-3 right-3">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded bg-black/30 ${
+                        userQuery.length > 450 ? 'text-orange-400' : 
+                        userQuery.length > 400 ? 'text-yellow-400' : 
+                        'text-white/50'
+                    }`}>
+                        {userQuery.length}/500
+                    </span>
                 </div>
             </div>
 
             {/* Intensity Cards */}
-            <div className="space-y-4">
-                <label className="block text-base font-semibold text-gray-200">
-                    ⚡ Intensità del piano
+            <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
+                    <span>⚡</span> Intensità del piano
                 </label>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-3">
                     {INTENSITY_OPTIONS.map((option) => {
                         const isSelected = intensity === option.value;
-                        const colorClasses = {
-                            relax: 'border-green-500/60 bg-green-500/10 text-green-300',
-                            normal: 'border-blue-500/60 bg-blue-500/10 text-blue-300',
-                            hardcore: 'border-red-500/60 bg-red-500/10 text-red-300'
-                        };
                         
                         return (
                             <button
                                 key={option.value}
                                 onClick={() => setIntensity(option.value)}
                                 className={`
-                                    group relative flex flex-col items-center p-5 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105
+                                    relative flex flex-col items-center p-4 rounded-xl border transition-all duration-200
                                     ${isSelected
-                                        ? `${colorClasses[option.value]} shadow-xl`
-                                        : 'bg-dark-700/40 border-dark-600/60 text-gray-400 hover:border-dark-500/80 hover:bg-dark-600/60'
+                                        ? 'bg-primary-500/20 border-primary-500 shadow-lg shadow-primary-500/20'
+                                        : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                                     }
                                 `}
                             >
-                                <div className={`mb-3 text-4xl transform transition-transform group-hover:scale-110 ${
-                                    isSelected ? 'animate-pulse' : ''
-                                }`}>
+                                <div className={`mb-2 text-2xl ${isSelected ? 'scale-110' : ''} transition-transform`}>
                                     {option.emoji}
                                 </div>
-                                <span className="mb-2 text-base font-bold">{option.label}</span>
-                                <span className="text-xs text-center leading-tight opacity-80">
+                                <span className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-white/80'}`}>
+                                    {option.label}
+                                </span>
+                                <span className={`text-xs text-center leading-tight mt-1 ${isSelected ? 'text-white/70' : 'text-white/50'}`}>
                                     {option.description}
                                 </span>
                                 {isSelected && (
-                                    <div className="absolute top-2 right-2">
-                                        <div className="w-3 h-3 rounded-full bg-white/80 animate-pulse" />
-                                    </div>
+                                    <div className="absolute w-2 h-2 rounded-full top-2 right-2 bg-primary-400" />
                                 )}
                             </button>
                         );
@@ -662,7 +633,7 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
             <button
                 onClick={handleGeneratePlan}
                 disabled={!userQuery.trim() || userQuery.length < 10 || isLoading}
-                className="flex items-center justify-center w-full py-4 space-x-2 font-semibold text-white transition-all bg-gradient-to-r from-primary-500 to-purple-600 rounded-xl hover:from-primary-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center w-full py-3 space-x-2 font-semibold text-white transition-all border-2 shadow-lg rounded-xl bg-primary-600 border-primary-500 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-primary-500/25"
             >
                 <FiZap className="w-5 h-5" />
                 <span>Genera Piano Strategico ✨</span>
@@ -670,10 +641,10 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
 
             {/* Link to Manual Mode */}
             {onSwitchToManual && (
-                <div className="pt-2 text-center">
+                <div className="pt-2 text-center border-t border-white/10">
                     <button
                         onClick={onSwitchToManual}
-                        className="text-sm text-gray-500 transition-colors hover:text-primary-400"
+                        className="text-sm transition-colors text-white/50 hover:text-primary-400"
                     >
                         Preferisci inserire i dettagli a mano? <span className="underline">Passa alla modalità Manuale</span>
                     </button>
@@ -1034,7 +1005,7 @@ export const GoalWizardAI: React.FC<GoalWizardAIProps> = ({ onClose }) => {
                 <h2 className="text-2xl font-bold text-white">
                     🎯 Scegli la categoria
                 </h2>
-                <p className="text-gray-400">
+                <p className="text-white/60">
                     In quale area vuoi migliorare?
                 </p>
             </div>
@@ -1050,17 +1021,17 @@ export const GoalWizardAI: React.FC<GoalWizardAIProps> = ({ onClose }) => {
                             onClick={() => handleCategorySelect(key)}
                             className={`
                                 flex flex-col items-center justify-center p-4 rounded-xl
-                                border-2 transition-all duration-200
+                                border transition-all duration-200
                                 ${isSelected 
-                                    ? `${cat.bgColor} border-current ${cat.color}` 
-                                    : 'bg-dark-700/50 border-dark-600 hover:border-dark-500'
+                                    ? 'bg-primary-500/20 border-primary-500 shadow-lg shadow-primary-500/20' 
+                                    : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                                 }
                             `}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            whileHover={{ scale: 1.03, y: -2 }}
+                            whileTap={{ scale: 0.97 }}
                         >
-                            <Icon className={`w-8 h-8 mb-2 ${isSelected ? cat.color : 'text-gray-400'}`} />
-                            <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                            <Icon className={`w-7 h-7 mb-2 ${isSelected ? 'text-primary-400' : 'text-white/60'}`} />
+                            <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-white/80'}`}>
                                 {cat.label}
                             </span>
                         </motion.button>
@@ -1081,72 +1052,63 @@ export const GoalWizardAI: React.FC<GoalWizardAIProps> = ({ onClose }) => {
                 <h2 className="text-2xl font-bold text-white">
                     ✨ Esprimi il tuo desiderio
                 </h2>
-                <p className="text-gray-400">
+                <p className="text-white/60">
                     Descrivi cosa vuoi raggiungere. L'AI creerà un piano strategico per te.
                 </p>
             </div>
 
             {/* Magic Input */}
-            <div className="space-y-3">
-                <div className="relative">
-                    <textarea
-                        value={userQuery}
-                        onChange={(e) => setUserQuery(e.target.value)}
-                        placeholder="Es: Voglio imparare a suonare la chitarra, partendo da zero, fino a poter suonare le mie canzoni preferite..."
-                        className="w-full h-36 p-6 text-lg leading-relaxed text-white placeholder-gray-400 border-2 resize-none bg-white/5 border-dark-500/50 rounded-2xl transition-all duration-200 focus:outline-none focus:border-primary-400/60 focus:ring-2 focus:ring-primary-500/20 focus:bg-white/8"
-                        maxLength={500}
-                    />
-                    <div className="absolute bottom-4 right-4">
-                        <span className={`text-sm font-medium ${
-                            userQuery.length > 450 ? 'text-orange-400' : 
-                            userQuery.length > 400 ? 'text-yellow-400' : 
-                            'text-gray-500'
-                        }`}>
-                            {userQuery.length}/500
-                        </span>
-                    </div>
+            <div className="relative">
+                <textarea
+                    value={userQuery}
+                    onChange={(e) => setUserQuery(e.target.value)}
+                    placeholder="Es: Voglio imparare a suonare la chitarra, partendo da zero, fino a poter suonare le mie canzoni preferite..."
+                    className="w-full p-4 text-base leading-relaxed text-white transition-all duration-200 border resize-none h-28 placeholder-white/40 bg-white/5 border-white/10 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:bg-white/10"
+                    maxLength={500}
+                />
+                <div className="absolute bottom-3 right-3">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded bg-black/30 ${
+                        userQuery.length > 450 ? 'text-orange-400' : 
+                        userQuery.length > 400 ? 'text-yellow-400' : 
+                        'text-white/50'
+                    }`}>
+                        {userQuery.length}/500
+                    </span>
                 </div>
             </div>
 
             {/* Intensity Cards */}
-            <div className="space-y-4">
-                <label className="block text-base font-semibold text-gray-200">
-                    ⚡ Intensità del piano
+            <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
+                    <span>⚡</span> Intensità del piano
                 </label>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-3">
                     {INTENSITY_OPTIONS.map((option) => {
                         const isSelected = intensity === option.value;
-                        const colorClasses = {
-                            relax: 'border-green-500/60 bg-green-500/10 text-green-300',
-                            normal: 'border-blue-500/60 bg-blue-500/10 text-blue-300',
-                            hardcore: 'border-red-500/60 bg-red-500/10 text-red-300'
-                        };
                         
                         return (
                             <button
                                 key={option.value}
                                 onClick={() => setIntensity(option.value)}
                                 className={`
-                                    group relative flex flex-col items-center p-5 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105
+                                    relative flex flex-col items-center p-4 rounded-xl border transition-all duration-200
                                     ${isSelected
-                                        ? `${colorClasses[option.value]} shadow-xl`
-                                        : 'bg-dark-700/40 border-dark-600/60 text-gray-400 hover:border-dark-500/80 hover:bg-dark-600/60'
+                                        ? 'bg-primary-500/20 border-primary-500 shadow-lg shadow-primary-500/20'
+                                        : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                                     }
                                 `}
                             >
-                                <div className={`mb-3 text-4xl transform transition-transform group-hover:scale-110 ${
-                                    isSelected ? 'animate-pulse' : ''
-                                }`}>
+                                <div className={`mb-2 text-2xl ${isSelected ? 'scale-110' : ''} transition-transform`}>
                                     {option.emoji}
                                 </div>
-                                <span className="mb-2 text-base font-bold">{option.label}</span>
-                                <span className="text-xs text-center leading-tight opacity-80">
+                                <span className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-white/80'}`}>
+                                    {option.label}
+                                </span>
+                                <span className={`text-xs text-center leading-tight mt-1 ${isSelected ? 'text-white/70' : 'text-white/50'}`}>
                                     {option.description}
                                 </span>
                                 {isSelected && (
-                                    <div className="absolute top-2 right-2">
-                                        <div className="w-3 h-3 rounded-full bg-white/80 animate-pulse" />
-                                    </div>
+                                    <div className="absolute w-2 h-2 rounded-full top-2 right-2 bg-primary-400" />
                                 )}
                             </button>
                         );
@@ -1169,7 +1131,7 @@ export const GoalWizardAI: React.FC<GoalWizardAIProps> = ({ onClose }) => {
             <button
                 onClick={handleGeneratePlan}
                 disabled={!userQuery.trim() || userQuery.length < 10 || isLoading}
-                className="flex items-center justify-center w-full py-4 space-x-2 font-semibold text-white transition-all bg-gradient-to-r from-primary-500 to-purple-600 rounded-xl hover:from-primary-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center w-full py-3 space-x-2 font-semibold text-white transition-all border-2 shadow-lg rounded-xl bg-primary-600 border-primary-500 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-primary-500/25"
             >
                 <FiZap className="w-5 h-5" />
                 <span>Genera Piano Strategico ✨</span>

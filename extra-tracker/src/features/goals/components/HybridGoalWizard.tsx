@@ -35,37 +35,31 @@ interface ModeToggleProps {
 }
 
 const ModeToggle: React.FC<ModeToggleProps> = ({ mode, onModeChange }) => (
-    <div className="flex items-center p-2 rounded-2xl bg-dark-700/60 border border-dark-600/50 backdrop-blur-sm">
+    <div className="flex items-center gap-2">
         <button
             onClick={() => onModeChange('ai')}
             className={`
-                flex items-center gap-3 px-6 py-3 rounded-xl text-base font-semibold transition-all duration-300
+                flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
                 ${mode === 'ai' 
-                    ? 'bg-gradient-to-r from-primary-500/30 to-purple-500/30 text-white shadow-lg border border-primary-500/30' 
-                    : 'text-gray-400 hover:text-gray-300 hover:bg-dark-600/40'
+                    ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/30' 
+                    : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/10'
                 }
             `}
         >
-            {mode === 'ai' ? (
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-primary-400 to-purple-500">
-                    ✨
-                </div>
-            ) : (
-                <FiZap className="w-5 h-5" />
-            )}
+            <span className="text-base">✨</span>
             <span>Magic AI</span>
         </button>
         <button
             onClick={() => onModeChange('manual')}
             className={`
-                flex items-center gap-3 px-6 py-3 rounded-xl text-base font-semibold transition-all duration-300
+                flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
                 ${mode === 'manual' 
-                    ? 'bg-white/10 text-white shadow-lg border border-white/20' 
-                    : 'text-gray-400 hover:text-gray-300 hover:bg-dark-600/40'
+                    ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/30' 
+                    : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/10'
                 }
             `}
         >
-            <FiEdit3 className={`w-5 h-5 ${mode === 'manual' ? 'text-white' : ''}`} />
+            <FiEdit3 className="w-4 h-4" />
             <span>Manuale</span>
         </button>
     </div>
@@ -82,24 +76,29 @@ export const HybridGoalWizard: React.FC<HybridGoalWizardProps> = ({ onClose }) =
     const handleSwitchToAI = () => setMode('ai');
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
             <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="relative w-full max-w-2xl bg-dark-800 rounded-2xl shadow-2xl border border-dark-700 overflow-hidden"
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
+                style={{
+                    background: 'linear-gradient(180deg, rgba(30, 30, 50, 0.98) 0%, rgba(20, 20, 35, 0.98) 100%)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                }}
             >
                 {/* Header with Mode Toggle */}
-                <div className="flex items-center justify-between px-8 py-6 border-b border-dark-700/50">
-                    <h1 className="text-xl font-bold text-white">
-                        {mode === 'ai' ? '🧞 Nuovo Obiettivo' : '📝 Nuovo Obiettivo'}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
+                    <h1 className="flex items-center gap-2 text-lg font-bold text-white">
+                        <span className="text-xl">🎯</span>
+                        Nuovo Obiettivo
                     </h1>
                     
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                         <ModeToggle mode={mode} onModeChange={setMode} />
                         <button
                             onClick={onClose}
-                            className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors"
+                            className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                         >
                             <FiX className="w-5 h-5" />
                         </button>
