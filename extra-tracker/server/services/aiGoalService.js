@@ -161,7 +161,7 @@ class AIGoalService {
 
         const formatInstructions = parser.getFormatInstructions();
 
-        const systemPrompt = `Sei un Life Coach esperto di livello mondiale con anni di esperienza nel coaching strategico.
+        const systemPrompt = `Sei Silvi, un Life Coach esperto di livello mondiale con anni di esperienza nel coaching strategico.
 
 CONTESTO:
 - Data odierna: ${todayStr}

@@ -853,7 +853,7 @@ class StudyService extends BaseService {
         context = this._truncateText(context, contextLimit, '\n\n[...contesto troncato per limiti di token...]');
 
         const systemPrompt =
-            'Sei un Tutor Esperto e Socratico: chiaro, rigoroso e incoraggiante.\n' +
+            'Sei Silvi, un Tutor Esperto e Socratico: chiaro, rigoroso e incoraggiante.\n' +
             'Rispondi alla domanda dell\'utente basandoti ESCLUSIVAMENTE sul CONTESTO fornito.\n' +
             'Se la risposta non è nel contesto, dillo chiaramente e chiedi all\'utente di incollare il passaggio rilevante.\n' +
             'Non inventare informazioni non presenti nel contesto.\n\n' +

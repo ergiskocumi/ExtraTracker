@@ -102,7 +102,7 @@ app.use('/api/study', studyRoutes);
 
 app.get('/', (req, res) => {
     res.json({ 
-        message: 'LifeOS API',
+        message: 'Silvi API',
         version: '0.0.1',
     });
 });

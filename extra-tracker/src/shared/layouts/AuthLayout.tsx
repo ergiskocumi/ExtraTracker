@@ -55,7 +55,7 @@ export const AuthLayout = () => {
                             <LogoIcon className="text-white relative z-10" size={26} />
                         </motion.div>
                         <h1 className="text-3xl font-bold gradient-text">
-                            LifeOS
+                            Silvi
                         </h1>
                     </motion.div>
                 </div>
@@ -69,7 +69,7 @@ export const AuthLayout = () => {
             {/* Footer minimalista */}
             <footer className="relative z-10 py-6 text-center">
                 <p className="text-sm text-white/30">
-                    © 2024 LifeOS • Sicuro e protetto
+                    © 2024 Silvi • Sicuro e protetto
                 </p>
             </footer>
         </div>

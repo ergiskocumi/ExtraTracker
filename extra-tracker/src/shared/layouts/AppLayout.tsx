@@ -32,7 +32,7 @@ export const AppLayout = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const APP_NAME = 'LifeOS';
+    const APP_NAME = 'Silvi';
     const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '';
 
     const userInitials = (() => {
@@ -301,7 +301,7 @@ export const AppLayout = () => {
 
             {/* FOOTER */}
             <footer className="py-6 text-sm text-center text-white/30">
-                <p>© 2024 LifeOS • Gestisci il tuo tempo con stile</p>
+                <p>© 2024 Silvi • Gestisci il tuo tempo con stile</p>
             </footer>
         </div>
     );
