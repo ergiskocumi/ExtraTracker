@@ -54,7 +54,7 @@ export interface Milestone {
     // 🆕 AI-Generated Fields for Smart Goal Wizard
     deadline?: string | null;
     reasoning?: string;
-    actionSteps?: string[];
+    actionSteps?: ActionStep[];
     resources?: string[];
 }
 
@@ -65,7 +65,7 @@ export interface CreateMilestoneDTO {
     // 🆕 AI-Generated Fields
     deadline?: string;
     reasoning?: string;
-    actionSteps?: string[];
+    actionSteps?: ActionStep[];
     resources?: string[];
 }
 
@@ -92,9 +92,17 @@ export interface AIMilestone {
     title: string;
     deadline: string;
     reasoning: string;
-    actionSteps: string[];
+    actionSteps: {
+        title: string;
+        isCompleted: boolean;
+    }[];
     resources: string[];
     weight: number;
+    isCompleted: boolean;
+}
+
+export interface ActionStep {
+    title: string;
     isCompleted: boolean;
 }
 
@@ -112,7 +120,9 @@ export interface Goal {
     description: string;
     milestones: Milestone[];        // Array di micro-obiettivi
     milestoneProgress: number | null; // % calcolata dalle milestones (virtual)
-    completedMilestones: number;    // Conteggio milestones completate (virtual)
+    completedMilestones?: number;
+    totalMilestones?: number;
+    actionSteps?: ActionStep[];
     createdAt: string;
 }
 
@@ -176,7 +186,7 @@ export interface GoalWithProgress extends Goal {
     percentage: number;
     currentValue?: number;  // Valore corrente per target goals
     streak?: number;        // Streak per habit goals
-    // milestones, milestoneProgress e completedMilestones sono già in Goal
+    // milestones e milestoneProgress sono già in Goal
 }
 
 // Risposta toggle milestone

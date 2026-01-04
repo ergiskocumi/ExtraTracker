@@ -38,10 +38,6 @@ interface SmartMilestoneCardProps {
     isToggling?: boolean;
 }
 
-interface ActionStepState {
-    [stepIndex: number]: boolean;
-}
-
 // =========================================
 // HELPER FUNCTIONS
 // =========================================
@@ -241,25 +237,18 @@ export const SmartMilestoneCard: React.FC<SmartMilestoneCardProps> = ({
     isToggling = false,
 }) => {
     const [isExpanded, setIsExpanded] = useState(isCurrentMilestone);
-    const [actionStepStates, setActionStepStates] = useState<ActionStepState>(() => {
-        // Initialize all steps as unchecked unless milestone is completed
-        const initial: ActionStepState = {};
-        milestone.actionSteps?.forEach((_, idx) => {
-            initial[idx] = milestone.isCompleted;
-        });
-        return initial;
-    });
 
-    // Calculate progress based on action steps
+    // Calculate progress based on persisted action steps
     const { completedSteps, totalSteps, progress } = useMemo(() => {
-        const total = milestone.actionSteps?.length || 0;
-        const completed = Object.values(actionStepStates).filter(Boolean).length;
+        const steps = milestone.actionSteps || [];
+        const total = steps.length;
+        const completed = steps.filter(s => s && s.isCompleted).length;
         return {
             completedSteps: completed,
             totalSteps: total,
-            progress: total > 0 ? (completed / total) * 100 : (milestone.isCompleted ? 100 : 0)
+            progress: total > 0 ? (completed / total) * 100 : (milestone.isCompleted ? 100 : 0),
         };
-    }, [actionStepStates, milestone.actionSteps, milestone.isCompleted]);
+    }, [milestone.actionSteps, milestone.isCompleted]);
 
     // Deadline info
     const daysUntil = getDaysUntil(milestone.deadline);
@@ -267,23 +256,12 @@ export const SmartMilestoneCard: React.FC<SmartMilestoneCardProps> = ({
 
     // Handle action step toggle
     const handleActionStepToggle = (stepIndex: number) => {
-        if (isDisabled) return;
-        
-        setActionStepStates(prev => {
-            const newState = { ...prev, [stepIndex]: !prev[stepIndex] };
-            
-            // Check if all steps are completed
-            const allCompleted = Object.values(newState).every(Boolean);
-            if (allCompleted && !milestone.isCompleted && milestone.actionSteps?.length) {
-                // Optionally auto-complete milestone or show prompt
-                // For now, just update locally
-            }
-            
-            // Notify parent if handler provided
-            onActionStepToggle?.(milestone.id, stepIndex, newState[stepIndex]);
-            
-            return newState;
-        });
+        if (isDisabled || milestone.isCompleted) return;
+
+        const steps = milestone.actionSteps || [];
+        const current = Boolean(steps[stepIndex]?.isCompleted);
+        const next = !current;
+        onActionStepToggle?.(milestone.id, stepIndex, next);
     };
 
     // Handle milestone completion
@@ -409,8 +387,8 @@ export const SmartMilestoneCard: React.FC<SmartMilestoneCardProps> = ({
                                         {milestone.actionSteps.map((step, idx) => (
                                             <ActionStepItem
                                                 key={idx}
-                                                step={step}
-                                                isChecked={actionStepStates[idx] || false}
+                                                step={step.title}
+                                                isChecked={Boolean(step.isCompleted)}
                                                 onToggle={() => handleActionStepToggle(idx)}
                                                 disabled={isDisabled || milestone.isCompleted}
                                             />

@@ -5,6 +5,7 @@ import { GOAL_CATEGORIES } from '../types';
 import { BurndownChart } from '../BurndownChart';
 import { ActivityHeatmap } from '../ActivityHeatmap';
 import { MoodStats } from '../MoodStats';
+import { getCategoryIcon, getMoodIcon } from './goalDetailIcons';
 import {
     getDaysRemaining,
     getProgressColor,
@@ -29,11 +30,7 @@ import {
     FiSmile,
     FiMeh,
     FiFrown,
-    FiDollarSign,
     FiHeart,
-    FiBook,
-    FiBriefcase,
-    FiUser,
     FiBarChart2,
     FiEdit3,
     FiMessageSquare,
@@ -60,22 +57,6 @@ import type { SelectionState } from '../../../shared/hooks/useSelection';
 // HELPER COMPONENTS
 // ========================================
 
-export const getCategoryIcon = (category: string): React.ReactElement => {
-    const icons: Record<string, React.ReactElement> = {
-        finance: <FiDollarSign className="w-6 h-6" />,
-        health: <FiHeart className="w-6 h-6" />,
-        learning: <FiBook className="w-6 h-6" />,
-        career: <FiBriefcase className="w-6 h-6" />,
-        personal: <FiUser className="w-6 h-6" />,
-    };
-    return icons[category] || <FiTarget className="w-6 h-6" />;
-};
-
-export const getMoodIcon = (mood: Mood, size: string = "w-5 h-5"): React.ReactElement => {
-    if (mood === 3) return <FiSmile className={`${size} text-green-400`} />;
-    if (mood === 2) return <FiMeh className={`${size} text-yellow-400`} />;
-    return <FiFrown className={`${size} text-red-400`} />;
-};
 
 const greetings: Record<string, { icon: React.ReactElement; text: string }> = {
     morning: { icon: <FiSun className="w-5 h-5 text-yellow-400" />, text: 'Good morning' },
@@ -413,7 +394,7 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                     <div>
                         <h3 className="text-lg font-bold text-white">Milestones</h3>
                         <p className="text-sm text-white/60">
-                            {goal.completedMilestones || 0} of {goal.milestones.length} completed
+                            {(goal.completedMilestones ?? goal.milestones.filter(m => m.isCompleted).length) || 0} of {goal.milestones.length} completed
                         </p>
                     </div>
                 </div>
@@ -1217,38 +1198,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ goal, checkIns }) => (
             </h3>
 
             {checkIns.length >= 3 ? (
-                <div className="space-y-4">
-                    {(() => {
-                        const avgPerDay = checkIns.reduce((sum, ci) => sum + ci.value, 0) /
-                            Math.max(1, Math.ceil((Date.now() - new Date(goal.createdAt!).getTime()) / (1000 * 60 * 60 * 24)));
-                        const remaining = (goal.targetValue || 0) - (goal.currentValue || 0);
-                        const daysToComplete = avgPerDay > 0 ? Math.ceil(remaining / avgPerDay) : null;
-                        const projectedDate = daysToComplete ? new Date(Date.now() + daysToComplete * 24 * 60 * 60 * 1000) : null;
-                        const deadlineDate = new Date(goal.deadline);
-                        const onTrack = projectedDate && projectedDate <= deadlineDate;
-
-                        return (
-                            <>
-                                <div className="p-4 rounded-xl bg-white/5">
-                                    <p className="mb-1 text-sm text-white/60">Daily average</p>
-                                    <p className="text-2xl font-bold text-white">{avgPerDay.toFixed(1)} {goal.unit}/day</p>
-                                </div>
-
-                                {projectedDate && (
-                                    <div className={`p-4 rounded-xl ${onTrack ? 'bg-green-500/10 border border-green-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
-                                        <p className="mb-1 text-sm text-white/60">Projected completion</p>
-                                        <p className={`text-xl font-bold ${onTrack ? 'text-green-400' : 'text-yellow-400'}`}>
-                                            {projectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </p>
-                                        <p className="mt-1 text-sm text-white/60">
-                                            {onTrack ? '✓ On track to meet deadline' : '⚠ May miss deadline at current pace'}
-                                        </p>
-                                    </div>
-                                )}
-                            </>
-                        );
-                    })()}
-                </div>
+                <InsightsProjection goal={goal} checkIns={checkIns} />
             ) : (
                 <p className="py-8 text-center text-white/60">
                     Log at least 3 entries to see projections
@@ -1344,3 +1294,50 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ goal, checkIns }) => (
         </div>
     </motion.div>
 );
+
+interface InsightsProjectionProps {
+    goal: GoalDetailResponse['goal'];
+    checkIns: CheckIn[];
+}
+
+const InsightsProjection: React.FC<InsightsProjectionProps> = ({ goal, checkIns }) => {
+    const nowTs = React.useMemo(() => {
+        return checkIns.reduce((max, ci) => {
+            const ts = new Date(ci.date).getTime();
+            return ts > max ? ts : max;
+        }, 0);
+    }, [checkIns]);
+
+    const avgPerDay = React.useMemo(() => {
+        const createdAt = goal.createdAt ? new Date(goal.createdAt).getTime() : nowTs;
+        const daysElapsed = Math.max(1, Math.ceil((nowTs - createdAt) / (1000 * 60 * 60 * 24)));
+        return checkIns.reduce((sum, ci) => sum + ci.value, 0) / daysElapsed;
+    }, [checkIns, goal.createdAt, nowTs]);
+
+    const remaining = (goal.targetValue || 0) - (goal.currentValue || 0);
+    const daysToComplete = avgPerDay > 0 ? Math.ceil(remaining / avgPerDay) : null;
+    const projectedDate = daysToComplete ? new Date(nowTs + daysToComplete * 24 * 60 * 60 * 1000) : null;
+    const deadlineDate = new Date(goal.deadline);
+    const onTrack = projectedDate ? projectedDate <= deadlineDate : false;
+
+    return (
+        <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-white/5">
+                <p className="mb-1 text-sm text-white/60">Daily average</p>
+                <p className="text-2xl font-bold text-white">{avgPerDay.toFixed(1)} {goal.unit}/day</p>
+            </div>
+
+            {projectedDate && (
+                <div className={`p-4 rounded-xl ${onTrack ? 'bg-green-500/10 border border-green-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
+                    <p className="mb-1 text-sm text-white/60">Projected completion</p>
+                    <p className={`text-xl font-bold ${onTrack ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {projectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                    <p className="mt-1 text-sm text-white/60">
+                        {onTrack ? '✓ On track to meet deadline' : '⚠ May miss deadline at current pace'}
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+};

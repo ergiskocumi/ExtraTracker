@@ -16,7 +16,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGoals } from './context/GoalsContext';
 import { GOAL_CATEGORIES } from './types';
-import type { GoalCategory, AIGoalPlanResponse, AIMilestone, CreateGoalDTO } from './types';
+import type { GoalCategory, AIGoalPlanResponse, AIMilestone, CreateGoalDTO, ActionStep } from './types';
 import {
     FiX,
     FiArrowLeft,
@@ -272,7 +272,7 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
                                         {milestone.actionSteps.map((step, i) => (
                                             <div key={i} className="flex items-start space-x-2 text-sm">
                                                 <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary-400 mt-2"></span>
-                                                <span className="text-white/70">{step}</span>
+                                                <span className="text-white/70">{step.title}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -454,7 +454,17 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
                     weight: m.weight,
                     deadline: m.deadline,
                     reasoning: m.reasoning,
-                    actionSteps: m.actionSteps,
+                    actionSteps: (m.actionSteps || [])
+                        .map((s: string | Partial<ActionStep>) => {
+                            if (typeof s === 'string') {
+                                return { title: s, isCompleted: false } satisfies ActionStep;
+                            }
+                            return {
+                                title: typeof s.title === 'string' ? s.title : '',
+                                isCompleted: Boolean(s.isCompleted),
+                            } satisfies ActionStep;
+                        })
+                        .filter((s) => typeof s.title === 'string' && s.title.trim().length > 0),
                     resources: m.resources,
                 })),
             };
@@ -964,7 +974,17 @@ export const GoalWizardAI: React.FC<GoalWizardAIProps> = ({ onClose }) => {
                     weight: m.weight,
                     deadline: m.deadline,
                     reasoning: m.reasoning,
-                    actionSteps: m.actionSteps,
+                    actionSteps: (m.actionSteps || [])
+                        .map((s: string | Partial<ActionStep>) => {
+                            if (typeof s === 'string') {
+                                return { title: s, isCompleted: false } satisfies ActionStep;
+                            }
+                            return {
+                                title: typeof s.title === 'string' ? s.title : '',
+                                isCompleted: Boolean(s.isCompleted),
+                            } satisfies ActionStep;
+                        })
+                        .filter((s) => typeof s.title === 'string' && s.title.trim().length > 0),
                     resources: m.resources,
                 })),
             };

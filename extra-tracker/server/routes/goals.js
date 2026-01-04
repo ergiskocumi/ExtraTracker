@@ -18,6 +18,9 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const goalService = require('../services/goalService');
 const checkInService = require('../services/checkInService');
 
+// Controllers
+const goalController = require('../controllers/goalController');
+
 // Strategies
 const { calculateGoalStats } = require('../services/goalStrategies');
 
@@ -129,6 +132,13 @@ router.patch('/goals/:id/milestones/:milestoneId/toggle', asyncHandler(async (re
         }
     });
 }));
+
+/**
+ * PATCH /api/goals/:goalId/milestones/:milestoneId/toggle-step
+ * Toggle di un actionStep specifico (operazione leggera)
+ * Body: { stepIndex: number, isCompleted: boolean }
+ */
+router.patch('/goals/:goalId/milestones/:milestoneId/toggle-step', asyncHandler(goalController.toggleMilestoneStep));
 
 /**
  * PATCH /api/goals/:id/milestones/:milestoneId

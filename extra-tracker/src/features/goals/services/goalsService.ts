@@ -127,6 +127,28 @@ const goalsService = {
     },
 
     /**
+     * Toggle completion di uno specifico Action Step (indice) dentro una milestone
+     * PATCH /goals/:goalId/milestones/:milestoneId/toggle-step
+     */
+    async toggleMilestoneStep(
+        goalId: string,
+        milestoneId: string,
+        stepIndex: number,
+        isCompleted: boolean
+    ): Promise<MilestoneToggleResponse> {
+        try {
+            const response = await apiClient.patch<MilestoneToggleResponse>(
+                `/goals/${goalId}/milestones/${milestoneId}/toggle-step`,
+                { stepIndex, isCompleted }
+            );
+            return unwrap(response, `Errore nel toggle step ${stepIndex} per milestone ${milestoneId}`);
+        } catch (error) {
+            console.error(`Failed to toggle milestone step ${milestoneId}[${stepIndex}]:`, error);
+            throw error;
+        }
+    },
+
+    /**
      * Aggiorna le note di una specifica milestone
      */
     async updateMilestoneNotes(goalId: string, milestoneId: string, notes: string): Promise<MilestoneToggleResponse> {

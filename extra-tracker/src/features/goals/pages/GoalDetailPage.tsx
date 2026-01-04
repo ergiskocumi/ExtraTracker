@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useGoalDetail, getDaysRemaining, getProgressColor } from '../hooks/useGoalDetail';
@@ -9,15 +9,14 @@ import {
     OverviewTab,
     HistoryTab,
     InsightsTab,
-    getCategoryIcon,
 } from '../components/GoalDetailComponents';
+import { getCategoryIcon } from '../components/goalDetailIcons';
 import { SmartMilestoneCard } from '../components/SmartMilestoneCard';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
 import { GOAL_CATEGORIES } from '../types';
 import {
     FiArrowLeft,
     FiBarChart2,
-    FiCalendar,
     FiTarget,
     FiClock,
     FiTrendingUp,
@@ -25,7 +24,6 @@ import {
     FiAlertTriangle,
     FiZap,
     FiBook,
-    FiSettings,
     FiMap,
     FiAward,
     FiEdit,
@@ -169,7 +167,7 @@ export const GoalDetailPage = () => {
         // Milestones
         milestoneUI,
         toggleMilestone,
-        requestDeleteMilestone,
+        toggleMilestoneStep,
         cancelDeleteMilestone,
         confirmDeleteMilestone,
         pendingDeleteMilestoneId,
@@ -194,7 +192,7 @@ export const GoalDetailPage = () => {
     const isExpired = daysRemaining < 0;
     const isUrgent = daysRemaining <= 7 && daysRemaining >= 0;
     const category = GOAL_CATEGORIES[goal.category];
-    const completedMilestones = goal.completedMilestones || 0;
+    const completedMilestones = goal.completedMilestones ?? goal.milestones.filter(m => m.isCompleted).length;
     const totalMilestones = goal.milestones?.length || 0;
     
     // Find current milestone (first incomplete one)
@@ -259,8 +257,8 @@ export const GoalDetailPage = () => {
                         {getCategoryIcon(goal.category)}
                     </div>
                     <div className="flex-1">
-                        <h1 className="text-3xl font-bold text-white mb-2">{goal.title}</h1>
-                        <div className="flex items-center gap-3 flex-wrap">
+                        <h1 className="mb-2 text-3xl font-bold text-white">{goal.title}</h1>
+                        <div className="flex flex-wrap items-center gap-3">
                             <span className={`text-sm font-medium px-3 py-1.5 rounded-lg ${category.color} bg-white/5`}>
                                 {category.label}
                             </span>
@@ -269,14 +267,14 @@ export const GoalDetailPage = () => {
                             {goal.description && (
                                 <>
                                     <span className="text-white/40">•</span>
-                                    <span className="text-sm text-white/50 max-w-md truncate">{goal.description}</span>
+                                    <span className="max-w-md text-sm truncate text-white/50">{goal.description}</span>
                                 </>
                             )}
                         </div>
                     </div>
                     <Link
                         to={`/goals/${goal.id}/edit`}
-                        className="p-2 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white hover:border-white/20 transition-all"
+                        className="p-2 transition-all border rounded-lg bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/20"
                     >
                         <FiEdit className="w-5 h-5" />
                     </Link>
@@ -299,7 +297,7 @@ export const GoalDetailPage = () => {
                 </div>
 
                 {/* Stats Grid - Hero Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     {/* Progress Card */}
                     <HeroStatCard
                         title="Progress"
@@ -413,6 +411,9 @@ export const GoalDetailPage = () => {
                                         isCurrentMilestone={index === currentMilestoneIndex}
                                         isDisabled={goal.status !== 'active' || isExpired}
                                         onToggleComplete={toggleMilestone}
+                                        onActionStepToggle={(milestoneId, stepIndex, completed) =>
+                                            toggleMilestoneStep(milestoneId, stepIndex, completed)
+                                        }
                                         isToggling={milestoneUI.togglingId === milestone.id}
                                     />
                                 ))}
