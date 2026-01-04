@@ -12,7 +12,7 @@ interface ActivityHeatmapProps {
  */
 export const ActivityHeatmap = ({ checkIns }: Omit<ActivityHeatmapProps, 'startDate'>) => {
     // OTTIMIZZATO: Memoizza tutti i calcoli costosi
-    const { weeksArray, days, activeDaysCount, streak } = useMemo(() => {
+    const { weeksArray, activeDaysCount, streak } = useMemo(() => {
         // Genera gli ultimi 12 settimane (84 giorni)
         const weeks = 12;
         const daysPerWeek = 7;
@@ -52,7 +52,7 @@ export const ActivityHeatmap = ({ checkIns }: Omit<ActivityHeatmapProps, 'startD
         const activeDaysCount = days.filter(d => d.value > 0).length;
         const streak = calculateStreak(checkIns);
 
-        return { weeksArray, days, activeDaysCount, streak };
+        return { weeksArray, activeDaysCount, streak };
     }, [checkIns]);
     
     const today = new Date();

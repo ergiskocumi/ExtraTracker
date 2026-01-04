@@ -9,7 +9,7 @@
  * 
  * Design: Bento Grid moderno con focus su UX e azioni immediate.
  */
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useRef } from 'react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -36,6 +36,68 @@ import { analyticsService, type WeeklyAnalyticsResponse } from '../../analytics/
 // OTTIMIZZATO: Lazy load componenti pesanti (charts, AI widgets)
 const ProductivityChart = lazy(() => import('../../analytics/components/ProductivityChart').then(m => ({ default: m.ProductivityChart })));
 const AIInsightsWidget = lazy(() => import('../AIInsightsWidget').then(m => ({ default: m.AIInsightsWidget })));
+
+// OTTIMIZZATO: Componente wrapper per lazy load con Intersection Observer
+const LazyAnalyticsChart = ({ data }: { data: any[] }) => {
+    const [shouldLoad, setShouldLoad] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    setShouldLoad(true);
+                    observer.disconnect();
+                }
+            },
+            { rootMargin: '100px' } // Carica 100px prima che sia visibile
+        );
+
+        observer.observe(containerRef.current);
+
+        return () => observer.disconnect();
+    }, []);
+
+    return (
+        <motion.div
+            ref={containerRef}
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
+            transition={{ delay: 0.6 }}
+            style={{ willChange: 'transform, opacity' }}
+            className="rounded-3xl border border-white/10 bg-white/[0.02] p-6"
+        >
+            <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary-400" />
+                    Andamento Settimanale
+                </h3>
+                <Link
+                    to="/timeline"
+                    className="text-sm text-white/50 hover:text-white/80 flex items-center gap-1 transition-colors"
+                >
+                    Vedi tutto
+                    <ChevronRight className="w-4 h-4" />
+                </Link>
+            </div>
+            
+            <div className="h-64">
+                {shouldLoad ? (
+                    <Suspense fallback={<div className="h-full flex items-center justify-center text-white/50">Caricamento grafico...</div>}>
+                        <ProductivityChart
+                            data={data}
+                            isLoading={false}
+                        />
+                    </Suspense>
+                ) : (
+                    <div className="h-full flex items-center justify-center text-white/50">Caricamento grafico...</div>
+                )}
+            </div>
+        </motion.div>
+    );
+};
 
 // =========================================
 // SKELETON LOADERS
@@ -91,9 +153,10 @@ const StudyActionCard: React.FC<StudyActionCardProps> = React.memo(({ dueCards, 
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.1 }}
+            style={{ willChange: 'transform, opacity' }}
             className="relative rounded-3xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent p-6 overflow-hidden group"
         >
             {/* Background decoration */}
@@ -180,9 +243,10 @@ const GoalActionCard: React.FC<GoalActionCardProps> = React.memo(({ activeCount,
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.2 }}
+            style={{ willChange: 'transform, opacity' }}
             className="relative rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-6 overflow-hidden"
         >
             {/* Background decoration */}
@@ -269,9 +333,10 @@ const WorkActionCard: React.FC<WorkActionCardProps> = React.memo(({ todayFormatt
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.3 }}
+            style={{ willChange: 'transform, opacity' }}
             className="relative rounded-3xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent p-6 overflow-hidden"
         >
             {/* Background decoration */}
@@ -357,9 +422,10 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.4 }}
+            style={{ willChange: 'transform, opacity' }}
             className="rounded-3xl border border-white/10 bg-white/[0.02] p-6"
         >
             <div className="flex items-center justify-between mb-5">
@@ -381,8 +447,9 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: 0.5 + index * 0.05 }}
-                            whileHover={{ scale: 1.03, y: -2 }}
+                            whileHover={{ scale: 1.03, transform: 'translateY(-2px)' }}
                             whileTap={{ scale: 0.98 }}
+                            style={{ willChange: 'transform, opacity' }}
                             onClick={() => handleClick(item)}
                             className={`relative text-left p-4 rounded-2xl border ${styles} transition-all group`}
                         >
@@ -418,9 +485,10 @@ interface GamificationWidgetProps {
 
 const GamificationWidget: React.FC<GamificationWidgetProps> = React.memo(({ streak, level, xp, nextLevelXp, progress }) => (
     <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, transform: 'translateY(20px)' }}
+        animate={{ opacity: 1, transform: 'translateY(0)' }}
         transition={{ delay: 0.35 }}
+        style={{ willChange: 'transform, opacity' }}
         className="rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-6"
     >
         <div className="flex items-center gap-6">
@@ -473,10 +541,6 @@ export const DashboardPage = () => {
     const [analyticsData, setAnalyticsData] = useState<WeeklyAnalyticsResponse | null>(null);
 
     useEffect(() => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:473',message:'Dashboard useEffect triggered',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
-
         let cancelled = false;
 
         const loadData = async () => {
@@ -484,28 +548,19 @@ export const DashboardPage = () => {
             setError(null);
 
             try {
-                const loadStart = performance.now();
                 const [summaryData, analytics] = await Promise.all([
                     dashboardService.getSummary(),
                     analyticsService.getWeekly().catch(() => null)
                 ]);
-                const loadTime = performance.now() - loadStart;
 
                 if (!cancelled) {
                     setSummary(summaryData);
                     setAnalyticsData(analytics);
-
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:485',message:'Dashboard loadData success',data:{loadTime:Math.round(loadTime),hasSummary:!!summaryData,hasAnalytics:!!analytics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                    // #endregion
                 }
             } catch (err) {
                 if (!cancelled) {
                     setError('Impossibile caricare i dati della dashboard');
                     console.error('Dashboard load error:', err);
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:490',message:'Dashboard loadData error',data:{error:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                    // #endregion
                 }
             } finally {
                 if (!cancelled) {
@@ -523,10 +578,11 @@ export const DashboardPage = () => {
 
     return (
         <div className="space-y-6 pb-10">
-            {/* Header con Saluto */}
+            {/* Header con Saluto - OTTIMIZZATO: Usa transform invece di y per animazioni composite */}
             <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, transform: 'translateY(-20px)' }}
+                animate={{ opacity: 1, transform: 'translateY(0)' }}
+                style={{ willChange: 'transform, opacity' }}
                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
                 <div>
@@ -631,39 +687,10 @@ export const DashboardPage = () => {
                         <RecentActivityList items={summary.recents} />
                     )}
 
-                    {/* Analytics Section (Ridotta) */}
-                    {analyticsData && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.6 }}
-                            className="rounded-3xl border border-white/10 bg-white/[0.02] p-6"
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                    <TrendingUp className="w-5 h-5 text-primary-400" />
-                                    Andamento Settimanale
-                                </h3>
-                                <Link
-                                    to="/timeline"
-                                    className="text-sm text-white/50 hover:text-white/80 flex items-center gap-1 transition-colors"
-                                >
-                                    Vedi tutto
-                                    <ChevronRight className="w-4 h-4" />
-                                </Link>
-                            </div>
-                            
-                            <div className="h-64">
-                                <Suspense fallback={<div className="h-full flex items-center justify-center text-white/50">Caricamento grafico...</div>}>
-                                    <ProductivityChart
-                                        data={analyticsData.dailyActivity}
-                                        isLoading={false}
-                                    />
-                                </Suspense>
-                            </div>
-                        </motion.div>
-                    )}
+                    {/* Analytics Section (Ridotta) - OTTIMIZZATO: Animazione composite + Intersection Observer */}
+                    {analyticsData && <LazyAnalyticsChart data={analyticsData.dailyActivity} />}
 
+                    {/* OTTIMIZZATO: AIInsightsWidget caricato solo quando necessario (già lazy con Suspense) */}
                     <Suspense fallback={<div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 animate-pulse h-32" />}>
                         <AIInsightsWidget />
                     </Suspense>

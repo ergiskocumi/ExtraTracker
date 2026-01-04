@@ -23,27 +23,14 @@ interface Particle {
 export const AnimatedBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnimatedBackground.tsx:28',message:'AnimatedBackground mounted',data:{isVisible:!document.hidden},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    // #region agent log
-    const visibilityChangeCountRef = { count: 0 };
-    const handleVisibilityChange = () => {
-      visibilityChangeCountRef.count++;
-      fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnimatedBackground.tsx:35',message:'Page visibility changed',data:{isVisible:!document.hidden,changeCount:visibilityChangeCountRef.count},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    // #endregion
 
     // Imposta dimensioni canvas
     const resizeCanvas = () => {
@@ -72,14 +59,7 @@ export const AnimatedBackground = () => {
         return;
       }
 
-      const frameStart = performance.now();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // #region agent log
-      const particleCount = particlesRef.current.length;
-      let connectionChecks = 0;
-      let connectionsDrawn = 0;
-      // #endregion
 
       // Aggiorna e disegna particelle
       particlesRef.current.forEach((particle, i) => {
@@ -101,13 +81,11 @@ export const AnimatedBackground = () => {
         // Connessioni tra particelle vicine - OTTIMIZZATO: evita controlli duplicati
         for (let j = i + 1; j < particlesRef.current.length; j++) {
           const other = particlesRef.current[j];
-          connectionChecks++;
           const dx = particle.x - other.x;
           const dy = particle.y - other.y;
           const distanceSquared = dx * dx + dy * dy; // Evita sqrt fino a quando necessario
 
           if (distanceSquared < 22500) { // 150^2 = 22500
-            connectionsDrawn++;
             const distance = Math.sqrt(distanceSquared);
             ctx.beginPath();
             ctx.moveTo(particle.x, particle.y);
@@ -119,23 +97,12 @@ export const AnimatedBackground = () => {
         }
       });
 
-      // #region agent log
-      const frameTime = performance.now() - frameStart;
-      if (frameTime > 16) { // Log solo se frame > 16ms (60fps)
-        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnimatedBackground.tsx:93',message:'Slow frame detected',data:{frameTime:Math.round(frameTime),particleCount,connectionChecks,connectionsDrawn},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      }
-      // #endregion
-
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     animate();
 
     return () => {
-      // #region agent log
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnimatedBackground.tsx:102',message:'AnimatedBackground unmounted',data:{visibilityChanges:visibilityChangeCountRef.count},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       window.removeEventListener('resize', resizeCanvas);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -152,67 +119,65 @@ export const AnimatedBackground = () => {
         style={{ mixBlendMode: 'screen' }}
       />
 
-      {/* Gradient mesh animato */}
+      {/* Gradient mesh animato - OTTIMIZZATO: Usa opacity invece di background per evitare repaint */}
       <div className="absolute inset-0">
         <motion.div
           animate={{
-            background: [
-              'radial-gradient(ellipse at 20% 0%, rgba(124, 58, 237, 0.25) 0%, transparent 50%)',
-              'radial-gradient(ellipse at 80% 20%, rgba(124, 58, 237, 0.25) 0%, transparent 50%)',
-              'radial-gradient(ellipse at 20% 0%, rgba(124, 58, 237, 0.25) 0%, transparent 50%)',
-            ],
+            opacity: [0.25, 0.35, 0.25],
           }}
           transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute inset-0"
+          style={{
+            background: 'radial-gradient(ellipse at 20% 0%, rgba(124, 58, 237, 0.25) 0%, transparent 50%)',
+            willChange: 'opacity',
+          }}
         />
         <motion.div
           animate={{
-            background: [
-              'radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.2) 0%, transparent 50%)',
-              'radial-gradient(ellipse at 20% 80%, rgba(139, 92, 246, 0.2) 0%, transparent 50%)',
-              'radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.2) 0%, transparent 50%)',
-            ],
+            opacity: [0.2, 0.3, 0.2],
           }}
           transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute inset-0"
+          style={{
+            background: 'radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.2) 0%, transparent 50%)',
+            willChange: 'opacity',
+          }}
         />
         <motion.div
           animate={{
-            background: [
-              'radial-gradient(ellipse at 50% 50%, rgba(167, 139, 250, 0.15) 0%, transparent 60%)',
-              'radial-gradient(ellipse at 30% 70%, rgba(167, 139, 250, 0.15) 0%, transparent 60%)',
-              'radial-gradient(ellipse at 50% 50%, rgba(167, 139, 250, 0.15) 0%, transparent 60%)',
-            ],
+            opacity: [0.15, 0.25, 0.15],
           }}
           transition={{ duration: 30, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute inset-0"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 50%, rgba(167, 139, 250, 0.15) 0%, transparent 60%)',
+            willChange: 'opacity',
+          }}
         />
       </div>
 
-      {/* Onde animate */}
+      {/* Onde animate - OTTIMIZZATO: Usa transform per animazioni composite */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
           animate={{
-            x: ['-50%', '0%', '-50%'],
-            y: ['-50%', '0%', '-50%'],
-            scale: [1, 1.2, 1],
+            transform: ['translate(-50%, -50%) scale(1)', 'translate(0%, 0%) scale(1.2)', 'translate(-50%, -50%) scale(1)'],
           }}
           transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] rounded-full blur-3xl"
           style={{
             background: 'radial-gradient(circle, rgba(124, 58, 237, 0.1) 0%, rgba(124, 58, 237, 0.05) 50%, transparent 100%)',
+            willChange: 'transform',
           }}
         />
         <motion.div
           animate={{
-            x: ['0%', '-50%', '0%'],
-            y: ['0%', '-50%', '0%'],
-            scale: [1.2, 1, 1.2],
+            transform: ['translate(0%, 0%) scale(1.2)', 'translate(-50%, -50%) scale(1)', 'translate(0%, 0%) scale(1.2)'],
           }}
           transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute -bottom-1/2 -right-1/2 w-[200%] h-[200%] rounded-full blur-3xl"
           style={{
             background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 50%, transparent 100%)',
+            willChange: 'transform',
           }}
         />
       </div>

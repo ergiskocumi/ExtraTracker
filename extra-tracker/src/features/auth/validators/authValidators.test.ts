@@ -175,7 +175,6 @@ describe('Auth Validators (Zod Schemas)', () => {
             const result = loginSchema.safeParse({ email: 'test@example.com' });
             expect(result.success).toBe(false);
             if (!result.success) {
-                const messages = result.error.issues.map(i => i.message);
                 const passwordIssue = result.error.issues.find(i => i.path.includes('password'));
                 expect(passwordIssue).toBeDefined();
                 expect(passwordIssue?.message).toBeDefined();
@@ -184,7 +183,6 @@ describe('Auth Validators (Zod Schemas)', () => {
             const wrongTypeResult = loginSchema.safeParse({ email: 1234, password: 'abc' });
             expect(wrongTypeResult.success).toBe(false);
             if (!wrongTypeResult.success) {
-                const messages = wrongTypeResult.error.issues.map(i => i.message);
                 const emailIssue = wrongTypeResult.error.issues.find(i => i.path.includes('email'));
                 expect(emailIssue).toBeDefined();
                 expect(emailIssue?.message.toLowerCase()).toContain('expected string');

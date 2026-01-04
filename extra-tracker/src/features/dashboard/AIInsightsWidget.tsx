@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Bot, Flame, Sparkles, Sun, Target, AlertTriangle } from 'lucide-react';
 import { apiClient } from '../../shared/services/apiClient';
@@ -49,31 +49,60 @@ export const AIInsightsWidget = () => {
     const [insights, setInsights] = useState<AIInsight[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [shouldLoad, setShouldLoad] = useState(false);
 
+    // OTTIMIZZATO: Intersection Observer per caricare solo quando visibile
     useEffect(() => {
+        if (!containerRef.current) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    setShouldLoad(true);
+                    observer.disconnect();
+                }
+            },
+            { rootMargin: '200px' } // Carica 200px prima che sia visibile
+        );
+
+        observer.observe(containerRef.current);
+
+        return () => observer.disconnect();
+    }, []);
+
+    // OTTIMIZZATO: Delay aggiuntivo per non competere con risorse critiche
+    useEffect(() => {
+        if (!shouldLoad) return;
+
         let isMounted = true;
+        let timeoutId: ReturnType<typeof setTimeout>;
 
         const load = async () => {
-            try {
-                setLoading(true);
-                setError(null);
+            // Delay di 500ms per non competere con risorse critiche
+            timeoutId = setTimeout(async () => {
+                try {
+                    setLoading(true);
+                    setError(null);
 
-                const response = await apiClient.get<AIInsight[]>('/analytics/insights');
-                const normalized = normalizeInsights(response.data);
+                    const response = await apiClient.get<AIInsight[]>('/analytics/insights');
+                    const normalized = normalizeInsights(response.data);
 
-                if (isMounted) setInsights(normalized);
-            } catch {
-                if (isMounted) setError('Impossibile caricare i consigli in questo momento.');
-            } finally {
-                if (isMounted) setLoading(false);
-            }
+                    if (isMounted) setInsights(normalized);
+                } catch {
+                    if (isMounted) setError('Impossibile caricare i consigli in questo momento.');
+                } finally {
+                    if (isMounted) setLoading(false);
+                }
+            }, 500);
         };
 
         load();
         return () => {
             isMounted = false;
+            if (timeoutId) clearTimeout(timeoutId);
         };
-    }, []);
+    }, [shouldLoad]);
 
     const content = useMemo(() => {
         if (loading) {
@@ -169,6 +198,7 @@ export const AIInsightsWidget = () => {
 
     return (
         <motion.div
+            ref={containerRef}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65 }}

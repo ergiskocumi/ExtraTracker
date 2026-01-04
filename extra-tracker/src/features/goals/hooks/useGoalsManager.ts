@@ -325,7 +325,7 @@ export const useGoalsManager = (): UseGoalsManagerReturn => {
         
         // Pulse animation - OTTIMIZZATO: cleanup timeout
         setPulsingGoals(prev => new Set(prev).add(goalId));
-        const pulseTimeoutId = setTimeout(() => {
+        setTimeout(() => {
             setPulsingGoals(prev => {
                 const next = new Set(prev);
                 next.delete(goalId);
@@ -340,16 +340,13 @@ export const useGoalsManager = (): UseGoalsManagerReturn => {
             setCheckedInGoals(prev => new Set(prev).add(goalId));
             
             // Clear success feedback after 2s - OTTIMIZZATO: cleanup timeout
-            const successTimeoutId = setTimeout(() => {
+            setTimeout(() => {
                 setCheckedInGoals(prev => {
                     const next = new Set(prev);
                     next.delete(goalId);
                     return next;
                 });
             }, 2000);
-
-            // Store timeout IDs per cleanup se necessario (gestiti internamente da React)
-            // I timeout verranno comunque puliti quando il componente si smonta
         } catch (err) {
             console.error('Quick check-in failed:', err);
         } finally {

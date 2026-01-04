@@ -292,34 +292,40 @@ export const useGoalDetail = () => {
     // DATA FETCHING
     // ========================================
 
-    // OTTIMIZZATO: Rimuove useCallback non necessario, usa direttamente id in useEffect
+    // OTTIMIZZATO: Funzione loadData separata per essere riutilizzabile
+    const loadData = useCallback(async () => {
+        if (!id) return;
+
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await goalsService.getById(id);
+            setData(response);
+        } catch (err) {
+            setError('Error loading goal details');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    }, [id]);
+
     useEffect(() => {
         if (!id) return;
 
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGoalDetail.ts:295',message:'loadData called',data:{goalId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
-
         let cancelled = false;
 
-        const loadData = async () => {
+        const fetchData = async () => {
             try {
                 setLoading(true);
                 setError(null);
                 const response = await goalsService.getById(id);
                 if (!cancelled) {
                     setData(response);
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGoalDetail.ts:302',message:'loadData success',data:{goalId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                    // #endregion
                 }
             } catch (err) {
                 if (!cancelled) {
                     setError('Error loading goal details');
                     console.error(err);
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGoalDetail.ts:308',message:'loadData error',data:{goalId:id,error:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                    // #endregion
                 }
             } finally {
                 if (!cancelled) {
@@ -328,7 +334,7 @@ export const useGoalDetail = () => {
             }
         };
 
-        loadData();
+        fetchData();
 
         return () => {
             cancelled = true;
@@ -627,15 +633,12 @@ export const useGoalDetail = () => {
             }));
 
             // OTTIMIZZATO: Clear flash after delay con cleanup
-            const timeoutId = setTimeout(() => {
+            setTimeout(() => {
                 setMilestoneUI(prev => ({
                     ...prev,
                     savedFlash: { ...prev.savedFlash, [milestoneId]: false },
                 }));
             }, 1500);
-
-            // Store timeout per cleanup se necessario (gestito internamente da React)
-            // Il timeout verrà comunque pulito quando il componente si smonta
 
             // Refresh data
             const refreshed = await goalsService.getById(id);

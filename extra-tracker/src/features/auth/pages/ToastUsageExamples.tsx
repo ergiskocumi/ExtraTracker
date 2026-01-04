@@ -199,7 +199,7 @@ export const LoginFormExample = () => {
     const toast = useToast();
     // const { login } = useAuth(); // Dal tuo AuthContext
 
-    const handleLogin = async (email: string, password: string) => {
+    const handleLogin = async (_email: string, _password: string) => {
         try {
             // const response = await login({ email, password });
             const response = { success: true }; // Mock
