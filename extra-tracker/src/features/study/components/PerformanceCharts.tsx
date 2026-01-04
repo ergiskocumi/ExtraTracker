@@ -43,37 +43,9 @@ export const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
     deckId,
     historicalData = []
 }) => {
-    // Genera dati mock se non disponibili (per demo)
+    // Usa solo dati reali - nessun mock
     const chartData = useMemo(() => {
-        if (historicalData.length > 0) {
-            return historicalData;
-        }
-
-        // Genera dati mock per gli ultimi 30 giorni
-        const today = new Date();
-        const data: DailyPerformance[] = [];
-        
-        for (let i = 29; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
-            const dateStr = date.toISOString().split('T')[0];
-            
-            // Simula dati realistici
-            const baseRetention = 0.65 + Math.random() * 0.25; // 65-90%
-            const cardsStudied = Math.floor(Math.random() * 15) + 5; // 5-20 carte
-            const correct = Math.floor(cardsStudied * baseRetention);
-            
-            data.push({
-                date: dateStr,
-                retentionRate: baseRetention,
-                cardsStudied,
-                averageTime: 15 + Math.random() * 20, // 15-35 secondi
-                correct,
-                incorrect: cardsStudied - correct,
-            });
-        }
-        
-        return data;
+        return historicalData || [];
     }, [historicalData]);
 
     const formatDate = (dateStr: string) => {
@@ -102,6 +74,21 @@ export const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
         );
     };
 
+    // Se non ci sono dati, mostra messaggio
+    if (chartData.length === 0) {
+        return (
+            <div className="space-y-6">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+                    <FiTrendingUp className="w-12 h-12 mx-auto mb-4 text-white/30" />
+                    <h3 className="text-lg font-semibold text-white mb-2">Nessun dato disponibile</h3>
+                    <p className="text-white/50">
+                        I grafici appariranno qui dopo aver completato alcune sessioni di studio.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             {/* Retention Rate Trend */}
@@ -110,8 +97,8 @@ export const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
                     <FiTrendingUp className="w-5 h-5 text-emerald-400" />
                     <h3 className="text-lg font-semibold text-white">Retention Rate nel Tempo</h3>
                 </div>
-                <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
+                <div className="h-64 min-h-[256px] w-full">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={256}>
                         <AreaChart data={chartData}>
                             <defs>
                                 <linearGradient id="retentionGradient" x1="0" y1="0" x2="0" y2="1">
@@ -154,8 +141,8 @@ export const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
                     <FiTarget className="w-5 h-5 text-blue-400" />
                     <h3 className="text-lg font-semibold text-white">Carte Studiate per Giorno</h3>
                 </div>
-                <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
+                <div className="h-64 min-h-[256px] w-full">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={256}>
                         <BarChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                             <XAxis
@@ -185,8 +172,8 @@ export const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
                     <FiClock className="w-5 h-5 text-amber-400" />
                     <h3 className="text-lg font-semibold text-white">Tempo Medio per Carta</h3>
                 </div>
-                <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
+                <div className="h-64 min-h-[256px] w-full">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={256}>
                         <LineChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                             <XAxis

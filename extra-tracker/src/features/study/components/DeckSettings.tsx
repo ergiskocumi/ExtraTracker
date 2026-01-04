@@ -34,16 +34,16 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
 
     useEffect(() => {
         // Carica impostazioni esistenti se disponibili
-        // Nota: il deck potrebbe non avere queste proprietà ancora
+        const deckAny = deck as any;
         setSettings({
-            algorithm: (deck as any).algorithm || 'sm2',
-            aiSettings: (deck as any).aiSettings || {
+            algorithm: deckAny.algorithm || 'sm2',
+            aiSettings: deckAny.aiSettings || {
                 style: 'comprehensive',
                 difficulty: 'medium',
                 questionTypes: ['definition', 'concept', 'relationship'],
             },
         });
-    }, [deck]);
+    }, [deck.id, deck.title]); // Ricarica solo se cambia il deck
 
     const handleSave = async () => {
         try {

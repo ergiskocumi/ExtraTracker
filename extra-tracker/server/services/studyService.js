@@ -567,6 +567,7 @@ class StudyService extends BaseService {
         if (algorithmResult.easinessFactor !== undefined) {
             card.easinessFactor = algorithmResult.easinessFactor;
         }
+        // I campi stability e box sono opzionali (solo per FSRS e Leitner)
         if (algorithmResult.stability !== undefined) {
             card.stability = algorithmResult.stability;
         }
@@ -614,11 +615,11 @@ class StudyService extends BaseService {
             stats: {
                 rating: quality,
                 easinessFactor: updatedCard.easinessFactor,
-                interval: updatedInterval,
-                repetitions: updatedRepetitions,
+                interval: algorithmResult.interval,
+                repetitions: algorithmResult.repetitions,
                 status,
-                nextReviewDate,
-                nextReviewInDays: updatedInterval,
+                nextReviewDate: algorithmResult.nextReviewDate,
+                nextReviewInDays: algorithmResult.interval,
             },
             gamification,
         };

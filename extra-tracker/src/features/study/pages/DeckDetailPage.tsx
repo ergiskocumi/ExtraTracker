@@ -655,7 +655,14 @@ export const DeckDetailPage: React.FC = () => {
 
                 {activeTab === 'settings' && deck && (
                     <div className="max-w-3xl mx-auto">
-                        <DeckSettings deck={deck} onUpdate={setDeck} />
+                        <DeckSettings 
+                            deck={deck} 
+                            onUpdate={(updatedDeck) => {
+                                setDeck(updatedDeck);
+                                // Ricarica il deck per avere i dati aggiornati
+                                loadDeck();
+                            }} 
+                        />
                     </div>
                 )}
 

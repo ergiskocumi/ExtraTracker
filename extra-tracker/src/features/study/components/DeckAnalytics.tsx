@@ -18,7 +18,7 @@ import {
     FiDownload,
     FiUpload,
 } from 'react-icons/fi';
-import { studyService, type DeckAnalytics } from '../services/studyService';
+import { studyService, type DeckAnalytics as DeckAnalyticsType } from '../services/studyService';
 import { PerformanceCharts } from './PerformanceCharts';
 
 interface DeckAnalyticsProps {
@@ -26,7 +26,7 @@ interface DeckAnalyticsProps {
 }
 
 export const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({ deckId }) => {
-    const [analytics, setAnalytics] = useState<DeckAnalytics | null>(null);
+    const [analytics, setAnalytics] = useState<DeckAnalyticsType | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -194,7 +194,7 @@ export const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({ deckId }) => {
 // ============================================
 
 interface ExportButtonProps {
-    analytics: DeckAnalytics;
+    analytics: DeckAnalyticsType;
 }
 
 const ExportButton: React.FC<ExportButtonProps> = ({ analytics }) => {
@@ -432,7 +432,7 @@ const SuggestionItem: React.FC<SuggestionItemProps> = ({ suggestion }) => {
 // SUGGESTION GENERATOR
 // ============================================
 
-function generateSuggestions(analytics: DeckAnalytics): Suggestion[] {
+function generateSuggestions(analytics: DeckAnalyticsType): Suggestion[] {
     const suggestions: Suggestion[] = [];
     const { stats, analytics: analyticsData } = analytics;
 
