@@ -35,32 +35,38 @@ interface ModeToggleProps {
 }
 
 const ModeToggle: React.FC<ModeToggleProps> = ({ mode, onModeChange }) => (
-    <div className="flex items-center p-1 rounded-xl bg-dark-700/80 border border-dark-600">
+    <div className="flex items-center p-2 rounded-2xl bg-dark-700/60 border border-dark-600/50 backdrop-blur-sm">
         <button
             onClick={() => onModeChange('ai')}
             className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                flex items-center gap-3 px-6 py-3 rounded-xl text-base font-semibold transition-all duration-300
                 ${mode === 'ai' 
-                    ? 'bg-gradient-to-r from-primary-500/20 to-purple-500/20 text-primary-400 shadow-sm' 
-                    : 'text-gray-400 hover:text-gray-300'
+                    ? 'bg-gradient-to-r from-primary-500/30 to-purple-500/30 text-white shadow-lg border border-primary-500/30' 
+                    : 'text-gray-400 hover:text-gray-300 hover:bg-dark-600/40'
                 }
             `}
         >
-            <FiZap className={`w-4 h-4 ${mode === 'ai' ? 'text-primary-400' : ''}`} />
-            <span>✨ Magic AI</span>
+            {mode === 'ai' ? (
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-primary-400 to-purple-500">
+                    ✨
+                </div>
+            ) : (
+                <FiZap className="w-5 h-5" />
+            )}
+            <span>Magic AI</span>
         </button>
         <button
             onClick={() => onModeChange('manual')}
             className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                flex items-center gap-3 px-6 py-3 rounded-xl text-base font-semibold transition-all duration-300
                 ${mode === 'manual' 
-                    ? 'bg-white/10 text-white shadow-sm' 
-                    : 'text-gray-400 hover:text-gray-300'
+                    ? 'bg-white/10 text-white shadow-lg border border-white/20' 
+                    : 'text-gray-400 hover:text-gray-300 hover:bg-dark-600/40'
                 }
             `}
         >
-            <FiEdit3 className={`w-4 h-4 ${mode === 'manual' ? 'text-white' : ''}`} />
-            <span>📝 Manuale</span>
+            <FiEdit3 className={`w-5 h-5 ${mode === 'manual' ? 'text-white' : ''}`} />
+            <span>Manuale</span>
         </button>
     </div>
 );
@@ -84,8 +90,8 @@ export const HybridGoalWizard: React.FC<HybridGoalWizardProps> = ({ onClose }) =
                 className="relative w-full max-w-2xl bg-dark-800 rounded-2xl shadow-2xl border border-dark-700 overflow-hidden"
             >
                 {/* Header with Mode Toggle */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-dark-700">
-                    <h1 className="text-lg font-semibold text-white">
+                <div className="flex items-center justify-between px-8 py-6 border-b border-dark-700/50">
+                    <h1 className="text-xl font-bold text-white">
                         {mode === 'ai' ? '🧞 Nuovo Obiettivo' : '📝 Nuovo Obiettivo'}
                     </h1>
                     

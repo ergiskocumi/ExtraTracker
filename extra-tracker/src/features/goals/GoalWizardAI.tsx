@@ -190,7 +190,7 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
     return (
         <motion.div
             layout
-            className="overflow-hidden border bg-dark-700/50 rounded-xl border-dark-600"
+            className="overflow-hidden border-2 bg-dark-800/60 rounded-2xl border-dark-600/50 shadow-lg backdrop-blur-sm"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -198,11 +198,11 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
         >
             {/* Header - Always visible */}
             <div
-                className="flex items-center justify-between p-4 transition-colors cursor-pointer hover:bg-dark-600/30"
+                className="flex items-center justify-between p-5 transition-all cursor-pointer hover:bg-dark-700/40"
                 onClick={onToggle}
             >
-                <div className="flex items-center flex-1 min-w-0 space-x-3">
-                    <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 text-sm font-semibold rounded-full bg-primary-500/20 text-primary-400">
+                <div className="flex items-center flex-1 min-w-0 space-x-4">
+                    <div className="flex items-center justify-center flex-shrink-0 w-10 h-10 text-base font-bold rounded-full bg-gradient-to-br from-primary-500 to-purple-600 text-white shadow-lg">
                         {index + 1}
                     </div>
                     
@@ -214,23 +214,24 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
                             onBlur={handleSaveTitle}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex-1 px-3 py-1 text-white border rounded-lg bg-dark-800 border-dark-500 focus:outline-none focus:border-primary-500"
+                            className="flex-1 px-4 py-2 text-white border-2 rounded-xl bg-dark-700 border-primary-500/50 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                             autoFocus
                         />
                     ) : (
-                        <span className="font-medium text-white truncate">{milestone.title}</span>
+                        <span className="text-lg font-semibold text-white truncate">{milestone.title}</span>
                     )}
                 </div>
 
-                <div className="flex items-center flex-shrink-0 space-x-3">
-                    <span className="flex items-center space-x-1 text-xs text-gray-400">
-                        <FiCalendar className="w-3 h-3" />
-                        <span>{formatDate(milestone.deadline)}</span>
-                    </span>
+                <div className="flex items-center flex-shrink-0 space-x-4">
+                    <div className="flex items-center px-3 py-1.5 space-x-2 text-sm text-gray-300 rounded-lg bg-dark-700/50">
+                        <FiCalendar className="w-4 h-4" />
+                        <span className="font-medium">{formatDate(milestone.deadline)}</span>
+                    </div>
                     
                     <motion.div
                         animate={{ rotate: isExpanded ? 180 : 0 }}
                         transition={{ duration: 0.2 }}
+                        className="p-1"
                     >
                         <FiChevronDown className="w-5 h-5 text-gray-400" />
                     </motion.div>
@@ -245,85 +246,106 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="border-t border-dark-600"
+                        className="border-t border-dark-600/50"
                     >
-                        <div className="p-4 space-y-4">
+                        <div className="p-6 space-y-6 bg-dark-800/30">
+                            {/* Description */}
+                            <div className="space-y-3">
+                                <h4 className="text-sm font-semibold tracking-wide uppercase text-primary-400">Description</h4>
+                                <p className="text-base leading-relaxed text-gray-300">
+                                    {milestone.description}
+                                </p>
+                            </div>
+
                             {/* Reasoning */}
                             {milestone.reasoning && (
-                                <div className="space-y-2">
-                                    <h4 className="flex items-center space-x-1 text-xs font-semibold tracking-wide text-gray-400 uppercase">
-                                        <FiTarget className="w-3 h-3" />
-                                        <span>Perché farlo</span>
+                                <div className="space-y-3">
+                                    <h4 className="flex items-center space-x-2 text-sm font-semibold tracking-wide uppercase text-primary-400">
+                                        <FiTarget className="w-4 h-4" />
+                                        <span>Strategic Reasoning</span>
                                     </h4>
-                                    <p className="text-sm leading-relaxed text-gray-300">
+                                    <blockquote className="pl-4 text-sm italic text-zinc-400 border-l-2 border-primary-500">
                                         {milestone.reasoning}
-                                    </p>
+                                    </blockquote>
                                 </div>
                             )}
 
                             {/* Action Steps */}
                             {milestone.actionSteps && milestone.actionSteps.length > 0 && (
-                                <div className="space-y-2">
-                                    <h4 className="flex items-center space-x-1 text-xs font-semibold tracking-wide text-gray-400 uppercase">
-                                        <FiCheckCircle className="w-3 h-3" />
-                                        <span>Azioni concrete</span>
+                                <div className="space-y-4">
+                                    <h4 className="flex items-center space-x-2 text-sm font-semibold tracking-wide uppercase text-primary-400">
+                                        <FiCheckCircle className="w-4 h-4" />
+                                        <span>Action Steps</span>
                                     </h4>
-                                    <ul className="space-y-1">
+                                    <div className="space-y-2">
                                         {milestone.actionSteps.map((step, i) => (
-                                            <li 
-                                                key={i}
-                                                className="flex items-start space-x-2 text-sm text-gray-300"
-                                            >
-                                                <span className="text-primary-400 mt-0.5">•</span>
-                                                <span>{step}</span>
-                                            </li>
+                                            <div key={i} className="flex items-start space-x-3 group">
+                                                <div className="flex items-center justify-center flex-shrink-0 w-5 h-5 mt-0.5 border-2 rounded border-primary-500/50 group-hover:border-primary-400 group-hover:bg-primary-500/10">
+                                                    <div className="w-2 h-2 rounded-full bg-primary-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                </div>
+                                                <span className="text-gray-300 group-hover:text-white transition-colors">
+                                                    {step}
+                                                </span>
+                                            </div>
                                         ))}
-                                    </ul>
+                                    </div>
                                 </div>
                             )}
 
                             {/* Resources */}
                             {milestone.resources && milestone.resources.length > 0 && (
-                                <div className="space-y-2">
-                                    <h4 className="flex items-center space-x-1 text-xs font-semibold tracking-wide text-gray-400 uppercase">
-                                        <FiBook className="w-3 h-3" />
-                                        <span>Risorse consigliate</span>
+                                <div className="space-y-4">
+                                    <h4 className="flex items-center space-x-2 text-sm font-semibold tracking-wide uppercase text-primary-400">
+                                        <FiBook className="w-4 h-4" />
+                                        <span>Resources</span>
                                     </h4>
-                                    <ul className="space-y-1">
+                                    <div className="grid gap-3">
                                         {milestone.resources.map((resource, i) => (
-                                            <li 
+                                            <div
                                                 key={i}
-                                                className="flex items-center space-x-2 text-sm transition-colors text-primary-400 hover:text-primary-300"
+                                                className="flex items-start p-3 transition-all border rounded-lg bg-dark-700/40 border-dark-600/50 hover:bg-dark-700/60 hover:border-primary-500/30 group cursor-pointer"
                                             >
-                                                <FiExternalLink className="flex-shrink-0 w-3 h-3" />
-                                                <span>{resource}</span>
-                                            </li>
+                                                <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 mr-3 rounded-lg bg-primary-500/20 text-primary-400 group-hover:bg-primary-500/30">
+                                                    <FiExternalLink className="w-4 h-4" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h5 className="font-medium text-white truncate group-hover:text-primary-200">
+                                                        {resource}
+                                                    </h5>
+                                                    <p className="text-sm text-gray-400 group-hover:text-gray-300">
+                                                        Recommended resource
+                                                    </p>
+                                                </div>
+                                                <button className="flex items-center justify-center flex-shrink-0 w-8 h-8 ml-2 transition-all rounded-lg text-primary-400 hover:bg-primary-500/20 hover:text-primary-300">
+                                                    <FiExternalLink className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         ))}
-                                    </ul>
+                                    </div>
                                 </div>
                             )}
 
                             {/* Actions */}
-                            <div className="flex items-center justify-end pt-2 space-x-2 border-t border-dark-600">
+                            <div className="flex items-center justify-end pt-4 space-x-3 border-t border-dark-600/50">
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setIsEditing(true);
                                     }}
-                                    className="flex items-center space-x-1 px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-dark-600 rounded-lg transition-colors"
+                                    className="flex items-center px-4 py-2 space-x-2 text-sm transition-all border rounded-lg text-primary-400 border-primary-500/50 hover:bg-primary-500/10 hover:border-primary-400 hover:text-primary-300"
                                 >
-                                    <FiEdit3 className="w-3 h-3" />
-                                    <span>Modifica</span>
+                                    <FiEdit3 className="w-4 h-4" />
+                                    <span>Edit Title</span>
                                 </button>
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onDelete();
                                     }}
-                                    className="flex items-center space-x-1 px-3 py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                                    className="flex items-center px-4 py-2 space-x-2 text-sm transition-all border rounded-lg text-red-400 border-red-500/50 hover:bg-red-500/10 hover:border-red-400 hover:text-red-300"
                                 >
-                                    <FiTrash2 className="w-3 h-3" />
-                                    <span>Elimina</span>
+                                    <FiTrash2 className="w-4 h-4" />
+                                    <span>Delete</span>
                                 </button>
                             </div>
                         </div>
@@ -558,44 +580,70 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
             </div>
 
             {/* Magic Input */}
-            <div className="space-y-2">
-                <textarea
-                    value={userQuery}
-                    onChange={(e) => setUserQuery(e.target.value)}
-                    placeholder="Es: Voglio imparare a suonare la chitarra, partendo da zero, fino a poter suonare le mie canzoni preferite..."
-                    className="w-full h-32 p-4 text-white placeholder-gray-500 border resize-none bg-dark-700/50 border-dark-600 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                    maxLength={500}
-                />
-                <div className="flex justify-end">
-                    <span className="text-xs text-gray-500">{userQuery.length}/500</span>
+            <div className="space-y-3">
+                <div className="relative">
+                    <textarea
+                        value={userQuery}
+                        onChange={(e) => setUserQuery(e.target.value)}
+                        placeholder="Es: Voglio imparare a suonare la chitarra, partendo da zero, fino a poter suonare le mie canzoni preferite..."
+                        className="w-full h-36 p-6 text-lg leading-relaxed text-white placeholder-gray-400 border-2 resize-none bg-white/5 border-dark-500/50 rounded-2xl transition-all duration-200 focus:outline-none focus:border-primary-400/60 focus:ring-2 focus:ring-primary-500/20 focus:bg-white/8"
+                        maxLength={500}
+                    />
+                    <div className="absolute bottom-4 right-4">
+                        <span className={`text-sm font-medium ${
+                            userQuery.length > 450 ? 'text-orange-400' : 
+                            userQuery.length > 400 ? 'text-yellow-400' : 
+                            'text-gray-500'
+                        }`}>
+                            {userQuery.length}/500
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            {/* Intensity Slider */}
-            <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-300">
-                    Intensità del piano
+            {/* Intensity Cards */}
+            <div className="space-y-4">
+                <label className="block text-base font-semibold text-gray-200">
+                    ⚡ Intensità del piano
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                    {INTENSITY_OPTIONS.map((option) => (
-                        <button
-                            key={option.value}
-                            onClick={() => setIntensity(option.value)}
-                            className={`
-                                flex flex-col items-center p-3 rounded-xl border-2 transition-all
-                                ${intensity === option.value
-                                    ? 'bg-primary-500/20 border-primary-500 text-primary-400'
-                                    : 'bg-dark-700/50 border-dark-600 text-gray-400 hover:border-dark-500'
-                                }
-                            `}
-                        >
-                            <span className="mb-1 text-2xl">{option.emoji}</span>
-                            <span className="text-sm font-medium">{option.label}</span>
-                            <span className="mt-1 text-xs text-center opacity-70">
-                                {option.description}
-                            </span>
-                        </button>
-                    ))}
+                <div className="grid grid-cols-3 gap-4">
+                    {INTENSITY_OPTIONS.map((option) => {
+                        const isSelected = intensity === option.value;
+                        const colorClasses = {
+                            relax: 'border-green-500/60 bg-green-500/10 text-green-300',
+                            normal: 'border-blue-500/60 bg-blue-500/10 text-blue-300',
+                            hardcore: 'border-red-500/60 bg-red-500/10 text-red-300'
+                        };
+                        
+                        return (
+                            <button
+                                key={option.value}
+                                onClick={() => setIntensity(option.value)}
+                                className={`
+                                    group relative flex flex-col items-center p-5 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105
+                                    ${isSelected
+                                        ? `${colorClasses[option.value]} shadow-xl`
+                                        : 'bg-dark-700/40 border-dark-600/60 text-gray-400 hover:border-dark-500/80 hover:bg-dark-600/60'
+                                    }
+                                `}
+                            >
+                                <div className={`mb-3 text-4xl transform transition-transform group-hover:scale-110 ${
+                                    isSelected ? 'animate-pulse' : ''
+                                }`}>
+                                    {option.emoji}
+                                </div>
+                                <span className="mb-2 text-base font-bold">{option.label}</span>
+                                <span className="text-xs text-center leading-tight opacity-80">
+                                    {option.description}
+                                </span>
+                                {isSelected && (
+                                    <div className="absolute top-2 right-2">
+                                        <div className="w-3 h-3 rounded-full bg-white/80 animate-pulse" />
+                                    </div>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -1039,44 +1087,70 @@ export const GoalWizardAI: React.FC<GoalWizardAIProps> = ({ onClose }) => {
             </div>
 
             {/* Magic Input */}
-            <div className="space-y-2">
-                <textarea
-                    value={userQuery}
-                    onChange={(e) => setUserQuery(e.target.value)}
-                    placeholder="Es: Voglio imparare a suonare la chitarra, partendo da zero, fino a poter suonare le mie canzoni preferite..."
-                    className="w-full h-32 p-4 text-white placeholder-gray-500 border resize-none bg-dark-700/50 border-dark-600 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                    maxLength={500}
-                />
-                <div className="flex justify-end">
-                    <span className="text-xs text-gray-500">{userQuery.length}/500</span>
+            <div className="space-y-3">
+                <div className="relative">
+                    <textarea
+                        value={userQuery}
+                        onChange={(e) => setUserQuery(e.target.value)}
+                        placeholder="Es: Voglio imparare a suonare la chitarra, partendo da zero, fino a poter suonare le mie canzoni preferite..."
+                        className="w-full h-36 p-6 text-lg leading-relaxed text-white placeholder-gray-400 border-2 resize-none bg-white/5 border-dark-500/50 rounded-2xl transition-all duration-200 focus:outline-none focus:border-primary-400/60 focus:ring-2 focus:ring-primary-500/20 focus:bg-white/8"
+                        maxLength={500}
+                    />
+                    <div className="absolute bottom-4 right-4">
+                        <span className={`text-sm font-medium ${
+                            userQuery.length > 450 ? 'text-orange-400' : 
+                            userQuery.length > 400 ? 'text-yellow-400' : 
+                            'text-gray-500'
+                        }`}>
+                            {userQuery.length}/500
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            {/* Intensity Slider */}
-            <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-300">
-                    Intensità del piano
+            {/* Intensity Cards */}
+            <div className="space-y-4">
+                <label className="block text-base font-semibold text-gray-200">
+                    ⚡ Intensità del piano
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                    {INTENSITY_OPTIONS.map((option) => (
-                        <button
-                            key={option.value}
-                            onClick={() => setIntensity(option.value)}
-                            className={`
-                                flex flex-col items-center p-3 rounded-xl border-2 transition-all
-                                ${intensity === option.value
-                                    ? 'bg-primary-500/20 border-primary-500 text-primary-400'
-                                    : 'bg-dark-700/50 border-dark-600 text-gray-400 hover:border-dark-500'
-                                }
-                            `}
-                        >
-                            <span className="mb-1 text-2xl">{option.emoji}</span>
-                            <span className="text-sm font-medium">{option.label}</span>
-                            <span className="mt-1 text-xs text-center opacity-70">
-                                {option.description}
-                            </span>
-                        </button>
-                    ))}
+                <div className="grid grid-cols-3 gap-4">
+                    {INTENSITY_OPTIONS.map((option) => {
+                        const isSelected = intensity === option.value;
+                        const colorClasses = {
+                            relax: 'border-green-500/60 bg-green-500/10 text-green-300',
+                            normal: 'border-blue-500/60 bg-blue-500/10 text-blue-300',
+                            hardcore: 'border-red-500/60 bg-red-500/10 text-red-300'
+                        };
+                        
+                        return (
+                            <button
+                                key={option.value}
+                                onClick={() => setIntensity(option.value)}
+                                className={`
+                                    group relative flex flex-col items-center p-5 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105
+                                    ${isSelected
+                                        ? `${colorClasses[option.value]} shadow-xl`
+                                        : 'bg-dark-700/40 border-dark-600/60 text-gray-400 hover:border-dark-500/80 hover:bg-dark-600/60'
+                                    }
+                                `}
+                            >
+                                <div className={`mb-3 text-4xl transform transition-transform group-hover:scale-110 ${
+                                    isSelected ? 'animate-pulse' : ''
+                                }`}>
+                                    {option.emoji}
+                                </div>
+                                <span className="mb-2 text-base font-bold">{option.label}</span>
+                                <span className="text-xs text-center leading-tight opacity-80">
+                                    {option.description}
+                                </span>
+                                {isSelected && (
+                                    <div className="absolute top-2 right-2">
+                                        <div className="w-3 h-3 rounded-full bg-white/80 animate-pulse" />
+                                    </div>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
