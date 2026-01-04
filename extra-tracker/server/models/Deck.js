@@ -65,6 +65,19 @@ const cardSchema = new mongoose.Schema({
         default: 1,
         min: [1, 'Il box minimo è 1'],
     },
+    // Review history per tracciare le performance
+    lastReviewed: {
+        type: Date,
+        default: null,
+    },
+    reviewHistory: [{
+        date: { type: Date, default: Date.now },
+        rating: { type: Number, min: 1, max: 5 },
+        interval: Number,
+        easinessFactor: Number,
+        repetitions: Number,
+        algorithm: String,
+    }],
 }, { _id: true });
 
 const normalizeTags = (tags) => {

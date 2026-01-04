@@ -577,12 +577,32 @@ class StudyService extends BaseService {
         card.interval = algorithmResult.interval;
         card.repetitions = algorithmResult.repetitions;
         card.nextReviewDate = algorithmResult.nextReviewDate;
+        card.lastReviewed = new Date();
 
-        // Status progression
+        // Aggiorna reviewHistory per tracciare le performance
+        if (!card.reviewHistory) {
+            card.reviewHistory = [];
+        }
+        card.reviewHistory.push({
+            date: new Date(),
+            rating: quality,
+            interval: algorithmResult.interval,
+            easinessFactor: algorithmResult.easinessFactor || card.easinessFactor,
+            repetitions: algorithmResult.repetitions,
+            algorithm: algorithmName,
+        });
+
+        // Mantieni solo le ultime 50 review per evitare documenti troppo grandi
+        if (card.reviewHistory.length > 50) {
+            card.reviewHistory = card.reviewHistory.slice(-50);
+        }
+
+        // Status progression - passa anche la card per analizzare la storia
         const status = this._resolveCardStatus({
             quality,
             repetitions: algorithmResult.repetitions,
             interval: algorithmResult.interval,
+            card: card, // Passa la card per analizzare reviewHistory
         });
         card.status = status;
 
@@ -1058,11 +1078,78 @@ class StudyService extends BaseService {
         }
     }
 
-    _resolveCardStatus({ quality, repetitions, interval }) {
-        if (quality < 3) return 'learning';
-        if (repetitions <= 1) return 'learning';
-        if (repetitions >= 5 && interval >= 30) return 'mastered';
-        return 'review';
+    /**
+     * Determina lo status di una card basandosi su qualità, ripetizioni, intervallo e storia
+     * Logica migliorata per una progressione più accurata
+     */
+    _resolveCardStatus({ quality, repetitions, interval, card = null }) {
+        // Se la risposta è insufficiente (quality < 3), torna sempre in learning
+        if (quality < 3) {
+            return 'learning';
+        }
+
+        // Card nuova o con poche ripetizioni → learning
+        if (repetitions <= 1) {
+            return 'learning';
+        }
+
+        // Analizza la storia delle review se disponibile
+        let recentQuality = quality;
+        let consecutiveGood = 1; // Conta quante risposte buone consecutive
+        let totalReviews = 1;
+
+        if (card && Array.isArray(card.reviewHistory) && card.reviewHistory.length > 0) {
+            totalReviews = card.reviewHistory.length + 1; // +1 per la review corrente
+            const recentHistory = card.reviewHistory.slice(-5); // Ultime 5 review
+            
+            // Conta risposte consecutive buone (quality >= 3) partendo dalla più recente
+            for (let i = recentHistory.length - 1; i >= 0; i--) {
+                if (recentHistory[i].rating >= 3) {
+                    consecutiveGood++;
+                } else {
+                    break; // Interrompi se trovi una risposta insufficiente
+                }
+            }
+
+            // Calcola qualità media delle ultime 3 review
+            const lastThree = recentHistory.slice(-3);
+            if (lastThree.length > 0) {
+                const avgQuality = lastThree.reduce((sum, r) => sum + (r.rating || 0), 0) / lastThree.length;
+                recentQuality = (avgQuality + quality) / 2; // Media tra storico e attuale
+            }
+        }
+
+        // CRITERI PER MASTERED (Padroneggiata):
+        // 1. Almeno 5 ripetizioni totali
+        // 2. Intervallo >= 30 giorni (dimostra ritenzione a lungo termine)
+        // 3. Almeno 3 risposte consecutive buone (quality >= 3)
+        // 4. Qualità media recente >= 3.5 (buone performance consistenti)
+        const isMastered = 
+            repetitions >= 5 &&
+            interval >= 30 &&
+            consecutiveGood >= 3 &&
+            recentQuality >= 3.5;
+
+        if (isMastered) {
+            return 'mastered';
+        }
+
+        // CRITERI PER REVIEW (Ripasso):
+        // Card che ha superato la fase di learning ma non è ancora padroneggiata
+        // - Almeno 2 ripetizioni
+        // - Intervallo > 1 giorno (non più in fase iniziale)
+        // - Qualità media >= 3 (performance accettabile)
+        const isReview = 
+            repetitions >= 2 &&
+            interval > 1 &&
+            recentQuality >= 3;
+
+        if (isReview) {
+            return 'review';
+        }
+
+        // Default: ancora in learning
+        return 'learning';
     }
 
     _serializeCard(card) {

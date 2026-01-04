@@ -207,12 +207,6 @@ const globalCompletedSessions = new Set<string>();
 // ============================================
 
 export const StudySessionPage: React.FC = () => {
-    // #region agent log
-    useEffect(() => {
-        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StudySessionPage.tsx:202',message:'Component mounted/remounted',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-    }, []);
-    // #endregion
-
     const { deckId } = useParams<{ deckId: string }>();
     const navigate = useNavigate();
     const { checkAuth } = useAuth();
@@ -224,13 +218,6 @@ export const StudySessionPage: React.FC = () => {
     const shuffle = searchParams.get('shuffle') === 'true';
     const reverse = searchParams.get('reverse') === 'true';
     const effectiveReverse = mode === 'quiz' ? false : reverse;
-
-    // #region agent log
-    useEffect(() => {
-        const sessionKey = `${deckId}-${mode}`;
-        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StudySessionPage.tsx:215',message:'Component render',data:{deckId,mode,sessionKey,isCompleted:globalCompletedSessions.has(sessionKey)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-    }, [deckId, mode]);
-    // #endregion
 
     // State
     const [session, setSession] = useState<StudySession | null>(null);
@@ -272,20 +259,10 @@ export const StudySessionPage: React.FC = () => {
     useEffect(() => {
         if (!sessionKey) return;
 
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StudySessionPage.tsx:250',message:'useEffect loadSession triggered',data:{sessionKey,isCompleteRef:isSessionCompleteRef.current,hasLoaded:hasLoadedSessionRef.current,isGlobalComplete:globalCompletedSessions.has(sessionKey)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-        // #endregion
-
         // Se la sessione è già completa (globale o locale), non ricaricare MAI
         if (isSessionCompleteRef.current || globalCompletedSessions.has(sessionKey)) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StudySessionPage.tsx:280',message:'useEffect loadSession blocked - session complete',data:{sessionKey,reason:isSessionCompleteRef.current?'localRef':'globalSet'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-            // #endregion
             // Se la sessione è completata ma non abbiamo summary, naviga via (evita loop)
             if (!summary) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StudySessionPage.tsx:286',message:'Session complete but no summary - navigating away',data:{sessionKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-                // #endregion
                 setTimeout(() => navigate('/study'), 100);
             }
             return;
@@ -293,16 +270,10 @@ export const StudySessionPage: React.FC = () => {
 
         // Se abbiamo già caricato una sessione, non ricaricare
         if (hasLoadedSessionRef.current) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StudySessionPage.tsx:262',message:'useEffect loadSession blocked - already loaded',data:{sessionKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-            // #endregion
             return;
         }
 
         const loadSession = async () => {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StudySessionPage.tsx:268',message:'loadSession called',data:{deckId,mode,sessionKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
-            // #endregion
             if (!deckId) {
                 setError('ID mazzo non valido');
                 setIsLoading(false);
@@ -358,15 +329,8 @@ export const StudySessionPage: React.FC = () => {
     const finalizeSession = useCallback(async (durationSeconds: number) => {
         if (!sessionKey) return;
 
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StudySessionPage.tsx:320',message:'finalizeSession called',data:{sessionKey,isCompleteRef:isSessionCompleteRef.current,isGlobalComplete:globalCompletedSessions.has(sessionKey),isFinalizing,hasSession:!!session},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-        // #endregion
-
         // Se già finalizzata, non rifare
         if (isSessionCompleteRef.current || globalCompletedSessions.has(sessionKey) || isFinalizing || !deckId || !session) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StudySessionPage.tsx:325',message:'finalizeSession early return',data:{sessionKey,reason:isSessionCompleteRef.current?'localRef':globalCompletedSessions.has(sessionKey)?'globalSet':isFinalizing?'isFinalizing':!deckId?'noDeckId':'noSession'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-            // #endregion
             return;
         }
 
@@ -377,10 +341,6 @@ export const StudySessionPage: React.FC = () => {
         setIsFinalizing(true);
         isSessionCompleteRef.current = true; // Marca come completata IMMEDIATAMENTE (locale)
         globalCompletedSessions.add(sessionKey); // Marca come completata GLOBALMENTE (persiste tra remount)
-
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StudySessionPage.tsx:336',message:'finalizeSession marked complete',data:{sessionKey,correctCount,wrongCount},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-        // #endregion
 
         try {
             const result = await studyService.completeSession(deckId, {
@@ -410,6 +370,13 @@ export const StudySessionPage: React.FC = () => {
                     speedBonus: breakdown.speedBonus,
                     streakBonus: breakdown.streakBonus,
                     total: totalXp,
+                },
+                // Aggiungi statistiche dettagliate per il summary
+                stats: {
+                    hard: statsSnapshot.hard,
+                    good: statsSnapshot.good,
+                    easy: statsSnapshot.easy,
+                    totalCards: statsSnapshot.total,
                 },
             });
             setIsSummaryOpen(true);
@@ -443,9 +410,14 @@ export const StudySessionPage: React.FC = () => {
             return;
         }
 
-        setCurrentCardIndex(nextIndex);
+        // Reset stato prima di avanzare per evitare bug visivi
         setIsFlipped(false);
         setExitDirection(null);
+        
+        // Piccolo delay per permettere all'animazione di exit di completarsi
+        setTimeout(() => {
+            setCurrentCardIndex(nextIndex);
+        }, 50);
     }, [session, currentCardIndex, startTime, updateSessionStats, finalizeSession]);
 
     const submitReview = useCallback(async (rating: ReviewRating) => {
@@ -491,7 +463,8 @@ export const StudySessionPage: React.FC = () => {
             return;
         }
 
-        await new Promise(resolve => setTimeout(resolve, 350));
+        // Attendi che l'animazione di exit sia completata prima di avanzare
+        await new Promise(resolve => setTimeout(resolve, 400));
         advanceCard();
     }, [currentCard, isSubmitting, submitReview, advanceCard]);
 
@@ -535,14 +508,23 @@ export const StudySessionPage: React.FC = () => {
         navigate('/study');
     }, [navigate]);
 
+    // Varianti semplificate - le animazioni di exit sono gestite dal Flashcard stesso
     const viewVariants = {
-        enter: { x: 40, opacity: 0 },
-        center: {
-            x: 0,
-            opacity: 1,
-            transition: { type: 'spring' as const, stiffness: 220, damping: 24 },
+        enter: { 
+            opacity: 0,
         },
-        exit: { x: -40, opacity: 0, transition: { duration: 0.2 } },
+        center: {
+            opacity: 1,
+            transition: { 
+                duration: 0.2,
+            },
+        },
+        exit: { 
+            opacity: 0,
+            transition: { 
+                duration: 0.15,
+            } 
+        },
     };
 
     // Loading state
@@ -576,7 +558,7 @@ export const StudySessionPage: React.FC = () => {
         : 0;
 
     return (
-        <div className="fixed inset-0 z-50 bg-slate-950 overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-slate-950 overflow-hidden overflow-x-hidden">
             {/* Header */}
             <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/[0.06] bg-slate-950/80 backdrop-blur-xl">
                 <button
@@ -616,8 +598,8 @@ export const StudySessionPage: React.FC = () => {
             </div>
 
             {/* Main Content */}
-            <div className="pt-24 pb-32 sm:pb-40 h-full overflow-y-auto">
-                <AnimatePresence mode="wait">
+            <div className="pt-24 pb-32 sm:pb-40 h-full overflow-y-auto overflow-x-hidden">
+                <AnimatePresence mode="wait" initial={false}>
                     {currentCard && isFlashcardMode && displayCard && (
                         <motion.div
                             key={currentCard.id}
