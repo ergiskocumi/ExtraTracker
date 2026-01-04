@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { CheckIn } from '../goals/types';
 
 interface ActivityHeatmapProps {
@@ -10,41 +11,51 @@ interface ActivityHeatmapProps {
  * Mostra quali giorni hai lavorato all'obiettivo
  */
 export const ActivityHeatmap = ({ checkIns }: Omit<ActivityHeatmapProps, 'startDate'>) => {
-    // Genera gli ultimi 12 settimane (84 giorni)
-    const weeks = 12;
-    const daysPerWeek = 7;
-    const totalDays = weeks * daysPerWeek;
+    // OTTIMIZZATO: Memoizza tutti i calcoli costosi
+    const { weeksArray, days, activeDaysCount, streak } = useMemo(() => {
+        // Genera gli ultimi 12 settimane (84 giorni)
+        const weeks = 12;
+        const daysPerWeek = 7;
+        const totalDays = weeks * daysPerWeek;
+        
+        const today = new Date();
+        const startDay = new Date(today);
+        startDay.setDate(today.getDate() - totalDays + 1);
+        
+        // Crea mappa giorno -> valore check-in
+        const checkInMap = new Map<string, number>();
+        checkIns.forEach((ci) => {
+            const date = new Date(ci.date).toISOString().split('T')[0];
+            checkInMap.set(date, (checkInMap.get(date) || 0) + ci.value);
+        });
+        
+        // Trova il valore massimo per normalizzare i colori
+        const maxValue = Math.max(...Array.from(checkInMap.values()), 1);
+        
+        // Genera i giorni
+        const days: Array<{ date: Date; value: number; intensity: number }> = [];
+        for (let i = 0; i < totalDays; i++) {
+            const date = new Date(startDay);
+            date.setDate(startDay.getDate() + i);
+            const dateStr = date.toISOString().split('T')[0];
+            const value = checkInMap.get(dateStr) || 0;
+            const intensity = value > 0 ? Math.ceil((value / maxValue) * 4) : 0;
+            days.push({ date, value, intensity });
+        }
+        
+        // Organizza per settimane
+        const weeksArray: typeof days[] = [];
+        for (let i = 0; i < weeks; i++) {
+            weeksArray.push(days.slice(i * daysPerWeek, (i + 1) * daysPerWeek));
+        }
+
+        const activeDaysCount = days.filter(d => d.value > 0).length;
+        const streak = calculateStreak(checkIns);
+
+        return { weeksArray, days, activeDaysCount, streak };
+    }, [checkIns]);
     
     const today = new Date();
-    const startDay = new Date(today);
-    startDay.setDate(today.getDate() - totalDays + 1);
-    
-    // Crea mappa giorno -> valore check-in
-    const checkInMap = new Map<string, number>();
-    checkIns.forEach((ci) => {
-        const date = new Date(ci.date).toISOString().split('T')[0];
-        checkInMap.set(date, (checkInMap.get(date) || 0) + ci.value);
-    });
-    
-    // Trova il valore massimo per normalizzare i colori
-    const maxValue = Math.max(...Array.from(checkInMap.values()), 1);
-    
-    // Genera i giorni
-    const days: Array<{ date: Date; value: number; intensity: number }> = [];
-    for (let i = 0; i < totalDays; i++) {
-        const date = new Date(startDay);
-        date.setDate(startDay.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-        const value = checkInMap.get(dateStr) || 0;
-        const intensity = value > 0 ? Math.ceil((value / maxValue) * 4) : 0;
-        days.push({ date, value, intensity });
-    }
-    
-    // Organizza per settimane
-    const weeksArray: typeof days[] = [];
-    for (let i = 0; i < weeks; i++) {
-        weeksArray.push(days.slice(i * daysPerWeek, (i + 1) * daysPerWeek));
-    }
     
     // Colori intensità (0 = nessuno, 1-4 = progressivo)
     const getColor = (intensity: number) => {
@@ -127,13 +138,13 @@ export const ActivityHeatmap = ({ checkIns }: Omit<ActivityHeatmapProps, 'startD
                 </div>
                 <div className="text-center">
                     <div className="text-lg font-bold text-primary-400">
-                        {days.filter(d => d.value > 0).length}
+                        {activeDaysCount}
                     </div>
                     <div className="text-xs text-white/50">Giorni attivi</div>
                 </div>
                 <div className="text-center">
                     <div className="text-lg font-bold text-green-400">
-                        {calculateStreak(checkIns)}
+                        {streak}
                     </div>
                     <div className="text-xs text-white/50">Streak 🔥</div>
                 </div>

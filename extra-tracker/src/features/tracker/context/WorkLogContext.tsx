@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
 import type { WorkLog } from "../type";
 import { useAuth } from "../../auth/context/AuthContext";
@@ -37,8 +37,8 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
     refreshLogs();
   }, [refreshLogs]);
 
-  // 2. POST: Aggiungi log
-  const addWorkLog = async (data: Omit<WorkLog, 'id'>) => {
+  // 2. POST: Aggiungi log - OTTIMIZZATO: Memoizzato con useCallback
+  const addWorkLog = useCallback(async (data: Omit<WorkLog, 'id'>) => {
     try {
       const response = await apiClient.post<WorkLog>('/worklogs', data);
       if (!response.success) return;
@@ -55,10 +55,10 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error("Errore addLog:", err);
     }
-  };
+  }, []);
 
-  // 3. DELETE: Cancella log
-  const deleteLog = async (id: string) => {
+  // 3. DELETE: Cancella log - OTTIMIZZATO: Memoizzato con useCallback
+  const deleteLog = useCallback(async (id: string) => {
     try {
       const response = await apiClient.delete<null>(`/worklogs/${id}`);
       if (response.success) {
@@ -73,10 +73,10 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error("Errore deleteLog:", err);
     }
-  };
+  }, []);
 
-  // 4. PUT: Modifica log
-  const updateLog = async (updatedLog: WorkLog) => {
+  // 4. PUT: Modifica log - OTTIMIZZATO: Memoizzato con useCallback
+  const updateLog = useCallback(async (updatedLog: WorkLog) => {
     try {
       // Separiamo l'ID dal resto dei dati per mandarli nel body
       const { id, ...dataToSend } = updatedLog;
@@ -99,10 +99,19 @@ export const WorkLogProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error("Errore updateLog:", err);
     }
-  };
+  }, []);
+  
+  // OTTIMIZZATO: Memoizza il value per evitare re-render inutili
+  const value = useMemo(() => ({
+    logs,
+    addWorkLog,
+    deleteLog,
+    updateLog,
+    refreshLogs,
+  }), [logs, addWorkLog, deleteLog, updateLog, refreshLogs]);
 
   return (
-    <WorkLogContext.Provider value={{ logs, addWorkLog, deleteLog, updateLog, refreshLogs }}>
+    <WorkLogContext.Provider value={value}>
       {children}
     </WorkLogContext.Provider>
   );

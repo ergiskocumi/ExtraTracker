@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
 import type { Project } from "../type";
 import { useAuth } from "../../auth/context/AuthContext";
@@ -54,8 +54,8 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
     refreshProjects();
   }, [refreshProjects]);
 
-  // Aggiungi progetto
-  const addProject = async ({ name, code, rate, description, estimatedHours, progress }: {
+  // Aggiungi progetto - OTTIMIZZATO: Memoizzato con useCallback
+  const addProject = useCallback(async ({ name, code, rate, description, estimatedHours, progress }: {
     name: string;
     code: string;
     rate: number;
@@ -88,10 +88,19 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
       console.error(err);
       // Gli errori API sono già gestiti automaticamente dal toast
     }
-  };
+  }, [refreshProjects]);
+
+  // OTTIMIZZATO: Memoizza il value per evitare re-render inutili
+  const value = useMemo(() => ({
+    projects,
+    addProject,
+    loading,
+    error,
+    refreshProjects,
+  }), [projects, loading, error, refreshProjects]);
 
   return (
-    <ProjectsContext.Provider value={{ projects, addProject, loading, error, refreshProjects }}>
+    <ProjectsContext.Provider value={value}>
       {children}
     </ProjectsContext.Provider>
   );

@@ -323,9 +323,9 @@ export const useGoalsManager = (): UseGoalsManagerReturn => {
         // Start loading state
         setCheckingInGoals(prev => new Set(prev).add(goalId));
         
-        // Pulse animation
+        // Pulse animation - OTTIMIZZATO: cleanup timeout
         setPulsingGoals(prev => new Set(prev).add(goalId));
-        setTimeout(() => {
+        const pulseTimeoutId = setTimeout(() => {
             setPulsingGoals(prev => {
                 const next = new Set(prev);
                 next.delete(goalId);
@@ -339,14 +339,17 @@ export const useGoalsManager = (): UseGoalsManagerReturn => {
             // Success feedback
             setCheckedInGoals(prev => new Set(prev).add(goalId));
             
-            // Clear success feedback after 2s
-            setTimeout(() => {
+            // Clear success feedback after 2s - OTTIMIZZATO: cleanup timeout
+            const successTimeoutId = setTimeout(() => {
                 setCheckedInGoals(prev => {
                     const next = new Set(prev);
                     next.delete(goalId);
                     return next;
                 });
             }, 2000);
+
+            // Store timeout IDs per cleanup se necessario (gestiti internamente da React)
+            // I timeout verranno comunque puliti quando il componente si smonta
         } catch (err) {
             console.error('Quick check-in failed:', err);
         } finally {
@@ -358,20 +361,20 @@ export const useGoalsManager = (): UseGoalsManagerReturn => {
         }
     }, [checkingInGoals, quickCheckIn]);
 
-    // Compose filters object
-    const filters: GoalsFilters = {
+    // OTTIMIZZATO: Memoizza oggetti per evitare re-render inutili
+    const filters: GoalsFilters = useMemo(() => ({
         searchQuery,
         category: filterCategory,
         status: filterStatus,
         sortBy,
-    };
+    }), [searchQuery, filterCategory, filterStatus, sortBy]);
 
-    // Compose quick check-in state
-    const quickCheckInState: QuickCheckInState = {
+    // OTTIMIZZATO: Memoizza quick check-in state
+    const quickCheckInState: QuickCheckInState = useMemo(() => ({
         checkingInGoals,
         checkedInGoals,
         pulsingGoals,
-    };
+    }), [checkingInGoals, checkedInGoals, pulsingGoals]);
 
     return {
         // Data

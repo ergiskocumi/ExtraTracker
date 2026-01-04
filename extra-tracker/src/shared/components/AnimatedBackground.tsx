@@ -26,11 +26,24 @@ export const AnimatedBackground = () => {
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnimatedBackground.tsx:28',message:'AnimatedBackground mounted',data:{isVisible:!document.hidden},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    // #region agent log
+    const visibilityChangeCountRef = { count: 0 };
+    const handleVisibilityChange = () => {
+      visibilityChangeCountRef.count++;
+      fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnimatedBackground.tsx:35',message:'Page visibility changed',data:{isVisible:!document.hidden,changeCount:visibilityChangeCountRef.count},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // #endregion
 
     // Imposta dimensioni canvas
     const resizeCanvas = () => {
@@ -53,10 +66,23 @@ export const AnimatedBackground = () => {
 
     // Funzione di animazione
     const animate = () => {
+      // Pausa animazione quando la pagina non è visibile
+      if (document.hidden) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      const frameStart = performance.now();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // #region agent log
+      const particleCount = particlesRef.current.length;
+      let connectionChecks = 0;
+      let connectionsDrawn = 0;
+      // #endregion
+
       // Aggiorna e disegna particelle
-      particlesRef.current.forEach((particle) => {
+      particlesRef.current.forEach((particle, i) => {
         particle.x += particle.speedX;
         particle.y += particle.speedY;
 
@@ -72,13 +98,17 @@ export const AnimatedBackground = () => {
         ctx.fillStyle = `rgba(124, 58, 237, ${particle.opacity})`;
         ctx.fill();
 
-        // Connessioni tra particelle vicine
-        particlesRef.current.forEach((other) => {
+        // Connessioni tra particelle vicine - OTTIMIZZATO: evita controlli duplicati
+        for (let j = i + 1; j < particlesRef.current.length; j++) {
+          const other = particlesRef.current[j];
+          connectionChecks++;
           const dx = particle.x - other.x;
           const dy = particle.y - other.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+          const distanceSquared = dx * dx + dy * dy; // Evita sqrt fino a quando necessario
 
-          if (distance < 150) {
+          if (distanceSquared < 22500) { // 150^2 = 22500
+            connectionsDrawn++;
+            const distance = Math.sqrt(distanceSquared);
             ctx.beginPath();
             ctx.moveTo(particle.x, particle.y);
             ctx.lineTo(other.x, other.y);
@@ -86,8 +116,15 @@ export const AnimatedBackground = () => {
             ctx.lineWidth = 0.5;
             ctx.stroke();
           }
-        });
+        }
       });
+
+      // #region agent log
+      const frameTime = performance.now() - frameStart;
+      if (frameTime > 16) { // Log solo se frame > 16ms (60fps)
+        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnimatedBackground.tsx:93',message:'Slow frame detected',data:{frameTime:Math.round(frameTime),particleCount,connectionChecks,connectionsDrawn},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      }
+      // #endregion
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
@@ -95,6 +132,10 @@ export const AnimatedBackground = () => {
     animate();
 
     return () => {
+      // #region agent log
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnimatedBackground.tsx:102',message:'AnimatedBackground unmounted',data:{visibilityChanges:visibilityChangeCountRef.count},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       window.removeEventListener('resize', resizeCanvas);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);

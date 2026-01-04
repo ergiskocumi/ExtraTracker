@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { WorkLog } from "./type";
 import type { Project } from "../projects/type";
 import { calculateDurationInHours } from "../../shared/utils/dateUtils";
@@ -27,35 +28,44 @@ export const WorkLogList = ({ logs, projects, onDelete, onEdit, onDuplicate }: W
 
     const locale = localeMap[language] || 'it-IT';
     
+    // OTTIMIZZATO: Crea una mappa progetti per lookup O(1) invece di O(n)
+    const projectMap = useMemo(() => {
+        return projects.reduce<Record<string, Project>>((map, project) => {
+            map[project.id] = project;
+            return map;
+        }, {});
+    }, [projects]);
+    
     // funzione di utilità per ottenere il nome del progetto dato l'ID
     const getProjectName = (projectId: string) => {
-        const project = projects.find(p => p.id === projectId); // gli passo un id dell'oggetto e lui da li entra dentro il campo id di project e lo confronta con projectId
-        return project ? project.name : "Progetto sconosciuto"; // se trova il progetto ritorna il nome altrimenti "Progetto sconosciuto"
+        const project = projectMap[projectId];
+        return project ? project.name : "Progetto sconosciuto";
     };
 
     // Calcola importo in base alle ore lavorate e alla tariffa del progetto
     const getLogAmountFormatted = (log: WorkLog): string => {
-      const project = projects.find(p => p.id === log.projectId);
-      if (!project) return formatMoney(0);
-      const hours = calculateDurationInHours(log.startTime, log.endTime);
-      return formatMoney(project.rate * hours);
-    };
-
-    const calculatedLogAmount = (log: WorkLog): number => {
-        const project = projects.find(p => p.id === log.projectId);
-        if (!project) return 0; // se non riesco a trovare il progetto ritorno 0
-
+        const project = projectMap[log.projectId];
+        if (!project) return formatMoney(0);
         const hours = calculateDurationInHours(log.startTime, log.endTime);
-        return hours * project.rate;
+        return formatMoney(project.rate * hours);
     };
 
-    const totalHours = logs.reduce((total, log) => {
-        return total + calculateDurationInHours(log.startTime, log.endTime);
-    }, 0);
-
-    const totalAmount = logs.reduce((total, log) => {
-        return total + calculatedLogAmount(log);
-    }, 0);
+    // OTTIMIZZATO: Calcoli memoizzati per evitare ricalcoli ad ogni render
+    const { totalHours, totalAmount } = useMemo(() => {
+        let hours = 0;
+        let amount = 0;
+        
+        logs.forEach(log => {
+            const project = projectMap[log.projectId];
+            if (!project) return;
+            
+            const logHours = calculateDurationInHours(log.startTime, log.endTime);
+            hours += logHours;
+            amount += logHours * project.rate;
+        });
+        
+        return { totalHours: hours, totalAmount: amount };
+    }, [logs, projectMap]);
 
     // Formatta la data in modo leggibile
     const formatDateShort = (dateString: string) => {

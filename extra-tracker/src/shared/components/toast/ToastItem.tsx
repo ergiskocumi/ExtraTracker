@@ -125,20 +125,42 @@ export const ToastItem: React.FC<ToastProps> = ({ toast, onDismiss }) => {
     useEffect(() => {
         if (duration <= 0) return; // Duration 0 = toast permanente
 
+        // #region agent log
+        const toastId = toast.id;
+        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ToastItem.tsx:125',message:'Toast interval started',data:{toastId,duration,intervalMs:50},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+
         const startTime = Date.now();
-        const intervalId = setInterval(() => {
+        let intervalCount = 0;
+        // OTTIMIZZATO: Usa requestAnimationFrame invece di setInterval per migliore performance
+        let rafId: number | null = null;
+        const updateProgress = () => {
+            intervalCount++;
             const elapsed = Date.now() - startTime;
             const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
             setProgress(remaining);
 
-            if (remaining <= 0) {
-                clearInterval(intervalId);
-                handleDismiss();
+            // #region agent log
+            if (intervalCount % 20 === 0) { // Log ogni secondo (20 * 50ms)
+                fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ToastItem.tsx:138',message:'Toast interval running',data:{toastId,intervalCount,elapsed,remaining},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
             }
-        }, 50); // Aggiorna ogni 50ms per animazione smooth
+            // #endregion
 
-        return () => clearInterval(intervalId);
-    }, [duration, handleDismiss]);
+            if (remaining <= 0) {
+                handleDismiss();
+            } else {
+                rafId = requestAnimationFrame(updateProgress);
+            }
+        };
+        rafId = requestAnimationFrame(updateProgress);
+
+        return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ToastItem.tsx:150',message:'Toast interval cleaned',data:{toastId,intervalCount},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+        };
+    }, [duration, handleDismiss, toast.id]);
 
     return (
         <div

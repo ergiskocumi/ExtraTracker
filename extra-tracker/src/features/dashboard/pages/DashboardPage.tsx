@@ -9,7 +9,7 @@
  * 
  * Design: Bento Grid moderno con focus su UX e azioni immediate.
  */
-
+import React from 'react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -76,7 +76,7 @@ interface StudyActionCardProps {
     totalDecks: number;
 }
 
-const StudyActionCard: React.FC<StudyActionCardProps> = ({ dueCards, nextDeck, allDone, totalDecks }) => {
+const StudyActionCard: React.FC<StudyActionCardProps> = React.memo(({ dueCards, nextDeck, allDone, totalDecks }) => {
     const navigate = useNavigate();
 
     const handleStudy = () => {
@@ -159,7 +159,7 @@ const StudyActionCard: React.FC<StudyActionCardProps> = ({ dueCards, nextDeck, a
             </div>
         </motion.div>
     );
-};
+});
 
 interface GoalActionCardProps {
     activeCount: number;
@@ -173,7 +173,7 @@ interface GoalActionCardProps {
     } | null;
 }
 
-const GoalActionCard: React.FC<GoalActionCardProps> = ({ activeCount, overdueCount, topPriority }) => {
+const GoalActionCard: React.FC<GoalActionCardProps> = React.memo(({ activeCount, overdueCount, topPriority }) => {
     const navigate = useNavigate();
 
     return (
@@ -254,7 +254,7 @@ const GoalActionCard: React.FC<GoalActionCardProps> = ({ activeCount, overdueCou
             </div>
         </motion.div>
     );
-};
+});
 
 interface WorkActionCardProps {
     todayFormatted: string;
@@ -262,7 +262,7 @@ interface WorkActionCardProps {
     sessionsToday: number;
 }
 
-const WorkActionCard: React.FC<WorkActionCardProps> = ({ todayFormatted, todayMinutes, sessionsToday }) => {
+const WorkActionCard: React.FC<WorkActionCardProps> = React.memo(({ todayFormatted, todayMinutes, sessionsToday }) => {
     const navigate = useNavigate();
 
     return (
@@ -315,7 +315,7 @@ const WorkActionCard: React.FC<WorkActionCardProps> = ({ todayFormatted, todayMi
             </div>
         </motion.div>
     );
-};
+});
 
 // =========================================
 // RECENT ACTIVITY LIST
@@ -414,7 +414,7 @@ interface GamificationWidgetProps {
     progress: number;
 }
 
-const GamificationWidget: React.FC<GamificationWidgetProps> = ({ streak, level, xp, nextLevelXp, progress }) => (
+const GamificationWidget: React.FC<GamificationWidgetProps> = React.memo(({ streak, level, xp, nextLevelXp, progress }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -458,7 +458,7 @@ const GamificationWidget: React.FC<GamificationWidgetProps> = ({ streak, level, 
             </div>
         </div>
     </motion.div>
-);
+));
 
 // =========================================
 // MAIN COMPONENT
@@ -471,27 +471,52 @@ export const DashboardPage = () => {
     const [analyticsData, setAnalyticsData] = useState<WeeklyAnalyticsResponse | null>(null);
 
     useEffect(() => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:473',message:'Dashboard useEffect triggered',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+
+        let cancelled = false;
+
         const loadData = async () => {
             setLoading(true);
             setError(null);
 
             try {
+                const loadStart = performance.now();
                 const [summaryData, analytics] = await Promise.all([
                     dashboardService.getSummary(),
                     analyticsService.getWeekly().catch(() => null)
                 ]);
+                const loadTime = performance.now() - loadStart;
 
-                setSummary(summaryData);
-                setAnalyticsData(analytics);
+                if (!cancelled) {
+                    setSummary(summaryData);
+                    setAnalyticsData(analytics);
+
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:485',message:'Dashboard loadData success',data:{loadTime:Math.round(loadTime),hasSummary:!!summaryData,hasAnalytics:!!analytics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                    // #endregion
+                }
             } catch (err) {
-                setError('Impossibile caricare i dati della dashboard');
-                console.error('Dashboard load error:', err);
+                if (!cancelled) {
+                    setError('Impossibile caricare i dati della dashboard');
+                    console.error('Dashboard load error:', err);
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:490',message:'Dashboard loadData error',data:{error:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                    // #endregion
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
 
         loadData();
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     return (

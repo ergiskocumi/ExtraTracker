@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FiTrendingUp } from 'react-icons/fi';
 import type { WorkLog } from '../tracker/type';
 import type { Project } from '../projects/type';
+import { calculateDurationInHours } from '../../shared/utils/dateUtils';
 
 interface MiniChartProps {
     logs: WorkLog[];
@@ -9,41 +11,48 @@ interface MiniChartProps {
 }
 
 export const WeeklyMiniChart = ({ logs, projects }: MiniChartProps) => {
-    // Calcola ore per gli ultimi 7 giorni
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - (6 - i));
-        return date.toISOString().split('T')[0];
-    });
+    // OTTIMIZZATO: Memoizza tutti i calcoli costosi
+    const { dailyData, maxHours, totalWeekHours, avgDailyHours } = useMemo(() => {
+        // Calcola ore per gli ultimi 7 giorni
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date();
+            date.setDate(date.getDate() - (6 - i));
+            return date.toISOString().split('T')[0];
+        });
 
-    const dailyData = last7Days.map(dateStr => {
-        const dayLogs = logs.filter(l => l.date === dateStr);
-        const hours = dayLogs.reduce((acc, log) => {
-            const start = new Date(`2000-01-01T${log.startTime}`);
-            const end = new Date(`2000-01-01T${log.endTime}`);
-            return acc + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        }, 0);
-        
-        const earnings = dayLogs.reduce((acc, log) => {
-            const project = projects.find(p => p.id === log.projectId);
-            if (!project) return acc;
-            const start = new Date(`2000-01-01T${log.startTime}`);
-            const end = new Date(`2000-01-01T${log.endTime}`);
-            const h = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-            return acc + (h * project.rate);
-        }, 0);
+        // OTTIMIZZATO: Crea mappa progetti per lookup O(1)
+        const projectMap = projects.reduce<Record<string, Project>>((map, project) => {
+            map[project.id] = project;
+            return map;
+        }, {});
 
-        return {
-            date: dateStr,
-            dayName: new Date(dateStr).toLocaleDateString('it-IT', { weekday: 'short' }),
-            hours,
-            earnings
-        };
-    });
+        const dailyData = last7Days.map(dateStr => {
+            const dayLogs = logs.filter(l => l.date === dateStr);
+            const hours = dayLogs.reduce((acc, log) => {
+                return acc + calculateDurationInHours(log.startTime, log.endTime);
+            }, 0);
+            
+            const earnings = dayLogs.reduce((acc, log) => {
+                const project = projectMap[log.projectId];
+                if (!project) return acc;
+                const h = calculateDurationInHours(log.startTime, log.endTime);
+                return acc + (h * project.rate);
+            }, 0);
 
-    const maxHours = Math.max(...dailyData.map(d => d.hours), 1);
-    const totalWeekHours = dailyData.reduce((acc, d) => acc + d.hours, 0);
-    const avgDailyHours = totalWeekHours / 7;
+            return {
+                date: dateStr,
+                dayName: new Date(dateStr).toLocaleDateString('it-IT', { weekday: 'short' }),
+                hours,
+                earnings
+            };
+        });
+
+        const maxHours = Math.max(...dailyData.map(d => d.hours), 1);
+        const totalWeekHours = dailyData.reduce((acc, d) => acc + d.hours, 0);
+        const avgDailyHours = totalWeekHours / 7;
+
+        return { dailyData, maxHours, totalWeekHours, avgDailyHours };
+    }, [logs, projects]);
 
     return (
         <motion.div

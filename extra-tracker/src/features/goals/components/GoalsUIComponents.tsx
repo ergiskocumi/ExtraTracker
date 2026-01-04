@@ -484,7 +484,7 @@ interface GoalCardProps {
     isDeletingGoal: boolean;
 }
 
-export const GoalCard: React.FC<GoalCardProps> = ({
+export const GoalCard: React.FC<GoalCardProps> = React.memo(({
     goal,
     index,
     isCheckingIn,
@@ -724,7 +724,7 @@ export const GoalCard: React.FC<GoalCardProps> = ({
             )}
         </motion.div>
     );
-};
+});
 
 // ============================================================================
 // GOALS LIST
