@@ -67,11 +67,13 @@ router.use(tenantContext({ required: true }));
 // =========================================
 
 router.get('/dashboard', studyController.getDashboard);
+router.get('/:id/analytics', studyController.getDeckAnalytics);
 router.get('/:id/session', studyController.getSession);
 router.get('/:id', studyController.getDeckById);
 router.post('/', studyController.createDeck);
 router.post('/:id/cards', studyController.addCard);
 router.put('/:id/cards/:cardId', studyController.updateCard);
+router.put('/:id/settings', studyController.updateDeckSettings);
 router.delete('/:id/cards/:cardId', studyController.deleteCard);
 router.post('/:id/session-complete', studyController.completeSession);
 router.post('/:id/review', studyController.submitReview);

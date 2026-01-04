@@ -114,6 +114,42 @@ export interface TutorReply {
     reply: string;
 }
 
+export interface DeckSettings {
+    algorithm?: 'sm2' | 'fsrs' | 'leitner' | 'anki';
+    aiSettings?: {
+        style?: 'comprehensive' | 'conceptual' | 'factual' | 'application';
+        difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
+        questionTypes?: string[];
+    };
+}
+
+export interface DeckAnalytics {
+    stats: {
+        totalCards: number;
+        newCards: number;
+        learningCards: number;
+        reviewCards: number;
+        masteredCards: number;
+        dueCards: number;
+        averageEasinessFactor: number;
+        averageRepetitions: number;
+    };
+    analytics: {
+        totalReviews: number;
+        averageTimePerCard: number;
+        retentionRate: number;
+        retentionRatePercent: number;
+        lastStudied: string | null;
+        studyStreak: number;
+    };
+    algorithm: string;
+    aiSettings: {
+        style: string;
+        difficulty: string;
+        questionTypes: string[];
+    };
+}
+
 // ============================================
 // HELPERS
 // ============================================
@@ -390,6 +426,23 @@ class StudyService {
         }
 
         return reply;
+    }
+
+    /**
+     * Aggiorna le impostazioni del deck (algoritmo e AI)
+     */
+    async updateDeckSettings(deckId: string, settings: DeckSettings): Promise<Deck> {
+        const response = await apiClient.put<any>(`${this.baseUrl}/${deckId}/settings`, settings);
+        const raw = unwrap(response, 'Errore nell\'aggiornamento delle impostazioni');
+        return normalizeDeck(raw);
+    }
+
+    /**
+     * Ottiene analytics dettagliate per un deck
+     */
+    async getDeckAnalytics(deckId: string): Promise<DeckAnalytics> {
+        const response = await apiClient.get<DeckAnalytics>(`${this.baseUrl}/${deckId}/analytics`);
+        return unwrap(response, 'Errore nel recupero delle analytics');
     }
 }
 

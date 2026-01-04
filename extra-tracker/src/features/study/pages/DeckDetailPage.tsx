@@ -26,11 +26,16 @@ import {
     FiZap,
     FiBookOpen,
     FiSearch,
-    FiAlertCircle
+    FiAlertCircle,
+    FiBarChart2,
+    FiSettings
 } from 'react-icons/fi';
 import { studyService, type Deck, type Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
+import { DeckAnalytics } from '../components/DeckAnalytics';
+import { DeckSettings } from '../components/DeckSettings';
+import { DeckNotifications } from '../components/DeckNotifications';
 
 // ============================================
 // CARD ITEM COMPONENT - Editable Card View
@@ -393,6 +398,7 @@ export const DeckDetailPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterType>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState<'cards' | 'analytics' | 'settings'>('cards');
 
     // Modal state
     const [editingCard, setEditingCard] = useState<Card | null>(null);
@@ -548,45 +554,108 @@ export const DeckDetailPage: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Filters & Search */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
-                        <FilterTabs active={filter} onChange={setFilter} counts={counts} />
-                        <div className="relative flex-1 max-w-sm">
-                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                placeholder="Cerca carte..."
-                                className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.1] text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all"
-                            />
-                        </div>
+                    {/* Notifiche Carte in Scadenza */}
+                    {deck.dueCount > 0 && (
+                        <DeckNotifications
+                            deckId={deck.id}
+                            dueCardsCount={deck.dueCount}
+                            deckTitle={deck.title}
+                        />
+                    )}
+
+                    {/* Tabs */}
+                    <div className="flex items-center gap-2 mb-6 border-b border-white/10">
+                        <button
+                            onClick={() => setActiveTab('cards')}
+                            className={`px-4 py-2 text-sm font-medium transition-all border-b-2 ${
+                                activeTab === 'cards'
+                                    ? 'border-primary-500 text-primary-400'
+                                    : 'border-transparent text-white/50 hover:text-white/70'
+                            }`}
+                        >
+                            Carte
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('analytics')}
+                            className={`px-4 py-2 text-sm font-medium transition-all border-b-2 flex items-center gap-2 ${
+                                activeTab === 'analytics'
+                                    ? 'border-primary-500 text-primary-400'
+                                    : 'border-transparent text-white/50 hover:text-white/70'
+                            }`}
+                        >
+                            <FiBarChart2 className="w-4 h-4" />
+                            Analytics
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('settings')}
+                            className={`px-4 py-2 text-sm font-medium transition-all border-b-2 flex items-center gap-2 ${
+                                activeTab === 'settings'
+                                    ? 'border-primary-500 text-primary-400'
+                                    : 'border-transparent text-white/50 hover:text-white/70'
+                            }`}
+                        >
+                            <FiSettings className="w-4 h-4" />
+                            Impostazioni
+                        </button>
                     </div>
+
+                    {/* Filters & Search - Solo per tab Cards */}
+                    {activeTab === 'cards' && (
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
+                            <FilterTabs active={filter} onChange={setFilter} counts={counts} />
+                            <div className="relative flex-1 max-w-sm">
+                                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    placeholder="Cerca carte..."
+                                    className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.1] text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </header>
 
-                {/* Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-                    {/* Add Card Button - Always First */}
-                    <AddCardInline onAdd={handleAddCard} />
+                {/* Tab Content */}
+                {activeTab === 'cards' && (
+                    <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                            {/* Add Card Button - Always First */}
+                            <AddCardInline onAdd={handleAddCard} />
 
-                    {/* Cards */}
-                    <AnimatePresence mode="popLayout">
-                        {filteredCards.map(card => (
-                            <CardItem
-                                key={card.id}
-                                card={card}
-                                onEdit={setEditingCard}
-                                onDelete={setDeletingCardId}
-                                onDuplicate={handleDuplicateCard}
-                            />
-                        ))}
-                    </AnimatePresence>
-                </div>
+                            {/* Cards */}
+                            <AnimatePresence mode="popLayout">
+                                {filteredCards.map(card => (
+                                    <CardItem
+                                        key={card.id}
+                                        card={card}
+                                        onEdit={setEditingCard}
+                                        onDelete={setDeletingCardId}
+                                        onDuplicate={handleDuplicateCard}
+                                    />
+                                ))}
+                            </AnimatePresence>
+                        </div>
 
-                {/* Empty State */}
-                {filteredCards.length === 0 && deck.cards.length > 0 && (
-                    <div className="text-center py-12">
-                        <p className="text-white/50">Nessuna carta corrisponde ai filtri</p>
+                        {/* Empty State */}
+                        {filteredCards.length === 0 && deck.cards.length > 0 && (
+                            <div className="text-center py-12">
+                                <p className="text-white/50">Nessuna carta corrisponde ai filtri</p>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {activeTab === 'analytics' && id && (
+                    <div className="max-w-5xl mx-auto">
+                        <DeckAnalytics deckId={id} />
+                    </div>
+                )}
+
+                {activeTab === 'settings' && deck && (
+                    <div className="max-w-3xl mx-auto">
+                        <DeckSettings deck={deck} onUpdate={setDeck} />
                     </div>
                 )}
 

@@ -12,7 +12,7 @@
  * - Supporto tastiera e touch
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import type { Card } from '../services/studyService';
 
@@ -60,7 +60,7 @@ const cardVariants = {
     }
 };
 
-export const Flashcard: React.FC<FlashcardProps> = ({ 
+export const Flashcard: React.FC<FlashcardProps> = memo(({ 
     card, 
     isFlipped, 
     onFlip,
@@ -210,7 +210,9 @@ export const Flashcard: React.FC<FlashcardProps> = ({
             </motion.div>
         </motion.div>
     );
-};
+});
+
+Flashcard.displayName = 'Flashcard';
 
 // ============================================
 // FLASHCARD SKELETON - Loading state

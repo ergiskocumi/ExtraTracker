@@ -246,6 +246,33 @@ const chatWithTutor = asyncHandler(async (req, res) => {
     res.json({ success: true, data: result });
 });
 
+/**
+ * PUT /api/study/:id/settings
+ * Aggiorna le impostazioni del deck (algoritmo e AI)
+ */
+const updateDeckSettings = asyncHandler(async (req, res) => {
+    const deck = await studyService.updateDeckSettings(
+        req.tenantScope,
+        req.params.id,
+        req.body
+    );
+
+    res.json({ success: true, data: deck });
+});
+
+/**
+ * GET /api/study/:id/analytics
+ * Ottiene analytics dettagliate per un deck
+ */
+const getDeckAnalytics = asyncHandler(async (req, res) => {
+    const analytics = await studyService.getDeckAnalytics(
+        req.tenantScope,
+        req.params.id
+    );
+
+    res.json({ success: true, data: analytics });
+});
+
 module.exports = {
     createDeck,
     deleteDeck,
@@ -260,4 +287,6 @@ module.exports = {
     verifyAnswer,
     uploadAndGenerate,
     chatWithTutor,
+    updateDeckSettings,
+    getDeckAnalytics,
 };
