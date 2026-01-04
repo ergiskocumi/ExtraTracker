@@ -27,9 +27,7 @@ import {
     FiEye,
     FiSearch,
     FiFilter,
-    FiTrendingUp,
     FiCheckCircle,
-    FiSettings,
     FiBarChart2,
 } from 'react-icons/fi';
 import { studyService, type Deck, type CreateDeckPayload, type AddCardPayload } from '../services/studyService';

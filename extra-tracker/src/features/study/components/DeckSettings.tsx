@@ -35,15 +35,23 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
     useEffect(() => {
         // Carica impostazioni esistenti se disponibili
         const deckAny = deck as any;
-        setSettings({
+        const currentSettings = {
             algorithm: deckAny.algorithm || 'sm2',
             aiSettings: deckAny.aiSettings || {
                 style: 'comprehensive',
                 difficulty: 'medium',
                 questionTypes: ['definition', 'concept', 'relationship'],
             },
-        });
-    }, [deck.id, deck.title]); // Ricarica solo se cambia il deck
+        };
+        
+        // Aggiorna solo se sono diverse per evitare loop
+        if (
+            settings.algorithm !== currentSettings.algorithm ||
+            JSON.stringify(settings.aiSettings) !== JSON.stringify(currentSettings.aiSettings)
+        ) {
+            setSettings(currentSettings);
+        }
+    }, [deck.id]); // Ricarica solo se cambia il deck ID
 
     const handleSave = async () => {
         try {

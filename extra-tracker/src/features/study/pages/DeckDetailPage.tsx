@@ -657,10 +657,11 @@ export const DeckDetailPage: React.FC = () => {
                     <div className="max-w-3xl mx-auto">
                         <DeckSettings 
                             deck={deck} 
-                            onUpdate={(updatedDeck) => {
+                            onUpdate={async (updatedDeck) => {
+                                // Aggiorna lo stato locale
                                 setDeck(updatedDeck);
-                                // Ricarica il deck per avere i dati aggiornati
-                                loadDeck();
+                                // Ricarica il deck dal server per avere i dati aggiornati
+                                await loadDeck();
                             }} 
                         />
                     </div>
