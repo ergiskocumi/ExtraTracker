@@ -4,7 +4,7 @@
  * Design premium con toggle switches e feedback immediato
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Globe, 
@@ -12,12 +12,13 @@ import {
     DollarSign, 
     Clock, 
     Layout, 
-    Bell,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
+    RotateCcw
 } from 'lucide-react';
 import type { UserPreferences } from '../services/settingsService';
 import type { FormStatus } from './types';
+import { SettingsTooltip } from './SettingsTooltip';
 
 interface PreferencesSettingsProps {
     preferences: UserPreferences;
@@ -25,33 +26,6 @@ interface PreferencesSettingsProps {
     status: FormStatus;
 }
 
-// Toggle Switch Component
-const ToggleSwitch = ({ 
-    enabled, 
-    onChange, 
-    label 
-}: { 
-    enabled: boolean; 
-    onChange: (enabled: boolean) => void;
-    label: string;
-}) => (
-    <div className="flex items-center justify-between p-4 rounded-xl border border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.05] transition-colors">
-        <span className="text-sm font-medium text-white/80">{label}</span>
-        <button
-            type="button"
-            onClick={() => onChange(!enabled)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                enabled ? 'bg-primary-500' : 'bg-white/20'
-            }`}
-        >
-            <motion.span
-                animate={{ x: enabled ? 24 : 4 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                className="inline-block h-4 w-4 transform rounded-full bg-white shadow-lg"
-            />
-        </button>
-    </div>
-);
 
 // Select Component Premium
 const SelectField = ({ 
@@ -92,22 +66,47 @@ const SelectField = ({
 export const PreferencesSettings = ({ preferences, onSave, status }: PreferencesSettingsProps) => {
     const [formData, setFormData] = useState<UserPreferences>(preferences);
     const [hasChanges, setHasChanges] = useState(false);
+    const [autoSaveTimer, setAutoSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         setFormData(preferences);
         setHasChanges(false);
     }, [preferences]);
 
+    // Auto-save per preferenze non critiche
+    const autoSave = useCallback(async () => {
+        if (hasChanges && !status.loading) {
+            await onSave(formData);
+            setHasChanges(false);
+        }
+    }, [formData, hasChanges, onSave, status.loading]);
+
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value as never }));
         setHasChanges(true);
+
+        // Auto-save dopo 2 secondi di inattività per preferenze non critiche
+        const autoSaveFields = ['language', 'theme', 'timeFormat', 'currency', 'defaultView'];
+        if (autoSaveFields.includes(name)) {
+            if (autoSaveTimer) {
+                clearTimeout(autoSaveTimer);
+            }
+            const timer = setTimeout(() => {
+                autoSave();
+            }, 2000);
+            setAutoSaveTimer(timer);
+        }
     };
 
-    const handleToggle = (key: keyof UserPreferences, value: boolean) => {
-        setFormData(prev => ({ ...prev, [key]: value as never }));
-        setHasChanges(true);
-    };
+    useEffect(() => {
+        return () => {
+            if (autoSaveTimer) {
+                clearTimeout(autoSaveTimer);
+            }
+        };
+    }, [autoSaveTimer]);
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -126,33 +125,73 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                     Localizzazione e Visualizzazione
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <SelectField
-                        label="Lingua"
-                        name="language"
-                        value={formData.language}
-                        onChange={handleChange}
-                        icon={Globe}
-                        options={[
-                            { value: 'it', label: '🇮🇹 Italiano' },
-                            { value: 'en', label: '🇬🇧 English' },
-                            { value: 'es', label: '🇪🇸 Español' },
-                            { value: 'de', label: '🇩🇪 Deutsch' },
-                            { value: 'fr', label: '🇫🇷 Français' },
-                        ]}
-                    />
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                            <SelectField
+                                label="Lingua"
+                                name="language"
+                                value={formData.language}
+                                onChange={handleChange}
+                                icon={Globe}
+                                options={[
+                                    { value: 'it', label: '🇮🇹 Italiano' },
+                                    { value: 'en', label: '🇬🇧 English' },
+                                    { value: 'es', label: '🇪🇸 Español' },
+                                    { value: 'de', label: '🇩🇪 Deutsch' },
+                                    { value: 'fr', label: '🇫🇷 Français' },
+                                ]}
+                            />
+                            <SettingsTooltip
+                                title="Lingua interfaccia"
+                                content="La lingua selezionata verrà applicata immediatamente a tutta l'interfaccia"
+                            />
+                        </div>
+                    </div>
 
-                    <SelectField
-                        label="Tema"
-                        name="theme"
-                        value={formData.theme}
-                        onChange={handleChange}
-                        icon={Palette}
-                        options={[
-                            { value: 'dark', label: '🌙 Dark' },
-                            { value: 'light', label: '☀️ Light' },
-                            { value: 'system', label: '💻 System' },
-                        ]}
-                    />
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                            <SelectField
+                                label="Tema"
+                                name="theme"
+                                value={formData.theme}
+                                onChange={handleChange}
+                                icon={Palette}
+                                options={[
+                                    { value: 'dark', label: '🌙 Dark' },
+                                    { value: 'light', label: '☀️ Light' },
+                                    { value: 'system', label: '💻 System' },
+                                ]}
+                            />
+                            <SettingsTooltip
+                                title="Tema applicazione"
+                                content="Il tema viene applicato immediatamente. 'System' segue le preferenze del tuo sistema operativo"
+                            />
+                        </div>
+                        {/* Theme Preview */}
+                        {formData.theme && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className="mt-3 p-3 rounded-xl border border-white/[0.1] bg-white/[0.03]"
+                            >
+                                <p className="text-xs font-semibold text-white/60 mb-2">Anteprima:</p>
+                                <div className={`flex items-center gap-2 p-2 rounded-lg ${
+                                    formData.theme === 'dark' 
+                                        ? 'bg-dark-500 text-white' 
+                                        : formData.theme === 'light'
+                                        ? 'bg-white text-gray-900'
+                                        : 'bg-gradient-to-r from-dark-500 to-white text-white'
+                                }`}>
+                                    <div className="w-2 h-2 rounded-full bg-current opacity-60" />
+                                    <span className="text-xs">
+                                        {formData.theme === 'dark' && 'Tema scuro'}
+                                        {formData.theme === 'light' && 'Tema chiaro'}
+                                        {formData.theme === 'system' && 'Tema sistema'}
+                                    </span>
+                                </div>
+                            </motion.div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -240,9 +279,43 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
 
             {/* Submit Button */}
             <div className="flex items-center justify-between pt-4 border-t border-white/[0.08]">
-                <p className="text-sm text-white/50">
-                    {hasChanges ? 'Hai modifiche non salvate' : 'Tutto aggiornato'}
-                </p>
+                <div className="flex items-center gap-3">
+                    <p className="text-sm text-white/50">
+                        {hasChanges ? (
+                            <span className="flex items-center gap-2">
+                                <motion.div
+                                    animate={{ scale: [1, 1.2, 1] }}
+                                    transition={{ repeat: Infinity, duration: 2 }}
+                                    className="w-2 h-2 rounded-full bg-amber-400"
+                                />
+                                Modifiche non salvate
+                            </span>
+                        ) : (
+                            <span className="flex items-center gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                Tutto aggiornato
+                            </span>
+                        )}
+                    </p>
+                    {hasChanges && (
+                        <motion.button
+                            type="button"
+                            onClick={() => {
+                                setFormData(preferences);
+                                setHasChanges(false);
+                                if (autoSaveTimer) {
+                                    clearTimeout(autoSaveTimer);
+                                }
+                            }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors"
+                        >
+                            <RotateCcw className="w-3 h-3" />
+                            Reset
+                        </motion.button>
+                    )}
+                </div>
                 <motion.button
                     type="submit"
                     disabled={status.loading || !hasChanges}

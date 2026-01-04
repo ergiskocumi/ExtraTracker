@@ -4,19 +4,22 @@
  * Design premium con sidebar per categorie e feedback visivo immediato
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     User, 
     Settings, 
     Shield, 
-    Trash2
+    Trash2,
+    Search,
+    Command
 } from 'lucide-react';
 import { useSettingsPage } from '../hooks/useSettings';
 import { ProfileSettings } from '../components/ProfileSettings';
 import { PreferencesSettings } from '../components/PreferencesSettings';
 import { SecuritySettings } from '../components/SecuritySettings';
 import { AccountSettings } from '../components/AccountSettings';
+import { SettingsSearch } from '../components/SettingsSearch';
 import { emitToast } from '../../../shared/components/toast';
 
 type TabId = 'profile' | 'preferences' | 'security' | 'account';
@@ -62,6 +65,7 @@ const tabs: SettingsTab[] = [
 
 export const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState<TabId>('profile');
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const {
         profile,
         preferences,
@@ -73,6 +77,48 @@ export const SettingsPage = () => {
         exportData,
         deleteAccount,
     } = useSettingsPage();
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ctrl+K or Cmd+K to open search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                setIsSearchOpen(true);
+            }
+            // / to open search
+            if (e.key === '/' && !isSearchOpen && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+                e.preventDefault();
+                setIsSearchOpen(true);
+            }
+            // Escape to close search
+            if (e.key === 'Escape' && isSearchOpen) {
+                setIsSearchOpen(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isSearchOpen]);
+
+    const handleSearchSelect = (category: string, itemId?: string) => {
+        setActiveTab(category as TabId);
+        setIsSearchOpen(false);
+        
+        // Scroll to specific item if needed
+        if (itemId) {
+            setTimeout(() => {
+                const element = document.getElementById(`setting-${itemId}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    element.classList.add('ring-2', 'ring-primary-500/50');
+                    setTimeout(() => {
+                        element.classList.remove('ring-2', 'ring-primary-500/50');
+                    }, 2000);
+                }
+            }, 300);
+        }
+    };
 
     const handleSaveProfile = async (data: Parameters<typeof saveProfile>[0]): Promise<boolean> => {
         const success = await saveProfile(data);
@@ -136,9 +182,28 @@ export const SettingsPage = () => {
                 className="space-y-8"
             >
                 {/* Header */}
-                <div>
-                    <h1 className="text-4xl font-bold text-white mb-2">Impostazioni</h1>
-                    <p className="text-white/60 text-lg">Gestisci il tuo account e personalizza l'esperienza</p>
+                <div className="flex items-start justify-between">
+                    <div>
+                        <h1 className="text-4xl font-bold text-white mb-2">Impostazioni</h1>
+                        <p className="text-white/60 text-lg">Gestisci il tuo account e personalizza l'esperienza</p>
+                    </div>
+                    
+                    {/* Search Button */}
+                    <motion.button
+                        onClick={() => setIsSearchOpen(true)}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] transition-colors text-white/70 hover:text-white"
+                    >
+                        <Search className="w-4 h-4" />
+                        <span className="hidden sm:inline text-sm font-medium">Cerca</span>
+                        <div className="hidden sm:flex items-center gap-1 text-xs text-white/40">
+                            <kbd className="px-1.5 py-0.5 rounded bg-white/[0.1] border border-white/[0.1]">
+                                {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}
+                            </kbd>
+                            <span>K</span>
+                        </div>
+                    </motion.button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -213,13 +278,21 @@ export const SettingsPage = () => {
                                 className="rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-8 card"
                             >
                                 {/* Section Header */}
-                                <div className="flex items-center gap-4 mb-8 pb-6 border-b border-white/[0.08]">
-                                    <div className={`p-3 rounded-xl bg-gradient-to-br ${activeTabData.color} shadow-lg`}>
-                                        <activeTabData.icon className="w-6 h-6 text-white" />
+                                <div className="flex items-center justify-between mb-8 pb-6 border-b border-white/[0.08]">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`p-3 rounded-xl bg-gradient-to-br ${activeTabData.color} shadow-lg`}>
+                                            <activeTabData.icon className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-2xl font-bold text-white">{activeTabData.label}</h2>
+                                            <p className="text-white/60 text-sm mt-1">{activeTabData.description}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-white">{activeTabData.label}</h2>
-                                        <p className="text-white/60 text-sm mt-1">{activeTabData.description}</p>
+                                    {/* Breadcrumb */}
+                                    <div className="hidden md:flex items-center gap-2 text-sm text-white/40">
+                                        <span>Impostazioni</span>
+                                        <span>/</span>
+                                        <span className="text-white/60">{activeTabData.label}</span>
                                     </div>
                                 </div>
 
@@ -261,6 +334,13 @@ export const SettingsPage = () => {
                     </motion.div>
                 </div>
             </motion.div>
+
+            {/* Search Modal */}
+            <SettingsSearch
+                isOpen={isSearchOpen}
+                onClose={() => setIsSearchOpen(false)}
+                onSelect={handleSearchSelect}
+            />
         </div>
     );
 };

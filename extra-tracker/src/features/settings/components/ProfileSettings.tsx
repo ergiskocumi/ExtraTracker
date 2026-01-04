@@ -6,9 +6,10 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Phone, Building, Briefcase, MapPin, Globe, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, Mail, Phone, Building, Briefcase, MapPin, Globe, FileText, CheckCircle2, AlertCircle, RotateCcw } from 'lucide-react';
 import type { UserProfile } from '../services/settingsService';
 import type { FormStatus } from './types';
+import { SettingsTooltip } from './SettingsTooltip';
 
 interface ProfileSettingsProps {
     profile: UserProfile;
@@ -130,9 +131,22 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
                                 <Icon className="w-4 h-4 text-white/50" />
                                 {field.label}
                                 {field.required && <span className="text-red-400">*</span>}
+                                {field.name === 'website' && (
+                                    <SettingsTooltip
+                                        title="Formato URL"
+                                        content="Inserisci un URL completo che inizi con http:// o https://"
+                                    />
+                                )}
+                                {field.name === 'phone' && (
+                                    <SettingsTooltip
+                                        title="Formato telefono"
+                                        content="Puoi includere spazi, trattini, parentesi e il prefisso internazionale (+39)"
+                                    />
+                                )}
                             </label>
                             <div className="relative">
                                 <input
+                                    id={`setting-${field.name}`}
                                     name={field.name}
                                     value={value}
                                     onChange={handleChange}
@@ -220,11 +234,43 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
 
             {/* Submit Button */}
             <div className="flex items-center justify-between pt-4 border-t border-white/[0.08]">
-                <p className="text-sm text-white/50">
-                    {hasChanges ? 'Hai modifiche non salvate' : 'Tutto aggiornato'}
-                </p>
+                <div className="flex items-center gap-3">
+                    <p className="text-sm text-white/50">
+                        {hasChanges ? (
+                            <span className="flex items-center gap-2">
+                                <motion.div
+                                    animate={{ scale: [1, 1.2, 1] }}
+                                    transition={{ repeat: Infinity, duration: 2 }}
+                                    className="w-2 h-2 rounded-full bg-amber-400"
+                                />
+                                Modifiche non salvate
+                            </span>
+                        ) : (
+                            <span className="flex items-center gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                Tutto aggiornato
+                            </span>
+                        )}
+                    </p>
+                    {hasChanges && (
+                        <motion.button
+                            type="button"
+                            onClick={() => {
+                                setFormData(profile);
+                                setHasChanges(false);
+                                setFieldErrors({});
+                            }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors"
+                        >
+                            <RotateCcw className="w-3 h-3" />
+                            Reset
+                        </motion.button>
+                    )}
+                </div>
                 <motion.button
-                type="submit"
+                    type="submit"
                     disabled={status.loading || !hasChanges || Object.keys(fieldErrors).length > 0}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
