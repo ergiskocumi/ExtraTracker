@@ -32,6 +32,9 @@ const queryClient = new QueryClient({
  * ma AuthProvider PUÒ usare i toast.
  */
 
+// OTTIMIZZATO: Performance monitoring
+const appStartTime = performance.now();
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
@@ -49,3 +52,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
+// Log performance metrics
+window.addEventListener('load', () => {
+  const loadTime = performance.now() - appStartTime;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/d9d761ee-7675-435b-8f4d-f17fedf53ed6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.tsx:load',message:'App load time',data:{loadTime:Math.round(loadTime),navigationTiming:performance.timing ? {domContentLoaded:performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart,loadComplete:performance.timing.loadEventEnd - performance.timing.navigationStart} : null},timestamp:Date.now(),sessionId:'perf-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
+  // #endregion
+});

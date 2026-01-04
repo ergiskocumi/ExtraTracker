@@ -9,7 +9,7 @@
  * 
  * Design: Bento Grid moderno con focus su UX e azioni immediate.
  */
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -31,9 +31,11 @@ import {
 } from 'lucide-react';
 
 import { dashboardService, type DashboardSummary, type RecentItem } from '../services/dashboardService';
-import { ProductivityChart } from '../../analytics/components/ProductivityChart';
 import { analyticsService, type WeeklyAnalyticsResponse } from '../../analytics/services/analyticsService';
-import { AIInsightsWidget } from '../AIInsightsWidget';
+
+// OTTIMIZZATO: Lazy load componenti pesanti (charts, AI widgets)
+const ProductivityChart = lazy(() => import('../../analytics/components/ProductivityChart').then(m => ({ default: m.ProductivityChart })));
+const AIInsightsWidget = lazy(() => import('../AIInsightsWidget').then(m => ({ default: m.AIInsightsWidget })));
 
 // =========================================
 // SKELETON LOADERS
@@ -652,15 +654,19 @@ export const DashboardPage = () => {
                             </div>
                             
                             <div className="h-64">
-                                <ProductivityChart
-                                    data={analyticsData.dailyActivity}
-                                    isLoading={false}
-                                />
+                                <Suspense fallback={<div className="h-full flex items-center justify-center text-white/50">Caricamento grafico...</div>}>
+                                    <ProductivityChart
+                                        data={analyticsData.dailyActivity}
+                                        isLoading={false}
+                                    />
+                                </Suspense>
                             </div>
                         </motion.div>
                     )}
 
-                    <AIInsightsWidget />
+                    <Suspense fallback={<div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 animate-pulse h-32" />}>
+                        <AIInsightsWidget />
+                    </Suspense>
                 </>
             )}
         </div>

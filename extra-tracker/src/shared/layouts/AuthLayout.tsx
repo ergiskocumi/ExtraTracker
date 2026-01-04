@@ -5,11 +5,14 @@
  * Sfondo animato e branding pulito
  */
 
+import { lazy, Suspense } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogoIcon } from '../components/icons';
 import { useAuth } from '../../features/auth/context/AuthContext';
-import { AnimatedBackground } from '../components/AnimatedBackground';
+
+// OTTIMIZZATO: Lazy load AnimatedBackground (pesante, solo per auth)
+const AnimatedBackground = lazy(() => import('../components/AnimatedBackground').then(m => ({ default: m.AnimatedBackground })));
 
 export const AuthLayout = () => {
     const { isAuthenticated, isLoading } = useAuth();
@@ -34,8 +37,10 @@ export const AuthLayout = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-dark-500 relative overflow-hidden">
-            {/* Background animato premium */}
-            <AnimatedBackground />
+            {/* Background animato premium - Lazy loaded */}
+            <Suspense fallback={null}>
+                <AnimatedBackground />
+            </Suspense>
 
             {/* Header minimalista */}
             <header className="relative z-10 py-8 px-6">
