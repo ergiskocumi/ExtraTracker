@@ -248,14 +248,6 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
                         className="border-t border-white/10"
                     >
                         <div className="p-4 space-y-4">
-                            {/* Description */}
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-semibold text-primary-400">Description</h4>
-                                <p className="text-sm leading-relaxed text-white/80">
-                                    {milestone.description}
-                                </p>
-                            </div>
-
                             {/* Reasoning */}
                             {milestone.reasoning && (
                                 <div className="space-y-3">

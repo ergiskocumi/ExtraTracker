@@ -590,7 +590,7 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                                                 <span className="text-xs text-white/60">×{milestone.weight}</span>
                                             </div>
                                             {!isSelectionMode && (
-                                                <div className="p-1 rounded-md bg-white/5 border border-white/10 text-white/50 group-hover:text-white/80 transition-colors">
+                                                <div className="p-1 transition-colors border rounded-md bg-white/5 border-white/10 text-white/50 group-hover:text-white/80">
                                                     {isExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
                                                 </div>
                                             )}
@@ -656,12 +656,12 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                                                             onChange={(e) => onNotesChange(milestone.id, e.target.value)}
                                                             rows={3}
                                                             placeholder="Scrivi una nota e salva (es. Fatto capitolo 1 e 2, manca il ripasso...)"
-                                                            className="w-full px-1 py-1 text-sm text-white bg-transparent placeholder:text-white/30 focus:outline-none resize-none"
+                                                            className="w-full px-1 py-1 text-sm text-white bg-transparent resize-none placeholder:text-white/30 focus:outline-none"
                                                             disabled={isDisabled || isSelectionMode}
                                                         />
                                                     </div>
 
-                                                    <div className="mt-3 flex justify-end">
+                                                    <div className="flex justify-end mt-3">
                                                         <motion.button
                                                             whileHover={!isDisabled ? { scale: 1.02 } : {}}
                                                             whileTap={!isDisabled ? { scale: 0.98 } : {}}
@@ -703,7 +703,7 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                                                                             className="p-3 rounded-xl bg-white/[0.03] border border-white/10"
                                                                         >
                                                                             <div className="flex items-start justify-between gap-3">
-                                                                                <p className="text-sm text-white/85 whitespace-pre-wrap break-words leading-relaxed">
+                                                                                <p className="text-sm leading-relaxed break-words whitespace-pre-wrap text-white/85">
                                                                                     {entry.text}
                                                                                 </p>
                                                                             </div>
@@ -740,10 +740,10 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                         exit={{ opacity: 0, y: 10 }}
                         className="mt-4"
                     >
-                        <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-3 px-4 py-3 border rounded-2xl border-white/10 bg-white/5 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-2">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-500/15 text-primary-300">
-                                    <FiCheckSquare className="h-5 w-5" />
+                                <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-primary-500/15 text-primary-300">
+                                    <FiCheckSquare className="w-5 h-5" />
                                 </div>
                                 <div>
                                     <p className="text-sm font-semibold text-white">{selectionLabel}</p>
@@ -754,7 +754,7 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                                 <button
                                     type="button"
                                     onClick={handleToggleSelectionMode}
-                                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10"
+                                    className="px-3 py-2 text-xs font-semibold transition-colors border rounded-xl border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
                                 >
                                     Annulla
                                 </button>
@@ -768,7 +768,7 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
                                             : 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30'
                                     }`}
                                 >
-                                    <FiTrash2 className="h-4 w-4" />
+                                    <FiTrash2 className="w-4 h-4" />
                                     Elimina
                                 </button>
                             </div>

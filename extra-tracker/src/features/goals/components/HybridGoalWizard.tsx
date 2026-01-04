@@ -11,7 +11,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiZap, FiEdit3, FiX } from 'react-icons/fi';
+import { FiEdit3, FiX } from 'react-icons/fi';
 import { GoalWizardAIEmbedded } from '../GoalWizardAI';
 import { ManualWizardContent } from './ManualWizardContent';
 
