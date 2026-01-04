@@ -247,6 +247,31 @@ const goalsService = {
             throw error;
         }
     },
+
+    // ==================== AI SMART GOAL WIZARD ====================
+
+    /**
+     * 🆕 Genera un piano strategico AI per un nuovo obiettivo
+     * @param category - Categoria dell'obiettivo
+     * @param query - Desiderio/intento dell'utente
+     * @param intensity - 'relax' | 'normal' | 'hardcore'
+     */
+    async generateAIGoalPlan(
+        category: string,
+        query: string,
+        intensity: 'relax' | 'normal' | 'hardcore' = 'normal'
+    ): Promise<import('../types').AIGoalPlanResponse> {
+        try {
+            const response = await apiClient.post<import('../types').AIGoalPlanResponse>(
+                '/goals/suggest',
+                { category, query, intensity }
+            );
+            return unwrap(response, 'Errore nella generazione del piano AI');
+        } catch (error) {
+            console.error('Failed to generate AI goal plan:', error);
+            throw error;
+        }
+    },
 };
 
 export default goalsService;

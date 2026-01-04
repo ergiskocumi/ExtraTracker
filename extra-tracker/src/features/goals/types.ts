@@ -51,12 +51,51 @@ export interface Milestone {
     notes?: string;
     notesUpdatedAt?: string | null;
     notesHistory?: Array<{ text: string; savedAt: string }>;
+    // 🆕 AI-Generated Fields for Smart Goal Wizard
+    deadline?: string | null;
+    reasoning?: string;
+    actionSteps?: string[];
+    resources?: string[];
 }
 
 // DTO per creare una milestone (senza id e completedAt)
 export interface CreateMilestoneDTO {
     title: string;
     weight?: number;
+    // 🆕 AI-Generated Fields
+    deadline?: string;
+    reasoning?: string;
+    actionSteps?: string[];
+    resources?: string[];
+}
+
+// 🆕 AI Goal Plan Response from /api/goals/suggest
+export interface AIGoalPlanResponse {
+    title: string;
+    description: string;
+    type: GoalType;
+    targetValue: number | null;
+    unit: string;
+    frequency: number | null;
+    category: GoalCategory;
+    deadline: string;
+    milestones: AIMilestone[];
+    metadata: {
+        generatedAt: string;
+        intensity: 'relax' | 'normal' | 'hardcore';
+        aiModel: string;
+    };
+}
+
+// 🆕 AI-Generated Milestone
+export interface AIMilestone {
+    title: string;
+    deadline: string;
+    reasoning: string;
+    actionSteps: string[];
+    resources: string[];
+    weight: number;
+    isCompleted: boolean;
 }
 
 // Interfaccia principale Goal

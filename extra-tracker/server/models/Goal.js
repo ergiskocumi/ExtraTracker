@@ -64,6 +64,37 @@ const milestoneSchema = new mongoose.Schema({
         type: Date,
         default: null,
     },
+    // 🆕 AI-Generated Fields for Smart Goal Wizard
+    deadline: {
+        type: Date,
+        default: null,
+    },
+    reasoning: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [500, 'Il reasoning non può superare 500 caratteri'],
+    },
+    actionSteps: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: function(v) {
+                return v.length <= 5; // Max 5 action steps per milestone
+            },
+            message: 'Una milestone può avere al massimo 5 action steps',
+        },
+    },
+    resources: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: function(v) {
+                return v.length <= 5; // Max 5 resources per milestone
+            },
+            message: 'Una milestone può avere al massimo 5 risorse',
+        },
+    },
 }, { _id: true });
 
 const goalSchema = new mongoose.Schema({
