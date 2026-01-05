@@ -177,6 +177,9 @@ exports.getEntry = asyncHandler(async (req, res) => {
  * Crea nuova entry
  */
 exports.createEntry = asyncHandler(async (req, res) => {
+    console.log('📝 Creazione entry - Body ricevuto:', req.body);
+    console.log('📝 Tenant scope:', req.tenantScope?.tenantId);
+    
     const entry = await workspaceService.entries.create(req.tenantScope, {
         project: req.body.project,
         date: req.body.date,

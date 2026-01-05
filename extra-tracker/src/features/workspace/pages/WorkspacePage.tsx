@@ -7,12 +7,13 @@
  */
 
 import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ProjectList } from '../components/ProjectList';
 import { EntryTimeline } from '../components/EntryTimeline';
 import { EntryDetailModal } from '../components/EntryDetailModal';
-import { FiPlus, FiRefreshCw, FiSearch } from 'react-icons/fi';
+import { EntryForm } from '../components/EntryForm';
+import { FiPlus, FiRefreshCw, FiSearch, FiFileText } from 'react-icons/fi';
 import type { WorkEntryCategory, WorkEntry } from '../types';
 
 export const WorkspacePage = () => {
@@ -30,6 +31,8 @@ export const WorkspacePage = () => {
     const [showNewProjectForm, setShowNewProjectForm] = useState(false);
     const [selectedEntry, setSelectedEntry] = useState<WorkEntry | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [showEntryForm, setShowEntryForm] = useState(false);
+    const [editingEntry, setEditingEntry] = useState<WorkEntry | undefined>();
 
     const { deleteEntry } = useWorkspace();
 
@@ -95,6 +98,19 @@ export const WorkspacePage = () => {
                     <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                            setEditingEntry(undefined);
+                            setShowEntryForm(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
+                    >
+                        <FiFileText size={18} />
+                        <span>Nuova Entry</span>
+                    </motion.button>
+                    
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => setShowNewProjectForm(true)}
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all"
                     >
@@ -127,12 +143,16 @@ export const WorkspacePage = () => {
                             onChange={(e) => setSelectedProject(e.target.value || null)}
                             className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                         >
-                            <option value="">Tutti</option>
-                            {projects.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.icon} {p.name}
-                                </option>
-                            ))}
+                            <option key="all" value="">Tutti</option>
+                            {projects.map((p) => {
+                                const projectId = p.id || (p as any)._id;
+                                if (!projectId) return null;
+                                return (
+                                    <option key={projectId} value={String(projectId)}>
+                                        {p.icon} {p.name}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
                     
@@ -143,13 +163,13 @@ export const WorkspacePage = () => {
                             onChange={(e) => setSelectedCategory(e.target.value as WorkEntryCategory || null)}
                             className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                         >
-                            <option value="">Tutte</option>
-                            <option value="development">💻 Development</option>
-                            <option value="documentation">📝 Documentation</option>
-                            <option value="ticket">🎫 Ticket</option>
-                            <option value="meeting">🤝 Meeting</option>
-                            <option value="research">🔬 Research</option>
-                            <option value="freeform">📄 Freeform</option>
+                            <option key="all" value="">Tutte</option>
+                            <option key="development" value="development">💻 Development</option>
+                            <option key="documentation" value="documentation">📝 Documentation</option>
+                            <option key="ticket" value="ticket">🎫 Ticket</option>
+                            <option key="meeting" value="meeting">🤝 Meeting</option>
+                            <option key="research" value="research">🔬 Research</option>
+                            <option key="freeform" value="freeform">📄 Freeform</option>
                         </select>
                     </div>
 
@@ -205,11 +225,30 @@ export const WorkspacePage = () => {
                     return p.id === projectId;
                 }) || null : null}
                 onClose={() => setSelectedEntry(null)}
+                onEdit={(entry) => {
+                    setSelectedEntry(null);
+                    setEditingEntry(entry);
+                    setShowEntryForm(true);
+                }}
                 onDelete={(entryId) => {
                     deleteEntry(entryId);
                     setSelectedEntry(null);
                 }}
             />
+
+            {/* ENTRY FORM MODAL */}
+            <AnimatePresence>
+                {showEntryForm && (
+                    <EntryForm
+                        entry={editingEntry}
+                        defaultProjectId={selectedProject || undefined}
+                        onClose={() => {
+                            setShowEntryForm(false);
+                            setEditingEntry(undefined);
+                        }}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };
