@@ -7,68 +7,55 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.3'),
   },
-  // OTTIMIZZATO: Build optimizations per performance
   build: {
     target: 'esnext',
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true, // Rimuove console.log in produzione
+        drop_console: true,
         drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug'], // Rimuove console specifici
-        passes: 2, // Più passaggi per migliore compressione
+        pure_funcs: ['console.log', 'console.info', 'console.debug'],
+        passes: 2,
       },
       format: {
-        comments: false, // Rimuove commenti
+        comments: false,
       },
-    } as any, // Type workaround per terserOptions
-    cssCodeSplit: true, // Code splitting anche per CSS
-    reportCompressedSize: false, // Disabilita per build più veloce (opzionale)
+    } as any,
+    cssCodeSplit: true,
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
+        // SEMPLIFICATO: Non separare React dalle sue dipendenze
         manualChunks: (id) => {
-          // OTTIMIZZATO: Separazione chunk più granulare per miglior tree-shaking
           if (id.includes('node_modules')) {
-            // React core
-            if (id.includes('react/') || id.includes('react-dom/')) {
-              return 'vendor-react-core';
+            // Raggruppa TUTTO React insieme (core + ecosystem)
+            if (id.includes('react') || id.includes('scheduler')) {
+              return 'vendor-react';
             }
-            // React Router
-            if (id.includes('react-router')) {
-              return 'vendor-router';
-            }
-            // Framer Motion - separato perché pesante
+            // Framer Motion - separato (pesante ma non dipende da React al load time)
             if (id.includes('framer-motion')) {
               return 'vendor-framer';
             }
-            // Recharts - separato perché molto pesante
-            if (id.includes('recharts')) {
+            // Recharts - separato (molto pesante)
+            if (id.includes('recharts') || id.includes('d3-')) {
               return 'vendor-recharts';
             }
-            // Lucide React - separato per tree-shaking
-            if (id.includes('lucide-react')) {
-              return 'vendor-lucide';
-            }
-            // React Icons - separato
-            if (id.includes('react-icons')) {
-              return 'vendor-icons';
-            }
-            // React PDF - separato perché pesante
-            if (id.includes('react-pdf')) {
+            // PDF - separato
+            if (id.includes('react-pdf') || id.includes('pdfjs')) {
               return 'vendor-pdf';
             }
-            // Altri vendor
-            return 'vendor-other';
+            // Tutto il resto insieme
+            return 'vendor';
           }
         },
       },
     },
     chunkSizeWarningLimit: 1000,
-    sourcemap: false, // Disabilita sourcemap in produzione per performance
+    sourcemap: false,
   },
   server: {
-    host: true, // <--- AGGIUNGI QUESTA RIGA. Dice al server: "fatti vedere dalla rete"
-    port: 5173, // Opzionale, per fissare la porta
+    host: true,
+    port: 5173,
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
