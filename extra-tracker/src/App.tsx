@@ -25,6 +25,7 @@ const GoalsPage = lazy(() => import('./features/goals/pages/GoalsPage').then(m =
 const GoalDetailPage = lazy(() => import('./features/goals/pages/GoalDetailPage').then(m => ({ default: m.GoalDetailPage })));
 const TimelinePage = lazy(() => import('./features/tracker/pages/TimelinePage').then(m => ({ default: m.TimelinePage })));
 const WorkspacePage = lazy(() => import('./features/workspace/pages/WorkspacePage').then(m => ({ default: m.WorkspacePage })));
+const ProjectDetailPage = lazy(() => import('./features/workspace/pages/ProjectDetailPage').then(m => ({ default: m.ProjectDetailPage })));
 const LoginPage = lazy(() => import('./features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('./features/auth/pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
@@ -96,6 +97,7 @@ function App() {
                     <Route path="/goals/:id" element={<GoalDetailPage />} />
                     <Route path="/projects" element={<ProjectsPage />} />
                     <Route path="/workspace" element={<WorkspacePage />} />
+                    <Route path="/workspace/project/:id" element={<ProjectDetailPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/timeline" element={<TimelinePage />} />
                     
