@@ -81,7 +81,7 @@ cookie: {
         // Limite generale API
         general: {
             windowMs: 15 * 60 * 1000, // 15 minuti
-            max: 100, // max 100 richieste per IP
+            max: 200, // ← AUMENTATO da 100 a 200
             message: {
                 status: 429,
                 message: 'Troppe richieste, riprova tra 15 minuti',
@@ -90,15 +90,15 @@ cookie: {
             legacyHeaders: false,
         },
         
-        // Limite stringente per login (anti brute-force)
+        // Limite per login (anti brute-force)
         auth: {
             windowMs: 15 * 60 * 1000, // 15 minuti
-            max: 5, // solo 5 tentativi di login
+            max: 15, // ← AUMENTATO da 5 a 15
             message: {
                 status: 429,
                 message: 'Troppi tentativi di accesso, riprova tra 15 minuti',
             },
-            skipSuccessfulRequests: true, // Non contare i login riusciti
+            skipSuccessfulRequests: true,
         },
     },
 
