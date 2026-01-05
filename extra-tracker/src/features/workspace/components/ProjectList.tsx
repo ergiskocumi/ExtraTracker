@@ -72,16 +72,24 @@ export const ProjectList = ({
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {activeProjects.map((project) => (
-                        <ProjectCard
-                            key={project.id}
-                            project={project}
-                            isSelected={selectedProject === project.id}
-                            onClick={() => onSelectProject(
-                                selectedProject === project.id ? null : project.id
-                            )}
-                        />
-                    ))}
+                    {activeProjects.map((project) => {
+                        // Usa id o _id come fallback
+                        const projectId = project.id || (project as any)._id;
+                        if (!projectId) {
+                            console.error('❌ Progetto senza ID in ProjectList!', project);
+                            return null;
+                        }
+                        return (
+                            <ProjectCard
+                                key={projectId}
+                                project={project}
+                                isSelected={selectedProject === String(projectId)}
+                                onClick={() => onSelectProject(
+                                    selectedProject === String(projectId) ? null : String(projectId)
+                                )}
+                            />
+                        );
+                    })}
                 </div>
             )}
         </div>

@@ -18,6 +18,69 @@ import type {
 } from '../types';
 
 /**
+ * Normalizza un progetto convertendo _id in id
+ */
+const normalizeProject = (raw: any): WorkProject => {
+    const id = raw.id || raw._id;
+    if (!id) {
+        console.error('❌ Progetto senza ID!', raw);
+        throw new Error('Progetto senza ID valido');
+    }
+    
+    return {
+        id: String(id),
+        name: raw.name || '',
+        description: raw.description,
+        color: raw.color || '#6366f1',
+        icon: raw.icon || '✨',
+        status: raw.status || 'active',
+        createdAt: raw.createdAt || new Date().toISOString(),
+        updatedAt: raw.updatedAt || new Date().toISOString(),
+        // Campi opzionali da aggregate
+        entriesCount: raw.entriesCount || 0,
+        lastEntryDate: raw.lastEntryDate || null,
+    };
+};
+
+/**
+ * Normalizza un'entry convertendo _id in id e project
+ */
+const normalizeEntry = (raw: any): WorkEntry => {
+    const id = raw.id || raw._id;
+    if (!id) {
+        console.error('❌ Entry senza ID!', raw);
+        throw new Error('Entry senza ID valido');
+    }
+    
+    // Normalizza il progetto se presente
+    let project: string | WorkProject;
+    if (raw.project) {
+        if (typeof raw.project === 'string') {
+            project = raw.project;
+        } else {
+            // Se è un oggetto, normalizzalo
+            project = normalizeProject(raw.project);
+        }
+    } else {
+        throw new Error('Entry senza progetto');
+    }
+    
+    return {
+        id: String(id),
+        project,
+        date: raw.date || '',
+        category: raw.category || 'freeform',
+        title: raw.title || '',
+        content: raw.content,
+        templateData: raw.templateData || {},
+        tags: Array.isArray(raw.tags) ? raw.tags : [],
+        duration: raw.duration || 0,
+        createdAt: raw.createdAt || new Date().toISOString(),
+        updatedAt: raw.updatedAt || new Date().toISOString(),
+    };
+};
+
+/**
  * WORK PROJECTS API
  */
 export const workspaceProjectsService = {
@@ -25,51 +88,53 @@ export const workspaceProjectsService = {
      * Lista tutti i progetti
      */
     async getAll(includeStats = false): Promise<WorkProject[]> {
-        const response = await apiClient.get<WorkProject[]>(
+        const response = await apiClient.get<any[]>(
             `/workspace/projects${includeStats ? '?includeStats=true' : ''}`
         );
-        return response.data || [];
+        const data = response.data || [];
+        return data.map(normalizeProject);
     },
 
     /**
      * Lista solo i progetti attivi
      */
     async getActive(): Promise<WorkProject[]> {
-        const response = await apiClient.get<WorkProject[]>('/workspace/projects/active');
-        return response.data || [];
+        const response = await apiClient.get<any[]>('/workspace/projects/active');
+        const data = response.data || [];
+        return data.map(normalizeProject);
     },
 
     /**
      * Dettaglio singolo progetto
      */
     async getById(id: string): Promise<WorkProject> {
-        const response = await apiClient.get<WorkProject>(`/workspace/projects/${id}`);
+        const response = await apiClient.get<any>(`/workspace/projects/${id}`);
         if (!response.data) {
             throw new Error('Progetto non trovato');
         }
-        return response.data;
+        return normalizeProject(response.data);
     },
 
     /**
      * Crea nuovo progetto
      */
     async create(data: CreateWorkProjectDTO): Promise<WorkProject> {
-        const response = await apiClient.post<WorkProject>('/workspace/projects', data);
+        const response = await apiClient.post<any>('/workspace/projects', data);
         if (!response.data) {
             throw new Error('Errore nella creazione del progetto');
         }
-        return response.data;
+        return normalizeProject(response.data);
     },
 
     /**
      * Aggiorna progetto
      */
     async update(id: string, data: UpdateWorkProjectDTO): Promise<WorkProject> {
-        const response = await apiClient.put<WorkProject>(`/workspace/projects/${id}`, data);
+        const response = await apiClient.put<any>(`/workspace/projects/${id}`, data);
         if (!response.data) {
             throw new Error('Errore nell\'aggiornamento del progetto');
         }
-        return response.data;
+        return normalizeProject(response.data);
     },
 
     /**
@@ -100,40 +165,49 @@ export const workspaceEntriesService = {
         if (filters?.limit) params.append('limit', filters.limit.toString());
 
         const queryString = params.toString();
-        const response = await apiClient.get<WorkEntry[]>(
+        const response = await apiClient.get<any[]>(
             `/workspace/entries${queryString ? `?${queryString}` : ''}`
         );
-        return response.data || [];
+        const data = response.data || [];
+        return data.map(normalizeEntry);
     },
 
     /**
      * Timeline raggruppata per data
      */
     async getTimeline(limit = 30): Promise<TimelineEntry[]> {
-        const response = await apiClient.get<TimelineEntry[]>(
+        const response = await apiClient.get<any[]>(
             `/workspace/entries/timeline?limit=${limit}`
         );
-        return response.data || [];
+        const data = response.data || [];
+        // Normalizza le entries nella timeline
+        return data.map((item: any) => ({
+            date: item._id || item.date,
+            entries: Array.isArray(item.entries) ? item.entries.map(normalizeEntry) : [],
+            totalDuration: item.totalDuration || 0,
+        }));
     },
 
     /**
      * Entries per mese
      */
     async getByMonth(year: number, month: number): Promise<WorkEntry[]> {
-        const response = await apiClient.get<WorkEntry[]>(
+        const response = await apiClient.get<any[]>(
             `/workspace/entries/by-month/${year}/${month}`
         );
-        return response.data || [];
+        const data = response.data || [];
+        return data.map(normalizeEntry);
     },
 
     /**
      * Entries per progetto
      */
     async getByProject(projectId: string): Promise<WorkEntry[]> {
-        const response = await apiClient.get<WorkEntry[]>(
+        const response = await apiClient.get<any[]>(
             `/workspace/entries/by-project/${projectId}`
         );
-        return response.data || [];
+        const data = response.data || [];
+        return data.map(normalizeEntry);
     },
 
     /**
@@ -154,33 +228,33 @@ export const workspaceEntriesService = {
      * Dettaglio singola entry
      */
     async getById(id: string): Promise<WorkEntry> {
-        const response = await apiClient.get<WorkEntry>(`/workspace/entries/${id}`);
+        const response = await apiClient.get<any>(`/workspace/entries/${id}`);
         if (!response.data) {
             throw new Error('Entry non trovata');
         }
-        return response.data;
+        return normalizeEntry(response.data);
     },
 
     /**
      * Crea nuova entry
      */
     async create(data: CreateWorkEntryDTO): Promise<WorkEntry> {
-        const response = await apiClient.post<WorkEntry>('/workspace/entries', data);
+        const response = await apiClient.post<any>('/workspace/entries', data);
         if (!response.data) {
             throw new Error('Errore nella creazione dell\'entry');
         }
-        return response.data;
+        return normalizeEntry(response.data);
     },
 
     /**
      * Aggiorna entry
      */
     async update(id: string, data: UpdateWorkEntryDTO): Promise<WorkEntry> {
-        const response = await apiClient.put<WorkEntry>(`/workspace/entries/${id}`, data);
+        const response = await apiClient.put<any>(`/workspace/entries/${id}`, data);
         if (!response.data) {
             throw new Error('Errore nell\'aggiornamento dell\'entry');
         }
-        return response.data;
+        return normalizeEntry(response.data);
     },
 
     /**

@@ -17,6 +17,7 @@ const WorkProject = require('../models/WorkProject');
 const WorkEntry = require('../models/WorkEntry');
 const AppError = require('../utils/AppError');
 const activityService = require('./activityService');
+const mongoose = require('mongoose');
 
 // =========================================
 // WORK PROJECT SERVICE
@@ -285,12 +286,37 @@ class WorkEntryService extends BaseService {
 
         const userId = this._getUserId(tenantScope);
         
+        // Converti projectId in ObjectId se è una stringa
+        let projectObjectId;
+        try {
+            projectObjectId = typeof projectId === 'string'
+                ? new mongoose.Types.ObjectId(projectId)
+                : projectId;
+        } catch (err) {
+            throw AppError.validation('ID progetto non valido');
+        }
+        
+        console.log('🔍 Validazione progetto - projectId:', projectId, 'projectObjectId:', projectObjectId, 'userId:', userId);
+        
         // 🔒 Query diretta con filtro esplicito
-        const project = await WorkProject.findOne({ _id: projectId, user: userId });
+        const project = await WorkProject.findOne({ _id: projectObjectId, user: userId });
+        
+        console.log('🔍 Progetto trovato:', project ? 'Sì' : 'No');
         
         if (!project) {
+            // Verifica se il progetto esiste ma appartiene ad altri utenti
+            try {
+                const projectExists = await WorkProject.findById(projectObjectId);
+                if (projectExists) {
+                    console.log('⚠️ Progetto esiste ma appartiene ad altro utente');
+                    throw AppError.validation('Non hai i permessi per questo progetto');
+                }
+            } catch (err) {
+                // Se è già un AppError, rilancialo
+                if (err instanceof AppError) throw err;
+            }
             // ATTENZIONE: Non rivelare se il progetto esiste ma appartiene ad altri!
-            throw AppError.notFound('Progetto');
+            throw AppError.notFound('Progetto non trovato');
         }
     }
 
