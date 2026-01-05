@@ -7,12 +7,13 @@
  */
 
 import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ProjectList } from '../components/ProjectList';
 import { EntryTimeline } from '../components/EntryTimeline';
-import { FiPlus, FiRefreshCw } from 'react-icons/fi';
-import type { WorkEntryCategory } from '../types';
+import { EntryForm } from '../components/EntryForm';
+import { FiPlus, FiRefreshCw, FiFileText } from 'react-icons/fi';
+import type { WorkEntryCategory, WorkEntry } from '../types';
 
 export const WorkspacePage = () => {
     const {
@@ -27,6 +28,9 @@ export const WorkspacePage = () => {
     const [selectedProject, setSelectedProject] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<WorkEntryCategory | null>(null);
     const [showNewProjectForm, setShowNewProjectForm] = useState(false);
+    const [showEntryForm, setShowEntryForm] = useState(false);
+    const [editingEntry, setEditingEntry] = useState<WorkEntry | undefined>();
+    const [entryFormDefaultProject, setEntryFormDefaultProject] = useState<string | undefined>();
 
     // Filtra entries in base a progetto e categoria
     const filteredEntries = useMemo(() => {
@@ -74,6 +78,20 @@ export const WorkspacePage = () => {
                     >
                         <FiRefreshCw size={18} className={projectsLoading || entriesLoading ? 'animate-spin' : ''} />
                         <span className="hidden sm:inline">Aggiorna</span>
+                    </motion.button>
+                    
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                            setEntryFormDefaultProject(selectedProject || undefined);
+                            setEditingEntry(undefined);
+                            setShowEntryForm(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
+                    >
+                        <FiFileText size={18} />
+                        <span>Nuova Entry</span>
                     </motion.button>
                     
                     <motion.button
@@ -144,9 +162,28 @@ export const WorkspacePage = () => {
                         entries={filteredEntries}
                         loading={entriesLoading}
                         projects={projects}
+                        onEntryClick={(entry) => {
+                            setEditingEntry(entry);
+                            setShowEntryForm(true);
+                        }}
                     />
                 </div>
             </div>
+
+            {/* ENTRY FORM MODAL */}
+            <AnimatePresence>
+                {showEntryForm && (
+                    <EntryForm
+                        entry={editingEntry}
+                        defaultProjectId={entryFormDefaultProject}
+                        onClose={() => {
+                            setShowEntryForm(false);
+                            setEditingEntry(undefined);
+                            setEntryFormDefaultProject(undefined);
+                        }}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };

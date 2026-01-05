@@ -12,6 +12,7 @@ import type { WorkEntry, WorkProject } from '../types';
 interface EntryCardProps {
     entry: WorkEntry;
     project: WorkProject | null;
+    onClick?: () => void;
 }
 
 const CATEGORY_ICONS: Record<WorkEntry['category'], string> = {
@@ -32,7 +33,7 @@ const CATEGORY_LABELS: Record<WorkEntry['category'], string> = {
     freeform: 'Freeform',
 };
 
-export const EntryCard = ({ entry, project }: EntryCardProps) => {
+export const EntryCard = ({ entry, project, onClick }: EntryCardProps) => {
     const formatDuration = (minutes?: number) => {
         if (!minutes) return null;
         const hours = Math.floor(minutes / 60);
@@ -47,7 +48,10 @@ export const EntryCard = ({ entry, project }: EntryCardProps) => {
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="card p-4 hover:bg-white/5 transition-colors"
+            onClick={onClick}
+            className={`card p-4 transition-colors ${
+                onClick ? 'cursor-pointer hover:bg-white/10 hover:border-white/20' : 'hover:bg-white/5'
+            }`}
         >
             <div className="flex items-start gap-3">
                 {/* ICONA CATEGORIA */}
