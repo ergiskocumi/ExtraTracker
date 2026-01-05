@@ -49,41 +49,30 @@ module.exports = {
     },
 
     // ==========================================
-    // Cookie Configuration
-    // ==========================================
-    cookie: {
-        // Nome del cookie
-        name: 'accessToken',
-        refreshName: 'refreshToken',
-        
-        options: {
-            // HttpOnly: JavaScript NON può leggere il cookie (anti-XSS)
-            httpOnly: true,
-            
-            // Secure: invia solo su HTTPS (OBBLIGATORIO in produzione)
-            secure: isProduction,
-            
-            // SameSite: previene CSRF
-            // 'strict': cookie inviato solo se la richiesta proviene dallo stesso sito
-            // 'lax': permette navigazione top-level (link esterni)
-            // 'none': richiede secure=true, per cross-site
-            sameSite: isProduction ? 'strict' : 'lax',
-            
-            // Path: il cookie è valido solo per queste routes
-            path: '/',
-            
-            // MaxAge in millisecondi (15 minuti per access token)
-            maxAge: 15 * 60 * 1000,
-        },
-        
-        refreshOptions: {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'strict' : 'lax',
-            path: '/api/auth/refresh', // Solo per endpoint refresh!
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 giorni
-        },
+// Cookie Configuration  
+// ==========================================
+cookie: {
+    name: 'accessToken',
+    refreshName: 'refreshToken',
+    
+    options: {
+        httpOnly: true,
+        secure: isProduction,
+        // CAMBIATO: 'none' per cross-origin
+        sameSite: isProduction ? 'none' : 'lax',
+        path: '/',
+        maxAge: 15 * 60 * 1000,
     },
+    
+    refreshOptions: {
+        httpOnly: true,
+        secure: isProduction,
+        // CAMBIATO: 'none' per cross-origin
+        sameSite: isProduction ? 'none' : 'lax',
+        path: '/api/auth/refresh',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    },
+},
 
     // ==========================================
     // Rate Limiting Configuration
@@ -114,23 +103,51 @@ module.exports = {
     },
 
     // ==========================================
-    // CORS Configuration
-    // ==========================================
-    cors: {
-        // In produzione: specifica il dominio esatto del frontend
-        origin: isProduction 
-            ? process.env.FRONTEND_URL 
-            : ['http://localhost:5173', 'http://localhost:5174'],
+// CORS Configuration
+// ==========================================
+cors: {
+    // Funzione per validare origin dinamicamente
+    origin: (origin, callback) => {
+        // Lista di domini permessi
+        const allowedOrigins = [
+            process.env.FRONTEND_URL,
+            'http://localhost:5173',
+            'http://localhost:5174',
+        ].filter(Boolean);
         
-        // IMPORTANTE: necessario per inviare cookies cross-origin
-        credentials: true,
+        // Permetti richieste senza origin (Postman, curl, mobile apps)
+        if (!origin) {
+            return callback(null, true);
+        }
         
-        // Headers permessi
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+        // Permetti tutti i preview deployments di Vercel del tuo progetto
+        if (origin.includes('ergiskocumis-projects.vercel.app')) {
+            return callback(null, true);
+        }
         
-        // Metodi permessi
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        // Permetti il dominio principale
+        if (origin === 'https://extra-tracker.vercel.app') {
+            return callback(null, true);
+        }
+        
+        // Controlla la lista
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        
+        // Blocca altri domini
+        callback(new Error('Not allowed by CORS'));
     },
+    
+    // IMPORTANTE: necessario per inviare cookies cross-origin
+    credentials: true,
+    
+    // Headers permessi
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    
+    // Metodi permessi
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+},
 
     // ==========================================
     // Helmet Security Headers
