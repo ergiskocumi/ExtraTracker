@@ -6,26 +6,57 @@
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { EntryTimeline } from '../components/EntryTimeline';
 import { EntryDetailModal } from '../components/EntryDetailModal';
+import { TodoList } from '../components/TodoList';
 import { FiArrowLeft, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
-import type { WorkEntry, WorkEntryCategory } from '../types';
+import type { WorkEntry, WorkEntryCategory, WorkTodo } from '../types';
 
 export const ProjectDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { projects, entries, deleteProject, deleteEntry } = useWorkspace();
+    const { projects, entries, deleteProject, deleteEntry, getTodosByProject } = useWorkspace();
 
     const [selectedEntry, setSelectedEntry] = useState<WorkEntry | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<WorkEntryCategory | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [todos, setTodos] = useState<WorkTodo[]>([]);
+    const [todosLoading, setTodosLoading] = useState(true);
 
-    const project = projects.find((p) => p.id === id);
+    const project = projects.find((p) => {
+        const pid = p.id || (p as any)._id;
+        return String(pid) === String(id);
+    });
+
+    // Carica TODO del progetto
+    useEffect(() => {
+        if (!project) {
+            setTodosLoading(false);
+            return;
+        }
+        
+        const loadTodos = async () => {
+            setTodosLoading(true);
+            try {
+                const projectId = project.id || (project as any)._id;
+                if (!projectId) return;
+                
+                const data = await getTodosByProject(String(projectId));
+                setTodos(data || []);
+            } catch (err) {
+                setTodos([]);
+            } finally {
+                setTodosLoading(false);
+            }
+        };
+        
+        loadTodos();
+    }, [project, getTodosByProject]);
 
     // Filtra entries del progetto
     const projectEntries = useMemo(() => {
@@ -150,6 +181,21 @@ export const ProjectDetailPage = () => {
                         {Object.keys(stats.categories).length}
                     </div>
                 </div>
+            </div>
+
+            {/* TODO LIST */}
+            <div className="mb-8">
+                <TodoList
+                    project={project}
+                    todos={todos}
+                    loading={todosLoading}
+                    onRefresh={async () => {
+                        if (!project) return;
+                        const projectId = project.id || (project as any)._id;
+                        const data = await getTodosByProject(String(projectId));
+                        setTodos(data);
+                    }}
+                />
             </div>
 
             {/* FILTRI E RICERCA */}

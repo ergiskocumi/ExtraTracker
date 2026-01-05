@@ -346,26 +346,10 @@ class WorkEntryService extends BaseService {
             throw AppError.validation('ID progetto non valido');
         }
         
-        console.log('🔍 Validazione progetto - projectId:', projectId, 'projectObjectId:', projectObjectId, 'userId:', userId);
-        
         // 🔒 Query diretta con filtro esplicito
         const project = await WorkProject.findOne({ _id: projectObjectId, user: userId });
         
-        console.log('🔍 Progetto trovato:', project ? 'Sì' : 'No');
-        
         if (!project) {
-            // Verifica se il progetto esiste ma appartiene ad altri utenti
-            try {
-                const projectExists = await WorkProject.findById(projectObjectId);
-                if (projectExists) {
-                    console.log('⚠️ Progetto esiste ma appartiene ad altro utente');
-                    throw AppError.validation('Non hai i permessi per questo progetto');
-                }
-            } catch (err) {
-                // Se è già un AppError, rilancialo
-                if (err instanceof AppError) throw err;
-            }
-            // ATTENZIONE: Non rivelare se il progetto esiste ma appartiene ad altri!
             throw AppError.notFound('Progetto non trovato');
         }
     }

@@ -14,14 +14,18 @@ import { emitToast } from '../../../shared/components/toast';
 import type {
     WorkProject,
     WorkEntry,
+    WorkTodo,
     CreateWorkProjectDTO,
     UpdateWorkProjectDTO,
     CreateWorkEntryDTO,
     UpdateWorkEntryDTO,
+    CreateWorkTodoDTO,
+    UpdateWorkTodoDTO,
 } from '../types';
 import {
     workspaceProjectsService,
     workspaceEntriesService,
+    workspaceTodosService,
 } from '../services/workspaceService';
 
 interface WorkspaceContextType {
@@ -42,6 +46,9 @@ interface WorkspaceContextType {
     addEntry: (data: CreateWorkEntryDTO) => Promise<void>;
     updateEntry: (id: string, data: UpdateWorkEntryDTO) => Promise<void>;
     deleteEntry: (id: string) => Promise<void>;
+    
+    // Todos (per progetto specifico, non globali)
+    getTodosByProject: (projectId: string) => Promise<WorkTodo[]>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -73,7 +80,6 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
             const data = await workspaceProjectsService.getAll(true); // include stats
             setProjects(data);
         } catch (err: any) {
-            console.error('Errore fetch projects:', err);
             setProjectsError(err.message || 'Errore nel caricamento progetti');
         } finally {
             setProjectsLoading(false);
@@ -92,7 +98,6 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
                 title: 'Progetto Creato',
             });
         } catch (err: any) {
-            console.error('Errore addProject:', err);
             throw err;
         }
     }, []);
@@ -105,7 +110,6 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
                 title: 'Aggiornato',
             });
         } catch (err: any) {
-            console.error('Errore updateProject:', err);
             throw err;
         }
     }, []);
@@ -118,7 +122,6 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
                 title: 'Eliminato',
             });
         } catch (err: any) {
-            console.error('Errore deleteProject:', err);
             throw err;
         }
     }, []);
@@ -137,7 +140,6 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
             const data = await workspaceEntriesService.getAll();
             setEntries(data);
         } catch (err: any) {
-            console.error('Errore fetch entries:', err);
             setEntriesError(err.message || 'Errore nel caricamento entries');
         } finally {
             setEntriesLoading(false);
@@ -156,7 +158,6 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
                 title: 'Entry Salvata',
             });
         } catch (err: any) {
-            console.error('Errore addEntry:', err);
             throw err;
         }
     }, []);
@@ -169,7 +170,6 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
                 title: 'Aggiornato',
             });
         } catch (err: any) {
-            console.error('Errore updateEntry:', err);
             throw err;
         }
     }, []);
@@ -182,7 +182,6 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
                 title: 'Eliminato',
             });
         } catch (err: any) {
-            console.error('Errore deleteEntry:', err);
             throw err;
         }
     }, []);
@@ -190,6 +189,14 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
     // =========================================
     // CONTEXT VALUE
     // =========================================
+
+    const getTodosByProject = useCallback(async (projectId: string): Promise<WorkTodo[]> => {
+        try {
+            return await workspaceTodosService.getByProject(projectId);
+        } catch (err: any) {
+            return [];
+        }
+    }, []);
 
     const value = useMemo(() => ({
         // Projects
@@ -208,6 +215,8 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         addEntry,
         updateEntry,
         deleteEntry,
+        // Todos
+        getTodosByProject,
     }), [
         projects,
         projectsLoading,
@@ -223,6 +232,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         addEntry,
         updateEntry,
         deleteEntry,
+        getTodosByProject,
     ]);
 
     return (

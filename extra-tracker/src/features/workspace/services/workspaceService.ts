@@ -15,6 +15,10 @@ import type {
     UpdateWorkProjectDTO,
     CreateWorkEntryDTO,
     UpdateWorkEntryDTO,
+    WorkTodo,
+    WorkTodoStats,
+    CreateWorkTodoDTO,
+    UpdateWorkTodoDTO,
 } from '../types';
 
 /**
@@ -23,7 +27,6 @@ import type {
 const normalizeProject = (raw: any): WorkProject => {
     const id = raw.id || raw._id;
     if (!id) {
-        console.error('❌ Progetto senza ID!', raw);
         throw new Error('Progetto senza ID valido');
     }
     
@@ -50,7 +53,6 @@ const normalizeProject = (raw: any): WorkProject => {
 const normalizeEntry = (raw: any): WorkEntry => {
     const id = raw.id || raw._id;
     if (!id) {
-        console.error('❌ Entry senza ID!', raw);
         throw new Error('Entry senza ID valido');
     }
     
@@ -265,4 +267,142 @@ export const workspaceEntriesService = {
     async delete(id: string): Promise<void> {
         await apiClient.delete(`/workspace/entries/${id}`);
     },
+};
+
+/**
+ * WORK TODOS API
+ */
+export const workspaceTodosService = {
+    /**
+     * Lista tutti i TODO
+     */
+    async getAll(filters?: {
+        project?: string;
+        status?: string;
+        priority?: string;
+    }): Promise<WorkTodo[]> {
+        const params = new URLSearchParams();
+        if (filters?.project) params.append('project', filters.project);
+        if (filters?.status) params.append('status', filters.status);
+        if (filters?.priority) params.append('priority', filters.priority);
+
+        const queryString = params.toString();
+        const response = await apiClient.get<any[]>(
+            `/workspace/todos${queryString ? `?${queryString}` : ''}`
+        );
+        const data = response.data || [];
+        return data.map(normalizeTodo);
+    },
+
+    /**
+     * Lista TODO di un progetto
+     */
+    async getByProject(projectId: string): Promise<WorkTodo[]> {
+        const response = await apiClient.get<any[]>(`/workspace/todos/project/${projectId}`);
+        const data = response.data || [];
+        return data.map(normalizeTodo);
+    },
+
+    /**
+     * Lista TODO in scadenza
+     */
+    async getUpcoming(days = 7): Promise<WorkTodo[]> {
+        const response = await apiClient.get<any[]>(`/workspace/todos/upcoming?days=${days}`);
+        const data = response.data || [];
+        return data.map(normalizeTodo);
+    },
+
+    /**
+     * Statistiche TODO per progetto
+     */
+    async getStats(projectId: string): Promise<WorkTodoStats> {
+        const response = await apiClient.get<WorkTodoStats>(`/workspace/todos/project/${projectId}/stats`);
+        return response.data || { pending: 0, 'in-progress': 0, completed: 0, cancelled: 0 };
+    },
+
+    /**
+     * Dettaglio singolo TODO
+     */
+    async getById(id: string): Promise<WorkTodo> {
+        const response = await apiClient.get<any>(`/workspace/todos/${id}`);
+        if (!response.data) {
+            throw new Error('TODO non trovato');
+        }
+        return normalizeTodo(response.data);
+    },
+
+    /**
+     * Crea nuovo TODO
+     */
+    async create(data: CreateWorkTodoDTO): Promise<WorkTodo> {
+        const response = await apiClient.post<any>('/workspace/todos', data);
+        if (!response.data) {
+            throw new Error('Errore nella creazione del TODO');
+        }
+        return normalizeTodo(response.data);
+    },
+
+    /**
+     * Aggiorna TODO
+     */
+    async update(id: string, data: UpdateWorkTodoDTO): Promise<WorkTodo> {
+        const response = await apiClient.put<any>(`/workspace/todos/${id}`, data);
+        if (!response.data) {
+            throw new Error('Errore nell\'aggiornamento del TODO');
+        }
+        return normalizeTodo(response.data);
+    },
+
+    /**
+     * Completa un TODO
+     */
+    async complete(id: string): Promise<WorkTodo> {
+        const response = await apiClient.patch<any>(`/workspace/todos/${id}/complete`);
+        if (!response.data) {
+            throw new Error('Errore nel completamento del TODO');
+        }
+        return normalizeTodo(response.data);
+    },
+
+    /**
+     * Riattiva un TODO completato
+     */
+    async reopen(id: string): Promise<WorkTodo> {
+        const response = await apiClient.patch<any>(`/workspace/todos/${id}/reopen`);
+        if (!response.data) {
+            throw new Error('Errore nella riapertura del TODO');
+        }
+        return normalizeTodo(response.data);
+    },
+
+    /**
+     * Elimina TODO
+     */
+    async delete(id: string): Promise<void> {
+        await apiClient.delete(`/workspace/todos/${id}`);
+    },
+};
+
+/**
+ * Normalizza un TODO convertendo _id in id
+ */
+const normalizeTodo = (raw: any): WorkTodo => {
+    const id = raw.id || raw._id;
+    if (!id) {
+        throw new Error('TODO senza ID valido');
+    }
+    
+    return {
+        id: String(id),
+        project: raw.project || '',
+        title: raw.title || '',
+        description: raw.description,
+        priority: raw.priority || 'medium',
+        status: raw.status || 'pending',
+        dueDate: raw.dueDate,
+        completedAt: raw.completedAt,
+        order: raw.order || 0,
+        createdAt: raw.createdAt || new Date().toISOString(),
+        updatedAt: raw.updatedAt || new Date().toISOString(),
+    };
 };

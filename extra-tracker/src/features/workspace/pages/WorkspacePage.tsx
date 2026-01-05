@@ -13,6 +13,7 @@ import { ProjectList } from '../components/ProjectList';
 import { EntryTimeline } from '../components/EntryTimeline';
 import { EntryDetailModal } from '../components/EntryDetailModal';
 import { EntryForm } from '../components/EntryForm';
+import { TodosWidget } from '../components/TodosWidget';
 import { FiPlus, FiRefreshCw, FiSearch, FiFileText } from 'react-icons/fi';
 import type { WorkEntryCategory, WorkEntry } from '../types';
 
@@ -191,8 +192,8 @@ export const WorkspacePage = () => {
 
             {/* CONTENUTO PRINCIPALE */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* COLONNA SINISTRA: LISTA PROGETTI */}
-                <div className="lg:col-span-1">
+                {/* COLONNA SINISTRA: LISTA PROGETTI E TODO */}
+                <div className="lg:col-span-1 space-y-6">
                     <ProjectList
                         projects={projects}
                         loading={projectsLoading}
@@ -200,6 +201,12 @@ export const WorkspacePage = () => {
                         onSelectProject={setSelectedProject}
                         showNewProjectForm={showNewProjectForm}
                         onCloseNewProjectForm={() => setShowNewProjectForm(false)}
+                    />
+                    
+                    {/* TODO WIDGET */}
+                    <TodosWidget 
+                        projects={projects}
+                        selectedProject={selectedProject}
                     />
                 </div>
 

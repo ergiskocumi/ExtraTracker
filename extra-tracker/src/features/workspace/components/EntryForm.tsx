@@ -58,8 +58,6 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
     
     // Debug: verifica che i progetti abbiano ID validi
     useEffect(() => {
-        console.log('🔍 EntryForm - Progetti attivi:', activeProjects.map(p => ({ id: p.id, name: p.name, idType: typeof p.id })));
-        console.log('🔍 EntryForm - projectId corrente:', projectId, 'tipo:', typeof projectId);
     }, [activeProjects, projectId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -89,9 +87,7 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
             return String(pid) === String(projectId);
         });
         if (!selectedProjectObj) {
-            console.error('❌ Progetto non trovato! projectId:', projectId);
-            console.error('📂 Progetti disponibili:', activeProjects);
-            alert(`Progetto non valido. Seleziona un progetto dalla lista.\n\nprojectId: ${projectId}`);
+            alert('Progetto non valido. Seleziona un progetto dalla lista.');
             return;
         }
         
@@ -99,7 +95,7 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
         const finalProjectId = selectedProjectObj.id || (selectedProjectObj as any)._id;
         
         const data: CreateWorkEntryDTO = {
-            project: finalProjectId, // Usa sempre l'ID del progetto trovato
+            project: finalProjectId,
             date: dateStr,
             category,
             title: title.trim(),
@@ -107,11 +103,6 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
             tags: tags.length > 0 ? tags : undefined,
             duration: duration || undefined,
         };
-
-        console.log('📝 Dati entry da inviare:', data);
-        console.log('📝 projectId originale:', projectId);
-        console.log('📝 finalProjectId usato:', finalProjectId);
-        console.log('📂 Progetto trovato:', selectedProjectObj);
 
         setLoading(true);
         try {
@@ -122,7 +113,6 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
             }
             onClose();
         } catch (err: any) {
-            console.error('❌ Errore creazione entry:', err);
             // Mostra errore più dettagliato
             if (err.response?.data?.error?.message) {
                 alert(`Errore: ${err.response.data.error.message}`);
@@ -185,14 +175,13 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
                                 value={projectId}
                                 onChange={(e) => {
                                     const selectedValue = e.target.value;
-                                    console.log('🔍 Select cambiato - valore selezionato:', selectedValue);
-                                    console.log('🔍 Select cambiato - tipo:', typeof selectedValue);
-                                    console.log('🔍 Select cambiato - opzioni disponibili:', activeProjects.map(p => ({ id: p.id, name: p.name })));
                                     
                                     // Verifica che il valore sia un ID valido
-                                    const project = activeProjects.find(p => p.id === selectedValue);
+                                    const project = activeProjects.find(p => {
+                                        const pid = p.id || (p as any)._id;
+                                        return String(pid) === String(selectedValue);
+                                    });
                                     if (!project && selectedValue) {
-                                        console.error('❌ Valore selezionato non corrisponde a nessun progetto!', selectedValue);
                                         alert('Errore: progetto non valido. Seleziona un progetto dalla lista.');
                                         return;
                                     }
@@ -204,12 +193,8 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
                             >
                                 <option key="empty" value="">Seleziona progetto...</option>
                                 {activeProjects.map((p) => {
-                                    // Usa id o _id come fallback
                                     const projectId = p.id || (p as any)._id;
-                                    if (!projectId) {
-                                        console.error('❌ Progetto senza ID!', p);
-                                        return null;
-                                    }
+                                    if (!projectId) return null;
                                     return (
                                         <option key={projectId} value={String(projectId)}>
                                             {p.icon} {p.name}

@@ -133,3 +133,48 @@ export interface CreateWorkEntryDTO {
  * Update WorkEntry DTO
  */
 export interface UpdateWorkEntryDTO extends Partial<CreateWorkEntryDTO> {}
+
+/**
+ * WorkTodo - TODO/Promemoria per progetto
+ */
+export interface WorkTodo {
+    id: string;
+    project: string | WorkProject;
+    title: string;
+    description?: string;
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    status: 'pending' | 'in-progress' | 'completed' | 'cancelled';
+    dueDate?: string; // YYYY-MM-DD
+    completedAt?: string;
+    order: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+/**
+ * Statistiche TODO per progetto
+ */
+export interface WorkTodoStats {
+    pending: number;
+    'in-progress': number;
+    completed: number;
+    cancelled: number;
+}
+
+/**
+ * DTO per creare un TODO
+ */
+export interface CreateWorkTodoDTO {
+    project: string;
+    title: string;
+    description?: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    status?: 'pending' | 'in-progress' | 'completed' | 'cancelled';
+    dueDate?: string; // YYYY-MM-DD
+    order?: number;
+}
+
+/**
+ * DTO per aggiornare un TODO
+ */
+export interface UpdateWorkTodoDTO extends Partial<CreateWorkTodoDTO> {}

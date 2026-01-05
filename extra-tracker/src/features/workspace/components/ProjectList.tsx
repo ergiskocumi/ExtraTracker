@@ -73,12 +73,9 @@ export const ProjectList = ({
             ) : (
                 <div className="space-y-3">
                     {activeProjects.map((project) => {
-                        // Usa id o _id come fallback
                         const projectId = project.id || (project as any)._id;
-                        if (!projectId) {
-                            console.error('❌ Progetto senza ID in ProjectList!', project);
-                            return null;
-                        }
+                        if (!projectId) return null;
+                        
                         return (
                             <ProjectCard
                                 key={projectId}

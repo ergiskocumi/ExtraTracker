@@ -295,4 +295,68 @@ router.put('/workspace/entries/:id', workspaceController.updateEntry);
  */
 router.delete('/workspace/entries/:id', workspaceController.deleteEntry);
 
+// =========================================
+// WORK TODOS ROUTES
+// =========================================
+
+/**
+ * GET /api/workspace/todos
+ * Lista tutti i TODO
+ */
+router.get('/workspace/todos', workspaceController.getTodos);
+
+/**
+ * GET /api/workspace/todos/project/:projectId
+ * Lista TODO di un progetto
+ */
+router.get('/workspace/todos/project/:projectId', workspaceController.getTodosByProject);
+
+/**
+ * GET /api/workspace/todos/upcoming
+ * Lista TODO in scadenza
+ */
+router.get('/workspace/todos/upcoming', workspaceController.getUpcomingTodos);
+
+/**
+ * GET /api/workspace/todos/project/:projectId/stats
+ * Statistiche TODO per progetto
+ */
+router.get('/workspace/todos/project/:projectId/stats', workspaceController.getTodosStats);
+
+/**
+ * GET /api/workspace/todos/:id
+ * Dettaglio singolo TODO
+ */
+router.get('/workspace/todos/:id', workspaceController.getTodo);
+
+/**
+ * POST /api/workspace/todos
+ * Crea nuovo TODO
+ */
+router.post('/workspace/todos', workspaceController.createTodo);
+
+/**
+ * PUT /api/workspace/todos/:id
+ * Aggiorna TODO
+ */
+router.put('/workspace/todos/:id', workspaceController.updateTodo);
+
+/**
+ * PATCH /api/workspace/todos/:id/complete
+ * Completa un TODO
+ */
+router.patch('/workspace/todos/:id/complete', workspaceController.completeTodo);
+
+/**
+ * PATCH /api/workspace/todos/:id/reopen
+ * Riattiva un TODO completato
+ */
+router.patch('/workspace/todos/:id/reopen', workspaceController.reopenTodo);
+
+/**
+ * DELETE /api/workspace/todos/:id
+ * Elimina TODO
+ */
+router.delete('/workspace/todos/:id', workspaceController.deleteTodo);
+
 module.exports = router;
