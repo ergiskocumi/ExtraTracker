@@ -23,34 +23,8 @@ export default defineConfig({
     } as any,
     cssCodeSplit: true,
     reportCompressedSize: false,
-    rollupOptions: {
-      output: {
-        // SEMPLIFICATO: Non separare React dalle sue dipendenze
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            // Raggruppa TUTTO React insieme (core + ecosystem)
-            if (id.includes('react') || id.includes('scheduler')) {
-              return 'vendor-react';
-            }
-            // Framer Motion - separato (pesante ma non dipende da React al load time)
-            if (id.includes('framer-motion')) {
-              return 'vendor-framer';
-            }
-            // Recharts - separato (molto pesante)
-            if (id.includes('recharts') || id.includes('d3-')) {
-              return 'vendor-recharts';
-            }
-            // PDF - separato
-            if (id.includes('react-pdf') || id.includes('pdfjs')) {
-              return 'vendor-pdf';
-            }
-            // Tutto il resto insieme
-            return 'vendor';
-          }
-        },
-      },
-    },
-    chunkSizeWarningLimit: 1000,
+    // RIMOSSO manualChunks - lascia che Vite gestisca automaticamente
+    chunkSizeWarningLimit: 1500,
     sourcemap: false,
   },
   server: {
