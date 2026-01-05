@@ -14,9 +14,10 @@ interface EntryTimelineProps {
     entries: WorkEntry[];
     loading: boolean;
     projects: WorkProject[];
+    onEntryClick?: (entry: WorkEntry) => void;
 }
 
-export const EntryTimeline = ({ entries, loading, projects }: EntryTimelineProps) => {
+export const EntryTimeline = ({ entries, loading, projects, onEntryClick }: EntryTimelineProps) => {
     // Raggruppa entries per data
     const groupedEntries = useMemo(() => {
         const groups: Record<string, WorkEntry[]> = {};
@@ -112,6 +113,7 @@ export const EntryTimeline = ({ entries, loading, projects }: EntryTimelineProps
                                     key={entry.id}
                                     entry={entry}
                                     project={project}
+                                    onClick={() => onEntryClick?.(entry)}
                                 />
                             );
                         })}
