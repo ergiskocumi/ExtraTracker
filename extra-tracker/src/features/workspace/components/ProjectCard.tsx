@@ -5,6 +5,7 @@
  * Card singolo progetto con info e statistiche.
  */
 
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiFolder, FiClock } from 'react-icons/fi';
 import type { WorkProject } from '../types';
@@ -16,6 +17,7 @@ interface ProjectCardProps {
 }
 
 export const ProjectCard = ({ project, isSelected, onClick }: ProjectCardProps) => {
+    const navigate = useNavigate();
     const entriesCount = project.entriesCount ?? 0;
     const lastEntryDate = project.lastEntryDate;
     
@@ -31,11 +33,20 @@ export const ProjectCard = ({ project, isSelected, onClick }: ProjectCardProps) 
         return date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
     };
 
+    const handleCardClick = (e: React.MouseEvent) => {
+        // Se c'è un onClick custom, usa quello, altrimenti naviga al dettaglio
+        if (onClick) {
+            onClick();
+        } else {
+            navigate(`/workspace/project/${project.id}`);
+        }
+    };
+
     return (
         <motion.div
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={onClick}
+            onClick={handleCardClick}
             className={`
                 card p-4 cursor-pointer transition-all
                 ${isSelected 
