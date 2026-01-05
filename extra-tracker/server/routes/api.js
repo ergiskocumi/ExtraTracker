@@ -22,6 +22,9 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const projectService = require('../services/projectService');
 const workLogService = require('../services/workLogService');
 
+// Controllers
+const workspaceController = require('../controllers/workspaceController');
+
 // =========================================
 // MIDDLEWARE: Applica a TUTTE le routes
 // =========================================
@@ -197,5 +200,99 @@ router.get('/worklogs/totals', asyncHandler(async (req, res) => {
     );
     res.json({ success: true, data: totals });
 }));
+
+// =========================================
+// WORKSPACE ROUTES (Work Journal)
+// =========================================
+
+/**
+ * GET /api/workspace/projects
+ * Lista tutti i progetti workspace
+ */
+router.get('/workspace/projects', workspaceController.getProjects);
+
+/**
+ * GET /api/workspace/projects/active
+ * Lista solo i progetti attivi
+ */
+router.get('/workspace/projects/active', workspaceController.getActiveProjects);
+
+/**
+ * GET /api/workspace/projects/:id
+ * Dettaglio singolo progetto
+ */
+router.get('/workspace/projects/:id', workspaceController.getProject);
+
+/**
+ * POST /api/workspace/projects
+ * Crea nuovo progetto
+ */
+router.post('/workspace/projects', workspaceController.createProject);
+
+/**
+ * PUT /api/workspace/projects/:id
+ * Aggiorna progetto
+ */
+router.put('/workspace/projects/:id', workspaceController.updateProject);
+
+/**
+ * DELETE /api/workspace/projects/:id
+ * Elimina progetto
+ */
+router.delete('/workspace/projects/:id', workspaceController.deleteProject);
+
+/**
+ * GET /api/workspace/entries
+ * Lista tutte le entries
+ */
+router.get('/workspace/entries', workspaceController.getEntries);
+
+/**
+ * GET /api/workspace/entries/timeline
+ * Raggruppa entries per data (timeline)
+ */
+router.get('/workspace/entries/timeline', workspaceController.getTimeline);
+
+/**
+ * GET /api/workspace/entries/by-month/:year/:month
+ * Entries filtrate per mese
+ */
+router.get('/workspace/entries/by-month/:year/:month', workspaceController.getEntriesByMonth);
+
+/**
+ * GET /api/workspace/entries/by-project/:projectId
+ * Entries di un progetto
+ */
+router.get('/workspace/entries/by-project/:projectId', workspaceController.getEntriesByProject);
+
+/**
+ * GET /api/workspace/entries/stats
+ * Statistiche entries per progetto
+ */
+router.get('/workspace/entries/stats', workspaceController.getEntriesStats);
+
+/**
+ * GET /api/workspace/entries/:id
+ * Dettaglio singola entry
+ */
+router.get('/workspace/entries/:id', workspaceController.getEntry);
+
+/**
+ * POST /api/workspace/entries
+ * Crea nuova entry
+ */
+router.post('/workspace/entries', workspaceController.createEntry);
+
+/**
+ * PUT /api/workspace/entries/:id
+ * Aggiorna entry
+ */
+router.put('/workspace/entries/:id', workspaceController.updateEntry);
+
+/**
+ * DELETE /api/workspace/entries/:id
+ * Elimina entry
+ */
+router.delete('/workspace/entries/:id', workspaceController.deleteEntry);
 
 module.exports = router;

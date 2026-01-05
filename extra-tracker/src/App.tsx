@@ -12,6 +12,7 @@ import { GoalsProvider } from './features/goals/context/GoalsContext';
 import { ProjectsProvider } from './features/projects/context/ProjectsContext';
 import { WorkLogProvider } from './features/tracker/context/WorkLogContext';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
+import { WorkspaceProvider } from './features/workspace/context/WorkspaceContext';
 import { ProtectedRoute } from './features/auth/context/AuthContext';
 import { AppLayout, AuthLayout } from './shared/layouts';
 import { useSettings } from './features/settings/context/SettingsContext';
@@ -23,6 +24,7 @@ const SettingsPage = lazy(() => import('./features/settings/pages/SettingsPage')
 const GoalsPage = lazy(() => import('./features/goals/pages/GoalsPage').then(m => ({ default: m.GoalsPage })));
 const GoalDetailPage = lazy(() => import('./features/goals/pages/GoalDetailPage').then(m => ({ default: m.GoalDetailPage })));
 const TimelinePage = lazy(() => import('./features/tracker/pages/TimelinePage').then(m => ({ default: m.TimelinePage })));
+const WorkspacePage = lazy(() => import('./features/workspace/pages/WorkspacePage').then(m => ({ default: m.WorkspacePage })));
 const LoginPage = lazy(() => import('./features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('./features/auth/pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
@@ -77,9 +79,11 @@ function App() {
                             <SettingsProvider>
                                 <ProjectsProvider>
                                     <WorkLogProvider>
-                                        <GoalsProvider>
-                                            <AppLayout />
-                                        </GoalsProvider>
+                                        <WorkspaceProvider>
+                                            <GoalsProvider>
+                                                <AppLayout />
+                                            </GoalsProvider>
+                                        </WorkspaceProvider>
                                     </WorkLogProvider>
                                 </ProjectsProvider>
                             </SettingsProvider>
@@ -91,6 +95,7 @@ function App() {
                     <Route path="/goals" element={<GoalsPage />} />
                     <Route path="/goals/:id" element={<GoalDetailPage />} />
                     <Route path="/projects" element={<ProjectsPage />} />
+                    <Route path="/workspace" element={<WorkspacePage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/timeline" element={<TimelinePage />} />
                     
