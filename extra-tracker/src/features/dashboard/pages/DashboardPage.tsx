@@ -9,7 +9,7 @@
  * 
  * Design: Bento Grid moderno con focus su UX e azioni immediate.
  */
-
+import React, { lazy, Suspense, useRef } from 'react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -31,9 +31,73 @@ import {
 } from 'lucide-react';
 
 import { dashboardService, type DashboardSummary, type RecentItem } from '../services/dashboardService';
-import { ProductivityChart } from '../../analytics/components/ProductivityChart';
 import { analyticsService, type WeeklyAnalyticsResponse } from '../../analytics/services/analyticsService';
-import { AIInsightsWidget } from '../AIInsightsWidget';
+
+// OTTIMIZZATO: Lazy load componenti pesanti (charts, AI widgets)
+const ProductivityChart = lazy(() => import('../../analytics/components/ProductivityChart').then(m => ({ default: m.ProductivityChart })));
+const AIInsightsWidget = lazy(() => import('../AIInsightsWidget').then(m => ({ default: m.AIInsightsWidget })));
+
+// OTTIMIZZATO: Componente wrapper per lazy load con Intersection Observer
+const LazyAnalyticsChart = ({ data }: { data: any[] }) => {
+    const [shouldLoad, setShouldLoad] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    setShouldLoad(true);
+                    observer.disconnect();
+                }
+            },
+            { rootMargin: '100px' } // Carica 100px prima che sia visibile
+        );
+
+        observer.observe(containerRef.current);
+
+        return () => observer.disconnect();
+    }, []);
+
+    return (
+        <motion.div
+            ref={containerRef}
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
+            transition={{ delay: 0.6 }}
+            style={{ willChange: 'transform, opacity' }}
+            className="rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-6 card"
+        >
+            <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary-400" />
+                    Andamento Settimanale
+                </h3>
+                <Link
+                    to="/timeline"
+                    className="text-sm text-white/50 hover:text-white/80 flex items-center gap-1 transition-colors"
+                >
+                    Vedi tutto
+                    <ChevronRight className="w-4 h-4" />
+                </Link>
+            </div>
+            
+            <div className="h-64">
+                {shouldLoad ? (
+                    <Suspense fallback={<div className="h-full flex items-center justify-center text-white/50">Caricamento grafico...</div>}>
+                        <ProductivityChart
+                            data={data}
+                            isLoading={false}
+                        />
+                    </Suspense>
+                ) : (
+                    <div className="h-full flex items-center justify-center text-white/50">Caricamento grafico...</div>
+                )}
+            </div>
+        </motion.div>
+    );
+};
 
 // =========================================
 // SKELETON LOADERS
@@ -76,7 +140,7 @@ interface StudyActionCardProps {
     totalDecks: number;
 }
 
-const StudyActionCard: React.FC<StudyActionCardProps> = ({ dueCards, nextDeck, allDone, totalDecks }) => {
+const StudyActionCard: React.FC<StudyActionCardProps> = React.memo(({ dueCards, nextDeck, allDone, totalDecks }) => {
     const navigate = useNavigate();
 
     const handleStudy = () => {
@@ -89,13 +153,15 @@ const StudyActionCard: React.FC<StudyActionCardProps> = ({ dueCards, nextDeck, a
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.1 }}
-            className="relative rounded-3xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent p-6 overflow-hidden group"
+            style={{ willChange: 'transform, opacity' }}
+            className="relative rounded-3xl border border-violet-500/25 bg-gradient-to-br from-violet-500/12 via-violet-500/6 to-transparent p-6 overflow-hidden group card-action"
         >
             {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-violet-500/10 rounded-full blur-3xl" />
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-violet-500/15 rounded-full blur-3xl" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-violet-500/8 rounded-full blur-2xl" />
             
             <div className="relative">
                 {/* Header */}
@@ -133,10 +199,10 @@ const StudyActionCard: React.FC<StudyActionCardProps> = ({ dueCards, nextDeck, a
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handleStudy}
-                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-medium transition-all ${
+                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-semibold transition-all ${
                         dueCards > 0
-                            ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/25 hover:bg-violet-600'
-                            : 'bg-white/10 text-white/80 hover:bg-white/15'
+                            ? 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/30 hover:from-violet-400 hover:to-violet-500 hover:shadow-violet-500/40'
+                            : 'bg-white/[0.08] text-white/80 hover:bg-white/[0.12] border border-white/[0.1]'
                     }`}
                 >
                     {dueCards > 0 ? (
@@ -159,7 +225,7 @@ const StudyActionCard: React.FC<StudyActionCardProps> = ({ dueCards, nextDeck, a
             </div>
         </motion.div>
     );
-};
+});
 
 interface GoalActionCardProps {
     activeCount: number;
@@ -173,18 +239,20 @@ interface GoalActionCardProps {
     } | null;
 }
 
-const GoalActionCard: React.FC<GoalActionCardProps> = ({ activeCount, overdueCount, topPriority }) => {
+const GoalActionCard: React.FC<GoalActionCardProps> = React.memo(({ activeCount, overdueCount, topPriority }) => {
     const navigate = useNavigate();
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.2 }}
-            className="relative rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-6 overflow-hidden"
+            style={{ willChange: 'transform, opacity' }}
+            className="relative rounded-3xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/12 via-emerald-500/6 to-transparent p-6 overflow-hidden card-action"
         >
             {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/15 rounded-full blur-3xl" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-500/8 rounded-full blur-2xl" />
             
             <div className="relative">
                 {/* Header */}
@@ -233,10 +301,10 @@ const GoalActionCard: React.FC<GoalActionCardProps> = ({ activeCount, overdueCou
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => navigate(topPriority ? `/goals/${topPriority.id}` : '/goals')}
-                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-medium transition-all ${
+                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-semibold transition-all ${
                         overdueCount > 0
-                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 hover:bg-emerald-600'
-                            : 'bg-white/10 text-white/80 hover:bg-white/15'
+                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-500/40'
+                            : 'bg-white/[0.08] text-white/80 hover:bg-white/[0.12] border border-white/[0.1]'
                     }`}
                 >
                     {topPriority ? (
@@ -254,7 +322,7 @@ const GoalActionCard: React.FC<GoalActionCardProps> = ({ activeCount, overdueCou
             </div>
         </motion.div>
     );
-};
+});
 
 interface WorkActionCardProps {
     todayFormatted: string;
@@ -262,18 +330,20 @@ interface WorkActionCardProps {
     sessionsToday: number;
 }
 
-const WorkActionCard: React.FC<WorkActionCardProps> = ({ todayFormatted, todayMinutes, sessionsToday }) => {
+const WorkActionCard: React.FC<WorkActionCardProps> = React.memo(({ todayFormatted, todayMinutes, sessionsToday }) => {
     const navigate = useNavigate();
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.3 }}
-            className="relative rounded-3xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent p-6 overflow-hidden"
+            style={{ willChange: 'transform, opacity' }}
+            className="relative rounded-3xl border border-blue-500/25 bg-gradient-to-br from-blue-500/12 via-blue-500/6 to-transparent p-6 overflow-hidden card-action"
         >
             {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl" />
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/15 rounded-full blur-3xl" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/8 rounded-full blur-2xl" />
             
             <div className="relative">
                 {/* Header */}
@@ -307,7 +377,7 @@ const WorkActionCard: React.FC<WorkActionCardProps> = ({ todayFormatted, todayMi
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => navigate('/timeline')}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white/10 text-white/80 hover:bg-white/15 font-medium transition-all"
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white/[0.08] text-white/80 hover:bg-white/[0.12] border border-white/[0.1] font-semibold transition-all"
                 >
                     <Plus className="w-4 h-4" />
                     Registra Lavoro
@@ -315,7 +385,7 @@ const WorkActionCard: React.FC<WorkActionCardProps> = ({ todayFormatted, todayMi
             </div>
         </motion.div>
     );
-};
+});
 
 // =========================================
 // RECENT ACTIVITY LIST
@@ -355,10 +425,11 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.4 }}
-            className="rounded-3xl border border-white/10 bg-white/[0.02] p-6"
+            style={{ willChange: 'transform, opacity' }}
+            className="rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-6 card"
         >
             <div className="flex items-center justify-between mb-5">
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -379,8 +450,9 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: 0.5 + index * 0.05 }}
-                            whileHover={{ scale: 1.03, y: -2 }}
+                            whileHover={{ scale: 1.03, transform: 'translateY(-2px)' }}
                             whileTap={{ scale: 0.98 }}
+                            style={{ willChange: 'transform, opacity' }}
                             onClick={() => handleClick(item)}
                             className={`relative text-left p-4 rounded-2xl border ${styles} transition-all group`}
                         >
@@ -414,20 +486,24 @@ interface GamificationWidgetProps {
     progress: number;
 }
 
-const GamificationWidget: React.FC<GamificationWidgetProps> = ({ streak, level, xp, nextLevelXp, progress }) => (
+const GamificationWidget: React.FC<GamificationWidgetProps> = React.memo(({ streak, level, xp, nextLevelXp, progress }) => (
     <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, transform: 'translateY(20px)' }}
+        animate={{ opacity: 1, transform: 'translateY(0)' }}
         transition={{ delay: 0.35 }}
-        className="rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-6"
+        style={{ willChange: 'transform, opacity' }}
+        className="relative rounded-3xl border border-amber-500/25 bg-gradient-to-br from-amber-500/12 via-amber-500/6 to-transparent p-6 overflow-hidden card-action"
     >
-        <div className="flex items-center gap-6">
+        {/* Background decoration */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl" />
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-amber-500/8 rounded-full blur-2xl" />
+        <div className="relative flex items-center gap-6">
             {/* Level Badge */}
             <div className="relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 ring-2 ring-amber-500/20">
                     <Trophy className="w-8 h-8 text-white" />
                 </div>
-                <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white text-amber-600 text-xs font-bold flex items-center justify-center shadow">
+                <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white text-amber-600 text-xs font-bold flex items-center justify-center shadow-lg ring-2 ring-amber-500/30">
                     {level}
                 </span>
             </div>
@@ -458,7 +534,7 @@ const GamificationWidget: React.FC<GamificationWidgetProps> = ({ streak, level, 
             </div>
         </div>
     </motion.div>
-);
+));
 
 // =========================================
 // MAIN COMPONENT
@@ -471,6 +547,8 @@ export const DashboardPage = () => {
     const [analyticsData, setAnalyticsData] = useState<WeeklyAnalyticsResponse | null>(null);
 
     useEffect(() => {
+        let cancelled = false;
+
         const loadData = async () => {
             setLoading(true);
             setError(null);
@@ -481,25 +559,36 @@ export const DashboardPage = () => {
                     analyticsService.getWeekly().catch(() => null)
                 ]);
 
-                setSummary(summaryData);
-                setAnalyticsData(analytics);
+                if (!cancelled) {
+                    setSummary(summaryData);
+                    setAnalyticsData(analytics);
+                }
             } catch (err) {
-                setError('Impossibile caricare i dati della dashboard');
-                console.error('Dashboard load error:', err);
+                if (!cancelled) {
+                    setError('Impossibile caricare i dati della dashboard');
+                    console.error('Dashboard load error:', err);
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
 
         loadData();
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     return (
         <div className="space-y-6 pb-10">
-            {/* Header con Saluto */}
+            {/* Header con Saluto - OTTIMIZZATO: Usa transform invece di y per animazioni composite */}
             <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, transform: 'translateY(-20px)' }}
+                animate={{ opacity: 1, transform: 'translateY(0)' }}
+                style={{ willChange: 'transform, opacity' }}
                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
                 <div>
@@ -604,38 +693,13 @@ export const DashboardPage = () => {
                         <RecentActivityList items={summary.recents} />
                     )}
 
-                    {/* Analytics Section (Ridotta) */}
-                    {analyticsData && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.6 }}
-                            className="rounded-3xl border border-white/10 bg-white/[0.02] p-6"
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                    <TrendingUp className="w-5 h-5 text-primary-400" />
-                                    Andamento Settimanale
-                                </h3>
-                                <Link
-                                    to="/timeline"
-                                    className="text-sm text-white/50 hover:text-white/80 flex items-center gap-1 transition-colors"
-                                >
-                                    Vedi tutto
-                                    <ChevronRight className="w-4 h-4" />
-                                </Link>
-                            </div>
-                            
-                            <div className="h-64">
-                                <ProductivityChart
-                                    data={analyticsData.dailyActivity}
-                                    isLoading={false}
-                                />
-                            </div>
-                        </motion.div>
-                    )}
+                    {/* Analytics Section (Ridotta) - OTTIMIZZATO: Animazione composite + Intersection Observer */}
+                    {analyticsData && <LazyAnalyticsChart data={analyticsData.dailyActivity} />}
 
-                    <AIInsightsWidget />
+                    {/* OTTIMIZZATO: AIInsightsWidget caricato solo quando necessario (già lazy con Suspense) */}
+                    <Suspense fallback={<div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 animate-pulse h-32" />}>
+                        <AIInsightsWidget />
+                    </Suspense>
                 </>
             )}
         </div>

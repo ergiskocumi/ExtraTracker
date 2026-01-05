@@ -4,11 +4,23 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="LifeOS - Gestisci le tue ore di lavoro con stile" />
+    <meta name="description" content="Silvi - Gestisci le tue ore di lavoro con stile" />
     <meta name="theme-color" content="#6366f1" />
-    <title>LifeOS - Time Tracking</title>
+    <title>Silvi - Time Tracking</title>
+    <!-- OTTIMIZZATO: Resource hints per performance - fonts.gstatic.com è critico per LCP -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://unpkg.com">
+    <!-- OTTIMIZZATO: Preload font per evitare FOIT (Flash of Invisible Text) -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"></noscript>
+    <!-- OTTIMIZZATO: Inline critical CSS per First Contentful Paint -->
+    <style>
+      /* Critical CSS - Above the fold */
+      body{margin:0;font-family:Inter,sans-serif;background:#0a0a1a;color:#fff}
+      #root{min-height:100vh}
+      .antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    </style>
   </head>
   <body class="antialiased">
     <div id="root"></div>

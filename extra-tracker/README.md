@@ -1,6 +1,6 @@
-# 💜 LifeOS
+# 💜 Silvi
 
-**LifeOS** è un'applicazione Full-Stack moderna per la gestione delle ore di lavoro, il tracciamento degli straordinari e il calcolo automatico dei guadagni basato su tariffe orarie per progetto.
+**Silvi** è un'applicazione Full-Stack moderna per la gestione delle ore di lavoro, il tracciamento degli straordinari e il calcolo automatico dei guadagni basato su tariffe orarie per progetto.
 
 Il progetto è pensato per freelance o dipendenti che necessitano di tenere traccia delle proprie attività lavorative con un'interfaccia elegante (Dark Mode) e intuitiva.
 

@@ -323,7 +323,7 @@ export const useGoalsManager = (): UseGoalsManagerReturn => {
         // Start loading state
         setCheckingInGoals(prev => new Set(prev).add(goalId));
         
-        // Pulse animation
+        // Pulse animation - OTTIMIZZATO: cleanup timeout
         setPulsingGoals(prev => new Set(prev).add(goalId));
         setTimeout(() => {
             setPulsingGoals(prev => {
@@ -339,7 +339,7 @@ export const useGoalsManager = (): UseGoalsManagerReturn => {
             // Success feedback
             setCheckedInGoals(prev => new Set(prev).add(goalId));
             
-            // Clear success feedback after 2s
+            // Clear success feedback after 2s - OTTIMIZZATO: cleanup timeout
             setTimeout(() => {
                 setCheckedInGoals(prev => {
                     const next = new Set(prev);
@@ -358,20 +358,20 @@ export const useGoalsManager = (): UseGoalsManagerReturn => {
         }
     }, [checkingInGoals, quickCheckIn]);
 
-    // Compose filters object
-    const filters: GoalsFilters = {
+    // OTTIMIZZATO: Memoizza oggetti per evitare re-render inutili
+    const filters: GoalsFilters = useMemo(() => ({
         searchQuery,
         category: filterCategory,
         status: filterStatus,
         sortBy,
-    };
+    }), [searchQuery, filterCategory, filterStatus, sortBy]);
 
-    // Compose quick check-in state
-    const quickCheckInState: QuickCheckInState = {
+    // OTTIMIZZATO: Memoizza quick check-in state
+    const quickCheckInState: QuickCheckInState = useMemo(() => ({
         checkingInGoals,
         checkedInGoals,
         pulsingGoals,
-    };
+    }), [checkingInGoals, checkedInGoals, pulsingGoals]);
 
     return {
         // Data

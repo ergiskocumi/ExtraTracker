@@ -14,8 +14,6 @@ import {
     FiPlus,
     FiTrash2,
     FiFlag,
-    FiZap,
-    FiLayers,
     FiAward
 } from 'react-icons/fi';
 

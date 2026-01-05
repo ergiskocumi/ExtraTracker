@@ -127,6 +127,28 @@ const goalsService = {
     },
 
     /**
+     * Toggle completion di uno specifico Action Step (indice) dentro una milestone
+     * PATCH /goals/:goalId/milestones/:milestoneId/toggle-step
+     */
+    async toggleMilestoneStep(
+        goalId: string,
+        milestoneId: string,
+        stepIndex: number,
+        isCompleted: boolean
+    ): Promise<MilestoneToggleResponse> {
+        try {
+            const response = await apiClient.patch<MilestoneToggleResponse>(
+                `/goals/${goalId}/milestones/${milestoneId}/toggle-step`,
+                { stepIndex, isCompleted }
+            );
+            return unwrap(response, `Errore nel toggle step ${stepIndex} per milestone ${milestoneId}`);
+        } catch (error) {
+            console.error(`Failed to toggle milestone step ${milestoneId}[${stepIndex}]:`, error);
+            throw error;
+        }
+    },
+
+    /**
      * Aggiorna le note di una specifica milestone
      */
     async updateMilestoneNotes(goalId: string, milestoneId: string, notes: string): Promise<MilestoneToggleResponse> {
@@ -244,6 +266,31 @@ const goalsService = {
             return unwrap(response, 'Errore nel recupero statistiche dashboard');
         } catch (error) {
             console.error('Failed to fetch dashboard stats:', error);
+            throw error;
+        }
+    },
+
+    // ==================== AI SMART GOAL WIZARD ====================
+
+    /**
+     * 🆕 Genera un piano strategico AI per un nuovo obiettivo
+     * @param category - Categoria dell'obiettivo
+     * @param query - Desiderio/intento dell'utente
+     * @param intensity - 'relax' | 'normal' | 'hardcore'
+     */
+    async generateAIGoalPlan(
+        category: string,
+        query: string,
+        intensity: 'relax' | 'normal' | 'hardcore' = 'normal'
+    ): Promise<import('../types').AIGoalPlanResponse> {
+        try {
+            const response = await apiClient.post<import('../types').AIGoalPlanResponse>(
+                '/goals/suggest',
+                { category, query, intensity }
+            );
+            return unwrap(response, 'Errore nella generazione del piano AI');
+        } catch (error) {
+            console.error('Failed to generate AI goal plan:', error);
             throw error;
         }
     },

@@ -343,28 +343,91 @@ class GoalService extends BaseService {
         
         const newIsCompleted = !milestone.isCompleted;
         const completedAt = newIsCompleted ? new Date() : null;
-        
-        // Update atomico usando l'operatore posizionale $
-        const updatedGoal = await Goal.findOneAndUpdate(
-            { 
-                _id: goalId, 
-                user: userId,
-                'milestones._id': milestoneId 
-            },
-            { 
-                $set: { 
-                    'milestones.$.isCompleted': newIsCompleted,
-                    'milestones.$.completedAt': completedAt
-                } 
-            },
-            { new: true }
-        );
-        
-        if (!updatedGoal) {
-            throw AppError.notFound('Obiettivo o milestone');
+
+        // Keep actionSteps in sync if they exist (so UI + progress stay consistent)
+        if (Array.isArray(milestone.actionSteps) && milestone.actionSteps.length > 0) {
+            milestone.actionSteps = milestone.actionSteps.map((step) => {
+                if (typeof step === 'string') {
+                    return { title: step, isCompleted: newIsCompleted };
+                }
+                return {
+                    title: step?.title,
+                    isCompleted: newIsCompleted,
+                };
+            });
         }
         
-        return updatedGoal;
+        // Save through Mongoose so legacy actionSteps are normalized correctly
+        milestone.isCompleted = newIsCompleted;
+        milestone.completedAt = completedAt;
+        await goal.save();
+        return goal;
+    }
+
+    /**
+     * Toggle completion di un action step specifico di una milestone.
+     *
+     * Body: { stepIndex: number, isCompleted: boolean }
+     *
+     * 🔒 SICUREZZA ESPLICITA: Filtro per user + goalId + milestoneId
+     */
+    async toggleMilestoneStep(tenantScope, goalId, milestoneId, stepIndex, isCompleted) {
+        const userId = this._getUserId(tenantScope);
+
+        const goal = await Goal.findOne({
+            _id: goalId,
+            user: userId,
+            'milestones._id': milestoneId,
+        });
+
+        if (!goal) {
+            throw AppError.notFound('Obiettivo o milestone');
+        }
+
+        const milestone = goal.milestones.id(milestoneId);
+        if (!milestone) {
+            throw AppError.notFound('Milestone');
+        }
+
+        // Ensure actionSteps exist and are normalized
+        if (!Array.isArray(milestone.actionSteps)) {
+            milestone.actionSteps = [];
+        }
+
+        milestone.actionSteps = milestone.actionSteps
+            .map((s) => {
+                if (typeof s === 'string') {
+                    return { title: s, isCompleted: false };
+                }
+                return {
+                    title: s?.title,
+                    isCompleted: Boolean(s?.isCompleted),
+                };
+            })
+            .filter((s) => typeof s.title === 'string' && s.title.trim().length > 0)
+            .map((s) => ({ title: s.title.trim(), isCompleted: Boolean(s.isCompleted) }));
+
+        const idx = Number(stepIndex);
+        if (!Number.isInteger(idx) || idx < 0) {
+            throw AppError.validation('stepIndex non valido');
+        }
+
+        if (idx >= milestone.actionSteps.length) {
+            throw AppError.validation('stepIndex fuori range');
+        }
+
+        milestone.actionSteps[idx].isCompleted = Boolean(isCompleted);
+
+        // Auto-complete milestone when all steps completed
+        const totalSteps = milestone.actionSteps.length;
+        const completedSteps = milestone.actionSteps.filter(s => s && s.isCompleted).length;
+        const shouldCompleteMilestone = totalSteps > 0 && completedSteps === totalSteps;
+
+        milestone.isCompleted = shouldCompleteMilestone;
+        milestone.completedAt = shouldCompleteMilestone ? (milestone.completedAt || new Date()) : null;
+
+        await goal.save();
+        return goal;
     }
 
     /**

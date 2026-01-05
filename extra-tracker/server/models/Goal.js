@@ -16,6 +16,19 @@ const { multiTenancyPlugin } = require('../plugins/multiTenancy');
 // MILESTONE SUB-SCHEMA (Embedded Document)
 // =========================================
 
+const actionStepSchema = new mongoose.Schema({
+    title: {
+        type: String,
+        required: [true, 'Il titolo dello step è obbligatorio'],
+        trim: true,
+        maxlength: [200, 'Il titolo dello step non può superare 200 caratteri'],
+    },
+    isCompleted: {
+        type: Boolean,
+        default: false,
+    },
+}, { _id: false });
+
 const milestoneSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -64,7 +77,70 @@ const milestoneSchema = new mongoose.Schema({
         type: Date,
         default: null,
     },
+    // 🆕 AI-Generated Fields for Smart Goal Wizard
+    deadline: {
+        type: Date,
+        default: null,
+    },
+    reasoning: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [500, 'Il reasoning non può superare 500 caratteri'],
+    },
+    actionSteps: {
+        type: [actionStepSchema],
+        default: [],
+        validate: {
+            validator: function(v) {
+                return v.length <= 5; // Max 5 action steps per milestone
+            },
+            message: 'Una milestone può avere al massimo 5 action steps',
+        },
+    },
+    resources: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: function(v) {
+                return v.length <= 5; // Max 5 resources per milestone
+            },
+            message: 'Una milestone può avere al massimo 5 risorse',
+        },
+    },
 }, { _id: true });
+
+// =========================================
+// BACKWARD COMPATIBILITY
+// =========================================
+// Legacy data may store actionSteps as string[]. Normalize to {title,isCompleted:false}
+milestoneSchema.pre('validate', function(next) {
+    if (!Array.isArray(this.actionSteps)) {
+        this.actionSteps = [];
+        return next();
+    }
+
+    const normalized = [];
+    for (const step of this.actionSteps) {
+        if (typeof step === 'string') {
+            const title = step.trim();
+            if (title) normalized.push({ title, isCompleted: false });
+            continue;
+        }
+
+        if (step && typeof step === 'object') {
+            const title = typeof step.title === 'string' ? step.title.trim() : '';
+            if (!title) continue;
+            normalized.push({
+                title,
+                isCompleted: Boolean(step.isCompleted),
+            });
+        }
+    }
+
+    this.actionSteps = normalized;
+    next();
+});
 
 const goalSchema = new mongoose.Schema({
     // Titolo dell'obiettivo
@@ -176,13 +252,29 @@ goalSchema.virtual('milestoneProgress').get(function() {
     if (!this.milestones || this.milestones.length === 0) {
         return null;
     }
-    
-    const totalWeight = this.milestones.reduce((sum, m) => sum + m.weight, 0);
-    const completedWeight = this.milestones
-        .filter(m => m.isCompleted)
-        .reduce((sum, m) => sum + m.weight, 0);
-    
-    return totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : 0;
+
+    // Support partial progress via actionSteps when present.
+    const totals = this.milestones.reduce(
+        (acc, m) => {
+            const weight = Number(m.weight) || 1;
+            const steps = Array.isArray(m.actionSteps) ? m.actionSteps : [];
+            const hasSteps = steps.length > 0;
+
+            acc.total += weight;
+
+            if (hasSteps) {
+                const completedSteps = steps.filter(s => s && s.isCompleted).length;
+                acc.completed += weight * (completedSteps / steps.length);
+            } else {
+                acc.completed += m.isCompleted ? weight : 0;
+            }
+
+            return acc;
+        },
+        { total: 0, completed: 0 }
+    );
+
+    return totals.total > 0 ? Math.round((totals.completed / totals.total) * 100) : 0;
 });
 
 /**

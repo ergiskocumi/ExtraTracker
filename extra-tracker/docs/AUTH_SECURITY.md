@@ -1,4 +1,4 @@
-# 🔐 Sistema di Autenticazione - LifeOS
+# 🔐 Sistema di Autenticazione - Silvi
 
 ## Architettura
 

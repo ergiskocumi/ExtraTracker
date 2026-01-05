@@ -54,6 +54,30 @@ const cardSchema = new mongoose.Schema({
         enum: ['new', 'learning', 'review', 'mastered'],
         default: 'new',
     },
+    // FSRS parameter
+    stability: {
+        type: Number,
+        default: 0.4,
+    },
+    // Leitner parameter
+    box: {
+        type: Number,
+        default: 1,
+        min: [1, 'Il box minimo è 1'],
+    },
+    // Review history per tracciare le performance
+    lastReviewed: {
+        type: Date,
+        default: null,
+    },
+    reviewHistory: [{
+        date: { type: Date, default: Date.now },
+        rating: { type: Number, min: 1, max: 5 },
+        interval: Number,
+        easinessFactor: Number,
+        repetitions: Number,
+        algorithm: String,
+    }],
 }, { _id: true });
 
 const normalizeTags = (tags) => {
@@ -101,6 +125,38 @@ const deckSchema = new mongoose.Schema({
     cards: {
         type: [cardSchema],
         default: [],
+    },
+    // =========================================
+    // ALGORITHM & AI SETTINGS
+    // =========================================
+    algorithm: {
+        type: String,
+        enum: ['sm2', 'fsrs', 'leitner', 'anki'],
+        default: 'sm2',
+    },
+    aiSettings: {
+        style: {
+            type: String,
+            enum: ['comprehensive', 'conceptual', 'factual', 'application'],
+            default: 'comprehensive',
+        },
+        difficulty: {
+            type: String,
+            enum: ['easy', 'medium', 'hard', 'mixed'],
+            default: 'medium',
+        },
+        questionTypes: {
+            type: [String],
+            default: ['definition', 'concept', 'relationship'],
+        },
+    },
+    // Analytics tracking
+    analytics: {
+        totalReviews: { type: Number, default: 0 },
+        averageTimePerCard: { type: Number, default: 0 }, // in seconds
+        retentionRate: { type: Number, default: 0 }, // 0-1
+        lastStudied: { type: Date },
+        studyStreak: { type: Number, default: 0 },
     },
 }, {
     timestamps: true,

@@ -1,3 +1,4 @@
+import React from 'react';
 import { motion } from 'framer-motion';
 import { FiTarget, FiArrowRight, FiCheckCircle, FiTrendingUp, FiClock, FiPlus } from 'react-icons/fi';
 import { useGoals } from '../goals/context/GoalsContext';
@@ -160,10 +161,9 @@ const GoalMiniCard = ({ goal, index }: { goal: GoalWithProgress; index: number }
             >
                 {/* Category Icon */}
                 <div 
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: `${category.color}20` }}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${category.bgColor}`}
                 >
-                    <span className="text-lg">{category.emoji}</span>
+                    {React.createElement(category.icon, { className: `w-5 h-5 ${category.color}` })}
                 </div>
 
                 {/* Content */}

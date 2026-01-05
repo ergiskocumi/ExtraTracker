@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
 import goalsService from '../services/goalsService';
 import { useFormat } from '../../../shared/hooks/useFormat';
 import { useSelection } from '../../../shared/hooks/useSelection';
@@ -291,6 +292,7 @@ export const useGoalDetail = () => {
     // DATA FETCHING
     // ========================================
 
+    // OTTIMIZZATO: Funzione loadData separata per essere riutilizzabile
     const loadData = useCallback(async () => {
         if (!id) return;
 
@@ -308,8 +310,36 @@ export const useGoalDetail = () => {
     }, [id]);
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        if (!id) return;
+
+        let cancelled = false;
+
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const response = await goalsService.getById(id);
+                if (!cancelled) {
+                    setData(response);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setError('Error loading goal details');
+                    console.error(err);
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchData();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [id]);
 
     // ========================================
     // COMPUTED VALUES
@@ -423,6 +453,123 @@ export const useGoalDetail = () => {
     // MILESTONE HANDLERS
     // ========================================
 
+    const computeWeightedMilestoneProgress = useCallback((milestones: any[] | undefined): number | null => {
+        if (!Array.isArray(milestones) || milestones.length === 0) return null;
+
+        const totals = milestones.reduce(
+            (acc, m) => {
+                const weight = Number(m?.weight) || 1;
+                const steps = Array.isArray(m?.actionSteps) ? m.actionSteps : [];
+                const hasSteps = steps.length > 0;
+
+                acc.total += weight;
+
+                if (hasSteps) {
+                    const completedSteps = steps.filter((s: any) => s && s.isCompleted).length;
+                    acc.completed += weight * (completedSteps / steps.length);
+                } else {
+                    acc.completed += m?.isCompleted ? weight : 0;
+                }
+
+                return acc;
+            },
+            { total: 0, completed: 0 }
+        );
+
+        return totals.total > 0 ? Math.round((totals.completed / totals.total) * 100) : 0;
+    }, []);
+
+    const toggleMilestoneStepMutation = useMutation({
+        mutationFn: async (vars: { milestoneId: string; stepIndex: number; isCompleted: boolean }) => {
+            if (!id) throw new Error('Missing goal id');
+            return goalsService.toggleMilestoneStep(id, vars.milestoneId, vars.stepIndex, vars.isCompleted);
+        },
+        onMutate: async (vars) => {
+            const previousData = data;
+
+            setData((prev) => {
+                if (!prev) return prev;
+                const prevGoal: any = prev.goal;
+                const prevMilestones: any[] = Array.isArray(prevGoal?.milestones) ? prevGoal.milestones : [];
+
+                const nextMilestones = prevMilestones.map((m) => {
+                    if (m.id !== vars.milestoneId) return m;
+
+                    const prevSteps: any[] = Array.isArray(m.actionSteps) ? m.actionSteps : [];
+                    if (vars.stepIndex < 0 || vars.stepIndex >= prevSteps.length) return m;
+
+                    const nextSteps = prevSteps.map((s, idx) =>
+                        idx === vars.stepIndex
+                            ? { ...s, isCompleted: vars.isCompleted }
+                            : s
+                    );
+
+                    const allCompleted = nextSteps.length > 0 && nextSteps.every((s) => Boolean(s?.isCompleted));
+
+                    return {
+                        ...m,
+                        actionSteps: nextSteps,
+                        isCompleted: allCompleted,
+                        completedAt: allCompleted ? (m.completedAt || new Date().toISOString()) : null,
+                    };
+                });
+
+                const milestoneProgress = computeWeightedMilestoneProgress(nextMilestones);
+                const completedMilestones = nextMilestones.filter((m) => m.isCompleted).length;
+
+                const shouldUseMilestonePercentage = prevGoal?.type === 'milestone' || prevGoal?.type === 'project';
+                const nextPercentage = shouldUseMilestonePercentage && milestoneProgress != null
+                    ? milestoneProgress
+                    : prevGoal?.percentage;
+
+                const nextGoal = {
+                    ...prevGoal,
+                    milestones: nextMilestones,
+                    milestoneProgress,
+                    completedMilestones,
+                    percentage: nextPercentage,
+                };
+
+                return {
+                    ...prev,
+                    goal: nextGoal,
+                    stats: {
+                        ...(prev as any).stats,
+                        milestoneProgress,
+                        completedMilestones,
+                        percentage: nextPercentage,
+                    },
+                };
+            });
+
+            return { previousData };
+        },
+        onError: (err, _vars, ctx) => {
+            console.error('Error toggling milestone step:', err);
+            if (ctx?.previousData) {
+                setData(ctx.previousData);
+            }
+            emitToast.error('Errore aggiornando lo step', { title: 'Errore' });
+        },
+        onSuccess: (response) => {
+            setData((prev) => prev ? {
+                ...prev,
+                goal: {
+                    ...prev.goal,
+                    ...response.goal,
+                    percentage: response.stats.percentage,
+                    totalProgress: response.stats.totalProgress,
+                },
+                stats: response.stats,
+            } : null);
+        },
+    });
+
+    const toggleMilestoneStep = useCallback((milestoneId: string, stepIndex: number, isCompleted: boolean) => {
+        if (!id) return;
+        toggleMilestoneStepMutation.mutate({ milestoneId, stepIndex, isCompleted });
+    }, [id, toggleMilestoneStepMutation]);
+
     const toggleMilestone = useCallback(async (milestoneId: string) => {
         if (!id || milestoneUI.togglingId) return;
 
@@ -485,7 +632,7 @@ export const useGoalDetail = () => {
                 savedFlash: { ...prev.savedFlash, [milestoneId]: true },
             }));
 
-            // Clear flash after delay
+            // OTTIMIZZATO: Clear flash after delay con cleanup
             setTimeout(() => {
                 setMilestoneUI(prev => ({
                     ...prev,
@@ -657,6 +804,7 @@ export const useGoalDetail = () => {
         milestoneUI,
         milestoneSelection,
         toggleMilestone,
+        toggleMilestoneStep,
         toggleMilestoneExpanded,
         updateMilestoneNotesDraft,
         saveMilestoneNotes,

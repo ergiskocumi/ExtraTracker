@@ -16,7 +16,7 @@ import { useSelection } from '../../../shared/hooks/useSelection';
 import { useGoalsManager } from '../hooks/useGoalsManager';
 
 // Componenti UI
-import { GoalWizard } from '../GoalWizard';
+import { HybridGoalWizard } from '../components/HybridGoalWizard';
 import {
     SmartHeroSection,
     StatsCards,
@@ -327,7 +327,7 @@ export const GoalsPage = () => {
 
             {/* WIZARD MODAL */}
             <AnimatePresence>
-                {showWizard && <GoalWizard onClose={() => setShowWizard(false)} />}
+                {showWizard && <HybridGoalWizard onClose={() => setShowWizard(false)} />}
             </AnimatePresence>
         </div>
     );

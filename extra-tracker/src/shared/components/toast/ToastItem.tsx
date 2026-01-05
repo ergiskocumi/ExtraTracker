@@ -126,18 +126,24 @@ export const ToastItem: React.FC<ToastProps> = ({ toast, onDismiss }) => {
         if (duration <= 0) return; // Duration 0 = toast permanente
 
         const startTime = Date.now();
-        const intervalId = setInterval(() => {
+        // OTTIMIZZATO: Usa requestAnimationFrame invece di setInterval per migliore performance
+        let rafId: number | null = null;
+        const updateProgress = () => {
             const elapsed = Date.now() - startTime;
             const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
             setProgress(remaining);
 
             if (remaining <= 0) {
-                clearInterval(intervalId);
                 handleDismiss();
+            } else {
+                rafId = requestAnimationFrame(updateProgress);
             }
-        }, 50); // Aggiorna ogni 50ms per animazione smooth
+        };
+        rafId = requestAnimationFrame(updateProgress);
 
-        return () => clearInterval(intervalId);
+        return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+        };
     }, [duration, handleDismiss]);
 
     return (

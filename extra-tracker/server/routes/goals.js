@@ -18,6 +18,9 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const goalService = require('../services/goalService');
 const checkInService = require('../services/checkInService');
 
+// Controllers
+const goalController = require('../controllers/goalController');
+
 // Strategies
 const { calculateGoalStats } = require('../services/goalStrategies');
 
@@ -129,6 +132,13 @@ router.patch('/goals/:id/milestones/:milestoneId/toggle', asyncHandler(async (re
         }
     });
 }));
+
+/**
+ * PATCH /api/goals/:goalId/milestones/:milestoneId/toggle-step
+ * Toggle di un actionStep specifico (operazione leggera)
+ * Body: { stepIndex: number, isCompleted: boolean }
+ */
+router.patch('/goals/:goalId/milestones/:milestoneId/toggle-step', asyncHandler(goalController.toggleMilestoneStep));
 
 /**
  * PATCH /api/goals/:id/milestones/:milestoneId
@@ -458,6 +468,74 @@ router.get('/mood-stats', asyncHandler(async (req, res) => {
     const days = parseInt(req.query.days) || 30;
     const stats = await checkInService.getMoodStats(req.tenantScope, days);
     res.json({ success: true, data: stats });
+}));
+
+// =========================================
+// AI SMART GOAL WIZARD
+// =========================================
+
+const aiGoalService = require('../services/aiGoalService');
+
+/**
+ * POST /api/goals/suggest
+ * Genera un piano strategico AI per un nuovo obiettivo
+ * 
+ * Body:
+ * - category: string (finance, health, learning, etc.)
+ * - query: string (desiderio/intento dell'utente)
+ * - intensity: 'relax' | 'normal' | 'hardcore'
+ */
+router.post('/goals/suggest', asyncHandler(async (req, res) => {
+    const { category, query, intensity } = req.body;
+    const userId = req.tenantScope?.userId;
+
+    // Validazione input
+    if (!category) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'La categoria è obbligatoria' },
+        });
+    }
+
+    if (!query || query.trim().length < 10) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Descrivi il tuo obiettivo (almeno 10 caratteri)' },
+        });
+    }
+
+    const validCategories = ['finance', 'health', 'learning', 'career', 'personal', 'relationships', 'creativity', 'mindfulness'];
+    if (!validCategories.includes(category)) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Categoria non valida' },
+        });
+    }
+
+    const validIntensities = ['relax', 'normal', 'hardcore'];
+    const safeIntensity = validIntensities.includes(intensity) ? intensity : 'normal';
+
+    // Genera il piano AI
+    const result = await aiGoalService.generateGoalPlan(
+        userId,
+        category,
+        query.trim(),
+        safeIntensity
+    );
+
+    if (result.success) {
+        res.json({
+            success: true,
+            data: result.data,
+        });
+    } else {
+        // Ritorna il fallback se disponibile
+        res.status(500).json({
+            success: false,
+            error: { message: result.error },
+            fallback: result.fallback,
+        });
+    }
 }));
 
 module.exports = router;

@@ -134,14 +134,44 @@ class MilestoneGoalStrategy extends ProgressStrategy {
         if (!goal.milestones || goal.milestones.length === 0) {
             return checkIns.reduce((sum, ci) => sum + ci.value, 0);
         }
-        return goal.milestones.filter(m => m.isCompleted).length;
+        // If actionSteps are present, progress is completed steps (fallback to milestone completion)
+        const hasAnySteps = goal.milestones.some(m => Array.isArray(m.actionSteps) && m.actionSteps.length > 0);
+        if (!hasAnySteps) {
+            return goal.milestones.filter(m => m.isCompleted).length;
+        }
+
+        return goal.milestones.reduce((sum, m) => {
+            const steps = Array.isArray(m.actionSteps) ? m.actionSteps : [];
+            if (steps.length === 0) return sum + (m.isCompleted ? 1 : 0);
+            return sum + steps.filter(s => s && s.isCompleted).length;
+        }, 0);
     }
 
     calculatePercentage(checkIns, goal) {
         // Se ci sono milestones, usa quelle
         if (goal.milestones && goal.milestones.length > 0) {
-            const completed = goal.milestones.filter(m => m.isCompleted).length;
-            return Math.round((completed / goal.milestones.length) * 100);
+            // Weighted progress with partial actionSteps completion
+            const totals = goal.milestones.reduce(
+                (acc, m) => {
+                    const weight = Number(m.weight) || 1;
+                    const steps = Array.isArray(m.actionSteps) ? m.actionSteps : [];
+                    const hasSteps = steps.length > 0;
+
+                    acc.total += weight;
+
+                    if (hasSteps) {
+                        const completedSteps = steps.filter(s => s && s.isCompleted).length;
+                        acc.completed += weight * (completedSteps / steps.length);
+                    } else {
+                        acc.completed += m.isCompleted ? weight : 0;
+                    }
+
+                    return acc;
+                },
+                { total: 0, completed: 0 }
+            );
+
+            return totals.total > 0 ? Math.round((totals.completed / totals.total) * 100) : 0;
         }
         // Altrimenti comportati come target
         if (!goal.targetValue || goal.targetValue === 0) return 0;
@@ -196,8 +226,27 @@ class ProjectGoalStrategy extends ProgressStrategy {
     calculatePercentage(checkIns, goal) {
         // Se ci sono milestones, usa quelle
         if (goal.milestones && goal.milestones.length > 0) {
-            const completed = goal.milestones.filter(m => m.isCompleted).length;
-            return Math.round((completed / goal.milestones.length) * 100);
+            const totals = goal.milestones.reduce(
+                (acc, m) => {
+                    const weight = Number(m.weight) || 1;
+                    const steps = Array.isArray(m.actionSteps) ? m.actionSteps : [];
+                    const hasSteps = steps.length > 0;
+
+                    acc.total += weight;
+
+                    if (hasSteps) {
+                        const completedSteps = steps.filter(s => s && s.isCompleted).length;
+                        acc.completed += weight * (completedSteps / steps.length);
+                    } else {
+                        acc.completed += m.isCompleted ? weight : 0;
+                    }
+
+                    return acc;
+                },
+                { total: 0, completed: 0 }
+            );
+
+            return totals.total > 0 ? Math.round((totals.completed / totals.total) * 100) : 0;
         }
         // Se c'è un targetValue, usa quello
         if (goal.targetValue && goal.targetValue > 0) {

@@ -19,6 +19,7 @@ const { PDFParse } = require('pdf-parse');
 const fs = require('fs/promises');
 const path = require('path');
 const vectorStoreService = require('./vectorStoreService');
+const { AlgorithmFactory } = require('./spacedRepetitionAlgorithms');
 
 const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
@@ -176,6 +177,101 @@ class StudyService extends BaseService {
      * Restituisce un singolo mazzo con tutte le sue carte.
      * Usato per il refresh della sessione di studio.
      */
+    /**
+     * Aggiorna le impostazioni di un deck (algoritmo e AI)
+     */
+    async updateDeckSettings(tenantScope, deckId, settings) {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        if (settings.algorithm && ['sm2', 'fsrs', 'leitner', 'anki'].includes(settings.algorithm)) {
+            deck.algorithm = settings.algorithm;
+        }
+
+        if (settings.aiSettings) {
+            if (!deck.aiSettings) {
+                deck.aiSettings = {};
+            }
+            if (settings.aiSettings.style && ['comprehensive', 'conceptual', 'factual', 'application'].includes(settings.aiSettings.style)) {
+                deck.aiSettings.style = settings.aiSettings.style;
+            }
+            if (settings.aiSettings.difficulty && ['easy', 'medium', 'hard', 'mixed'].includes(settings.aiSettings.difficulty)) {
+                deck.aiSettings.difficulty = settings.aiSettings.difficulty;
+            }
+            if (Array.isArray(settings.aiSettings.questionTypes)) {
+                deck.aiSettings.questionTypes = settings.aiSettings.questionTypes;
+            }
+        }
+
+        await deck.save();
+        return this._serializeDeck(deck);
+    }
+
+    /**
+     * Ottiene analytics dettagliate per un deck
+     */
+    async getDeckAnalytics(tenantScope, deckId) {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        const cards = Array.isArray(deck.cards) ? deck.cards : [];
+        const now = new Date();
+
+        // Calcola statistiche dalle carte
+        const stats = {
+            totalCards: cards.length,
+            newCards: cards.filter(c => c.status === 'new').length,
+            learningCards: cards.filter(c => c.status === 'learning').length,
+            reviewCards: cards.filter(c => c.status === 'review').length,
+            masteredCards: cards.filter(c => c.status === 'mastered').length,
+            dueCards: cards.filter(c => {
+                const nextReview = new Date(c.nextReviewDate);
+                return nextReview <= now;
+            }).length,
+            averageEasinessFactor: cards.length > 0
+                ? cards.reduce((sum, c) => sum + (c.easinessFactor || 2.5), 0) / cards.length
+                : 2.5,
+            averageRepetitions: cards.length > 0
+                ? cards.reduce((sum, c) => sum + (c.repetitions || 0), 0) / cards.length
+                : 0,
+        };
+
+        // Analytics del deck
+        const analytics = deck.analytics || {
+            totalReviews: 0,
+            averageTimePerCard: 0,
+            retentionRate: 0,
+            lastStudied: null,
+            studyStreak: 0,
+        };
+
+        return {
+            stats,
+            analytics: {
+                totalReviews: analytics.totalReviews || 0,
+                averageTimePerCard: analytics.averageTimePerCard || 0,
+                retentionRate: analytics.retentionRate || 0,
+                retentionRatePercent: Math.round((analytics.retentionRate || 0) * 100),
+                lastStudied: analytics.lastStudied,
+                studyStreak: analytics.studyStreak || 0,
+            },
+            algorithm: deck.algorithm || 'sm2',
+            aiSettings: deck.aiSettings || {
+                style: 'comprehensive',
+                difficulty: 'medium',
+                questionTypes: ['definition', 'concept', 'relationship'],
+            },
+        };
+    }
+
     async getDeckById(tenantScope, deckId) {
         const userId = this._getUserId(tenantScope);
 
@@ -188,6 +284,10 @@ class StudyService extends BaseService {
             throw AppError.notFound('Mazzo');
         }
 
+        return deck.toJSON();
+    }
+
+    _serializeDeck(deck) {
         return deck.toJSON();
     }
 
@@ -459,49 +559,55 @@ class StudyService extends BaseService {
             throw AppError.notFound('Card');
         }
 
-        const previousEF = Number(card.easinessFactor ?? DEFAULT_EASINESS_FACTOR);
-        const previousInterval = Number(card.interval ?? 0);
-        const previousRepetitions = Number(card.repetitions ?? 0);
+        // Usa l'algoritmo configurato per il deck (default: sm2)
+        const algorithmName = deck.algorithm || 'sm2';
+        const algorithmResult = AlgorithmFactory.processReview(card, quality, algorithmName);
 
-        // 1) Calcolo nuovo EF
-        const efDelta = 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02);
-        const updatedEF = Math.max(MIN_EASINESS_FACTOR, previousEF + efDelta);
-
-        // 2) Calcolo nuovo interval + repetitions
-        let updatedRepetitions = previousRepetitions;
-        let updatedInterval = previousInterval;
-
-        if (quality < 3) {
-            updatedRepetitions = 0;
-            updatedInterval = 1;
-        } else {
-            if (previousRepetitions === 0) {
-                updatedInterval = 1;
-            } else if (previousRepetitions === 1) {
-                updatedInterval = 6;
-            } else {
-                updatedInterval = Math.max(1, Math.round(previousInterval * updatedEF));
-            }
-            updatedRepetitions = previousRepetitions + 1;
+        // Aggiorna la card con i risultati dell'algoritmo
+        if (algorithmResult.easinessFactor !== undefined) {
+            card.easinessFactor = algorithmResult.easinessFactor;
         }
+        // I campi stability e box sono opzionali (solo per FSRS e Leitner)
+        if (algorithmResult.stability !== undefined) {
+            card.stability = algorithmResult.stability;
+        }
+        if (algorithmResult.box !== undefined) {
+            card.box = algorithmResult.box;
+        }
+        card.interval = algorithmResult.interval;
+        card.repetitions = algorithmResult.repetitions;
+        card.nextReviewDate = algorithmResult.nextReviewDate;
+        card.lastReviewed = new Date();
 
-        // 3) Prossima review
-        const nextReviewDate = new Date();
-        nextReviewDate.setDate(nextReviewDate.getDate() + updatedInterval);
-
-        // 4) Status progression (semplice, ma estendibile)
-        const status = this._resolveCardStatus({
-            quality,
-            repetitions: updatedRepetitions,
-            interval: updatedInterval,
+        // Aggiorna reviewHistory per tracciare le performance
+        if (!card.reviewHistory) {
+            card.reviewHistory = [];
+        }
+        card.reviewHistory.push({
+            date: new Date(),
+            rating: quality,
+            interval: algorithmResult.interval,
+            easinessFactor: algorithmResult.easinessFactor || card.easinessFactor,
+            repetitions: algorithmResult.repetitions,
+            algorithm: algorithmName,
         });
 
-        // Persisti aggiornamenti
-        card.easinessFactor = Number(updatedEF.toFixed(2));
-        card.interval = updatedInterval;
-        card.repetitions = updatedRepetitions;
-        card.nextReviewDate = nextReviewDate;
+        // Mantieni solo le ultime 50 review per evitare documenti troppo grandi
+        if (card.reviewHistory.length > 50) {
+            card.reviewHistory = card.reviewHistory.slice(-50);
+        }
+
+        // Status progression - passa anche la card per analizzare la storia
+        const status = this._resolveCardStatus({
+            quality,
+            repetitions: algorithmResult.repetitions,
+            interval: algorithmResult.interval,
+            card: card, // Passa la card per analizzare reviewHistory
+        });
         card.status = status;
+
+        // Aggiorna analytics del deck
+        this._updateDeckAnalytics(deck, quality, sessionMeta);
 
         await deck.save();
 
@@ -529,11 +635,11 @@ class StudyService extends BaseService {
             stats: {
                 rating: quality,
                 easinessFactor: updatedCard.easinessFactor,
-                interval: updatedInterval,
-                repetitions: updatedRepetitions,
+                interval: algorithmResult.interval,
+                repetitions: algorithmResult.repetitions,
                 status,
-                nextReviewDate,
-                nextReviewInDays: updatedInterval,
+                nextReviewDate: algorithmResult.nextReviewDate,
+                nextReviewInDays: algorithmResult.interval,
             },
             gamification,
         };
@@ -621,15 +727,49 @@ class StudyService extends BaseService {
             ? normalizedExtracted.slice(0, MAX_PDF_TEXT_LENGTH) + '\n\n[...testo troncato per limiti di elaborazione...]'
             : normalizedExtracted;
 
-        // 4. Chiama OpenAI per generare le flashcards
+        // 4. Chiama OpenAI per generare le flashcards con prompt personalizzato
+        const aiSettings = deck.aiSettings || {};
+        const style = aiSettings.style || 'comprehensive';
+        const difficulty = aiSettings.difficulty || 'medium';
+        const questionTypes = Array.isArray(aiSettings.questionTypes) && aiSettings.questionTypes.length > 0
+            ? aiSettings.questionTypes
+            : ['definition', 'concept', 'relationship'];
+
+        const stylePrompts = {
+            comprehensive: 'Crea flashcard che coprono sia definizioni che applicazioni pratiche. Bilanciate tra teoria e pratica.',
+            conceptual: 'Focus su concetti, principi e relazioni tra idee. Le domande devono testare la comprensione profonda, non solo fatti.',
+            factual: 'Focus su fatti, date, nomi, definizioni precise. Ideale per memorizzazione di informazioni specifiche.',
+            application: 'Focus su applicazioni pratiche, esempi, casi d\'uso. Le domande devono testare come applicare le conoscenze.',
+        };
+
+        const difficultyPrompts = {
+            easy: 'Crea domande semplici e dirette, adatte a studenti che stanno iniziando.',
+            medium: 'Crea domande di difficoltà media, che richiedono una buona comprensione.',
+            hard: 'Crea domande complesse che richiedono analisi approfondita e collegamenti tra concetti.',
+            mixed: 'Crea un mix di difficoltà: alcune semplici, alcune medie, alcune complesse.',
+        };
+
+        const questionTypePrompts = {
+            definition: 'Includi domande che chiedono definizioni precise di termini e concetti.',
+            concept: 'Includi domande che testano la comprensione di concetti astratti e principi.',
+            relationship: 'Includi domande che chiedono di spiegare relazioni, cause-effetti, e collegamenti.',
+            application: 'Includi domande che chiedono di applicare conoscenze a situazioni pratiche.',
+            comparison: 'Includi domande che chiedono di confrontare o distinguere concetti.',
+        };
+
         const systemPrompt = `Sei un esperto insegnante universitario che si chiama Silvija. Il tuo compito è analizzare il testo fornito e creare flashcard di alta qualità per uno studente che deve preparare un esame.
-                REGOLE:
+
+                STILE: ${stylePrompts[style] || stylePrompts.comprehensive}
+                DIFFICOLTÀ: ${difficultyPrompts[difficulty] || difficultyPrompts.medium}
+                TIPI DI DOMANDE: ${questionTypes.map(t => questionTypePrompts[t] || '').filter(Boolean).join(' ') || questionTypePrompts.definition}
+
+                REGOLE GENERALI:
                 - Crea tra 10 e 15 flashcard
                 - Ogni flashcard deve avere "front" (domanda chiara e specifica) e "back" (risposta concisa ma completa)
                 - Le domande devono testare comprensione, non solo memoria
-                - Includi definizioni, concetti chiave, relazioni causa-effetto
                 - Evita domande troppo generiche o troppo specifiche
                 - La risposta deve essere auto-contenuta (comprensibile senza rileggere la domanda)
+                - Varia i tipi di domande per mantenere l'interesse
 
                 FORMATO OUTPUT:
                 Rispondi SOLO con JSON valido, senza markdown o testo aggiuntivo, in questo formato:
@@ -853,7 +993,7 @@ class StudyService extends BaseService {
         context = this._truncateText(context, contextLimit, '\n\n[...contesto troncato per limiti di token...]');
 
         const systemPrompt =
-            'Sei un Tutor Esperto e Socratico: chiaro, rigoroso e incoraggiante.\n' +
+            'Sei Silvi, un Tutor Esperto e Socratico: chiaro, rigoroso e incoraggiante.\n' +
             'Rispondi alla domanda dell\'utente basandoti ESCLUSIVAMENTE sul CONTESTO fornito.\n' +
             'Se la risposta non è nel contesto, dillo chiaramente e chiedi all\'utente di incollare il passaggio rilevante.\n' +
             'Non inventare informazioni non presenti nel contesto.\n\n' +
@@ -938,11 +1078,78 @@ class StudyService extends BaseService {
         }
     }
 
-    _resolveCardStatus({ quality, repetitions, interval }) {
-        if (quality < 3) return 'learning';
-        if (repetitions <= 1) return 'learning';
-        if (repetitions >= 5 && interval >= 30) return 'mastered';
-        return 'review';
+    /**
+     * Determina lo status di una card basandosi su qualità, ripetizioni, intervallo e storia
+     * Logica migliorata per una progressione più accurata
+     */
+    _resolveCardStatus({ quality, repetitions, interval, card = null }) {
+        // Se la risposta è insufficiente (quality < 3), torna sempre in learning
+        if (quality < 3) {
+            return 'learning';
+        }
+
+        // Card nuova o con poche ripetizioni → learning
+        if (repetitions <= 1) {
+            return 'learning';
+        }
+
+        // Analizza la storia delle review se disponibile
+        let recentQuality = quality;
+        let consecutiveGood = 1; // Conta quante risposte buone consecutive
+        let totalReviews = 1;
+
+        if (card && Array.isArray(card.reviewHistory) && card.reviewHistory.length > 0) {
+            totalReviews = card.reviewHistory.length + 1; // +1 per la review corrente
+            const recentHistory = card.reviewHistory.slice(-5); // Ultime 5 review
+            
+            // Conta risposte consecutive buone (quality >= 3) partendo dalla più recente
+            for (let i = recentHistory.length - 1; i >= 0; i--) {
+                if (recentHistory[i].rating >= 3) {
+                    consecutiveGood++;
+                } else {
+                    break; // Interrompi se trovi una risposta insufficiente
+                }
+            }
+
+            // Calcola qualità media delle ultime 3 review
+            const lastThree = recentHistory.slice(-3);
+            if (lastThree.length > 0) {
+                const avgQuality = lastThree.reduce((sum, r) => sum + (r.rating || 0), 0) / lastThree.length;
+                recentQuality = (avgQuality + quality) / 2; // Media tra storico e attuale
+            }
+        }
+
+        // CRITERI PER MASTERED (Padroneggiata):
+        // 1. Almeno 5 ripetizioni totali
+        // 2. Intervallo >= 30 giorni (dimostra ritenzione a lungo termine)
+        // 3. Almeno 3 risposte consecutive buone (quality >= 3)
+        // 4. Qualità media recente >= 3.5 (buone performance consistenti)
+        const isMastered = 
+            repetitions >= 5 &&
+            interval >= 30 &&
+            consecutiveGood >= 3 &&
+            recentQuality >= 3.5;
+
+        if (isMastered) {
+            return 'mastered';
+        }
+
+        // CRITERI PER REVIEW (Ripasso):
+        // Card che ha superato la fase di learning ma non è ancora padroneggiata
+        // - Almeno 2 ripetizioni
+        // - Intervallo > 1 giorno (non più in fase iniziale)
+        // - Qualità media >= 3 (performance accettabile)
+        const isReview = 
+            repetitions >= 2 &&
+            interval > 1 &&
+            recentQuality >= 3;
+
+        if (isReview) {
+            return 'review';
+        }
+
+        // Default: ancora in learning
+        return 'learning';
     }
 
     _serializeCard(card) {
@@ -1228,6 +1435,60 @@ class StudyService extends BaseService {
 
     _toNumber(value, fallback = 0) {
         return Number.isFinite(Number(value)) ? Number(value) : fallback;
+    }
+
+    /**
+     * Aggiorna le analytics del deck dopo una review
+     */
+    _updateDeckAnalytics(deck, quality, sessionMeta = null) {
+        if (!deck.analytics) {
+            deck.analytics = {
+                totalReviews: 0,
+                averageTimePerCard: 0,
+                retentionRate: 0,
+                lastStudied: null,
+                studyStreak: 0,
+            };
+        }
+
+        const analytics = deck.analytics;
+        analytics.totalReviews = (analytics.totalReviews || 0) + 1;
+        analytics.lastStudied = new Date();
+
+        // Calcola retention rate (percentuale di risposte corrette)
+        // Assumiamo che quality >= 3 sia "corretto"
+        const isCorrect = quality >= 3;
+        const previousTotal = analytics.totalReviews - 1 || 1;
+        const previousCorrect = Math.round((analytics.retentionRate || 0) * previousTotal);
+        const newCorrect = previousCorrect + (isCorrect ? 1 : 0);
+        analytics.retentionRate = newCorrect / analytics.totalReviews;
+
+        // Aggiorna tempo medio se disponibile
+        if (sessionMeta?.timePerCard && Number.isFinite(sessionMeta.timePerCard)) {
+            const previousAvg = analytics.averageTimePerCard || 0;
+            const newAvg = (previousAvg * previousTotal + sessionMeta.timePerCard) / analytics.totalReviews;
+            analytics.averageTimePerCard = newAvg;
+        }
+
+        // Aggiorna streak (giorni consecutivi di studio)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const lastStudied = analytics.lastStudied ? new Date(analytics.lastStudied) : null;
+        if (lastStudied) {
+            lastStudied.setHours(0, 0, 0, 0);
+            const daysDiff = Math.floor((today - lastStudied) / (1000 * 60 * 60 * 24));
+            if (daysDiff === 0) {
+                // Stesso giorno, mantieni streak
+            } else if (daysDiff === 1) {
+                // Giorno successivo, incrementa streak
+                analytics.studyStreak = (analytics.studyStreak || 0) + 1;
+            } else {
+                // Streak rotto, reset
+                analytics.studyStreak = 1;
+            }
+        } else {
+            analytics.studyStreak = 1;
+        }
     }
 }
 
