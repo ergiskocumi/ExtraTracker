@@ -39,6 +39,8 @@ const normalizeProject = (raw: any): WorkProject => {
         // Campi opzionali da aggregate
         entriesCount: raw.entriesCount || 0,
         lastEntryDate: raw.lastEntryDate || null,
+        totalDuration: raw.totalDuration || 0,
+        streak: raw.streak || 0,
     };
 };
 

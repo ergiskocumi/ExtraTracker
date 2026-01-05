@@ -40,12 +40,12 @@ class WorkProjectService extends BaseService {
     }
 
     /**
-     * Trova progetti con conteggio entries.
+     * Trova progetti con conteggio entries e statistiche.
      */
     async findWithEntryCount(tenantScope, options = {}) {
         const userId = this._getUserId(tenantScope);
         
-        return WorkProject.aggregate([
+        const projects = await WorkProject.aggregate([
             { $match: { user: userId } },
             {
                 $lookup: {
@@ -61,6 +61,9 @@ class WorkProjectService extends BaseService {
                     lastEntryDate: {
                         $max: '$entries.date',
                     },
+                    totalDuration: {
+                        $sum: '$entries.duration',
+                    },
                 },
             },
             {
@@ -70,6 +73,53 @@ class WorkProjectService extends BaseService {
             },
             { $sort: { name: 1 } },
         ]);
+
+        // Calcola streak per ogni progetto in modo più efficiente
+        const projectIds = projects.map(p => p._id);
+        if (projectIds.length > 0) {
+            // Recupera tutte le date uniche per tutti i progetti in una query
+            const entriesByProject = await WorkEntry.aggregate([
+                { $match: { project: { $in: projectIds }, user: userId } },
+                {
+                    $group: {
+                        _id: '$project',
+                        dates: { $addToSet: '$date' }
+                    }
+                }
+            ]);
+            
+            // Crea una mappa progetto -> date
+            const datesMap = new Map();
+            entriesByProject.forEach(item => {
+                datesMap.set(item._id.toString(), new Set(item.dates));
+            });
+            
+            // Calcola streak per ogni progetto
+            const today = new Date().toISOString().split('T')[0];
+            projects.forEach(project => {
+                const projectDates = datesMap.get(project._id.toString());
+                if (!projectDates || projectDates.size === 0) {
+                    project.streak = 0;
+                    return;
+                }
+                
+                // Calcola streak: giorni consecutivi partendo da oggi
+                let streak = 0;
+                let currentDate = today;
+                
+                while (projectDates.has(currentDate)) {
+                    streak++;
+                    // Calcola la data precedente
+                    const dateObj = new Date(currentDate);
+                    dateObj.setDate(dateObj.getDate() - 1);
+                    currentDate = dateObj.toISOString().split('T')[0];
+                }
+                
+                project.streak = streak;
+            });
+        }
+
+        return projects;
     }
 
     /**

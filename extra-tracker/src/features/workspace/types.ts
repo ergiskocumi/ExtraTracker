@@ -30,6 +30,8 @@ export interface WorkProject {
     // Opzionali (popolati via aggregate)
     entriesCount?: number;
     lastEntryDate?: string;
+    totalDuration?: number; // Durata totale in minuti
+    streak?: number; // Giorni consecutivi con entries
 }
 
 /**

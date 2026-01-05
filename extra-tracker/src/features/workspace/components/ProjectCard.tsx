@@ -7,7 +7,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiFolder, FiClock } from 'react-icons/fi';
+import { FiFolder, FiClock, FiTrendingUp, FiCalendar } from 'react-icons/fi';
 import type { WorkProject } from '../types';
 
 interface ProjectCardProps {
@@ -20,6 +20,8 @@ export const ProjectCard = ({ project, isSelected, onClick }: ProjectCardProps) 
     const navigate = useNavigate();
     const entriesCount = project.entriesCount ?? 0;
     const lastEntryDate = project.lastEntryDate;
+    const totalDuration = project.totalDuration ?? 0; // in minuti
+    const streak = project.streak ?? 0;
     
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
@@ -27,10 +29,18 @@ export const ProjectCard = ({ project, isSelected, onClick }: ProjectCardProps) 
         const diffTime = now.getTime() - date.getTime();
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
         
-        if (diffDays === 0) return 'Oggi';
-        if (diffDays === 1) return 'Ieri';
+        if (diffDays === 0) return 'oggi';
+        if (diffDays === 1) return 'ieri';
         if (diffDays < 7) return `${diffDays} giorni fa`;
         return date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    };
+    
+    const formatDuration = (minutes: number) => {
+        if (minutes < 60) return `${minutes}m`;
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        if (mins === 0) return `${hours}h`;
+        return `${hours}h ${mins}m`;
     };
 
     const handleCardClick = (e: React.MouseEvent) => {
@@ -76,14 +86,38 @@ export const ProjectCard = ({ project, isSelected, onClick }: ProjectCardProps) 
                         </p>
                     )}
 
-                    {/* STATISTICHE */}
-                    <div className="flex items-center gap-4 text-xs text-white/50">
-                        <div className="flex items-center gap-1">
-                            <FiClock size={14} />
-                            <span>{entriesCount} {entriesCount === 1 ? 'entry' : 'entries'}</span>
+                    {/* STATISTICHE RAPIDE */}
+                    <div className="space-y-2 mt-2">
+                        {/* Prima riga: Entries e Durata */}
+                        <div className="flex items-center gap-3 text-xs">
+                            <div className="flex items-center gap-1.5 text-white/70">
+                                <span className="text-base">📊</span>
+                                <span className="font-medium">{entriesCount} {entriesCount === 1 ? 'entry' : 'entries'}</span>
+                            </div>
+                            {totalDuration > 0 && (
+                                <div className="flex items-center gap-1.5 text-white/70">
+                                    <FiClock size={12} />
+                                    <span className="font-medium">{formatDuration(totalDuration)}</span>
+                                </div>
+                            )}
                         </div>
-                        {lastEntryDate && (
-                            <span>Ultimo: {formatDate(lastEntryDate)}</span>
+                        
+                        {/* Seconda riga: Streak e Ultimo */}
+                        {(streak > 0 || lastEntryDate) && (
+                            <div className="flex items-center gap-3 text-xs">
+                                {streak > 0 && (
+                                    <div className="flex items-center gap-1.5 text-emerald-400">
+                                        <FiTrendingUp size={12} />
+                                        <span className="font-medium">Streak: {streak} {streak === 1 ? 'giorno' : 'giorni'}</span>
+                                    </div>
+                                )}
+                                {lastEntryDate && (
+                                    <div className="flex items-center gap-1.5 text-white/60">
+                                        <FiCalendar size={12} />
+                                        <span>Ultimo: {formatDate(lastEntryDate)}</span>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
