@@ -11,9 +11,11 @@
  */
 
 const authService = require('../services/authService');
+const { getDeviceInfo } = require('../services/authService');
 const securityConfig = require('../config/security');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { emailService, generateToken, hashToken } = require('../services/emailService');
+const AppError = require('../utils/AppError');
 const User = require('../models/User');
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -65,7 +67,8 @@ const clearAuthCookies = (res) => {
  * Registra un nuovo utente
  */
 const register = asyncHandler(async (req, res) => {
-    const { user, accessToken, refreshToken } = await authService.register(req.body);
+    const deviceInfo = getDeviceInfo(req);
+    const { user, accessToken, refreshToken } = await authService.register(req.body, deviceInfo);
 
     // Genera token di verifica email
     const verificationToken = generateToken();
@@ -103,7 +106,8 @@ const register = asyncHandler(async (req, res) => {
  * Effettua il login
  */
 const login = asyncHandler(async (req, res) => {
-    const { user, accessToken, refreshToken } = await authService.login(req.body);
+    const deviceInfo = getDeviceInfo(req);
+    const { user, accessToken, refreshToken } = await authService.login(req.body, deviceInfo);
 
     // Imposta cookies sicuri
     setAuthCookies(res, accessToken, refreshToken);
@@ -125,21 +129,18 @@ const login = asyncHandler(async (req, res) => {
  * POST /api/auth/refresh
  * Rinnova l'access token usando il refresh token
  */
-const refresh = asyncHandler(async (req, res) => {
+const refresh = asyncHandler(async (req, res, next) => {
     const refreshToken = req.cookies?.[securityConfig.cookie.refreshName];
 
     if (!refreshToken) {
-        return res.status(401).json({
-            success: false,
-            error: {
-                message: 'Sessione scaduta, effettua nuovamente il login',
-                code: 'NO_REFRESH_TOKEN',
-            },
-        });
+        // Esempio di utilizzo AppError: passa l'errore al global error handler
+        // Il global handler si occuperà di formattare la risposta corretta
+        return next(new AppError('Sessione scaduta, effettua nuovamente il login', 401));
     }
 
+    const deviceInfo = getDeviceInfo(req);
     const { accessToken, refreshToken: newRefreshToken } = 
-        await authService.refreshAccessToken(refreshToken);
+        await authService.refreshAccessToken(refreshToken, deviceInfo);
 
     // Ruota i token (refresh token rotation per sicurezza)
     setAuthCookies(res, accessToken, newRefreshToken);
@@ -152,12 +153,18 @@ const refresh = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/auth/logout
- * Effettua il logout
+ * Effettua il logout (invalida solo la sessione corrente o tutte se specificato)
  */
 const logout = asyncHandler(async (req, res) => {
-    // Invalida refresh token nel DB (se utente autenticato)
+    // Invalida refresh token nel DB e access token nella blacklist (se utente autenticato)
     if (req.user?.id) {
-        await authService.logout(req.user.id);
+        const refreshToken = req.cookies?.[securityConfig.cookie.refreshName];
+        const accessToken = req.cookies?.[securityConfig.cookie.name];
+        
+        // Se c'è un refresh token, invalida solo quella sessione
+        // Altrimenti invalida tutte le sessioni (logout da tutti i dispositivi)
+        // Aggiungi access token alla blacklist per revoca immediata
+        await authService.logout(req.user.id, refreshToken || null, accessToken || null);
     }
 
     // Cancella cookies
@@ -237,17 +244,12 @@ const checkAuth = asyncHandler(async (req, res) => {
  * POST /api/auth/verify-email
  * Verifica l'indirizzo email con il token
  */
-const verifyEmail = asyncHandler(async (req, res) => {
+const verifyEmail = asyncHandler(async (req, res, next) => {
     const { token } = req.body;
 
     if (!token) {
-        return res.status(400).json({
-            success: false,
-            error: {
-                message: 'Token di verifica mancante',
-                code: 'MISSING_TOKEN',
-            },
-        });
+        // Esempio di utilizzo AppError: usa next() per passare l'errore al global handler
+        return next(new AppError('Token di verifica mancante', 400));
     }
 
     // Hash del token per confronto

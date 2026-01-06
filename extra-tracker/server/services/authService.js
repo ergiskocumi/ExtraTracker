@@ -14,8 +14,220 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const securityConfig = require('../config/security');
+const { MAX_ACTIVE_SESSIONS } = require('../config/security');
+const { getRedisClient, getRedisAvailable } = require('../config/redis');
+
+// Durata grace period per race condition (30 secondi)
+const GRACE_PERIOD_MS = 30 * 1000;
+
+/**
+ * Utility per estrarre informazioni dispositivo da request
+ * @param {object} req - Express request object
+ * @returns {object} - { device, userAgent, ip }
+ */
+const getDeviceInfo = (req) => {
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const ip = req.ip || req.socket?.remoteAddress || 'Unknown';
+    
+    // Estrai tipo dispositivo da User-Agent
+    let device = 'Unknown';
+    if (userAgent.includes('Mobile') || userAgent.includes('Android') || userAgent.includes('iPhone')) {
+        device = 'Mobile';
+    } else if (userAgent.includes('Tablet') || userAgent.includes('iPad')) {
+        device = 'Tablet';
+    } else if (userAgent.includes('Windows') || userAgent.includes('Mac') || userAgent.includes('Linux')) {
+        device = 'Desktop';
+    }
+    
+    return { device, userAgent, ip };
+};
 
 class AuthService {
+    // ==========================================
+    // TOKEN BLACKLIST (Redis)
+    // ==========================================
+
+    /**
+     * Aggiungi token alla blacklist (revoca immediata)
+     * Usa Redis per performance (cache-aside pattern)
+     * TTL = durata access token (15 minuti) per pulizia automatica
+     * 
+     * @param {string} token - Access token da revocare
+     * @param {number} ttlSeconds - TTL in secondi (default: 15 minuti)
+     * @returns {Promise<void>}
+     */
+    async addToBlacklist(token, ttlSeconds = 15 * 60) {
+        if (!getRedisAvailable()) {
+            // Se Redis non disponibile, salta blacklist (fallback graceful)
+            // In produzione, Redis dovrebbe essere sempre disponibile
+            return;
+        }
+
+        try {
+            const redisClient = getRedisClient();
+            if (!redisClient) return;
+
+            // Hash del token come chiave (più sicuro che salvare token completo)
+            const tokenHash = crypto
+                .createHash('sha256')
+                .update(token)
+                .digest('hex');
+
+            // Salva in Redis con TTL (pulizia automatica dopo scadenza)
+            await redisClient.setEx(`blacklist:${tokenHash}`, ttlSeconds, '1');
+        } catch (error) {
+            // Log errore ma non bloccare la richiesta (fail-open)
+            console.error('❌ Errore aggiunta token a blacklist:', error.message);
+        }
+    }
+
+    /**
+     * Verifica se token è nella blacklist
+     * 
+     * @param {string} token - Access token da verificare
+     * @returns {Promise<boolean>} - true se token è revocato
+     */
+    async isTokenBlacklisted(token) {
+        if (!getRedisAvailable()) {
+            // Se Redis non disponibile, assume token valido (fallback graceful)
+            return false;
+        }
+
+        try {
+            const redisClient = getRedisClient();
+            if (!redisClient) return false;
+
+            // Hash del token come chiave
+            const tokenHash = crypto
+                .createHash('sha256')
+                .update(token)
+                .digest('hex');
+
+            // Verifica se esiste in Redis
+            const result = await redisClient.get(`blacklist:${tokenHash}`);
+            return result === '1';
+        } catch (error) {
+            // Log errore ma assume token valido (fail-open)
+            console.error('❌ Errore verifica blacklist:', error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Aggiungi tutti i token di un utente alla blacklist (ban utente)
+     * Revoca immediata di tutti gli access token attivi
+     * 
+     * @param {string} userId - ID utente da bannare
+     * @returns {Promise<void>}
+     */
+    async blacklistUserTokens(userId) {
+        if (!getRedisAvailable()) {
+            return;
+        }
+
+        try {
+            const redisClient = getRedisClient();
+            if (!redisClient) return;
+
+            // Aggiungi userId alla blacklist (controllo veloce in requireAuth)
+            // TTL = durata massima access token (15 minuti)
+            await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
+        } catch (error) {
+            console.error('❌ Errore blacklist utente:', error.message);
+        }
+    }
+
+    /**
+     * Verifica se utente è bannato (isActive: false)
+     * 
+     * @param {string} userId - ID utente da verificare
+     * @returns {Promise<boolean>} - true se utente è bannato
+     */
+    async isUserBlacklisted(userId) {
+        if (!getRedisAvailable()) {
+            // Se Redis non disponibile, controlla DB (più lento ma sicuro)
+            const user = await User.findById(userId).select('isActive');
+            return user ? !user.isActive : false;
+        }
+
+        try {
+            const redisClient = getRedisClient();
+            if (!redisClient) {
+                // Fallback a DB se Redis non disponibile
+                const user = await User.findById(userId).select('isActive');
+                return user ? !user.isActive : false;
+            }
+
+            // Controlla cache Redis (veloce)
+            const result = await redisClient.get(`blacklist:user:${userId}`);
+            if (result === '1') {
+                return true;
+            }
+
+            // Se non in cache, controlla DB e aggiorna cache
+            const user = await User.findById(userId).select('isActive');
+            const isBanned = user ? !user.isActive : false;
+
+            if (isBanned) {
+                // Aggiorna cache per prossime richieste
+                await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
+            }
+
+            return isBanned;
+        } catch (error) {
+            // Fallback a DB in caso di errore Redis
+            console.error('❌ Errore verifica blacklist utente:', error.message);
+            const user = await User.findById(userId).select('isActive');
+            return user ? !user.isActive : false;
+        }
+    }
+
+    // ==========================================
+    // SESSION MANAGEMENT
+    // ==========================================
+
+    /**
+     * Pulisci sessioni scadute (refresh token scaduti oltre 7 giorni)
+     * @param {User} user - Oggetto utente
+     */
+    cleanExpiredSessions(user) {
+        if (!user.refreshTokens || user.refreshTokens.length === 0) {
+            return;
+        }
+
+        const now = Date.now();
+        const refreshTokenExpiryMs = securityConfig.jwt.refreshTokenExpiry 
+            ? this.parseExpiryToMs(securityConfig.jwt.refreshTokenExpiry)
+            : 7 * 24 * 60 * 60 * 1000; // Default 7 giorni
+
+        // Rimuovi sessioni scadute (createdAt + expiry < now)
+        user.refreshTokens = user.refreshTokens.filter(session => {
+            const createdAt = new Date(session.createdAt).getTime();
+            return (createdAt + refreshTokenExpiryMs) > now;
+        });
+    }
+
+    /**
+     * Converte stringa expiry (es. '7d') in millisecondi
+     * @param {string} expiry - Stringa tipo '7d', '15m', etc.
+     * @returns {number} - Millisecondi
+     */
+    parseExpiryToMs(expiry) {
+        const match = expiry.match(/^(\d+)([smhd])$/);
+        if (!match) return 7 * 24 * 60 * 60 * 1000; // Default 7 giorni
+
+        const value = parseInt(match[1]);
+        const unit = match[2];
+
+        switch (unit) {
+            case 's': return value * 1000;
+            case 'm': return value * 60 * 1000;
+            case 'h': return value * 60 * 60 * 1000;
+            case 'd': return value * 24 * 60 * 60 * 1000;
+            default: return 7 * 24 * 60 * 60 * 1000;
+        }
+    }
+
     // ==========================================
     // PASSWORD HASHING (Argon2)
     // ==========================================
@@ -85,9 +297,10 @@ class AuthService {
      * Il refresh token è un JWT + random string per extra sicurezza
      * 
      * @param {object} user - Oggetto utente
-     * @returns {{ token: string, hash: string }}
+     * @param {object} deviceInfo - { device, userAgent, ip }
+     * @returns {{ token: string, hash: string, sessionData: object }}
      */
-    async generateRefreshToken(user) {
+    async generateRefreshToken(user, deviceInfo = {}) {
         // Parte random per unicità
         const randomPart = crypto.randomBytes(32).toString('hex');
 
@@ -108,7 +321,17 @@ class AuthService {
             .update(token)
             .digest('hex');
 
-        return { token, hash };
+        // Dati sessione da salvare nel DB
+        const sessionData = {
+            hash,
+            device: deviceInfo.device || 'Unknown',
+            userAgent: deviceInfo.userAgent || 'Unknown',
+            ip: deviceInfo.ip || 'Unknown',
+            createdAt: new Date(),
+            lastUsedAt: new Date(),
+        };
+
+        return { token, hash, sessionData };
     }
 
     /**
@@ -152,9 +375,10 @@ class AuthService {
      * Registra nuovo utente
      * 
      * @param {object} data - { email, password, acceptTerms }
+     * @param {object} deviceInfo - { device, userAgent, ip } (opzionale)
      * @returns {Promise<{ user: User, accessToken: string, refreshToken: string }>}
      */
-    async register(data) {
+    async register(data, deviceInfo = {}) {
         const { email, password, acceptTerms } = data;
 
         // Verifica email non esistente
@@ -176,17 +400,22 @@ class AuthService {
                 termsAcceptedAt: new Date(),
                 privacyVersion: '1.0',
             },
+            refreshTokens: [], // Inizializza array vuoto
         });
 
         await user.save();
 
-        // Genera token
+        // Genera token con device info
         const accessToken = this.generateAccessToken(user);
-        const { token: refreshToken, hash: refreshTokenHash } = await this.generateRefreshToken(user);
+        const { token: refreshToken, sessionData } = await this.generateRefreshToken(user, deviceInfo);
 
-        // Salva hash refresh token
-        user.refreshTokenHash = refreshTokenHash;
-        await user.save();
+        // Aggiungi nuova sessione usando operatore atomico (evita conflitti di versione)
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $push: { refreshTokens: sessionData }
+            }
+        );
 
         return { user, accessToken, refreshToken };
     }
@@ -195,9 +424,10 @@ class AuthService {
      * Login utente
      * 
      * @param {object} data - { email, password }
+     * @param {object} deviceInfo - { device, userAgent, ip } (opzionale)
      * @returns {Promise<{ user: User, accessToken: string, refreshToken: string }>}
      */
-    async login(data) {
+    async login(data, deviceInfo = {}) {
         const { email, password } = data;
 
         // Trova utente con campi nascosti
@@ -228,28 +458,89 @@ class AuthService {
         // Login riuscito: resetta contatore
         await user.resetFailedAttempts();
 
-        // Genera token
+        // Genera token con device info
         const accessToken = this.generateAccessToken(user);
-        const { token: refreshToken, hash: refreshTokenHash } = await this.generateRefreshToken(user);
+        const { token: refreshToken, sessionData } = await this.generateRefreshToken(user, deviceInfo);
 
-        // Aggiorna refresh token nel DB
-        user.refreshTokenHash = refreshTokenHash;
-        await user.save();
+        // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
+        // MongoDB non permette $push e $pull sullo stesso array nella stessa operazione
+        const refreshTokenExpiryMs = securityConfig.jwt.refreshTokenExpiry 
+            ? this.parseExpiryToMs(securityConfig.jwt.refreshTokenExpiry)
+            : 7 * 24 * 60 * 60 * 1000;
+        const expiryDate = new Date(Date.now() - refreshTokenExpiryMs);
+
+        // 1. Pulisci le sessioni scadute (Safe to do first)
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $pull: {
+                    refreshTokens: {
+                        createdAt: { $lt: expiryDate }
+                    }
+                }
+            }
+        );
+
+        // 2. Aggiungi la nuova sessione e applica il limite FIFO (usando la pipeline atomica)
+        // Nota: La pipeline gestisce sia l'inserimento che il taglio dell'array in un colpo solo
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: user._id },
+            [
+                // Aggiungi la nuova sessione
+                {
+                    $set: {
+                        refreshTokens: {
+                            $concatArrays: ['$refreshTokens', [sessionData]]
+                        }
+                    }
+                },
+                // Applica il limite FIFO (tieni solo gli ultimi MAX_ACTIVE_SESSIONS)
+                {
+                    $set: {
+                        refreshTokens: {
+                            $cond: {
+                                if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                                then: {
+                                    $slice: [
+                                        {
+                                            $sortArray: {
+                                                input: '$refreshTokens',
+                                                sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                            }
+                                        },
+                                        -MAX_ACTIVE_SESSIONS
+                                    ]
+                                },
+                                else: '$refreshTokens'
+                            }
+                        }
+                    }
+                }
+            ],
+            { new: true }
+        );
+
+        // Aggiorna oggetto user locale con risultato
+        if (updatedUser) {
+            Object.assign(user, updatedUser.toObject());
+        }
 
         return { user, accessToken, refreshToken };
     }
 
     /**
      * Refresh access token usando refresh token
+     * Implementa grace period per gestire race conditions
      * 
      * @param {string} refreshToken - Refresh token attuale
+     * @param {object} deviceInfo - { device, userAgent, ip } (opzionale)
      * @returns {Promise<{ user: User, accessToken: string, newRefreshToken: string }>}
      */
-    async refreshAccessToken(refreshToken) {
+    async refreshAccessToken(refreshToken, deviceInfo = {}) {
         // Verifica refresh token
         const payload = this.verifyToken(refreshToken, 'refresh');
 
-        // Trova utente
+        // Trova utente con array refreshTokens e gracePeriodTokens
         const user = await User.findByRefreshToken(payload.sub);
         if (!user) {
             throw AppError.unauthorized('Sessione non valida');
@@ -261,34 +552,189 @@ class AuthService {
             .update(refreshToken)
             .digest('hex');
 
-        if (user.refreshTokenHash !== tokenHash) {
-            // Possibile furto token! Invalida tutti i refresh token dell'utente
-            user.refreshTokenHash = undefined;
-            await user.save();
-            throw AppError.unauthorized('Sessione invalidata per sicurezza');
+        // Pulisci token scaduti dal grace period
+        user.cleanExpiredGracePeriodTokens();
+
+        // Pulisci sessioni scadute (refresh token scaduti)
+        this.cleanExpiredSessions(user);
+
+        // Trova sessione specifica nell'array
+        const session = user.findSessionByHash(tokenHash);
+        
+        // Se non trovato nelle sessioni attive, controlla grace period
+        if (!session) {
+            const graceToken = user.findInGracePeriod(tokenHash);
+            
+            if (graceToken) {
+                // Token nel grace period: è una race condition legittima
+                // Genera nuovi token senza invalidare nulla
+                const newAccessToken = this.generateAccessToken(user);
+                const { token: newRefreshToken } = await this.generateRefreshToken(user, deviceInfo);
+                
+                // Rimuovi dal grace period (già usato)
+                await user.removeFromGracePeriod(tokenHash);
+                
+                return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
+            }
+            
+            // Token non trovato né in sessioni attive né in grace period
+            // Possibile furto o token già invalidato
+            // Invalida tutte le sessioni per sicurezza (usa operatori atomici)
+            await User.updateOne(
+                { _id: user._id },
+                {
+                    $set: { 
+                        refreshTokens: [],
+                        gracePeriodTokens: []
+                    }
+                }
+            );
+            throw AppError.unauthorized('Sessione non valida o scaduta');
         }
 
-        // Genera nuovi token (rotation)
-        const newAccessToken = this.generateAccessToken(user);
-        const { token: newRefreshToken, hash: newRefreshTokenHash } = 
-            await this.generateRefreshToken(user);
+        // Aggiorna lastUsedAt per questa sessione (operatore atomico)
+        await User.updateOne(
+            { 
+                _id: user._id,
+                'refreshTokens.hash': tokenHash
+            },
+            {
+                $set: {
+                    'refreshTokens.$.lastUsedAt': new Date()
+                }
+            }
+        );
 
-        // Aggiorna hash nel DB
-        user.refreshTokenHash = newRefreshTokenHash;
-        await user.save();
+        // Genera nuovi token (rotation) - mantieni stesso device info
+        const newAccessToken = this.generateAccessToken(user);
+        const { token: newRefreshToken, sessionData: newSessionData } = 
+            await this.generateRefreshToken(user, {
+                device: session.device,
+                userAgent: deviceInfo.userAgent || session.userAgent,
+                ip: deviceInfo.ip || session.ip,
+            });
+
+        // IMPORTANTE: Aggiungi vecchio token al grace period PRIMA di rimuoverlo
+        // Questo previene race conditions se arrivano richieste concorrenti
+        // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
+        const graceExpiresAt = new Date(Date.now() + GRACE_PERIOD_MS);
+        
+        // 1. Pulisci token scaduti dal grace period (Safe to do first)
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $pull: {
+                    gracePeriodTokens: {
+                        expiresAt: { $lt: new Date() }
+                    }
+                }
+            }
+        );
+        
+        // 2. Aggiungi nuovo token al grace period
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $push: {
+                    gracePeriodTokens: {
+                        hash: tokenHash,
+                        expiresAt: graceExpiresAt,
+                    }
+                }
+            }
+        );
+
+        // Rimuovi vecchia sessione e aggiungi nuova (rotation) usando operatori atomici
+        // Usa aggregation pipeline per garantire atomicità e limite FIFO
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: user._id },
+            [
+                {
+                    // Rimuovi vecchia sessione
+                    $set: {
+                        refreshTokens: {
+                            $filter: {
+                                input: '$refreshTokens',
+                                as: 'session',
+                                cond: { $ne: ['$$session.hash', tokenHash] }
+                            }
+                        }
+                    }
+                },
+                {
+                    // Aggiungi nuova sessione
+                    $set: {
+                        refreshTokens: {
+                            $concatArrays: ['$refreshTokens', [newSessionData]]
+                        }
+                    }
+                },
+                {
+                    // Applica limite FIFO se necessario
+                    $set: {
+                        refreshTokens: {
+                            $cond: {
+                                if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                                then: {
+                                    $slice: [
+                                        {
+                                            $sortArray: {
+                                                input: '$refreshTokens',
+                                                sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                            }
+                                        },
+                                        -MAX_ACTIVE_SESSIONS
+                                    ]
+                                },
+                                else: '$refreshTokens'
+                            }
+                        }
+                    }
+                }
+            ],
+            { new: true }
+        );
+
+        // Aggiorna oggetto user locale per coerenza
+        if (updatedUser) {
+            Object.assign(user, updatedUser.toObject());
+        }
 
         return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
     }
 
     /**
-     * Logout utente (invalida refresh token)
+     * Logout utente (invalida refresh token specifico o tutti)
      * 
      * @param {string} userId - ID utente
+     * @param {string} refreshToken - Refresh token da invalidare (opzionale, se non fornito invalida tutti)
+     * @returns {Promise<void>}
      */
-    async logout(userId) {
-        await User.findByIdAndUpdate(userId, {
-            $unset: { refreshTokenHash: 1 },
-        });
+    async logout(userId, refreshToken = null, accessToken = null) {
+        const user = await User.findById(userId).select('+refreshTokens');
+        
+        if (!user) {
+            return; // Utente non trovato, niente da fare
+        }
+
+        // Aggiungi access token alla blacklist (revoca immediata)
+        if (accessToken) {
+            await this.addToBlacklist(accessToken);
+        }
+
+        if (refreshToken) {
+            // Invalida solo la sessione specifica
+            const tokenHash = crypto
+                .createHash('sha256')
+                .update(refreshToken)
+                .digest('hex');
+            await user.removeSessionByHash(tokenHash);
+        } else {
+            // Invalida tutte le sessioni (logout da tutti i dispositivi)
+            await user.removeAllSessions();
+            // Aggiungi utente alla blacklist per revocare tutti i token attivi
+            await this.blacklistUserTokens(userId);
+        }
     }
 
     /**
@@ -312,12 +758,19 @@ class AuthService {
         }
 
         // Hash nuova password
-        user.password = await this.hashPassword(newPassword);
+        const hashedPassword = await this.hashPassword(newPassword);
         
-        // Invalida tutti i refresh token (force re-login)
-        user.refreshTokenHash = undefined;
-        
-        await user.save();
+        // Invalida tutti i refresh token (force re-login da tutti i dispositivi)
+        // Usa operatore atomico per evitare conflitti di versione
+        await User.updateOne(
+            { _id: userId },
+            {
+                $set: { 
+                    password: hashedPassword,
+                    refreshTokens: []
+                }
+            }
+        );
     }
 
     /**
@@ -340,5 +793,6 @@ class AuthService {
 // Crea singleton
 const authService = new AuthService();
 
-// Esporta singleton
+// Esporta singleton e utility
 module.exports = authService;
+module.exports.getDeviceInfo = getDeviceInfo;

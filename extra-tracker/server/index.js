@@ -22,8 +22,9 @@ require('dotenv').config();
 
 // Config e Middleware
 const securityConfig = require('./config/security');
+const { initRedis, closeRedis } = require('./config/redis');
 const { generalLimiter } = require('./middleware/rateLimiter');
-const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { errorHandler } = require('./middleware/errorHandler');
 
 // Routes
 const apiRoutes = require('./routes/api');
@@ -48,10 +49,11 @@ app.use(helmet(securityConfig.helmet));
 // HPP: previene HTTP Parameter Pollution
 app.use(hpp());
 
-// Trust proxy (se dietro nginx/cloudflare)
-if (isProduction) {
-    app.set('trust proxy', 1);
-}
+// Trust proxy: fidati del primo hop del proxy (Nginx, AWS ELB, Cloudflare, Heroku, etc.)
+// Questo rende req.ip automaticamente corretto e funziona meglio con rate limiting
+// Valore 1 = fidati del primo proxy (sicuro per la maggior parte dei casi)
+// In sviluppo, funziona anche con Vite proxy
+app.set('trust proxy', 1);
 
 // ==========================================
 // 2. CORS CONFIGURATION
@@ -60,7 +62,19 @@ if (isProduction) {
 app.use(cors(securityConfig.cors));
 
 // ==========================================
-// 3. BODY PARSING
+// 3. REQUEST ID MIDDLEWARE (per tracciamento errori)
+// ==========================================
+
+// Aggiunge request ID a ogni richiesta per tracciamento errori
+app.use((req, res, next) => {
+    const crypto = require('crypto');
+    req.requestId = req.headers['x-request-id'] || crypto.randomUUID();
+    res.setHeader('X-Request-ID', req.requestId);
+    next();
+});
+
+// ==========================================
+// 4. BODY PARSING
 // ==========================================
 
 app.use(express.json({ limit: '10kb' }));
@@ -68,13 +82,13 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
 // ==========================================
-// 4. RATE LIMITING
+// 5. RATE LIMITING
 // ==========================================
 
 app.use('/api', generalLimiter);
 
 // ==========================================
-// 5. ROUTES
+// 6. ROUTES
 // ==========================================
 
 // Static uploads (PDF, ecc.)
@@ -108,14 +122,21 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// 6. ERROR HANDLING
+// 7. ERROR HANDLING
 // ==========================================
 
-app.use(notFoundHandler);
+// Gestione route non trovate (404) - DEVE essere prima del global error handler
+app.all('*', (req, res, next) => {
+    const AppError = require('./utils/AppError');
+    next(new AppError(`Impossibile trovare ${req.originalUrl} su questo server!`, 404));
+});
+
+// GLOBAL ERROR HANDLER (Deve essere l'ultimo middleware!)
+// Questo cattura TUTTI gli errori (da route, middleware, etc.)
 app.use(errorHandler);
 
 // ==========================================
-// 7. DATABASE CONNECTION
+// 8. DATABASE CONNECTION
 // ==========================================
 
 const MONGO_URI = process.env.MONGO_URI;
@@ -141,12 +162,13 @@ const connectDB = async () => {
 };
 
 // ==========================================
-// 8. GRACEFUL SHUTDOWN
+// 9. GRACEFUL SHUTDOWN
 // ==========================================
 
 const gracefulShutdown = async (signal) => {
     console.log(`\n🛑 Ricevuto ${signal}. Chiusura graceful...`);
     try {
+        await closeRedis();
         await mongoose.connection.close();
         console.log('✅ Connessione MongoDB chiusa');
         process.exit(0);
@@ -160,11 +182,16 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // ==========================================
-// 9. START SERVER
+// 10. START SERVER
 // ==========================================
 
 const startServer = async () => {
+    // Inizializza Redis (opzionale, fallback a memoria locale se non disponibile)
+    await initRedis();
+    
+    // Connetti a MongoDB
     await connectDB();
+    
     app.listen(PORT, () => {
         console.log(`
 🚀 Server in ascolto sulla porta ${PORT}

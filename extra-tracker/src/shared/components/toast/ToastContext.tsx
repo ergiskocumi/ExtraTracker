@@ -150,13 +150,23 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
     /**
      * Aggiunge un toast con le opzioni specificate
      * @returns L'ID del toast creato (per eventuale dismiss manuale)
+     * 
+     * ANTI-SPAM: Se viene fornito un ID nelle opzioni e un toast con quell'ID esiste già,
+     * non viene aggiunto un duplicato (utile per evitare spam di toast identici)
      */
     const addToast = useCallback((
         type: ToastType, 
         message: string, 
         options?: Partial<ToastOptions>
     ): string => {
-        const id = generateId();
+        // Se è fornito un ID nelle opzioni, usalo (per evitare duplicati)
+        // Altrimenti genera un nuovo ID
+        const id = options?.id || generateId();
+        
+        // ANTI-SPAM: Se un toast con questo ID esiste già, non aggiungerlo
+        if (state.toasts.some(t => t.id === id)) {
+            return id;
+        }
         
         const toast: Toast = {
             id,
@@ -177,7 +187,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
         }, 0);
 
         return id;
-    }, [defaultDuration, generateId]);
+    }, [defaultDuration, generateId, state.toasts]);
 
     /**
      * Rimuove un toast specifico per ID

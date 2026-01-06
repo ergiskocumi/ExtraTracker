@@ -251,11 +251,49 @@ const userSchema = new mongoose.Schema(
             },
         },
 
-        // Refresh token hashato (per invalidazione)
-        refreshTokenHash: {
-            type: String,
-            select: false,
-        },
+        // Array di refresh tokens per supportare multi-device
+        // Ogni elemento rappresenta una sessione attiva su un dispositivo
+        refreshTokens: [{
+            hash: {
+                type: String,
+                required: true,
+            },
+            device: {
+                type: String,
+                required: true,
+                trim: true,
+            },
+            userAgent: {
+                type: String,
+                trim: true,
+            },
+            ip: {
+                type: String,
+                trim: true,
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+            lastUsedAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }],
+
+        // Grace period tokens: token vecchi ancora validi per breve periodo
+        // Previene race conditions durante refresh token rotation
+        // Formato: [{ hash: String, expiresAt: Date }]
+        gracePeriodTokens: [{
+            hash: {
+                type: String,
+                required: true,
+            },
+            expiresAt: {
+                type: Date,
+                required: true,
+            },
+        }],
 
         // Stato account
         isActive: {
@@ -335,7 +373,8 @@ const userSchema = new mongoose.Schema(
             // Rimuovi campi sensibili quando converti in JSON
             transform: (doc, ret) => {
                 delete ret.password;
-                delete ret.refreshTokenHash;
+                delete ret.refreshTokens;  // Array di sessioni sensibile
+                delete ret.gracePeriodTokens;  // Grace period tokens sensibili
                 delete ret.__v;
                 delete ret.failedLoginAttempts;
                 delete ret.lockUntil;
@@ -348,6 +387,37 @@ const userSchema = new mongoose.Schema(
         },
     }
 );
+
+// ==========================================
+// PRE-SAVE HOOK: Limite FIFO Sessioni
+// ==========================================
+
+/**
+ * Pre-save hook: garantisce che l'array refreshTokens non superi mai il limite
+ * Previene DoS e crescita infinita dell'array
+ */
+userSchema.pre('save', function (next) {
+    if (!this.refreshTokens || this.refreshTokens.length === 0) {
+        return next();
+    }
+
+    const { MAX_ACTIVE_SESSIONS } = require('../config/security');
+    
+    // Se supera il limite, rimuovi le sessioni più vecchie (FIFO)
+    if (this.refreshTokens.length > MAX_ACTIVE_SESSIONS) {
+        // Ordina per lastUsedAt (più vecchia prima)
+        this.refreshTokens.sort((a, b) => {
+            const dateA = new Date(a.lastUsedAt || a.createdAt);
+            const dateB = new Date(b.lastUsedAt || b.createdAt);
+            return dateA - dateB;
+        });
+        
+        // Mantieni solo le MAX_ACTIVE_SESSIONS più recenti
+        this.refreshTokens = this.refreshTokens.slice(-MAX_ACTIVE_SESSIONS);
+    }
+
+    next();
+});
 
 // ==========================================
 // INDEXES
@@ -415,11 +485,193 @@ userSchema.statics.findForLogin = function (email) {
 };
 
 /**
- * Trova utente per refresh token
+ * Trova utente per refresh token (include array refreshTokens e gracePeriodTokens)
  */
 userSchema.statics.findByRefreshToken = function (userId) {
     return this.findOne({ _id: userId, isActive: true })
-        .select('+refreshTokenHash');
+        .select('+refreshTokens +gracePeriodTokens');
+};
+
+/**
+ * Trova token nel grace period (per gestire race conditions)
+ */
+userSchema.methods.findInGracePeriod = function (tokenHash) {
+    if (!this.gracePeriodTokens || this.gracePeriodTokens.length === 0) {
+        return null;
+    }
+    // Cerca token e verifica che non sia scaduto
+    const graceToken = this.gracePeriodTokens.find(
+        gt => gt.hash === tokenHash && gt.expiresAt > new Date()
+    );
+    return graceToken || null;
+};
+
+/**
+ * Aggiungi token al grace period (durata in millisecondi, default 30 secondi)
+ * Usa operatori atomici MongoDB per evitare conflitti di versione
+ */
+userSchema.methods.addToGracePeriod = async function (tokenHash, gracePeriodMs = 30000) {
+    const expiresAt = new Date(Date.now() + gracePeriodMs);
+    
+    // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
+    // MongoDB non permette $push e $pull sullo stesso array nella stessa operazione
+    
+    // 1. Pulisci token scaduti dal grace period (Safe to do first)
+    await User.updateOne(
+        { _id: this._id },
+        {
+            $pull: {
+                gracePeriodTokens: {
+                    expiresAt: { $lt: new Date() }
+                }
+            }
+        }
+    );
+    
+    // 2. Aggiungi nuovo token al grace period
+    await User.updateOne(
+        { _id: this._id },
+        {
+            $push: {
+                gracePeriodTokens: {
+                    hash: tokenHash,
+                    expiresAt: expiresAt,
+                }
+            }
+        }
+    );
+    
+    // Aggiorna oggetto locale per coerenza
+    if (!this.gracePeriodTokens) {
+        this.gracePeriodTokens = [];
+    }
+    this.gracePeriodTokens.push({
+        hash: tokenHash,
+        expiresAt: expiresAt,
+    });
+    this.cleanExpiredGracePeriodTokens();
+    
+    return this;
+};
+
+/**
+ * Rimuovi token dal grace period
+ * Usa operatore atomico MongoDB per evitare conflitti di versione
+ */
+userSchema.methods.removeFromGracePeriod = async function (tokenHash) {
+    // Usa operatore atomico $pull
+    await User.updateOne(
+        { _id: this._id },
+        {
+            $pull: {
+                gracePeriodTokens: { hash: tokenHash }
+            }
+        }
+    );
+    
+    // Aggiorna oggetto locale per coerenza
+    if (this.gracePeriodTokens) {
+        this.gracePeriodTokens = this.gracePeriodTokens.filter(
+            gt => gt.hash !== tokenHash
+        );
+    }
+    
+    return this;
+};
+
+/**
+ * Pulisci token scaduti dal grace period
+ */
+userSchema.methods.cleanExpiredGracePeriodTokens = function () {
+    if (!this.gracePeriodTokens) {
+        return;
+    }
+    
+    const now = new Date();
+    this.gracePeriodTokens = this.gracePeriodTokens.filter(
+        gt => gt.expiresAt > now
+    );
+};
+
+/**
+ * Trova sessione specifica per hash token
+ */
+userSchema.methods.findSessionByHash = function (tokenHash) {
+    if (!this.refreshTokens || this.refreshTokens.length === 0) {
+        return null;
+    }
+    return this.refreshTokens.find(session => session.hash === tokenHash);
+};
+
+/**
+ * Rimuovi sessione specifica per hash token
+ * Usa operatore atomico MongoDB per evitare conflitti di versione
+ */
+userSchema.methods.removeSessionByHash = async function (tokenHash) {
+    // Usa operatore atomico $pull
+    await User.updateOne(
+        { _id: this._id },
+        {
+            $pull: {
+                refreshTokens: { hash: tokenHash }
+            }
+        }
+    );
+    
+    // Aggiorna oggetto locale per coerenza
+    if (this.refreshTokens) {
+        this.refreshTokens = this.refreshTokens.filter(
+            session => session.hash !== tokenHash
+        );
+    }
+    
+    return this;
+};
+
+/**
+ * Rimuovi tutte le sessioni (logout da tutti i dispositivi)
+ * Usa operatore atomico MongoDB per evitare conflitti di versione
+ */
+userSchema.methods.removeAllSessions = async function () {
+    // Usa operatore atomico $set
+    await User.updateOne(
+        { _id: this._id },
+        {
+            $set: { refreshTokens: [] }
+        }
+    );
+    
+    // Aggiorna oggetto locale per coerenza
+    this.refreshTokens = [];
+    
+    return this;
+};
+
+/**
+ * Aggiorna lastUsedAt per una sessione
+ * Usa operatore atomico MongoDB per evitare conflitti di versione
+ */
+userSchema.methods.updateSessionLastUsed = async function (tokenHash) {
+    // Usa operatore atomico $set con posizionamento array
+    await User.updateOne(
+        { 
+            _id: this._id,
+            'refreshTokens.hash': tokenHash
+        },
+        {
+            $set: {
+                'refreshTokens.$.lastUsedAt': new Date()
+            }
+        }
+    );
+    
+    // Aggiorna oggetto locale per coerenza
+    const session = this.findSessionByHash(tokenHash);
+    if (session) {
+        session.lastUsedAt = new Date();
+    }
+    
+    return this;
 };
 
 const User = mongoose.model('User', userSchema);
