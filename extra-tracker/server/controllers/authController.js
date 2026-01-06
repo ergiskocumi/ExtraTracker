@@ -159,12 +159,15 @@ const refresh = asyncHandler(async (req, res) => {
  * Effettua il logout (invalida solo la sessione corrente o tutte se specificato)
  */
 const logout = asyncHandler(async (req, res) => {
-    // Invalida refresh token nel DB (se utente autenticato)
+    // Invalida refresh token nel DB e access token nella blacklist (se utente autenticato)
     if (req.user?.id) {
         const refreshToken = req.cookies?.[securityConfig.cookie.refreshName];
+        const accessToken = req.cookies?.[securityConfig.cookie.name];
+        
         // Se c'è un refresh token, invalida solo quella sessione
         // Altrimenti invalida tutte le sessioni (logout da tutti i dispositivi)
-        await authService.logout(req.user.id, refreshToken || null);
+        // Aggiungi access token alla blacklist per revoca immediata
+        await authService.logout(req.user.id, refreshToken || null, accessToken || null);
     }
 
     // Cancella cookies

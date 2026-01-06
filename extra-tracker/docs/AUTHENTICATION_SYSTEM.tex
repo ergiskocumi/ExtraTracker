@@ -1389,30 +1389,37 @@ const authLimiter = rateLimit({
 
 \subsubsection{Gestione IP con Proxy}
 
-\begin{lstlisting}[caption=Estrazione IP Reale con Proxy]
-const getClientIpForRateLimit = (req) => {
-    const remoteAddress = req?.socket?.remoteAddress;
-    const isLoopback = 
-        remoteAddress === '127.0.0.1' ||
-        remoteAddress === '::1';
+\important{Nota}: Con \code{trust proxy} configurato (vedi sezione dedicata), Express gestisce automaticamente \code{X-Forwarded-For} e \code{req.ip} è già corretto. La funzione \code{getClientIpForRateLimit} è mantenuta per compatibilità e come fallback.
 
+\begin{lstlisting}[caption=Estrazione IP Reale con Trust Proxy]
+/**
+ * Estrae l'IP del client per rate limiting
+ * Con trust proxy configurato, req.ip è già corretto
+ * Questa funzione è mantenuta per compatibilità e come fallback
+ */
+const getClientIpForRateLimit = (req) => {
+    // Con trust proxy configurato, req.ip è già corretto
+    // Express gestisce automaticamente X-Forwarded-For quando trust proxy è attivo
+    if (req.ip && req.ip !== '::ffff:127.0.0.1' && req.ip !== '127.0.0.1' && req.ip !== '::1') {
+        return req.ip;
+    }
+
+    // Fallback per casi edge (sviluppo locale senza proxy)
     const xForwardedFor = req.headers['x-forwarded-for'];
-    
-    // Accetta X-Forwarded-For solo se il peer diretto è loopback
-    // (previene header spoofing)
-    if (isLoopback && typeof xForwardedFor === 'string') {
+    if (typeof xForwardedFor === 'string' && xForwardedFor.length > 0) {
         return xForwardedFor.split(',')[0].trim();
     }
 
-    return req.ip;
+    return req.ip || req.socket?.remoteAddress || 'unknown';
 };
 \end{lstlisting}
 
 \textbf{Sicurezza:}
 \begin{itemize}
-    \item \textbf{Previene header spoofing}: Accetta X-Forwarded-For solo da proxy fidati
+    \item \textbf{Trust Proxy}: Express gestisce automaticamente \code{X-Forwarded-For} quando \code{trust proxy} è configurato
+    \item \textbf{Fallback}: Funzione mantiene logica custom per casi edge
     \item \textbf{Supporta Vite dev server}: In sviluppo, Vite fa da proxy
-    \item \textbf{Produzione-ready}: Funziona con reverse proxy (Nginx, Cloudflare)
+    \item \textbf{Produzione-ready}: Funziona con reverse proxy (Nginx, Cloudflare, AWS ELB)
 \end{itemize}
 
 \subsection{Modello Utente}
@@ -2039,6 +2046,315 @@ helmet: {
     \item Gli header di sicurezza devono essere presenti in \important{tutte} le risposte
     \item Se Helmet viene dopo altri middleware, alcune risposte potrebbero non avere gli header
     \item Best practice: sicurezza prima di tutto
+\end{itemize}
+
+\subsection{Trust Proxy: Il Pezzo Mancante di Express}
+
+\important{Problema dell'IP del Client}: In produzione (dietro Nginx, AWS ELB, Cloudflare, Heroku), l'IP diretto è sempre quello del bilanciatore di carico (es. \code{10.0.0.1}). Se non dici a Express di "fidarsi" del proxy, \code{req.ip} sarà sempre l'IP interno del load balancer.
+
+\textbf{Scenario Problematico:}
+\begin{enumerate}
+    \item Utente reale ha IP \code{203.0.113.42}
+    \item Richiesta passa attraverso Nginx (IP interno: \code{10.0.0.1})
+    \item Express vede solo \code{10.0.0.1} (IP del proxy)
+    \item Rate limiting conta tutte le richieste come se venissero dallo stesso IP (proxy)
+    \item Rate limiting non funziona correttamente
+\end{enumerate}
+
+\textbf{Header X-Forwarded-For:}
+\begin{itemize}
+    \item Proxy aggiunge header \code{X-Forwarded-For: 203.0.113.42}
+    \item Express di default \important{non} legge questo header per sicurezza
+    \item Senza \code{trust proxy}, \code{req.ip} ignora \code{X-Forwarded-For}
+\end{itemize}
+
+\textbf{Soluzione: Trust Proxy}
+
+\begin{lstlisting}[caption=Configurazione Trust Proxy]
+// Trust proxy: fidati del primo hop del proxy
+// Questo rende req.ip automaticamente corretto e funziona meglio con rate limiting
+// Valore 1 = fidati del primo proxy (sicuro per la maggior parte dei casi)
+// In sviluppo, funziona anche con Vite proxy
+app.set('trust proxy', 1);
+\end{lstlisting}
+
+\textbf{Cosa fa \code{trust proxy: 1}:}
+\begin{itemize}
+    \item Express legge automaticamente \code{X-Forwarded-For}
+    \item \code{req.ip} diventa l'IP del client reale (non del proxy)
+    \item Rate limiting funziona correttamente per IP
+    \item \code{req.protocol} diventa corretto (http/https)
+    \item \code{req.hostname} diventa corretto
+\end{itemize}
+
+\textbf{Valori Possibili:}
+\begin{itemize}
+    \item \code{false}: Non fidarsi di nessun proxy (default, sicuro ma non funziona dietro proxy)
+    \item \code{true}: Fidarsi di tutti i proxy (pericoloso, accetta qualsiasi \code{X-Forwarded-For})
+    \item \code{1}: Fidarsi del primo proxy (sicuro per la maggior parte dei casi)
+    \item \code{'loopback'}: Fidarsi solo di proxy locali (sviluppo)
+    \item \code{['127.0.0.1', '10.0.0.1']}: Fidarsi solo di IP specifici (massima sicurezza)
+\end{itemize}
+
+\textbf{Perché 1 è Sicuro:}
+\begin{itemize}
+    \item Fidati solo del primo proxy (quello che controlli tu)
+    \item Ignora proxy intermedi (potenzialmente non fidati)
+    \item Previene header spoofing da proxy non autorizzati
+    \item Funziona con Nginx, AWS ELB, Cloudflare, Heroku
+\end{itemize}
+
+\textbf{Semplificazione getClientIpForRateLimit:}
+
+Con \code{trust proxy} configurato, la funzione \code{getClientIpForRateLimit} può essere semplificata:
+
+\begin{lstlisting}[caption=Funzione Semplificata con Trust Proxy]
+/**
+ * Estrae l'IP del client per rate limiting
+ * Con trust proxy configurato, req.ip è già corretto
+ */
+const getClientIpForRateLimit = (req) => {
+    // Con trust proxy configurato, req.ip è già corretto
+    // Express gestisce automaticamente X-Forwarded-For quando trust proxy è attivo
+    if (req.ip && req.ip !== '::ffff:127.0.0.1' && req.ip !== '127.0.0.1' && req.ip !== '::1') {
+        return req.ip;
+    }
+
+    // Fallback per casi edge (sviluppo locale senza proxy)
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    if (typeof xForwardedFor === 'string' && xForwardedFor.length > 0) {
+        return xForwardedFor.split(',')[0].trim();
+    }
+
+    return req.ip || req.socket?.remoteAddress || 'unknown';
+};
+\end{lstlisting}
+
+\textbf{Vantaggi:}
+\begin{itemize}
+    \item \textbf{Automatico}: Express gestisce \code{X-Forwarded-For} automaticamente
+    \item \textbf{Sicuro}: Solo primo proxy fidato, previene spoofing
+    \item \textbf{Compatibile}: Funziona con tutti i proxy comuni
+    \item \textbf{Semplice}: Meno codice custom, più affidabile
+\end{itemize}
+
+\subsection{Token Blacklist: Revoca Immediata}
+
+\important{Problema della Revoca Lenta}: Gli access token durano 15 minuti. Se un utente viene bannato (\code{isActive: false}) o fa logout, può ancora usare il token valido per altri 14 minuti perché \code{requireAuth} non controlla il DB (per performance).
+
+\textbf{Scenario Critico:}
+\begin{enumerate}
+    \item Utente viene licenziato o segnalato come hacker
+    \item Admin clicca "Blocca Utente" (imposta \code{isActive: false} nel DB)
+    \item Utente ha access token valido per altri 14 minuti
+    \item \code{requireAuth} verifica solo firma JWT (non controlla DB)
+    \item Utente continua a scaricare dati sensibili per 14 minuti
+\end{enumerate}
+
+\textbf{Trade-off Performance vs. Sicurezza:}
+\begin{itemize}
+    \item \textbf{Massima Performance (attuale)}: Accetta rischio di 15 minuti
+    \item \textbf{Massima Sicurezza (blindato)}: Controlla blacklist in Redis (veloce)
+\end{itemize}
+
+\textbf{Soluzione: Cache-aside Pattern con Redis}
+
+\begin{lstlisting}[caption=Blacklist Redis per Token Revocati]
+class AuthService {
+    /**
+     * Aggiungi token alla blacklist (revoca immediata)
+     * Usa Redis per performance (cache-aside pattern)
+     * TTL = durata access token (15 minuti) per pulizia automatica
+     */
+    async addToBlacklist(token, ttlSeconds = 15 * 60) {
+        if (!getRedisAvailable()) {
+            return; // Fallback graceful se Redis non disponibile
+        }
+
+        const redisClient = getRedisClient();
+        if (!redisClient) return;
+
+        // Hash del token come chiave (più sicuro che salvare token completo)
+        const tokenHash = crypto
+            .createHash('sha256')
+            .update(token)
+            .digest('hex');
+
+        // Salva in Redis con TTL (pulizia automatica dopo scadenza)
+        await redisClient.setEx(`blacklist:${tokenHash}`, ttlSeconds, '1');
+    }
+
+    /**
+     * Verifica se token è nella blacklist
+     */
+    async isTokenBlacklisted(token) {
+        if (!getRedisAvailable()) {
+            return false; // Fallback: assume token valido
+        }
+
+        const redisClient = getRedisClient();
+        if (!redisClient) return false;
+
+        const tokenHash = crypto
+            .createHash('sha256')
+            .update(token)
+            .digest('hex');
+
+        const result = await redisClient.get(`blacklist:${tokenHash}`);
+        return result === '1';
+    }
+
+    /**
+     * Aggiungi tutti i token di un utente alla blacklist (ban utente)
+     */
+    async blacklistUserTokens(userId) {
+        if (!getRedisAvailable()) return;
+
+        const redisClient = getRedisClient();
+        if (!redisClient) return;
+
+        // Aggiungi userId alla blacklist (controllo veloce in requireAuth)
+        await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
+    }
+
+    /**
+     * Verifica se utente è bannato (isActive: false)
+     * Cache-aside pattern: controlla Redis, se non trovato controlla DB
+     */
+    async isUserBlacklisted(userId) {
+        if (!getRedisAvailable()) {
+            // Fallback a DB se Redis non disponibile
+            const user = await User.findById(userId).select('isActive');
+            return user ? !user.isActive : false;
+        }
+
+        const redisClient = getRedisClient();
+        if (!redisClient) {
+            const user = await User.findById(userId).select('isActive');
+            return user ? !user.isActive : false;
+        }
+
+        // Controlla cache Redis (veloce)
+        const result = await redisClient.get(`blacklist:user:${userId}`);
+        if (result === '1') {
+            return true;
+        }
+
+        // Se non in cache, controlla DB e aggiorna cache
+        const user = await User.findById(userId).select('isActive');
+        const isBanned = user ? !user.isActive : false;
+
+        if (isBanned) {
+            // Aggiorna cache per prossime richieste
+            await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
+        }
+
+        return isBanned;
+    }
+}
+\end{lstlisting}
+
+\textbf{Middleware requireAuth Blindato:}
+
+\begin{lstlisting}[caption=requireAuth con Blacklist Check]
+const requireAuth = async (req, res, next) => {
+    try {
+        // 1. Estrai token dal cookie
+        const token = req.cookies?.[securityConfig.cookie.name];
+        if (!token) {
+            throw AppError.unauthorized('Accesso negato. Effettua il login.');
+        }
+
+        // 2. Verifica token (firma JWT)
+        const payload = authService.verifyToken(token, 'access');
+
+        // 3. Verifica blacklist: token revocato?
+        const isTokenBlacklisted = await authService.isTokenBlacklisted(token);
+        if (isTokenBlacklisted) {
+            throw AppError.unauthorized('Token revocato. Effettua il login.');
+        }
+
+        // 4. Verifica blacklist: utente bannato?
+        const isUserBlacklisted = await authService.isUserBlacklisted(payload.sub);
+        if (isUserBlacklisted) {
+            throw AppError.unauthorized('Account disattivato. Contatta il supporto.');
+        }
+
+        // 5. Aggiungi dati utente alla request
+        req.user = {
+            id: payload.sub,
+            email: payload.email,
+        };
+
+        next();
+    } catch (error) {
+        next(error);
+    }
+};
+\end{lstlisting}
+
+\textbf{Logout con Blacklist:}
+
+\begin{lstlisting}[caption=Logout con Revoca Immediata Token]
+async logout(userId, refreshToken = null, accessToken = null) {
+    const user = await User.findById(userId).select('+refreshTokens');
+    
+    if (!user) {
+        return;
+    }
+
+    // Aggiungi access token alla blacklist (revoca immediata)
+    if (accessToken) {
+        await this.addToBlacklist(accessToken);
+    }
+
+    if (refreshToken) {
+        // Invalida solo la sessione specifica
+        const tokenHash = crypto
+            .createHash('sha256')
+            .update(refreshToken)
+            .digest('hex');
+        await user.removeSessionByHash(tokenHash);
+    } else {
+        // Invalida tutte le sessioni (logout da tutti i dispositivi)
+        await user.removeAllSessions();
+        // Aggiungi utente alla blacklist per revocare tutti i token attivi
+        await this.blacklistUserTokens(userId);
+    }
+}
+\end{lstlisting}
+
+\textbf{Caratteristiche della Blacklist:}
+\begin{itemize}
+    \item \textbf{TTL Automatico}: Token scadono automaticamente dopo 15 minuti (durata access token)
+    \item \textbf{Hash-based}: Salva hash del token, non token completo (più sicuro)
+    \item \textbf{Cache-aside Pattern}: Controlla Redis, se non trovato controlla DB e aggiorna cache
+    \item \textbf{Fail-open}: Se Redis non disponibile, assume token valido (non blocca richieste)
+    \item \textbf{Performance}: Controllo Redis è O(1), molto veloce (< 1ms)
+\end{itemize}
+
+\textbf{Vantaggi:}
+\begin{itemize}
+    \item \textbf{Revoca Immediata}: Token revocati non funzionano più subito
+    \item \textbf{Performance}: Controllo Redis è veloce (non query DB pesante)
+    \item \textbf{Scalabilità}: Redis condiviso tra tutte le istanze
+    \item \textbf{Pulizia Automatica}: TTL rimuove token scaduti automaticamente
+    \item \textbf{Fail-open}: Se Redis down, sistema continua a funzionare (assume token validi)
+\end{itemize}
+
+\textbf{Trade-off:}
+\begin{itemize}
+    \item \textbf{Performance}: Aggiunge 1-2ms per richiesta (controllo Redis)
+    \item \textbf{Dipendenza Redis}: Richiede Redis per massima sicurezza (fallback a DB se non disponibile)
+    \item \textbf{Memoria Redis}: Ogni token revocato occupa ~50 bytes per 15 minuti
+\end{itemize}
+
+\textbf{Quando Usare Blacklist:}
+\begin{itemize}
+    \item \textbf{Logout}: Revoca immediata access token corrente
+    \item \textbf{Ban Utente}: Revoca tutti i token attivi dell'utente
+    \item \textbf{Cambio Password}: Revoca tutti i token (già implementato con refresh token)
+    \item \textbf{Sicurezza Critica}: Quando 15 minuti di accesso non autorizzato sono inaccettabili
 \end{itemize}
 
 \subsection{Protezione contro Attacchi Comuni}

@@ -15,7 +15,7 @@ const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const securityConfig = require('../config/security');
 const { MAX_ACTIVE_SESSIONS } = require('../config/security');
-const { MAX_ACTIVE_SESSIONS } = require('../config/security');
+const { getRedisClient, getRedisAvailable } = require('../config/redis');
 
 // Durata grace period per race condition (30 secondi)
 const GRACE_PERIOD_MS = 30 * 1000;
@@ -43,6 +43,145 @@ const getDeviceInfo = (req) => {
 };
 
 class AuthService {
+    // ==========================================
+    // TOKEN BLACKLIST (Redis)
+    // ==========================================
+
+    /**
+     * Aggiungi token alla blacklist (revoca immediata)
+     * Usa Redis per performance (cache-aside pattern)
+     * TTL = durata access token (15 minuti) per pulizia automatica
+     * 
+     * @param {string} token - Access token da revocare
+     * @param {number} ttlSeconds - TTL in secondi (default: 15 minuti)
+     * @returns {Promise<void>}
+     */
+    async addToBlacklist(token, ttlSeconds = 15 * 60) {
+        if (!getRedisAvailable()) {
+            // Se Redis non disponibile, salta blacklist (fallback graceful)
+            // In produzione, Redis dovrebbe essere sempre disponibile
+            return;
+        }
+
+        try {
+            const redisClient = getRedisClient();
+            if (!redisClient) return;
+
+            // Hash del token come chiave (più sicuro che salvare token completo)
+            const tokenHash = crypto
+                .createHash('sha256')
+                .update(token)
+                .digest('hex');
+
+            // Salva in Redis con TTL (pulizia automatica dopo scadenza)
+            await redisClient.setEx(`blacklist:${tokenHash}`, ttlSeconds, '1');
+        } catch (error) {
+            // Log errore ma non bloccare la richiesta (fail-open)
+            console.error('❌ Errore aggiunta token a blacklist:', error.message);
+        }
+    }
+
+    /**
+     * Verifica se token è nella blacklist
+     * 
+     * @param {string} token - Access token da verificare
+     * @returns {Promise<boolean>} - true se token è revocato
+     */
+    async isTokenBlacklisted(token) {
+        if (!getRedisAvailable()) {
+            // Se Redis non disponibile, assume token valido (fallback graceful)
+            return false;
+        }
+
+        try {
+            const redisClient = getRedisClient();
+            if (!redisClient) return false;
+
+            // Hash del token come chiave
+            const tokenHash = crypto
+                .createHash('sha256')
+                .update(token)
+                .digest('hex');
+
+            // Verifica se esiste in Redis
+            const result = await redisClient.get(`blacklist:${tokenHash}`);
+            return result === '1';
+        } catch (error) {
+            // Log errore ma assume token valido (fail-open)
+            console.error('❌ Errore verifica blacklist:', error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Aggiungi tutti i token di un utente alla blacklist (ban utente)
+     * Revoca immediata di tutti gli access token attivi
+     * 
+     * @param {string} userId - ID utente da bannare
+     * @returns {Promise<void>}
+     */
+    async blacklistUserTokens(userId) {
+        if (!getRedisAvailable()) {
+            return;
+        }
+
+        try {
+            const redisClient = getRedisClient();
+            if (!redisClient) return;
+
+            // Aggiungi userId alla blacklist (controllo veloce in requireAuth)
+            // TTL = durata massima access token (15 minuti)
+            await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
+        } catch (error) {
+            console.error('❌ Errore blacklist utente:', error.message);
+        }
+    }
+
+    /**
+     * Verifica se utente è bannato (isActive: false)
+     * 
+     * @param {string} userId - ID utente da verificare
+     * @returns {Promise<boolean>} - true se utente è bannato
+     */
+    async isUserBlacklisted(userId) {
+        if (!getRedisAvailable()) {
+            // Se Redis non disponibile, controlla DB (più lento ma sicuro)
+            const user = await User.findById(userId).select('isActive');
+            return user ? !user.isActive : false;
+        }
+
+        try {
+            const redisClient = getRedisClient();
+            if (!redisClient) {
+                // Fallback a DB se Redis non disponibile
+                const user = await User.findById(userId).select('isActive');
+                return user ? !user.isActive : false;
+            }
+
+            // Controlla cache Redis (veloce)
+            const result = await redisClient.get(`blacklist:user:${userId}`);
+            if (result === '1') {
+                return true;
+            }
+
+            // Se non in cache, controlla DB e aggiorna cache
+            const user = await User.findById(userId).select('isActive');
+            const isBanned = user ? !user.isActive : false;
+
+            if (isBanned) {
+                // Aggiorna cache per prossime richieste
+                await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
+            }
+
+            return isBanned;
+        } catch (error) {
+            // Fallback a DB in caso di errore Redis
+            console.error('❌ Errore verifica blacklist utente:', error.message);
+            const user = await User.findById(userId).select('isActive');
+            return user ? !user.isActive : false;
+        }
+    }
+
     // ==========================================
     // SESSION MANAGEMENT
     // ==========================================
@@ -554,11 +693,16 @@ class AuthService {
      * @param {string} refreshToken - Refresh token da invalidare (opzionale, se non fornito invalida tutti)
      * @returns {Promise<void>}
      */
-    async logout(userId, refreshToken = null) {
+    async logout(userId, refreshToken = null, accessToken = null) {
         const user = await User.findById(userId).select('+refreshTokens');
         
         if (!user) {
             return; // Utente non trovato, niente da fare
+        }
+
+        // Aggiungi access token alla blacklist (revoca immediata)
+        if (accessToken) {
+            await this.addToBlacklist(accessToken);
         }
 
         if (refreshToken) {
@@ -571,6 +715,8 @@ class AuthService {
         } else {
             // Invalida tutte le sessioni (logout da tutti i dispositivi)
             await user.removeAllSessions();
+            // Aggiungi utente alla blacklist per revocare tutti i token attivi
+            await this.blacklistUserTokens(userId);
         }
     }
 

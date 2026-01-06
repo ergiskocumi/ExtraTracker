@@ -17,22 +17,27 @@ const { RedisStore } = require('rate-limit-redis');
 const securityConfig = require('../config/security');
 const { getRedisAvailable, getRedisClient } = require('../config/redis');
 
+/**
+ * Estrae l'IP del client per rate limiting
+ * Con trust proxy configurato, req.ip è già corretto (gestisce automaticamente X-Forwarded-For)
+ * Questa funzione è mantenuta per compatibilità e come fallback
+ */
 const getClientIpForRateLimit = (req) => {
-    // In dev, when requests are proxied (e.g., Vite), the backend sees the proxy as localhost.
-    // Accept X-Forwarded-For only when the direct peer is loopback to avoid header spoofing.
-    const remoteAddress = req?.socket?.remoteAddress;
-    const isLoopback =
-        remoteAddress === '127.0.0.1' ||
-        remoteAddress === '::1' ||
-        remoteAddress === '::ffff:127.0.0.1';
+    // Con trust proxy configurato, req.ip è già corretto
+    // Express gestisce automaticamente X-Forwarded-For quando trust proxy è attivo
+    if (req.ip && req.ip !== '::ffff:127.0.0.1' && req.ip !== '127.0.0.1' && req.ip !== '::1') {
+        return req.ip;
+    }
 
+    // Fallback per casi edge (sviluppo locale senza proxy)
     const xForwardedFor = req.headers['x-forwarded-for'];
-    if (isLoopback && typeof xForwardedFor === 'string' && xForwardedFor.length > 0) {
-        // XFF can be a list: client, proxy1, proxy2...
+    if (typeof xForwardedFor === 'string' && xForwardedFor.length > 0) {
+        // XFF può essere una lista: client, proxy1, proxy2...
         return xForwardedFor.split(',')[0].trim();
     }
 
-    return req.ip;
+    // Ultimo fallback
+    return req.ip || req.socket?.remoteAddress || 'unknown';
 };
 
 /**

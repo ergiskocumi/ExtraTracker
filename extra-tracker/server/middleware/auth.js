@@ -12,6 +12,7 @@ const securityConfig = require('../config/security');
 /**
  * Middleware che richiede autenticazione
  * Legge il token dal cookie HttpOnly
+ * Verifica blacklist per revoca immediata (ban utente, logout)
  */
 const requireAuth = async (req, res, next) => {
     try {
@@ -22,10 +23,22 @@ const requireAuth = async (req, res, next) => {
             throw AppError.unauthorized('Accesso negato. Effettua il login.');
         }
 
-        // 2. Verifica token
+        // 2. Verifica token (firma JWT)
         const payload = authService.verifyToken(token, 'access');
 
-        // 3. Aggiungi dati utente alla request
+        // 3. Verifica blacklist: token revocato?
+        const isTokenBlacklisted = await authService.isTokenBlacklisted(token);
+        if (isTokenBlacklisted) {
+            throw AppError.unauthorized('Token revocato. Effettua il login.');
+        }
+
+        // 4. Verifica blacklist: utente bannato?
+        const isUserBlacklisted = await authService.isUserBlacklisted(payload.sub);
+        if (isUserBlacklisted) {
+            throw AppError.unauthorized('Account disattivato. Contatta il supporto.');
+        }
+
+        // 5. Aggiungi dati utente alla request
         req.user = {
             id: payload.sub,
             email: payload.email,

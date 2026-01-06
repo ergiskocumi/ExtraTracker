@@ -49,10 +49,11 @@ app.use(helmet(securityConfig.helmet));
 // HPP: previene HTTP Parameter Pollution
 app.use(hpp());
 
-// Trust proxy (se dietro nginx/cloudflare)
-if (isProduction) {
-    app.set('trust proxy', 1);
-}
+// Trust proxy: fidati del primo hop del proxy (Nginx, AWS ELB, Cloudflare, Heroku, etc.)
+// Questo rende req.ip automaticamente corretto e funziona meglio con rate limiting
+// Valore 1 = fidati del primo proxy (sicuro per la maggior parte dei casi)
+// In sviluppo, funziona anche con Vite proxy
+app.set('trust proxy', 1);
 
 // ==========================================
 // 2. CORS CONFIGURATION
