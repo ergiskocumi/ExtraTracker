@@ -9,6 +9,55 @@
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+/**
+ * Determina se frontend e backend sono sullo stesso dominio
+ * Se FRONTEND_URL e BACKEND_URL hanno lo stesso dominio, possiamo usare SameSite: 'lax' o 'strict'
+ * Altrimenti dobbiamo usare SameSite: 'none' (richiede HTTPS)
+ */
+const isSameOrigin = () => {
+    const frontendUrl = process.env.FRONTEND_URL || '';
+    const backendUrl = process.env.BACKEND_URL || '';
+    
+    if (!frontendUrl || !backendUrl) {
+        // Se non configurato, assume cross-origin (usa 'none')
+        return false;
+    }
+    
+    try {
+        const frontendDomain = new URL(frontendUrl).hostname;
+        const backendDomain = new URL(backendUrl).hostname;
+        
+        // Stesso dominio (es: app.example.com e api.example.com sono considerati cross-site)
+        // Ma se usi reverse proxy (es: example.com/app e example.com/api), sono same-site
+        // Per semplicità, consideriamo same-origin solo se dominio esatto identico
+        // In produzione, usa reverse proxy per far sembrare tutto stesso dominio
+        return frontendDomain === backendDomain;
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Determina SameSite policy ottimale
+ * - 'strict': Massima sicurezza, cookie solo same-site (stesso dominio)
+ * - 'lax': Cookie inviato per navigazione top-level (default moderno, buon compromesso)
+ * - 'none': Cookie sempre inviato (richiede Secure: true, solo se cross-origin necessario)
+ */
+const getSameSitePolicy = () => {
+    // In sviluppo: usa 'lax' perché Vite proxy fa sembrare tutto same-origin
+    if (!isProduction) {
+        return 'lax';
+    }
+    
+    // In produzione: se stesso dominio, usa 'lax' (più sicuro di 'none')
+    if (isSameOrigin()) {
+        return 'lax'; // o 'strict' se vuoi massima sicurezza
+    }
+    
+    // Cross-origin in produzione: devi usare 'none' (richiede HTTPS)
+    return 'none';
+};
+
 module.exports = {
     // ==========================================
     // JWT Configuration
@@ -49,30 +98,38 @@ module.exports = {
     },
 
     // ==========================================
-// Cookie Configuration  
-// ==========================================
-cookie: {
-    name: 'accessToken',
-    refreshName: 'refreshToken',
-    
-    options: {
-        httpOnly: true,
-        secure: isProduction,
-        // CAMBIATO: 'none' per cross-origin
-        sameSite: isProduction ? 'none' : 'lax',
-        path: '/',
-        maxAge: 15 * 60 * 1000,
+    // Cookie Configuration
+    // ==========================================
+    cookie: {
+        name: 'accessToken',
+        refreshName: 'refreshToken',
+        
+        // Determina SameSite policy ottimale
+        sameSitePolicy: getSameSitePolicy(),
+        
+        // Secure: true è richiesto se SameSite: 'none'
+        // In produzione sempre true (HTTPS), in sviluppo false (HTTP locale)
+        // NOTA: Se SameSite: 'none', Secure DEVE essere true
+        requiresSecure: getSameSitePolicy() === 'none',
+        
+        options: {
+            httpOnly: true,
+            // Secure: true se produzione O se SameSite: 'none' (richiesto)
+            secure: isProduction || getSameSitePolicy() === 'none',
+            sameSite: getSameSitePolicy(),
+            path: '/',
+            maxAge: 15 * 60 * 1000, // 15 minuti
+        },
+        
+        refreshOptions: {
+            httpOnly: true,
+            // Secure: true se produzione O se SameSite: 'none' (richiesto)
+            secure: isProduction || getSameSitePolicy() === 'none',
+            sameSite: getSameSitePolicy(),
+            path: '/api/auth/refresh',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 giorni
+        },
     },
-    
-    refreshOptions: {
-        httpOnly: true,
-        secure: isProduction,
-        // CAMBIATO: 'none' per cross-origin
-        sameSite: isProduction ? 'none' : 'lax',
-        path: '/api/auth/refresh',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-    },
-},
 
     // ==========================================
     // Rate Limiting Configuration

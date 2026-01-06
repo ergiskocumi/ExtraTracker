@@ -1610,36 +1610,127 @@ jwt: {
     \item \textbf{Refresh token lungo}: Bilanciamento sicurezza/UX
 \end{itemize}
 
-\subsubsection{Cookie Configuration}
+\subsubsection{Cookie Configuration: Il Dilemma SameSite}
 
-\begin{lstlisting}[caption=Configurazione Cookie]
+\important{Problema dei Cookie Cross-Origin}: La gestione dei cookie con \code{SameSite} è una delle parti più complesse dell'autenticazione moderna.
+
+\textbf{Regole SameSite:}
+\begin{itemize}
+    \item \textbf{'strict'}: Cookie inviato solo per richieste same-site (stesso dominio esatto)
+    \item \textbf{'lax'}: Cookie inviato per navigazione top-level (default moderno, buon compromesso)
+    \item \textbf{'none'}: Cookie sempre inviato, anche cross-origin (richiede \code{Secure: true})
+\end{itemize}
+
+\textbf{Problema Critico:}
+\begin{itemize}
+    \item \code{SameSite: 'none'} \important{richiede obbligatoriamente} \code{Secure: true} (HTTPS)
+    \item In locale (localhost) spesso si lavora in HTTP
+    \item Safari/Mobile su rete locale (IP 192.168.x.x) non è localhost → \code{SameSite: 'none'} senza HTTPS fallisce silenziosamente
+    \item Il cookie non viene settato e l'autenticazione fallisce senza errori chiari
+\end{itemize}
+
+\textbf{Soluzione Implementata:}
+
+\begin{lstlisting}[caption=Configurazione Cookie Intelligente]
+/**
+ * Determina SameSite policy ottimale
+ */
+const getSameSitePolicy = () => {
+    // In sviluppo: usa 'lax' perché Vite proxy fa sembrare tutto same-origin
+    if (!isProduction) {
+        return 'lax';
+    }
+    
+    // In produzione: se stesso dominio, usa 'lax' (più sicuro)
+    if (isSameOrigin()) {
+        return 'lax';
+    }
+    
+    // Cross-origin in produzione: devi usare 'none' (richiede HTTPS)
+    return 'none';
+};
+
 cookie: {
     name: 'accessToken',
     refreshName: 'refreshToken',
     
     options: {
-        httpOnly: true,              // Non accessibile da JS
-        secure: isProduction,        // Solo HTTPS in produzione
-        sameSite: isProduction ? 'none' : 'lax',  // Cross-origin support
+        httpOnly: true,
+        // Secure: true se produzione O se SameSite: 'none' (richiesto)
+        secure: isProduction || getSameSitePolicy() === 'none',
+        sameSite: getSameSitePolicy(), // 'lax' in dev, 'lax' o 'none' in prod
         path: '/',
-        maxAge: 15 * 60 * 1000,      // 15 minuti
+        maxAge: 15 * 60 * 1000,
     },
     
     refreshOptions: {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
-        path: '/api/auth/refresh',   // Path specifico
-        maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 giorni
+        secure: isProduction || getSameSitePolicy() === 'none',
+        sameSite: getSameSitePolicy(),
+        path: '/api/auth/refresh',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
     },
 }
 \end{lstlisting}
 
-\textbf{Scelte:}
+\textbf{Strategia per Ambiente:}
+
+\begin{enumerate}
+    \item \textbf{Sviluppo Locale}:
+        \begin{itemize}
+            \item Vite proxy: \code{/api} → \code{http://localhost:3001}
+            \item Per il browser, tutto avviene su \code{localhost:5173} (same-origin)
+            \item \code{SameSite: 'lax'}, \code{Secure: false} (HTTP locale)
+            \item Funziona perfettamente senza problemi
+        \end{itemize}
+    
+    \item \textbf{Produzione Same-Origin}:
+        \begin{itemize}
+            \item Frontend e backend sullo stesso dominio (es: reverse proxy Nginx)
+            \item \code{example.com/app} e \code{example.com/api} → stesso dominio
+            \item \code{SameSite: 'lax'} o \code{'strict'} (più sicuro contro CSRF)
+            \item \code{Secure: true} (HTTPS in produzione)
+        \end{itemize}
+    
+    \item \textbf{Produzione Cross-Origin}:
+        \begin{itemize}
+            \item Frontend e backend su domini diversi (es: \code{app.example.com} e \code{api.example.com})
+            \item \code{SameSite: 'none'} (necessario per cross-origin)
+            \item \code{Secure: true} (obbligatorio con 'none')
+            \item Richiede HTTPS in produzione
+        \end{itemize}
+\end{enumerate}
+
+\textbf{Best Practice: Evitare SameSite: 'none'}
+
+\important{Consiglio}: Architettare l'infrastruttura per evitare \code{SameSite: 'none'} quando possibile usando reverse proxy Nginx per servire tutto dallo stesso dominio.
+
+\textbf{Configurazione Vite Proxy (Sviluppo):}
+
+\begin{lstlisting}[caption=Vite Proxy Configuration]
+// vite.config.ts
+export default defineConfig({
+  server: {
+    host: true,
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        xfwd: true,
+      },
+    },
+  }
+})
+\end{lstlisting}
+
+\textbf{Perché il Proxy Risolve il Problema:}
 \begin{itemize}
-    \item \textbf{Path specifico refresh}: Limita scope del cookie refresh token
-    \item \textbf{SameSite: 'none'}: Necessario per cross-origin, richiede HTTPS
-    \item \textbf{Secure in produzione}: Cookie inviati solo su HTTPS
+    \item Frontend fa richieste a \code{localhost:5173/api/auth/login}
+    \item Vite proxy inoltra a \code{localhost:3001/api/auth/login}
+    \item Per il browser, tutto avviene su \code{localhost:5173} (same-origin)
+    \item Cookie con \code{SameSite: 'lax'} funzionano perfettamente
+    \item Nessun problema con Safari/Mobile su rete locale
 \end{itemize}
 
 \subsubsection{CORS Configuration}
