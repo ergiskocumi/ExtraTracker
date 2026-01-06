@@ -436,12 +436,12 @@ const getDeviceInfo = (req) => {
 
 \subsubsection{Refresh Token con Validazione Hash}
 
-\begin{lstlisting}[caption=Refresh Token con Validazione Multi-Sessione]
+\begin{lstlisting}[caption=Refresh Token con Validazione Multi-Sessione e Grace Period]
 async refreshAccessToken(refreshToken, deviceInfo = {}) {
     // 1. Verifica firma JWT
     const payload = this.verifyToken(refreshToken, 'refresh');
 
-    // 2. Trova utente con array refreshTokens
+    // 2. Trova utente con array refreshTokens e gracePeriodTokens
     const user = await User.findByRefreshToken(payload.sub);
     if (!user) {
         throw AppError.unauthorized('Sessione non valida');
@@ -453,20 +453,43 @@ async refreshAccessToken(refreshToken, deviceInfo = {}) {
         .update(refreshToken)
         .digest('hex');
 
-    // 4. Trova sessione specifica nell'array
+    // 4. Pulisci token scaduti dal grace period
+    user.cleanExpiredGracePeriodTokens();
+
+    // 5. Trova sessione specifica nell'array
     const session = user.findSessionByHash(tokenHash);
     
+    // 6. Se non trovato nelle sessioni attive, controlla grace period
     if (!session) {
-        // Token non trovato: possibile furto o token già invalidato
-        // Invalida tutte le sessioni per sicurezza
+        const graceToken = user.findInGracePeriod(tokenHash);
+        
+        if (graceToken) {
+            // Token nel grace period: è una race condition legittima
+            // Genera nuovi token senza invalidare nulla
+            const newAccessToken = this.generateAccessToken(user);
+            const { token: newRefreshToken } = 
+                await this.generateRefreshToken(user, deviceInfo);
+            
+            // Rimuovi dal grace period (già usato)
+            await user.removeFromGracePeriod(tokenHash);
+            
+            return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
+        }
+        
+        // Token non trovato né in sessioni attive né in grace period
+        // Possibile furto o token già invalidato
         await user.removeAllSessions();
+        if (user.gracePeriodTokens) {
+            user.gracePeriodTokens = [];
+            await user.save();
+        }
         throw AppError.unauthorized('Sessione non valida o scaduta');
     }
 
-    // 5. Aggiorna lastUsedAt per questa sessione
+    // 7. Aggiorna lastUsedAt per questa sessione
     session.lastUsedAt = new Date();
 
-    // 6. Genera nuovi token (rotation) - mantieni stesso device info
+    // 8. Genera nuovi token (rotation) - mantieni stesso device info
     const newAccessToken = this.generateAccessToken(user);
     const { token: newRefreshToken, sessionData: newSessionData } = 
         await this.generateRefreshToken(user, {
@@ -475,7 +498,11 @@ async refreshAccessToken(refreshToken, deviceInfo = {}) {
             ip: deviceInfo.ip || session.ip,
         });
 
-    // 7. Rimuovi vecchia sessione e aggiungi nuova (rotation)
+    // 9. IMPORTANTE: Aggiungi vecchio token al grace period PRIMA di rimuoverlo
+    // Questo previene race conditions se arrivano richieste concorrenti
+    await user.addToGracePeriod(tokenHash, GRACE_PERIOD_MS);
+
+    // 10. Rimuovi vecchia sessione e aggiungi nuova (rotation)
     user.refreshTokens = user.refreshTokens.filter(
         s => s.hash !== tokenHash
     );
@@ -486,20 +513,124 @@ async refreshAccessToken(refreshToken, deviceInfo = {}) {
 }
 \end{lstlisting}
 
-\textbf{Meccanismo di sicurezza con multi-sessione:}
+\textbf{Meccanismo di sicurezza con multi-sessione e grace period:}
 \begin{enumerate}
     \item Verifica firma JWT (garantisce autenticità)
     \item Cerca sessione specifica nell'array \code{refreshTokens}
-    \item Se sessione non trovata: possibile furto, invalida tutte le sessioni
+    \item Se non trovata, controlla \code{gracePeriodTokens} (gestione race conditions)
+    \item Se nel grace period: genera nuovi token senza invalidare (race condition legittima)
+    \item Se non trovata da nessuna parte: possibile furto, invalida tutte le sessioni
     \item Aggiorna \code{lastUsedAt} per tracciare attività
     \item Genera nuovi token (rotation) mantenendo device info originale
+    \item \important{Aggiunge vecchio token al grace period} prima di rimuoverlo
     \item Rimuove vecchia sessione e aggiunge nuova (rotation per singola sessione)
+\end{enumerate}
+
+\subsubsection{Grace Period: Protezione contro Race Conditions}
+
+\important{Problema delle Race Conditions}: Quando due richieste di refresh arrivano quasi simultaneamente con lo stesso token, la seconda viene interpretata come riutilizzo del token (furto) e invalida tutte le sessioni.
+
+\textbf{Scenario Problematico:}
+\begin{enumerate}
+    \item Richiesta A arriva al server con token T1
+    \item Server valida T1, genera T2, rimuove T1 dal DB
+    \item Richiesta B arriva con T1 (cookie non ancora aggiornato)
+    \item Server non trova T1 nel DB → pensa: "Furto!" → invalida tutto
+\end{enumerate}
+
+\textbf{Soluzione: Grace Period}
+
+Il sistema implementa un \tech{periodo di grazia} di 30 secondi durante il quale i token vecchi rimangono validi anche dopo la rotazione.
+
+\begin{lstlisting}[caption=Schema Grace Period nel Modello User]
+gracePeriodTokens: [{
+    hash: {
+        type: String,
+        required: true,
+    },
+    expiresAt: {
+        type: Date,
+        required: true,
+    },
+}]
+\end{lstlisting}
+
+\textbf{Metodi per Gestione Grace Period:}
+
+\begin{lstlisting}[caption=Metodi Grace Period]
+/**
+ * Trova token nel grace period (per gestire race conditions)
+ */
+userSchema.methods.findInGracePeriod = function (tokenHash) {
+    if (!this.gracePeriodTokens || this.gracePeriodTokens.length === 0) {
+        return null;
+    }
+    // Cerca token e verifica che non sia scaduto
+    const graceToken = this.gracePeriodTokens.find(
+        gt => gt.hash === tokenHash && gt.expiresAt > new Date()
+    );
+    return graceToken || null;
+};
+
+/**
+ * Aggiungi token al grace period (durata default 30 secondi)
+ */
+userSchema.methods.addToGracePeriod = async function (tokenHash, gracePeriodMs = 30000) {
+    if (!this.gracePeriodTokens) {
+        this.gracePeriodTokens = [];
+    }
+    
+    // Rimuovi eventuali token scaduti prima di aggiungere
+    this.cleanExpiredGracePeriodTokens();
+    
+    // Aggiungi nuovo token al grace period
+    this.gracePeriodTokens.push({
+        hash: tokenHash,
+        expiresAt: new Date(Date.now() + gracePeriodMs),
+    });
+    
+    return this.save();
+};
+
+/**
+ * Pulisci token scaduti dal grace period
+ */
+userSchema.methods.cleanExpiredGracePeriodTokens = function () {
+    if (!this.gracePeriodTokens) {
+        return;
+    }
+    
+    const now = new Date();
+    this.gracePeriodTokens = this.gracePeriodTokens.filter(
+        gt => gt.expiresAt > now
+    );
+};
+\end{lstlisting}
+
+\textbf{Vantaggi del Grace Period:}
+\begin{itemize}
+    \item \textbf{Previene falsi positivi}: Race conditions legittime non scatenano allarmi di sicurezza
+    \item \textbf{Mantiene sicurezza}: Token scaduti vengono rimossi automaticamente dopo 30 secondi
+    \item \textbf{Resilienza}: Gestisce richieste concorrenti da tab multiple o reti lente
+    \item \textbf{Performance}: Pulizia automatica dei token scaduti ad ogni verifica
+\end{itemize}
+
+\textbf{Flusso con Grace Period:}
+\begin{enumerate}
+    \item Richiesta A: trova T1 in \code{refreshTokens}, genera T2
+    \item Richiesta A: aggiunge T1 a \code{gracePeriodTokens} (30s)
+    \item Richiesta A: rimuove T1 da \code{refreshTokens}, aggiunge T2
+    \item Richiesta B: non trova T1 in \code{refreshTokens}
+    \item Richiesta B: trova T1 in \code{gracePeriodTokens} → \important{legittimo!}
+    \item Richiesta B: genera T3, rimuove T1 dal grace period
+    \item Dopo 30s: T1 scade automaticamente dal grace period
 \end{enumerate}
 
 \textbf{Differenze chiave rispetto al sistema mono-sessione:}
 \begin{itemize}
     \item \textbf{Ricerca nell'array}: Cerca la sessione specifica invece di confrontare un singolo hash
     \item \textbf{Rotazione per sessione}: Ogni dispositivo ha la propria rotazione indipendente
+    \item \textbf{Grace period}: Previene race conditions durante rotazione token
     \item \textbf{Device info persistente}: Mantiene informazioni dispositivo originali
     \item \textbf{Tracking attività}: \code{lastUsedAt} permette identificare sessioni inattive
 \end{itemize}
@@ -828,7 +959,20 @@ const userSchema = new mongoose.Schema({
             default: Date.now,
         },
     }],
-    
+
+    // Grace period tokens: token vecchi ancora validi per breve periodo
+    // Previene race conditions durante refresh token rotation
+    gracePeriodTokens: [{
+        hash: {
+            type: String,
+            required: true,
+        },
+        expiresAt: {
+            type: Date,
+            required: true,
+        },
+    }],
+
     failedLoginAttempts: {
         type: Number,
         default: 0,
@@ -848,6 +992,7 @@ const userSchema = new mongoose.Schema({
             // Rimuovi campi sensibili quando converti in JSON
             delete ret.password;
             delete ret.refreshTokens;  // Array di sessioni sensibile
+            delete ret.gracePeriodTokens;  // Grace period tokens sensibili
             delete ret.failedLoginAttempts;
             delete ret.lockUntil;
             return ret;

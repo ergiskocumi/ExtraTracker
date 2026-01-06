@@ -15,6 +15,9 @@ const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const securityConfig = require('../config/security');
 
+// Durata grace period per race condition (30 secondi)
+const GRACE_PERIOD_MS = 30 * 1000;
+
 /**
  * Utility per estrarre informazioni dispositivo da request
  * @param {object} req - Express request object
@@ -282,6 +285,7 @@ class AuthService {
 
     /**
      * Refresh access token usando refresh token
+     * Implementa grace period per gestire race conditions
      * 
      * @param {string} refreshToken - Refresh token attuale
      * @param {object} deviceInfo - { device, userAgent, ip } (opzionale)
@@ -291,7 +295,7 @@ class AuthService {
         // Verifica refresh token
         const payload = this.verifyToken(refreshToken, 'refresh');
 
-        // Trova utente con array refreshTokens
+        // Trova utente con array refreshTokens e gracePeriodTokens
         const user = await User.findByRefreshToken(payload.sub);
         if (!user) {
             throw AppError.unauthorized('Sessione non valida');
@@ -303,13 +307,36 @@ class AuthService {
             .update(refreshToken)
             .digest('hex');
 
+        // Pulisci token scaduti dal grace period
+        user.cleanExpiredGracePeriodTokens();
+
         // Trova sessione specifica nell'array
         const session = user.findSessionByHash(tokenHash);
         
+        // Se non trovato nelle sessioni attive, controlla grace period
         if (!session) {
-            // Token non trovato: possibile furto o token già invalidato
+            const graceToken = user.findInGracePeriod(tokenHash);
+            
+            if (graceToken) {
+                // Token nel grace period: è una race condition legittima
+                // Genera nuovi token senza invalidare nulla
+                const newAccessToken = this.generateAccessToken(user);
+                const { token: newRefreshToken } = await this.generateRefreshToken(user, deviceInfo);
+                
+                // Rimuovi dal grace period (già usato)
+                await user.removeFromGracePeriod(tokenHash);
+                
+                return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
+            }
+            
+            // Token non trovato né in sessioni attive né in grace period
+            // Possibile furto o token già invalidato
             // Invalida tutte le sessioni per sicurezza
             await user.removeAllSessions();
+            if (user.gracePeriodTokens) {
+                user.gracePeriodTokens = [];
+                await user.save();
+            }
             throw AppError.unauthorized('Sessione non valida o scaduta');
         }
 
@@ -324,6 +351,10 @@ class AuthService {
                 userAgent: deviceInfo.userAgent || session.userAgent,
                 ip: deviceInfo.ip || session.ip,
             });
+
+        // IMPORTANTE: Aggiungi vecchio token al grace period PRIMA di rimuoverlo
+        // Questo previene race conditions se arrivano richieste concorrenti
+        await user.addToGracePeriod(tokenHash, GRACE_PERIOD_MS);
 
         // Rimuovi vecchia sessione e aggiungi nuova (rotation)
         user.refreshTokens = user.refreshTokens.filter(

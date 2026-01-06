@@ -281,6 +281,20 @@ const userSchema = new mongoose.Schema(
             },
         }],
 
+        // Grace period tokens: token vecchi ancora validi per breve periodo
+        // Previene race conditions durante refresh token rotation
+        // Formato: [{ hash: String, expiresAt: Date }]
+        gracePeriodTokens: [{
+            hash: {
+                type: String,
+                required: true,
+            },
+            expiresAt: {
+                type: Date,
+                required: true,
+            },
+        }],
+
         // Stato account
         isActive: {
             type: Boolean,
@@ -359,7 +373,8 @@ const userSchema = new mongoose.Schema(
             // Rimuovi campi sensibili quando converti in JSON
             transform: (doc, ret) => {
                 delete ret.password;
-                delete ret.refreshTokens;
+                delete ret.refreshTokens;  // Array di sessioni sensibile
+                delete ret.gracePeriodTokens;  // Grace period tokens sensibili
                 delete ret.__v;
                 delete ret.failedLoginAttempts;
                 delete ret.lockUntil;
@@ -439,11 +454,74 @@ userSchema.statics.findForLogin = function (email) {
 };
 
 /**
- * Trova utente per refresh token (include array refreshTokens)
+ * Trova utente per refresh token (include array refreshTokens e gracePeriodTokens)
  */
 userSchema.statics.findByRefreshToken = function (userId) {
     return this.findOne({ _id: userId, isActive: true })
-        .select('+refreshTokens');
+        .select('+refreshTokens +gracePeriodTokens');
+};
+
+/**
+ * Trova token nel grace period (per gestire race conditions)
+ */
+userSchema.methods.findInGracePeriod = function (tokenHash) {
+    if (!this.gracePeriodTokens || this.gracePeriodTokens.length === 0) {
+        return null;
+    }
+    // Cerca token e verifica che non sia scaduto
+    const graceToken = this.gracePeriodTokens.find(
+        gt => gt.hash === tokenHash && gt.expiresAt > new Date()
+    );
+    return graceToken || null;
+};
+
+/**
+ * Aggiungi token al grace period (durata in millisecondi, default 30 secondi)
+ */
+userSchema.methods.addToGracePeriod = async function (tokenHash, gracePeriodMs = 30000) {
+    if (!this.gracePeriodTokens) {
+        this.gracePeriodTokens = [];
+    }
+    
+    // Rimuovi eventuali token scaduti prima di aggiungere
+    this.cleanExpiredGracePeriodTokens();
+    
+    // Aggiungi nuovo token al grace period
+    this.gracePeriodTokens.push({
+        hash: tokenHash,
+        expiresAt: new Date(Date.now() + gracePeriodMs),
+    });
+    
+    return this.save();
+};
+
+/**
+ * Rimuovi token dal grace period
+ */
+userSchema.methods.removeFromGracePeriod = async function (tokenHash) {
+    if (!this.gracePeriodTokens) {
+        return this;
+    }
+    
+    this.gracePeriodTokens = this.gracePeriodTokens.filter(
+        gt => gt.hash !== tokenHash
+    );
+    
+    return this.save();
+};
+
+/**
+ * Pulisci token scaduti dal grace period
+ */
+userSchema.methods.cleanExpiredGracePeriodTokens = function () {
+    if (!this.gracePeriodTokens) {
+        return;
+    }
+    
+    const now = new Date();
+    this.gracePeriodTokens = this.gracePeriodTokens.filter(
+        gt => gt.expiresAt > now
+    );
 };
 
 /**
