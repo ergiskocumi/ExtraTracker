@@ -18,6 +18,7 @@ const ACTIVITY_TYPES = [
     'GOAL_COMPLETED',
     'GOAL_ARCHIVED',
     'WORK_SESSION_LOGGED',
+    'WORK_NOTE_CREATED', // Note/journal senza orari
     'HABIT_CHECKIN',
     'HABIT_SKIPPED',
     'PROJECT_CREATED',

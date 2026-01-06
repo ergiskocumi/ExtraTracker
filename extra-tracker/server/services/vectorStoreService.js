@@ -18,13 +18,25 @@ let embedder = null;
 
 const ensureEnv = () => {
     if (!process.env.PINECONE_API_KEY) {
-        throw AppError.internal('PINECONE_API_KEY mancante. Configura le variabili ambiente.');
+        throw AppError.internal(
+            { message: 'PINECONE_API_KEY mancante. Configura le variabili ambiente.' },
+            null,
+            {}
+        );
     }
     if (!process.env.PINECONE_INDEX) {
-        throw AppError.internal('PINECONE_INDEX mancante. Configura le variabili ambiente.');
+        throw AppError.internal(
+            { message: 'PINECONE_INDEX mancante. Configura le variabili ambiente.' },
+            null,
+            {}
+        );
     }
     if (!process.env.OPENAI_API_KEY) {
-        throw AppError.internal('OPENAI_API_KEY mancante. Configura le variabili ambiente.');
+        throw AppError.internal(
+            { message: 'OPENAI_API_KEY mancante. Configura le variabili ambiente.' },
+            null,
+            {}
+        );
     }
 };
 

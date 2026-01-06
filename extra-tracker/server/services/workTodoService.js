@@ -102,7 +102,7 @@ class WorkTodoService extends BaseService {
         const todo = await this.findById(tenantScope, id, { throwIfNotFound: true });
         
         if (todo.status === 'completed') {
-            throw AppError.badRequest('Il TODO è già completato');
+            throw AppError.validation('Il TODO è già completato');
         }
         
         return this.update(tenantScope, id, {
@@ -118,7 +118,7 @@ class WorkTodoService extends BaseService {
         const todo = await this.findById(tenantScope, id, { throwIfNotFound: true });
         
         if (todo.status !== 'completed') {
-            throw AppError.badRequest('Il TODO non è completato');
+            throw AppError.validation('Il TODO non è completato');
         }
         
         return this.update(tenantScope, id, {

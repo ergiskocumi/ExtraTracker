@@ -244,22 +244,54 @@ const logError = (err, req) => {
  * e cosa urlare in cucina (console/terminal)
  */
 const errorHandler = (err, req, res, next) => {
+    // Se l'errore non è un'istanza di AppError, convertilo
+    if (!(err instanceof AppError)) {
+        // Se è un errore di validazione Mongoose, convertilo
+        if (err.name === 'ValidationError') {
+            err = handleValidationErrorDB(err);
+        } else if (err.name === 'CastError') {
+            err = handleCastErrorDB(err);
+        } else if (err.code === 11000) {
+            err = handleDuplicateFieldsDB(err);
+        } else {
+            // Crea un AppError generico
+            // Nota: AppError.internal ha firma (details, originalError, options)
+            err = AppError.internal(
+                { message: err.message || 'Errore interno del server' },
+                err,
+                {}
+            );
+        }
+    }
+
     // Imposta valori di default se mancanti
     err.statusCode = err.statusCode || 500;
     err.status = err.status || 'error';
 
-    // Aggiungi request ID all'errore se non presente
+    // Aggiungi request ID all'errore se non presente (solo se è AppError)
     const requestId = getRequestId(req);
-    if (!err.requestId) {
+    if (!err.requestId && typeof err.setRequestId === 'function') {
         err.setRequestId(requestId);
+    } else if (!err.requestId) {
+        err.requestId = requestId;
     }
 
-    // Aggiungi metadata dalla request
+    // Aggiungi metadata dalla request (solo se è AppError)
     if (req.user) {
-        err.addMetadata('userId', req.user.id);
+        if (typeof err.addMetadata === 'function') {
+            err.addMetadata('userId', req.user.id);
+        } else {
+            err.metadata = err.metadata || {};
+            err.metadata.userId = req.user.id;
+        }
     }
     if (req.ip) {
-        err.addMetadata('ip', req.ip);
+        if (typeof err.addMetadata === 'function') {
+            err.addMetadata('ip', req.ip);
+        } else {
+            err.metadata = err.metadata || {};
+            err.metadata.ip = req.ip;
+        }
     }
 
     // Log errore con context completo
@@ -267,15 +299,21 @@ const errorHandler = (err, req, res, next) => {
 
     if (isProduction) {
         // PRODUZIONE: Trasforma errori tecnici in messaggi umani
-        let error = { ...err };
-        error.message = err.message;
+        // Nota: err è già un AppError a questo punto (convertito sopra)
+        let error = err;
 
-        // Trasforma errori tecnici di Mongoose in messaggi umani
-        if (err.name === 'CastError') error = handleCastErrorDB(error);
-        if (err.code === 11000) error = handleDuplicateFieldsDB(error);
-        if (err.name === 'ValidationError') error = handleValidationErrorDB(error);
-        if (err.name === 'JsonWebTokenError') error = handleJWTError();
-        if (err.name === 'TokenExpiredError') error = handleJWTExpiredError();
+        // Trasforma errori tecnici di Mongoose in messaggi umani (se non già convertiti)
+        if (err.name === 'CastError' && !(err instanceof AppError)) {
+            error = handleCastErrorDB(err);
+        } else if (err.code === 11000 && !(err instanceof AppError)) {
+            error = handleDuplicateFieldsDB(err);
+        } else if (err.name === 'ValidationError' && !(err instanceof AppError)) {
+            error = handleValidationErrorDB(err);
+        } else if (err.name === 'JsonWebTokenError') {
+            error = handleJWTError();
+        } else if (err.name === 'TokenExpiredError') {
+            error = handleJWTExpiredError();
+        }
 
         // Gestisci errori di connessione MongoDB
         if (err.name === 'MongoServerError' || err.name === 'MongooseError') {

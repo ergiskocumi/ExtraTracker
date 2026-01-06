@@ -344,6 +344,7 @@ class WorkLogService extends BaseService {
             ? 'WORK_SESSION_LOGGED' 
             : 'WORK_NOTE_CREATED';
 
+        // Registra attività (non blocca la creazione se fallisce)
         try {
             await activityService.recordActivity(userId, activityType, {
                 entityId: created._id,
@@ -360,8 +361,11 @@ class WorkLogService extends BaseService {
                     hasTimeTracking: !!(created.startTime && created.endTime),
                 },
             });
-        } catch (err) {
-            console.error(`❌ Activity log error (${activityType}):`, err.message);
+        } catch (activityErr) {
+            // Log errore ma non bloccare la creazione del worklog
+            // L'activity tracking è opzionale e non deve impedire la creazione
+            console.error(`❌ Activity log error (${activityType}):`, activityErr.message);
+            // Non propagare l'errore - il worklog è stato creato con successo
         }
 
         return created;

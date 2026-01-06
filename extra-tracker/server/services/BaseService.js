@@ -193,7 +193,7 @@ class BaseService {
         // Validazione ObjectId: previene errori MongoDB e attacchi
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             if (throwIfNotFound) {
-                throw AppError.badRequest(
+                throw AppError.validation(
                     `ID non valido per ${this.options.entityName}`,
                     { code: 'INVALID_ID' }
                 );
