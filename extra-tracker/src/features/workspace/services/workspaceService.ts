@@ -23,6 +23,8 @@ import type {
 
 /**
  * Normalizza un progetto convertendo _id in id
+ * 
+ * Supporta sia Project (unificato) che WorkProject (legacy)
  */
 const normalizeProject = (raw: any): WorkProject => {
     const id = raw.id || raw._id;
@@ -35,20 +37,30 @@ const normalizeProject = (raw: any): WorkProject => {
         name: raw.name || '',
         description: raw.description,
         color: raw.color || '#6366f1',
-        icon: raw.icon || '✨',
+        icon: raw.icon || '📂',
         status: raw.status || 'active',
         createdAt: raw.createdAt || new Date().toISOString(),
         updatedAt: raw.updatedAt || new Date().toISOString(),
-        // Campi opzionali da aggregate
+        // Campi opzionali da aggregate (Workspace)
         entriesCount: raw.entriesCount || 0,
         lastEntryDate: raw.lastEntryDate || null,
         totalDuration: raw.totalDuration || 0,
         streak: raw.streak || 0,
+        // Campi Project unificato (se presenti)
+        code: raw.code,
+        type: raw.type || 'CLIENT',
+        rate: raw.rate,
+        budget: raw.budget,
     };
 };
 
 /**
- * Normalizza un'entry convertendo _id in id e project
+ * Normalizza un'entry - DEPRECATO
+ * 
+ * NOTA: Non più necessario perché il backend ritorna già WorkLog.
+ * Mantenuto per compatibilità temporanea durante la migrazione.
+ * 
+ * @deprecated I dati dal backend sono già nel formato corretto
  */
 const normalizeEntry = (raw: any): WorkEntry => {
     const id = raw.id || raw._id;
@@ -58,12 +70,13 @@ const normalizeEntry = (raw: any): WorkEntry => {
     
     // Normalizza il progetto se presente
     let project: string | WorkProject;
-    if (raw.project) {
-        if (typeof raw.project === 'string') {
-            project = raw.project;
+    if (raw.project || raw.projectId) {
+        const projectRef = raw.project || raw.projectId;
+        if (typeof projectRef === 'string') {
+            project = projectRef;
         } else {
             // Se è un oggetto, normalizzalo
-            project = normalizeProject(raw.project);
+            project = normalizeProject(projectRef);
         }
     } else {
         throw new Error('Entry senza progetto');
@@ -75,28 +88,40 @@ const normalizeEntry = (raw: any): WorkEntry => {
         date: raw.date || '',
         category: raw.category || 'freeform',
         title: raw.title || '',
-        content: raw.content,
+        content: raw.content || raw.description, // Supporta sia 'content' che 'description'
         templateData: raw.templateData || {},
         tags: Array.isArray(raw.tags) ? raw.tags : [],
-        duration: raw.duration || 0,
+        duration: raw.duration || raw.durationMinutes || 0,
         createdAt: raw.createdAt || new Date().toISOString(),
         updatedAt: raw.updatedAt || new Date().toISOString(),
     };
 };
 
 /**
- * WORK PROJECTS API
+ * WORK PROJECTS API (Unificato - Usa /api/projects)
+ * 
+ * NOTA: Ora usa l'endpoint unificato /api/projects invece di /api/workspace/projects
  */
 export const workspaceProjectsService = {
     /**
      * Lista tutti i progetti
+     * 
+     * Per Workspace, usa findWithEntryCount per ottenere statistiche
      */
     async getAll(includeStats = false): Promise<WorkProject[]> {
-        const response = await apiClient.get<any[]>(
-            `/workspace/projects${includeStats ? '?includeStats=true' : ''}`
-        );
-        const data = response.data || [];
-        return data.map(normalizeProject);
+        if (includeStats) {
+            // Usa endpoint workspace per statistiche
+            const response = await apiClient.get<any[]>(
+                `/workspace/projects?includeStats=true`
+            );
+            const data = response.data || [];
+            return data.map(normalizeProject);
+        } else {
+            // Usa endpoint unificato
+            const response = await apiClient.get<any[]>('/projects');
+            const data = response.data || [];
+            return data.map(normalizeProject);
+        }
     },
 
     /**
@@ -112,7 +137,7 @@ export const workspaceProjectsService = {
      * Dettaglio singolo progetto
      */
     async getById(id: string): Promise<WorkProject> {
-        const response = await apiClient.get<any>(`/workspace/projects/${id}`);
+        const response = await apiClient.get<any>(`/projects/${id}`);
         if (!response.data) {
             throw new Error('Progetto non trovato');
         }
@@ -121,9 +146,21 @@ export const workspaceProjectsService = {
 
     /**
      * Crea nuovo progetto
+     * 
+     * Supporta sia CLIENT che PERSONAL tramite campo 'type'
      */
-    async create(data: CreateWorkProjectDTO): Promise<WorkProject> {
-        const response = await apiClient.post<any>('/workspace/projects', data);
+    async create(data: CreateWorkProjectDTO & { type?: 'CLIENT' | 'PERSONAL'; code?: string; rate?: number }): Promise<WorkProject> {
+        // Usa endpoint workspace per creare (supporta code auto-generato)
+        const response = await apiClient.post<any>('/workspace/projects', {
+            name: data.name,
+            description: data.description,
+            color: data.color,
+            icon: data.icon,
+            status: data.status || 'active',
+            type: data.type || 'CLIENT',
+            rate: data.rate,
+            code: data.code, // Opzionale, verrà auto-generato se non fornito
+        });
         if (!response.data) {
             throw new Error('Errore nella creazione del progetto');
         }
@@ -134,7 +171,7 @@ export const workspaceProjectsService = {
      * Aggiorna progetto
      */
     async update(id: string, data: UpdateWorkProjectDTO): Promise<WorkProject> {
-        const response = await apiClient.put<any>(`/workspace/projects/${id}`, data);
+        const response = await apiClient.put<any>(`/projects/${id}`, data);
         if (!response.data) {
             throw new Error('Errore nell\'aggiornamento del progetto');
         }
@@ -145,77 +182,190 @@ export const workspaceProjectsService = {
      * Elimina progetto
      */
     async delete(id: string): Promise<void> {
-        await apiClient.delete(`/workspace/projects/${id}`);
+        await apiClient.delete(`/projects/${id}`);
     },
 };
 
 /**
- * WORK ENTRIES API
+ * Helper per normalizzare projectId da oggetto popolato o ID
+ */
+function normalizeProjectId(item: any): string | undefined {
+    if (item.projectId) {
+        if (typeof item.projectId === 'object') {
+            // È un oggetto popolato, estrai l'ID
+            return String(item.projectId._id || item.projectId.id || '');
+        } else {
+            // È già un ID
+            return String(item.projectId);
+        }
+    } else if (item.project) {
+        // Fallback a project (formato legacy)
+        if (typeof item.project === 'object') {
+            return String(item.project._id || item.project.id || '');
+        } else {
+            return String(item.project);
+        }
+    }
+    return undefined;
+}
+
+/**
+ * WORK ENTRIES API (Aggiornato per usare WorkLog unificato)
+ * 
+ * NOTA: Tutti gli endpoint ora usano /api/worklogs invece di /api/workspace/entries
  */
 export const workspaceEntriesService = {
     /**
-     * Lista tutte le entries
+     * Lista tutte le entries (ora usa WorkLog feed)
      */
     async getAll(filters?: {
-        project?: string;
-        category?: string;
+        projectId?: string;
         date?: string;
+        startDate?: string;
+        endDate?: string;
+        tags?: string | string[];
         limit?: number;
-    }): Promise<WorkEntry[]> {
+    }): Promise<any[]> {
         const params = new URLSearchParams();
-        if (filters?.project) params.append('project', filters.project);
-        if (filters?.category) params.append('category', filters.category);
+        if (filters?.projectId) params.append('projectId', filters.projectId);
         if (filters?.date) params.append('date', filters.date);
+        if (filters?.startDate) params.append('startDate', filters.startDate);
+        if (filters?.endDate) params.append('endDate', filters.endDate);
+        if (filters?.tags) {
+            const tagsStr = Array.isArray(filters.tags) 
+                ? filters.tags.join(',') 
+                : filters.tags;
+            params.append('tags', tagsStr);
+        }
         if (filters?.limit) params.append('limit', filters.limit.toString());
 
         const queryString = params.toString();
         const response = await apiClient.get<any[]>(
-            `/workspace/entries${queryString ? `?${queryString}` : ''}`
+            `/worklogs/feed${queryString ? `?${queryString}` : ''}`
         );
         const data = response.data || [];
-        return data.map(normalizeEntry);
+        // Normalizza i dati da WorkLog (il backend ritorna già nel formato corretto)
+        return data.map((item: any) => {
+            const id = item.id || item._id;
+            
+            return {
+                id: String(id),
+                projectId: normalizeProjectId(item),
+                date: item.date,
+                title: item.title,
+                description: item.description,
+                tags: Array.isArray(item.tags) ? item.tags : [],
+                mood: item.mood,
+                isBillable: item.isBillable !== false, // default true
+                startTime: item.startTime,
+                endTime: item.endTime,
+                durationMinutes: item.durationMinutes || 0,
+                createdAt: item.createdAt || new Date().toISOString(),
+                updatedAt: item.updatedAt || new Date().toISOString(),
+            };
+        });
     },
 
     /**
-     * Timeline raggruppata per data
+     * Timeline raggruppata per data (ora usa WorkLog feed)
      */
     async getTimeline(limit = 30): Promise<TimelineEntry[]> {
         const response = await apiClient.get<any[]>(
-            `/workspace/entries/timeline?limit=${limit}`
+            `/worklogs/feed?limit=${limit}`
         );
         const data = response.data || [];
-        // Normalizza le entries nella timeline
+        
+        // Raggruppa per data manualmente
+        const grouped = data.reduce((acc: any, log: any) => {
+            const date = log.date;
+            if (!acc[date]) {
+                acc[date] = {
+                    _id: date,
+                    logs: [],
+                    totalMinutes: 0,
+                };
+            }
+            // Normalizza log
+            const normalizedLog = {
+                id: String(log.id || log._id),
+                projectId: log.projectId || log.project,
+                date: log.date,
+                title: log.title,
+                description: log.description,
+                tags: Array.isArray(log.tags) ? log.tags : [],
+                mood: log.mood,
+                isBillable: log.isBillable !== false,
+                startTime: log.startTime,
+                endTime: log.endTime,
+                durationMinutes: log.durationMinutes || 0,
+                createdAt: log.createdAt || new Date().toISOString(),
+                updatedAt: log.updatedAt || new Date().toISOString(),
+            };
+            acc[date].logs.push(normalizedLog);
+            acc[date].totalMinutes += normalizedLog.durationMinutes;
+            return acc;
+        }, {});
+        
+        return Object.values(grouped).sort((a: any, b: any) => 
+            b._id.localeCompare(a._id)
+        ) as TimelineEntry[];
+    },
+
+    /**
+     * Entries per mese (ora usa WorkLog findByMonth)
+     */
+    async getByMonth(year: number, month: number): Promise<any[]> {
+        const response = await apiClient.get<any[]>(
+            `/worklogs/by-month/${year}/${month}`
+        );
+        const data = response.data || [];
         return data.map((item: any) => ({
-            date: item._id || item.date,
-            entries: Array.isArray(item.entries) ? item.entries.map(normalizeEntry) : [],
-            totalDuration: item.totalDuration || 0,
+            id: String(item.id || item._id),
+            projectId: normalizeProjectId(item),
+            date: item.date,
+            title: item.title,
+            description: item.description,
+            tags: Array.isArray(item.tags) ? item.tags : [],
+            mood: item.mood,
+            isBillable: item.isBillable !== false,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            durationMinutes: item.durationMinutes || 0,
+            createdAt: item.createdAt || new Date().toISOString(),
+            updatedAt: item.updatedAt || new Date().toISOString(),
         }));
     },
 
     /**
-     * Entries per mese
+     * Entries per progetto (ora usa WorkLog feed con filtro projectId)
      */
-    async getByMonth(year: number, month: number): Promise<WorkEntry[]> {
+    async getByProject(projectId: string): Promise<any[]> {
         const response = await apiClient.get<any[]>(
-            `/workspace/entries/by-month/${year}/${month}`
+            `/worklogs/feed?projectId=${projectId}`
         );
         const data = response.data || [];
-        return data.map(normalizeEntry);
-    },
-
-    /**
-     * Entries per progetto
-     */
-    async getByProject(projectId: string): Promise<WorkEntry[]> {
-        const response = await apiClient.get<any[]>(
-            `/workspace/entries/by-project/${projectId}`
-        );
-        const data = response.data || [];
-        return data.map(normalizeEntry);
+        return data.map((item: any) => ({
+            id: String(item.id || item._id),
+            projectId: normalizeProjectId(item),
+            date: item.date,
+            title: item.title,
+            description: item.description,
+            tags: Array.isArray(item.tags) ? item.tags : [],
+            mood: item.mood,
+            isBillable: item.isBillable !== false,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            durationMinutes: item.durationMinutes || 0,
+            createdAt: item.createdAt || new Date().toISOString(),
+            updatedAt: item.updatedAt || new Date().toISOString(),
+        }));
     },
 
     /**
      * Statistiche entries per progetto
+     * 
+     * NOTA: Endpoint rimosso dal backend. 
+     * Calcola statistiche lato client se necessario.
      */
     async getStats(): Promise<Array<{
         _id: string;
@@ -224,48 +374,122 @@ export const workspaceEntriesService = {
         lastEntryDate: string;
         project: WorkProject;
     }>> {
-        const response = await apiClient.get('/workspace/entries/stats');
-        return response.data || [];
+        // Endpoint rimosso - ritorna array vuoto o implementa logica lato client
+        console.warn('getStats() endpoint rimosso. Implementa logica lato client se necessario.');
+        return [];
     },
 
     /**
-     * Dettaglio singola entry
+     * Dettaglio singola entry (ora usa WorkLog)
      */
-    async getById(id: string): Promise<WorkEntry> {
-        const response = await apiClient.get<any>(`/workspace/entries/${id}`);
+    async getById(id: string): Promise<any> {
+        const response = await apiClient.get<any>(`/worklogs/${id}`);
         if (!response.data) {
             throw new Error('Entry non trovata');
         }
-        return normalizeEntry(response.data);
+        const item = response.data;
+        return {
+            id: String(item.id || item._id),
+            projectId: normalizeProjectId(item),
+            date: item.date,
+            title: item.title,
+            description: item.description,
+            tags: Array.isArray(item.tags) ? item.tags : [],
+            mood: item.mood,
+            isBillable: item.isBillable !== false,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            durationMinutes: item.durationMinutes || 0,
+            createdAt: item.createdAt || new Date().toISOString(),
+            updatedAt: item.updatedAt || new Date().toISOString(),
+        };
     },
 
     /**
-     * Crea nuova entry
+     * Crea nuova entry (Journal - senza orari)
+     * 
+     * NOTA: Ora usa POST /api/worklogs senza startTime/endTime
      */
-    async create(data: CreateWorkEntryDTO): Promise<WorkEntry> {
-        const response = await apiClient.post<any>('/workspace/entries', data);
+    async create(data: CreateWorkLogDTO | any): Promise<any> {
+        // Se è già CreateWorkLogDTO, usa direttamente
+        // Altrimenti converti da formato legacy
+        const workLogData: any = {
+            projectId: data.projectId || data.project,
+            date: data.date,
+            title: data.title,
+            description: data.description || data.content,
+            tags: data.tags || [],
+            mood: data.mood,
+            isBillable: data.isBillable !== false,
+            // Non includere startTime/endTime per creare una nota/journal
+        };
+        
+        const response = await apiClient.post<any>('/worklogs', workLogData);
         if (!response.data) {
             throw new Error('Errore nella creazione dell\'entry');
         }
-        return normalizeEntry(response.data);
+        const item = response.data;
+        return {
+            id: String(item.id || item._id),
+            projectId: normalizeProjectId(item),
+            date: item.date,
+            title: item.title,
+            description: item.description,
+            tags: Array.isArray(item.tags) ? item.tags : [],
+            mood: item.mood,
+            isBillable: item.isBillable !== false,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            durationMinutes: item.durationMinutes || 0,
+            createdAt: item.createdAt || new Date().toISOString(),
+            updatedAt: item.updatedAt || new Date().toISOString(),
+        };
     },
 
     /**
-     * Aggiorna entry
+     * Aggiorna entry (ora usa WorkLog)
      */
-    async update(id: string, data: UpdateWorkEntryDTO): Promise<WorkEntry> {
-        const response = await apiClient.put<any>(`/workspace/entries/${id}`, data);
+    async update(id: string, data: UpdateWorkLogDTO | any): Promise<any> {
+        // Converti a formato WorkLog
+        const workLogData: any = {};
+        if (data.projectId !== undefined) workLogData.projectId = data.projectId;
+        if (data.project !== undefined) workLogData.projectId = data.project; // Supporta formato legacy
+        if (data.date !== undefined) workLogData.date = data.date;
+        if (data.title !== undefined) workLogData.title = data.title;
+        if (data.description !== undefined) workLogData.description = data.description;
+        if (data.content !== undefined) workLogData.description = data.content; // Supporta formato legacy
+        if (data.tags !== undefined) workLogData.tags = data.tags;
+        if (data.mood !== undefined) workLogData.mood = data.mood;
+        if (data.isBillable !== undefined) workLogData.isBillable = data.isBillable;
+        // Non includere startTime/endTime per mantenere come nota/journal
+        
+        const response = await apiClient.put<any>(`/worklogs/${id}`, workLogData);
         if (!response.data) {
             throw new Error('Errore nell\'aggiornamento dell\'entry');
         }
-        return normalizeEntry(response.data);
+        const item = response.data;
+        return {
+            id: String(item.id || item._id),
+            projectId: normalizeProjectId(item),
+            date: item.date,
+            title: item.title,
+            description: item.description,
+            tags: Array.isArray(item.tags) ? item.tags : [],
+            mood: item.mood,
+            isBillable: item.isBillable !== false,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            durationMinutes: item.durationMinutes || 0,
+            createdAt: item.createdAt || new Date().toISOString(),
+            updatedAt: item.updatedAt || new Date().toISOString(),
+        };
     },
 
     /**
-     * Elimina entry
+     * Elimina entry (ora usa WorkLog)
      */
     async delete(id: string): Promise<void> {
-        await apiClient.delete(`/workspace/entries/${id}`);
+        await apiClient.delete(`/worklogs/${id}`);
     },
 };
 

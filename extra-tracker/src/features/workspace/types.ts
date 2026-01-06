@@ -16,7 +16,10 @@ export type WorkEntryCategory =
     | 'freeform';
 
 /**
- * WorkProject - Progetto del Workspace
+ * WorkProject - DEPRECATO: Usa Project da '../projects/type'
+ * 
+ * @deprecated WorkProject è stato unificato in Project.
+ * Usa Project da '../projects/type' invece.
  */
 export interface WorkProject {
     id: string;
@@ -70,12 +73,17 @@ export interface GenericTemplateData {
 }
 
 /**
- * WorkEntry - Entry del Work Journal
+ * WorkEntry - DEPRECATO: Usa WorkLog invece
+ * 
+ * NOTA: WorkEntry è stato unificato in WorkLog.
+ * Mantenuto temporaneamente per compatibilità durante la migrazione.
+ * 
+ * @deprecated Usa WorkLog da '../tracker/type'
  */
 export interface WorkEntry {
     id: string;
-    project: string | WorkProject; // String se non popolato, WorkProject se popolato
-    date: string; // YYYY-MM-DD
+    project: string | WorkProject;
+    date: string;
     category: WorkEntryCategory;
     title: string;
     content?: string;
@@ -85,22 +93,40 @@ export interface WorkEntry {
         | DocumentationTemplateData 
         | GenericTemplateData;
     tags?: string[];
-    duration?: number; // minuti
+    duration?: number;
     createdAt: string;
     updatedAt: string;
 }
 
 /**
  * Timeline Entry - Entry raggruppata per data
+ * 
+ * NOTA: Aggiornato per usare WorkLog invece di WorkEntry
  */
 export interface TimelineEntry {
     _id: string; // data (YYYY-MM-DD)
-    entries: WorkEntry[];
-    totalDuration: number; // minuti totali
+    logs: Array<{
+        id: string;
+        projectId: string | WorkProject;
+        date: string;
+        title: string;
+        description?: string;
+        tags?: string[];
+        mood?: 'high' | 'neutral' | 'low';
+        isBillable?: boolean;
+        startTime?: string;
+        endTime?: string;
+        durationMinutes?: number;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+    totalMinutes: number; // minuti totali (cambiato da totalDuration)
 }
 
 /**
- * Create WorkProject DTO
+ * Create WorkProject DTO (Unificato - Usa Project)
+ * 
+ * NOTA: Ora supporta type CLIENT/PERSONAL e rate opzionale
  */
 export interface CreateWorkProjectDTO {
     name: string;
@@ -108,6 +134,9 @@ export interface CreateWorkProjectDTO {
     color?: string;
     icon?: string;
     status?: WorkProjectStatus;
+    type?: 'CLIENT' | 'PERSONAL'; // Default: 'CLIENT'
+    rate?: number; // Opzionale per PERSONAL, required per CLIENT
+    code?: string; // Opzionale, auto-generato se non fornito
 }
 
 /**
@@ -116,7 +145,9 @@ export interface CreateWorkProjectDTO {
 export interface UpdateWorkProjectDTO extends Partial<CreateWorkProjectDTO> {}
 
 /**
- * Create WorkEntry DTO
+ * Create WorkEntry DTO - DEPRECATO
+ * 
+ * @deprecated Usa CreateWorkLogDTO da '../tracker/type' o direttamente WorkLog
  */
 export interface CreateWorkEntryDTO {
     project: string;
@@ -130,9 +161,31 @@ export interface CreateWorkEntryDTO {
 }
 
 /**
- * Update WorkEntry DTO
+ * Update WorkEntry DTO - DEPRECATO
+ * 
+ * @deprecated Usa Partial<WorkLog> da '../tracker/type'
  */
 export interface UpdateWorkEntryDTO extends Partial<CreateWorkEntryDTO> {}
+
+/**
+ * Create WorkLog DTO (per Journal - senza orari)
+ */
+export interface CreateWorkLogDTO {
+    projectId: string;
+    date: string;
+    title: string;
+    description?: string;
+    tags?: string[];
+    mood?: 'high' | 'neutral' | 'low';
+    isBillable?: boolean;
+    startTime?: string; // Opzionale - se presente, endTime è required
+    endTime?: string; // Opzionale - se presente, startTime è required
+}
+
+/**
+ * Update WorkLog DTO
+ */
+export interface UpdateWorkLogDTO extends Partial<CreateWorkLogDTO> {}
 
 /**
  * WorkTodo - TODO/Promemoria per progetto

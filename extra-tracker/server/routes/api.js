@@ -67,12 +67,15 @@ router.post('/projects', asyncHandler(async (req, res) => {
         name: req.body.name,
         code: req.body.code,
         description: req.body.description,
+        type: req.body.type, // FIX: Aggiunto type
         rate: req.body.rate,
+        budget: req.body.budget, // FIX: Aggiunto budget
         estimatedHours: req.body.estimatedHours,
         progress: req.body.progress,
         status: req.body.status,
         color: req.body.color,
     });
+    
     res.status(201).json({ success: true, data: project });
 }));
 
@@ -121,6 +124,54 @@ router.get('/worklogs', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/worklogs/feed
+ * Feed Workspace: timeline unificata con filtri avanzati
+ * 
+ * IMPORTANTE: Deve essere PRIMA di /worklogs/:id per evitare che "feed" venga matchato come :id
+ * 
+ * Query params:
+ * - projectId: Filtra per progetto
+ * - date: Filtra per data specifica (YYYY-MM-DD)
+ * - startDate: Inizio range date (YYYY-MM-DD)
+ * - endDate: Fine range date (YYYY-MM-DD)
+ * - tags: Filtra per tag (singolo o multiplo, separato da virgola)
+ * - limit: Limite risultati (default: 50)
+ * - skip: Skip risultati (per paginazione)
+ */
+router.get('/worklogs/feed', asyncHandler(async (req, res) => {
+    const filters = {};
+    
+    if (req.query.projectId) {
+        filters.projectId = req.query.projectId;
+    }
+    
+    if (req.query.date) {
+        filters.date = req.query.date;
+    } else if (req.query.startDate || req.query.endDate) {
+        filters.startDate = req.query.startDate;
+        filters.endDate = req.query.endDate;
+    }
+    
+    if (req.query.tags) {
+        // Supporta sia singolo tag che multipli (separati da virgola)
+        filters.tags = req.query.tags.includes(',') 
+            ? req.query.tags.split(',').map(t => t.trim())
+            : req.query.tags;
+    }
+    
+    const options = {};
+    if (req.query.limit) {
+        options.limit = parseInt(req.query.limit);
+    }
+    if (req.query.skip) {
+        options.skip = parseInt(req.query.skip);
+    }
+    
+    const logs = await workLogService.getWorkspaceFeed(req.tenantScope, filters, options);
+    res.json({ success: true, data: logs });
+}));
+
+/**
  * GET /api/worklogs/:id
  * Dettaglio singolo log
  */
@@ -135,7 +186,18 @@ router.get('/worklogs/:id', asyncHandler(async (req, res) => {
 
 /**
  * POST /api/worklogs
- * Crea nuovo log
+ * Crea nuovo log (supporta sia Timer che Journal)
+ * 
+ * Body supportato:
+ * - projectId (required)
+ * - date (required, YYYY-MM-DD)
+ * - title (required)
+ * - description (optional)
+ * - tags (optional, array)
+ * - mood (optional: 'high', 'neutral', 'low')
+ * - isBillable (optional, default: true)
+ * - startTime (optional, HH:mm) - se presente, endTime è required
+ * - endTime (optional, HH:mm) - se presente, startTime è required
  * 
  * SICUREZZA:
  * Il service verifica che projectId appartenga all'utente corrente
@@ -144,9 +206,15 @@ router.post('/worklogs', asyncHandler(async (req, res) => {
     const log = await workLogService.create(req.tenantScope, {
         projectId: req.body.projectId,
         date: req.body.date,
+        title: req.body.title,
+        description: req.body.description,
+        tags: req.body.tags,
+        mood: req.body.mood,
+        isBillable: req.body.isBillable,
         startTime: req.body.startTime,
         endTime: req.body.endTime,
-        description: req.body.description,
+        durationMinutes: req.body.durationMinutes,
+        isManualDuration: req.body.isManualDuration,
     });
     res.status(201).json({ success: true, data: log });
 }));
@@ -201,6 +269,40 @@ router.get('/worklogs/totals', asyncHandler(async (req, res) => {
     res.json({ success: true, data: totals });
 }));
 
+
+/**
+ * GET /api/worklogs/project/:projectId/stats
+ * Statistiche progetto per Vista Amministrativa (Dashboard Progetti)
+ * 
+ * Questo endpoint serve alla **Vista Amministrativa (Control Room)**.
+ * Calcola metriche finanziarie e di progresso per un progetto specifico:
+ * - Totale ore lavorate
+ * - Revenue totale (ore × tariffa)
+ * - Burn rate (ore consumate / ore stimate)
+ * - Ultima attività
+ * 
+ * Response:
+ * {
+ *   projectId: string,
+ *   projectName: string,
+ *   projectCode: string,
+ *   totalHours: number,
+ *   billableHours: number,
+ *   nonBillableHours: number,
+ *   totalRevenue: number,
+ *   burnRate: number | null, // null se estimatedHours non è impostato
+ *   lastActivity: string | null, // YYYY-MM-DD
+ *   entriesCount: number,
+ *   projectRate: number,
+ *   estimatedHours: number | null
+ * }
+ */
+router.get('/worklogs/project/:projectId/stats', asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+    const stats = await workLogService.getProjectStats(req.tenantScope, projectId);
+    res.json({ success: true, data: stats });
+}));
+
 // =========================================
 // WORKSPACE ROUTES (Work Journal)
 // =========================================
@@ -241,59 +343,19 @@ router.put('/workspace/projects/:id', workspaceController.updateProject);
  */
 router.delete('/workspace/projects/:id', workspaceController.deleteProject);
 
-/**
- * GET /api/workspace/entries
- * Lista tutte le entries
- */
-router.get('/workspace/entries', workspaceController.getEntries);
-
-/**
- * GET /api/workspace/entries/timeline
- * Raggruppa entries per data (timeline)
- */
-router.get('/workspace/entries/timeline', workspaceController.getTimeline);
-
-/**
- * GET /api/workspace/entries/by-month/:year/:month
- * Entries filtrate per mese
- */
-router.get('/workspace/entries/by-month/:year/:month', workspaceController.getEntriesByMonth);
-
-/**
- * GET /api/workspace/entries/by-project/:projectId
- * Entries di un progetto
- */
-router.get('/workspace/entries/by-project/:projectId', workspaceController.getEntriesByProject);
-
-/**
- * GET /api/workspace/entries/stats
- * Statistiche entries per progetto
- */
-router.get('/workspace/entries/stats', workspaceController.getEntriesStats);
-
-/**
- * GET /api/workspace/entries/:id
- * Dettaglio singola entry
- */
-router.get('/workspace/entries/:id', workspaceController.getEntry);
-
-/**
- * POST /api/workspace/entries
- * Crea nuova entry
- */
-router.post('/workspace/entries', workspaceController.createEntry);
-
-/**
- * PUT /api/workspace/entries/:id
- * Aggiorna entry
- */
-router.put('/workspace/entries/:id', workspaceController.updateEntry);
-
-/**
- * DELETE /api/workspace/entries/:id
- * Elimina entry
- */
-router.delete('/workspace/entries/:id', workspaceController.deleteEntry);
+// =========================================
+// WORK ENTRIES ROUTES (DEPRECATO - Unificato in /api/worklogs)
+// =========================================
+// 
+// NOTA: Le route /workspace/entries/* sono state rimosse.
+// Usa /api/worklogs/* per gestire sia log con orari che note senza orari.
+// 
+// Migrazione:
+// - GET /workspace/entries -> GET /api/worklogs/feed
+// - POST /workspace/entries -> POST /api/worklogs (senza startTime/endTime)
+// - GET /workspace/entries/:id -> GET /api/worklogs/:id
+// - PUT /workspace/entries/:id -> PUT /api/worklogs/:id
+// - DELETE /workspace/entries/:id -> DELETE /api/worklogs/:id
 
 // =========================================
 // WORK TODOS ROUTES

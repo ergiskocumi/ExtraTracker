@@ -1,0 +1,804 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tcolorbox}
+\usepackage{float}
+
+\geometry{margin=2.5cm}
+
+% Configurazione codice
+\lstset{
+    language=JavaScript,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{green!60!black},
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    numbersep=5pt,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=2,
+    escapeinside={(*@}{@*)}
+}
+
+% Box per evidenziare sezioni importanti
+\newtcolorbox{importantbox}[1]{
+    colback=red!5!white,
+    colframe=red!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{warningbox}[1]{
+    colback=orange!5!white,
+    colframe=orange!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{tipbox}[1]{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{successbox}[1]{
+    colback=green!5!white,
+    colframe=green!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\title{\textbf{WorkLogService: Stato Attuale Post-Refactoring}\\
+\large Documentazione Tecnica Esaustiva - Sistema Unificato}
+\author{Documentazione Sistema}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduzione}
+
+\begin{importantbox}{Stato Attuale - \today}
+WorkLogService è il \textbf{Cuore Operativo} del sistema di tracciamento lavoro dopo il refactoring di unificazione.
+Questo componente gestisce sia log di lavoro con orari (Timer) che note di lavoro senza orari (Journal) in un'unica entità.
+Se questo componente fallisce, l'app diventa inutile per l'utente.
+\end{importantbox}
+
+\subsection{Contesto Storico}
+
+Prima del refactoring, il sistema aveva due entità separate:
+\begin{itemize}
+    \item \textbf{WorkLog}: Solo per tracciamento orari (startTime, endTime, durationMinutes)
+    \item \textbf{WorkEntry}: Solo per note di lavoro (title, description, tags, mood)
+\end{itemize}
+
+Questo causava:
+\begin{itemize}
+    \item Duplicazione di codice e logica
+    \item Inconsistenze nei dati (un progetto poteva avere ore ma non note)
+    \item Complessità nel frontend (due API diverse)
+    \item Difficoltà nel calcolare statistiche complete
+\end{itemize}
+
+Dopo il refactoring, \textbf{WorkLog} è diventato un'entità \textbf{ibrida} che supporta entrambi i casi d'uso.
+
+\section{Architettura e Funzionamento}
+
+\subsection{Struttura del Componente}
+
+WorkLogService estende \texttt{BaseService}, implementando il pattern \textbf{Template Method}:
+
+\begin{lstlisting}[caption=Costruttore WorkLogService]
+class WorkLogService extends BaseService {
+    constructor() {
+        super(WorkLog, {
+            searchFields: ['title', 'description'],
+            defaultSort: { date: -1, createdAt: -1 },
+            populateFields: ['projectId'],
+            entityName: 'Log di lavoro',
+        });
+    }
+}
+\end{lstlisting}
+
+\subsection{Modello Dati Unificato}
+
+Il modello \texttt{WorkLog} supporta due modalità:
+
+\subsubsection{Modalità Timer (con orari)}
+\begin{itemize}
+    \item \texttt{startTime} (HH:mm) - \textbf{Opzionale}
+    \item \texttt{endTime} (HH:mm) - \textbf{Opzionale}
+    \item \texttt{durationMinutes} - Calcolato automaticamente dal pre-save hook
+\end{itemize}
+
+\subsubsection{Modalità Journal (solo testo)}
+\begin{itemize}
+    \item \texttt{title} (required) - Titolo dell'attività
+    \item \texttt{description} (optional) - Note dettagliate
+    \item \texttt{tags} (optional) - Array di tag per categorizzazione
+    \item \texttt{mood} (optional) - 'high', 'neutral', 'low'
+    \item \texttt{durationMinutes} - 0 (default) o valore manuale
+\end{itemize}
+
+\subsubsection{Campi Comuni}
+\begin{itemize}
+    \item \texttt{projectId} (required) - Riferimento al progetto
+    \item \texttt{date} (required, YYYY-MM-DD) - Data del lavoro
+    \item \texttt{isBillable} (default: true) - Indica se fatturabile
+    \item \texttt{user} - Iniettato automaticamente dal multiTenancyPlugin
+\end{itemize}
+
+\subsection{Flusso di Creazione}
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[caption=Flusso Creazione WorkLog]
+[HTTP Request] POST /api/worklogs
+     │
+     ▼
+[Controller] workLogService.create(req.tenantScope, data)
+     │
+     ▼
+[WorkLogService.create()]
+     │
+     ├─► [beforeCreate()]
+     │   │
+     │   ├─► validateProjectOwnership()
+     │   │   └─► Verifica che projectId appartenga all'utente
+     │   │
+     │   └─► validateTimeRange() (se orari presenti)
+     │       └─► Verifica coerenza startTime/endTime
+     │
+     ├─► [super.create()]
+     │   └─► BaseService.create() → WorkLog.create()
+     │       └─► [Model pre-save hook]
+     │           └─► Calcola durationMinutes se orari presenti
+     │
+     └─► [activityService.recordActivity()]
+         ├─► WORK_SESSION_LOGGED (se orari presenti)
+         └─► WORK_NOTE_CREATED (se solo testo)
+\end{lstlisting}
+\caption{Flusso Completo di Creazione WorkLog}
+\end{figure}
+
+\section{Interazioni con Altri Componenti}
+
+\subsection{BaseService}
+
+WorkLogService eredita tutte le funzionalità CRUD da BaseService:
+
+\begin{itemize}
+    \item \texttt{find(tenantScope, filters, options)} - Ricerca con filtri
+    \item \texttt{findById(tenantScope, id, options)} - Ricerca per ID
+    \item \texttt{create(tenantScope, data)} - Creazione (override per logica ibrida)
+    \item \texttt{update(tenantScope, id, data)} - Aggiornamento
+    \item \texttt{delete(tenantScope, id)} - Eliminazione
+\end{itemize}
+
+\textbf{Sicurezza}: Tutte le query includono automaticamente \texttt{\{ user: userId \}} grazie a \texttt{\_buildFilter()}.
+
+\subsection{ActivityService}
+
+WorkLogService registra automaticamente le attività per analytics:
+
+\begin{lstlisting}[caption=Registrazione Attività]
+// Determina tipo di attività
+const activityType = (created.startTime && created.endTime) 
+    ? 'WORK_SESSION_LOGGED' 
+    : 'WORK_NOTE_CREATED';
+
+await activityService.recordActivity(userId, activityType, {
+    entityId: created._id,
+    category: 'work',
+    metadata: {
+        projectId: created.projectId,
+        durationMinutes,
+        tags,
+        timeOfDay,
+        date: created.date,
+        hasTimeTracking: !!(created.startTime && created.endTime),
+    },
+});
+\end{lstlisting}
+
+\textbf{Nota Importante}: Se la registrazione attività fallisce, il worklog viene comunque creato (non blocca l'operazione).
+
+\subsection{Project Model}
+
+WorkLogService verifica sempre l'ownership del progetto:
+
+\begin{lstlisting}[caption=Validazione Ownership]
+async validateProjectOwnership(tenantScope, projectId) {
+    const userId = this._getUserId(tenantScope);
+    
+    // Query diretta con filtro esplicito
+    const project = await Project.findOne({ 
+        _id: projectId, 
+        user: userId 
+    });
+    
+    if (!project) {
+        throw AppError.notFound('Progetto');
+    }
+}
+\end{lstlisting}
+
+\textbf{Sicurezza IDOR}: Previene che un utente associ log a progetti di altri utenti.
+
+\subsection{WorkLog Model}
+
+Il modello calcola automaticamente \texttt{durationMinutes} nel pre-save hook:
+
+\begin{lstlisting}[caption=Pre-save Hook - Calcolo Durata]
+workLogSchema.pre('save', function() {
+    if (this.startTime && this.endTime) {
+        const [startHour, startMin] = this.startTime.split(':').map(Number);
+        const [endHour, endMin] = this.endTime.split(':').map(Number);
+        
+        let duration = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+        
+        // Gestisce lavoro oltre mezzanotte
+        if (duration < 0) {
+            duration += 24 * 60;
+        }
+        
+        this.durationMinutes = duration;
+    } else {
+        // Se orari mancano, durationMinutes = 0
+        if (!this.isModified('durationMinutes')) {
+            this.durationMinutes = 0;
+        }
+    }
+});
+\end{lstlisting}
+
+\section{Funzionalità Principali}
+
+\subsection{Metodi CRUD}
+
+\subsubsection{create(tenantScope, data)}
+
+Crea un nuovo worklog con logica ibrida:
+
+\begin{itemize}
+    \item \textbf{Validazione}: Ownership progetto + coerenza orari (se presenti)
+    \item \textbf{Calcolo Durata}: Automatico se orari presenti, altrimenti 0
+    \item \textbf{Activity Tracking}: Registra WORK\_SESSION\_LOGGED o WORK\_NOTE\_CREATED
+    \item \textbf{Error Handling}: Activity tracking non blocca la creazione
+\end{itemize}
+
+\subsubsection{update(tenantScope, id, data)}
+
+Aggiorna un worklog esistente:
+
+\begin{itemize}
+    \item \textbf{Validazione}: Se cambia projectId, verifica ownership
+    \item \textbf{Validazione Orari}: Se modifica orari, richiede entrambi
+    \item \textbf{Conversione}: Permette di convertire Timer → Journal (rimuovendo orari)
+\end{itemize}
+
+\subsubsection{delete(tenantScope, id)}
+
+Elimina un worklog. \textbf{Nota}: Non elimina automaticamente le attività correlate (UserActivity rimangono per analytics storiche).
+
+\subsection{Metodi di Query Specializzati}
+
+\subsubsection{findByMonth(tenantScope, year, month)}
+
+Trova tutti i log di un mese specifico:
+
+\begin{lstlisting}[caption=Query per Mese]
+async findByMonth(tenantScope, year, month) {
+    const monthStr = String(month).padStart(2, '0');
+    const pattern = new RegExp(`^${year}-${monthStr}-`);
+    return this.find(tenantScope, { date: pattern });
+}
+\end{lstlisting}
+
+\subsubsection{findByProject(tenantScope, projectId, options)}
+
+Trova tutti i log di un progetto specifico. \textbf{Sicurezza}: Il filtro include automaticamente \texttt{user}.
+
+\subsubsection{getWorkspaceFeed(tenantScope, filters, options)}
+
+Feed timeline unificato con filtri avanzati:
+
+\begin{itemize}
+    \item \textbf{Filtro Progetto}: \texttt{filters.projectId}
+    \item \textbf{Filtro Data}: \texttt{filters.date} (singola) o \texttt{filters.startDate/endDate} (range)
+    \item \textbf{Filtro Tag}: \texttt{filters.tags} (singolo o array)
+    \item \textbf{Ordinamento}: \texttt{\{ date: -1, createdAt: -1 \}} (timeline-friendly)
+\end{itemize}
+
+\textbf{Use Case}: Vista Workspace con timeline di tutte le attività (Timer + Journal).
+
+\subsubsection{getTotalsByPeriod(tenantScope, startDate, endDate)}
+
+Calcola totali per un periodo:
+
+\begin{itemize}
+    \item \texttt{totalMinutes} - Minuti totali lavorati
+    \item \texttt{totalEarnings} - Revenue totale (ore × rate progetto)
+    \item \texttt{logCount} - Numero totale di log
+\end{itemize}
+
+\textbf{Use Case}: Dashboard con statistiche mensili/annuali.
+
+\subsubsection{getProjectStats(tenantScope, projectId)}
+
+Statistiche dettagliate per un progetto:
+
+\begin{itemize}
+    \item \texttt{totalHours} - Ore totali lavorate
+    \item \texttt{billableHours} - Ore fatturabili
+    \item \texttt{nonBillableHours} - Ore non fatturabili
+    \item \texttt{totalRevenue} - Revenue totale (billableHours × rate)
+    \item \texttt{burnRate} - Percentuale ore consumate vs stimate (può essere null)
+    \item \texttt{lastActivity} - Data ultima attività
+    \item \texttt{entriesCount} - Numero totale di log/note
+\end{itemize}
+
+\textbf{Use Case}: Vista Control Room (Dashboard Progetti) con health metrics.
+
+\section{Vantaggi per l'Utente}
+
+\subsection{Unificazione Dati}
+
+\begin{successbox}{Vantaggio Principale}
+Un'unica entità per tracciare sia ore che note elimina la confusione e semplifica l'interfaccia utente.
+\end{successbox}
+
+\textbf{Prima del refactoring}:
+\begin{itemize}
+    \item L'utente doveva decidere: "È un log o una nota?"
+    \item Due form diversi nel frontend
+    \item Due timeline separate
+    \item Statistiche incomplete (ore senza contesto o note senza ore)
+\end{itemize}
+
+\textbf{Dopo il refactoring}:
+\begin{itemize}
+    \item Un unico form che si adatta (mostra campi orari solo se necessario)
+    \item Una timeline unificata con tutte le attività
+    \item Statistiche complete (ore + note nello stesso progetto)
+    \item Ricerca unificata (cerca in titoli, descrizioni, tag)
+\end{itemize}
+
+\subsection{Flessibilità d'Uso}
+
+L'utente può:
+
+\begin{enumerate}
+    \item \textbf{Tracciare solo orari}: Inserisce startTime/endTime, il sistema calcola tutto
+    \item \textbf{Scrivere solo note}: Inserisce title/description, nessun orario richiesto
+    \item \textbf{Combinare entrambi}: Orari + note dettagliate per contesto completo
+    \item \textbf{Convertire}: Può aggiungere/rimuovere orari in un secondo momento
+\end{enumerate}
+
+\subsection{Analytics Migliorate}
+
+\begin{itemize}
+    \item \textbf{Activity Feed}: Vede tutte le attività (Timer + Journal) in un'unica timeline
+    \item \textbf{Project Health}: Metriche complete (ore + note + burn rate)
+    \item \textbf{Tag System}: Categorizza attività con tag per ricerca avanzata
+    \item \textbf{Mood Tracking}: Traccia umore durante il lavoro (per analytics future)
+\end{itemize}
+
+\subsection{Performance}
+
+\begin{itemize}
+    \item \textbf{Indici Ottimizzati}: Query frequenti (per mese, per progetto) sono veloci
+    \item \textbf{Aggregazioni Efficaci}: Statistiche calcolate con pipeline MongoDB ottimizzate
+    \item \textbf{Populate Automatico}: Progetti popolati automaticamente nelle query
+\end{itemize}
+
+\section{API Endpoints}
+
+\subsection{GET /api/worklogs}
+
+Lista tutti i log dell'utente (con filtri opzionali).
+
+\textbf{Response}:
+\begin{lstlisting}
+{
+  "success": true,
+  "data": [
+    {
+      "id": "...",
+      "projectId": {...},
+      "date": "2024-01-15",
+      "title": "Implementazione login",
+      "startTime": "09:00",
+      "endTime": "12:30",
+      "durationMinutes": 210,
+      "tags": ["frontend", "auth"],
+      "mood": "high"
+    }
+  ]
+}
+\end{lstlisting}
+
+\subsection{POST /api/worklogs}
+
+Crea nuovo log (Timer o Journal).
+
+\textbf{Body Timer}:
+\begin{lstlisting}
+{
+  "projectId": "...",
+  "date": "2024-01-15",
+  "title": "Implementazione login",
+  "startTime": "09:00",
+  "endTime": "12:30",
+  "description": "Completato sistema autenticazione",
+  "tags": ["frontend", "auth"],
+  "mood": "high",
+  "isBillable": true
+}
+\end{lstlisting}
+
+\textbf{Body Journal}:
+\begin{lstlisting}
+{
+  "projectId": "...",
+  "date": "2024-01-15",
+  "title": "Note riunione",
+  "description": "Discussione su nuove feature",
+  "tags": ["meeting"],
+  "mood": "neutral"
+}
+\end{lstlisting}
+
+\subsection{GET /api/worklogs/feed}
+
+Feed timeline con filtri avanzati.
+
+\textbf{Query Params}:
+\begin{itemize}
+    \item \texttt{projectId} - Filtra per progetto
+    \item \texttt{date} - Filtra per data (YYYY-MM-DD)
+    \item \texttt{startDate} / \texttt{endDate} - Range date
+    \item \texttt{tags} - Filtra per tag (comma-separated)
+    \item \texttt{limit} - Limite risultati (default: 50)
+    \item \texttt{skip} - Skip per paginazione
+\end{itemize}
+
+\subsection{GET /api/worklogs/project/:projectId/stats}
+
+Statistiche progetto per Control Room.
+
+\textbf{Response}:
+\begin{lstlisting}
+{
+  "success": true,
+  "data": {
+    "projectId": "...",
+    "projectName": "Google",
+    "totalHours": 45.5,
+    "billableHours": 40.0,
+    "totalRevenue": 3000.00,
+    "burnRate": 75.83,
+    "lastActivity": "2024-01-15",
+    "entriesCount": 12
+  }
+}
+\end{lstlisting}
+
+\section{Errori, Bug e Problemi di Logica}
+
+\subsection{Errori Conosciuti}
+
+\subsubsection{Activity Tracking Non Bloccante}
+
+\begin{warningbox}{Comportamento Attuale}
+Se \texttt{activityService.recordActivity()} fallisce, il worklog viene comunque creato.
+L'errore viene solo loggato in console, non propagato.
+\end{warningbox}
+
+\textbf{Problema}: L'utente non viene informato se l'attività non è stata registrata per analytics.
+
+\textbf{Impatto}: 
+\begin{itemize}
+    \item Analytics incomplete (manca qualche evento)
+    \item Gamification non aggiornata (XP non assegnati)
+    \item Streak non aggiornato
+\end{itemize}
+
+\textbf{Possibile Soluzione}: 
+\begin{itemize}
+    \item Retry automatico con exponential backoff
+    \item Queue asincrona per activity tracking (non blocca la creazione)
+    \item Notifica utente se fallisce (toast warning)
+\end{itemize}
+
+\subsubsection{Validazione Orari Parziali}
+
+\begin{warningbox}{Edge Case}
+Se l'utente invia solo \texttt{startTime} o solo \texttt{endTime}, viene lanciato un errore di validazione.
+Tuttavia, se modifica un worklog esistente e imposta solo uno dei due, la validazione potrebbe non essere chiara.
+\end{warningbox}
+
+\textbf{Codice Attuale}:
+\begin{lstlisting}
+if (data.startTime || data.endTime) {
+    if (!data.startTime || !data.endTime) {
+        throw AppError.validation(
+            'Se specifichi un orario, devi fornire sia startTime che endTime'
+        );
+    }
+}
+\end{lstlisting}
+
+\textbf{Problema}: Se un worklog ha già \texttt{startTime} e l'utente aggiorna solo \texttt{endTime}, la validazione funziona. Ma se un worklog non ha orari e l'utente aggiunge solo \texttt{startTime}, fallisce.
+
+\textbf{Impatto}: UX confusa - l'utente potrebbe non capire perché deve inserire entrambi.
+
+\subsubsection{Calcolo Durata Oltre Mezzanotte}
+
+\begin{tipbox}{Funzionalità Corretta}
+Il sistema gestisce correttamente il lavoro oltre mezzanotte (es. 23:00 - 02:00 = 3 ore).
+\end{tipbox}
+
+\textbf{Implementazione}:
+\begin{lstlisting}
+let duration = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+
+if (duration < 0) {
+    duration += 24 * 60; // Aggiunge 24 ore
+}
+\end{lstlisting}
+
+\textbf{Nota}: Questo funziona solo se il lavoro è nella stessa giornata. Se l'utente lavora dalle 23:00 di lunedì alle 02:00 di martedì, dovrebbe creare due worklog separati (uno per giorno).
+
+\subsection{Bug Potenziali}
+
+\subsubsection{Race Condition in Activity Tracking}
+
+\begin{warningbox}{Bug Potenziale}
+Se due worklog vengono creati simultaneamente per lo stesso utente, l'activity tracking potrebbe avere race condition nello streak update.
+\end{warningbox}
+
+\textbf{Scenario}:
+\begin{enumerate}
+    \item Utente crea WorkLog A alle 23:59:59
+    \item Utente crea WorkLog B alle 00:00:01 (giorno successivo)
+    \item Entrambi chiamano \texttt{activityService.recordActivity()}
+    \item Entrambi leggono lo stesso \texttt{user.gamification.streak}
+    \item Entrambi calcolano il nuovo streak
+    \item Uno sovrascrive l'altro (lost update)
+\end{enumerate}
+
+\textbf{Impatto}: Streak potrebbe non essere aggiornato correttamente.
+
+\textbf{Possibile Soluzione}: Usare MongoDB transactions o optimistic locking.
+
+\subsubsection{Validazione Project Ownership Race Condition}
+
+\begin{warningbox}{Bug Potenziale}
+Se un progetto viene eliminato tra la validazione e la creazione del worklog, potrebbe verificarsi un errore.
+\end{warningbox}
+
+\textbf{Scenario}:
+\begin{enumerate}
+    \item \texttt{beforeCreate()} valida che il progetto esiste
+    \item Un altro processo elimina il progetto
+    \item \texttt{super.create()} tenta di creare il worklog
+    \item MongoDB lancia errore di foreign key constraint (se presente) o crea worklog orfano
+\end{enumerate}
+
+\textbf{Impatto}: Worklog con \texttt{projectId} che non esiste più.
+
+\textbf{Possibile Soluzione}: Usare MongoDB transactions o aggiungere validazione anche in \texttt{super.create()}.
+
+\subsection{Problemi di Logica}
+
+\subsubsection{DurationMinutes Manuale vs Automatico}
+
+\begin{warningbox}{Ambiguity}
+Se l'utente inserisce manualmente \texttt{durationMinutes} ma fornisce anche \texttt{startTime/endTime}, quale valore ha priorità?
+\end{warningbox}
+
+\textbf{Comportamento Attuale}: Il pre-save hook calcola sempre \texttt{durationMinutes} se orari sono presenti, ignorando qualsiasi valore manuale.
+
+\textbf{Problema}: L'utente potrebbe voler correggere manualmente la durata (es. pause non tracciate).
+
+\textbf{Possibile Soluzione}: 
+\begin{itemize}
+    \item Se \texttt{durationMinutes} è esplicitamente modificato dall'utente, non sovrascriverlo
+    \item Aggiungere flag \texttt{manualDuration} per indicare che è stato impostato manualmente
+\end{itemize}
+
+\subsubsection{Tag Duplicati}
+
+\begin{warningbox}{Problema}
+Non c'è validazione per tag duplicati o case-insensitive.
+\end{warningbox}
+
+\textbf{Scenario}: L'utente può inserire \texttt{["Frontend", "frontend", "FRONTEND"]} che vengono trattati come tag diversi.
+
+\textbf{Impatto}: Ricerca per tag potrebbe non trovare tutti i risultati.
+
+\textbf{Possibile Soluzione}: Normalizzare tag (lowercase, trim) prima del salvataggio.
+
+\subsubsection{Billable vs Non-Billable}
+
+\begin{tipbox}{Comportamento Attuale}
+\texttt{isBillable} ha default \texttt{true}. Se l'utente crea una nota (Journal) senza orari, viene comunque marcata come billable.
+\end{tipbox}
+
+\textbf{Problema}: Una nota senza orari non dovrebbe essere billable (non ci sono ore da fatturare).
+
+\textbf{Possibile Soluzione}: Se \texttt{durationMinutes === 0}, impostare automaticamente \texttt{isBillable = false}.
+
+\section{Performance e Ottimizzazioni}
+
+\subsection{Indici Database}
+
+Il modello WorkLog ha i seguenti indici:
+
+\begin{itemize}
+    \item \texttt{\{ user: 1, date: -1 \}} - Query per mese/periodo
+    \item \texttt{\{ user: 1, projectId: 1, date: -1 \}} - Query per progetto
+    \item \texttt{\{ title: 'text', description: 'text' \}} - Ricerca testuale
+    \item \texttt{\{ tags: 1 \}} - Ricerca per tag
+\end{itemize}
+
+\textbf{Performance}: Query frequenti (feed, stats) sono ottimizzate.
+
+\subsection{Aggregazioni MongoDB}
+
+Le aggregazioni per statistiche usano pipeline efficienti:
+
+\begin{lstlisting}[caption=Esempio Aggregazione Stats]
+WorkLog.aggregate([
+    { $match: { user: userId, projectId: projectId } },
+    {
+        $group: {
+            _id: null,
+            totalMinutes: { $sum: '$durationMinutes' },
+            billableMinutes: { $sum: { $cond: [...] } },
+            entriesCount: { $sum: 1 },
+            lastActivityDate: { $max: '$date' },
+        },
+    },
+]);
+\end{lstlisting}
+
+\textbf{Performance}: Calcolo statistiche in un'unica query invece di multiple query + calcoli in memoria.
+
+\section{Sicurezza}
+
+\subsection{Multi-Tenancy}
+
+\begin{successbox}{Sicurezza Garantita}
+Tutte le query includono automaticamente \texttt{\{ user: userId \}} grazie a BaseService.\_buildFilter().
+\end{successbox}
+
+\textbf{Implementazione}:
+\begin{lstlisting}
+_buildFilter(tenantScope, additionalFilters = {}) {
+    const userId = this._getUserId(tenantScope);
+    return {
+        user: userId,
+        ...additionalFilters,
+    };
+}
+\end{lstlisting}
+
+\subsection{IDOR Prevention}
+
+\begin{successbox}{Validazione Ownership}
+Ogni creazione/update di worklog verifica che il progetto appartenga all'utente corrente.
+\end{successbox}
+
+\textbf{Implementazione}:
+\begin{lstlisting}
+async validateProjectOwnership(tenantScope, projectId) {
+    const userId = this._getUserId(tenantScope);
+    const project = await Project.findOne({ 
+        _id: projectId, 
+        user: userId 
+    });
+    if (!project) {
+        throw AppError.notFound('Progetto');
+    }
+}
+\end{lstlisting}
+
+\textbf{Nota}: Il messaggio di errore è generico ("Progetto non trovato") per non rivelare se il progetto esiste ma appartiene ad altri.
+
+\section{Testing e Manutenzione}
+
+\subsection{Test Consigliati}
+
+\begin{enumerate}
+    \item \textbf{Unit Test}:
+    \begin{itemize}
+        \item Validazione ownership progetto
+        \item Calcolo durata (normale e oltre mezzanotte)
+        \item Validazione orari (parziali, incoerenti)
+        \item Activity tracking (successo e fallimento)
+    \end{itemize}
+    
+    \item \textbf{Integration Test}:
+    \begin{itemize}
+        \item Creazione worklog con progetto valido/invalido
+        \item Feed con filtri multipli
+        \item Statistiche progetto (con/senza estimatedHours)
+        \item Race condition in activity tracking
+    \end{itemize}
+    
+    \item \textbf{E2E Test}:
+    \begin{itemize}
+        \item Flusso completo: crea progetto → crea worklog → verifica stats
+        \item Timeline feed con filtri
+        \item Conversione Timer → Journal
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Manutenzione}
+
+\begin{itemize}
+    \item \textbf{Monitoraggio}: Log errori activity tracking per identificare problemi
+    \item \textbf{Metriche}: Tracciare tempi di risposta query aggregate
+    \item \textbf{Cleanup}: Considerare archivio worklog vecchi (> 1 anno) per performance
+\end{itemize}
+
+\section{Conclusioni}
+
+WorkLogService è un componente \textbf{critico} e \textbf{ben progettato} che:
+
+\begin{itemize}
+    \item ✅ Unifica logica Timer e Journal in un'unica entità
+    \item ✅ Garantisce sicurezza multi-tenant
+    \item ✅ Fornisce API flessibili per diversi use case
+    \item ✅ Ottimizza performance con indici e aggregazioni
+    \item ⚠️ Ha alcuni edge case da gestire (activity tracking, validazioni)
+\end{itemize}
+
+\textbf{Raccomandazioni Future}:
+\begin{enumerate}
+    \item Implementare retry/queue per activity tracking
+    \item Aggiungere validazione tag duplicati
+    \item Gestire meglio durationMinutes manuale vs automatico
+    \item Considerare transactions per operazioni critiche
+    \item Aggiungere test coverage completo
+\end{enumerate}
+
+\section{Storico Modifiche}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llp{8cm}}
+\toprule
+\textbf{Data} & \textbf{Autore} & \textbf{Modifica} \\
+\midrule
+2024-01-XX & Sistema & Refactoring unificazione WorkLog/WorkEntry \\
+2024-01-XX & Sistema & Aggiunto supporto WORK\_NOTE\_CREATED in ActivityService \\
+2024-01-XX & Sistema & Fix AppError.badRequest → AppError.validation \\
+2024-01-XX & Sistema & Fix z-index modale ProjectForm \\
+\today & Sistema & Documentazione completa stato attuale \\
+\bottomrule
+\end{tabular}
+\caption{Storico Modifiche Documento}
+\end{table}
+
+\end{document}

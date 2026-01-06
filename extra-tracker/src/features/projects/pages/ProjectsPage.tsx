@@ -1,147 +1,16 @@
-import { useMemo } from 'react';
-import { ProjectForm } from '../ProjectForm';
+import { useMemo, useState } from 'react';
 import { useProjects } from '../context/ProjectsContext';
-import type { Project, ProjectHealthStatus } from '../type';
+import type { ProjectHealthStatus } from '../type';
 import { useFormat } from '../../../shared/hooks/useFormat';
 import { ClockIcon, CurrencyIcon, WarningIcon, ChartIcon } from '../../../shared/components/icons';
-
-const HEALTH_STYLES: Record<ProjectHealthStatus, { label: string; badge: string; progress: string }> = {
-    healthy: {
-        label: 'Healthy',
-        badge: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20',
-        progress: 'bg-gradient-to-r from-emerald-400 to-emerald-500',
-    },
-    warning: {
-        label: 'Attention',
-        badge: 'bg-amber-500/15 text-amber-200 border border-amber-500/20',
-        progress: 'bg-gradient-to-r from-amber-400 to-amber-500',
-    },
-    critical: {
-        label: 'Critical',
-        badge: 'bg-rose-500/15 text-rose-200 border border-rose-500/20',
-        progress: 'bg-gradient-to-r from-rose-500 to-red-500',
-    },
-    unknown: {
-        label: 'Setup Needed',
-        badge: 'bg-slate-500/15 text-slate-200 border border-slate-500/20',
-        progress: 'bg-gradient-to-r from-slate-400 to-slate-500',
-    },
-};
-
-const ProjectHealthCard = ({ project }: { project: Project }) => {
-    const { formatMoney, formatHours, formatDateLong } = useFormat();
-    const metrics = project.metrics;
-    const estimatedHours = project.estimatedHours ?? 0;
-    const progress = metrics?.progress ?? project.progress ?? 0;
-    const usagePercent = metrics ? Math.max(0, Math.min(metrics.budgetUsagePercent, 200)) : 0;
-    const status: ProjectHealthStatus = metrics?.healthStatus ?? 'unknown';
-    const styles = HEALTH_STYLES[status];
-    const totalHours = metrics?.totalHours ?? 0;
-    const projectedHours = metrics?.projectedHours;
-    const earnings = metrics?.totalEarnings ?? totalHours * (project.rate || 0);
-    const lastLogLabel = metrics?.lastLog ? formatDateLong(metrics.lastLog) : 'Mai';
-    const message = metrics?.velocityMessage ?? 'Inizia a tracciare log per vedere insight.';
-
-    // Calcola dove "dovresti essere" in base al tempo trascorso (progress marker)
-    const idealUsage = estimatedHours > 0 && progress > 0 
-        ? Math.round((progress / 100) * 100) // Dove dovresti essere in % di budget se fossi in linea
-        : null;
-
-    return (
-        <div className={`card p-5 flex flex-col gap-4 border-2 ${
-            status === 'critical' ? 'border-rose-500/40 bg-rose-500/5' :
-            status === 'warning' ? 'border-amber-500/30 bg-amber-500/5' :
-            status === 'healthy' ? 'border-emerald-500/30 bg-emerald-500/5' :
-            'border-white/10 bg-white/5'
-        }`}>
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <p className="text-xs font-mono text-white/40">{project.code}</p>
-                    <h3 className="text-xl font-semibold text-white">{project.name}</h3>
-                </div>
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${styles.badge}`}>
-                    {styles.label}
-                </span>
-            </div>
-
-            <p className="text-sm text-white/60 line-clamp-2 min-h-[38px]">
-                {project.description || 'Nessuna descrizione disponibile'}
-            </p>
-
-            {/* Barra Progress Comparata */}
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-white/50">
-                    <span>Consumo budget vs Progresso</span>
-                    <span>{usagePercent}% usato / {progress}% fatto</span>
-                </div>
-                <div className="relative h-3 rounded-full bg-white/10 overflow-hidden">
-                    {/* Barra consumo budget */}
-                    <div 
-                        className={`h-full ${styles.progress} transition-all`} 
-                        style={{ width: `${Math.min(usagePercent, 100)}%` }} 
-                    />
-                    {/* Marker: dove dovresti essere */}
-                    {idealUsage !== null && (
-                        <div 
-                            className="absolute top-0 h-full w-0.5 bg-white shadow-lg"
-                            style={{ left: `${Math.min(idealUsage, 100)}%` }}
-                            title={`Target: ${idealUsage}%`}
-                        />
-                    )}
-                </div>
-                {idealUsage !== null && (
-                    <p className="text-xs text-white/40">
-                        ▏= target se in linea ({idealUsage}%)
-                    </p>
-                )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                    <p className="text-white/50 text-xs">Ore loggate</p>
-                    <p className="font-semibold text-white">{formatHours(totalHours)}</p>
-                </div>
-                <div>
-                    <p className="text-white/50 text-xs">Stima totale</p>
-                    <p className="font-semibold text-white">{estimatedHours ? formatHours(estimatedHours) : 'N/D'}</p>
-                </div>
-                <div>
-                    <p className="text-white/50 text-xs">Proiezione finale</p>
-                    <p className={`font-semibold ${
-                        projectedHours && estimatedHours && projectedHours > estimatedHours 
-                            ? 'text-rose-300' 
-                            : 'text-emerald-300'
-                    }`}>
-                        {projectedHours ? formatHours(projectedHours) : 'N/D'}
-                    </p>
-                </div>
-                <div>
-                    <p className="text-white/50 text-xs">Guadagno</p>
-                    <p className="font-semibold text-primary-300">{formatMoney(earnings)}</p>
-                </div>
-            </div>
-
-            {/* Velocity Message - evidenziato */}
-            <div className={`text-sm p-3 rounded-lg ${
-                status === 'critical' ? 'bg-rose-500/10 text-rose-200' :
-                status === 'warning' ? 'bg-amber-500/10 text-amber-200' :
-                status === 'healthy' ? 'bg-emerald-500/10 text-emerald-200' :
-                'bg-white/5 text-white/70'
-            }`}>
-                {message}
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-white/40 pt-2 border-t border-white/5">
-                <span>Progresso: {progress}%</span>
-                <span>Ultimo log: {lastLogLabel}</span>
-            </div>
-        </div>
-    );
-};
+import { ProjectHealthCard } from '../components/ProjectHealthCard';
+import { ProjectFormModal } from '../components/ProjectFormModal';
+import { FiPlus, FiFolder } from 'react-icons/fi';
 
 export const ProjectsPage = () => {
     const { projects, addProject, loading, error } = useProjects();
     const { formatMoney, formatHours } = useFormat();
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const stats = useMemo(() => {
         const base = {
@@ -186,14 +55,26 @@ export const ProjectsPage = () => {
         });
     }, [projects]);
 
+    const activeProjects = orderedProjects.filter(p => p.status !== 'archived');
+
     return (
         <div className="space-y-8 animate-slide-up">
-            <div className="space-y-2">
-                <p className="text-xs uppercase tracking-[0.3em] text-primary-300/80">Control room</p>
-                <h1 className="text-3xl md:text-4xl font-bold text-white">Project Health Monitoring</h1>
-                <p className="text-white/60 max-w-2xl">
-                    Tieni sotto controllo burn rate, budget e segnali di rischio per ogni cliente in tempo reale.
-                </p>
+            {/* Header con bottone Nuovo Progetto */}
+            <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2 flex-1">
+                    <p className="text-xs uppercase tracking-[0.3em] text-primary-300/80">Control room</p>
+                    <h1 className="text-3xl md:text-4xl font-bold text-white">Project Health Monitoring</h1>
+                    <p className="text-white/60 max-w-2xl">
+                        Tieni sotto controllo burn rate, budget e segnali di rischio per ogni cliente in tempo reale.
+                    </p>
+                </div>
+                <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-medium transition-all shadow-lg shadow-primary-500/20 hover:shadow-primary-500/30"
+                >
+                    <FiPlus size={18} />
+                    <span className="hidden sm:inline">Nuovo Progetto</span>
+                </button>
             </div>
 
             {error && (
@@ -202,6 +83,7 @@ export const ProjectsPage = () => {
                 </div>
             )}
 
+            {/* Top Stats Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div className="stat-card glow-effect">
                     <div className="flex items-center gap-4">
@@ -249,29 +131,55 @@ export const ProjectsPage = () => {
                 </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
-                <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-2xl font-semibold text-white">Stato progetti</h2>
-                            <p className="text-sm text-white/50">Priorità ordinate per livello di rischio</p>
-                        </div>
-                        {loading && <span className="text-xs text-white/40">Aggiornamento in corso...</span>}
+            {/* Projects Grid */}
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-semibold text-white">Stato progetti</h2>
+                        <p className="text-sm text-white/50">Priorità ordinate per livello di rischio</p>
                     </div>
-
-                    {orderedProjects.length === 0 ? (
-                        <div className="card p-8 text-center text-white/60">Nessun progetto ancora configurato.</div>
-                    ) : (
-                        <div className="grid gap-4 md:grid-cols-2">
-                            {orderedProjects.map(project => (
-                                <ProjectHealthCard key={project.id} project={project} />
-                            ))}
-                        </div>
-                    )}
+                    {loading && <span className="text-xs text-white/40">Aggiornamento in corso...</span>}
                 </div>
 
-                <ProjectForm projects={projects} onAdd={addProject} />
+                {/* Empty State */}
+                {activeProjects.length === 0 && !loading ? (
+                    <div className="card p-12 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-white/5 border border-white/10">
+                                <FiFolder className="text-4xl text-white/40" />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-semibold text-white">Nessun progetto</h3>
+                                <p className="text-white/60 max-w-md">
+                                    Inizia creando il tuo primo progetto per monitorare le ore lavorate e il budget.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setIsModalOpen(true)}
+                                className="mt-4 flex items-center gap-2 px-6 py-3 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-medium transition-all shadow-lg shadow-primary-500/20"
+                            >
+                                <FiPlus size={18} />
+                                <span>Crea il primo progetto</span>
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    /* Responsive Grid: 1 col mobile, 2 tablet, 3 desktop */
+                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                        {activeProjects.map(project => (
+                            <ProjectHealthCard key={project.id} project={project} />
+                        ))}
+                    </div>
+                )}
             </div>
+
+            {/* Modal per nuovo progetto */}
+            <ProjectFormModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                projects={projects}
+                onAdd={addProject}
+            />
         </div>
     );
 };

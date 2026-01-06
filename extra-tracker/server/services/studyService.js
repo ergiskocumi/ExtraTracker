@@ -13,7 +13,7 @@ const Deck = require('../models/Deck');
 const Goal = require('../models/Goal');
 const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
-const activityService = require('./activityService');
+const eventBus = require('../utils/eventBus');
 const OpenAI = require('openai');
 const { PDFParse } = require('pdf-parse');
 const fs = require('fs/promises');
@@ -614,18 +614,14 @@ class StudyService extends BaseService {
         let gamification = null;
         const shouldRecord = sessionMeta?.isComplete || sessionMeta?.completed;
         if (shouldRecord) {
-            try {
-                gamification = await activityService.recordActivity(userId, 'SESSION_COMPLETE', {
-                    entityId: deckId,
-                    category: 'study',
-                    metadata: {
-                        ...sessionMeta,
-                        deckId,
-                    },
-                });
-            } catch (err) {
-                console.error('❌ Gamification error:', err.message);
-            }
+            // Emetti evento per activity tracking (Pattern Observer)
+            eventBus.emit('session.completed', {
+                userId,
+                session: {
+                    deckId,
+                    ...sessionMeta,
+                },
+            });
         }
 
         const updatedCard = this._serializeCard(card);
@@ -792,9 +788,17 @@ class StudyService extends BaseService {
         } catch (err) {
             console.error('❌ OpenAI API Error:', err.message);
             if (err.code === 'insufficient_quota') {
-                throw AppError.internal('Quota OpenAI esaurita. Contatta l\'amministratore.');
+                throw AppError.internal(
+                    { message: 'Quota OpenAI esaurita. Contatta l\'amministratore.' },
+                    err,
+                    {}
+                );
             }
-            throw AppError.internal('Errore nella generazione AI. Riprova più tardi.');
+            throw AppError.internal(
+                { message: 'Errore nella generazione AI. Riprova più tardi.' },
+                err,
+                {}
+            );
         }
 
         // 5. Parsa la risposta JSON
@@ -804,12 +808,20 @@ class StudyService extends BaseService {
             generatedCards = this._extractGeneratedCards(parsed);
         } catch (err) {
             console.error('❌ JSON Parse Error:', aiResponse);
-            throw AppError.internal('Risposta AI non valida. Riprova.');
+            throw AppError.internal(
+                { message: 'Risposta AI non valida. Riprova.' },
+                err,
+                {}
+            );
         }
 
         if (!Array.isArray(generatedCards) || generatedCards.length === 0) {
             console.error('❌ Empty AI cards response:', aiResponse?.slice?.(0, 500) || aiResponse);
-            throw AppError.internal('L\'AI non ha generato flashcard valide. Prova con un PDF diverso.');
+            throw AppError.internal(
+                { message: 'L\'AI non ha generato flashcard valide. Prova con un PDF diverso.' },
+                null,
+                {}
+            );
         }
 
         // 6. Valida e normalizza le carte
@@ -827,7 +839,11 @@ class StudyService extends BaseService {
             }));
 
         if (validCards.length === 0) {
-            throw AppError.internal('Nessuna flashcard valida generata. Riprova.');
+            throw AppError.internal(
+                { message: 'Nessuna flashcard valida generata. Riprova.' },
+                null,
+                {}
+            );
         }
 
         // 7. Aggiungi le carte al mazzo (bulk)

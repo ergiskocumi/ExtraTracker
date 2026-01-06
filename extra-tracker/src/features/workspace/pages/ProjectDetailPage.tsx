@@ -14,15 +14,15 @@ import { EntryDetailModal } from '../components/EntryDetailModal';
 import { TodoList } from '../components/TodoList';
 import { FiArrowLeft, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
-import type { WorkEntry, WorkEntryCategory, WorkTodo } from '../types';
+import type { WorkLog } from '../../tracker/type';
+import type { WorkTodo } from '../types';
 
 export const ProjectDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { projects, entries, deleteProject, deleteEntry, getTodosByProject } = useWorkspace();
 
-    const [selectedEntry, setSelectedEntry] = useState<WorkEntry | null>(null);
-    const [selectedCategory, setSelectedCategory] = useState<WorkEntryCategory | null>(null);
+    const [selectedEntry, setSelectedEntry] = useState<WorkLog | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [todos, setTodos] = useState<WorkTodo[]>([]);
@@ -62,22 +62,18 @@ export const ProjectDetailPage = () => {
     const projectEntries = useMemo(() => {
         if (!project) return [];
 
+        const projectId = project.id || (project as any)._id;
         let filtered = entries.filter((e) => {
-            const projectId = typeof e.project === 'string' ? e.project : e.project.id;
-            return projectId === project.id;
+            return String(e.projectId) === String(projectId);
         });
-
-        if (selectedCategory) {
-            filtered = filtered.filter((e) => e.category === selectedCategory);
-        }
 
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter((e) => {
                 const titleMatch = e.title.toLowerCase().includes(query);
-                const contentMatch = e.content?.toLowerCase().includes(query);
+                const descriptionMatch = e.description?.toLowerCase().includes(query);
                 const tagMatch = e.tags?.some((tag) => tag.toLowerCase().includes(query));
-                return titleMatch || contentMatch || tagMatch;
+                return titleMatch || descriptionMatch || tagMatch;
             });
         }
 
@@ -86,7 +82,7 @@ export const ProjectDetailPage = () => {
             if (dateCompare !== 0) return dateCompare;
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
-    }, [project, entries, selectedCategory, searchQuery]);
+    }, [project, entries, searchQuery]);
 
     const handleDeleteProject = async () => {
         if (!project) return;
@@ -116,11 +112,9 @@ export const ProjectDetailPage = () => {
 
     const stats = {
         totalEntries: projectEntries.length,
-        totalDuration: projectEntries.reduce((sum, e) => sum + (e.duration || 0), 0),
-        categories: projectEntries.reduce((acc, e) => {
-            acc[e.category] = (acc[e.category] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>),
+        totalDuration: projectEntries.reduce((sum, e) => sum + (e.durationMinutes || 0), 0),
+        withTimeTracking: projectEntries.filter((e) => e.startTime && e.endTime).length,
+        journalEntries: projectEntries.filter((e) => !e.startTime || !e.endTime).length,
     };
 
     return (
@@ -176,9 +170,15 @@ export const ProjectDetailPage = () => {
                     </div>
                 </div>
                 <div className="card p-4">
-                    <div className="text-sm text-white/60 mb-1">Categories</div>
+                    <div className="text-sm text-white/60 mb-1">Con Timer</div>
                     <div className="text-2xl font-bold text-white">
-                        {Object.keys(stats.categories).length}
+                        {stats.withTimeTracking}
+                    </div>
+                </div>
+                <div className="card p-4">
+                    <div className="text-sm text-white/60 mb-1">Journal</div>
+                    <div className="text-2xl font-bold text-white">
+                        {stats.journalEntries}
                     </div>
                 </div>
             </div>
@@ -211,36 +211,18 @@ export const ProjectDetailPage = () => {
                     />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-white/60">Categoria:</span>
-                        <select
-                            value={selectedCategory || ''}
-                            onChange={(e) => setSelectedCategory(e.target.value as WorkEntryCategory || null)}
-                            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                            <option value="">Tutte</option>
-                            <option value="development">💻 Development</option>
-                            <option value="documentation">📝 Documentation</option>
-                            <option value="ticket">🎫 Ticket</option>
-                            <option value="meeting">🤝 Meeting</option>
-                            <option value="research">🔬 Research</option>
-                            <option value="freeform">📄 Freeform</option>
-                        </select>
-                    </div>
-
-                    {(selectedCategory || searchQuery) && (
+                {searchQuery && (
+                    <div className="flex flex-wrap items-center gap-3">
                         <button
                             onClick={() => {
-                                setSelectedCategory(null);
                                 setSearchQuery('');
                             }}
                             className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-white text-sm transition-colors"
                         >
                             Reset
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* ENTRIES TIMELINE */}

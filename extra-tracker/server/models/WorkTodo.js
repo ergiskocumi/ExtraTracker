@@ -13,7 +13,7 @@ const workTodoSchema = new mongoose.Schema({
     // Progetto associato
     project: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'WorkProject',
+        ref: 'Project',
         required: [true, 'Il progetto è obbligatorio'],
         index: true,
     },

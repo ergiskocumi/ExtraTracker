@@ -102,7 +102,7 @@ class WorkTodoService extends BaseService {
         const todo = await this.findById(tenantScope, id, { throwIfNotFound: true });
         
         if (todo.status === 'completed') {
-            throw AppError.badRequest('Il TODO è già completato');
+            throw AppError.validation('Il TODO è già completato');
         }
         
         return this.update(tenantScope, id, {
@@ -118,7 +118,7 @@ class WorkTodoService extends BaseService {
         const todo = await this.findById(tenantScope, id, { throwIfNotFound: true });
         
         if (todo.status !== 'completed') {
-            throw AppError.badRequest('Il TODO non è completato');
+            throw AppError.validation('Il TODO non è completato');
         }
         
         return this.update(tenantScope, id, {
@@ -171,7 +171,7 @@ class WorkTodoService extends BaseService {
         }
         
         const userId = this._getUserId(tenantScope);
-        const WorkProject = require('../models/WorkProject');
+        const Project = require('../models/Project');
         const mongoose = require('mongoose');
         
         // Converti in ObjectId
@@ -194,7 +194,7 @@ class WorkTodoService extends BaseService {
         }
         
         // Verifica che il progetto esista e appartenga all'utente
-        const project = await WorkProject.findOne({ 
+        const project = await Project.findOne({ 
             _id: projectObjectId, 
             user: userId 
         });

@@ -37,11 +37,28 @@ const projectSchema = new mongoose.Schema({
         maxlength: [500, 'La descrizione non può superare 500 caratteri'],
     },
     
-    // Tariffa oraria
+    // Tipo di progetto
+    type: {
+        type: String,
+        enum: ['CLIENT', 'PERSONAL'],
+        default: 'CLIENT',
+    },
+    
+    // Tariffa oraria (opzionale per progetti PERSONAL)
     rate: { 
         type: Number, 
-        required: [true, 'La tariffa oraria è obbligatoria'],
+        required: function() {
+            return this.type === 'CLIENT';
+        },
         min: [0, 'La tariffa non può essere negativa'],
+    },
+    
+    // Icona per la UI (emoji o nome icona)
+    icon: {
+        type: String,
+        trim: true,
+        maxlength: [10, 'L\'icona non può superare 10 caratteri'],
+        default: '📂',
     },
 
     // Ore stimate per completare il progetto (serve per il controllo salute)
@@ -66,10 +83,17 @@ const projectSchema = new mongoose.Schema({
         default: 'active',
     },
     
-    // Colore per la UI (opzionale)
+    // Budget opzionale (per progetti CLIENT)
+    budget: {
+        type: Number,
+        min: [0, 'Il budget non può essere negativo'],
+    },
+    
+    // Colore per la UI (hex)
     color: {
         type: String,
         default: '#6366f1', // indigo-500
+        match: [/^#[0-9A-Fa-f]{6}$/, 'Il colore deve essere un hex valido (es. #6366f1)'],
     },
     
 }, {
@@ -132,11 +156,21 @@ projectSchema.set('toObject', {
 // =========================================
 
 /**
- * Pre-save: normalizza il codice in uppercase.
+ * Pre-save: normalizza il codice in uppercase e valida rate per CLIENT.
  */
 projectSchema.pre('save', function() {
     if (this.isModified('code')) {
         this.code = this.code.toUpperCase();
+    }
+    
+    // Se è CLIENT e rate non è impostato, errore
+    if (this.type === 'CLIENT' && (!this.rate || this.rate === 0)) {
+        throw new Error('La tariffa oraria è obbligatoria per progetti CLIENT');
+    }
+    
+    // Se è PERSONAL, rate può essere 0 o undefined
+    if (this.type === 'PERSONAL') {
+        this.rate = this.rate || 0;
     }
 });
 

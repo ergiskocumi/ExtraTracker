@@ -2,40 +2,36 @@
  * 📝 ENTRY CARD
  * =============
  * 
- * Card singola entry con info progetto, categoria e contenuto.
+ * Card singola entry (WorkLog) con info progetto e contenuto.
+ * Supporta sia log con orari (Timer) che note senza orari (Journal).
  */
 
 import { motion } from 'framer-motion';
-import { FiClock, FiTag } from 'react-icons/fi';
-import type { WorkEntry, WorkProject } from '../types';
+import { FiClock, FiTag, FiCalendar } from 'react-icons/fi';
+import type { WorkLog } from '../../tracker/type';
+import type { WorkProject } from '../types';
 
 interface EntryCardProps {
-    entry: WorkEntry;
+    entry: WorkLog;
     project: WorkProject | null;
     onClick?: () => void;
 }
 
-const CATEGORY_ICONS: Record<WorkEntry['category'], string> = {
-    development: '💻',
-    documentation: '📝',
-    ticket: '🎫',
-    meeting: '🤝',
-    research: '🔬',
-    freeform: '📄',
+const MOOD_ICONS: Record<string, string> = {
+    high: '😊',
+    neutral: '😐',
+    low: '😔',
 };
 
-const CATEGORY_LABELS: Record<WorkEntry['category'], string> = {
-    development: 'Development',
-    documentation: 'Documentation',
-    ticket: 'Ticket',
-    meeting: 'Meeting',
-    research: 'Research',
-    freeform: 'Freeform',
+const MOOD_LABELS: Record<string, string> = {
+    high: 'Alto',
+    neutral: 'Neutrale',
+    low: 'Basso',
 };
 
 export const EntryCard = ({ entry, project, onClick }: EntryCardProps) => {
     const formatDuration = (minutes?: number) => {
-        if (!minutes) return null;
+        if (!minutes || minutes === 0) return null;
         const hours = Math.floor(minutes / 60);
         const mins = minutes % 60;
         if (hours > 0) {
@@ -43,6 +39,13 @@ export const EntryCard = ({ entry, project, onClick }: EntryCardProps) => {
         }
         return `${mins}m`;
     };
+
+    const formatTime = (time?: string) => {
+        if (!time) return null;
+        return time; // Formato già HH:mm
+    };
+
+    const hasTimeTracking = !!(entry.startTime && entry.endTime);
 
     return (
         <motion.div
@@ -54,15 +57,15 @@ export const EntryCard = ({ entry, project, onClick }: EntryCardProps) => {
             }`}
         >
             <div className="flex items-start gap-3">
-                {/* ICONA CATEGORIA */}
+                {/* ICONA: Timer o Journal */}
                 <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 text-xl">
-                    {CATEGORY_ICONS[entry.category]}
+                    {hasTimeTracking ? '⏱️' : '📝'}
                 </div>
 
                 {/* CONTENUTO */}
                 <div className="flex-1 min-w-0">
-                    {/* HEADER: Progetto + Categoria */}
-                    <div className="flex items-center gap-2 mb-2">
+                    {/* HEADER: Progetto + Mood/Billable */}
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                         {project && (
                             <div
                                 className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium"
@@ -75,9 +78,16 @@ export const EntryCard = ({ entry, project, onClick }: EntryCardProps) => {
                                 <span className="truncate max-w-[120px]">{project.name}</span>
                             </div>
                         )}
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-white/10 text-white/80">
-                            {CATEGORY_LABELS[entry.category]}
-                        </span>
+                        {entry.mood && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-white/10 text-white/80">
+                                {MOOD_ICONS[entry.mood]} {MOOD_LABELS[entry.mood]}
+                            </span>
+                        )}
+                        {entry.isBillable === false && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-300">
+                                Non fatturabile
+                            </span>
+                        )}
                     </div>
 
                     {/* TITOLO */}
@@ -86,18 +96,33 @@ export const EntryCard = ({ entry, project, onClick }: EntryCardProps) => {
                     </h4>
 
                     {/* CONTENUTO */}
-                    {entry.content && (
+                    {entry.description && (
                         <p className="text-sm text-white/70 line-clamp-3 mb-3">
-                            {entry.content}
+                            {entry.description}
                         </p>
                     )}
 
-                    {/* METADATA: Durata e Tags */}
-                    <div className="flex items-center gap-4 text-xs text-white/50">
-                        {entry.duration && (
+                    {/* METADATA: Orari, Durata e Tags */}
+                    <div className="flex items-center gap-4 text-xs text-white/50 flex-wrap">
+                        {hasTimeTracking && (
+                            <>
+                                {formatTime(entry.startTime) && formatTime(entry.endTime) && (
+                                    <div className="flex items-center gap-1">
+                                        <FiClock size={12} />
+                                        <span>{formatTime(entry.startTime)} - {formatTime(entry.endTime)}</span>
+                                    </div>
+                                )}
+                                {entry.durationMinutes && entry.durationMinutes > 0 && (
+                                    <div className="flex items-center gap-1">
+                                        <span>{formatDuration(entry.durationMinutes)}</span>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                        {!hasTimeTracking && entry.durationMinutes && entry.durationMinutes > 0 && (
                             <div className="flex items-center gap-1">
                                 <FiClock size={12} />
-                                <span>{formatDuration(entry.duration)}</span>
+                                <span>{formatDuration(entry.durationMinutes)}</span>
                             </div>
                         )}
                         {entry.tags && entry.tags.length > 0 && (

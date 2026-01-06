@@ -12,7 +12,7 @@ const BaseService = require('./BaseService');
 const Goal = require('../models/Goal');
 const CheckIn = require('../models/CheckIn');
 const AppError = require('../utils/AppError');
-const activityService = require('./activityService');
+const eventBus = require('../utils/eventBus');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -526,43 +526,16 @@ class GoalService extends BaseService {
         if (previous.status === updated.status) return;
 
         const status = updated.status;
-        const activityType = status === 'completed'
-            ? 'GOAL_COMPLETED'
-            : status === 'abandoned'
-                ? 'GOAL_ARCHIVED'
-                : null;
-
-        if (!activityType) return;
-
-        const userId = this._getUserId(tenantScope);
-        const now = new Date();
-        const daysToComplete = this._calculateDaysDiff(updated.createdAt, now);
-        const deadline = updated.deadline ? new Date(updated.deadline) : null;
-        const isOverdue = !!deadline && now > deadline;
-        const daysOverdue = isOverdue ? this._calculateDaysDiff(deadline, now) : 0;
-
-        const metadata = {
-            entityId: updated._id,
-            deadline: updated.deadline,
-            category: updated.category,
-            daysToComplete,
-            isOverdue,
-            daysOverdue,
-        };
-
-        if (updated.priority != null) {
-            metadata.priority = updated.priority;
-        }
-
-        try {
-            await activityService.recordActivity(userId, activityType, {
-                entityId: updated._id,
-                category: updated.category,
-                metadata,
+        
+        // Emetti evento solo per goal completati (Pattern Observer)
+        if (status === 'completed') {
+            const userId = this._getUserId(tenantScope);
+            eventBus.emit('goal.completed', {
+                userId,
+                goal: updated,
             });
-        } catch (err) {
-            console.error(`❌ Activity log error (${activityType}):`, err.message);
         }
+        // Nota: GOAL_ARCHIVED può essere gestito in futuro se necessario
     }
 }
 

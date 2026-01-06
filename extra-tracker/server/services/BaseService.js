@@ -39,6 +39,7 @@
  */
 
 const AppError = require('../utils/AppError');
+const mongoose = require('mongoose');
 
 class BaseService {
     /**
@@ -74,16 +75,35 @@ class BaseService {
      * 
      * @param {Object} tenantScope - Oggetto req.tenantScope
      * @returns {ObjectId} L'ID dell'utente
-     * @throws {Error} Se tenantScope o tenantId mancano
+     * @throws {AppError} Se tenantScope o tenantId mancano
      */
     _getUserId(tenantScope) {
         if (!tenantScope || !tenantScope.tenantId) {
-            throw new Error(
-                '🚨 SECURITY VIOLATION: tenantScope.tenantId mancante! ' +
-                'Assicurati che il middleware tenantContext sia applicato.'
+            // FIX: Uso di AppError per dire al GlobalHandler "è un errore previsto"
+            // Questo ritorna 401 (Unauthorized) invece di 500 (Internal Server Error)
+            throw AppError.unauthorized(
+                'Sessione non valida o scaduta (Tenant mancante)',
+                { 
+                    code: 'INVALID_TENANT_SCOPE',
+                    category: 'AUTHORIZATION',
+                    suggestion: 'Assicurati che il middleware tenantContext sia applicato alla route.'
+                }
             );
         }
         return tenantScope.tenantId;
+    }
+
+    /**
+     * Escapa caratteri speciali regex per prevenire regex injection.
+     * 
+     * @param {string} text - Testo da escapare
+     * @returns {string} Testo escapato
+     */
+    _escapeRegex(text) {
+        if (typeof text !== 'string') {
+            return '';
+        }
+        return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     /**
@@ -127,8 +147,20 @@ class BaseService {
         let query = this.Model.find(secureFilter);
 
         if (sort) query = query.sort(sort);
-        if (limit) query = query.limit(limit);
-        if (skip) query = query.skip(skip);
+        
+        // FIX: Validazione limit per prevenire DoS
+        // Impedisce a un client malevolo di chiedere limit=1000000 bloccando il server
+        if (limit !== undefined) {
+            const safeLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 20)); // Max 100 elementi
+            query = query.limit(safeLimit);
+        }
+        
+        // FIX: Validazione skip per prevenire valori negativi
+        if (skip !== undefined) {
+            const safeSkip = Math.max(0, parseInt(skip, 10) || 0);
+            query = query.skip(safeSkip);
+        }
+        
         if (select) query = query.select(select);
         if (populate?.length) {
             populate.forEach(field => {
@@ -149,7 +181,7 @@ class BaseService {
      * @param {string} id - ID del documento
      * @param {Object} options - Opzioni query
      * @returns {Promise<Document|null>}
-     * @throws {AppError} Se non trovato e throwIfNotFound è true
+     * @throws {AppError} Se ID non valido o non trovato e throwIfNotFound è true
      */
     async findById(tenantScope, id, options = {}) {
         const {
@@ -157,6 +189,17 @@ class BaseService {
             populate = this.options.populateFields,
             throwIfNotFound = false,
         } = options;
+
+        // Validazione ObjectId: previene errori MongoDB e attacchi
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            if (throwIfNotFound) {
+                throw AppError.validation(
+                    `ID non valido per ${this.options.entityName}`,
+                    { code: 'INVALID_ID' }
+                );
+            }
+            return null;
+        }
 
         // 🔒 SICUREZZA ESPLICITA: user è SEMPRE nel filtro
         const secureFilter = this._buildFilter(tenantScope, { _id: id });
@@ -376,6 +419,8 @@ class BaseService {
     /**
      * Ricerca testuale sui campi configurati.
      * 
+     * 🔒 SICUREZZA: Escapa caratteri speciali regex per prevenire regex injection.
+     * 
      * @param {Object} tenantScope - Oggetto req.tenantScope
      * @param {string} searchTerm - Termine di ricerca
      * @param {Object} additionalFilters - Filtri aggiuntivi
@@ -386,8 +431,10 @@ class BaseService {
             return this.find(tenantScope, additionalFilters);
         }
 
-        // Crea regex case-insensitive
-        const regex = new RegExp(searchTerm, 'i');
+        // 🔒 FIX SICUREZZA: Escapa caratteri speciali regex
+        // Previene regex injection (es. searchTerm = ".*" scaricherebbe tutto il DB)
+        const escapedTerm = this._escapeRegex(searchTerm);
+        const regex = new RegExp(escapedTerm, 'i');
 
         // Crea $or per ogni campo searchable
         const searchConditions = this.options.searchFields.map(field => ({
@@ -403,27 +450,34 @@ class BaseService {
     /**
      * Paginazione con metadata.
      * 
+     * 🔒 SICUREZZA: Valida e normalizza limit/page per prevenire DoS.
+     * 
      * @param {Object} tenantScope - Oggetto req.tenantScope
      * @param {Object} filters - Filtri
      * @param {Object} pagination - { page, limit }
      * @returns {Promise<{data: Array, meta: Object}>}
      */
     async paginate(tenantScope, filters = {}, { page = 1, limit = 20 } = {}) {
-        const skip = (page - 1) * limit;
+        // FIX: Clamp dei valori per prevenire DoS
+        // Impedisce a un client malevolo di chiedere limit=1000000 bloccando il server
+        const safePage = Math.max(1, parseInt(page, 10) || 1);
+        const safeLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 20)); // Max 100 elementi
+        
+        const skip = (safePage - 1) * safeLimit;
 
         const [data, total] = await Promise.all([
-            this.find(tenantScope, filters, { skip, limit }),
+            this.find(tenantScope, filters, { skip, limit: safeLimit }),
             this.count(tenantScope, filters),
         ]);
 
         return {
             data,
             meta: {
-                page,
-                limit,
+                page: safePage,
+                limit: safeLimit,
                 total,
-                totalPages: Math.ceil(total / limit),
-                hasMore: page * limit < total,
+                totalPages: Math.ceil(total / safeLimit),
+                hasMore: safePage * safeLimit < total,
             },
         };
     }

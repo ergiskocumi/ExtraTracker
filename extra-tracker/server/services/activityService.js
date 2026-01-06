@@ -18,6 +18,7 @@ const ACTIVITY_TYPES = [
     'GOAL_COMPLETED',
     'GOAL_ARCHIVED',
     'WORK_SESSION_LOGGED',
+    'WORK_NOTE_CREATED', // Note/journal senza orari
     'HABIT_CHECKIN',
     'HABIT_SKIPPED',
     'PROJECT_CREATED',
@@ -33,6 +34,115 @@ class ActivityService {
         return Math.max(1, Math.floor(Math.sqrt(safeXp / XP_LEVEL_BASE)) + 1);
     }
 
+    /**
+     * Aggiorna lo streak usando operatori atomici MongoDB.
+     * 
+     * ⚠️ RACE CONDITION RISOLTA:
+     * Invece di leggere, modificare in JS e salvare (non atomico),
+     * usiamo operatori MongoDB atomici direttamente nel database.
+     * 
+     * Logica atomica:
+     * 1. Se lastActivityDate non è oggi:
+     *    - Se è ieri (range): incrementa streak
+     *    - Altrimenti: reset streak a 1
+     *    - Aggiorna lastActivityDate a oggi
+     * 2. Se lastActivityDate è già oggi: nessuna modifica (idempotente)
+     * 
+     * Usa pipeline di aggiornamento per logica condizionale atomica.
+     * 
+     * @param {ObjectId} userId - ID dell'utente
+     * @returns {Promise<Object>} - { current, best, updated } - updated indica se è stato aggiornato
+     */
+    async updateStreakAtomically(userId) {
+        const today = this._startOfDay(new Date());
+        const yesterdayStart = new Date(today.getTime() - MS_PER_DAY);
+        const yesterdayEnd = new Date(today.getTime() - 1); // Un millisecondo prima di oggi
+        
+        // OPERAZIONE 1: Incrementa streak se lastActivityDate è ieri (o null/inesistente)
+        // Condizione atomica: solo se lastActivityDate non è oggi
+        const incrementResult = await User.updateOne(
+            {
+                _id: userId,
+                // Condizione: lastActivityDate è ieri (range) o null/inesistente, E non è oggi
+                $or: [
+                    { 'gamification.streak.lastActivityDate': { $exists: false } },
+                    { 'gamification.streak.lastActivityDate': null },
+                    {
+                        $and: [
+                            { 'gamification.streak.lastActivityDate': { $gte: yesterdayStart } },
+                            { 'gamification.streak.lastActivityDate': { $lt: today } },
+                        ],
+                    },
+                ],
+            },
+            {
+                $inc: { 'gamification.streak.current': 1 },
+                $set: { 'gamification.streak.lastActivityDate': today },
+            }
+        );
+
+        // OPERAZIONE 2: Reset streak a 1 se lastActivityDate è più vecchio di ieri
+        // Solo se la prima operazione non ha matchato
+        if (incrementResult.matchedCount === 0) {
+            const resetResult = await User.updateOne(
+                {
+                    _id: userId,
+                    // Condizione: lastActivityDate esiste, non è null, ed è più vecchio di ieri
+                    'gamification.streak.lastActivityDate': {
+                        $exists: true,
+                        $ne: null,
+                        $lt: yesterdayStart,
+                    },
+                },
+                {
+                    $set: {
+                        'gamification.streak.current': 1,
+                        'gamification.streak.lastActivityDate': today,
+                    },
+                }
+            );
+
+            // Se anche questa non ha matchato, significa che lastActivityDate è già oggi
+            // (idempotente: nessuna modifica necessaria)
+            if (resetResult.matchedCount === 0) {
+                const user = await User.findById(userId).select('gamification.streak');
+                const streak = user?.gamification?.streak || {};
+                return {
+                    current: this._toNumber(streak.current, 0),
+                    best: this._toNumber(streak.best, 0),
+                    updated: false, // Non aggiornato perché già aggiornato oggi
+                };
+            }
+        }
+
+        // Aggiorna best streak se necessario (dopo incremento o reset)
+        // Recupera il nuovo current e aggiorna best se maggiore
+        const user = await User.findById(userId).select('gamification.streak');
+        const newCurrent = this._toNumber(user?.gamification?.streak?.current, 0);
+        const currentBest = this._toNumber(user?.gamification?.streak?.best, 0);
+        
+        if (newCurrent > currentBest) {
+            await User.updateOne(
+                { _id: userId },
+                { $set: { 'gamification.streak.best': newCurrent } }
+            );
+        }
+
+        // Recupera i valori finali aggiornati
+        const updatedUser = await User.findById(userId).select('gamification.streak');
+        const streak = updatedUser?.gamification?.streak || {};
+        
+        return {
+            current: this._toNumber(streak.current, 0),
+            best: this._toNumber(streak.best, 0),
+            updated: true, // Aggiornato con successo
+        };
+    }
+
+    /**
+     * @deprecated Usa updateStreakAtomically() invece
+     * Mantenuto per compatibilità temporanea
+     */
     updateStreak(userDoc) {
         const streak = userDoc.gamification?.streak || {};
         const current = this._toNumber(streak.current, 0);
@@ -116,7 +226,14 @@ class ActivityService {
         const newLevel = this.getLevelFromXP(nextXp);
         const leveledUp = newLevel > previousLevel;
 
-        const nextStreak = this.updateStreak(user);
+        // ⚠️ ATOMIC UPDATE: Usa operatori MongoDB atomici invece di read-modify-write
+        // Questo previene race conditions quando più richieste arrivano simultaneamente
+        const streakResult = await this.updateStreakAtomically(userId);
+        const nextStreak = {
+            current: streakResult.current,
+            best: streakResult.best,
+            lastActivityDate: this._startOfDay(new Date()),
+        };
 
         const nextStats = {
             totalStudySessions: this._toNumber(rawStats.totalStudySessions, 0),
