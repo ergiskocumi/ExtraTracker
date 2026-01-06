@@ -163,51 +163,103 @@ module.exports = {
     },
 
     // ==========================================
-// CORS Configuration
-// ==========================================
-cors: {
-    // Funzione per validare origin dinamicamente
-    origin: (origin, callback) => {
-        // Lista di domini permessi
-        const allowedOrigins = [
-            process.env.FRONTEND_URL,
-            'http://localhost:5173',
-            'http://localhost:5174',
-        ].filter(Boolean);
+    // CORS Configuration
+    // ==========================================
+    cors: {
+        // Funzione per validare origin dinamicamente
+        origin: (origin, callback) => {
+            // Lista completa di domini permessi per sviluppo
+            const allowedOrigins = [
+                process.env.FRONTEND_URL,
+                // Vite default ports
+                'http://localhost:5173',
+                'http://localhost:5174',
+                'http://127.0.0.1:5173',
+                'http://127.0.0.1:5174',
+                // React/Next.js default ports
+                'http://localhost:3000',
+                'http://127.0.0.1:3000',
+                // Altri porti comuni
+                'http://localhost:8080',
+                'http://127.0.0.1:8080',
+            ].filter(Boolean); // Rimuove undefined/null
+            
+            // In sviluppo, permetti anche qualsiasi localhost (per flessibilità)
+            const isDevelopment = !isProduction;
+            
+            // Permetti richieste senza origin (Postman, curl, mobile apps, same-origin requests)
+            if (!origin) {
+                return callback(null, true);
+            }
+            
+            // In sviluppo: permetti qualsiasi localhost/127.0.0.1 per facilitare debugging
+            if (isDevelopment) {
+                try {
+                    const url = new URL(origin);
+                    const isLocalhost = 
+                        url.hostname === 'localhost' || 
+                        url.hostname === '127.0.0.1' ||
+                        url.hostname === '::1' ||
+                        url.hostname.startsWith('192.168.') || // Rete locale
+                        url.hostname.startsWith('10.') || // Rete locale
+                        url.hostname.startsWith('172.16.'); // Rete locale
+                    
+                    if (isLocalhost) {
+                        return callback(null, true);
+                    }
+                } catch (e) {
+                    // Se l'URL non è valido, continua con i controlli normali
+                }
+            }
+            
+            // Permetti tutti i preview deployments di Vercel del tuo progetto
+            if (origin.includes('ergiskocumis-projects.vercel.app')) {
+                return callback(null, true);
+            }
+            
+            // Permetti il dominio principale
+            if (origin === 'https://extra-tracker.vercel.app') {
+                return callback(null, true);
+            }
+            
+            // Controlla la lista esplicita
+            if (allowedOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+            
+            // In sviluppo, logga l'origin bloccato per debug
+            if (isDevelopment) {
+                console.warn(`⚠️  CORS: Origin bloccato: ${origin}`);
+                console.warn(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+                console.warn(`   FRONTEND_URL: ${process.env.FRONTEND_URL || 'NON CONFIGURATO'}`);
+            }
+            
+            // Blocca altri domini
+            callback(new Error('Not allowed by CORS'));
+        },
         
-        // Permetti richieste senza origin (Postman, curl, mobile apps)
-        if (!origin) {
-            return callback(null, true);
-        }
+        // IMPORTANTE: necessario per inviare cookies cross-origin
+        credentials: true,
         
-        // Permetti tutti i preview deployments di Vercel del tuo progetto
-        if (origin.includes('ergiskocumis-projects.vercel.app')) {
-            return callback(null, true);
-        }
+        // Headers permessi
+        allowedHeaders: [
+            'Content-Type', 
+            'Authorization', 
+            'X-CSRF-Token',
+            'X-Requested-With',
+            'Accept',
+            'Origin',
+        ],
         
-        // Permetti il dominio principale
-        if (origin === 'https://extra-tracker.vercel.app') {
-            return callback(null, true);
-        }
+        // Metodi permessi
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         
-        // Controlla la lista
-        if (allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        }
+        // Headers esposti al frontend
+        exposedHeaders: ['Content-Range', 'X-Content-Range'],
         
-        // Blocca altri domini
-        callback(new Error('Not allowed by CORS'));
+        // Max age per preflight requests (in secondi)
+        maxAge: 86400, // 24 ore
     },
-    
-    // IMPORTANTE: necessario per inviare cookies cross-origin
-    credentials: true,
-    
-    // Headers permessi
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
-    
-    // Metodi permessi
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-},
 
     // ==========================================
     // Helmet Security Headers
