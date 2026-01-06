@@ -97,7 +97,8 @@ export const WorkspacePage = () => {
         
         if (selectedProject) {
             filtered = filtered.filter((e) => {
-                return String(e.projectId) === String(selectedProject);
+                const entryProjectId = String(e.projectId || '');
+                return entryProjectId === String(selectedProject);
             });
         }
         

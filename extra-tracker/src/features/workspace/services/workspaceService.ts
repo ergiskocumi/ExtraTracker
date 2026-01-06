@@ -187,6 +187,29 @@ export const workspaceProjectsService = {
 };
 
 /**
+ * Helper per normalizzare projectId da oggetto popolato o ID
+ */
+function normalizeProjectId(item: any): string | undefined {
+    if (item.projectId) {
+        if (typeof item.projectId === 'object') {
+            // È un oggetto popolato, estrai l'ID
+            return String(item.projectId._id || item.projectId.id || '');
+        } else {
+            // È già un ID
+            return String(item.projectId);
+        }
+    } else if (item.project) {
+        // Fallback a project (formato legacy)
+        if (typeof item.project === 'object') {
+            return String(item.project._id || item.project.id || '');
+        } else {
+            return String(item.project);
+        }
+    }
+    return undefined;
+}
+
+/**
  * WORK ENTRIES API (Aggiornato per usare WorkLog unificato)
  * 
  * NOTA: Tutti gli endpoint ora usano /api/worklogs invece di /api/workspace/entries
@@ -224,9 +247,10 @@ export const workspaceEntriesService = {
         // Normalizza i dati da WorkLog (il backend ritorna già nel formato corretto)
         return data.map((item: any) => {
             const id = item.id || item._id;
+            
             return {
                 id: String(id),
-                projectId: item.projectId || item.project,
+                projectId: normalizeProjectId(item),
                 date: item.date,
                 title: item.title,
                 description: item.description,
@@ -297,7 +321,7 @@ export const workspaceEntriesService = {
         const data = response.data || [];
         return data.map((item: any) => ({
             id: String(item.id || item._id),
-            projectId: item.projectId || item.project,
+            projectId: normalizeProjectId(item),
             date: item.date,
             title: item.title,
             description: item.description,
@@ -322,7 +346,7 @@ export const workspaceEntriesService = {
         const data = response.data || [];
         return data.map((item: any) => ({
             id: String(item.id || item._id),
-            projectId: item.projectId || item.project,
+            projectId: normalizeProjectId(item),
             date: item.date,
             title: item.title,
             description: item.description,
@@ -366,7 +390,7 @@ export const workspaceEntriesService = {
         const item = response.data;
         return {
             id: String(item.id || item._id),
-            projectId: item.projectId || item.project,
+            projectId: normalizeProjectId(item),
             date: item.date,
             title: item.title,
             description: item.description,
@@ -407,7 +431,7 @@ export const workspaceEntriesService = {
         const item = response.data;
         return {
             id: String(item.id || item._id),
-            projectId: item.projectId || item.project,
+            projectId: normalizeProjectId(item),
             date: item.date,
             title: item.title,
             description: item.description,
@@ -446,7 +470,7 @@ export const workspaceEntriesService = {
         const item = response.data;
         return {
             id: String(item.id || item._id),
-            projectId: item.projectId || item.project,
+            projectId: normalizeProjectId(item),
             date: item.date,
             title: item.title,
             description: item.description,

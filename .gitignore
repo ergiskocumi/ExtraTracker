@@ -1,2 +1,3 @@
 extra-tracker/server/.env
 extra-tracker/.env
+.cursor/debug.log
