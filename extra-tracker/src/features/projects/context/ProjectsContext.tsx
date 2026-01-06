@@ -78,10 +78,9 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
       };
       
       // Rate e Budget solo per CLIENT
+      // FIX: Invia sempre rate per CLIENT (anche se undefined) per permettere validazione backend
       if (type === 'CLIENT') {
-        if (rate) {
-          projectData.rate = Number(rate);
-        }
+        projectData.rate = rate ? Number(rate) : undefined;
         if (budget) {
           projectData.budget = Number(budget);
         }

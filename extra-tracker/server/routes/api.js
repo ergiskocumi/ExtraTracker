@@ -67,12 +67,15 @@ router.post('/projects', asyncHandler(async (req, res) => {
         name: req.body.name,
         code: req.body.code,
         description: req.body.description,
+        type: req.body.type, // FIX: Aggiunto type
         rate: req.body.rate,
+        budget: req.body.budget, // FIX: Aggiunto budget
         estimatedHours: req.body.estimatedHours,
         progress: req.body.progress,
         status: req.body.status,
         color: req.body.color,
     });
+    
     res.status(201).json({ success: true, data: project });
 }));
 
@@ -117,6 +120,54 @@ router.get('/projects-stats', asyncHandler(async (req, res) => {
  */
 router.get('/worklogs', asyncHandler(async (req, res) => {
     const logs = await workLogService.find(req.tenantScope);
+    res.json({ success: true, data: logs });
+}));
+
+/**
+ * GET /api/worklogs/feed
+ * Feed Workspace: timeline unificata con filtri avanzati
+ * 
+ * IMPORTANTE: Deve essere PRIMA di /worklogs/:id per evitare che "feed" venga matchato come :id
+ * 
+ * Query params:
+ * - projectId: Filtra per progetto
+ * - date: Filtra per data specifica (YYYY-MM-DD)
+ * - startDate: Inizio range date (YYYY-MM-DD)
+ * - endDate: Fine range date (YYYY-MM-DD)
+ * - tags: Filtra per tag (singolo o multiplo, separato da virgola)
+ * - limit: Limite risultati (default: 50)
+ * - skip: Skip risultati (per paginazione)
+ */
+router.get('/worklogs/feed', asyncHandler(async (req, res) => {
+    const filters = {};
+    
+    if (req.query.projectId) {
+        filters.projectId = req.query.projectId;
+    }
+    
+    if (req.query.date) {
+        filters.date = req.query.date;
+    } else if (req.query.startDate || req.query.endDate) {
+        filters.startDate = req.query.startDate;
+        filters.endDate = req.query.endDate;
+    }
+    
+    if (req.query.tags) {
+        // Supporta sia singolo tag che multipli (separati da virgola)
+        filters.tags = req.query.tags.includes(',') 
+            ? req.query.tags.split(',').map(t => t.trim())
+            : req.query.tags;
+    }
+    
+    const options = {};
+    if (req.query.limit) {
+        options.limit = parseInt(req.query.limit);
+    }
+    if (req.query.skip) {
+        options.skip = parseInt(req.query.skip);
+    }
+    
+    const logs = await workLogService.getWorkspaceFeed(req.tenantScope, filters, options);
     res.json({ success: true, data: logs });
 }));
 
@@ -218,51 +269,6 @@ router.get('/worklogs/totals', asyncHandler(async (req, res) => {
     res.json({ success: true, data: totals });
 }));
 
-/**
- * GET /api/worklogs/feed
- * Feed Workspace: timeline unificata con filtri avanzati
- * 
- * Query params:
- * - projectId: Filtra per progetto
- * - date: Filtra per data specifica (YYYY-MM-DD)
- * - startDate: Inizio range date (YYYY-MM-DD)
- * - endDate: Fine range date (YYYY-MM-DD)
- * - tags: Filtra per tag (singolo o multiplo, separato da virgola)
- * - limit: Limite risultati (default: 50)
- * - skip: Skip risultati (per paginazione)
- */
-router.get('/worklogs/feed', asyncHandler(async (req, res) => {
-    const filters = {};
-    
-    if (req.query.projectId) {
-        filters.projectId = req.query.projectId;
-    }
-    
-    if (req.query.date) {
-        filters.date = req.query.date;
-    } else if (req.query.startDate || req.query.endDate) {
-        filters.startDate = req.query.startDate;
-        filters.endDate = req.query.endDate;
-    }
-    
-    if (req.query.tags) {
-        // Supporta sia singolo tag che multipli (separati da virgola)
-        filters.tags = req.query.tags.includes(',') 
-            ? req.query.tags.split(',').map(t => t.trim())
-            : req.query.tags;
-    }
-    
-    const options = {};
-    if (req.query.limit) {
-        options.limit = parseInt(req.query.limit);
-    }
-    if (req.query.skip) {
-        options.skip = parseInt(req.query.skip);
-    }
-    
-    const logs = await workLogService.getWorkspaceFeed(req.tenantScope, filters, options);
-    res.json({ success: true, data: logs });
-}));
 
 /**
  * GET /api/worklogs/project/:projectId/stats
