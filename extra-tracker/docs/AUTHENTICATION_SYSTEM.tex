@@ -1,0 +1,1394 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{float}
+
+% Configurazione geometria pagina
+\geometry{
+    left=2.5cm,
+    right=2.5cm,
+    top=3cm,
+    bottom=3cm
+}
+
+% Configurazione hyperref
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Sistema di Autenticazione - Documentazione Tecnica},
+    pdfauthor={ExtraTracker Team}
+}
+
+% Configurazione listings per codice
+\lstset{
+    language=JavaScript,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=2,
+    showstringspaces=false,
+    escapeinside={\%*}{*)}
+}
+
+% Configurazione titoli
+\titleformat{\section}
+{\Large\bfseries\color{blue!80!black}}
+{}
+{0em}
+{}[\titlerule]
+
+\titleformat{\subsection}
+{\large\bfseries\color{blue!60!black}}
+{}
+{0em}
+{}
+
+% Header e footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{\thepage}
+\fancyfoot[C]{Sistema di Autenticazione - Documentazione Tecnica}
+
+% Comandi personalizzati
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\tech}[1]{\textbf{\textit{#1}}}
+\newcommand{\important}[1]{\textcolor{red!80!black}{\textbf{#1}}}
+
+\title{
+    \vspace{-2cm}
+    \textbf{\Huge Sistema di Autenticazione}\\
+    \Large Documentazione Tecnica Completa\\
+    \large Backend e Frontend
+    \vspace{0.5cm}
+}
+
+\author{ExtraTracker Development Team}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduzione}
+
+Questo documento fornisce una documentazione esaustiva del sistema di autenticazione implementato in ExtraTracker, analizzando in dettaglio tutte le tecniche utilizzate, le scelte progettuali e le implicazioni di sicurezza.
+
+\subsection{Obiettivi del Sistema}
+
+Il sistema di autenticazione è progettato per garantire:
+
+\begin{itemize}
+    \item \textbf{Sicurezza}: Protezione contro attacchi comuni (brute force, XSS, CSRF, token theft)
+    \item \textbf{Usabilità}: Esperienza utente fluida con refresh automatico dei token
+    \item \textbf{Conformità}: Rispetto dei principi GDPR e best practices di sicurezza
+    \item \textbf{Scalabilità}: Architettura modulare e testabile
+\end{itemize}
+
+\subsection{Architettura Generale}
+
+Il sistema segue un'architettura a \tech{tre livelli}:
+
+\begin{enumerate}
+    \item \textbf{Controller Layer}: Gestisce HTTP request/response, validazione input, gestione cookie
+    \item \textbf{Service Layer}: Contiene la logica di business pura (hashing, generazione token, validazione)
+    \item \textbf{Model Layer}: Schema database e metodi di accesso ai dati
+\end{enumerate}
+
+Questa separazione garantisce:
+\begin{itemize}
+    \item \textbf{Testabilità}: Ogni layer può essere testato indipendentemente
+    \item \textbf{Manutenibilità}: Modifiche isolate per responsabilità
+    \item \textbf{Riutilizzabilità}: I service possono essere usati da CLI, worker, etc.
+\end{itemize}
+
+\section{Backend: Architettura e Componenti}
+
+\subsection{Controller Layer}
+
+Il controller (\code{authController.js}) gestisce esclusivamente la comunicazione HTTP. \important{Non contiene logica di business}.
+
+\subsubsection{Gestione Cookie Sicuri}
+
+I token vengono memorizzati in \tech{HttpOnly cookies} per prevenire accesso da JavaScript (protezione XSS):
+
+\begin{lstlisting}[caption=Impostazione Cookie Sicuri]
+const setAuthCookies = (res, accessToken, refreshToken) => {
+    // Access token cookie
+    res.cookie(
+        securityConfig.cookie.name,
+        accessToken,
+        securityConfig.cookie.options  // httpOnly: true, secure: true, sameSite: 'none'
+    );
+
+    // Refresh token cookie (path specifico!)
+    res.cookie(
+        securityConfig.cookie.refreshName,
+        refreshToken,
+        securityConfig.cookie.refreshOptions  // path: '/api/auth/refresh'
+    );
+};
+\end{lstlisting}
+
+\textbf{Perché HttpOnly?}
+\begin{itemize}
+    \item Previene accesso da \code{document.cookie} (XSS attacks)
+    \item Il browser invia automaticamente i cookie nelle richieste
+    \item Non accessibile da JavaScript malizioso
+\end{itemize}
+
+\textbf{Perché SameSite: 'none'?}
+\begin{itemize}
+    \item Necessario per richieste cross-origin (frontend e backend su domini diversi)
+    \item Richiede \code{secure: true} (HTTPS in produzione)
+    \item Previene attacchi CSRF quando configurato correttamente
+\end{itemize}
+
+\subsubsection{Flusso di Registrazione}
+
+\begin{lstlisting}[caption=Registrazione Utente]
+const register = asyncHandler(async (req, res) => {
+    // 1. Validazione input (Zod middleware)
+    // 2. Chiamata service per logica business
+    const { user, accessToken, refreshToken } = 
+        await authService.register(req.body);
+
+    // 3. Genera token verifica email (non blocca risposta)
+    const verificationToken = generateToken();
+    const hashedToken = hashToken(verificationToken);
+    
+    // 4. Salva token hashato nel DB
+    await User.findByIdAndUpdate(user._id, {
+        emailVerificationToken: hashedToken,
+        emailVerificationExpires: new Date(Date.now() + 24h),
+    });
+
+    // 5. Invia email (async, non blocca)
+    emailService.sendVerificationEmail(user.email, verificationToken)
+        .catch(err => console.error('Errore invio email:', err));
+
+    // 6. Imposta cookie e rispondi
+    setAuthCookies(res, accessToken, refreshToken);
+    res.status(201).json({ success: true, data: { user } });
+});
+\end{lstlisting}
+
+\textbf{Scelte progettuali:}
+\begin{itemize}
+    \item \textbf{Token hashato nel DB}: Il token di verifica email viene hashato prima di essere salvato (SHA-256). Solo il token in chiaro viene inviato via email.
+    \item \textbf{Email asincrona}: L'invio email non blocca la risposta HTTP, migliorando la performance percepita.
+    \item \textbf{TTL 24h}: Il token di verifica scade dopo 24 ore per bilanciare sicurezza e usabilità.
+\end{itemize}
+
+\subsubsection{Flusso di Login}
+
+\begin{lstlisting}[caption=Login con Protezione Brute Force]
+const login = asyncHandler(async (req, res) => {
+    const { user, accessToken, refreshToken } = 
+        await authService.login(req.body);
+    
+    setAuthCookies(res, accessToken, refreshToken);
+    res.status(200).json({ success: true, data: { user } });
+});
+\end{lstlisting}
+
+Il controller è semplice perché la logica complessa (verifica password, lockout account) è nel service layer.
+
+\subsubsection{Refresh Token con Rotazione}
+
+\begin{lstlisting}[caption=Refresh Token con Rotazione]
+const refresh = asyncHandler(async (req, res) => {
+    const refreshToken = req.cookies?.[securityConfig.cookie.refreshName];
+
+    if (!refreshToken) {
+        return res.status(401).json({
+            success: false,
+            error: { message: 'Sessione scaduta', code: 'NO_REFRESH_TOKEN' }
+        });
+    }
+
+    // Service genera NUOVI token (rotation)
+    const { accessToken, refreshToken: newRefreshToken } = 
+        await authService.refreshAccessToken(refreshToken);
+
+    // Ruota i token (il vecchio refresh token non è più valido)
+    setAuthCookies(res, accessToken, newRefreshToken);
+
+    res.status(200).json({ success: true, message: 'Token rinnovato' });
+});
+\end{lstlisting}
+
+\textbf{Perché Refresh Token Rotation?}
+\begin{itemize}
+    \item \textbf{Sicurezza}: Se un refresh token viene rubato, può essere usato solo una volta
+    \item \textbf{Rilevamento furto}: Se il vecchio token viene riutilizzato, è segno di compromissione
+    \item \textbf{Invalidazione automatica}: Il vecchio token diventa immediatamente inutile
+\end{itemize}
+
+\subsection{Service Layer}
+
+Il service layer (\code{authService.js}) contiene la \important{logica pura di business}, senza dipendenze da Express o HTTP.
+
+\subsubsection{Password Hashing con Argon2id}
+
+\begin{lstlisting}[caption=Hashing Password con Argon2id]
+async hashPassword(password) {
+    return argon2.hash(password, {
+        type: argon2.argon2id,        // Tipo più sicuro
+        memoryCost: 65536,            // 64MB (resiste a GPU attacks)
+        timeCost: 3,                  // Iterazioni
+        parallelism: 4,               // Usa 4 core CPU
+        hashLength: 32,               // 32 bytes hash
+    });
+}
+\end{lstlisting}
+
+\textbf{Perché Argon2id invece di bcrypt o scrypt?}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Algoritmo} & \textbf{GPU Resistance} & \textbf{Side-Channel} & \textbf{Standard} \\
+\midrule
+bcrypt & Media & Vulnerabile & No \\
+scrypt & Alta & Vulnerabile & No \\
+Argon2id & Alta & Resistente & \checkmark (PHC 2015) \\
+\bottomrule
+\end{tabular}
+\caption{Confronto algoritmi di hashing}
+\end{table}
+
+\textbf{Vantaggi di Argon2id:}
+\begin{itemize}
+    \item \textbf{Memory-hard}: Richiede grandi quantità di memoria, rendendo attacchi GPU costosi
+    \item \textbf{Resistente a side-channel}: Protegge contro timing attacks
+    \item \textbf{Vincitore Password Hashing Competition 2015}: Standard de facto
+    \item \textbf{Configurabile}: Parametri ottimizzabili per performance/sicurezza
+\end{itemize}
+
+\textbf{Parametri scelti:}
+\begin{itemize}
+    \item \code{memoryCost: 65536} (64MB): Bilanciamento tra sicurezza e performance
+    \item \code{timeCost: 3}: ~200ms per hash (accettabile per UX)
+    \item \code{parallelism: 4}: Sfrutta multi-core moderni
+\end{itemize}
+
+\subsubsection{Generazione JWT Token}
+
+\begin{lstlisting}[caption=Generazione Access Token]
+generateAccessToken(user) {
+    const payload = {
+        sub: user._id.toString(),  // Subject: ID utente
+        email: user.email,
+        type: 'access',             // Distingue access da refresh
+    };
+
+    return jwt.sign(payload, securityConfig.jwt.secret, {
+        expiresIn: '15m',           // Breve durata per sicurezza
+        algorithm: 'HS256',         // Algoritmo simmetrico
+    });
+}
+\end{lstlisting}
+
+\textbf{Perché 15 minuti per access token?}
+\begin{itemize}
+    \item \textbf{Minimizza finestra di compromissione}: Se rubato, è valido solo 15 minuti
+    \item \textbf{Refresh automatico}: Il frontend rinnova automaticamente quando scade
+    \item \textbf{Bilanciamento}: Non troppo breve (troppe richieste) né troppo lungo (rischio sicurezza)
+\end{itemize}
+
+\begin{lstlisting}[caption=Generazione Refresh Token con Hash]
+async generateRefreshToken(user) {
+    // Parte random per unicità
+    const randomPart = crypto.randomBytes(32).toString('hex');
+
+    const payload = {
+        sub: user._id.toString(),
+        type: 'refresh',
+        jti: randomPart,  // JWT ID unico
+    };
+
+    const token = jwt.sign(payload, securityConfig.jwt.secret, {
+        expiresIn: '7d',  // Durata più lunga
+        algorithm: 'HS256',
+    });
+
+    // Hash del token per salvarlo nel DB (NON salvare token in chiaro!)
+    const hash = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+    return { token, hash };
+}
+\end{lstlisting}
+
+\textbf{Perché hashare il refresh token nel DB?}
+\begin{itemize}
+    \item \textbf{Protezione database}: Se il DB viene compromesso, i token non sono utilizzabili
+    \item \textbf{Verifica integrità}: Confronto hash per validare token durante refresh
+    \item \textbf{Best practice}: Mai salvare token in chiaro nel database
+\end{itemize}
+
+\subsubsection{Refresh Token con Validazione Hash}
+
+\begin{lstlisting}[caption=Refresh Token con Validazione]
+async refreshAccessToken(refreshToken) {
+    // 1. Verifica firma JWT
+    const payload = this.verifyToken(refreshToken, 'refresh');
+
+    // 2. Trova utente
+    const user = await User.findByRefreshToken(payload.sub);
+    if (!user) {
+        throw AppError.unauthorized('Sessione non valida');
+    }
+
+    // 3. Verifica hash del refresh token
+    const tokenHash = crypto
+        .createHash('sha256')
+        .update(refreshToken)
+        .digest('hex');
+
+    if (user.refreshTokenHash !== tokenHash) {
+        // Possibile furto token! Invalida tutti i refresh token
+        user.refreshTokenHash = undefined;
+        await user.save();
+        throw AppError.unauthorized('Sessione invalidata per sicurezza');
+    }
+
+    // 4. Genera nuovi token (rotation)
+    const newAccessToken = this.generateAccessToken(user);
+    const { token: newRefreshToken, hash: newRefreshTokenHash } = 
+        await this.generateRefreshToken(user);
+
+    // 5. Aggiorna hash nel DB
+    user.refreshTokenHash = newRefreshTokenHash;
+    await user.save();
+
+    return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
+}
+\end{lstlisting}
+
+\textbf{Meccanismo di sicurezza:}
+\begin{enumerate}
+    \item Verifica firma JWT (garantisce autenticità)
+    \item Verifica hash nel DB (garantisce che il token non sia stato revocato)
+    \item Se hash non corrisponde: possibile furto, invalida immediatamente
+    \item Genera nuovi token (rotation) per invalidare il vecchio
+\end{enumerate}
+
+\subsubsection{Login con Protezione Brute Force}
+
+\begin{lstlisting}[caption=Login con Account Lockout]
+async login(data) {
+    const { email, password } = data;
+
+    // Trova utente con campi nascosti (password, failedAttempts)
+    const user = await User.findForLogin(email);
+
+    if (!user) {
+        // Messaggio generico per non rivelare se email esiste
+        throw AppError.unauthorized('Email o password non corretti');
+    }
+
+    // Verifica se account bloccato
+    if (user.isLocked) {
+        const minutesLeft = Math.ceil((user.lockUntil - Date.now()) / 60000);
+        throw AppError.unauthorized(
+            `Account temporaneamente bloccato. Riprova tra ${minutesLeft} minuti`
+        );
+    }
+
+    // Verifica password
+    const isValidPassword = await this.verifyPassword(user.password, password);
+
+    if (!isValidPassword) {
+        // Incrementa tentativi falliti
+        await user.incrementFailedAttempts();
+        throw AppError.unauthorized('Email o password non corretti');
+    }
+
+    // Login riuscito: resetta contatore
+    await user.resetFailedAttempts();
+
+    // Genera token
+    const accessToken = this.generateAccessToken(user);
+    const { token: refreshToken, hash: refreshTokenHash } = 
+        await this.generateRefreshToken(user);
+
+    user.refreshTokenHash = refreshTokenHash;
+    await user.save();
+
+    return { user, accessToken, refreshToken };
+}
+\end{lstlisting}
+
+\textbf{Protezioni implementate:}
+\begin{itemize}
+    \item \textbf{Account Lockout}: Dopo 5 tentativi falliti, account bloccato per 15 minuti
+    \item \textbf{Messaggi generici}: Non rivela se l'email esiste (previene enumeration attacks)
+    \item \textbf{Reset automatico}: Dopo login riuscito, contatore resettato
+\end{itemize}
+
+\subsection{Middleware di Autenticazione}
+
+\subsubsection{requireAuth Middleware}
+
+\begin{lstlisting}[caption=Middleware Require Auth]
+const requireAuth = async (req, res, next) => {
+    try {
+        // 1. Estrai token dal cookie HttpOnly
+        const token = req.cookies?.[securityConfig.cookie.name];
+
+        if (!token) {
+            throw AppError.unauthorized('Accesso negato. Effettua il login.');
+        }
+
+        // 2. Verifica token
+        const payload = authService.verifyToken(token, 'access');
+
+        // 3. Aggiungi dati utente alla request
+        req.user = {
+            id: payload.sub,
+            email: payload.email,
+        };
+
+        next();
+    } catch (error) {
+        next(error);  // Passa all'error handler
+    }
+};
+\end{lstlisting}
+
+\textbf{Caratteristiche:}
+\begin{itemize}
+    \item \textbf{Estrazione da cookie}: Non richiede header Authorization (più sicuro)
+    \item \textbf{Verifica tipo token}: Assicura che sia un access token, non refresh
+    \item \textbf{Iniezione req.user}: Dati utente disponibili in tutti i controller successivi
+\end{itemize}
+
+\subsubsection{optionalAuth Middleware}
+
+\begin{lstlisting}[caption=Middleware Optional Auth]
+const optionalAuth = async (req, res, next) => {
+    try {
+        const token = req.cookies?.[securityConfig.cookie.name];
+
+        if (token) {
+            const payload = authService.verifyToken(token, 'access');
+            req.user = {
+                id: payload.sub,
+                email: payload.email,
+            };
+        }
+    } catch {
+        // Ignora errori, l'utente semplicemente non è autenticato
+        req.user = null;
+    }
+
+    next();
+};
+\end{lstlisting}
+
+\textbf{Use case:}
+\begin{itemize}
+    \item Route che funzionano sia per utenti autenticati che non
+    \item Logout: deve funzionare anche se il token è scaduto
+\end{itemize}
+
+\subsection{Validazione Input con Zod}
+
+\subsubsection{Schema di Validazione}
+
+\begin{lstlisting}[caption=Schema Zod per Registrazione]
+const emailSchema = z
+    .string({
+        required_error: 'Email obbligatoria',
+        invalid_type_error: 'Email deve essere una stringa',
+    })
+    .email('Formato email non valido')
+    .min(5, 'Email troppo corta')
+    .max(255, 'Email troppo lunga')
+    .toLowerCase()  // Normalizza a minuscolo
+    .trim();        // Rimuovi spazi
+
+const passwordSchema = z
+    .string({
+        required_error: 'Password obbligatoria',
+    })
+    .min(8, 'Password deve essere almeno 8 caratteri')
+    .max(128, 'Password troppo lunga')
+    .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        'Password deve contenere almeno: 1 maiuscola, 1 minuscola, 1 numero'
+    );
+
+const registerSchema = z.object({
+    email: emailSchema,
+    password: passwordSchema,
+    acceptTerms: z
+        .boolean({
+            required_error: 'Devi accettare i termini e condizioni',
+        })
+        .refine((val) => val === true, {
+            message: 'Devi accettare i termini e condizioni',
+        }),
+});
+\end{lstlisting}
+
+\textbf{Perché Zod invece di validazione manuale?}
+\begin{itemize}
+    \item \textbf{Type-safe}: Genera tipi TypeScript automaticamente
+    \item \textbf{Composabile}: Schemi riutilizzabili e estendibili
+    \item \textbf{Messaggi chiari}: Errori strutturati per il frontend
+    \item \textbf{Previene NoSQL Injection}: Valida tipi rigorosi prima del DB
+    \item \textbf{Sanitizzazione automatica}: \code{toLowerCase()}, \code{trim()} applicati automaticamente
+\end{itemize}
+
+\subsubsection{Middleware di Validazione}
+
+\begin{lstlisting}[caption=Middleware Validazione Zod]
+const validateMiddleware = (schema) => {
+    return (req, res, next) => {
+        const result = schema.safeParse(req.body);
+        
+        if (!result.success) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Errore di validazione',
+                    code: 'VALIDATION_ERROR',
+                    details: result.error.errors.map((err) => ({
+                        field: err.path.join('.'),
+                        message: err.message,
+                    })),
+                },
+            });
+        }
+        
+        // Sostituisci req.body con dati validati e sanitizzati
+        req.body = result.data;
+        next();
+    };
+};
+\end{lstlisting}
+
+\textbf{Vantaggi:}
+\begin{itemize}
+    \item \textbf{Validazione precoce}: Blocca richieste malformate prima del service
+    \item \textbf{Sanitizzazione}: \code{req.body} contiene solo dati validati
+    \item \textbf{Errori strutturati}: Frontend può mostrare errori per campo
+\end{itemize}
+
+\subsection{Rate Limiting}
+
+\subsubsection{Configurazione Rate Limiter}
+
+\begin{lstlisting}[caption=Rate Limiter per Autenticazione]
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,  // 15 minuti
+    max: 15,                    // 15 tentativi
+    keyGenerator: (req) => getClientIpForRateLimit(req),
+    skipSuccessfulRequests: true,  // Non conta login riusciti
+    handler: (req, res) => {
+        res.status(429).json({
+            success: false,
+            error: {
+                message: 'Troppi tentativi di accesso. Account temporaneamente bloccato.',
+                code: 'TOO_MANY_ATTEMPTS',
+                retryAfter: 15 * 60,
+            },
+        });
+    },
+});
+\end{lstlisting}
+
+\textbf{Protezioni:}
+\begin{itemize}
+    \item \textbf{Brute Force}: Limita tentativi di login per IP
+    \item \textbf{Enumeration}: Previene discovery di email esistenti
+    \item \textbf{DDoS parziale}: Limita richieste totali per IP
+\end{itemize}
+
+\textbf{Perché 15 tentativi?}
+\begin{itemize}
+    \item Bilanciamento tra sicurezza e usabilità
+    \item Considera utenti che dimenticano password
+    \item Combinato con account lockout (5 tentativi) fornisce doppia protezione
+\end{itemize}
+
+\subsubsection{Gestione IP con Proxy}
+
+\begin{lstlisting}[caption=Estrazione IP Reale con Proxy]
+const getClientIpForRateLimit = (req) => {
+    const remoteAddress = req?.socket?.remoteAddress;
+    const isLoopback = 
+        remoteAddress === '127.0.0.1' ||
+        remoteAddress === '::1';
+
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    
+    // Accetta X-Forwarded-For solo se il peer diretto è loopback
+    // (previene header spoofing)
+    if (isLoopback && typeof xForwardedFor === 'string') {
+        return xForwardedFor.split(',')[0].trim();
+    }
+
+    return req.ip;
+};
+\end{lstlisting}
+
+\textbf{Sicurezza:}
+\begin{itemize}
+    \item \textbf{Previene header spoofing}: Accetta X-Forwarded-For solo da proxy fidati
+    \item \textbf{Supporta Vite dev server}: In sviluppo, Vite fa da proxy
+    \item \textbf{Produzione-ready}: Funziona con reverse proxy (Nginx, Cloudflare)
+\end{itemize}
+
+\subsection{Modello Utente}
+
+\subsubsection{Schema Mongoose}
+
+\begin{lstlisting}[caption=Schema Utente con Campi Sensibili Nascosti]
+const userSchema = new mongoose.Schema({
+    email: {
+        type: String,
+        required: true,
+        unique: true,
+        lowercase: true,
+        trim: true,
+        index: true,
+    },
+    
+    password: {
+        type: String,
+        required: true,
+        select: false,  // Non includere nelle query di default
+    },
+    
+    refreshTokenHash: {
+        type: String,
+        select: false,  // Hash del refresh token
+    },
+    
+    failedLoginAttempts: {
+        type: Number,
+        default: 0,
+        select: false,  // Campo sensibile
+    },
+    
+    lockUntil: {
+        type: Date,
+        select: false,  // Campo sensibile
+    },
+    
+    // ... altri campi
+}, {
+    timestamps: true,  // createdAt, updatedAt automatici
+    toJSON: {
+        transform: (doc, ret) => {
+            // Rimuovi campi sensibili quando converti in JSON
+            delete ret.password;
+            delete ret.refreshTokenHash;
+            delete ret.failedLoginAttempts;
+            delete ret.lockUntil;
+            return ret;
+        },
+    },
+});
+\end{lstlisting}
+
+\textbf{Protezioni:}
+\begin{itemize}
+    \item \textbf{select: false}: Campi sensibili non inclusi nelle query di default
+    \item \textbf{toJSON transform}: Rimozione automatica campi sensibili
+    \item \textbf{Metodi statici}: \code{findForLogin()} include campi necessari esplicitamente
+\end{itemize}
+
+\subsubsection{Account Lockout}
+
+\begin{lstlisting}[caption=Metodi per Gestione Lockout]
+userSchema.methods.incrementFailedAttempts = async function () {
+    // Se lockout è scaduto, resetta
+    if (this.lockUntil && this.lockUntil < Date.now()) {
+        return this.updateOne({
+            $set: { failedLoginAttempts: 1 },
+            $unset: { lockUntil: 1 },
+        });
+    }
+
+    const updates = { $inc: { failedLoginAttempts: 1 } };
+
+    // Se raggiunti 5 tentativi, blocca per 15 minuti
+    if (this.failedLoginAttempts + 1 >= 5) {
+        updates.$set = { lockUntil: Date.now() + 15 * 60 * 1000 };
+    }
+
+    return this.updateOne(updates);
+};
+
+userSchema.methods.resetFailedAttempts = async function () {
+    return this.updateOne({
+        $set: { failedLoginAttempts: 0, lastLoginAt: new Date() },
+        $unset: { lockUntil: 1 },
+    });
+};
+\end{lstlisting}
+
+\textbf{Meccanismo:}
+\begin{itemize}
+    \item Dopo 5 tentativi falliti, account bloccato per 15 minuti
+    \item Reset automatico dopo login riuscito
+    \item Reset automatico se lockout scaduto
+\end{itemize}
+
+\section{Frontend: Architettura e Componenti}
+
+\subsection{API Client con Interceptor}
+
+\subsubsection{Configurazione Axios}
+
+\begin{lstlisting}[caption=Configurazione Axios con Credentials]
+const axiosInstance = axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    // CRITICO: Necessario per inviare/ricevere cookies cross-origin
+    withCredentials: true,
+    timeout: 25000,
+});
+\end{lstlisting}
+
+\textbf{Perché withCredentials: true?}
+\begin{itemize}
+    \item \textbf{Cookie cross-origin}: Permette invio cookie HttpOnly tra domini diversi
+    \item \textbf{Sicurezza}: Il browser gestisce automaticamente i cookie
+    \item \textbf{Requisito CORS}: Il backend deve avere \code{credentials: true} in CORS
+\end{itemize}
+
+\subsubsection{Interceptor per Refresh Automatico}
+
+\begin{lstlisting}[caption=Interceptor Refresh Token Automatico]
+// Flag per evitare loop infiniti
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error) => {
+    failedQueue.forEach((prom) => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve();
+        }
+    });
+    failedQueue = [];
+};
+
+axiosInstance.interceptors.response.use(
+    (response) => response,
+    
+    async (error) => {
+        const originalRequest = error.config;
+        const requestUrl = originalRequest?.url || '';
+
+        // NON fare refresh per endpoint di auth
+        const shouldSkipRefresh = 
+            ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout']
+            .some(url => requestUrl.includes(url));
+        
+        if (error.response?.status === 401 && 
+            !originalRequest._retry && 
+            !shouldSkipRefresh) {
+            
+            // Se stiamo già facendo refresh, accoda la richiesta
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(() => axiosInstance(originalRequest));
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            try {
+                // Prova a fare refresh del token
+                await axiosInstance.post('/auth/refresh');
+                processQueue(null);
+                
+                // Riprova la richiesta originale
+                return axiosInstance(originalRequest);
+            } catch (refreshError) {
+                processQueue(refreshError);
+                
+                // Refresh fallito: emetti evento per logout
+                window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+                
+                return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+
+        return Promise.reject(error);
+    }
+);
+\end{lstlisting}
+
+\textbf{Meccanismo:}
+\begin{enumerate}
+    \item Richiesta riceve 401 (token scaduto)
+    \item Se non è già in refresh, chiama \code{/auth/refresh}
+    \item Se altre richieste arrivano durante refresh, vengono accodate
+    \item Dopo refresh riuscito, tutte le richieste accodate vengono rieseguite
+    \item Se refresh fallisce, emette evento per logout
+\end{enumerate}
+
+\textbf{Vantaggi:}
+\begin{itemize}
+    \item \textbf{Trasparente}: L'utente non nota il refresh
+    \item \textbf{Efficiente}: Una sola chiamata refresh anche con multiple richieste simultanee
+    \item \textbf{Resiliente}: Gestisce correttamente errori e race conditions
+\end{itemize}
+
+\subsubsection{Interceptor per Error Handling}
+
+\begin{lstlisting}[caption=Interceptor Error Handling Centralizzato]
+axiosInstance.interceptors.response.use(
+    (response) => response,
+    
+    (error) => {
+        const status = error.response?.status;
+        const requestUrl = error.config?.url || '';
+        
+        // Skip toast per endpoint di auth (hanno gestione custom)
+        const isAuthEndpoint = 
+            ['/auth/login', '/auth/register', '/auth/refresh']
+            .some(url => requestUrl.includes(url));
+        
+        // Skip toast per 401 (gestito dal refresh token flow)
+        if (status === 401) {
+            return Promise.reject(error);
+        }
+
+        // Estrai messaggio errore
+        let errorMessage = 'Si è verificato un errore imprevisto';
+        
+        if (error.response?.data?.error?.message) {
+            errorMessage = error.response.data.error.message;
+        } else if (error.message === 'Network Error') {
+            errorMessage = 'Errore di connessione. Verifica la tua rete.';
+        }
+
+        // Mostra toast di errore (solo se non è un endpoint di auth)
+        if (!isAuthEndpoint) {
+            emitToast.error(errorMessage, {
+                title: 'Errore',
+                duration: 6000,
+            });
+        }
+
+        return Promise.reject(error);
+    }
+);
+\end{lstlisting}
+
+\textbf{Pattern: Centralized Error Handling}
+\begin{itemize}
+    \item \textbf{DRY}: Non devi gestire errori in ogni componente
+    \item \textbf{Consistenza}: Tutti gli errori appaiono nello stesso modo
+    \item \textbf{Manutenibilità}: Cambio formato toast in un solo posto
+\end{itemize}
+
+\subsection{Auth Context}
+
+\subsubsection{Provider e Stato}
+
+\begin{lstlisting}[caption=Auth Context Provider]
+export const AuthProvider = ({ children }) => {
+    const [state, setState] = useState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: true,  // Inizia con loading per verificare sessione
+        error: null,
+    });
+
+    const initialCheckDoneRef = useRef(false);
+    const checkInFlightRef = useRef(false);
+    const lastCheckAtRef = useRef(0);
+
+    // Verifica sessione all'avvio
+    useEffect(() => {
+        if (initialCheckDoneRef.current) return;
+        initialCheckDoneRef.current = true;
+        checkAuth();
+    }, [checkAuth]);
+
+    // Gestisci evento sessione scaduta
+    useEffect(() => {
+        const handleSessionExpired = () => {
+            setState({
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+                error: 'Sessione scaduta. Effettua nuovamente il login.',
+            });
+        };
+
+        window.addEventListener('auth:sessionExpired', handleSessionExpired);
+        return () => {
+            window.removeEventListener('auth:sessionExpired', handleSessionExpired);
+        };
+    }, []);
+
+    // ... metodi login, register, logout
+};
+\end{lstlisting}
+
+\textbf{Caratteristiche:}
+\begin{itemize}
+    \item \textbf{Verifica automatica}: Controlla sessione all'avvio app
+    \item \textbf{Protezione doppio mount}: \code{useRef} previene chiamate duplicate (React StrictMode)
+    \item \textbf{Event-driven}: Ascolta evento \code{auth:sessionExpired} emesso da apiClient
+    \item \textbf{Loading state}: Mostra loading durante verifica iniziale
+\end{itemize}
+
+\subsubsection{Metodo Login}
+
+\begin{lstlisting}[caption=Metodo Login nel Context]
+const login = useCallback(async (data) => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+        const response = await authService.login(data);
+
+        if (response.success && response.data?.user) {
+            setState({
+                user: response.data.user,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+            });
+        } else {
+            setState((prev) => ({
+                ...prev,
+                isLoading: false,
+                error: response.error?.message || 'Errore durante il login',
+            }));
+        }
+
+        return response;
+    } catch (err) {
+        const message = err instanceof Error ? err.message : 'Errore durante il login';
+        setState((prev) => ({
+            ...prev,
+            isLoading: false,
+            error: message,
+        }));
+        throw err;
+    }
+}, []);
+\end{lstlisting}
+
+\textbf{Pattern:}
+\begin{itemize}
+    \item \textbf{Optimistic UI}: Aggiorna stato solo se risposta successo
+    \item \textbf{Error handling}: Cattura errori e aggiorna stato
+    \item \textbf{Return response}: Permette al componente di gestire successo/errore
+\end{itemize}
+
+\subsubsection{Protected Route Component}
+
+\begin{lstlisting}[caption=Componente Protected Route]
+export const ProtectedRoute = ({ children, redirectTo = '/login' }) => {
+    const { isAuthenticated, isLoading } = useAuth();
+    const location = useLocation();
+
+    // Mostra loading mentre verifica
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="w-12 h-12 border-2 rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    // Se non autenticato, redirect a login salvando la pagina corrente
+    if (!isAuthenticated) {
+        return <Navigate to={redirectTo} state={{ from: location }} replace />;
+    }
+
+    return <>{children}</>;
+};
+\end{lstlisting}
+
+\textbf{Caratteristiche:}
+\begin{itemize}
+    \item \textbf{Loading state}: Mostra spinner durante verifica
+    \item \textbf{Redirect con state}: Salva pagina corrente per redirect dopo login
+    \item \textbf{Replace navigation}: Non aggiunge entry alla history
+\end{itemize}
+
+\subsection{Validazione Frontend}
+
+\subsubsection{Schemi Zod Identici al Backend}
+
+\begin{lstlisting}[caption=Schema Zod Frontend]
+export const emailSchema = z
+    .string()
+    .min(1, 'Email obbligatoria')
+    .email('Formato email non valido')
+    .max(255, 'Email troppo lunga');
+
+export const passwordSchema = z
+    .string()
+    .min(8, 'Password deve essere almeno 8 caratteri')
+    .max(128, 'Password troppo lunga')
+    .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        'Deve contenere almeno: 1 maiuscola, 1 minuscola, 1 numero'
+    );
+
+export const registerSchema = z.object({
+    email: emailSchema,
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, 'Conferma password obbligatoria'),
+    acceptTerms: z.boolean().refine((val) => val === true, {
+        message: 'Devi accettare i termini e condizioni',
+    }),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: 'Le password non coincidono',
+    path: ['confirmPassword'],
+});
+\end{lstlisting}
+
+\textbf{Perché validazione anche nel frontend?}
+\begin{itemize}
+    \item \textbf{Feedback immediato}: L'utente vede errori prima di inviare
+    \item \textbf{Riduce chiamate API}: Blocca richieste malformate
+    \item \textbf{UX migliore}: Validazione in tempo reale durante digitazione
+    \item \textbf{Consistenza}: Stessi schemi del backend garantiscono coerenza
+\end{itemize}
+
+\textbf{Nota importante:} La validazione frontend \important{non sostituisce} quella backend. Il backend deve sempre validare per sicurezza.
+
+\section{Sicurezza: Tecniche e Best Practices}
+
+\subsection{Protezione contro Attacchi Comuni}
+
+\subsubsection{XSS (Cross-Site Scripting)}
+
+\textbf{Protezioni implementate:}
+\begin{itemize}
+    \item \textbf{HttpOnly cookies}: Token non accessibili da JavaScript
+    \item \textbf{Content Security Policy}: Headers CSP nel backend
+    \item \textbf{Sanitizzazione input}: Zod valida e sanitizza tutti gli input
+    \item \textbf{Escape output}: React escape automaticamente i valori
+\end{itemize}
+
+\subsubsection{CSRF (Cross-Site Request Forgery)}
+
+\textbf{Protezioni implementate:}
+\begin{itemize}
+    \item \textbf{SameSite cookies}: \code{sameSite: 'none'} con \code{secure: true}
+    \item \textbf{CORS configurato}: Solo origini permesse possono fare richieste
+    \item \textbf{Double Submit Cookie}: I cookie HttpOnly non sono leggibili da JavaScript malizioso
+\end{itemize}
+
+\subsubsection{Brute Force Attacks}
+
+\textbf{Protezioni implementate:}
+\begin{enumerate}
+    \item \textbf{Rate limiting}: 15 tentativi per 15 minuti per IP
+    \item \textbf{Account lockout}: 5 tentativi falliti bloccano account per 15 minuti
+    \item \textbf{Messaggi generici}: Non rivela se email esiste
+\end{enumerate}
+
+\subsubsection{Token Theft}
+
+\textbf{Protezioni implementate:}
+\begin{enumerate}
+    \item \textbf{HttpOnly cookies}: Token non accessibili da JavaScript
+    \item \textbf{Refresh token rotation}: Token rubato può essere usato solo una volta
+    \item \textbf{Hash nel DB}: Refresh token hashato, non in chiaro
+    \item \textbf{Validazione hash}: Verifica integrità token durante refresh
+    \item \textbf{Invalidazione automatica}: Se hash non corrisponde, invalida immediatamente
+\end{enumerate}
+
+\subsubsection{Password Attacks}
+
+\textbf{Protezioni implementate:}
+\begin{enumerate}
+    \item \textbf{Argon2id}: Algoritmo memory-hard resistente a GPU attacks
+    \item \textbf{Parametri elevati}: 64MB memoria, 3 iterazioni, 4 parallelism
+    \item \textbf{Password policy}: Minimo 8 caratteri, maiuscola, minuscola, numero
+    \item \textbf{Never in plaintext}: Password mai salvate in chiaro
+\end{enumerate}
+
+\subsection{Configurazione Sicurezza}
+
+\subsubsection{JWT Configuration}
+
+\begin{lstlisting}[caption=Configurazione JWT]
+jwt: {
+    secret: process.env.JWT_SECRET || 'CHANGE_ME_IN_PRODUCTION',
+    accessTokenExpiry: '15m',      // Breve durata
+    refreshTokenExpiry: '7d',      // Durata più lunga
+    algorithm: 'HS256',            // Algoritmo simmetrico
+}
+\end{lstlisting}
+
+\textbf{Best practices:}
+\begin{itemize}
+    \item \textbf{Secret forte}: Minimo 32 caratteri random in produzione
+    \item \textbf{Environment variable}: Secret mai committato nel codice
+    \item \textbf{Access token breve}: Minimizza finestra compromissione
+    \item \textbf{Refresh token lungo}: Bilanciamento sicurezza/UX
+\end{itemize}
+
+\subsubsection{Cookie Configuration}
+
+\begin{lstlisting}[caption=Configurazione Cookie]
+cookie: {
+    name: 'accessToken',
+    refreshName: 'refreshToken',
+    
+    options: {
+        httpOnly: true,              // Non accessibile da JS
+        secure: isProduction,        // Solo HTTPS in produzione
+        sameSite: isProduction ? 'none' : 'lax',  // Cross-origin support
+        path: '/',
+        maxAge: 15 * 60 * 1000,      // 15 minuti
+    },
+    
+    refreshOptions: {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        path: '/api/auth/refresh',   // Path specifico
+        maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 giorni
+    },
+}
+\end{lstlisting}
+
+\textbf{Scelte:}
+\begin{itemize}
+    \item \textbf{Path specifico refresh}: Limita scope del cookie refresh token
+    \item \textbf{SameSite: 'none'}: Necessario per cross-origin, richiede HTTPS
+    \item \textbf{Secure in produzione}: Cookie inviati solo su HTTPS
+\end{itemize}
+
+\subsubsection{CORS Configuration}
+
+\begin{lstlisting}[caption=Configurazione CORS]
+cors: {
+    origin: (origin, callback) => {
+        const allowedOrigins = [
+            process.env.FRONTEND_URL,
+            'http://localhost:5173',
+            'http://localhost:5174',
+        ].filter(Boolean);
+        
+        // Permetti richieste senza origin (Postman, curl)
+        if (!origin) {
+            return callback(null, true);
+        }
+        
+        // Controlla lista
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        
+        callback(new Error('Not allowed by CORS'));
+    },
+    
+    credentials: true,  // CRITICO: necessario per cookies
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+}
+\end{lstlisting}
+
+\textbf{Importante:}
+\begin{itemize}
+    \item \textbf{credentials: true}: Necessario per inviare cookie cross-origin
+    \item \textbf{Origin whitelist}: Solo origini permesse possono fare richieste
+    \item \textbf{No wildcard}: Non usare \code{origin: '*'} con credentials
+\end{itemize}
+
+\section{Flussi di Autenticazione}
+
+\subsection{Flusso di Registrazione}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: Utente compila form, validazione Zod client-side
+    \item \textbf{Frontend}: Invia \code{POST /api/auth/register} con \code{withCredentials: true}
+    \item \textbf{Backend}: Rate limiter verifica limite richieste
+    \item \textbf{Backend}: Validazione Zod server-side
+    \item \textbf{Backend}: Service verifica email non esistente
+    \item \textbf{Backend}: Service hasha password con Argon2id
+    \item \textbf{Backend}: Crea utente nel database
+    \item \textbf{Backend}: Genera access token (15m) e refresh token (7d)
+    \item \textbf{Backend}: Hash refresh token e salva nel DB
+    \item \textbf{Backend}: Genera token verifica email (hashato nel DB)
+    \item \textbf{Backend}: Imposta cookie HttpOnly con token
+    \item \textbf{Backend}: Invia email verifica (async, non blocca)
+    \item \textbf{Backend}: Risponde con dati utente (senza password)
+    \item \textbf{Frontend}: Aggiorna AuthContext con utente
+    \item \textbf{Frontend}: Redirect a dashboard
+\end{enumerate}
+
+\subsection{Flusso di Login}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: Utente inserisce email/password
+    \item \textbf{Frontend}: Validazione Zod client-side
+    \item \textbf{Frontend}: Invia \code{POST /api/auth/login}
+    \item \textbf{Backend}: Rate limiter verifica limite (15 tentativi/15min)
+    \item \textbf{Backend}: Validazione Zod server-side
+    \item \textbf{Backend}: Service trova utente con \code{findForLogin()} (include password)
+    \item \textbf{Backend}: Verifica account non bloccato (\code{isLocked})
+    \item \textbf{Backend}: Verifica password con Argon2
+    \item \textbf{Backend}: Se password errata:
+        \begin{itemize}
+            \item Incrementa \code{failedLoginAttempts}
+            \item Se $\geq$ 5, imposta \code{lockUntil} (15 minuti)
+            \item Lancia errore generico
+        \end{itemize}
+    \item \textbf{Backend}: Se password corretta:
+        \begin{itemize}
+            \item Resetta \code{failedLoginAttempts}
+            \item Aggiorna \code{lastLoginAt}
+            \item Genera nuovi token
+            \item Salva hash refresh token nel DB
+        \end{itemize}
+    \item \textbf{Backend}: Imposta cookie HttpOnly
+    \item \textbf{Backend}: Risponde con dati utente
+    \item \textbf{Frontend}: Aggiorna AuthContext
+    \item \textbf{Frontend}: Redirect a dashboard
+\end{enumerate}
+
+\subsection{Flusso di Refresh Token}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: Richiesta API riceve 401 (token scaduto)
+    \item \textbf{Frontend}: Interceptor cattura errore
+    \item \textbf{Frontend}: Se non è già in refresh, chiama \code{POST /api/auth/refresh}
+    \item \textbf{Frontend}: Altre richieste simultanee vengono accodate
+    \item \textbf{Backend}: Estrae refresh token da cookie
+    \item \textbf{Backend}: Verifica firma JWT
+    \item \textbf{Backend}: Trova utente con \code{findByRefreshToken()}
+    \item \textbf{Backend}: Hash refresh token ricevuto
+    \item \textbf{Backend}: Confronta hash con quello nel DB
+    \item \textbf{Backend}: Se hash non corrisponde:
+        \begin{itemize}
+            \item Possibile furto token!
+            \item Invalida \code{refreshTokenHash} nel DB
+            \item Lancia errore
+        \end{itemize}
+    \item \textbf{Backend}: Se hash corrisponde:
+        \begin{itemize}
+            \item Genera NUOVI token (rotation)
+            \item Hash nuovo refresh token
+            \item Aggiorna \code{refreshTokenHash} nel DB
+            \item Imposta nuovi cookie
+        \end{itemize}
+    \item \textbf{Frontend}: Se refresh riuscito, riesegue richiesta originale
+    \item \textbf{Frontend}: Se refresh fallito, emette evento \code{auth:sessionExpired}
+    \item \textbf{Frontend}: AuthContext ascolta evento e fa logout
+\end{enumerate}
+
+\subsection{Flusso di Logout}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: Utente clicca logout
+    \item \textbf{Frontend}: Chiama \code{POST /api/auth/logout}
+    \item \textbf{Backend}: Se utente autenticato, invalida \code{refreshTokenHash} nel DB
+    \item \textbf{Backend}: Cancella cookie (access e refresh)
+    \item \textbf{Backend}: Risponde successo
+    \item \textbf{Frontend}: Aggiorna AuthContext (user = null, isAuthenticated = false)
+    \item \textbf{Frontend}: Redirect a login
+\end{enumerate}
+
+\section{Considerazioni Finali}
+
+\subsection{Scelte Progettuali Riepilogate}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Scelta} & \textbf{Motivazione} \\
+\midrule
+HttpOnly Cookies & Protezione XSS, gestione automatica browser \\
+Argon2id & Resistenza GPU + side-channel, standard moderno \\
+JWT con rotazione & Sicurezza token, rilevamento furti \\
+Refresh automatico & UX trasparente, sicurezza mantenuta \\
+Zod validazione & Type-safe, composabile, previene injection \\
+Rate limiting & Protezione brute force, DDoS parziale \\
+Account lockout & Doppia protezione brute force \\
+SameSite: 'none' & Supporto cross-origin (necessario) \\
+\bottomrule
+\end{tabular}
+\caption{Riepilogo scelte progettuali}
+\end{table}
+
+\subsection{Best Practices Applicate}
+
+\begin{itemize}
+    \item \textbf{Defense in Depth}: Multiple layer di sicurezza
+    \item \textbf{Principle of Least Privilege}: Token con durata minima necessaria
+    \item \textbf{Fail Secure}: In caso di errore, sistema si chiude in modo sicuro
+    \item \textbf{Never Trust Input}: Validazione sempre, frontend e backend
+    \item \textbf{Secure by Default}: Configurazioni sicure di default
+    \item \textbf{Separation of Concerns}: Controller/Service/Model separati
+\end{itemize}
+
+\subsection{Possibili Miglioramenti Futuri}
+
+\begin{itemize}
+    \item \textbf{2FA/MFA}: Autenticazione a due fattori
+    \item \textbf{Device fingerprinting}: Rilevamento dispositivi sospetti
+    \item \textbf{Session management}: Dashboard sessioni attive
+    \item \textbf{IP whitelisting}: Per account critici
+    \item \textbf{Biometric auth}: Supporto WebAuthn
+    \item \textbf{OAuth2/SSO}: Integrazione con provider esterni
+\end{itemize}
+
+\section{Conclusioni}
+
+Il sistema di autenticazione implementato in ExtraTracker segue best practices moderne di sicurezza, bilanciando protezione e usabilità. L'architettura modulare garantisce manutenibilità e testabilità, mentre le multiple layer di sicurezza proteggono contro attacchi comuni.
+
+Le scelte tecniche (Argon2id, JWT con rotazione, HttpOnly cookies, rate limiting) sono state selezionate per fornire il miglior compromesso tra sicurezza, performance e esperienza utente.
+
+\vspace{1cm}
+
+\textit{Documento generato il \today}
+
+\end{document}
