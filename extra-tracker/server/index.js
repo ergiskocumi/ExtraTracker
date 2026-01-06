@@ -22,6 +22,7 @@ require('dotenv').config();
 
 // Config e Middleware
 const securityConfig = require('./config/security');
+const { initRedis, closeRedis } = require('./config/redis');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
@@ -147,6 +148,7 @@ const connectDB = async () => {
 const gracefulShutdown = async (signal) => {
     console.log(`\n🛑 Ricevuto ${signal}. Chiusura graceful...`);
     try {
+        await closeRedis();
         await mongoose.connection.close();
         console.log('✅ Connessione MongoDB chiusa');
         process.exit(0);
@@ -164,7 +166,12 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // ==========================================
 
 const startServer = async () => {
+    // Inizializza Redis (opzionale, fallback a memoria locale se non disponibile)
+    await initRedis();
+    
+    // Connetti a MongoDB
     await connectDB();
+    
     app.listen(PORT, () => {
         console.log(`
 🚀 Server in ascolto sulla porta ${PORT}

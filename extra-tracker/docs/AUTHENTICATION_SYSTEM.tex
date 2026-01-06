@@ -848,14 +848,110 @@ const validateMiddleware = (schema) => {
 
 \subsection{Rate Limiting}
 
-\subsubsection{Configurazione Rate Limiter}
+\subsubsection{Problema della Scalabilità: Rate Limiting Locale vs. Distribuito}
 
-\begin{lstlisting}[caption=Rate Limiter per Autenticazione]
+\important{Problema del Rate Limiting Locale}: Il rate limiter di default usa memoria RAM locale del processo Node.js. In un ambiente distribuito (cluster, Kubernetes, multiple istanze), ogni server ha la propria memoria non condivisa.
+
+\textbf{Scenario Problematico:}
+\begin{enumerate}
+    \item L'hacker fa 10 tentativi di login
+    \item Load Balancer distribuisce: 5 richieste al Server A, 5 al Server B
+    \item Server A conta 5 tentativi (sotto il limite di 15)
+    \item Server B conta 5 tentativi (sotto il limite di 15)
+    \item \important{Nessun server rileva il limite} → l'hacker ha raddoppiato le sue chance
+\end{enumerate}
+
+\textbf{Altri Problemi:}
+\begin{itemize}
+    \item \textbf{Reset al riavvio}: Ogni deploy/riavvio azzera i contatori
+    \item \textbf{Non scalabile}: Non funziona con scaling orizzontale
+    \item \textbf{Inconsistenza}: Limiti diversi per istanza
+\end{itemize}
+
+\textbf{Soluzione: Redis come Store Distribuito}
+
+Redis è un database in-memory veloce che funge da "verità unica" condivisa tra tutte le istanze del server.
+
+\subsubsection{Configurazione Redis per Rate Limiting}
+
+\begin{lstlisting}[caption=Configurazione Redis]
+const { createClient } = require('redis');
+
+let redisClient = null;
+let isRedisAvailable = false;
+
+const initRedis = async () => {
+    // Se REDIS_URL non è configurato, usa memoria locale
+    if (!process.env.REDIS_URL) {
+        console.log('⚠️  Redis non configurato. Rate limiter userà memoria locale.');
+        return false;
+    }
+
+    try {
+        redisClient = createClient({
+            url: process.env.REDIS_URL,
+            socket: {
+                reconnectStrategy: (retries) => {
+                    // Riconnessione esponenziale
+                    const delay = Math.min(retries * 50, 3000);
+                    return delay;
+                },
+                connectTimeout: 5000,
+            },
+        });
+
+        redisClient.on('ready', () => {
+            console.log('✅ Redis connesso e pronto');
+            isRedisAvailable = true;
+        });
+
+        await redisClient.connect();
+        return true;
+    } catch (error) {
+        console.error('❌ Impossibile connettersi a Redis:', error.message);
+        console.log('⚠️  Rate limiter userà memoria locale come fallback');
+        return false;
+    }
+};
+\end{lstlisting}
+
+\subsubsection{Rate Limiter con Redis Store}
+
+\begin{lstlisting}[caption=Rate Limiter con Redis Store]
+const rateLimit = require('express-rate-limit');
+const { RedisStore } = require('rate-limit-redis');
+const { getRedisAvailable, getRedisClient } = require('../config/redis');
+
+/**
+ * Crea store per rate limiter (Redis se disponibile, altrimenti memoria locale)
+ */
+const createRateLimitStore = () => {
+    if (getRedisAvailable()) {
+        const redisClient = getRedisClient();
+        if (redisClient) {
+            console.log('✅ Rate limiter usando Redis (distribuito)');
+            return new RedisStore({
+                sendCommand: (...args) => redisClient.sendCommand(args),
+                prefix: 'rl:', // Prefix per chiavi Redis
+            });
+        }
+    }
+    
+    // Fallback a memoria locale
+    console.log('⚠️  Rate limiter usando memoria locale (non distribuito)');
+    return undefined; // undefined = usa memoria locale di default
+};
+
+/**
+ * Rate limiter per autenticazione
+ * Usa Redis se disponibile (distribuito), altrimenti memoria locale
+ */
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,  // 15 minuti
     max: 15,                    // 15 tentativi
+    store: createRateLimitStore(), // Redis se disponibile
     keyGenerator: (req) => getClientIpForRateLimit(req),
-    skipSuccessfulRequests: true,  // Non conta login riusciti
+    skipSuccessfulRequests: true,
     handler: (req, res) => {
         res.status(429).json({
             success: false,
@@ -869,11 +965,21 @@ const authLimiter = rateLimit({
 });
 \end{lstlisting}
 
+\textbf{Vantaggi del Rate Limiting Distribuito:}
+\begin{itemize}
+    \item \textbf{Scaling orizzontale}: Funziona con multiple istanze (cluster, Kubernetes)
+    \item \textbf{Verità unica}: Tutte le istanze condividono lo stesso contatore
+    \item \textbf{Persistenza}: I contatori sopravvivono ai riavvii (se Redis è persistente)
+    \item \textbf{Performance}: Redis è in-memory, velocissimo
+    \item \textbf{Fallback graceful}: Se Redis non disponibile, usa memoria locale
+\end{itemize}
+
 \textbf{Protezioni:}
 \begin{itemize}
-    \item \textbf{Brute Force}: Limita tentativi di login per IP
+    \item \textbf{Brute Force}: Limita tentativi di login per IP (condiviso tra istanze)
     \item \textbf{Enumeration}: Previene discovery di email esistenti
     \item \textbf{DDoS parziale}: Limita richieste totali per IP
+    \item \textbf{Distribuito}: Funziona correttamente con load balancer
 \end{itemize}
 
 \textbf{Perché 15 tentativi?}
@@ -881,6 +987,13 @@ const authLimiter = rateLimit({
     \item Bilanciamento tra sicurezza e usabilità
     \item Considera utenti che dimenticano password
     \item Combinato con account lockout (5 tentativi) fornisce doppia protezione
+\end{itemize}
+
+\textbf{Configurazione Ambiente:}
+\begin{itemize}
+    \item \textbf{Development}: Può usare memoria locale (Redis opzionale)
+    \item \textbf{Production}: \important{DEVE} usare Redis per scalabilità
+    \item \textbf{Variable}: \code{REDIS_URL} (es. \code{redis://localhost:6379} o \code{redis://user:pass@host:6379})
 \end{itemize}
 
 \subsubsection{Gestione IP con Proxy}

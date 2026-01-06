@@ -5,10 +5,17 @@
  * - Brute Force attacks
  * - DDoS (parzialmente)
  * - Enumeration attacks
+ * 
+ * 🎯 SCALABILITÀ DISTRIBUITA:
+ * - Usa Redis per rate limiting condiviso tra tutte le istanze
+ * - Fallback a memoria locale se Redis non disponibile
+ * - Funziona in cluster, Kubernetes, multiple istanze
  */
 
 const rateLimit = require('express-rate-limit');
+const { RedisStore } = require('rate-limit-redis');
 const securityConfig = require('../config/security');
+const { getRedisAvailable, getRedisClient } = require('../config/redis');
 
 const getClientIpForRateLimit = (req) => {
     // In dev, when requests are proxied (e.g., Vite), the backend sees the proxy as localhost.
@@ -29,11 +36,34 @@ const getClientIpForRateLimit = (req) => {
 };
 
 /**
+ * Crea store per rate limiter (Redis se disponibile, altrimenti memoria locale)
+ * @returns {object|undefined} - Store config o undefined per memoria locale
+ */
+const createRateLimitStore = () => {
+    if (getRedisAvailable()) {
+        const redisClient = getRedisClient();
+        if (redisClient) {
+            console.log('✅ Rate limiter usando Redis (distribuito)');
+            return new RedisStore({
+                sendCommand: (...args) => redisClient.sendCommand(args),
+                prefix: 'rl:', // Prefix per chiavi Redis (rate-limit)
+            });
+        }
+    }
+    
+    // Fallback a memoria locale
+    console.log('⚠️  Rate limiter usando memoria locale (non distribuito)');
+    return undefined; // undefined = usa memoria locale di default
+};
+
+/**
  * Rate limiter generale per tutte le API
- * 100 richieste per 15 minuti per IP
+ * 200 richieste per 15 minuti per IP
+ * Usa Redis se disponibile (distribuito), altrimenti memoria locale
  */
 const generalLimiter = rateLimit({
     ...securityConfig.rateLimit.general,
+    store: createRateLimitStore(), // Redis se disponibile, altrimenti memoria locale
     keyGenerator: (req) => getClientIpForRateLimit(req),
     // In dev (Vite/HMR + React StrictMode) the frontend can trigger many session checks.
     // This endpoint is low-risk (requires auth) and should not be rate-limited like write endpoints.
@@ -55,10 +85,12 @@ const generalLimiter = rateLimit({
 
 /**
  * Rate limiter stringente per autenticazione
- * Solo 5 tentativi per 15 minuti per IP
+ * 15 tentativi per 15 minuti per IP
+ * Usa Redis se disponibile (distribuito), altrimenti memoria locale
  */
 const authLimiter = rateLimit({
     ...securityConfig.rateLimit.auth,
+    store: createRateLimitStore(), // Redis se disponibile, altrimenti memoria locale
     keyGenerator: (req) => getClientIpForRateLimit(req),
     handler: (req, res) => {
         res.status(429).json({
@@ -75,17 +107,21 @@ const authLimiter = rateLimit({
 /**
  * Rate limiter per reset password
  * Evita email bombing
+ * Usa Redis se disponibile (distribuito), altrimenti memoria locale
  */
 const passwordResetLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 ora
     max: 3, // solo 3 richieste per ora
+    store: createRateLimitStore(), // Redis se disponibile, altrimenti memoria locale
     keyGenerator: (req) => getClientIpForRateLimit(req),
-    message: {
-        success: false,
-        error: {
-            message: 'Troppi tentativi di reset password. Riprova tra un\'ora.',
-            code: 'TOO_MANY_RESET_ATTEMPTS',
-        },
+    handler: (req, res) => {
+        res.status(429).json({
+            success: false,
+            error: {
+                message: 'Troppi tentativi di reset password. Riprova tra un\'ora.',
+                code: 'TOO_MANY_RESET_ATTEMPTS',
+            },
+        });
     },
 });
 
