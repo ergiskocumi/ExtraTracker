@@ -15,6 +15,7 @@ const { getDeviceInfo } = require('../services/authService');
 const securityConfig = require('../config/security');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { emailService, generateToken, hashToken } = require('../services/emailService');
+const AppError = require('../utils/AppError');
 const User = require('../models/User');
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -128,17 +129,13 @@ const login = asyncHandler(async (req, res) => {
  * POST /api/auth/refresh
  * Rinnova l'access token usando il refresh token
  */
-const refresh = asyncHandler(async (req, res) => {
+const refresh = asyncHandler(async (req, res, next) => {
     const refreshToken = req.cookies?.[securityConfig.cookie.refreshName];
 
     if (!refreshToken) {
-        return res.status(401).json({
-            success: false,
-            error: {
-                message: 'Sessione scaduta, effettua nuovamente il login',
-                code: 'NO_REFRESH_TOKEN',
-            },
-        });
+        // Esempio di utilizzo AppError: passa l'errore al global error handler
+        // Il global handler si occuperà di formattare la risposta corretta
+        return next(new AppError('Sessione scaduta, effettua nuovamente il login', 401));
     }
 
     const deviceInfo = getDeviceInfo(req);
@@ -247,17 +244,12 @@ const checkAuth = asyncHandler(async (req, res) => {
  * POST /api/auth/verify-email
  * Verifica l'indirizzo email con il token
  */
-const verifyEmail = asyncHandler(async (req, res) => {
+const verifyEmail = asyncHandler(async (req, res, next) => {
     const { token } = req.body;
 
     if (!token) {
-        return res.status(400).json({
-            success: false,
-            error: {
-                message: 'Token di verifica mancante',
-                code: 'MISSING_TOKEN',
-            },
-        });
+        // Esempio di utilizzo AppError: usa next() per passare l'errore al global handler
+        return next(new AppError('Token di verifica mancante', 400));
     }
 
     // Hash del token per confronto

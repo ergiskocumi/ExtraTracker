@@ -113,6 +113,17 @@ axiosInstance.interceptors.response.use(
             }
         }
 
+        // Per errori 401 su endpoint di auth (login/register), estrai il messaggio dal backend
+        // e aggiungilo all'errore per facilitare l'accesso nel componente
+        if (error.response?.status === 401 && shouldSkipRefresh) {
+            const errorData = error.response.data as any;
+            if (errorData?.error?.message) {
+                (error as any).userMessage = errorData.error.message;
+            } else if (errorData?.message) {
+                (error as any).userMessage = errorData.message;
+            }
+        }
+
         return Promise.reject(error);
     }
 );
@@ -145,24 +156,34 @@ axiosInstance.interceptors.response.use(
         // Skip toast per endpoint di auth (hanno gestione custom)
         const isAuthEndpoint = NO_REFRESH_URLS.some(url => requestUrl.includes(url));
         
-        // Skip toast per 401 (gestito dal refresh token flow)
-        if (status === 401) {
-            return Promise.reject(error);
-        }
-
-        // Estrai il messaggio di errore
+        // Estrai il messaggio di errore DAL BACKEND (non dal messaggio generico di Axios)
         let errorMessage = 'Si è verificato un errore imprevisto';
         
+        // PRIORITÀ 1: Messaggio dal backend (error.response.data)
         if (error.response?.data?.error?.message) {
-            // Errore strutturato dal backend
+            // Errore strutturato dal backend (formato nuovo)
             errorMessage = error.response.data.error.message;
         } else if (error.response?.data?.message) {
-            // Fallback: messaggio diretto
+            // Fallback: messaggio diretto nel body
             errorMessage = error.response.data.message;
         } else if (error.message === 'Network Error') {
+            // Errore di rete (nessuna risposta dal server)
             errorMessage = 'Errore di connessione. Verifica la tua rete.';
         } else if (error.code === 'ECONNABORTED') {
+            // Timeout
             errorMessage = 'Richiesta scaduta. Riprova più tardi.';
+        } else if (error.message && !error.message.includes('status code')) {
+            // Usa il messaggio di Axios solo se non è il generico "Request failed with status code XXX"
+            errorMessage = error.message;
+        }
+
+        // Per 401 su endpoint di auth (login/register), NON mostrare toast
+        // Il componente gestirà l'errore manualmente
+        // Ma estraiamo comunque il messaggio per il componente
+        if (status === 401 && isAuthEndpoint) {
+            // Aggiungi il messaggio estratto all'errore per facilitare l'accesso nel componente
+            (error as any).userMessage = errorMessage;
+            return Promise.reject(error);
         }
 
         // Mostra toast di errore (solo se non è un endpoint di auth)

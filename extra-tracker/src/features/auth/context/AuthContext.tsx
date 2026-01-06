@@ -122,12 +122,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             return response;
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Errore durante il login';
+        } catch (err: any) {
+            // Estrai il messaggio di errore dal backend, non dal messaggio generico di Axios
+            let errorMessage = 'Errore durante il login';
+            
+            // PRIORITÀ 1: Messaggio dal backend (se presente nella risposta)
+            if (err?.response?.data?.error?.message) {
+                errorMessage = err.response.data.error.message;
+            } else if (err?.response?.data?.message) {
+                errorMessage = err.response.data.message;
+            } else if (err?.userMessage) {
+                // Messaggio estratto dall'interceptor
+                errorMessage = err.userMessage;
+            } else if (err instanceof Error && !err.message.includes('status code')) {
+                // Usa il messaggio dell'errore solo se non è il generico "Request failed with status code XXX"
+                errorMessage = err.message;
+            }
+            
             setState((prev) => ({
                 ...prev,
                 isLoading: false,
-                error: message,
+                error: errorMessage,
             }));
             throw err;
         }
@@ -158,12 +173,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             return response;
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Errore durante la registrazione';
+        } catch (err: any) {
+            // Estrai il messaggio di errore dal backend, non dal messaggio generico di Axios
+            let errorMessage = 'Errore durante la registrazione';
+            
+            // PRIORITÀ 1: Messaggio dal backend (se presente nella risposta)
+            if (err?.response?.data?.error?.message) {
+                errorMessage = err.response.data.error.message;
+            } else if (err?.response?.data?.message) {
+                errorMessage = err.response.data.message;
+            } else if (err?.userMessage) {
+                // Messaggio estratto dall'interceptor
+                errorMessage = err.userMessage;
+            } else if (err instanceof Error && !err.message.includes('status code')) {
+                // Usa il messaggio dell'errore solo se non è il generico "Request failed with status code XXX"
+                errorMessage = err.message;
+            }
+            
             setState((prev) => ({
                 ...prev,
                 isLoading: false,
-                error: message,
+                error: errorMessage,
             }));
             throw err;
         }

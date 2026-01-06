@@ -1,119 +1,263 @@
 /**
- * 🚨 ERROR HANDLER MIDDLEWARE
+ * 🚨 ERROR HANDLER MIDDLEWARE - Sistema Centralizzato Avanzato
  * 
  * Gestisce TUTTI gli errori dell'applicazione
  * 
  * Principi:
  * 1. Mai esporre stack trace in produzione
- * 2. Loggare tutto internamente
+ * 2. Loggare tutto internamente con context
  * 3. Messaggi utente-friendly al client
  * 4. Distinguere errori operazionali da bug
+ * 5. Tracciamento errori per monitoring
+ * 6. Request ID per correlazione log
  */
 
 const AppError = require('../utils/AppError');
+const crypto = require('crypto');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
 /**
- * Handler per errori Mongoose (Validation, Cast, Duplicate)
+ * Genera Request ID se non presente
+ * Usa crypto.randomUUID() (nativo Node.js 14.17.0+)
  */
-const handleMongooseError = (err) => {
-    // Errore di validazione Mongoose
-    if (err.name === 'ValidationError') {
-        const errors = Object.values(err.errors).map((e) => ({
-            field: e.path,
-            message: e.message,
-        }));
-        return AppError.validation('Errore di validazione', { errors });
+const getRequestId = (req) => {
+    if (!req.requestId) {
+        // Usa header esistente o genera nuovo UUID
+        req.requestId = req.headers['x-request-id'] || crypto.randomUUID();
     }
-
-    // Errore chiave duplicata (es. email già esistente)
-    if (err.code === 11000) {
-        const field = Object.keys(err.keyValue)[0];
-        // Non rivelare quale campo è duplicato in produzione
-        return AppError.conflict(
-            isProduction 
-                ? 'Impossibile completare la registrazione'
-                : `Il campo '${field}' esiste già`
-        );
-    }
-
-    // Errore Cast (ID non valido)
-    if (err.name === 'CastError') {
-        return AppError.validation(`ID non valido: ${err.value}`);
-    }
-
-    return null;
+    return req.requestId;
 };
 
 /**
- * Logger interno (in produzione usa un servizio come Winston/Sentry)
+ * Gestione errori DB specifici per renderli leggibili
  */
-const logError = (err, req) => {
-    const logData = {
-        timestamp: new Date().toISOString(),
+const handleCastErrorDB = (err) => {
+    const message = `Dato non valido: ${err.path}: ${err.value}.`;
+    return new AppError(message, 400);
+};
+
+const handleDuplicateFieldsDB = (err) => {
+    // Estrae il valore tra virgolette dal messaggio di errore di Mongo
+    const value = err.errmsg?.match(/(["'])(\\?.)*?\1/)?.[0] || 'valore';
+    const message = `Valore duplicato: ${value}. Per favore usa un altro valore.`;
+    return new AppError(message, 400);
+};
+
+const handleValidationErrorDB = (err) => {
+    const errors = Object.values(err.errors).map((el) => el.message);
+    const message = `Dati non validi: ${errors.join('. ')}`;
+    return new AppError(message, 400);
+};
+
+const handleJWTError = () =>
+    new AppError('Token non valido. Effettua nuovamente il login.', 401);
+
+const handleJWTExpiredError = () =>
+    new AppError('Il tuo token è scaduto. Effettua nuovamente il login.', 401);
+
+/**
+ * Risposta per l'ambiente di SVILUPPO
+ * Mostra dettagli utili per debugging MA NON lo stack trace nella risposta HTTP
+ * Lo stack trace è già nei log del server, non serve esporlo al frontend
+ */
+const sendErrorDev = (err, res, requestId = null) => {
+    const response = {
+        success: false,
+        status: err.status || 'error',
         error: {
             message: err.message,
+            code: err.code || 'INTERNAL_ERROR',
+            category: err.category,
+        },
+        message: err.message,
+        // NON includere stack trace nella risposta HTTP
+        // Lo stack trace è già loggato nel server per il developer
+    };
+
+    // Aggiungi dettagli se presenti
+    if (err.details && Object.keys(err.details).length > 0) {
+        response.error.details = err.details;
+    }
+
+    // Aggiungi suggerimento se presente
+    if (err.suggestion) {
+        response.error.suggestion = err.suggestion;
+    }
+
+    // Aggiungi request ID per tracciamento
+    if (requestId) {
+        response.error.requestId = requestId;
+    }
+
+    res.status(err.statusCode || 500).json(response);
+};
+
+/**
+ * Risposta per l'ambiente di PRODUZIONE (Pulita per l'utente)
+ * Mostra solo messaggi user-friendly, mai stack trace o dettagli tecnici
+ */
+const sendErrorProd = (err, res, requestId = null) => {
+    // A) Errore Operazionale, fidato: manda il messaggio al client
+    if (err.isOperational) {
+        const response = {
+            success: false,
+            status: err.status || 'error',
+            message: err.message,
+            error: {
+                code: err.code || 'ERROR',
+            },
+        };
+
+        // Aggiungi suggerimento se presente (utile per UX)
+        if (err.suggestion) {
+            response.error.suggestion = err.suggestion;
+        }
+
+        // Aggiungi request ID per supporto (utente può riferirlo)
+        if (requestId) {
+            response.error.requestId = requestId;
+        }
+
+        res.status(err.statusCode || 500).json(response);
+    } 
+    // B) Errore di Programmazione o sconosciuto: non rivelare dettagli
+    else {
+        // 1) Logga l'errore nella console del server (per te)
+        console.error('ERROR 💥', err.toLog ? err.toLog() : err);
+
+        // 2) Manda messaggio generico all'utente
+        const response = {
+            success: false,
+            status: 'error',
+            message: 'Qualcosa è andato storto!',
+            error: {
+                code: 'INTERNAL_ERROR',
+            },
+        };
+
+        // Aggiungi request ID per supporto
+        if (requestId) {
+            response.error.requestId = requestId;
+        }
+
+        res.status(500).json(response);
+    }
+};
+
+/**
+ * Logger avanzato con context
+ */
+const logError = (err, req) => {
+    const requestId = getRequestId(req);
+    const logData = {
+        timestamp: new Date().toISOString(),
+        requestId,
+        error: err.toLog ? err.toLog() : {
+            message: err.message,
             code: err.code,
+            statusCode: err.statusCode,
+            category: err.category,
             stack: err.stack,
         },
         request: {
             method: req.method,
             url: req.originalUrl,
+            path: req.path,
+            query: req.query,
             // NON loggare body con password!
-            body: req.body?.password ? { ...req.body, password: '[REDACTED]' } : req.body,
+            body: req.body?.password 
+                ? { ...req.body, password: '[REDACTED]' }
+                : req.body,
+            ip: req.ip,
+            userAgent: req.headers['user-agent'],
         },
-        // In produzione potresti aggiungere: request ID, user ID (se autenticato)
+        user: req.user ? {
+            id: req.user.id,
+            email: req.user.email,
+        } : null,
     };
 
-    // In produzione, invia a servizio di logging (Sentry, LogRocket, etc.)
+    // In produzione, log strutturato (pronto per servizi esterni)
     if (isProduction) {
-        // TODO: Integrare con servizio di logging
-        console.error('[ERROR]', JSON.stringify(logData));
+        // TODO: Integrare con servizio di logging (Sentry, LogRocket, Winston, etc.)
+        console.error(JSON.stringify(logData, null, 2));
     } else {
-        console.error('\n🚨 ERROR:', logData.error.message);
-        console.error('Stack:', logData.error.stack);
+        // In sviluppo, log leggibile
+        console.error('\n🚨 ERROR:', err.message);
+        console.error('Code:', err.code || 'N/A');
+        console.error('Category:', err.category || 'N/A');
+        console.error('Request ID:', requestId);
+        if (err.stack) {
+            console.error('Stack:', err.stack);
+        }
+        if (err.metadata && Object.keys(err.metadata).length > 0) {
+            console.error('Metadata:', err.metadata);
+        }
     }
 };
 
 /**
  * Middleware principale di gestione errori
  * DEVE avere 4 parametri per essere riconosciuto da Express come error handler
+ * 
+ * Questo è il "Cameriere" che decide cosa dire al cliente (frontend)
+ * e cosa urlare in cucina (console/terminal)
  */
-const errorHandler = (err, req, res, _next) => {
-    // Log interno
+const errorHandler = (err, req, res, next) => {
+    // Imposta valori di default se mancanti
+    err.statusCode = err.statusCode || 500;
+    err.status = err.status || 'error';
+
+    // Aggiungi request ID all'errore se non presente
+    const requestId = getRequestId(req);
+    if (!err.requestId) {
+        err.setRequestId(requestId);
+    }
+
+    // Aggiungi metadata dalla request
+    if (req.user) {
+        err.addMetadata('userId', req.user.id);
+    }
+    if (req.ip) {
+        err.addMetadata('ip', req.ip);
+    }
+
+    // Log errore con context completo
     logError(err, req);
 
-    // Prova a convertire errori Mongoose
-    const mongooseError = handleMongooseError(err);
-    if (mongooseError) {
-        err = mongooseError;
+    if (isProduction) {
+        // PRODUZIONE: Trasforma errori tecnici in messaggi umani
+        let error = { ...err };
+        error.message = err.message;
+
+        // Trasforma errori tecnici di Mongoose in messaggi umani
+        if (err.name === 'CastError') error = handleCastErrorDB(error);
+        if (err.code === 11000) error = handleDuplicateFieldsDB(error);
+        if (err.name === 'ValidationError') error = handleValidationErrorDB(error);
+        if (err.name === 'JsonWebTokenError') error = handleJWTError();
+        if (err.name === 'TokenExpiredError') error = handleJWTExpiredError();
+
+        // Gestisci errori di connessione MongoDB
+        if (err.name === 'MongoServerError' || err.name === 'MongooseError') {
+            error = AppError.database('Errore di connessione al database', err);
+        }
+
+        // Gestisci errori di connessione Redis
+        if (err.message?.includes('Redis') || err.code === 'ECONNREFUSED') {
+            error = AppError.redis('Errore di connessione a Redis', err);
+        }
+
+        // Gestisci timeout
+        if (err.code === 'ETIMEDOUT' || err.code === 'ECONNABORTED') {
+            error = AppError.timeout('Timeout della richiesta', null);
+        }
+
+        sendErrorProd(error, res, requestId);
+    } else {
+        // SVILUPPO: Mostra tutto per debugging
+        sendErrorDev(err, res, requestId);
     }
-
-    // Se è un AppError (errore previsto), usa i suoi dati
-    if (err instanceof AppError) {
-        return res.status(err.statusCode).json(err.toJSON(!isProduction));
-    }
-
-    // Errore imprevisto (bug) - risposta generica
-    const statusCode = err.statusCode || 500;
-    
-    const response = {
-        success: false,
-        error: {
-            message: isProduction 
-                ? 'Si è verificato un errore interno. Riprova più tardi.'
-                : err.message,
-            code: 'INTERNAL_ERROR',
-        },
-    };
-
-    // In sviluppo, aggiungi stack trace
-    if (!isProduction) {
-        response.error.stack = err.stack;
-    }
-
-    res.status(statusCode).json(response);
 };
 
 /**
