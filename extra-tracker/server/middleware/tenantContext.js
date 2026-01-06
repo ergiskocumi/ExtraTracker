@@ -35,6 +35,7 @@
  */
 
 const mongoose = require('mongoose');
+const AppError = require('../utils/AppError');
 
 /**
  * Crea un middleware che inietta il contesto tenant.
@@ -52,25 +53,44 @@ const tenantContext = (options = {}) => {
     const { required = true } = options;
 
     return (req, res, next) => {
-        // Se non c'è utente autenticato
-        if (!req.user?.id) {
+        // 1. Validazione: Utente presente?
+        if (!req.user || !req.user.id || req.user.id === '') {
             if (required) {
-                return res.status(401).json({
-                    success: false,
-                    error: {
-                        message: 'Tenant context required. Please authenticate.',
+                // FIX: Uso di AppError standardizzato invece di res.status(401) manuale
+                return next(AppError.unauthorized(
+                    'Tenant context required. Please authenticate.',
+                    {
                         code: 'TENANT_CONTEXT_MISSING',
-                    },
-                });
+                        category: 'AUTHORIZATION',
+                        suggestion: 'Assicurati di essere autenticato e che il middleware requireAuth sia applicato prima di tenantContext.',
+                    }
+                ));
             }
             // Se non required, continua senza context
             return next();
         }
 
-        // Converte string ID in ObjectId se necessario
-        const tenantId = typeof req.user.id === 'string'
-            ? new mongoose.Types.ObjectId(req.user.id)
-            : req.user.id;
+        // 2. Validazione: ID valido?
+        // FIX: Controllo rigoroso dell'ID per evitare crash di Mongoose
+        let tenantId;
+        const userId = req.user.id;
+
+        if (userId instanceof mongoose.Types.ObjectId) {
+            tenantId = userId;
+        } else if (typeof userId === 'string' && mongoose.Types.ObjectId.isValid(userId)) {
+            tenantId = new mongoose.Types.ObjectId(userId);
+        } else {
+            // Se l'ID è spazzatura (es. stringa vuota o malformata), errore 400
+            return next(AppError.validation(
+                'Invalid user ID format in token.',
+                {},
+                {
+                    code: 'INVALID_USER_ID',
+                    category: 'VALIDATION',
+                    suggestion: 'Il token di autenticazione contiene un ID utente non valido. Effettua nuovamente il login.',
+                }
+            ));
+        }
 
         /**
          * req.tenantScope: oggetto helper per operazioni tenant-scoped.
@@ -78,8 +98,10 @@ const tenantContext = (options = {}) => {
          * PERCHÉ UN OGGETTO E NON SOLO L'ID?
          * Fornisce metodi helper che rendono il codice più leggibile
          * e meno soggetto a errori.
+         * 
+         * FIX: Object.freeze() per prevenire modifiche accidentali da middleware successivi
          */
-        req.tenantScope = {
+        req.tenantScope = Object.freeze({
             /**
              * L'ID dell'utente/tenant corrente.
              */
@@ -97,7 +119,7 @@ const tenantContext = (options = {}) => {
             model: (Model) => {
                 if (!Model.forTenant) {
                     throw new Error(
-                        `Model ${Model.modelName} does not have multi-tenancy plugin. ` +
+                        `Model ${Model.modelName} missing multi-tenancy plugin. ` +
                         'Did you forget to apply the plugin?'
                     );
                 }
@@ -117,7 +139,7 @@ const tenantContext = (options = {}) => {
             create: async (Model, data) => {
                 if (!Model.createForTenant) {
                     throw new Error(
-                        `Model ${Model.modelName} does not have multi-tenancy plugin.`
+                        `Model ${Model.modelName} missing multi-tenancy plugin.`
                     );
                 }
                 return Model.createForTenant(tenantId, data);
@@ -139,7 +161,7 @@ const tenantContext = (options = {}) => {
             owns: async (Model, documentId) => {
                 if (!Model.belongsToTenant) {
                     throw new Error(
-                        `Model ${Model.modelName} does not have multi-tenancy plugin.`
+                        `Model ${Model.modelName} missing multi-tenancy plugin.`
                     );
                 }
                 return Model.belongsToTenant(tenantId, documentId);
@@ -160,7 +182,7 @@ const tenantContext = (options = {}) => {
             get filter() {
                 return { user: tenantId };
             },
-        };
+        });
 
         next();
     };
