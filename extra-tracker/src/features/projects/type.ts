@@ -22,7 +22,10 @@ export interface Project {
     name: string;
     code: string;
     description?: string;
-    rate: number;
+    type: 'CLIENT' | 'PERSONAL';
+    rate?: number; // Opzionale per PERSONAL, required per CLIENT
+    budget?: number; // Opzionale
+    icon?: string; // Icona per UI (emoji o nome)
     status?: 'active' | 'completed' | 'archived';
     color?: string;
     estimatedHours?: number;
@@ -30,4 +33,9 @@ export interface Project {
     metrics?: ProjectMetrics;
     createdAt?: string;
     updatedAt?: string;
+    // Opzionali (popolati via aggregate per Workspace)
+    entriesCount?: number;
+    lastEntryDate?: string;
+    totalDuration?: number; // Durata totale in minuti
+    streak?: number; // Giorni consecutivi con entries
 }

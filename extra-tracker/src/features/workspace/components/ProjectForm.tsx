@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { FiX } from 'react-icons/fi';
+import { FiX, FiBriefcase, FiUser } from 'react-icons/fi';
 import { emitToast } from '../../../shared/components/toast';
 
 interface ProjectFormProps {
@@ -19,6 +19,8 @@ interface ProjectFormProps {
         description?: string;
         color: string;
         icon: string;
+        type?: 'CLIENT' | 'PERSONAL';
+        rate?: number;
     };
 }
 
@@ -37,8 +39,10 @@ const DEFAULT_ICONS = ['📂', '💻', '🎨', '📱', '🔧', '📊', '🚀', '
 
 export const ProjectForm = ({ onClose, project }: ProjectFormProps) => {
     const { addProject, updateProject } = useWorkspace();
+    const [projectType, setProjectType] = useState<'CLIENT' | 'PERSONAL'>(project?.type || 'CLIENT');
     const [name, setName] = useState(project?.name || '');
     const [description, setDescription] = useState(project?.description || '');
+    const [rate, setRate] = useState<number | undefined>(project?.rate);
     const [color, setColor] = useState(project?.color || DEFAULT_COLORS[0]);
     const [icon, setIcon] = useState(project?.icon || DEFAULT_ICONS[0]);
     const [loading, setLoading] = useState(false);
@@ -51,12 +55,31 @@ export const ProjectForm = ({ onClose, project }: ProjectFormProps) => {
             return;
         }
 
+        // Validazione: rate obbligatorio per CLIENT
+        if (projectType === 'CLIENT' && (!rate || rate <= 0)) {
+            emitToast.error('La tariffa oraria è obbligatoria per progetti CLIENT', { title: 'Errore' });
+            return;
+        }
+
         setLoading(true);
         try {
+            const projectData: any = {
+                name,
+                description,
+                color,
+                icon,
+                type: projectType,
+            };
+            
+            // Rate solo per CLIENT
+            if (projectType === 'CLIENT') {
+                projectData.rate = rate;
+            }
+            
             if (project) {
-                await updateProject(project.id, { name, description, color, icon });
+                await updateProject(project.id, projectData);
             } else {
-                await addProject({ name, description, color, icon });
+                await addProject(projectData);
             }
             onClose();
         } catch (err) {
@@ -85,6 +108,49 @@ export const ProjectForm = ({ onClose, project }: ProjectFormProps) => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+                {/* TIPO PROGETTO */}
+                <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">
+                        Tipo Progetto *
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setProjectType('CLIENT')}
+                            className={`
+                                p-4 rounded-lg border-2 transition-all text-left
+                                ${projectType === 'CLIENT'
+                                    ? 'border-primary-500 bg-primary-500/20'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                                }
+                            `}
+                        >
+                            <div className="flex items-center gap-2 mb-1">
+                                <FiBriefcase size={18} />
+                                <span className="font-semibold text-white">Cliente</span>
+                            </div>
+                            <p className="text-xs text-white/60">Progetto fatturabile con tariffa oraria</p>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setProjectType('PERSONAL')}
+                            className={`
+                                p-4 rounded-lg border-2 transition-all text-left
+                                ${projectType === 'PERSONAL'
+                                    ? 'border-primary-500 bg-primary-500/20'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                                }
+                            `}
+                        >
+                            <div className="flex items-center gap-2 mb-1">
+                                <FiUser size={18} />
+                                <span className="font-semibold text-white">Personale</span>
+                            </div>
+                            <p className="text-xs text-white/60">Progetto personale senza tariffa</p>
+                        </button>
+                    </div>
+                </div>
+
                 {/* NOME */}
                 <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
@@ -99,6 +165,25 @@ export const ProjectForm = ({ onClose, project }: ProjectFormProps) => {
                         required
                     />
                 </div>
+
+                {/* TARIFFA ORARIA (solo per CLIENT) */}
+                {projectType === 'CLIENT' && (
+                    <div>
+                        <label className="block text-sm font-medium text-white/80 mb-2">
+                            Tariffa Oraria (€) *
+                        </label>
+                        <input
+                            type="number"
+                            value={rate || ''}
+                            onChange={(e) => setRate(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            min="0"
+                            step="0.01"
+                            className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            placeholder="Es. 75.00"
+                            required
+                        />
+                    </div>
+                )}
 
                 {/* DESCRIZIONE */}
                 <div>

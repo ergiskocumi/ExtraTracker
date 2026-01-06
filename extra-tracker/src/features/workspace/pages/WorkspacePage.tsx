@@ -34,24 +34,44 @@ export const WorkspacePage = () => {
     // Leggi projectId dall'URL all'avvio
     const urlProjectId = searchParams.get('projectId');
     
-    const [selectedProject, setSelectedProject] = useState<string | null>(urlProjectId);
+    const [selectedProject, setSelectedProject] = useState<string | null>(null);
     const [showNewProjectForm, setShowNewProjectForm] = useState(false);
     const [selectedEntry, setSelectedEntry] = useState<WorkLog | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [showEntryForm, setShowEntryForm] = useState(false);
     const [editingEntry, setEditingEntry] = useState<WorkLog | undefined>();
+    const [projectNotFound, setProjectNotFound] = useState(false);
 
     const { deleteEntry } = useWorkspace();
 
-    // Sincronizza selectedProject con URL quando cambia
+    // Sincronizza selectedProject con URL quando i progetti sono caricati
     useEffect(() => {
-        if (urlProjectId && urlProjectId !== selectedProject) {
-            setSelectedProject(urlProjectId);
-        } else if (!urlProjectId && selectedProject) {
-            // Se l'URL non ha projectId ma lo stato sì, potrebbe essere un cambio manuale
-            // Non resettiamo per permettere filtri manuali
+        if (!urlProjectId) {
+            setSelectedProject(null);
+            setProjectNotFound(false);
+            return;
         }
-    }, [urlProjectId]);
+
+        // Aspetta che i progetti siano caricati
+        if (projectsLoading) {
+            return;
+        }
+
+        // Cerca il progetto nella lista
+        const foundProject = projects.find((p) => {
+            const pid = p.id || (p as any)._id;
+            return String(pid) === String(urlProjectId);
+        });
+
+        if (foundProject) {
+            setSelectedProject(urlProjectId);
+            setProjectNotFound(false);
+        } else {
+            // Progetto non trovato
+            setProjectNotFound(true);
+            setSelectedProject(null);
+        }
+    }, [urlProjectId, projects, projectsLoading]);
 
     // Trova il progetto selezionato per mostrare il nome
     const selectedProjectData = useMemo(() => {
@@ -189,6 +209,40 @@ export const WorkspacePage = () => {
                         <FiX size={20} />
                     </button>
                 </motion.div>
+            )}
+
+            {/* MESSAGGIO PROGETTO NON TROVATO */}
+            {projectNotFound && !projectsLoading && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="text-amber-400">⚠️</div>
+                        <div>
+                            <p className="text-sm font-medium text-amber-200">Progetto non trovato</p>
+                            <p className="text-xs text-amber-200/60">
+                                Il progetto con ID "{urlProjectId}" non esiste o non è accessibile.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleClearProjectFilter}
+                        className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                        title="Rimuovi filtro"
+                    >
+                        <FiX size={20} />
+                    </button>
+                </motion.div>
+            )}
+
+            {/* LOADING INDICATOR quando si sta caricando il progetto dall'URL */}
+            {urlProjectId && projectsLoading && (
+                <div className="mb-4 p-4 rounded-lg bg-white/5 border border-white/10 flex items-center gap-3">
+                    <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-sm text-white/60">Caricamento progetto...</p>
+                </div>
             )}
 
             {/* FILTRI E RICERCA */}

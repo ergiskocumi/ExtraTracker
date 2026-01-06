@@ -16,7 +16,10 @@ export type WorkEntryCategory =
     | 'freeform';
 
 /**
- * WorkProject - Progetto del Workspace
+ * WorkProject - DEPRECATO: Usa Project da '../projects/type'
+ * 
+ * @deprecated WorkProject è stato unificato in Project.
+ * Usa Project da '../projects/type' invece.
  */
 export interface WorkProject {
     id: string;
@@ -121,7 +124,9 @@ export interface TimelineEntry {
 }
 
 /**
- * Create WorkProject DTO
+ * Create WorkProject DTO (Unificato - Usa Project)
+ * 
+ * NOTA: Ora supporta type CLIENT/PERSONAL e rate opzionale
  */
 export interface CreateWorkProjectDTO {
     name: string;
@@ -129,6 +134,9 @@ export interface CreateWorkProjectDTO {
     color?: string;
     icon?: string;
     status?: WorkProjectStatus;
+    type?: 'CLIENT' | 'PERSONAL'; // Default: 'CLIENT'
+    rate?: number; // Opzionale per PERSONAL, required per CLIENT
+    code?: string; // Opzionale, auto-generato se non fornito
 }
 
 /**

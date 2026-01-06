@@ -23,6 +23,8 @@ import type {
 
 /**
  * Normalizza un progetto convertendo _id in id
+ * 
+ * Supporta sia Project (unificato) che WorkProject (legacy)
  */
 const normalizeProject = (raw: any): WorkProject => {
     const id = raw.id || raw._id;
@@ -35,15 +37,20 @@ const normalizeProject = (raw: any): WorkProject => {
         name: raw.name || '',
         description: raw.description,
         color: raw.color || '#6366f1',
-        icon: raw.icon || '✨',
+        icon: raw.icon || '📂',
         status: raw.status || 'active',
         createdAt: raw.createdAt || new Date().toISOString(),
         updatedAt: raw.updatedAt || new Date().toISOString(),
-        // Campi opzionali da aggregate
+        // Campi opzionali da aggregate (Workspace)
         entriesCount: raw.entriesCount || 0,
         lastEntryDate: raw.lastEntryDate || null,
         totalDuration: raw.totalDuration || 0,
         streak: raw.streak || 0,
+        // Campi Project unificato (se presenti)
+        code: raw.code,
+        type: raw.type || 'CLIENT',
+        rate: raw.rate,
+        budget: raw.budget,
     };
 };
 
@@ -91,18 +98,30 @@ const normalizeEntry = (raw: any): WorkEntry => {
 };
 
 /**
- * WORK PROJECTS API
+ * WORK PROJECTS API (Unificato - Usa /api/projects)
+ * 
+ * NOTA: Ora usa l'endpoint unificato /api/projects invece di /api/workspace/projects
  */
 export const workspaceProjectsService = {
     /**
      * Lista tutti i progetti
+     * 
+     * Per Workspace, usa findWithEntryCount per ottenere statistiche
      */
     async getAll(includeStats = false): Promise<WorkProject[]> {
-        const response = await apiClient.get<any[]>(
-            `/workspace/projects${includeStats ? '?includeStats=true' : ''}`
-        );
-        const data = response.data || [];
-        return data.map(normalizeProject);
+        if (includeStats) {
+            // Usa endpoint workspace per statistiche
+            const response = await apiClient.get<any[]>(
+                `/workspace/projects?includeStats=true`
+            );
+            const data = response.data || [];
+            return data.map(normalizeProject);
+        } else {
+            // Usa endpoint unificato
+            const response = await apiClient.get<any[]>('/projects');
+            const data = response.data || [];
+            return data.map(normalizeProject);
+        }
     },
 
     /**
@@ -118,7 +137,7 @@ export const workspaceProjectsService = {
      * Dettaglio singolo progetto
      */
     async getById(id: string): Promise<WorkProject> {
-        const response = await apiClient.get<any>(`/workspace/projects/${id}`);
+        const response = await apiClient.get<any>(`/projects/${id}`);
         if (!response.data) {
             throw new Error('Progetto non trovato');
         }
@@ -127,9 +146,21 @@ export const workspaceProjectsService = {
 
     /**
      * Crea nuovo progetto
+     * 
+     * Supporta sia CLIENT che PERSONAL tramite campo 'type'
      */
-    async create(data: CreateWorkProjectDTO): Promise<WorkProject> {
-        const response = await apiClient.post<any>('/workspace/projects', data);
+    async create(data: CreateWorkProjectDTO & { type?: 'CLIENT' | 'PERSONAL'; code?: string; rate?: number }): Promise<WorkProject> {
+        // Usa endpoint workspace per creare (supporta code auto-generato)
+        const response = await apiClient.post<any>('/workspace/projects', {
+            name: data.name,
+            description: data.description,
+            color: data.color,
+            icon: data.icon,
+            status: data.status || 'active',
+            type: data.type || 'CLIENT',
+            rate: data.rate,
+            code: data.code, // Opzionale, verrà auto-generato se non fornito
+        });
         if (!response.data) {
             throw new Error('Errore nella creazione del progetto');
         }
@@ -140,7 +171,7 @@ export const workspaceProjectsService = {
      * Aggiorna progetto
      */
     async update(id: string, data: UpdateWorkProjectDTO): Promise<WorkProject> {
-        const response = await apiClient.put<any>(`/workspace/projects/${id}`, data);
+        const response = await apiClient.put<any>(`/projects/${id}`, data);
         if (!response.data) {
             throw new Error('Errore nell\'aggiornamento del progetto');
         }
@@ -151,7 +182,7 @@ export const workspaceProjectsService = {
      * Elimina progetto
      */
     async delete(id: string): Promise<void> {
-        await apiClient.delete(`/workspace/projects/${id}`);
+        await apiClient.delete(`/projects/${id}`);
     },
 };
 

@@ -10,7 +10,8 @@ interface ProjectsContextType {
   addProject: (params: {
     name: string;
     code: string;
-    rate: number;
+    type: 'CLIENT' | 'PERSONAL';
+    rate?: number;
     description?: string;
     estimatedHours?: number;
     progress?: number;
@@ -55,23 +56,31 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
   }, [refreshProjects]);
 
   // Aggiungi progetto - OTTIMIZZATO: Memoizzato con useCallback
-  const addProject = useCallback(async ({ name, code, rate, description, estimatedHours, progress }: {
+  const addProject = useCallback(async ({ name, code, type, rate, description, estimatedHours, progress }: {
     name: string;
     code: string;
-    rate: number;
+    type: 'CLIENT' | 'PERSONAL';
+    rate?: number;
     description?: string;
     estimatedHours?: number;
     progress?: number;
   }) => {
     try {
-      const response = await apiClient.post<Project>('/projects', {
+      const projectData: any = {
         name,
         code,
-        rate: Number(rate),
+        type,
         description,
         estimatedHours,
         progress,
-      });
+      };
+      
+      // Rate solo per CLIENT
+      if (type === 'CLIENT' && rate) {
+        projectData.rate = Number(rate);
+      }
+      
+      const response = await apiClient.post<Project>('/projects', projectData);
 
       if (!response.success) {
         throw new Error(response.error?.message || 'Errore salvataggio progetto');
