@@ -7,7 +7,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiFolder, FiClock, FiTrendingUp, FiCalendar } from 'react-icons/fi';
+import { FiFolder, FiClock, FiTrendingUp, FiCalendar, FiArrowRight } from 'react-icons/fi';
 import type { WorkProject } from '../types';
 
 interface ProjectCardProps {
@@ -44,11 +44,17 @@ export const ProjectCard = ({ project, isSelected, onClick }: ProjectCardProps) 
     };
 
     const handleCardClick = (e: React.MouseEvent) => {
-        // Se c'è un onClick custom, usa quello, altrimenti naviga al dettaglio
+        // Se c'è un onClick custom, usa quello
         if (onClick) {
             onClick();
-        } else {
-            navigate(`/workspace/project/${project.id}`);
+        }
+    };
+
+    const handleManageClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Previeni il click sulla card
+        const projectId = project.id || (project as any)._id;
+        if (projectId) {
+            navigate(`/workspace?projectId=${projectId}`);
         }
     };
 
@@ -121,6 +127,19 @@ export const ProjectCard = ({ project, isSelected, onClick }: ProjectCardProps) 
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* BOTTONE GESTISCI */}
+            <div className="mt-3 pt-3 border-t border-white/5">
+                <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleManageClick}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 hover:bg-primary-500/30 border border-primary-500/30 text-primary-300 hover:text-primary-200 transition-all text-sm font-medium"
+                >
+                    <span>Gestisci</span>
+                    <FiArrowRight size={14} />
+                </motion.button>
             </div>
         </motion.div>
     );

@@ -6,7 +6,8 @@
  * Mostra timeline delle entries e lista progetti.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ProjectList } from '../components/ProjectList';
@@ -14,10 +15,13 @@ import { EntryTimeline } from '../components/EntryTimeline';
 import { EntryDetailModal } from '../components/EntryDetailModal';
 import { EntryForm } from '../components/EntryForm';
 import { TodosWidget } from '../components/TodosWidget';
-import { FiPlus, FiRefreshCw, FiSearch, FiFileText } from 'react-icons/fi';
+import { FiPlus, FiRefreshCw, FiSearch, FiFileText, FiX } from 'react-icons/fi';
 import type { WorkLog } from '../../tracker/type';
 
 export const WorkspacePage = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
+    
     const {
         projects,
         entries,
@@ -27,7 +31,10 @@ export const WorkspacePage = () => {
         refreshEntries,
     } = useWorkspace();
 
-    const [selectedProject, setSelectedProject] = useState<string | null>(null);
+    // Leggi projectId dall'URL all'avvio
+    const urlProjectId = searchParams.get('projectId');
+    
+    const [selectedProject, setSelectedProject] = useState<string | null>(urlProjectId);
     const [showNewProjectForm, setShowNewProjectForm] = useState(false);
     const [selectedEntry, setSelectedEntry] = useState<WorkLog | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -35,6 +42,34 @@ export const WorkspacePage = () => {
     const [editingEntry, setEditingEntry] = useState<WorkLog | undefined>();
 
     const { deleteEntry } = useWorkspace();
+
+    // Sincronizza selectedProject con URL quando cambia
+    useEffect(() => {
+        if (urlProjectId && urlProjectId !== selectedProject) {
+            setSelectedProject(urlProjectId);
+        } else if (!urlProjectId && selectedProject) {
+            // Se l'URL non ha projectId ma lo stato sì, potrebbe essere un cambio manuale
+            // Non resettiamo per permettere filtri manuali
+        }
+    }, [urlProjectId]);
+
+    // Trova il progetto selezionato per mostrare il nome
+    const selectedProjectData = useMemo(() => {
+        if (!selectedProject) return null;
+        return projects.find((p) => {
+            const pid = p.id || (p as any)._id;
+            return String(pid) === String(selectedProject);
+        }) || null;
+    }, [projects, selectedProject]);
+
+    // Funzione per rimuovere il filtro progetto
+    const handleClearProjectFilter = () => {
+        setSelectedProject(null);
+        // Rimuovi il parametro dall'URL
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete('projectId');
+        setSearchParams(newSearchParams, { replace: true });
+    };
 
     // Filtra entries in base a progetto e ricerca
     const filteredEntries = useMemo(() => {
@@ -67,6 +102,18 @@ export const WorkspacePage = () => {
 
     const handleRefresh = async () => {
         await Promise.all([refreshProjects(), refreshEntries()]);
+    };
+
+    // Aggiorna URL quando selectedProject cambia (tranne quando viene da URL)
+    const handleProjectChange = (projectId: string | null) => {
+        setSelectedProject(projectId);
+        const newSearchParams = new URLSearchParams(searchParams);
+        if (projectId) {
+            newSearchParams.set('projectId', projectId);
+        } else {
+            newSearchParams.delete('projectId');
+        }
+        setSearchParams(newSearchParams, { replace: true });
     };
 
     return (
@@ -115,6 +162,35 @@ export const WorkspacePage = () => {
                 </div>
             </div>
 
+            {/* INDICATORE PROGETTO SELEZIONATO */}
+            {selectedProjectData && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-4 p-4 rounded-lg bg-primary-500/10 border border-primary-500/30 flex items-center justify-between"
+                >
+                    <div className="flex items-center gap-3">
+                        <div
+                            className="flex items-center justify-center w-10 h-10 rounded-lg text-xl"
+                            style={{ backgroundColor: `${selectedProjectData.color}20`, color: selectedProjectData.color }}
+                        >
+                            {selectedProjectData.icon}
+                        </div>
+                        <div>
+                            <p className="text-sm text-white/60">Stai lavorando su:</p>
+                            <p className="text-lg font-semibold text-white">{selectedProjectData.name}</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleClearProjectFilter}
+                        className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                        title="Rimuovi filtro progetto"
+                    >
+                        <FiX size={20} />
+                    </button>
+                </motion.div>
+            )}
+
             {/* FILTRI E RICERCA */}
             <div className="space-y-4 mb-6">
                 {/* RICERCA */}
@@ -135,7 +211,7 @@ export const WorkspacePage = () => {
                         <span className="text-sm text-white/60">Progetto:</span>
                         <select
                             value={selectedProject || ''}
-                            onChange={(e) => setSelectedProject(e.target.value || null)}
+                            onChange={(e) => handleProjectChange(e.target.value || null)}
                             className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                         >
                             <option key="all" value="">Tutti</option>
@@ -155,7 +231,7 @@ export const WorkspacePage = () => {
                     {(selectedProject || searchQuery) && (
                         <button
                             onClick={() => {
-                                setSelectedProject(null);
+                                handleClearProjectFilter();
                                 setSearchQuery('');
                             }}
                             className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-white text-sm transition-colors"
@@ -174,7 +250,7 @@ export const WorkspacePage = () => {
                         projects={projects}
                         loading={projectsLoading}
                         selectedProject={selectedProject}
-                        onSelectProject={setSelectedProject}
+                        onSelectProject={handleProjectChange}
                         showNewProjectForm={showNewProjectForm}
                         onCloseNewProjectForm={() => setShowNewProjectForm(false)}
                     />

@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ProjectForm } from '../ProjectForm';
 import { useProjects } from '../context/ProjectsContext';
 import type { Project, ProjectHealthStatus } from '../type';
 import { useFormat } from '../../../shared/hooks/useFormat';
 import { ClockIcon, CurrencyIcon, WarningIcon, ChartIcon } from '../../../shared/components/icons';
+import { FiArrowRight } from 'react-icons/fi';
 
 const HEALTH_STYLES: Record<ProjectHealthStatus, { label: string; badge: string; progress: string }> = {
     healthy: {
@@ -29,6 +31,7 @@ const HEALTH_STYLES: Record<ProjectHealthStatus, { label: string; badge: string;
 };
 
 const ProjectHealthCard = ({ project }: { project: Project }) => {
+    const navigate = useNavigate();
     const { formatMoney, formatHours, formatDateLong } = useFormat();
     const metrics = project.metrics;
     const estimatedHours = project.estimatedHours ?? 0;
@@ -41,6 +44,10 @@ const ProjectHealthCard = ({ project }: { project: Project }) => {
     const earnings = metrics?.totalEarnings ?? totalHours * (project.rate || 0);
     const lastLogLabel = metrics?.lastLog ? formatDateLong(metrics.lastLog) : 'Mai';
     const message = metrics?.velocityMessage ?? 'Inizia a tracciare log per vedere insight.';
+
+    const handleManageClick = () => {
+        navigate(`/workspace?projectId=${project.id}`);
+    };
 
     // Calcola dove "dovresti essere" in base al tempo trascorso (progress marker)
     const idealUsage = estimatedHours > 0 && progress > 0 
@@ -135,6 +142,15 @@ const ProjectHealthCard = ({ project }: { project: Project }) => {
                 <span>Progresso: {progress}%</span>
                 <span>Ultimo log: {lastLogLabel}</span>
             </div>
+
+            {/* BOTTONE GESTISCI */}
+            <button
+                onClick={handleManageClick}
+                className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary-500/20 hover:bg-primary-500/30 border border-primary-500/30 text-primary-300 hover:text-primary-200 transition-all text-sm font-medium"
+            >
+                <span>Gestisci nel Workspace</span>
+                <FiArrowRight size={14} />
+            </button>
         </div>
     );
 };

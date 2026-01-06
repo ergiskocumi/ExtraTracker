@@ -125,6 +125,10 @@ class WorkLogService extends BaseService {
      * Permette di filtrare per projectId, date (o range), e tags.
      * Ritorna log ordinati per data decrescente e poi createdAt decrescente.
      * 
+     * Questo metodo serve alla **Vista Operativa (Workspace)**.
+     * Quando l'utente clicca su un progetto nella dashboard, il frontend chiama:
+     * `GET /api/worklogs/feed?projectId=123`
+     * 
      * @param {Object} tenantScope - Contesto tenant
      * @param {Object} filters - Filtri opzionali
      * @param {string} filters.projectId - Filtra per progetto
@@ -176,6 +180,115 @@ class WorkLogService extends BaseService {
             ...options,
             sort: sortOptions,
         });
+    }
+
+    /**
+     * Statistiche progetto per Vista Amministrativa (Dashboard Progetti).
+     * 
+     * Questo metodo serve alla **Vista Amministrativa (Control Room)**.
+     * Calcola metriche finanziarie e di progresso per un progetto specifico:
+     * - Totale ore lavorate
+     * - Revenue totale (ore × tariffa)
+     * - Burn rate (ore consumate / ore stimate)
+     * - Ultima attività
+     * 
+     * @param {Object} tenantScope - Contesto tenant
+     * @param {string} projectId - ID del progetto
+     * @returns {Promise<Object>} Statistiche progetto
+     * @returns {number} totalHours - Ore totali lavorate
+     * @returns {number} totalRevenue - Revenue totale (ore × rate)
+     * @returns {number} burnRate - Percentuale ore consumate (0-100+)
+     * @returns {string|null} lastActivity - Data ultima attività (YYYY-MM-DD)
+     * @returns {number} entriesCount - Numero totale di log/note
+     * @returns {number} billableHours - Ore fatturabili
+     * @returns {number} nonBillableHours - Ore non fatturabili
+     */
+    async getProjectStats(tenantScope, projectId) {
+        const userId = this._getUserId(tenantScope);
+        
+        // 1. Verifica ownership progetto
+        await this.validateProjectOwnership(tenantScope, projectId);
+        
+        // 2. Recupera progetto per ottenere rate e estimatedHours
+        const project = await Project.findOne({ _id: projectId, user: userId });
+        if (!project) {
+            throw AppError.notFound('Progetto');
+        }
+        
+        // 3. Aggrega tutti i worklogs per questo progetto
+        const results = await WorkLog.aggregate([
+            {
+                $match: {
+                    user: userId,
+                    projectId: projectId,
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalMinutes: { $sum: '$durationMinutes' },
+                    billableMinutes: {
+                        $sum: {
+                            $cond: [
+                                { $ne: ['$isBillable', false] },
+                                '$durationMinutes',
+                                0,
+                            ],
+                        },
+                    },
+                    nonBillableMinutes: {
+                        $sum: {
+                            $cond: [
+                                { $eq: ['$isBillable', false] },
+                                '$durationMinutes',
+                                0,
+                            ],
+                        },
+                    },
+                    entriesCount: { $sum: 1 },
+                    lastActivityDate: { $max: '$date' },
+                },
+            },
+        ]);
+        
+        const stats = results[0] || {
+            totalMinutes: 0,
+            billableMinutes: 0,
+            nonBillableMinutes: 0,
+            entriesCount: 0,
+            lastActivityDate: null,
+        };
+        
+        // 4. Calcola metriche
+        const totalHours = (stats.totalMinutes / 60).toFixed(2);
+        const billableHours = (stats.billableMinutes / 60).toFixed(2);
+        const nonBillableHours = (stats.nonBillableMinutes / 60).toFixed(2);
+        
+        // Revenue = ore fatturabili × tariffa
+        const totalRevenue = (stats.billableMinutes / 60) * (project.rate || 0);
+        
+        // Burn rate = (ore consumate / ore stimate) × 100
+        // Se estimatedHours è 0 o null, burnRate è null (non calcolabile)
+        let burnRate = null;
+        if (project.estimatedHours && project.estimatedHours > 0) {
+            burnRate = ((stats.totalMinutes / 60) / project.estimatedHours) * 100;
+            burnRate = Math.round(burnRate * 100) / 100; // Arrotonda a 2 decimali
+        }
+        
+        return {
+            projectId: projectId.toString(),
+            projectName: project.name,
+            projectCode: project.code,
+            totalHours: parseFloat(totalHours),
+            billableHours: parseFloat(billableHours),
+            nonBillableHours: parseFloat(nonBillableHours),
+            totalRevenue: Math.round(totalRevenue * 100) / 100, // Arrotonda a 2 decimali
+            burnRate, // Può essere null se estimatedHours non è impostato
+            lastActivity: stats.lastActivityDate || null,
+            entriesCount: stats.entriesCount,
+            projectRate: project.rate,
+            estimatedHours: project.estimatedHours || null,
+        };
     }
 
     // =========================================

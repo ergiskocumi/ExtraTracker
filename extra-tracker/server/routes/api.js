@@ -262,6 +262,39 @@ router.get('/worklogs/feed', asyncHandler(async (req, res) => {
     res.json({ success: true, data: logs });
 }));
 
+/**
+ * GET /api/worklogs/project/:projectId/stats
+ * Statistiche progetto per Vista Amministrativa (Dashboard Progetti)
+ * 
+ * Questo endpoint serve alla **Vista Amministrativa (Control Room)**.
+ * Calcola metriche finanziarie e di progresso per un progetto specifico:
+ * - Totale ore lavorate
+ * - Revenue totale (ore × tariffa)
+ * - Burn rate (ore consumate / ore stimate)
+ * - Ultima attività
+ * 
+ * Response:
+ * {
+ *   projectId: string,
+ *   projectName: string,
+ *   projectCode: string,
+ *   totalHours: number,
+ *   billableHours: number,
+ *   nonBillableHours: number,
+ *   totalRevenue: number,
+ *   burnRate: number | null, // null se estimatedHours non è impostato
+ *   lastActivity: string | null, // YYYY-MM-DD
+ *   entriesCount: number,
+ *   projectRate: number,
+ *   estimatedHours: number | null
+ * }
+ */
+router.get('/worklogs/project/:projectId/stats', asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+    const stats = await workLogService.getProjectStats(req.tenantScope, projectId);
+    res.json({ success: true, data: stats });
+}));
+
 // =========================================
 // WORKSPACE ROUTES (Work Journal)
 // =========================================
