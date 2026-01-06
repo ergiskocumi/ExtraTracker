@@ -1538,6 +1538,118 @@ export const registerSchema = z.object({
 
 \section{Sicurezza: Tecniche e Best Practices}
 
+\subsection{Helmet: Security HTTP Headers}
+
+\important{Problema}: Express di default espone l'header \code{X-Powered-By: Express}, che rivela la tecnologia usata agli attaccanti. Inoltre, mancano headers per prevenire clickjacking, MIME sniffing, e altri attacchi.
+
+\textbf{Soluzione: Helmet}
+
+Helmet è un middleware Express che imposta automaticamente vari header di sicurezza HTTP. È configurato come \important{primo middleware} nel server per garantire che tutti gli header siano presenti in ogni risposta.
+
+\begin{lstlisting}[caption=Configurazione Helmet nel Server]
+// index.js
+const helmet = require('helmet');
+const securityConfig = require('./config/security');
+
+// Helmet: imposta headers di sicurezza HTTP (PRIMO middleware!)
+app.use(helmet(securityConfig.helmet));
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Configurazione Helmet Dettagliata]
+helmet: {
+    // Rimuove X-Powered-By: Express (nasconde tecnologia usata)
+    
+    // Content Security Policy (previene XSS)
+    contentSecurityPolicy: isProduction ? {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", 'data:', 'https:'],
+            connectSrc: ["'self'"],
+            fontSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: [], // Forza HTTPS
+        },
+    } : false, // Disabilitato in sviluppo
+    
+    // X-Frame-Options: previene clickjacking (iframe embedding)
+    frameguard: {
+        action: 'deny', // Blocca completamente embedding in iframe
+    },
+    
+    // X-Content-Type-Options: previene MIME type sniffing
+    // Helmet lo imposta automaticamente a 'nosniff'
+    
+    // Strict-Transport-Security (HSTS): forza HTTPS
+    hsts: isProduction ? {
+        maxAge: 31536000, // 1 anno
+        includeSubDomains: true,
+        preload: true,
+    } : false,
+    
+    // Cross-Origin policies
+    crossOriginEmbedderPolicy: isProduction,
+    crossOriginOpenerPolicy: { policy: 'same-origin' },
+    crossOriginResourcePolicy: { policy: 'same-origin' },
+    
+    // Referrer-Policy: controlla quanto del referrer viene inviato
+    referrerPolicy: {
+        policy: 'strict-origin-when-cross-origin',
+    },
+    
+    // Permissions-Policy: disabilita feature del browser non necessarie
+    permissionsPolicy: {
+        features: {
+            camera: ["'none'"],
+            microphone: ["'none'"],
+            geolocation: ["'none'"],
+        },
+    },
+}
+\end{lstlisting}
+
+\textbf{Header di Sicurezza Impostati da Helmet:}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Header} & \textbf{Protezione} \\
+\midrule
+\texttt{X-Powered-By} & Rimosso (nasconde tecnologia) \\
+\texttt{X-Frame-Options} & Previene clickjacking \\
+\texttt{X-Content-Type-Options} & Previene MIME sniffing \\
+\texttt{X-XSS-Protection} & Attiva protezione XSS browser \\
+\texttt{Strict-Transport-Security} & Forza HTTPS (HSTS) \\
+\texttt{Content-Security-Policy} & Previene XSS, injection \\
+\texttt{Cross-Origin-Embedder-Policy} & Isola contesto esecuzione \\
+\texttt{Cross-Origin-Opener-Policy} & Previene attacchi cross-origin \\
+\texttt{Cross-Origin-Resource-Policy} & Controlla chi può caricare risorse \\
+\texttt{Referrer-Policy} & Controlla referrer inviato \\
+\texttt{Permissions-Policy} & Disabilita feature non necessarie \\
+\bottomrule
+\end{tabular}
+\caption{Header di sicurezza impostati da Helmet}
+\end{table}
+
+\textbf{Protezioni Fornite:}
+\begin{itemize}
+    \item \textbf{Clickjacking}: \code{X-Frame-Options: DENY} previene embedding in iframe
+    \item \textbf{MIME Sniffing}: \code{X-Content-Type-Options: nosniff} previene interpretazione errata di file
+    \item \textbf{XSS}: \code{Content-Security-Policy} limita da dove possono essere caricati script
+    \item \textbf{HTTPS Enforcement}: \code{Strict-Transport-Security} forza connessioni HTTPS
+    \item \textbf{Information Disclosure}: Rimozione \code{X-Powered-By} nasconde tecnologia usata
+    \item \textbf{Cross-Origin Attacks}: Policy cross-origin limitano interazioni tra domini
+\end{itemize}
+
+\textbf{Perché Primo Middleware?}
+\begin{itemize}
+    \item Gli header di sicurezza devono essere presenti in \important{tutte} le risposte
+    \item Se Helmet viene dopo altri middleware, alcune risposte potrebbero non avere gli header
+    \item Best practice: sicurezza prima di tutto
+\end{itemize}
+
 \subsection{Protezione contro Attacchi Comuni}
 
 \subsubsection{XSS (Cross-Site Scripting)}
@@ -1545,7 +1657,8 @@ export const registerSchema = z.object({
 \textbf{Protezioni implementate:}
 \begin{itemize}
     \item \textbf{HttpOnly cookies}: Token non accessibili da JavaScript
-    \item \textbf{Content Security Policy}: Headers CSP nel backend
+    \item \textbf{Helmet}: Imposta automaticamente header di sicurezza (CSP, X-XSS-Protection, etc.)
+    \item \textbf{Content Security Policy}: Headers CSP configurati in Helmet limitano da dove possono essere caricati script
     \item \textbf{Sanitizzazione input}: Zod valida e sanitizza tutti gli input
     \item \textbf{Escape output}: React escape automaticamente i valori
 \end{itemize}

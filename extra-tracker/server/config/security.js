@@ -210,7 +210,10 @@ cors: {
     // Helmet Security Headers
     // ==========================================
     helmet: {
-        // Content Security Policy
+        // Rimuove X-Powered-By: Express (nasconde tecnologia usata)
+        // Helmet lo fa di default, ma lo esplicitiamo per chiarezza
+        
+        // Content Security Policy (previene XSS)
         contentSecurityPolicy: isProduction ? {
             directives: {
                 defaultSrc: ["'self'"],
@@ -220,11 +223,54 @@ cors: {
                 connectSrc: ["'self'"],
                 fontSrc: ["'self'"],
                 objectSrc: ["'none'"],
-                upgradeInsecureRequests: [],
+                upgradeInsecureRequests: [], // Forza HTTPS
             },
-        } : false,
+        } : false, // Disabilitato in sviluppo per facilitare debugging
         
-        // Cross-Origin-Embedder-Policy
+        // X-Frame-Options: previene clickjacking (iframe embedding)
+        // Helmet usa 'SAMEORIGIN' di default, ma possiamo essere più restrittivi
+        frameguard: {
+            action: 'deny', // Blocca completamente embedding in iframe
+        },
+        
+        // X-Content-Type-Options: previene MIME type sniffing
+        // Helmet lo imposta a 'nosniff' di default
+        
+        // X-XSS-Protection: attiva protezione XSS del browser (legacy, ma utile)
+        // Helmet lo imposta di default
+        
+        // Strict-Transport-Security (HSTS): forza HTTPS
+        hsts: isProduction ? {
+            maxAge: 31536000, // 1 anno
+            includeSubDomains: true,
+            preload: true,
+        } : false, // Disabilitato in sviluppo (HTTP locale)
+        
+        // Cross-Origin-Embedder-Policy: isola il contesto di esecuzione
         crossOriginEmbedderPolicy: isProduction,
+        
+        // Cross-Origin-Opener-Policy: previene attacchi cross-origin
+        crossOriginOpenerPolicy: {
+            policy: 'same-origin',
+        },
+        
+        // Cross-Origin-Resource-Policy: controlla chi può caricare risorse
+        crossOriginResourcePolicy: {
+            policy: 'same-origin',
+        },
+        
+        // Referrer-Policy: controlla quanto del referrer viene inviato
+        referrerPolicy: {
+            policy: 'strict-origin-when-cross-origin',
+        },
+        
+        // Permissions-Policy: disabilita feature del browser non necessarie
+        permissionsPolicy: {
+            features: {
+                camera: ["'none'"],
+                microphone: ["'none'"],
+                geolocation: ["'none'"],
+            },
+        },
     },
 };
