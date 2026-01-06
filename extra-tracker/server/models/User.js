@@ -251,11 +251,35 @@ const userSchema = new mongoose.Schema(
             },
         },
 
-        // Refresh token hashato (per invalidazione)
-        refreshTokenHash: {
-            type: String,
-            select: false,
-        },
+        // Array di refresh tokens per supportare multi-device
+        // Ogni elemento rappresenta una sessione attiva su un dispositivo
+        refreshTokens: [{
+            hash: {
+                type: String,
+                required: true,
+            },
+            device: {
+                type: String,
+                required: true,
+                trim: true,
+            },
+            userAgent: {
+                type: String,
+                trim: true,
+            },
+            ip: {
+                type: String,
+                trim: true,
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+            lastUsedAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }],
 
         // Stato account
         isActive: {
@@ -335,7 +359,7 @@ const userSchema = new mongoose.Schema(
             // Rimuovi campi sensibili quando converti in JSON
             transform: (doc, ret) => {
                 delete ret.password;
-                delete ret.refreshTokenHash;
+                delete ret.refreshTokens;
                 delete ret.__v;
                 delete ret.failedLoginAttempts;
                 delete ret.lockUntil;
@@ -415,11 +439,51 @@ userSchema.statics.findForLogin = function (email) {
 };
 
 /**
- * Trova utente per refresh token
+ * Trova utente per refresh token (include array refreshTokens)
  */
 userSchema.statics.findByRefreshToken = function (userId) {
     return this.findOne({ _id: userId, isActive: true })
-        .select('+refreshTokenHash');
+        .select('+refreshTokens');
+};
+
+/**
+ * Trova sessione specifica per hash token
+ */
+userSchema.methods.findSessionByHash = function (tokenHash) {
+    if (!this.refreshTokens || this.refreshTokens.length === 0) {
+        return null;
+    }
+    return this.refreshTokens.find(session => session.hash === tokenHash);
+};
+
+/**
+ * Rimuovi sessione specifica per hash token
+ */
+userSchema.methods.removeSessionByHash = async function (tokenHash) {
+    this.refreshTokens = this.refreshTokens.filter(
+        session => session.hash !== tokenHash
+    );
+    return this.save();
+};
+
+/**
+ * Rimuovi tutte le sessioni (logout da tutti i dispositivi)
+ */
+userSchema.methods.removeAllSessions = async function () {
+    this.refreshTokens = [];
+    return this.save();
+};
+
+/**
+ * Aggiorna lastUsedAt per una sessione
+ */
+userSchema.methods.updateSessionLastUsed = async function (tokenHash) {
+    const session = this.findSessionByHash(tokenHash);
+    if (session) {
+        session.lastUsedAt = new Date();
+        return this.save();
+    }
+    return this;
 };
 
 const User = mongoose.model('User', userSchema);

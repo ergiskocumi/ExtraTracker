@@ -15,6 +15,28 @@ const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const securityConfig = require('../config/security');
 
+/**
+ * Utility per estrarre informazioni dispositivo da request
+ * @param {object} req - Express request object
+ * @returns {object} - { device, userAgent, ip }
+ */
+const getDeviceInfo = (req) => {
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const ip = req.ip || req.socket?.remoteAddress || 'Unknown';
+    
+    // Estrai tipo dispositivo da User-Agent
+    let device = 'Unknown';
+    if (userAgent.includes('Mobile') || userAgent.includes('Android') || userAgent.includes('iPhone')) {
+        device = 'Mobile';
+    } else if (userAgent.includes('Tablet') || userAgent.includes('iPad')) {
+        device = 'Tablet';
+    } else if (userAgent.includes('Windows') || userAgent.includes('Mac') || userAgent.includes('Linux')) {
+        device = 'Desktop';
+    }
+    
+    return { device, userAgent, ip };
+};
+
 class AuthService {
     // ==========================================
     // PASSWORD HASHING (Argon2)
@@ -85,9 +107,10 @@ class AuthService {
      * Il refresh token è un JWT + random string per extra sicurezza
      * 
      * @param {object} user - Oggetto utente
-     * @returns {{ token: string, hash: string }}
+     * @param {object} deviceInfo - { device, userAgent, ip }
+     * @returns {{ token: string, hash: string, sessionData: object }}
      */
-    async generateRefreshToken(user) {
+    async generateRefreshToken(user, deviceInfo = {}) {
         // Parte random per unicità
         const randomPart = crypto.randomBytes(32).toString('hex');
 
@@ -108,7 +131,17 @@ class AuthService {
             .update(token)
             .digest('hex');
 
-        return { token, hash };
+        // Dati sessione da salvare nel DB
+        const sessionData = {
+            hash,
+            device: deviceInfo.device || 'Unknown',
+            userAgent: deviceInfo.userAgent || 'Unknown',
+            ip: deviceInfo.ip || 'Unknown',
+            createdAt: new Date(),
+            lastUsedAt: new Date(),
+        };
+
+        return { token, hash, sessionData };
     }
 
     /**
@@ -152,9 +185,10 @@ class AuthService {
      * Registra nuovo utente
      * 
      * @param {object} data - { email, password, acceptTerms }
+     * @param {object} deviceInfo - { device, userAgent, ip } (opzionale)
      * @returns {Promise<{ user: User, accessToken: string, refreshToken: string }>}
      */
-    async register(data) {
+    async register(data, deviceInfo = {}) {
         const { email, password, acceptTerms } = data;
 
         // Verifica email non esistente
@@ -176,16 +210,17 @@ class AuthService {
                 termsAcceptedAt: new Date(),
                 privacyVersion: '1.0',
             },
+            refreshTokens: [], // Inizializza array vuoto
         });
 
         await user.save();
 
-        // Genera token
+        // Genera token con device info
         const accessToken = this.generateAccessToken(user);
-        const { token: refreshToken, hash: refreshTokenHash } = await this.generateRefreshToken(user);
+        const { token: refreshToken, sessionData } = await this.generateRefreshToken(user, deviceInfo);
 
-        // Salva hash refresh token
-        user.refreshTokenHash = refreshTokenHash;
+        // Aggiungi nuova sessione all'array
+        user.refreshTokens.push(sessionData);
         await user.save();
 
         return { user, accessToken, refreshToken };
@@ -195,9 +230,10 @@ class AuthService {
      * Login utente
      * 
      * @param {object} data - { email, password }
+     * @param {object} deviceInfo - { device, userAgent, ip } (opzionale)
      * @returns {Promise<{ user: User, accessToken: string, refreshToken: string }>}
      */
-    async login(data) {
+    async login(data, deviceInfo = {}) {
         const { email, password } = data;
 
         // Trova utente con campi nascosti
@@ -228,12 +264,17 @@ class AuthService {
         // Login riuscito: resetta contatore
         await user.resetFailedAttempts();
 
-        // Genera token
-        const accessToken = this.generateAccessToken(user);
-        const { token: refreshToken, hash: refreshTokenHash } = await this.generateRefreshToken(user);
+        // Assicurati che refreshTokens sia un array
+        if (!user.refreshTokens) {
+            user.refreshTokens = [];
+        }
 
-        // Aggiorna refresh token nel DB
-        user.refreshTokenHash = refreshTokenHash;
+        // Genera token con device info
+        const accessToken = this.generateAccessToken(user);
+        const { token: refreshToken, sessionData } = await this.generateRefreshToken(user, deviceInfo);
+
+        // Aggiungi nuova sessione all'array (non sovrascrive sessioni esistenti!)
+        user.refreshTokens.push(sessionData);
         await user.save();
 
         return { user, accessToken, refreshToken };
@@ -243,13 +284,14 @@ class AuthService {
      * Refresh access token usando refresh token
      * 
      * @param {string} refreshToken - Refresh token attuale
+     * @param {object} deviceInfo - { device, userAgent, ip } (opzionale)
      * @returns {Promise<{ user: User, accessToken: string, newRefreshToken: string }>}
      */
-    async refreshAccessToken(refreshToken) {
+    async refreshAccessToken(refreshToken, deviceInfo = {}) {
         // Verifica refresh token
         const payload = this.verifyToken(refreshToken, 'refresh');
 
-        // Trova utente
+        // Trova utente con array refreshTokens
         const user = await User.findByRefreshToken(payload.sub);
         if (!user) {
             throw AppError.unauthorized('Sessione non valida');
@@ -261,34 +303,63 @@ class AuthService {
             .update(refreshToken)
             .digest('hex');
 
-        if (user.refreshTokenHash !== tokenHash) {
-            // Possibile furto token! Invalida tutti i refresh token dell'utente
-            user.refreshTokenHash = undefined;
-            await user.save();
-            throw AppError.unauthorized('Sessione invalidata per sicurezza');
+        // Trova sessione specifica nell'array
+        const session = user.findSessionByHash(tokenHash);
+        
+        if (!session) {
+            // Token non trovato: possibile furto o token già invalidato
+            // Invalida tutte le sessioni per sicurezza
+            await user.removeAllSessions();
+            throw AppError.unauthorized('Sessione non valida o scaduta');
         }
 
-        // Genera nuovi token (rotation)
-        const newAccessToken = this.generateAccessToken(user);
-        const { token: newRefreshToken, hash: newRefreshTokenHash } = 
-            await this.generateRefreshToken(user);
+        // Aggiorna lastUsedAt per questa sessione
+        session.lastUsedAt = new Date();
 
-        // Aggiorna hash nel DB
-        user.refreshTokenHash = newRefreshTokenHash;
+        // Genera nuovi token (rotation) - mantieni stesso device info
+        const newAccessToken = this.generateAccessToken(user);
+        const { token: newRefreshToken, sessionData: newSessionData } = 
+            await this.generateRefreshToken(user, {
+                device: session.device,
+                userAgent: deviceInfo.userAgent || session.userAgent,
+                ip: deviceInfo.ip || session.ip,
+            });
+
+        // Rimuovi vecchia sessione e aggiungi nuova (rotation)
+        user.refreshTokens = user.refreshTokens.filter(
+            s => s.hash !== tokenHash
+        );
+        user.refreshTokens.push(newSessionData);
         await user.save();
 
         return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
     }
 
     /**
-     * Logout utente (invalida refresh token)
+     * Logout utente (invalida refresh token specifico o tutti)
      * 
      * @param {string} userId - ID utente
+     * @param {string} refreshToken - Refresh token da invalidare (opzionale, se non fornito invalida tutti)
+     * @returns {Promise<void>}
      */
-    async logout(userId) {
-        await User.findByIdAndUpdate(userId, {
-            $unset: { refreshTokenHash: 1 },
-        });
+    async logout(userId, refreshToken = null) {
+        const user = await User.findById(userId).select('+refreshTokens');
+        
+        if (!user) {
+            return; // Utente non trovato, niente da fare
+        }
+
+        if (refreshToken) {
+            // Invalida solo la sessione specifica
+            const tokenHash = crypto
+                .createHash('sha256')
+                .update(refreshToken)
+                .digest('hex');
+            await user.removeSessionByHash(tokenHash);
+        } else {
+            // Invalida tutte le sessioni (logout da tutti i dispositivi)
+            await user.removeAllSessions();
+        }
     }
 
     /**
@@ -314,8 +385,8 @@ class AuthService {
         // Hash nuova password
         user.password = await this.hashPassword(newPassword);
         
-        // Invalida tutti i refresh token (force re-login)
-        user.refreshTokenHash = undefined;
+        // Invalida tutti i refresh token (force re-login da tutti i dispositivi)
+        user.refreshTokens = [];
         
         await user.save();
     }
@@ -340,5 +411,6 @@ class AuthService {
 // Crea singleton
 const authService = new AuthService();
 
-// Esporta singleton
+// Esporta singleton e utility
 module.exports = authService;
+module.exports.getDeviceInfo = getDeviceInfo;

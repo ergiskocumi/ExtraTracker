@@ -324,8 +324,8 @@ generateAccessToken(user) {
     \item \textbf{Bilanciamento}: Non troppo breve (troppe richieste) né troppo lungo (rischio sicurezza)
 \end{itemize}
 
-\begin{lstlisting}[caption=Generazione Refresh Token con Hash]
-async generateRefreshToken(user) {
+\begin{lstlisting}[caption=Generazione Refresh Token con Device Tracking]
+async generateRefreshToken(user, deviceInfo = {}) {
     // Parte random per unicità
     const randomPart = crypto.randomBytes(32).toString('hex');
 
@@ -346,7 +346,17 @@ async generateRefreshToken(user) {
         .update(token)
         .digest('hex');
 
-    return { token, hash };
+    // Dati sessione da salvare nel DB (per multi-device support)
+    const sessionData = {
+        hash,
+        device: deviceInfo.device || 'Unknown',
+        userAgent: deviceInfo.userAgent || 'Unknown',
+        ip: deviceInfo.ip || 'Unknown',
+        createdAt: new Date(),
+        lastUsedAt: new Date(),
+    };
+
+    return { token, hash, sessionData };
 }
 \end{lstlisting}
 
@@ -357,14 +367,81 @@ async generateRefreshToken(user) {
     \item \textbf{Best practice}: Mai salvare token in chiaro nel database
 \end{itemize}
 
+\subsubsection{Multi-Device Support: Gestione Sessioni Multiple}
+
+\important{Problema della Mono-Sessione}: Il sistema originale supportava solo una sessione per utente. Quando un utente si loggava da un nuovo dispositivo, il refresh token precedente veniva invalidato, causando logout forzato su altri dispositivi.
+
+\textbf{Soluzione Implementata}: Array di sessioni nel modello User.
+
+\begin{lstlisting}[caption=Schema RefreshTokens Array nel Modello User]
+refreshTokens: [{
+    hash: {
+        type: String,
+        required: true,
+    },
+    device: {
+        type: String,  // 'Desktop', 'Mobile', 'Tablet', 'Unknown'
+        required: true,
+    },
+    userAgent: {
+        type: String,
+        trim: true,
+    },
+    ip: {
+        type: String,
+        trim: true,
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+    lastUsedAt: {
+        type: Date,
+        default: Date.now,
+    },
+}]
+\end{lstlisting}
+
+\textbf{Vantaggi del Sistema Multi-Sessione:}
+\begin{itemize}
+    \item \textbf{Multi-device}: Utente può essere loggato su PC, telefono e tablet simultaneamente
+    \item \textbf{Device tracking}: Ogni sessione traccia dispositivo, user-agent e IP
+    \item \textbf{Logout selettivo}: Possibilità di invalidare una singola sessione o tutte
+    \item \textbf{Monitoraggio}: \code{lastUsedAt} permette di identificare sessioni inattive
+    \item \textbf{Sicurezza}: Ogni dispositivo ha il proprio refresh token indipendente
+\end{itemize}
+
+\textbf{Utility per Rilevare Device Info:}
+
+\begin{lstlisting}[caption=Utility getDeviceInfo]
+const getDeviceInfo = (req) => {
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const ip = req.ip || req.socket?.remoteAddress || 'Unknown';
+    
+    // Estrai tipo dispositivo da User-Agent
+    let device = 'Unknown';
+    if (userAgent.includes('Mobile') || userAgent.includes('Android') || 
+        userAgent.includes('iPhone')) {
+        device = 'Mobile';
+    } else if (userAgent.includes('Tablet') || userAgent.includes('iPad')) {
+        device = 'Tablet';
+    } else if (userAgent.includes('Windows') || userAgent.includes('Mac') || 
+               userAgent.includes('Linux')) {
+        device = 'Desktop';
+    }
+    
+    return { device, userAgent, ip };
+};
+\end{lstlisting}
+
 \subsubsection{Refresh Token con Validazione Hash}
 
-\begin{lstlisting}[caption=Refresh Token con Validazione]
-async refreshAccessToken(refreshToken) {
+\begin{lstlisting}[caption=Refresh Token con Validazione Multi-Sessione]
+async refreshAccessToken(refreshToken, deviceInfo = {}) {
     // 1. Verifica firma JWT
     const payload = this.verifyToken(refreshToken, 'refresh');
 
-    // 2. Trova utente
+    // 2. Trova utente con array refreshTokens
     const user = await User.findByRefreshToken(payload.sub);
     if (!user) {
         throw AppError.unauthorized('Sessione non valida');
@@ -376,38 +453,61 @@ async refreshAccessToken(refreshToken) {
         .update(refreshToken)
         .digest('hex');
 
-    if (user.refreshTokenHash !== tokenHash) {
-        // Possibile furto token! Invalida tutti i refresh token
-        user.refreshTokenHash = undefined;
-        await user.save();
-        throw AppError.unauthorized('Sessione invalidata per sicurezza');
+    // 4. Trova sessione specifica nell'array
+    const session = user.findSessionByHash(tokenHash);
+    
+    if (!session) {
+        // Token non trovato: possibile furto o token già invalidato
+        // Invalida tutte le sessioni per sicurezza
+        await user.removeAllSessions();
+        throw AppError.unauthorized('Sessione non valida o scaduta');
     }
 
-    // 4. Genera nuovi token (rotation)
-    const newAccessToken = this.generateAccessToken(user);
-    const { token: newRefreshToken, hash: newRefreshTokenHash } = 
-        await this.generateRefreshToken(user);
+    // 5. Aggiorna lastUsedAt per questa sessione
+    session.lastUsedAt = new Date();
 
-    // 5. Aggiorna hash nel DB
-    user.refreshTokenHash = newRefreshTokenHash;
+    // 6. Genera nuovi token (rotation) - mantieni stesso device info
+    const newAccessToken = this.generateAccessToken(user);
+    const { token: newRefreshToken, sessionData: newSessionData } = 
+        await this.generateRefreshToken(user, {
+            device: session.device,
+            userAgent: deviceInfo.userAgent || session.userAgent,
+            ip: deviceInfo.ip || session.ip,
+        });
+
+    // 7. Rimuovi vecchia sessione e aggiungi nuova (rotation)
+    user.refreshTokens = user.refreshTokens.filter(
+        s => s.hash !== tokenHash
+    );
+    user.refreshTokens.push(newSessionData);
     await user.save();
 
     return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
 }
 \end{lstlisting}
 
-\textbf{Meccanismo di sicurezza:}
+\textbf{Meccanismo di sicurezza con multi-sessione:}
 \begin{enumerate}
     \item Verifica firma JWT (garantisce autenticità)
-    \item Verifica hash nel DB (garantisce che il token non sia stato revocato)
-    \item Se hash non corrisponde: possibile furto, invalida immediatamente
-    \item Genera nuovi token (rotation) per invalidare il vecchio
+    \item Cerca sessione specifica nell'array \code{refreshTokens}
+    \item Se sessione non trovata: possibile furto, invalida tutte le sessioni
+    \item Aggiorna \code{lastUsedAt} per tracciare attività
+    \item Genera nuovi token (rotation) mantenendo device info originale
+    \item Rimuove vecchia sessione e aggiunge nuova (rotation per singola sessione)
 \end{enumerate}
+
+\textbf{Differenze chiave rispetto al sistema mono-sessione:}
+\begin{itemize}
+    \item \textbf{Ricerca nell'array}: Cerca la sessione specifica invece di confrontare un singolo hash
+    \item \textbf{Rotazione per sessione}: Ogni dispositivo ha la propria rotazione indipendente
+    \item \textbf{Device info persistente}: Mantiene informazioni dispositivo originali
+    \item \textbf{Tracking attività}: \code{lastUsedAt} permette identificare sessioni inattive
+\end{itemize}
 
 \subsubsection{Login con Protezione Brute Force}
 
-\begin{lstlisting}[caption=Login con Account Lockout]
-async login(data) {
+\begin{lstlisting}[caption=Login con Account Lockout e Multi-Sessione]
+async login(data, deviceInfo = {}) {
     const { email, password } = data;
 
     // Trova utente con campi nascosti (password, failedAttempts)
@@ -438,12 +538,18 @@ async login(data) {
     // Login riuscito: resetta contatore
     await user.resetFailedAttempts();
 
-    // Genera token
-    const accessToken = this.generateAccessToken(user);
-    const { token: refreshToken, hash: refreshTokenHash } = 
-        await this.generateRefreshToken(user);
+    // Assicurati che refreshTokens sia un array
+    if (!user.refreshTokens) {
+        user.refreshTokens = [];
+    }
 
-    user.refreshTokenHash = refreshTokenHash;
+    // Genera token con device info
+    const accessToken = this.generateAccessToken(user);
+    const { token: refreshToken, sessionData } = 
+        await this.generateRefreshToken(user, deviceInfo);
+
+    // Aggiungi nuova sessione all'array (NON sovrascrive sessioni esistenti!)
+    user.refreshTokens.push(sessionData);
     await user.save();
 
     return { user, accessToken, refreshToken };
@@ -455,6 +561,8 @@ async login(data) {
     \item \textbf{Account Lockout}: Dopo 5 tentativi falliti, account bloccato per 15 minuti
     \item \textbf{Messaggi generici}: Non rivela se l'email esiste (previene enumeration attacks)
     \item \textbf{Reset automatico}: Dopo login riuscito, contatore resettato
+    \item \textbf{Multi-sessione}: Aggiunge nuova sessione all'array senza invalidare quelle esistenti
+    \item \textbf{Device tracking}: Ogni sessione traccia dispositivo, user-agent e IP
 \end{itemize}
 
 \subsection{Middleware di Autenticazione}
@@ -693,10 +801,33 @@ const userSchema = new mongoose.Schema({
         select: false,  // Non includere nelle query di default
     },
     
-    refreshTokenHash: {
-        type: String,
-        select: false,  // Hash del refresh token
-    },
+    // Array di refresh tokens per supportare multi-device
+    refreshTokens: [{
+        hash: {
+            type: String,
+            required: true,
+        },
+        device: {
+            type: String,  // 'Desktop', 'Mobile', 'Tablet', 'Unknown'
+            required: true,
+        },
+        userAgent: {
+            type: String,
+            trim: true,
+        },
+        ip: {
+            type: String,
+            trim: true,
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now,
+        },
+        lastUsedAt: {
+            type: Date,
+            default: Date.now,
+        },
+    }],
     
     failedLoginAttempts: {
         type: Number,
@@ -716,7 +847,7 @@ const userSchema = new mongoose.Schema({
         transform: (doc, ret) => {
             // Rimuovi campi sensibili quando converti in JSON
             delete ret.password;
-            delete ret.refreshTokenHash;
+            delete ret.refreshTokens;  // Array di sessioni sensibile
             delete ret.failedLoginAttempts;
             delete ret.lockUntil;
             return ret;
@@ -767,6 +898,54 @@ userSchema.methods.resetFailedAttempts = async function () {
     \item Dopo 5 tentativi falliti, account bloccato per 15 minuti
     \item Reset automatico dopo login riuscito
     \item Reset automatico se lockout scaduto
+\end{itemize}
+
+\subsubsection{Metodi per Gestione Sessioni Multi-Device}
+
+\begin{lstlisting}[caption=Metodi per Gestione Array Sessioni]
+/**
+ * Trova sessione specifica per hash token
+ */
+userSchema.methods.findSessionByHash = function (tokenHash) {
+    if (!this.refreshTokens || this.refreshTokens.length === 0) {
+        return null;
+    }
+    return this.refreshTokens.find(session => session.hash === tokenHash);
+};
+
+/**
+ * Rimuovi sessione specifica per hash token
+ */
+userSchema.methods.removeSessionByHash = async function (tokenHash) {
+    this.refreshTokens = this.refreshTokens.filter(
+        session => session.hash !== tokenHash
+    );
+    return this.save();
+};
+
+/**
+ * Rimuovi tutte le sessioni (logout da tutti i dispositivi)
+ */
+userSchema.methods.removeAllSessions = async function () {
+    this.refreshTokens = [];
+    return this.save();
+};
+
+/**
+ * Trova utente per refresh token (include array refreshTokens)
+ */
+userSchema.statics.findByRefreshToken = function (userId) {
+    return this.findOne({ _id: userId, isActive: true })
+        .select('+refreshTokens');
+};
+\end{lstlisting}
+
+\textbf{Metodi per Gestione Sessioni:}
+\begin{itemize}
+    \item \textbf{findSessionByHash}: Trova una sessione specifica nell'array per hash token
+    \item \textbf{removeSessionByHash}: Rimuove una singola sessione (logout selettivo)
+    \item \textbf{removeAllSessions}: Svuota l'array (logout da tutti i dispositivi)
+    \item \textbf{findByRefreshToken}: Metodo statico che include array \code{refreshTokens} nelle query
 \end{itemize}
 
 \section{Frontend: Architettura e Componenti}
@@ -1329,12 +1508,23 @@ cors: {
 \begin{enumerate}
     \item \textbf{Frontend}: Utente clicca logout
     \item \textbf{Frontend}: Chiama \code{POST /api/auth/logout}
-    \item \textbf{Backend}: Se utente autenticato, invalida \code{refreshTokenHash} nel DB
+    \item \textbf{Backend}: Se utente autenticato:
+        \begin{itemize}
+            \item Se c'è refresh token nel cookie: invalida solo quella sessione specifica
+            \item Se non c'è refresh token: invalida tutte le sessioni (logout da tutti i dispositivi)
+        \end{itemize}
     \item \textbf{Backend}: Cancella cookie (access e refresh)
     \item \textbf{Backend}: Risponde successo
     \item \textbf{Frontend}: Aggiorna AuthContext (user = null, isAuthenticated = false)
     \item \textbf{Frontend}: Redirect a login
 \end{enumerate}
+
+\textbf{Logout Selettivo vs Logout Globale:}
+\begin{itemize}
+    \item \textbf{Logout selettivo}: Rimuove solo la sessione corrente dall'array \code{refreshTokens}
+    \item \textbf{Logout globale}: Svuota completamente l'array \code{refreshTokens}
+    \item \textbf{Use case}: Utente può fare logout da un dispositivo senza disconnettere gli altri
+\end{itemize}
 
 \section{Considerazioni Finali}
 

@@ -11,6 +11,7 @@
  */
 
 const authService = require('../services/authService');
+const { getDeviceInfo } = require('../services/authService');
 const securityConfig = require('../config/security');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { emailService, generateToken, hashToken } = require('../services/emailService');
@@ -65,7 +66,8 @@ const clearAuthCookies = (res) => {
  * Registra un nuovo utente
  */
 const register = asyncHandler(async (req, res) => {
-    const { user, accessToken, refreshToken } = await authService.register(req.body);
+    const deviceInfo = getDeviceInfo(req);
+    const { user, accessToken, refreshToken } = await authService.register(req.body, deviceInfo);
 
     // Genera token di verifica email
     const verificationToken = generateToken();
@@ -103,7 +105,8 @@ const register = asyncHandler(async (req, res) => {
  * Effettua il login
  */
 const login = asyncHandler(async (req, res) => {
-    const { user, accessToken, refreshToken } = await authService.login(req.body);
+    const deviceInfo = getDeviceInfo(req);
+    const { user, accessToken, refreshToken } = await authService.login(req.body, deviceInfo);
 
     // Imposta cookies sicuri
     setAuthCookies(res, accessToken, refreshToken);
@@ -138,8 +141,9 @@ const refresh = asyncHandler(async (req, res) => {
         });
     }
 
+    const deviceInfo = getDeviceInfo(req);
     const { accessToken, refreshToken: newRefreshToken } = 
-        await authService.refreshAccessToken(refreshToken);
+        await authService.refreshAccessToken(refreshToken, deviceInfo);
 
     // Ruota i token (refresh token rotation per sicurezza)
     setAuthCookies(res, accessToken, newRefreshToken);
@@ -152,12 +156,15 @@ const refresh = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/auth/logout
- * Effettua il logout
+ * Effettua il logout (invalida solo la sessione corrente o tutte se specificato)
  */
 const logout = asyncHandler(async (req, res) => {
     // Invalida refresh token nel DB (se utente autenticato)
     if (req.user?.id) {
-        await authService.logout(req.user.id);
+        const refreshToken = req.cookies?.[securityConfig.cookie.refreshName];
+        // Se c'è un refresh token, invalida solo quella sessione
+        // Altrimenti invalida tutte le sessioni (logout da tutti i dispositivi)
+        await authService.logout(req.user.id, refreshToken || null);
     }
 
     // Cancella cookies
