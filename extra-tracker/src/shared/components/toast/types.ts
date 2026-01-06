@@ -44,9 +44,12 @@ export interface Toast {
  * Opzioni per creare un nuovo toast
  * Omit<Toast, 'id'> = Tutto tranne l'id (generato automaticamente)
  * Partial = Tutto opzionale tranne message
+ * 
+ * NOTA: L'id può essere fornito opzionalmente per evitare duplicati
  */
 export type ToastOptions = Partial<Omit<Toast, 'id' | 'message'>> & {
     message: string;
+    id?: string; // ID opzionale per evitare duplicati (anti-spam)
 };
 
 /**

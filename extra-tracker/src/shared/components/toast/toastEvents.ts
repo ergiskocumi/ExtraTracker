@@ -37,7 +37,7 @@ export const TOAST_EVENT = 'toast:show' as const;
 export interface ToastEventDetail {
     type: ToastType;
     message: string;
-    options?: Partial<Omit<ToastOptions, 'message'>>;
+    options?: Partial<ToastOptions>; // Include 'id' per anti-spam
 }
 
 /**

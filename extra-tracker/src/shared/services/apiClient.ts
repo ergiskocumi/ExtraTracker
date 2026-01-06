@@ -46,19 +46,46 @@ const axiosInstance = axios.create({
     timeout: 25000, // 25 secondi timeout per richieste AI più lente
 });
 
-// Flag per evitare loop infiniti di refresh
+// ==========================================
+// MUTEX PATTERN: Refresh Token Management
+// ==========================================
+
+/**
+ * 🎓 PATTERN: Mutex (Mutual Exclusion) per Refresh Token
+ * 
+ * Problema: Con multiple richieste simultanee (dashboard, summary, projects, etc.),
+ * ognuna che riceve 401 prova a fare refresh, causando:
+ * - Spam di richieste refresh al backend
+ * - Spam di toast di errore
+ * - DoS involontario
+ * 
+ * Soluzione: Solo UNA richiesta può fare refresh alla volta.
+ * Le altre aspettano in coda e vengono risvegliate quando il refresh finisce.
+ */
+
+// Mutex: lock per refresh token (solo uno alla volta)
 let isRefreshing = false;
+
+// Coda delle richieste in attesa del refresh
 let failedQueue: Array<{
     resolve: (value?: unknown) => void;
     reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: Error | null) => {
+// Flag anti-spam per toast di sessione scaduta
+let isSessionExpiredToastShown = false;
+
+/**
+ * Processa la coda delle richieste in attesa
+ * @param error - Se presente, tutte le richieste vengono rifiutate
+ * @param token - Se presente, tutte le richieste vengono risolte (refresh riuscito)
+ */
+const processQueue = (error: Error | null, token: string | null = null) => {
     failedQueue.forEach((prom) => {
         if (error) {
             prom.reject(error);
         } else {
-            prom.resolve();
+            prom.resolve(token);
         }
     });
     failedQueue = [];
@@ -75,7 +102,7 @@ axiosInstance.interceptors.response.use(
     // Risposta OK: passa attraverso
     (response: AxiosResponse) => response,
     
-    // Errore: gestisci 401 con refresh automatico
+    // Errore: gestisci 401 con refresh automatico (MUTEX PATTERN)
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
         const requestUrl = originalRequest?.url || '';
@@ -83,40 +110,101 @@ axiosInstance.interceptors.response.use(
         // NON fare refresh per endpoint di auth o se già in retry
         const shouldSkipRefresh = NO_REFRESH_URLS.some(url => requestUrl.includes(url));
         
+        // ==========================================
+        // GESTIONE 401: Refresh Token con Mutex
+        // ==========================================
         if (error.response?.status === 401 && !originalRequest._retry && !shouldSkipRefresh) {
-            // Se stiamo già facendo refresh, accoda la richiesta
+            
+            // CASO 1: Refresh già in corso (MUTEX ATTIVO)
+            // Metti questa richiesta in coda e aspetta che il refresh finisca
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
-                }).then(() => axiosInstance(originalRequest));
+                })
+                    .then(() => {
+                        // Quando la coda viene risolta (refresh riuscito), riprova la richiesta originale
+                        return axiosInstance(originalRequest);
+                    })
+                    .catch((err) => {
+                        // Se il refresh è fallito, rifiuta anche questa richiesta
+                        return Promise.reject(err);
+                    });
             }
 
+            // CASO 2: Primo refresh (ACQUISISCI MUTEX)
             originalRequest._retry = true;
-            isRefreshing = true;
+            isRefreshing = true; // Lock: nessun altro può fare refresh ora
 
             try {
-                // Prova a fare refresh del token
+                // Chiama l'endpoint di refresh
+                // Nota: i cookie HttpOnly vengono gestiti automaticamente dal browser
                 await axiosInstance.post('/auth/refresh');
-                processQueue(null);
                 
-                // Riprova la richiesta originale
+                // Refresh riuscito: sblocca tutte le richieste in coda
+                processQueue(null, null);
+                
+                // Riprova la richiesta originale che aveva fallito
                 return axiosInstance(originalRequest);
+
             } catch (refreshError) {
-                processQueue(refreshError as Error);
+                // Refresh fallito: rifiuta tutte le richieste in coda
+                processQueue(refreshError as Error, null);
                 
-                // Refresh fallito: emetti evento per logout
-                window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
-                
+                // Mostra toast di sessione scaduta (solo una volta, anti-spam)
+                if (!isSessionExpiredToastShown) {
+                    isSessionExpiredToastShown = true;
+                    
+                    emitToast.error('Sessione scaduta. Effettua nuovamente il login.', {
+                        title: 'Sessione scaduta',
+                        duration: 5000,
+                        id: 'session-expired', // ID univoco per evitare duplicati
+                    });
+                    
+                    // Reset flag dopo 5 secondi (quando il toast scompare)
+                    setTimeout(() => {
+                        isSessionExpiredToastShown = false;
+                    }, 5000);
+                    
+                    // Emetti evento per logout pulito (pulire stato utente)
+                    window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+                }
+
                 return Promise.reject(refreshError);
             } finally {
+                // Rilascia il lock sempre, sia in caso di successo che errore
                 isRefreshing = false;
             }
         }
 
-        // Per errori 401 su endpoint di auth (login/register), estrai il messaggio dal backend
-        // e aggiungilo all'errore per facilitare l'accesso nel componente
+        // ==========================================
+        // GESTIONE 401 su endpoint di auth (login/register)
+        // ==========================================
+        // Per questi endpoint, NON fare refresh (sarebbe un loop infinito)
+        // Ma estrai comunque il messaggio dal backend per mostrarlo all'utente
         if (error.response?.status === 401 && shouldSkipRefresh) {
             const errorData = error.response.data as any;
+            
+            // Evita loop infinito: se il refresh stesso fallisce, fermati
+            if (requestUrl.includes('/auth/refresh')) {
+                // Refresh fallito: sessione morta davvero
+                if (!isSessionExpiredToastShown) {
+                    isSessionExpiredToastShown = true;
+                    
+                    emitToast.error('Sessione scaduta. Effettua nuovamente il login.', {
+                        title: 'Sessione scaduta',
+                        duration: 5000,
+                        id: 'session-expired',
+                    });
+                    
+                    setTimeout(() => {
+                        isSessionExpiredToastShown = false;
+                    }, 5000);
+                    
+                    window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+                }
+            }
+            
+            // Estrai messaggio per il componente
             if (errorData?.error?.message) {
                 (error as any).userMessage = errorData.error.message;
             } else if (errorData?.message) {
@@ -186,12 +274,15 @@ axiosInstance.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        // Mostra toast di errore (solo se non è un endpoint di auth)
+        // Mostra toast di errore (solo se non è un endpoint di auth e non è 401)
         // Per auth, il componente gestisce manualmente il feedback
-        if (!isAuthEndpoint) {
+        // Per 401, è già gestito dal refresh token flow sopra
+        if (!isAuthEndpoint && status !== 401 && error.code !== 'ERR_CANCELED') {
+            // Usa il messaggio come ID per evitare spam dello stesso errore
             emitToast.error(errorMessage, {
                 title: 'Errore',
                 duration: 6000, // Errori restano più a lungo
+                id: `error-${errorMessage}`, // ID basato sul messaggio per evitare duplicati
             });
         }
 
