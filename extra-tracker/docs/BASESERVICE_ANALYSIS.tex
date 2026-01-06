@@ -65,6 +65,18 @@
 \tableofcontents
 \newpage
 
+\section{Storico Modifiche}
+
+\begin{importantbox}{Correzioni Applicate - \today}
+Le seguenti vulnerabilità e miglioramenti sono stati implementati:
+\begin{itemize}
+    \item \textbf{Regex Injection Fix}: Aggiunto metodo \texttt{\_escapeRegex()} per sanitizzare input in \texttt{search()}
+    \item \textbf{Error Handling Standardizzato}: \texttt{\_getUserId()} ora usa \texttt{AppError.unauthorized()} invece di \texttt{Error} generico (ritorna 401 invece di 500)
+    \item \textbf{Validazione ObjectId}: \texttt{findById()} valida ObjectId prima della query MongoDB
+    \item \textbf{Validazione Limit/Skip (DoS Prevention)}: \texttt{find()} e \texttt{paginate()} validano e normalizzano parametri (limit: 1-100, skip: min 0) - \textbf{Previene DoS con limit=1000000}
+\end{itemize}
+\end{importantbox}
+
 \section{Responsabilità}
 
 \subsection{Cosa fa esattamente questo componente?}
@@ -392,22 +404,28 @@ BaseService è esteso da:
 
 \subsection{Possibili Bug/Rischi}
 
-\begin{warningbox}{Edge Cases Non Gestiti}
-\end{warningbox}
+\begin{importantbox}{✅ Correzioni Applicate}
+Le seguenti vulnerabilità sono state \textbf{risolte} nel codice:
+\begin{itemize}
+    \item ✅ \textbf{Regex Injection}: \texttt{search()} ora escapa caratteri speciali
+    \item ✅ \textbf{Error Handling}: \texttt{\_getUserId()} usa \texttt{AppError} standardizzato
+    \item ✅ \textbf{Validazione ObjectId}: \texttt{findById()} valida ID prima della query
+    \item ✅ \textbf{Validazione Limit/Skip}: \texttt{find()} e \texttt{paginate()} validano e normalizzano parametri
+\end{itemize}
+\end{importantbox}
 
 \begin{enumerate}
     \item \textbf{tenantScope null/undefined}:
     \begin{itemize}
-        \item \textbf{Stato attuale}: \texttt{\_getUserId()} lancia errore (fail-fast)
-        \item \textbf{Rischio}: Errore generico, non AppError standardizzato
-        \item \textbf{Miglioramento}: Lanciare \texttt{AppError.unauthorized()} invece di \texttt{Error} generico
+        \item \textbf{Stato attuale}: ✅ \textbf{RISOLTO} - \texttt{\_getUserId()} lancia \texttt{AppError.unauthorized()} con messaggio user-friendly
+        \item \textbf{Implementazione}: Errore standardizzato con codice \texttt{INVALID\_TENANT\_SCOPE} e suggerimento
     \end{itemize}
     
     \item \textbf{Concorrenza su update()}:
     \begin{itemize}
         \item \textbf{Stato attuale}: Usa \texttt{findOneAndUpdate} che è atomico
         \item \textbf{Rischio}: Se due richieste aggiornano lo stesso documento simultaneamente, l'ultima vince (last-write-wins)
-        \item \textbf{Miglioramento}: Considerare optimistic locking con \texttt{versionKey} di Mongoose
+        \item \textbf{Miglioramento Futuro}: Considerare optimistic locking con \texttt{versionKey} di Mongoose per casi critici
     \end{itemize}
     
     \item \textbf{deleteMany() senza filtri}:
@@ -420,21 +438,38 @@ BaseService è esteso da:
     \begin{itemize}
         \item \textbf{Stato attuale}: Mongoose ignora silenziosamente populate su campi non definiti nello schema
         \item \textbf{Rischio}: Basso, ma potrebbe confondere durante il debug
-        \item \textbf{Miglioramento}: Validare \texttt{populateFields} nel constructor
+        \item \textbf{Miglioramento Futuro}: Validare \texttt{populateFields} nel constructor
     \end{itemize}
     
     \item \textbf{search() con regex injection}:
     \begin{itemize}
-        \item \textbf{Stato attuale}: \texttt{searchTerm} viene usato direttamente in regex
-        \item \textbf{Rischio}: Se \texttt{searchTerm} contiene caratteri speciali regex (\texttt{.}, \texttt{*}, \texttt{+}, etc.), potrebbe causare comportamenti inattesi
-        \item \textbf{Miglioramento}: Escapare caratteri speciali: \texttt{searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\\$&')}
+        \item \textbf{Stato attuale}: ✅ \textbf{RISOLTO} - \texttt{search()} usa \texttt{\_escapeRegex()} per sanitizzare input
+        \item \textbf{Implementazione}: Metodo privato \texttt{\_escapeRegex()} escapa tutti i caratteri speciali regex
+        \item \textbf{Protezione}: Previene attacchi come \texttt{searchTerm = ".*"} che scaricherebbero tutto il DB
     \end{itemize}
     
     \item \textbf{Limit/Skip senza validazione}:
     \begin{itemize}
-        \item \textbf{Stato attuale}: Accetta qualsiasi valore numerico
-        \item \textbf{Rischio}: \texttt{limit: -1} o \texttt{limit: 999999} potrebbero causare problemi
-        \item \textbf{Miglioramento}: Validare \texttt{limit} (min: 1, max: 100) e \texttt{skip} (min: 0)
+        \item \textbf{Stato attuale}: ✅ \textbf{RISOLTO} - \texttt{find()} e \texttt{paginate()} validano e normalizzano parametri
+        \item \textbf{Implementazione}: 
+        \begin{itemize}
+            \item \texttt{limit}: min 1, max 100 (default 20) - \textbf{Previene DoS}
+            \item \texttt{skip}: min 0 (previene valori negativi)
+            \item \texttt{page}: min 1 (in \texttt{paginate()})
+        \end{itemize}
+        \item \textbf{Protezione}: 
+        \begin{itemize}
+            \item Previene DoS con \texttt{limit: 999999} che bloccherebbe il server
+            \item Impedisce a un client malevolo di richiedere milioni di documenti
+            \item Usa \texttt{safeLimit} e \texttt{safeSkip} per chiarezza del codice
+        \end{itemize}
+    \end{itemize}
+    
+    \item \textbf{findById() senza validazione ObjectId}:
+    \begin{itemize}
+        \item \textbf{Stato attuale}: ✅ \textbf{RISOLTO} - \texttt{findById()} valida ObjectId prima della query
+        \item \textbf{Implementazione}: Usa \texttt{mongoose.Types.ObjectId.isValid()} per validazione
+        \item \textbf{Protezione}: Previene errori MongoDB e attacchi con ID malformati
     \end{itemize}
 \end{enumerate}
 
@@ -496,20 +531,16 @@ async findById(tenantScope, id, options = {}) {
     
     \item \textbf{Error Handling Standardizzato}:
     \begin{lstlisting}
-// PRIMA
-_getUserId(tenantScope) {
-    if (!tenantScope || !tenantScope.tenantId) {
-        throw new Error('SECURITY VIOLATION...');
-    }
-    return tenantScope.tenantId;
-}
-
-// DOPO
+// ✅ IMPLEMENTATO
 _getUserId(tenantScope) {
     if (!tenantScope || !tenantScope.tenantId) {
         throw AppError.unauthorized(
             'Sessione non valida. Effettua nuovamente il login.',
-            { code: 'INVALID_TENANT_SCOPE' }
+            { 
+                code: 'INVALID_TENANT_SCOPE',
+                category: 'AUTHORIZATION',
+                suggestion: 'Assicurati che il middleware tenantContext sia applicato.'
+            }
         );
     }
     return tenantScope.tenantId;
@@ -518,23 +549,67 @@ _getUserId(tenantScope) {
     
     \item \textbf{Escapare Regex in search()}:
     \begin{lstlisting}
-// PRIMA
-const regex = new RegExp(searchTerm, 'i');
+// ✅ IMPLEMENTATO
+_escapeRegex(text) {
+    if (typeof text !== 'string') {
+        return '';
+    }
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-// DOPO
-const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const regex = new RegExp(escapedTerm, 'i');
+async search(tenantScope, searchTerm, additionalFilters = {}) {
+    // ...
+    const escapedTerm = this._escapeRegex(searchTerm);
+    const regex = new RegExp(escapedTerm, 'i');
+    // ...
+}
     \end{lstlisting}
     
     \item \textbf{Validazione Limit/Skip}:
     \begin{lstlisting}
-// PRIMA
-if (limit) query = query.limit(limit);
+// ✅ IMPLEMENTATO - Previene DoS con limit=1000000
+async find(tenantScope, filters = {}, options = {}) {
+    // ...
+    // FIX: Validazione limit per prevenire DoS
+    // Impedisce a un client malevolo di chiedere limit=1000000 bloccando il server
+    if (limit !== undefined) {
+        const safeLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 20)); // Max 100 elementi
+        query = query.limit(safeLimit);
+    }
+    
+    // FIX: Validazione skip per prevenire valori negativi
+    if (skip !== undefined) {
+        const safeSkip = Math.max(0, parseInt(skip, 10) || 0);
+        query = query.skip(safeSkip);
+    }
+    // ...
+}
 
-// DOPO
-if (limit) {
-    const validLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
-    query = query.limit(validLimit);
+// ✅ IMPLEMENTATO - Previene DoS in paginazione
+async paginate(tenantScope, filters = {}, { page = 1, limit = 20 } = {}) {
+    // FIX: Clamp dei valori per prevenire DoS
+    const safePage = Math.max(1, parseInt(page, 10) || 1);
+    const safeLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 20)); // Max 100 elementi
+    
+    const skip = (safePage - 1) * safeLimit;
+    // ...
+}
+    \end{lstlisting}
+    
+    \item \textbf{Validazione ObjectId in findById()}:
+    \begin{lstlisting}
+// ✅ IMPLEMENTATO
+async findById(tenantScope, id, options = {}) {
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+        if (throwIfNotFound) {
+            throw AppError.badRequest(
+                `ID non valido per ${this.options.entityName}`,
+                { code: 'INVALID_ID' }
+            );
+        }
+        return null;
+    }
+    // ...
 }
     \end{lstlisting}
     
@@ -725,16 +800,23 @@ BaseService è un componente \textbf{critico} per la sicurezza e la manutenibili
     \item ✅ DRY: riduce codice duplicato del 70-80\%
     \item ✅ Estensibilità tramite lifecycle hooks
     \item ✅ Consistenza: tutti i service si comportano allo stesso modo
-    \item ⚠️ Possibili miglioramenti: validazione input, error handling standardizzato, escaping regex
+    \item ✅ \textbf{Correzioni Applicate}: Regex escaping, validazione input, error handling standardizzato
 \end{itemize}
 
-\textbf{Raccomandazioni}:
+\textbf{Correzioni Implementate}:
 \begin{enumerate}
-    \item Implementare validazione input (ObjectId, limit, skip)
-    \item Standardizzare error handling con AppError
-    \item Escapare caratteri speciali in \texttt{search()}
+    \item ✅ \textbf{Regex Injection Fix}: Metodo \texttt{\_escapeRegex()} previene attacchi regex injection
+    \item ✅ \textbf{Error Handling}: \texttt{\_getUserId()} usa \texttt{AppError.unauthorized()} standardizzato
+    \item ✅ \textbf{Validazione ObjectId}: \texttt{findById()} valida ID prima della query
+    \item ✅ \textbf{Validazione Limit/Skip}: \texttt{find()} e \texttt{paginate()} validano e normalizzano parametri
+\end{enumerate}
+
+\textbf{Raccomandazioni Future}:
+\begin{enumerate}
     \item Considerare TypeScript per type safety
     \item Documentare requirement di indici MongoDB
+    \item Implementare optimistic locking per update() in casi critici
+    \item Validare \texttt{populateFields} nel constructor
 \end{enumerate}
 
 \vspace{1cm}
