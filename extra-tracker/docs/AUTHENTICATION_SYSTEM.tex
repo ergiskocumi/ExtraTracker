@@ -546,6 +546,207 @@ const getDeviceInfo = (req) => {
 };
 \end{lstlisting}
 
+\subsubsection{Optimistic Concurrency Control: Operatori Atomici MongoDB}
+
+\important{Problema della Concorrenza}: Mongoose usa il campo \code{__v} (version key) per rilevare conflitti. Quando due dispositivi fanno operazioni simultanee sullo stesso documento, il secondo salvataggio fallisce con \code{VersionError}.
+
+\textbf{Scenario Problematico:}
+\begin{enumerate}
+    \item Device A legge utente (\code{__v=1})
+    \item Device B legge utente (\code{__v=1})
+    \item Device A fa refresh, aggiorna array e salva → DB passa a \code{__v=2}
+    \item Device B prova a salvare → \important{ERRORE!} \code{VersionError: No matching document}
+    \item Device B riceve errore 500 invece di refresh riuscito
+\end{enumerate}
+
+\textbf{Perché è un Problema:}
+\begin{itemize}
+    \item Con sistema multi-device, è probabile che due dispositivi facciano azioni simultanee
+    \item App fa refresh in background sia su telefono che tablet nello stesso momento
+    \item Uno dei due fallisce con errore 500
+    \item Esperienza utente degradata
+\end{itemize}
+
+\textbf{Soluzione: Operatori Atomici MongoDB}
+
+Invece di \code{user.save()}, usiamo operatori atomici MongoDB (\code{\$push}, \code{\$pull}, \code{\$set}) che:
+\begin{itemize}
+    \item Non incrementano \code{__v} (non conflittano)
+    \item Sono atomici a livello database
+    \item Non conflittano se si toccano elementi diversi dell'array
+\end{itemize}
+
+\begin{lstlisting}[caption=Login con Operatori Atomici]
+async login(data, deviceInfo = {}) {
+    // ... verifica password ...
+    
+    // Genera token con device info
+    const accessToken = this.generateAccessToken(user);
+    const { token: refreshToken, sessionData } = 
+        await this.generateRefreshToken(user, deviceInfo);
+
+    // Usa operatori atomici MongoDB per evitare conflitti di versione
+    // Pulisci sessioni scadute e aggiungi nuova sessione atomicamente
+    const refreshTokenExpiryMs = this.parseExpiryToMs(
+        securityConfig.jwt.refreshTokenExpiry
+    );
+    const expiryDate = new Date(Date.now() - refreshTokenExpiryMs);
+
+    // Operazione atomica: pulisci scadute e aggiungi nuova
+    await User.updateOne(
+        { _id: user._id },
+        {
+            $push: { refreshTokens: sessionData },
+            $pull: {
+                refreshTokens: {
+                    createdAt: { $lt: expiryDate }
+                }
+            }
+        }
+    );
+
+    // Applica limite FIFO usando aggregation pipeline (atomico)
+    const result = await User.findOneAndUpdate(
+        { _id: user._id },
+        [
+            {
+                $set: {
+                    refreshTokens: {
+                        $cond: {
+                            if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                            then: {
+                                $slice: [
+                                    {
+                                        $sortArray: {
+                                            input: '$refreshTokens',
+                                            sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                        }
+                                    },
+                                    -MAX_ACTIVE_SESSIONS
+                                ]
+                            },
+                            else: '$refreshTokens'
+                        }
+                    }
+                }
+            }
+        ],
+        { new: true }
+    );
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Refresh Token Rotation con Operatori Atomici]
+async refreshAccessToken(refreshToken, deviceInfo = {}) {
+    // ... verifica token ...
+    
+    // Aggiorna lastUsedAt (operatore atomico)
+    await User.updateOne(
+        { 
+            _id: user._id,
+            'refreshTokens.hash': tokenHash
+        },
+        {
+            $set: {
+                'refreshTokens.$.lastUsedAt': new Date()
+            }
+        }
+    );
+
+    // Aggiungi al grace period (operatore atomico)
+    await User.updateOne(
+        { _id: user._id },
+        {
+            $push: {
+                gracePeriodTokens: {
+                    hash: tokenHash,
+                    expiresAt: new Date(Date.now() + GRACE_PERIOD_MS),
+                }
+            },
+            $pull: {
+                gracePeriodTokens: {
+                    expiresAt: { $lt: new Date() }
+                }
+            }
+        }
+    );
+
+    // Rimuovi vecchia sessione e aggiungi nuova (aggregation pipeline atomica)
+    const updatedUser = await User.findOneAndUpdate(
+        { _id: user._id },
+        [
+            {
+                $set: {
+                    refreshTokens: {
+                        $filter: {
+                            input: '$refreshTokens',
+                            as: 'session',
+                            cond: { $ne: ['$$session.hash', tokenHash] }
+                        }
+                    }
+                }
+            },
+            {
+                $set: {
+                    refreshTokens: {
+                        $concatArrays: ['$refreshTokens', [newSessionData]]
+                    }
+                }
+            },
+            {
+                $set: {
+                    refreshTokens: {
+                        $cond: {
+                            if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                            then: {
+                                $slice: [
+                                    {
+                                        $sortArray: {
+                                            input: '$refreshTokens',
+                                            sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                        }
+                                    },
+                                    -MAX_ACTIVE_SESSIONS
+                                ]
+                            },
+                            else: '$refreshTokens'
+                        }
+                    }
+                }
+            }
+        ],
+        { new: true }
+    );
+}
+\end{lstlisting}
+
+\textbf{Operatori Atomici Utilizzati:}
+\begin{itemize}
+    \item \code{\$push}: Aggiunge elemento all'array (atomico)
+    \item \code{\$pull}: Rimuove elementi dall'array che matchano condizione (atomico)
+    \item \code{\$set}: Imposta valore (atomico)
+    \item \code{\$filter}: Filtra array (in aggregation pipeline, atomico)
+    \item \code{\$concatArrays}: Concatena array (in aggregation pipeline, atomico)
+    \item \code{\$sortArray}: Ordina array (in aggregation pipeline, atomico)
+    \item \code{\$slice}: Limita array (in aggregation pipeline, atomico)
+\end{itemize}
+
+\textbf{Vantaggi degli Operatori Atomici:}
+\begin{itemize}
+    \item \textbf{No Version Conflicts}: Non incrementano \code{__v}, non conflittano
+    \item \textbf{Atomicità}: Operazioni garantite atomiche a livello database
+    \item \textbf{Performance}: Più veloci di \code{user.save()} (meno overhead)
+    \item \textbf{Concorrenza}: Multiple operazioni simultanee non falliscono
+    \item \textbf{Aggregation Pipeline}: Operazioni complesse (FIFO, filtri) in un'unica query atomica
+\end{itemize}
+
+\textbf{Quando Usare Operatori Atomici vs. user.save():}
+\begin{itemize}
+    \item \textbf{Operatori atomici}: Per modifiche agli array (refreshTokens, gracePeriodTokens)
+    \item \textbf{user.save()}: Per modifiche a campi semplici o quando serve validazione Mongoose
+    \item \textbf{Retry mechanism}: Se devi usare \code{user.save()}, implementa retry su \code{VersionError}
+\end{itemize}
+
 \subsubsection{Refresh Token con Validazione Hash}
 
 \begin{lstlisting}[caption=Refresh Token con Validazione Multi-Sessione e Grace Period]
@@ -590,16 +791,31 @@ async refreshAccessToken(refreshToken, deviceInfo = {}) {
         
         // Token non trovato né in sessioni attive né in grace period
         // Possibile furto o token già invalidato
-        await user.removeAllSessions();
-        if (user.gracePeriodTokens) {
-            user.gracePeriodTokens = [];
-            await user.save();
-        }
+        // Invalida tutte le sessioni per sicurezza (usa operatori atomici)
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $set: { 
+                    refreshTokens: [],
+                    gracePeriodTokens: []
+                }
+            }
+        );
         throw AppError.unauthorized('Sessione non valida o scaduta');
     }
 
-    // 7. Aggiorna lastUsedAt per questa sessione
-    session.lastUsedAt = new Date();
+    // 7. Aggiorna lastUsedAt per questa sessione (operatore atomico)
+    await User.updateOne(
+        { 
+            _id: user._id,
+            'refreshTokens.hash': tokenHash
+        },
+        {
+            $set: {
+                'refreshTokens.$.lastUsedAt': new Date()
+            }
+        }
+    );
 
     // 8. Genera nuovi token (rotation) - mantieni stesso device info
     const newAccessToken = this.generateAccessToken(user);
@@ -612,14 +828,77 @@ async refreshAccessToken(refreshToken, deviceInfo = {}) {
 
     // 9. IMPORTANTE: Aggiungi vecchio token al grace period PRIMA di rimuoverlo
     // Questo previene race conditions se arrivano richieste concorrenti
-    await user.addToGracePeriod(tokenHash, GRACE_PERIOD_MS);
-
-    // 10. Rimuovi vecchia sessione e aggiungi nuova (rotation)
-    user.refreshTokens = user.refreshTokens.filter(
-        s => s.hash !== tokenHash
+    // Usa operatori atomici per evitare conflitti di versione
+    const graceExpiresAt = new Date(Date.now() + GRACE_PERIOD_MS);
+    await User.updateOne(
+        { _id: user._id },
+        {
+            $push: {
+                gracePeriodTokens: {
+                    hash: tokenHash,
+                    expiresAt: graceExpiresAt,
+                }
+            },
+            $pull: {
+                gracePeriodTokens: {
+                    expiresAt: { $lt: new Date() }
+                }
+            }
+        }
     );
-    user.refreshTokens.push(newSessionData);
-    await user.save();
+
+    // 10. Rimuovi vecchia sessione e aggiungi nuova (rotation) usando operatori atomici
+    // Usa aggregation pipeline per garantire atomicità e limite FIFO
+    const updatedUser = await User.findOneAndUpdate(
+        { _id: user._id },
+        [
+            {
+                $set: {
+                    refreshTokens: {
+                        $filter: {
+                            input: '$refreshTokens',
+                            as: 'session',
+                            cond: { $ne: ['$$session.hash', tokenHash] }
+                        }
+                    }
+                }
+            },
+            {
+                $set: {
+                    refreshTokens: {
+                        $concatArrays: ['$refreshTokens', [newSessionData]]
+                    }
+                }
+            },
+            {
+                $set: {
+                    refreshTokens: {
+                        $cond: {
+                            if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                            then: {
+                                $slice: [
+                                    {
+                                        $sortArray: {
+                                            input: '$refreshTokens',
+                                            sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                        }
+                                    },
+                                    -MAX_ACTIVE_SESSIONS
+                                ]
+                            },
+                            else: '$refreshTokens'
+                        }
+                    }
+                }
+            }
+        ],
+        { new: true }
+    );
+    
+    // Aggiorna oggetto user locale per coerenza
+    if (updatedUser) {
+        Object.assign(user, updatedUser.toObject());
+    }
 
     return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
 }

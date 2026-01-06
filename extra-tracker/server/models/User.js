@@ -508,37 +508,65 @@ userSchema.methods.findInGracePeriod = function (tokenHash) {
 
 /**
  * Aggiungi token al grace period (durata in millisecondi, default 30 secondi)
+ * Usa operatori atomici MongoDB per evitare conflitti di versione
  */
 userSchema.methods.addToGracePeriod = async function (tokenHash, gracePeriodMs = 30000) {
+    const expiresAt = new Date(Date.now() + gracePeriodMs);
+    
+    // Usa operatori atomici: pulisci scaduti e aggiungi nuovo token
+    await User.updateOne(
+        { _id: this._id },
+        {
+            $push: {
+                gracePeriodTokens: {
+                    hash: tokenHash,
+                    expiresAt: expiresAt,
+                }
+            },
+            $pull: {
+                gracePeriodTokens: {
+                    expiresAt: { $lt: new Date() } // Pulisci token scaduti
+                }
+            }
+        }
+    );
+    
+    // Aggiorna oggetto locale per coerenza
     if (!this.gracePeriodTokens) {
         this.gracePeriodTokens = [];
     }
-    
-    // Rimuovi eventuali token scaduti prima di aggiungere
-    this.cleanExpiredGracePeriodTokens();
-    
-    // Aggiungi nuovo token al grace period
     this.gracePeriodTokens.push({
         hash: tokenHash,
-        expiresAt: new Date(Date.now() + gracePeriodMs),
+        expiresAt: expiresAt,
     });
+    this.cleanExpiredGracePeriodTokens();
     
-    return this.save();
+    return this;
 };
 
 /**
  * Rimuovi token dal grace period
+ * Usa operatore atomico MongoDB per evitare conflitti di versione
  */
 userSchema.methods.removeFromGracePeriod = async function (tokenHash) {
-    if (!this.gracePeriodTokens) {
-        return this;
-    }
-    
-    this.gracePeriodTokens = this.gracePeriodTokens.filter(
-        gt => gt.hash !== tokenHash
+    // Usa operatore atomico $pull
+    await User.updateOne(
+        { _id: this._id },
+        {
+            $pull: {
+                gracePeriodTokens: { hash: tokenHash }
+            }
+        }
     );
     
-    return this.save();
+    // Aggiorna oggetto locale per coerenza
+    if (this.gracePeriodTokens) {
+        this.gracePeriodTokens = this.gracePeriodTokens.filter(
+            gt => gt.hash !== tokenHash
+        );
+    }
+    
+    return this;
 };
 
 /**
@@ -567,31 +595,72 @@ userSchema.methods.findSessionByHash = function (tokenHash) {
 
 /**
  * Rimuovi sessione specifica per hash token
+ * Usa operatore atomico MongoDB per evitare conflitti di versione
  */
 userSchema.methods.removeSessionByHash = async function (tokenHash) {
-    this.refreshTokens = this.refreshTokens.filter(
-        session => session.hash !== tokenHash
+    // Usa operatore atomico $pull
+    await User.updateOne(
+        { _id: this._id },
+        {
+            $pull: {
+                refreshTokens: { hash: tokenHash }
+            }
+        }
     );
-    return this.save();
+    
+    // Aggiorna oggetto locale per coerenza
+    if (this.refreshTokens) {
+        this.refreshTokens = this.refreshTokens.filter(
+            session => session.hash !== tokenHash
+        );
+    }
+    
+    return this;
 };
 
 /**
  * Rimuovi tutte le sessioni (logout da tutti i dispositivi)
+ * Usa operatore atomico MongoDB per evitare conflitti di versione
  */
 userSchema.methods.removeAllSessions = async function () {
+    // Usa operatore atomico $set
+    await User.updateOne(
+        { _id: this._id },
+        {
+            $set: { refreshTokens: [] }
+        }
+    );
+    
+    // Aggiorna oggetto locale per coerenza
     this.refreshTokens = [];
-    return this.save();
+    
+    return this;
 };
 
 /**
  * Aggiorna lastUsedAt per una sessione
+ * Usa operatore atomico MongoDB per evitare conflitti di versione
  */
 userSchema.methods.updateSessionLastUsed = async function (tokenHash) {
+    // Usa operatore atomico $set con posizionamento array
+    await User.updateOne(
+        { 
+            _id: this._id,
+            'refreshTokens.hash': tokenHash
+        },
+        {
+            $set: {
+                'refreshTokens.$.lastUsedAt': new Date()
+            }
+        }
+    );
+    
+    // Aggiorna oggetto locale per coerenza
     const session = this.findSessionByHash(tokenHash);
     if (session) {
         session.lastUsedAt = new Date();
-        return this.save();
     }
+    
     return this;
 };
 

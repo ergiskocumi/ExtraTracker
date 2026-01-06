@@ -270,9 +270,13 @@ class AuthService {
         const accessToken = this.generateAccessToken(user);
         const { token: refreshToken, sessionData } = await this.generateRefreshToken(user, deviceInfo);
 
-        // Aggiungi nuova sessione all'array
-        user.refreshTokens.push(sessionData);
-        await user.save();
+        // Aggiungi nuova sessione usando operatore atomico (evita conflitti di versione)
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $push: { refreshTokens: sessionData }
+            }
+        );
 
         return { user, accessToken, refreshToken };
     }
@@ -315,33 +319,64 @@ class AuthService {
         // Login riuscito: resetta contatore
         await user.resetFailedAttempts();
 
-        // Assicurati che refreshTokens sia un array
-        if (!user.refreshTokens) {
-            user.refreshTokens = [];
-        }
-
-        // Pulisci sessioni scadute (refresh token scaduti oltre 7 giorni)
-        this.cleanExpiredSessions(user);
-
         // Genera token con device info
         const accessToken = this.generateAccessToken(user);
         const { token: refreshToken, sessionData } = await this.generateRefreshToken(user, deviceInfo);
 
-        // Applica limite FIFO: se raggiunto il limite, rimuovi la sessione più vecchia
-        if (user.refreshTokens.length >= MAX_ACTIVE_SESSIONS) {
-            // Ordina per lastUsedAt (più vecchia prima)
-            user.refreshTokens.sort((a, b) => {
-                const dateA = new Date(a.lastUsedAt || a.createdAt);
-                const dateB = new Date(b.lastUsedAt || b.createdAt);
-                return dateA - dateB;
-            });
-            // Rimuovi la sessione più vecchia (FIFO)
-            user.refreshTokens.shift();
-        }
+        // Usa operatori atomici MongoDB per evitare conflitti di versione
+        // Pulisci sessioni scadute e aggiungi nuova sessione atomicamente
+        const refreshTokenExpiryMs = securityConfig.jwt.refreshTokenExpiry 
+            ? this.parseExpiryToMs(securityConfig.jwt.refreshTokenExpiry)
+            : 7 * 24 * 60 * 60 * 1000;
+        const expiryDate = new Date(Date.now() - refreshTokenExpiryMs);
 
-        // Aggiungi nuova sessione all'array
-        user.refreshTokens.push(sessionData);
-        await user.save();
+        // Operazione atomica: pulisci scadute e aggiungi nuova
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $push: { refreshTokens: sessionData },
+                $pull: {
+                    refreshTokens: {
+                        createdAt: { $lt: expiryDate }
+                    }
+                }
+            }
+        );
+
+        // Applica limite FIFO se necessario (operazione separata ma atomica)
+        // Usa findOneAndUpdate con aggregation pipeline per garantire atomicità
+        const result = await User.findOneAndUpdate(
+            { _id: user._id },
+            [
+                {
+                    $set: {
+                        refreshTokens: {
+                            $cond: {
+                                if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                                then: {
+                                    $slice: [
+                                        {
+                                            $sortArray: {
+                                                input: '$refreshTokens',
+                                                sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                            }
+                                        },
+                                        -MAX_ACTIVE_SESSIONS
+                                    ]
+                                },
+                                else: '$refreshTokens'
+                            }
+                        }
+                    }
+                }
+            ],
+            { new: true }
+        );
+
+        // Aggiorna oggetto user locale con risultato
+        if (result) {
+            Object.assign(user, result.toObject());
+        }
 
         return { user, accessToken, refreshToken };
     }
@@ -397,17 +432,31 @@ class AuthService {
             
             // Token non trovato né in sessioni attive né in grace period
             // Possibile furto o token già invalidato
-            // Invalida tutte le sessioni per sicurezza
-            await user.removeAllSessions();
-            if (user.gracePeriodTokens) {
-                user.gracePeriodTokens = [];
-                await user.save();
-            }
+            // Invalida tutte le sessioni per sicurezza (usa operatori atomici)
+            await User.updateOne(
+                { _id: user._id },
+                {
+                    $set: { 
+                        refreshTokens: [],
+                        gracePeriodTokens: []
+                    }
+                }
+            );
             throw AppError.unauthorized('Sessione non valida o scaduta');
         }
 
-        // Aggiorna lastUsedAt per questa sessione
-        session.lastUsedAt = new Date();
+        // Aggiorna lastUsedAt per questa sessione (operatore atomico)
+        await User.updateOne(
+            { 
+                _id: user._id,
+                'refreshTokens.hash': tokenHash
+            },
+            {
+                $set: {
+                    'refreshTokens.$.lastUsedAt': new Date()
+                }
+            }
+        );
 
         // Genera nuovi token (rotation) - mantieni stesso device info
         const newAccessToken = this.generateAccessToken(user);
@@ -420,25 +469,80 @@ class AuthService {
 
         // IMPORTANTE: Aggiungi vecchio token al grace period PRIMA di rimuoverlo
         // Questo previene race conditions se arrivano richieste concorrenti
-        await user.addToGracePeriod(tokenHash, GRACE_PERIOD_MS);
-
-        // Rimuovi vecchia sessione e aggiungi nuova (rotation)
-        user.refreshTokens = user.refreshTokens.filter(
-            s => s.hash !== tokenHash
+        // Usa operatori atomici per evitare conflitti di versione
+        const graceExpiresAt = new Date(Date.now() + GRACE_PERIOD_MS);
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $push: {
+                    gracePeriodTokens: {
+                        hash: tokenHash,
+                        expiresAt: graceExpiresAt,
+                    }
+                },
+                $pull: {
+                    gracePeriodTokens: {
+                        expiresAt: { $lt: new Date() } // Pulisci scaduti
+                    }
+                }
+            }
         );
-        user.refreshTokens.push(newSessionData);
 
-        // Applica limite FIFO se necessario (il pre-save hook lo farà, ma meglio essere espliciti)
-        if (user.refreshTokens.length > MAX_ACTIVE_SESSIONS) {
-            user.refreshTokens.sort((a, b) => {
-                const dateA = new Date(a.lastUsedAt || a.createdAt);
-                const dateB = new Date(b.lastUsedAt || b.createdAt);
-                return dateA - dateB;
-            });
-            user.refreshTokens = user.refreshTokens.slice(-MAX_ACTIVE_SESSIONS);
+        // Rimuovi vecchia sessione e aggiungi nuova (rotation) usando operatori atomici
+        // Usa aggregation pipeline per garantire atomicità e limite FIFO
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: user._id },
+            [
+                {
+                    // Rimuovi vecchia sessione
+                    $set: {
+                        refreshTokens: {
+                            $filter: {
+                                input: '$refreshTokens',
+                                as: 'session',
+                                cond: { $ne: ['$$session.hash', tokenHash] }
+                            }
+                        }
+                    }
+                },
+                {
+                    // Aggiungi nuova sessione
+                    $set: {
+                        refreshTokens: {
+                            $concatArrays: ['$refreshTokens', [newSessionData]]
+                        }
+                    }
+                },
+                {
+                    // Applica limite FIFO se necessario
+                    $set: {
+                        refreshTokens: {
+                            $cond: {
+                                if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                                then: {
+                                    $slice: [
+                                        {
+                                            $sortArray: {
+                                                input: '$refreshTokens',
+                                                sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                            }
+                                        },
+                                        -MAX_ACTIVE_SESSIONS
+                                    ]
+                                },
+                                else: '$refreshTokens'
+                            }
+                        }
+                    }
+                }
+            ],
+            { new: true }
+        );
+
+        // Aggiorna oggetto user locale per coerenza
+        if (updatedUser) {
+            Object.assign(user, updatedUser.toObject());
         }
-
-        await user.save();
 
         return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
     }
@@ -491,12 +595,19 @@ class AuthService {
         }
 
         // Hash nuova password
-        user.password = await this.hashPassword(newPassword);
+        const hashedPassword = await this.hashPassword(newPassword);
         
         // Invalida tutti i refresh token (force re-login da tutti i dispositivi)
-        user.refreshTokens = [];
-        
-        await user.save();
+        // Usa operatore atomico per evitare conflitti di versione
+        await User.updateOne(
+            { _id: userId },
+            {
+                $set: { 
+                    password: hashedPassword,
+                    refreshTokens: []
+                }
+            }
+        );
     }
 
     /**
