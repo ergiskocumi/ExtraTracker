@@ -147,9 +147,37 @@ const sendErrorProd = (err, res, requestId = null) => {
 
 /**
  * Logger avanzato con context
+ * 
+ * 🎓 LOGICA DI SILENZIAMENTO:
+ * Non loggare come errore i 401 operazionali su endpoint di controllo sessione.
+ * Questi sono normali quando un utente anonimo visita il sito.
  */
 const logError = (err, req) => {
     const requestId = getRequestId(req);
+    const requestUrl = req.originalUrl || req.path || '';
+    
+    // Endpoint che possono ricevere 401 in modo normale (utente anonimo)
+    const isAuthCheckEndpoint = 
+        requestUrl.includes('/auth/check') || 
+        requestUrl.includes('/auth/refresh');
+    
+    // Se è un 401 operazionale su endpoint di check/refresh, è uno stato normale
+    // Non loggare come errore (solo info silenzioso se necessario)
+    const isNormalUnauthorized = 
+        err.isOperational && 
+        err.statusCode === 401 && 
+        isAuthCheckEndpoint;
+    
+    // Se è un errore normale (utente anonimo), salta il logging dettagliato
+    if (isNormalUnauthorized) {
+        // Log silenzioso (solo in sviluppo per debug, opzionale)
+        if (!isProduction) {
+            // Opzionale: log info leggero (non errore)
+            // console.log(`ℹ️  Utente anonimo visitato: ${requestUrl}`);
+        }
+        return; // Non loggare come errore
+    }
+    
     const logData = {
         timestamp: new Date().toISOString(),
         requestId,
@@ -184,13 +212,24 @@ const logError = (err, req) => {
         console.error(JSON.stringify(logData, null, 2));
     } else {
         // In sviluppo, log leggibile
-        console.error('\n🚨 ERROR:', err.message);
-        console.error('Code:', err.code || 'N/A');
-        console.error('Category:', err.category || 'N/A');
-        console.error('Request ID:', requestId);
-        if (err.stack) {
-            console.error('Stack:', err.stack);
+        // Distingui tra warning (operazionali) e error (bug)
+        if (err.isOperational) {
+            console.warn(`\n⚠️  WARNING (${err.statusCode}):`, err.message);
+            console.warn('Code:', err.code || 'N/A');
+            console.warn('Category:', err.category || 'N/A');
+            console.warn('Request ID:', requestId);
+            console.warn('URL:', requestUrl);
+        } else {
+            console.error('\n🚨 ERROR 💥:', err.message);
+            console.error('Code:', err.code || 'N/A');
+            console.error('Category:', err.category || 'N/A');
+            console.error('Request ID:', requestId);
+            console.error('URL:', requestUrl);
+            if (err.stack) {
+                console.error('Stack:', err.stack);
+            }
         }
+        
         if (err.metadata && Object.keys(err.metadata).length > 0) {
             console.error('Metadata:', err.metadata);
         }

@@ -3,19 +3,32 @@ import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axio
 import { emitToast } from '../components/toast';
 
 /**
- * 🌐 API CLIENT - Configurato per Autenticazione Sicura
+ * 🌐 API CLIENT - Configurato per Autenticazione Sicura e Gestione Concorrenza
  * 
  * Caratteristiche:
  * - withCredentials: true per inviare cookies HttpOnly
- * - Interceptor per refresh automatico del token
+ * - Interceptor per refresh automatico del token con MUTEX PATTERN
  * - Gestione errori centralizzata con Toast automatici
+ * - Prevenzione "Effetto Valanga" (Avalanche Effect)
  * 
- * 🎓 ARCHITETTURA: Centralized Error Handling
- * Intercettiamo TUTTI gli errori API in un unico punto.
+ * 🎓 ARCHITETTURA: Centralized Error Handling + Mutex Pattern
+ * 
+ * FLUSSO COMPLETO:
+ * 1. Richiesta API fallisce con 401 (token scaduto)
+ * 2. PRIMO INTERCEPTOR (Mutex):
+ *    - Se refresh già in corso: metti richiesta in coda
+ *    - Se primo refresh: acquisisci lock, fai refresh, sblocca coda
+ *    - Se refresh fallisce: rifiuta tutte le richieste in coda, mostra UN SOLO toast
+ * 3. SECONDO INTERCEPTOR (Toast):
+ *    - Gestisce errori generici (non 401)
+ *    - Mostra toast con messaggio user-friendly dal backend
+ * 
  * Vantaggi:
  * 1. DRY (Don't Repeat Yourself): non devi gestire errori in ogni componente
  * 2. Consistenza: tutti gli errori appaiono nello stesso modo
  * 3. Manutenibilità: cambio il formato del toast in un solo posto
+ * 4. Prevenzione DoS: solo UNA richiesta di refresh alla volta (anche con 100 richieste simultanee)
+ * 5. UX Perfetta: nessun spam di toast, nessun loop infinito
  */
 
 // Preferisci same-origin per evitare problemi di cookie/CORS (soprattutto da mobile).
@@ -96,26 +109,33 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 // ==========================================
 
 // URL che NON devono triggerare il refresh automatico
-const NO_REFRESH_URLS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
+// Includiamo anche /auth/check perché è un endpoint di verifica sessione (utente anonimo è normale)
+const NO_REFRESH_URLS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout', '/auth/check'];
 
 axiosInstance.interceptors.response.use(
     // Risposta OK: passa attraverso
     (response: AxiosResponse) => response,
     
-    // Errore: gestisci 401 con refresh automatico (MUTEX PATTERN)
+    // Errore: gestisci 401 con refresh automatico (MUTEX PATTERN BLINDATO)
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-        const requestUrl = originalRequest?.url || '';
+        
+        // Se la richiesta è stata annullata o non ha config, esci subito
+        if (!originalRequest || error.code === 'ERR_CANCELED') {
+            return Promise.reject(error);
+        }
+        
+        const requestUrl = originalRequest.url || '';
 
         // NON fare refresh per endpoint di auth o se già in retry
         const shouldSkipRefresh = NO_REFRESH_URLS.some(url => requestUrl.includes(url));
         
         // ==========================================
-        // GESTIONE 401: Refresh Token con Mutex
+        // GESTIONE 401: Refresh Token con Mutex (EFFETTO VALANGA PREVENUTO)
         // ==========================================
         if (error.response?.status === 401 && !originalRequest._retry && !shouldSkipRefresh) {
             
-            // CASO 1: Refresh già in corso (MUTEX ATTIVO)
+            // CASO 1: Refresh già in corso (MUTEX ATTIVO) - EFFETTO VALANGA PREVENUTO
             // Metti questa richiesta in coda e aspetta che il refresh finisca
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
@@ -123,7 +143,13 @@ axiosInstance.interceptors.response.use(
                 })
                     .then(() => {
                         // Quando la coda viene risolta (refresh riuscito), riprova la richiesta originale
-                        return axiosInstance(originalRequest);
+                        // IMPORTANTE: Clona la richiesta per evitare modifiche alla richiesta originale
+                        return axiosInstance({
+                            ...originalRequest,
+                            headers: {
+                                ...originalRequest.headers,
+                            },
+                        });
                     })
                     .catch((err) => {
                         // Se il refresh è fallito, rifiuta anche questa richiesta
@@ -131,7 +157,7 @@ axiosInstance.interceptors.response.use(
                     });
             }
 
-            // CASO 2: Primo refresh (ACQUISISCI MUTEX)
+            // CASO 2: Primo refresh (ACQUISISCI MUTEX) - SOLO UNA RICHIESTA FA REFRESH
             originalRequest._retry = true;
             isRefreshing = true; // Lock: nessun altro può fare refresh ora
 
@@ -141,6 +167,7 @@ axiosInstance.interceptors.response.use(
                 await axiosInstance.post('/auth/refresh');
                 
                 // Refresh riuscito: sblocca tutte le richieste in coda
+                // Tutte le richieste in attesa verranno rieseguite automaticamente
                 processQueue(null, null);
                 
                 // Riprova la richiesta originale che aveva fallito
@@ -148,16 +175,18 @@ axiosInstance.interceptors.response.use(
 
             } catch (refreshError) {
                 // Refresh fallito: rifiuta tutte le richieste in coda
+                // Tutte le richieste in attesa riceveranno lo stesso errore
                 processQueue(refreshError as Error, null);
                 
                 // Mostra toast di sessione scaduta (solo una volta, anti-spam)
+                // Anche se 10 richieste falliscono, l'utente vede UN SOLO toast
                 if (!isSessionExpiredToastShown) {
                     isSessionExpiredToastShown = true;
                     
                     emitToast.error('Sessione scaduta. Effettua nuovamente il login.', {
                         title: 'Sessione scaduta',
                         duration: 5000,
-                        id: 'session-expired', // ID univoco per evitare duplicati
+                        id: 'session-expired', // ID univoco per evitare duplicati visivi
                     });
                     
                     // Reset flag dopo 5 secondi (quando il toast scompare)
@@ -172,19 +201,21 @@ axiosInstance.interceptors.response.use(
                 return Promise.reject(refreshError);
             } finally {
                 // Rilascia il lock sempre, sia in caso di successo che errore
+                // IMPORTANTE: Questo permette a nuove richieste di riprovare se necessario
                 isRefreshing = false;
             }
         }
 
         // ==========================================
-        // GESTIONE 401 su endpoint di auth (login/register)
+        // GESTIONE 401 su endpoint di auth (login/register/check/refresh)
         // ==========================================
         // Per questi endpoint, NON fare refresh (sarebbe un loop infinito)
         // Ma estrai comunque il messaggio dal backend per mostrarlo all'utente
         if (error.response?.status === 401 && shouldSkipRefresh) {
             const errorData = error.response.data as any;
             
-            // Evita loop infinito: se il refresh stesso fallisce, fermati
+            // EVITA LOOP INFINITI: Se l'errore viene dalla rotta di refresh, è finita.
+            // Non provare a fare refresh del refresh.
             if (requestUrl.includes('/auth/refresh')) {
                 // Refresh fallito: sessione morta davvero
                 if (!isSessionExpiredToastShown) {
@@ -200,11 +231,14 @@ axiosInstance.interceptors.response.use(
                         isSessionExpiredToastShown = false;
                     }, 5000);
                     
+                    // Logout forzato lato client
                     window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
                 }
+                
+                return Promise.reject(error);
             }
             
-            // Estrai messaggio per il componente
+            // Estrai messaggio per il componente (login/register/check)
             if (errorData?.error?.message) {
                 (error as any).userMessage = errorData.error.message;
             } else if (errorData?.message) {
@@ -217,20 +251,22 @@ axiosInstance.interceptors.response.use(
 );
 
 // ==========================================
-// INTERCEPTOR ERRORI - Toast Automatici
+// INTERCEPTOR ERRORI - Toast Automatici (Secondo Layer)
 // ==========================================
 
 /**
- * 🎓 PATTERN: Response Interceptor per Error Handling
+ * 🎓 PATTERN: Response Interceptor per Error Handling (Secondo Layer)
  * 
- * Questo interceptor cattura TUTTI gli errori HTTP e:
+ * Questo interceptor è il SECONDO layer (dopo il refresh token mutex).
+ * Cattura TUTTI gli errori HTTP rimanenti e:
  * 1. Estrae il messaggio di errore dal backend
  * 2. Mostra un toast di errore automaticamente
  * 3. Permette comunque al chiamante di gestire l'errore (il reject passa)
  * 
  * 🎓 NOTA: Non mostriamo toast per:
- * - 401 (gestito separatamente con refresh/logout)
- * - Errori di rete senza risposta (gestiamo a parte)
+ * - 401 (già gestito dal primo interceptor con refresh/logout)
+ * - Errori di rete annullati (ERR_CANCELED)
+ * - Endpoint di auth (hanno gestione custom nei componenti)
  */
 axiosInstance.interceptors.response.use(
     // Risposta OK: passa attraverso senza modifiche
@@ -240,9 +276,26 @@ axiosInstance.interceptors.response.use(
     (error: AxiosError<ApiResponse<unknown>>) => {
         const status = error.response?.status;
         const requestUrl = error.config?.url || '';
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
         
-        // Skip toast per endpoint di auth (hanno gestione custom)
+        // Skip toast per:
+        // 1. Richieste annullate (utente naviga via, component unmount, etc.)
+        if (error.code === 'ERR_CANCELED') {
+            return Promise.reject(error);
+        }
+        
+        // 2. Richieste già gestite dal primo interceptor (refresh token flow)
+        if (status === 401 && !originalRequest._retry) {
+            // Questo è già gestito dal mutex, non mostrare toast qui
+            return Promise.reject(error);
+        }
+        
+        // 3. Endpoint di auth (hanno gestione custom nei componenti)
         const isAuthEndpoint = NO_REFRESH_URLS.some(url => requestUrl.includes(url));
+        if (status === 401 && isAuthEndpoint) {
+            // Estrai messaggio per il componente (già fatto nel primo interceptor)
+            return Promise.reject(error);
+        }
         
         // Estrai il messaggio di errore DAL BACKEND (non dal messaggio generico di Axios)
         let errorMessage = 'Si è verificato un errore imprevisto';
@@ -265,24 +318,15 @@ axiosInstance.interceptors.response.use(
             errorMessage = error.message;
         }
 
-        // Per 401 su endpoint di auth (login/register), NON mostrare toast
-        // Il componente gestirà l'errore manualmente
-        // Ma estraiamo comunque il messaggio per il componente
-        if (status === 401 && isAuthEndpoint) {
-            // Aggiungi il messaggio estratto all'errore per facilitare l'accesso nel componente
-            (error as any).userMessage = errorMessage;
-            return Promise.reject(error);
-        }
-
-        // Mostra toast di errore (solo se non è un endpoint di auth e non è 401)
-        // Per auth, il componente gestisce manualmente il feedback
-        // Per 401, è già gestito dal refresh token flow sopra
-        if (!isAuthEndpoint && status !== 401 && error.code !== 'ERR_CANCELED') {
-            // Usa il messaggio come ID per evitare spam dello stesso errore
+        // Mostra toast di errore (solo per errori NON 401 e NON annullati)
+        // Gli errori 401 sono già gestiti dal primo interceptor (refresh token mutex)
+        if (status !== 401 && !isAuthEndpoint) {
+            // Usa un ID basato sul messaggio per evitare spam dello stesso errore
+            // Se lo stesso errore viene mostrato più volte, il toast viene aggiornato invece di duplicarsi
             emitToast.error(errorMessage, {
                 title: 'Errore',
                 duration: 6000, // Errori restano più a lungo
-                id: `error-${errorMessage}`, // ID basato sul messaggio per evitare duplicati
+                id: `api-error-${errorMessage.substring(0, 50)}`, // ID basato sul messaggio (troncato per evitare ID troppo lunghi)
             });
         }
 
