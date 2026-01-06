@@ -12,6 +12,7 @@ interface ProjectsContextType {
     code: string;
     type: 'CLIENT' | 'PERSONAL';
     rate?: number;
+    budget?: number;
     description?: string;
     estimatedHours?: number;
     progress?: number;
@@ -56,11 +57,12 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
   }, [refreshProjects]);
 
   // Aggiungi progetto - OTTIMIZZATO: Memoizzato con useCallback
-  const addProject = useCallback(async ({ name, code, type, rate, description, estimatedHours, progress }: {
+  const addProject = useCallback(async ({ name, code, type, rate, budget, description, estimatedHours, progress }: {
     name: string;
     code: string;
     type: 'CLIENT' | 'PERSONAL';
     rate?: number;
+    budget?: number;
     description?: string;
     estimatedHours?: number;
     progress?: number;
@@ -75,9 +77,14 @@ export const ProjectsProvider = ({ children }: { children: ReactNode }) => {
         progress,
       };
       
-      // Rate solo per CLIENT
-      if (type === 'CLIENT' && rate) {
-        projectData.rate = Number(rate);
+      // Rate e Budget solo per CLIENT
+      if (type === 'CLIENT') {
+        if (rate) {
+          projectData.rate = Number(rate);
+        }
+        if (budget) {
+          projectData.budget = Number(budget);
+        }
       }
       
       const response = await apiClient.post<Project>('/projects', projectData);
