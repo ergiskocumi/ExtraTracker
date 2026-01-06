@@ -2,25 +2,26 @@
  * 📅 ENTRY TIMELINE
  * =================
  * 
- * Timeline delle entries raggruppate per data.
+ * Timeline delle entries (WorkLog) raggruppate per data.
  */
 
 import { useMemo } from 'react';
 import { EntryCard } from './EntryCard';
 import { FiClock } from 'react-icons/fi';
-import type { WorkEntry, WorkProject } from '../types';
+import type { WorkLog } from '../../tracker/type';
+import type { WorkProject } from '../types';
 
 interface EntryTimelineProps {
-    entries: WorkEntry[];
+    entries: WorkLog[];
     loading: boolean;
     projects: WorkProject[];
-    onEntryClick?: (entry: WorkEntry) => void;
+    onEntryClick?: (entry: WorkLog) => void;
 }
 
 export const EntryTimeline = ({ entries, loading, projects, onEntryClick }: EntryTimelineProps) => {
     // Raggruppa entries per data
     const groupedEntries = useMemo(() => {
-        const groups: Record<string, WorkEntry[]> = {};
+        const groups: Record<string, WorkLog[]> = {};
         
         entries.forEach((entry) => {
             if (!groups[entry.date]) {
@@ -29,10 +30,21 @@ export const EntryTimeline = ({ entries, loading, projects, onEntryClick }: Entr
             groups[entry.date].push(entry);
         });
         
-        // Ordina per data (più recente prima)
+        // Ordina per data (più recente prima), poi per createdAt
         return Object.entries(groups)
-            .sort(([a], [b]) => b.localeCompare(a))
-            .map(([date, entries]) => ({ date, entries }));
+            .sort(([a], [b]) => {
+                const dateCompare = b.localeCompare(a);
+                if (dateCompare !== 0) return dateCompare;
+                return 0;
+            })
+            .map(([date, entries]) => ({ 
+                date, 
+                entries: entries.sort((a, b) => {
+                    const aTime = new Date(a.createdAt).getTime();
+                    const bTime = new Date(b.createdAt).getTime();
+                    return bTime - aTime; // Più recente prima
+                })
+            }));
     }, [entries]);
 
     // Helper per formattare la data
@@ -57,11 +69,11 @@ export const EntryTimeline = ({ entries, loading, projects, onEntryClick }: Entr
     };
 
     // Helper per trovare progetto
-    const getProject = (entry: WorkEntry): WorkProject | null => {
-        if (typeof entry.project === 'object') {
-            return entry.project;
-        }
-        return projects.find((p) => p.id === entry.project) || null;
+    const getProject = (entry: WorkLog): WorkProject | null => {
+        return projects.find((p) => {
+            const pid = p.id || (p as any)._id;
+            return String(pid) === String(entry.projectId);
+        }) || null;
     };
 
     if (loading) {

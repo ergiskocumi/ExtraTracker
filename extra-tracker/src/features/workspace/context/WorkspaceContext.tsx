@@ -13,15 +13,15 @@ import { apiClient } from '../../../shared/services/apiClient';
 import { emitToast } from '../../../shared/components/toast';
 import type {
     WorkProject,
-    WorkEntry,
     WorkTodo,
     CreateWorkProjectDTO,
     UpdateWorkProjectDTO,
-    CreateWorkEntryDTO,
-    UpdateWorkEntryDTO,
+    CreateWorkLogDTO,
+    UpdateWorkLogDTO,
     CreateWorkTodoDTO,
     UpdateWorkTodoDTO,
 } from '../types';
+import type { WorkLog } from '../../tracker/type';
 import {
     workspaceProjectsService,
     workspaceEntriesService,
@@ -38,13 +38,13 @@ interface WorkspaceContextType {
     updateProject: (id: string, data: UpdateWorkProjectDTO) => Promise<void>;
     deleteProject: (id: string) => Promise<void>;
     
-    // Entries
-    entries: WorkEntry[];
+    // Entries (ora WorkLog)
+    entries: WorkLog[];
     entriesLoading: boolean;
     entriesError: string | null;
     refreshEntries: () => Promise<void>;
-    addEntry: (data: CreateWorkEntryDTO) => Promise<void>;
-    updateEntry: (id: string, data: UpdateWorkEntryDTO) => Promise<void>;
+    addEntry: (data: CreateWorkLogDTO) => Promise<void>;
+    updateEntry: (id: string, data: UpdateWorkLogDTO) => Promise<void>;
     deleteEntry: (id: string) => Promise<void>;
     
     // Todos (per progetto specifico, non globali)
@@ -61,8 +61,8 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
     const [projectsLoading, setProjectsLoading] = useState(true);
     const [projectsError, setProjectsError] = useState<string | null>(null);
     
-    // Entries state
-    const [entries, setEntries] = useState<WorkEntry[]>([]);
+    // Entries state (ora WorkLog)
+    const [entries, setEntries] = useState<WorkLog[]>([]);
     const [entriesLoading, setEntriesLoading] = useState(true);
     const [entriesError, setEntriesError] = useState<string | null>(null);
 
@@ -137,8 +137,10 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         }
         try {
             setEntriesError(null);
+            // Usa il nuovo endpoint feed per ottenere tutti i log
             const data = await workspaceEntriesService.getAll();
-            setEntries(data);
+            // Normalizza i dati da WorkLog a formato compatibile
+            setEntries(data as any[]);
         } catch (err: any) {
             setEntriesError(err.message || 'Errore nel caricamento entries');
         } finally {
@@ -150,10 +152,10 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         refreshEntries();
     }, [refreshEntries]);
 
-    const addEntry = useCallback(async (data: CreateWorkEntryDTO) => {
+    const addEntry = useCallback(async (data: CreateWorkLogDTO) => {
         try {
-            const created = await workspaceEntriesService.create(data);
-            setEntries((prev) => [...prev, created]);
+            const created = await workspaceEntriesService.create(data as any);
+            setEntries((prev) => [...prev, created as WorkLog]);
             emitToast.success('Entry creata con successo!', {
                 title: 'Entry Salvata',
             });
@@ -162,10 +164,10 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         }
     }, []);
 
-    const updateEntry = useCallback(async (id: string, data: UpdateWorkEntryDTO) => {
+    const updateEntry = useCallback(async (id: string, data: UpdateWorkLogDTO) => {
         try {
-            const updated = await workspaceEntriesService.update(id, data);
-            setEntries((prev) => prev.map((e) => (e.id === id ? updated : e)));
+            const updated = await workspaceEntriesService.update(id, data as any);
+            setEntries((prev) => prev.map((e) => (e.id === id ? (updated as WorkLog) : e)));
             emitToast.success('Entry aggiornata', {
                 title: 'Aggiornato',
             });

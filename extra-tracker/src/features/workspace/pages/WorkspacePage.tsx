@@ -15,7 +15,7 @@ import { EntryDetailModal } from '../components/EntryDetailModal';
 import { EntryForm } from '../components/EntryForm';
 import { TodosWidget } from '../components/TodosWidget';
 import { FiPlus, FiRefreshCw, FiSearch, FiFileText } from 'react-icons/fi';
-import type { WorkEntryCategory, WorkEntry } from '../types';
+import type { WorkLog } from '../../tracker/type';
 
 export const WorkspacePage = () => {
     const {
@@ -28,38 +28,32 @@ export const WorkspacePage = () => {
     } = useWorkspace();
 
     const [selectedProject, setSelectedProject] = useState<string | null>(null);
-    const [selectedCategory, setSelectedCategory] = useState<WorkEntryCategory | null>(null);
     const [showNewProjectForm, setShowNewProjectForm] = useState(false);
-    const [selectedEntry, setSelectedEntry] = useState<WorkEntry | null>(null);
+    const [selectedEntry, setSelectedEntry] = useState<WorkLog | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [showEntryForm, setShowEntryForm] = useState(false);
-    const [editingEntry, setEditingEntry] = useState<WorkEntry | undefined>();
+    const [editingEntry, setEditingEntry] = useState<WorkLog | undefined>();
 
     const { deleteEntry } = useWorkspace();
 
-    // Filtra entries in base a progetto, categoria e ricerca
+    // Filtra entries in base a progetto e ricerca
     const filteredEntries = useMemo(() => {
         let filtered = [...entries];
         
         if (selectedProject) {
             filtered = filtered.filter((e) => {
-                const projectId = typeof e.project === 'string' ? e.project : e.project.id;
-                return projectId === selectedProject;
+                return String(e.projectId) === String(selectedProject);
             });
         }
         
-        if (selectedCategory) {
-            filtered = filtered.filter((e) => e.category === selectedCategory);
-        }
-        
-        // Ricerca full-text su titolo e contenuto
+        // Ricerca full-text su titolo e descrizione
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter((e) => {
                 const titleMatch = e.title.toLowerCase().includes(query);
-                const contentMatch = e.content?.toLowerCase().includes(query);
+                const descriptionMatch = e.description?.toLowerCase().includes(query);
                 const tagMatch = e.tags?.some((tag) => tag.toLowerCase().includes(query));
-                return titleMatch || contentMatch || tagMatch;
+                return titleMatch || descriptionMatch || tagMatch;
             });
         }
         
@@ -69,7 +63,7 @@ export const WorkspacePage = () => {
             if (dateCompare !== 0) return dateCompare;
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
-    }, [entries, selectedProject, selectedCategory, searchQuery]);
+    }, [entries, selectedProject, searchQuery]);
 
     const handleRefresh = async () => {
         await Promise.all([refreshProjects(), refreshEntries()]);
@@ -157,29 +151,11 @@ export const WorkspacePage = () => {
                         </select>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-white/60">Categoria:</span>
-                        <select
-                            value={selectedCategory || ''}
-                            onChange={(e) => setSelectedCategory(e.target.value as WorkEntryCategory || null)}
-                            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                            <option key="all" value="">Tutte</option>
-                            <option key="development" value="development">💻 Development</option>
-                            <option key="documentation" value="documentation">📝 Documentation</option>
-                            <option key="ticket" value="ticket">🎫 Ticket</option>
-                            <option key="meeting" value="meeting">🤝 Meeting</option>
-                            <option key="research" value="research">🔬 Research</option>
-                            <option key="freeform" value="freeform">📄 Freeform</option>
-                        </select>
-                    </div>
-
                     {/* RESET FILTRI */}
-                    {(selectedProject || selectedCategory || searchQuery) && (
+                    {(selectedProject || searchQuery) && (
                         <button
                             onClick={() => {
                                 setSelectedProject(null);
-                                setSelectedCategory(null);
                                 setSearchQuery('');
                             }}
                             className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-white text-sm transition-colors"
@@ -226,10 +202,8 @@ export const WorkspacePage = () => {
                 isOpen={!!selectedEntry}
                 entry={selectedEntry}
                 project={selectedEntry ? projects.find((p) => {
-                    const projectId = typeof selectedEntry.project === 'string' 
-                        ? selectedEntry.project 
-                        : selectedEntry.project.id;
-                    return p.id === projectId;
+                    const pid = p.id || (p as any)._id;
+                    return String(pid) === String(selectedEntry.projectId);
                 }) || null : null}
                 onClose={() => setSelectedEntry(null)}
                 onEdit={(entry) => {

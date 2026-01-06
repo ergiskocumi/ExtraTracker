@@ -1,8 +1,9 @@
 /**
- * ⏱️ WORKLOG MODEL - Multi-Tenant
- * ================================
+ * ⏱️ WORKLOG MODEL - Multi-Tenant (Unificato)
+ * ============================================
  * 
- * Schema per i log delle ore lavorate (straordinari).
+ * Schema unificato per log di lavoro e note di lavoro.
+ * Supporta sia time tracking (con orari) che note senza orari.
  * 
  * RELAZIONI:
  * - Appartiene a un User (multi-tenancy)
@@ -32,31 +33,60 @@ const workLogSchema = new mongoose.Schema({
         match: [/^\d{4}-\d{2}-\d{2}$/, 'Formato data non valido (usa YYYY-MM-DD)'],
     },
     
-    // Ora inizio (formato HH:mm)
-    startTime: { 
-        type: String, 
-        required: [true, 'L\'ora di inizio è obbligatoria'],
-        match: [/^\d{2}:\d{2}$/, 'Formato ora non valido (usa HH:mm)'],
+    // Titolo breve dell'attività
+    title: {
+        type: String,
+        required: [true, 'Il titolo è obbligatorio'],
+        trim: true,
+        maxlength: [200, 'Il titolo non può superare 200 caratteri'],
     },
     
-    // Ora fine (formato HH:mm)
-    endTime: { 
-        type: String, 
-        required: [true, 'L\'ora di fine è obbligatoria'],
-        match: [/^\d{2}:\d{2}$/, 'Formato ora non valido (usa HH:mm)'],
-    },
-    
-    // Descrizione del lavoro svolto
+    // Descrizione/note del lavoro svolto
     description: { 
         type: String,
         trim: true,
-        maxlength: [500, 'La descrizione non può superare 500 caratteri'],
+        maxlength: [5000, 'La descrizione non può superare 5000 caratteri'],
     },
     
-    // Durata calcolata in minuti (per query aggregate efficienti)
+    // Tag per ricerca e categorizzazione
+    tags: [{
+        type: String,
+        trim: true,
+        maxlength: [50, 'Ogni tag non può superare 50 caratteri'],
+    }],
+    
+    // Mood/umore durante il lavoro
+    mood: {
+        type: String,
+        enum: {
+            values: ['high', 'neutral', 'low'],
+            message: 'Mood deve essere: high, neutral, o low',
+        },
+    },
+    
+    // Indica se il lavoro è fatturabile
+    isBillable: {
+        type: Boolean,
+        default: true,
+    },
+    
+    // Ora inizio (formato HH:mm) - OPZIONALE
+    startTime: { 
+        type: String, 
+        match: [/^\d{2}:\d{2}$/, 'Formato ora non valido (usa HH:mm)'],
+    },
+    
+    // Ora fine (formato HH:mm) - OPZIONALE
+    endTime: { 
+        type: String, 
+        match: [/^\d{2}:\d{2}$/, 'Formato ora non valido (usa HH:mm)'],
+    },
+    
+    // Durata in minuti (calcolata automaticamente se orari presenti, altrimenti 0 o valore manuale)
     durationMinutes: {
         type: Number,
         min: 0,
+        default: 0,
     },
     
 }, {
@@ -74,6 +104,16 @@ const workLogSchema = new mongoose.Schema({
  */
 workLogSchema.index({ user: 1, date: -1 });
 workLogSchema.index({ user: 1, projectId: 1, date: -1 });
+
+/**
+ * Indice per ricerca testuale su titolo e descrizione
+ */
+workLogSchema.index({ title: 'text', description: 'text' });
+
+/**
+ * Indice per tag (per ricerca futura)
+ */
+workLogSchema.index({ tags: 1 });
 
 // =========================================
 // PLUGINS
@@ -101,21 +141,31 @@ workLogSchema.virtual('durationHours').get(function() {
 // =========================================
 
 /**
- * Pre-save: calcola automaticamente la durata in minuti.
+ * Pre-save: calcola automaticamente la durata in minuti SOLO se orari sono presenti.
+ * Se orari mancano, durationMinutes rimane 0 (o valore inserito manualmente).
  */
 workLogSchema.pre('save', function() {
-    if (this.isModified('startTime') || this.isModified('endTime')) {
-        const [startHour, startMin] = this.startTime.split(':').map(Number);
-        const [endHour, endMin] = this.endTime.split(':').map(Number);
-        
-        let duration = (endHour * 60 + endMin) - (startHour * 60 + startMin);
-        
-        // Gestisce lavoro oltre mezzanotte
-        if (duration < 0) {
-            duration += 24 * 60;
+    // Calcola durationMinutes solo se startTime E endTime sono entrambi presenti
+    if (this.startTime && this.endTime) {
+        if (this.isModified('startTime') || this.isModified('endTime')) {
+            const [startHour, startMin] = this.startTime.split(':').map(Number);
+            const [endHour, endMin] = this.endTime.split(':').map(Number);
+            
+            let duration = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+            
+            // Gestisce lavoro oltre mezzanotte
+            if (duration < 0) {
+                duration += 24 * 60;
+            }
+            
+            this.durationMinutes = duration;
         }
-        
-        this.durationMinutes = duration;
+    } else {
+        // Se orari mancano, durationMinutes = 0 (a meno che non sia stato inserito manualmente)
+        // Se durationMinutes non è stato modificato esplicitamente, imposta a 0
+        if (!this.isModified('durationMinutes')) {
+            this.durationMinutes = 0;
+        }
     }
 });
 

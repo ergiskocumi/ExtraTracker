@@ -91,127 +91,20 @@ exports.deleteProject = asyncHandler(async (req, res) => {
 });
 
 // =========================================
-// WORK ENTRIES ENDPOINTS
+// WORK ENTRIES ENDPOINTS (DEPRECATO - Unificato in WorkLog)
 // =========================================
-
-/**
- * GET /api/workspace/entries
- * Lista tutte le entries dell'utente
- * Query params: project, category, date, limit
- */
-exports.getEntries = asyncHandler(async (req, res) => {
-    const { project, category, date, limit } = req.query;
-    
-    const filters = {};
-    if (project) filters.project = project;
-    if (category) filters.category = category;
-    if (date) filters.date = date;
-    
-    const options = {};
-    if (limit) options.limit = parseInt(limit);
-    
-    const entries = await workspaceService.entries.find(req.tenantScope, filters, options);
-    res.json({ success: true, data: entries });
-});
-
-/**
- * GET /api/workspace/entries/timeline
- * Raggruppa entries per data (per vista timeline)
- * Query params: limit (default 30)
- */
-exports.getTimeline = asyncHandler(async (req, res) => {
-    const limit = parseInt(req.query.limit) || 30;
-    const timeline = await workspaceService.entries.groupByDate(req.tenantScope, limit);
-    res.json({ success: true, data: timeline });
-});
-
-/**
- * GET /api/workspace/entries/by-month/:year/:month
- * Entries filtrate per mese
- */
-exports.getEntriesByMonth = asyncHandler(async (req, res) => {
-    const { year, month } = req.params;
-    const entries = await workspaceService.entries.findByMonth(
-        req.tenantScope,
-        parseInt(year),
-        parseInt(month)
-    );
-    res.json({ success: true, data: entries });
-});
-
-/**
- * GET /api/workspace/entries/by-project/:projectId
- * Entries di un progetto specifico
- */
-exports.getEntriesByProject = asyncHandler(async (req, res) => {
-    const entries = await workspaceService.entries.findByProject(
-        req.tenantScope,
-        req.params.projectId
-    );
-    res.json({ success: true, data: entries });
-});
-
-/**
- * GET /api/workspace/entries/stats
- * Statistiche entries per progetto
- */
-exports.getEntriesStats = asyncHandler(async (req, res) => {
-    const stats = await workspaceService.entries.getStatsByProject(req.tenantScope);
-    res.json({ success: true, data: stats });
-});
-
-/**
- * GET /api/workspace/entries/:id
- * Dettaglio singola entry
- */
-exports.getEntry = asyncHandler(async (req, res) => {
-    const entry = await workspaceService.entries.findById(
-        req.tenantScope,
-        req.params.id,
-        { throwIfNotFound: true }
-    );
-    res.json({ success: true, data: entry });
-});
-
-/**
- * POST /api/workspace/entries
- * Crea nuova entry
- */
-exports.createEntry = asyncHandler(async (req, res) => {
-    const entry = await workspaceService.entries.create(req.tenantScope, {
-        project: req.body.project,
-        date: req.body.date,
-        category: req.body.category,
-        title: req.body.title,
-        content: req.body.content,
-        templateData: req.body.templateData || {},
-        tags: req.body.tags || [],
-        duration: req.body.duration,
-    });
-    res.status(201).json({ success: true, data: entry });
-});
-
-/**
- * PUT /api/workspace/entries/:id
- * Aggiorna entry
- */
-exports.updateEntry = asyncHandler(async (req, res) => {
-    const entry = await workspaceService.entries.update(
-        req.tenantScope,
-        req.params.id,
-        req.body
-    );
-    res.json({ success: true, data: entry });
-});
-
-/**
- * DELETE /api/workspace/entries/:id
- * Elimina entry
- */
-exports.deleteEntry = asyncHandler(async (req, res) => {
-    await workspaceService.entries.delete(req.tenantScope, req.params.id);
-    res.json({ success: true, message: 'Entry eliminata' });
-});
+// 
+// NOTA: Tutti gli endpoint entries sono stati rimossi.
+// La logica è stata unificata in WorkLogService.
+// 
+// Usa /api/worklogs/* per gestire sia log con orari che note senza orari.
+// 
+// Migrazione:
+// - getEntries() -> workLogService.getWorkspaceFeed()
+// - createEntry() -> workLogService.create() (senza startTime/endTime)
+// - getEntry() -> workLogService.findById()
+// - updateEntry() -> workLogService.update()
+// - deleteEntry() -> workLogService.delete()
 
 // =========================================
 // WORK TODOS ENDPOINTS

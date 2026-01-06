@@ -1,8 +1,9 @@
 /**
- * ⏱️ WORKLOG SERVICE - Multi-Tenant
- * ==================================
+ * ⏱️ WORKLOG SERVICE - Multi-Tenant (Ibrido)
+ * ===========================================
  * 
- * Service layer per la gestione dei log di lavoro.
+ * Service layer per la gestione unificata di log di lavoro e note.
+ * Supporta sia inserimenti "Timer" (con orari) che "Journal" (solo testo).
  * 
  * ⚠️ SICUREZZA RELAZIONI:
  * Quando crei un WorkLog con un projectId, verifichiamo che
@@ -20,8 +21,8 @@ const activityService = require('./activityService');
 class WorkLogService extends BaseService {
     constructor() {
         super(WorkLog, {
-            searchFields: ['description'],
-            defaultSort: { date: -1, startTime: -1 },
+            searchFields: ['title', 'description'], // Aggiunto title per ricerca
+            defaultSort: { date: -1, createdAt: -1 }, // Ordinamento timeline-friendly
             populateFields: ['projectId'], // Popola automaticamente il progetto
             entityName: 'Log di lavoro',
         });
@@ -105,7 +106,7 @@ class WorkLogService extends BaseService {
         // 🔒 SICUREZZA: Filtro esplicito per user
         return WorkLog.aggregate([
             { $match: { user: userId } },
-            { $sort: { date: -1 } },
+            { $sort: { date: -1, createdAt: -1 } }, // Timeline-friendly sort
             {
                 $group: {
                     _id: '$date',
@@ -118,6 +119,65 @@ class WorkLogService extends BaseService {
         ]);
     }
 
+    /**
+     * Feed Workspace: timeline unificata con filtri avanzati.
+     * 
+     * Permette di filtrare per projectId, date (o range), e tags.
+     * Ritorna log ordinati per data decrescente e poi createdAt decrescente.
+     * 
+     * @param {Object} tenantScope - Contesto tenant
+     * @param {Object} filters - Filtri opzionali
+     * @param {string} filters.projectId - Filtra per progetto
+     * @param {string} filters.date - Filtra per data specifica (YYYY-MM-DD)
+     * @param {string} filters.startDate - Inizio range date (YYYY-MM-DD)
+     * @param {string} filters.endDate - Fine range date (YYYY-MM-DD)
+     * @param {string|string[]} filters.tags - Filtra per tag (singolo o array)
+     * @param {Object} options - Opzioni aggiuntive (limit, skip, etc.)
+     * @returns {Promise<Array>} Array di worklog ordinati
+     */
+    async getWorkspaceFeed(tenantScope, filters = {}, options = {}) {
+        const userId = this._getUserId(tenantScope);
+        
+        // Costruisci filtro base con user
+        const queryFilter = { user: userId };
+        
+        // Filtro per progetto
+        if (filters.projectId) {
+            queryFilter.projectId = filters.projectId;
+        }
+        
+        // Filtro per data (singola o range)
+        if (filters.date) {
+            queryFilter.date = filters.date;
+        } else if (filters.startDate || filters.endDate) {
+            queryFilter.date = {};
+            if (filters.startDate) {
+                queryFilter.date.$gte = filters.startDate;
+            }
+            if (filters.endDate) {
+                queryFilter.date.$lte = filters.endDate;
+            }
+        }
+        
+        // Filtro per tag
+        if (filters.tags) {
+            const tagsArray = Array.isArray(filters.tags) ? filters.tags : [filters.tags];
+            queryFilter.tags = { $in: tagsArray };
+        }
+        
+        // Opzioni di ordinamento (timeline-friendly)
+        const sortOptions = {
+            date: -1,
+            createdAt: -1,
+        };
+        
+        // Esegui query con filtri e ordinamento
+        return this.find(tenantScope, queryFilter, {
+            ...options,
+            sort: sortOptions,
+        });
+    }
+
     // =========================================
     // LIFECYCLE HOOKS
     // =========================================
@@ -125,32 +185,54 @@ class WorkLogService extends BaseService {
     /**
      * Validazione pre-creazione:
      * - Verifica che il progetto appartenga allo stesso utente (IDOR prevention)
-     * - Verifica che endTime > startTime
+     * - Se presenti orari, valida che siano coerenti
+     * - Se non presenti orari, permette creazione (nota/journal)
      */
     async beforeCreate(tenantScope, data) {
-        // 1. Validazione ownership progetto
+        // 1. Validazione ownership progetto (sempre richiesta)
         await this.validateProjectOwnership(tenantScope, data.projectId);
         
-        // 2. Validazione orari
-        this.validateTimeRange(data.startTime, data.endTime);
+        // 2. Validazione orari (solo se presenti entrambi)
+        // Se startTime o endTime sono presenti, devono essere entrambi presenti e validi
+        if (data.startTime || data.endTime) {
+            if (!data.startTime || !data.endTime) {
+                throw AppError.validation(
+                    'Se specifichi un orario, devi fornire sia startTime che endTime'
+                );
+            }
+            this.validateTimeRange(data.startTime, data.endTime);
+        }
+        // Se non ci sono orari, è una nota/journal - va bene, durationMinutes sarà 0
         
         return data;
     }
 
     /**
-     * Override create per registrare WORK_SESSION_LOGGED.
+     * Override create per gestire logica ibrida e registrare attività.
+     * 
+     * Gestisce sia inserimenti "Timer" (con orari) che "Journal" (solo testo).
+     * - Se ci sono startTime e endTime: valida e calcola durata (Model lo fa automaticamente)
+     * - Se non ci sono orari: permette creazione come nota/journal (durationMinutes = 0)
      */
     async create(tenantScope, data) {
+        // La validazione è già fatta in beforeCreate()
+        // Il Model calcola durationMinutes automaticamente se orari presenti
+        
         const created = await super.create(tenantScope, data);
         const userId = this._getUserId(tenantScope);
         const durationMinutes = Number.isFinite(created.durationMinutes)
             ? created.durationMinutes
-            : null;
+            : 0;
         const tags = Array.isArray(data?.tags) ? data.tags : [];
         const timeOfDay = this._getTimeOfDayLabel(new Date());
 
+        // Determina tipo di attività per analytics
+        const activityType = (created.startTime && created.endTime) 
+            ? 'WORK_SESSION_LOGGED' 
+            : 'WORK_NOTE_CREATED';
+
         try {
-            await activityService.recordActivity(userId, 'WORK_SESSION_LOGGED', {
+            await activityService.recordActivity(userId, activityType, {
                 entityId: created._id,
                 category: 'work',
                 metadata: {
@@ -160,12 +242,13 @@ class WorkLogService extends BaseService {
                     tags,
                     timeOfDay,
                     date: created.date,
-                    startTime: created.startTime,
-                    endTime: created.endTime,
+                    startTime: created.startTime || null,
+                    endTime: created.endTime || null,
+                    hasTimeTracking: !!(created.startTime && created.endTime),
                 },
             });
         } catch (err) {
-            console.error('❌ Activity log error (WORK_SESSION_LOGGED):', err.message);
+            console.error(`❌ Activity log error (${activityType}):`, err.message);
         }
 
         return created;
@@ -174,18 +257,31 @@ class WorkLogService extends BaseService {
     /**
      * Validazione pre-update:
      * - Se si cambia progetto, verifica ownership
+     * - Se si modificano orari, valida coerenza (solo se entrambi presenti)
      */
     async beforeUpdate(tenantScope, id, data) {
         if (data.projectId) {
             await this.validateProjectOwnership(tenantScope, data.projectId);
         }
         
+        // Validazione orari: se si modifica uno, deve essere presente anche l'altro
         if (data.startTime || data.endTime) {
-            // Recupera il documento esistente per valori mancanti
             const existing = await this.findById(tenantScope, id);
-            const startTime = data.startTime || existing.startTime;
-            const endTime = data.endTime || existing.endTime;
-            this.validateTimeRange(startTime, endTime);
+            const startTime = data.startTime !== undefined ? data.startTime : existing.startTime;
+            const endTime = data.endTime !== undefined ? data.endTime : existing.endTime;
+            
+            // Se si sta cercando di impostare solo uno dei due, errore
+            if ((data.startTime && !endTime) || (data.endTime && !startTime)) {
+                throw AppError.validation(
+                    'Se modifichi gli orari, devi fornire sia startTime che endTime'
+                );
+            }
+            
+            // Se entrambi sono presenti, valida
+            if (startTime && endTime) {
+                this.validateTimeRange(startTime, endTime);
+            }
+            // Se entrambi vengono rimossi (null/undefined), va bene (diventa nota/journal)
         }
         
         return data;

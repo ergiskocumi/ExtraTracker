@@ -70,12 +70,17 @@ export interface GenericTemplateData {
 }
 
 /**
- * WorkEntry - Entry del Work Journal
+ * WorkEntry - DEPRECATO: Usa WorkLog invece
+ * 
+ * NOTA: WorkEntry è stato unificato in WorkLog.
+ * Mantenuto temporaneamente per compatibilità durante la migrazione.
+ * 
+ * @deprecated Usa WorkLog da '../tracker/type'
  */
 export interface WorkEntry {
     id: string;
-    project: string | WorkProject; // String se non popolato, WorkProject se popolato
-    date: string; // YYYY-MM-DD
+    project: string | WorkProject;
+    date: string;
     category: WorkEntryCategory;
     title: string;
     content?: string;
@@ -85,18 +90,34 @@ export interface WorkEntry {
         | DocumentationTemplateData 
         | GenericTemplateData;
     tags?: string[];
-    duration?: number; // minuti
+    duration?: number;
     createdAt: string;
     updatedAt: string;
 }
 
 /**
  * Timeline Entry - Entry raggruppata per data
+ * 
+ * NOTA: Aggiornato per usare WorkLog invece di WorkEntry
  */
 export interface TimelineEntry {
     _id: string; // data (YYYY-MM-DD)
-    entries: WorkEntry[];
-    totalDuration: number; // minuti totali
+    logs: Array<{
+        id: string;
+        projectId: string | WorkProject;
+        date: string;
+        title: string;
+        description?: string;
+        tags?: string[];
+        mood?: 'high' | 'neutral' | 'low';
+        isBillable?: boolean;
+        startTime?: string;
+        endTime?: string;
+        durationMinutes?: number;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+    totalMinutes: number; // minuti totali (cambiato da totalDuration)
 }
 
 /**
@@ -116,7 +137,9 @@ export interface CreateWorkProjectDTO {
 export interface UpdateWorkProjectDTO extends Partial<CreateWorkProjectDTO> {}
 
 /**
- * Create WorkEntry DTO
+ * Create WorkEntry DTO - DEPRECATO
+ * 
+ * @deprecated Usa CreateWorkLogDTO da '../tracker/type' o direttamente WorkLog
  */
 export interface CreateWorkEntryDTO {
     project: string;
@@ -130,9 +153,31 @@ export interface CreateWorkEntryDTO {
 }
 
 /**
- * Update WorkEntry DTO
+ * Update WorkEntry DTO - DEPRECATO
+ * 
+ * @deprecated Usa Partial<WorkLog> da '../tracker/type'
  */
 export interface UpdateWorkEntryDTO extends Partial<CreateWorkEntryDTO> {}
+
+/**
+ * Create WorkLog DTO (per Journal - senza orari)
+ */
+export interface CreateWorkLogDTO {
+    projectId: string;
+    date: string;
+    title: string;
+    description?: string;
+    tags?: string[];
+    mood?: 'high' | 'neutral' | 'low';
+    isBillable?: boolean;
+    startTime?: string; // Opzionale - se presente, endTime è required
+    endTime?: string; // Opzionale - se presente, startTime è required
+}
+
+/**
+ * Update WorkLog DTO
+ */
+export interface UpdateWorkLogDTO extends Partial<CreateWorkLogDTO> {}
 
 /**
  * WorkTodo - TODO/Promemoria per progetto

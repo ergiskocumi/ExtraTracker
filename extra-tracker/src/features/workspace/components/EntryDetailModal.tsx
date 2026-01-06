@@ -10,33 +10,28 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiClock, FiTag, FiCalendar, FiFolder, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
-import type { WorkEntry, WorkProject } from '../types';
+import type { WorkLog } from '../../tracker/type';
+import type { WorkProject } from '../types';
 
 interface EntryDetailModalProps {
     isOpen: boolean;
-    entry: WorkEntry | null;
+    entry: WorkLog | null;
     project: WorkProject | null;
     onClose: () => void;
-    onEdit?: (entry: WorkEntry) => void;
+    onEdit?: (entry: WorkLog) => void;
     onDelete?: (entryId: string) => void;
 }
 
-const CATEGORY_ICONS: Record<WorkEntry['category'], string> = {
-    development: '💻',
-    documentation: '📝',
-    ticket: '🎫',
-    meeting: '🤝',
-    research: '🔬',
-    freeform: '📄',
+const MOOD_ICONS: Record<string, string> = {
+    high: '😊',
+    neutral: '😐',
+    low: '😔',
 };
 
-const CATEGORY_LABELS: Record<WorkEntry['category'], string> = {
-    development: 'Development',
-    documentation: 'Documentation',
-    ticket: 'Ticket',
-    meeting: 'Meeting',
-    research: 'Research',
-    freeform: 'Freeform',
+const MOOD_LABELS: Record<string, string> = {
+    high: 'Alto',
+    neutral: 'Neutrale',
+    low: 'Basso',
 };
 
 export const EntryDetailModal = ({
@@ -62,7 +57,7 @@ export const EntryDetailModal = ({
     };
 
     const formatDuration = (minutes?: number) => {
-        if (!minutes) return null;
+        if (!minutes || minutes === 0) return null;
         const hours = Math.floor(minutes / 60);
         const mins = minutes % 60;
         if (hours > 0) {
@@ -71,152 +66,12 @@ export const EntryDetailModal = ({
         return `${mins}m`;
     };
 
-    const renderTemplateData = () => {
-        if (!entry.templateData || Object.keys(entry.templateData).length === 0) {
-            return null;
-        }
-
-        const data = entry.templateData;
-
-        // Development template
-        if (entry.category === 'development') {
-            return (
-                <div className="space-y-3">
-                    <h4 className="text-sm font-semibold text-white/90">Development Details</h4>
-                    {data.branch && (
-                        <div>
-                            <span className="text-xs text-white/60">Branch:</span>
-                            <p className="text-sm text-white/80 font-mono">{data.branch as string}</p>
-                        </div>
-                    )}
-                    {Array.isArray(data.commits) && data.commits.length > 0 && (
-                        <div>
-                            <span className="text-xs text-white/60">Commits:</span>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {(data.commits as string[]).map((commit, idx) => (
-                                    <span
-                                        key={idx}
-                                        className="px-2 py-1 rounded bg-primary-500/20 text-primary-300 text-xs font-mono"
-                                    >
-                                        {commit}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    {Array.isArray(data.filesChanged) && data.filesChanged.length > 0 && (
-                        <div>
-                            <span className="text-xs text-white/60">Files Changed:</span>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {(data.filesChanged as string[]).map((file, idx) => (
-                                    <span
-                                        key={idx}
-                                        className="px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 text-xs"
-                                    >
-                                        {file}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    {data.status && (
-                        <div>
-                            <span className="text-xs text-white/60">Status:</span>
-                            <span className="ml-2 px-2 py-1 rounded bg-white/10 text-white/80 text-xs">
-                                {data.status as string}
-                            </span>
-                        </div>
-                    )}
-                </div>
-            );
-        }
-
-        // Ticket template
-        if (entry.category === 'ticket') {
-            return (
-                <div className="space-y-3">
-                    <h4 className="text-sm font-semibold text-white/90">Ticket Details</h4>
-                    {data.ticketId && (
-                        <div>
-                            <span className="text-xs text-white/60">Ticket ID:</span>
-                            <p className="text-sm text-white/80 font-mono">{data.ticketId as string}</p>
-                        </div>
-                    )}
-                    {data.ticketUrl && (
-                        <div>
-                            <span className="text-xs text-white/60">URL:</span>
-                            <a
-                                href={data.ticketUrl as string}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-primary-400 hover:text-primary-300 underline break-all"
-                            >
-                                {data.ticketUrl as string}
-                            </a>
-                        </div>
-                    )}
-                    {data.priority && (
-                        <div>
-                            <span className="text-xs text-white/60">Priority:</span>
-                            <span className="ml-2 px-2 py-1 rounded bg-amber-500/20 text-amber-300 text-xs">
-                                {data.priority as string}
-                            </span>
-                        </div>
-                    )}
-                    {data.resolution && (
-                        <div>
-                            <span className="text-xs text-white/60">Resolution:</span>
-                            <span className="ml-2 px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 text-xs">
-                                {data.resolution as string}
-                            </span>
-                        </div>
-                    )}
-                </div>
-            );
-        }
-
-        // Documentation template
-        if (entry.category === 'documentation') {
-            return (
-                <div className="space-y-3">
-                    <h4 className="text-sm font-semibold text-white/90">Documentation Details</h4>
-                    {data.docType && (
-                        <div>
-                            <span className="text-xs text-white/60">Type:</span>
-                            <span className="ml-2 px-2 py-1 rounded bg-violet-500/20 text-violet-300 text-xs">
-                                {data.docType as string}
-                            </span>
-                        </div>
-                    )}
-                    {Array.isArray(data.sections) && data.sections.length > 0 && (
-                        <div>
-                            <span className="text-xs text-white/60">Sections:</span>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {(data.sections as string[]).map((section, idx) => (
-                                    <span
-                                        key={idx}
-                                        className="px-2 py-1 rounded bg-violet-500/20 text-violet-300 text-xs"
-                                    >
-                                        {section}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        }
-
-        // Generic template data
-        return (
-            <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-white/90">Additional Data</h4>
-                <pre className="text-xs text-white/60 bg-white/5 p-3 rounded overflow-auto">
-                    {JSON.stringify(data, null, 2)}
-                </pre>
-            </div>
-        );
+    const formatTime = (time?: string) => {
+        if (!time) return null;
+        return time; // Formato già HH:mm
     };
+
+    const hasTimeTracking = !!(entry.startTime && entry.endTime);
 
     return (
         <>
@@ -240,14 +95,31 @@ export const EntryDetailModal = ({
                             <div className="sticky top-0 px-6 py-5 border-b border-white/10 bg-slate-900/80 backdrop-blur-sm flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 text-xl">
-                                        {CATEGORY_ICONS[entry.category]}
+                                        {hasTimeTracking ? '⏱️' : '📝'}
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-semibold text-white">{entry.title}</h2>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-white/10 text-white/80">
-                                                {CATEGORY_LABELS[entry.category]}
-                                            </span>
+                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                            {hasTimeTracking && (
+                                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary-500/20 text-primary-300">
+                                                    Timer
+                                                </span>
+                                            )}
+                                            {!hasTimeTracking && (
+                                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
+                                                    Journal
+                                                </span>
+                                            )}
+                                            {entry.mood && (
+                                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-white/10 text-white/80">
+                                                    {MOOD_ICONS[entry.mood]} {MOOD_LABELS[entry.mood]}
+                                                </span>
+                                            )}
+                                            {entry.isBillable === false && (
+                                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-300">
+                                                    Non fatturabile
+                                                </span>
+                                            )}
                                             {project && (
                                                 <span
                                                     className="px-2 py-0.5 rounded text-xs font-medium"
@@ -301,24 +173,27 @@ export const EntryDetailModal = ({
                                         <FiCalendar size={16} />
                                         <span>{formatDate(entry.date)}</span>
                                     </div>
-                                    {entry.duration && (
+                                    {hasTimeTracking && formatTime(entry.startTime) && formatTime(entry.endTime) && (
                                         <div className="flex items-center gap-2 text-sm text-white/60">
                                             <FiClock size={16} />
-                                            <span>{formatDuration(entry.duration)}</span>
+                                            <span>{formatTime(entry.startTime)} - {formatTime(entry.endTime)}</span>
+                                        </div>
+                                    )}
+                                    {entry.durationMinutes && entry.durationMinutes > 0 && (
+                                        <div className="flex items-center gap-2 text-sm text-white/60">
+                                            <FiClock size={16} />
+                                            <span>{formatDuration(entry.durationMinutes)}</span>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* CONTENUTO */}
-                                {entry.content && (
+                                {/* DESCRIZIONE */}
+                                {entry.description && (
                                     <div>
                                         <h3 className="text-sm font-semibold text-white/90 mb-2">Note</h3>
-                                        <p className="text-sm text-white/80 whitespace-pre-wrap">{entry.content}</p>
+                                        <p className="text-sm text-white/80 whitespace-pre-wrap">{entry.description}</p>
                                     </div>
                                 )}
-
-                                {/* TEMPLATE DATA */}
-                                {renderTemplateData()}
 
                                 {/* TAGS */}
                                 {entry.tags && entry.tags.length > 0 && (

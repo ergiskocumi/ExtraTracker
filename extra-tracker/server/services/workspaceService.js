@@ -3,20 +3,22 @@
  * ===================================
  * 
  * Service layer per la gestione del Work Journal (Workspace).
- * Gestisce sia WorkProject che WorkEntry.
+ * Gestisce WorkProject.
+ * 
+ * NOTA: WorkEntry è stato unificato in WorkLog.
+ * Usa workLogService per gestire le entries/note.
  * 
  * ⚠️ SICUREZZA RELAZIONI:
- * Quando crei un WorkEntry con un project, verifichiamo che
- * il progetto appartenga allo stesso utente (no IDOR cross-tenant).
+ * Quando crei un WorkProject, verifichiamo che
+ * appartenga allo stesso utente (no IDOR cross-tenant).
  * 
  * ⚠️ SICUREZZA: Tutte le query usano filtri ESPLICITI con userId.
  */
 
 const BaseService = require('./BaseService');
 const WorkProject = require('../models/WorkProject');
-const WorkEntry = require('../models/WorkEntry');
+const WorkLog = require('../models/WorkLog'); // Usato per query legacy
 const AppError = require('../utils/AppError');
-const activityService = require('./activityService');
 const mongoose = require('mongoose');
 
 // =========================================
@@ -41,6 +43,8 @@ class WorkProjectService extends BaseService {
 
     /**
      * Trova progetti con conteggio entries e statistiche.
+     * 
+     * NOTA: Aggiornato per usare WorkLog invece di WorkEntry.
      */
     async findWithEntryCount(tenantScope, options = {}) {
         const userId = this._getUserId(tenantScope);
@@ -49,9 +53,9 @@ class WorkProjectService extends BaseService {
             { $match: { user: userId } },
             {
                 $lookup: {
-                    from: 'workentries',
+                    from: 'worklogs', // Cambiato da 'workentries' a 'worklogs'
                     localField: '_id',
-                    foreignField: 'project',
+                    foreignField: 'projectId', // Cambiato da 'project' a 'projectId'
                     as: 'entries',
                 },
             },
@@ -62,7 +66,7 @@ class WorkProjectService extends BaseService {
                         $max: '$entries.date',
                     },
                     totalDuration: {
-                        $sum: '$entries.duration',
+                        $sum: '$entries.durationMinutes', // Cambiato da 'duration' a 'durationMinutes'
                     },
                 },
             },
@@ -78,11 +82,11 @@ class WorkProjectService extends BaseService {
         const projectIds = projects.map(p => p._id);
         if (projectIds.length > 0) {
             // Recupera tutte le date uniche per tutti i progetti in una query
-            const entriesByProject = await WorkEntry.aggregate([
-                { $match: { project: { $in: projectIds }, user: userId } },
+            const entriesByProject = await WorkLog.aggregate([
+                { $match: { projectId: { $in: projectIds }, user: userId } }, // Cambiato da 'project' a 'projectId'
                 {
                     $group: {
-                        _id: '$project',
+                        _id: '$projectId', // Cambiato da 'project' a 'projectId'
                         dates: { $addToSet: '$date' }
                     }
                 }
@@ -124,6 +128,8 @@ class WorkProjectService extends BaseService {
 
     /**
      * Override delete per verificare che non ci siano entries associate.
+     * 
+     * NOTA: Aggiornato per usare WorkLog invece di WorkEntry.
      */
     async delete(tenantScope, id) {
         const userId = this._getUserId(tenantScope);
@@ -131,16 +137,16 @@ class WorkProjectService extends BaseService {
         // Verifica che il progetto esista e appartenga all'utente
         const project = await this.findById(tenantScope, id, { throwIfNotFound: true });
         
-        // Verifica che non ci siano entries associate
-        const entriesCount = await WorkEntry.countDocuments({
+        // Verifica che non ci siano worklog associati
+        const entriesCount = await WorkLog.countDocuments({
             user: userId,
-            project: id,
+            projectId: id, // Cambiato da 'project' a 'projectId'
         });
         
         if (entriesCount > 0) {
             throw AppError.validation(
-                `Impossibile eliminare: ci sono ${entriesCount} entries associate a questo progetto. ` +
-                `Elimina prima le entries o archivia il progetto.`
+                `Impossibile eliminare: ci sono ${entriesCount} log associati a questo progetto. ` +
+                `Elimina prima i log o archivia il progetto.`
             );
         }
         
@@ -149,8 +155,13 @@ class WorkProjectService extends BaseService {
 }
 
 // =========================================
-// WORK ENTRY SERVICE
+// WORK ENTRY SERVICE (DEPRECATO - Unificato in WorkLogService)
 // =========================================
+// 
+// NOTA: WorkEntry è stato unificato in WorkLog.
+// Usa workLogService per gestire le entries/note.
+// Questa classe è mantenuta per compatibilità temporanea durante la migrazione.
+
 
 class WorkEntryService extends BaseService {
     constructor() {
@@ -386,11 +397,12 @@ class WorkEntryService extends BaseService {
     }
 }
 
+
 // =========================================
 // EXPORT
 // =========================================
 
 module.exports = {
     projects: new WorkProjectService(),
-    entries: new WorkEntryService(),
+    // entries: new WorkEntryService(), // DEPRECATO - Usa workLogService invece
 };

@@ -12,24 +12,22 @@ import { FiX, FiSave, FiCalendar, FiFolder, FiTag } from 'react-icons/fi';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { it } from 'date-fns/locale/it';
 import 'react-datepicker/dist/react-datepicker.css';
-import type { WorkEntry, WorkEntryCategory, CreateWorkEntryDTO } from '../types';
+import type { WorkLog } from '../../tracker/type';
+import type { CreateWorkLogDTO } from '../types';
 
 registerLocale('it', it);
 
 interface EntryFormProps {
     onClose: () => void;
-    entry?: WorkEntry;
+    entry?: WorkLog;
     defaultProjectId?: string;
     defaultDate?: string;
 }
 
-const CATEGORIES: Array<{ value: WorkEntryCategory; label: string; icon: string }> = [
-    { value: 'development', label: 'Development', icon: '💻' },
-    { value: 'documentation', label: 'Documentation', icon: '📝' },
-    { value: 'ticket', label: 'Ticket', icon: '🎫' },
-    { value: 'meeting', label: 'Meeting', icon: '🤝' },
-    { value: 'research', label: 'Research', icon: '🔬' },
-    { value: 'freeform', label: 'Freeform', icon: '📄' },
+const MOOD_OPTIONS: Array<{ value: 'high' | 'neutral' | 'low'; label: string; icon: string }> = [
+    { value: 'high', label: 'Alto', icon: '😊' },
+    { value: 'neutral', label: 'Neutrale', icon: '😐' },
+    { value: 'low', label: 'Basso', icon: '😔' },
 ];
 
 export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: EntryFormProps) => {
@@ -39,18 +37,18 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
     // Form state
     const [projectId, setProjectId] = useState<string>(() => {
         if (entry) {
-            return typeof entry.project === 'string' ? entry.project : entry.project.id;
+            return entry.projectId;
         }
         return defaultProjectId || '';
     });
     const [selectedDate, setSelectedDate] = useState<Date | null>(
         entry?.date ? new Date(entry.date) : (defaultDate ? new Date(defaultDate) : new Date())
     );
-    const [category, setCategory] = useState<WorkEntryCategory>(entry?.category || 'freeform');
     const [title, setTitle] = useState(entry?.title || '');
-    const [content, setContent] = useState(entry?.content || '');
+    const [description, setDescription] = useState(entry?.description || '');
     const [tags, setTags] = useState<string[]>(entry?.tags || []);
-    const [duration, setDuration] = useState<number | undefined>(entry?.duration);
+    const [mood, setMood] = useState<'high' | 'neutral' | 'low' | undefined>(entry?.mood);
+    const [isBillable, setIsBillable] = useState<boolean>(entry?.isBillable !== false); // default true
     const [tagInput, setTagInput] = useState('');
 
     const isEditing = !!entry;
@@ -80,8 +78,7 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
 
         const dateStr = selectedDate.toISOString().split('T')[0];
         
-        // Verifica che projectId sia un ID valido, non il testo
-        // Supporta sia id che _id
+        // Verifica che projectId sia un ID valido
         const selectedProjectObj = activeProjects.find(p => {
             const pid = p.id || (p as any)._id;
             return String(pid) === String(projectId);
@@ -91,17 +88,19 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
             return;
         }
         
-        // Usa l'ID del progetto trovato per sicurezza (supporta sia id che _id)
+        // Usa l'ID del progetto trovato per sicurezza
         const finalProjectId = selectedProjectObj.id || (selectedProjectObj as any)._id;
         
-        const data: CreateWorkEntryDTO = {
-            project: finalProjectId,
+        // Crea WorkLog (Journal - senza orari)
+        const data: CreateWorkLogDTO = {
+            projectId: finalProjectId,
             date: dateStr,
-            category,
             title: title.trim(),
-            content: content.trim() || undefined,
+            description: description.trim() || undefined,
             tags: tags.length > 0 ? tags : undefined,
-            duration: duration || undefined,
+            mood: mood,
+            isBillable: isBillable,
+            // Non includere startTime/endTime per creare una nota/journal
         };
 
         setLoading(true);
@@ -221,27 +220,40 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
                             />
                         </div>
 
-                        {/* CATEGORIA */}
+                        {/* MOOD */}
                         <div>
                             <label className="block text-sm font-medium text-white/80 mb-2">
-                                Categoria *
+                                Umore (opzionale)
                             </label>
-                            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                                {CATEGORIES.map((cat) => (
+                            <div className="grid grid-cols-3 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setMood(undefined)}
+                                    className={`
+                                        p-3 rounded-lg border-2 transition-all text-center
+                                        ${!mood
+                                            ? 'border-primary-500 bg-primary-500/20 scale-105'
+                                            : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                                        }
+                                    `}
+                                >
+                                    <div className="text-xs text-white/80">Nessuno</div>
+                                </button>
+                                {MOOD_OPTIONS.map((m) => (
                                     <button
-                                        key={cat.value}
+                                        key={m.value}
                                         type="button"
-                                        onClick={() => setCategory(cat.value)}
+                                        onClick={() => setMood(m.value)}
                                         className={`
                                             p-3 rounded-lg border-2 transition-all text-center
-                                            ${category === cat.value
+                                            ${mood === m.value
                                                 ? 'border-primary-500 bg-primary-500/20 scale-105'
                                                 : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
                                             }
                                         `}
                                     >
-                                        <div className="text-2xl mb-1">{cat.icon}</div>
-                                        <div className="text-xs text-white/80">{cat.label}</div>
+                                        <div className="text-2xl mb-1">{m.icon}</div>
+                                        <div className="text-xs text-white/80">{m.label}</div>
                                     </button>
                                 ))}
                             </div>
@@ -262,33 +274,34 @@ export const EntryForm = ({ onClose, entry, defaultProjectId, defaultDate }: Ent
                             />
                         </div>
 
-                        {/* CONTENUTO */}
+                        {/* DESCRIZIONE */}
                         <div>
                             <label className="block text-sm font-medium text-white/80 mb-2">
-                                Note / Contenuto
+                                Note / Descrizione
                             </label>
                             <textarea
-                                value={content}
-                                onChange={(e) => setContent(e.target.value)}
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
                                 rows={4}
                                 className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                                 placeholder="Aggiungi note dettagliate..."
                             />
                         </div>
 
-                        {/* DURATA */}
+                        {/* FATTURABILE */}
                         <div>
-                            <label className="block text-sm font-medium text-white/80 mb-2">
-                                Durata (minuti, opzionale)
+                            <label className="flex items-center gap-2 text-sm font-medium text-white/80 mb-2">
+                                <input
+                                    type="checkbox"
+                                    checked={isBillable}
+                                    onChange={(e) => setIsBillable(e.target.checked)}
+                                    className="w-4 h-4 rounded bg-white/5 border border-white/10 text-primary-500 focus:ring-2 focus:ring-primary-500"
+                                />
+                                Lavoro fatturabile
                             </label>
-                            <input
-                                type="number"
-                                value={duration || ''}
-                                onChange={(e) => setDuration(e.target.value ? parseInt(e.target.value) : undefined)}
-                                min="0"
-                                className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                placeholder="Es. 120"
-                            />
+                            <p className="text-xs text-white/50 mt-1">
+                                Se deselezionato, questo lavoro non verrà conteggiato nei guadagni
+                            </p>
                         </div>
 
                         {/* TAG */}

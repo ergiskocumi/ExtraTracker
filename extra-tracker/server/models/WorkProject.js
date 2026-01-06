@@ -89,11 +89,13 @@ workProjectSchema.plugin(multiTenancyPlugin, {
 
 /**
  * Conta le entries associate (popolato via populate o query separata)
+ * 
+ * NOTA: Aggiornato per usare WorkLog invece di WorkEntry.
  */
 workProjectSchema.virtual('entriesCount', {
-    ref: 'WorkEntry',
+    ref: 'WorkLog',
     localField: '_id',
-    foreignField: 'project',
+    foreignField: 'projectId', // Cambiato da 'project' a 'projectId'
     count: true,
 });
 
