@@ -409,6 +409,118 @@ refreshTokens: [{
     \item \textbf{Logout selettivo}: Possibilità di invalidare una singola sessione o tutte
     \item \textbf{Monitoraggio}: \code{lastUsedAt} permette di identificare sessioni inattive
     \item \textbf{Sicurezza}: Ogni dispositivo ha il proprio refresh token indipendente
+    \item \textbf{Limite FIFO}: Massimo 10 sessioni attive, previene crescita infinita array
+\end{itemize}
+
+\subsubsection{Protezione DoS: Limite FIFO Sessioni}
+
+\important{Problema dell'Array Infinito}: Senza limiti, l'array \code{refreshTokens} può crescere indefinitamente, causando:
+\begin{itemize}
+    \item \textbf{DoS su se stessi}: Documento MongoDB può superare 16MB (limite BSON)
+    \item \textbf{Performance degradate}: Caricare KB di sessioni vecchie ad ogni query
+    \item \textbf{Account rotto}: Se supera 16MB, MongoDB rifiuta il documento
+\end{itemize}
+
+\textbf{Scenario Problematico:}
+\begin{enumerate}
+    \item Utente si logga da browser incognito, chiude, riapre, si rilogga
+    \item Lo fa 50 volte (o script malevolo bypassa rate limit)
+    \item L'array \code{refreshTokens} cresce a 50+ elementi
+    \item Ogni query utente carica KB di dati inutili
+    \item Se supera 16MB, l'account si rompe
+\end{enumerate}
+
+\textbf{Soluzione: Limite FIFO (First In, First Out)}
+
+\begin{lstlisting}[caption=Configurazione Limite Sessioni]
+// config/security.js
+const MAX_ACTIVE_SESSIONS = 10; // Limite massimo dispositivi
+
+module.exports = {
+    session: {
+        maxActiveSessions: MAX_ACTIVE_SESSIONS,
+        refreshTokenExpiryDays: 7,
+    },
+};
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Login con Limite FIFO]
+async login(data, deviceInfo = {}) {
+    // ... verifica password ...
+    
+    // Assicurati che refreshTokens sia un array
+    if (!user.refreshTokens) {
+        user.refreshTokens = [];
+    }
+
+    // Pulisci sessioni scadute (refresh token scaduti oltre 7 giorni)
+    this.cleanExpiredSessions(user);
+
+    // Genera token con device info
+    const accessToken = this.generateAccessToken(user);
+    const { token: refreshToken, sessionData } = 
+        await this.generateRefreshToken(user, deviceInfo);
+
+    // Applica limite FIFO: se raggiunto il limite, rimuovi la sessione più vecchia
+    if (user.refreshTokens.length >= MAX_ACTIVE_SESSIONS) {
+        // Ordina per lastUsedAt (più vecchia prima)
+        user.refreshTokens.sort((a, b) => {
+            const dateA = new Date(a.lastUsedAt || a.createdAt);
+            const dateB = new Date(b.lastUsedAt || b.createdAt);
+            return dateA - dateB;
+        });
+        // Rimuovi la sessione più vecchia (FIFO)
+        user.refreshTokens.shift();
+    }
+
+    // Aggiungi nuova sessione all'array
+    user.refreshTokens.push(sessionData);
+    await user.save();
+}
+\end{lstlisting}
+
+\textbf{Pre-Save Hook nel Modello User:}
+
+\begin{lstlisting}[caption=Pre-Save Hook per Garantire Limite]
+userSchema.pre('save', function (next) {
+    if (!this.refreshTokens || this.refreshTokens.length === 0) {
+        return next();
+    }
+
+    const { MAX_ACTIVE_SESSIONS } = require('../config/security');
+    
+    // Se supera il limite, rimuovi le sessioni più vecchie (FIFO)
+    if (this.refreshTokens.length > MAX_ACTIVE_SESSIONS) {
+        // Ordina per lastUsedAt (più vecchia prima)
+        this.refreshTokens.sort((a, b) => {
+            const dateA = new Date(a.lastUsedAt || a.createdAt);
+            const dateB = new Date(b.lastUsedAt || b.createdAt);
+            return dateA - dateB;
+        });
+        
+        // Mantieni solo le MAX_ACTIVE_SESSIONS più recenti
+        this.refreshTokens = this.refreshTokens.slice(-MAX_ACTIVE_SESSIONS);
+    }
+
+    next();
+});
+\end{lstlisting}
+
+\textbf{Protezioni Implementate:}
+\begin{itemize}
+    \item \textbf{Limite massimo}: 10 sessioni attive per utente
+    \item \textbf{FIFO}: Rimuove sempre la sessione più vecchia (basata su \code{lastUsedAt})
+    \item \textbf{Pulizia automatica}: Rimuove sessioni scadute (refresh token oltre 7 giorni)
+    \item \textbf{Pre-save hook}: Garantisce che il limite sia sempre rispettato
+    \item \textbf{Doppia protezione}: Logica nel service + hook nel modello
+\end{itemize}
+
+\textbf{Perché 10 Sessioni?}
+\begin{itemize}
+    \item Bilanciamento tra usabilità e sicurezza
+    \item Utente tipico: PC, telefono, tablet, laptop = 4 dispositivi
+    \item 10 permette margine per dispositivi temporanei
+    \item Previene crescita infinita mantenendo flessibilità
 \end{itemize}
 
 \textbf{Utility per Rilevare Device Info:}

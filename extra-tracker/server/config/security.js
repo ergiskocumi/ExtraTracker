@@ -9,6 +9,9 @@
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Limite massimo sessioni attive per utente (previene DoS e crescita infinita array)
+const MAX_ACTIVE_SESSIONS = 10;
+
 /**
  * Determina se frontend e backend sono sullo stesso dominio
  * Se FRONTEND_URL e BACKEND_URL hanno lo stesso dominio, possiamo usare SameSite: 'lax' o 'strict'
@@ -273,4 +276,19 @@ cors: {
             },
         },
     },
+
+    // ==========================================
+    // Session Management Configuration
+    // ==========================================
+    session: {
+        // Limite massimo sessioni attive per utente
+        // Previene DoS: array refreshTokens non può crescere indefinitamente
+        maxActiveSessions: MAX_ACTIVE_SESSIONS,
+        
+        // Durata refresh token (7 giorni)
+        refreshTokenExpiryDays: 7,
+    },
 };
+
+// Esporta anche costanti utili
+module.exports.MAX_ACTIVE_SESSIONS = MAX_ACTIVE_SESSIONS;

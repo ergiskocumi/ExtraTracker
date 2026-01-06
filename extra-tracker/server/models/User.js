@@ -389,6 +389,37 @@ const userSchema = new mongoose.Schema(
 );
 
 // ==========================================
+// PRE-SAVE HOOK: Limite FIFO Sessioni
+// ==========================================
+
+/**
+ * Pre-save hook: garantisce che l'array refreshTokens non superi mai il limite
+ * Previene DoS e crescita infinita dell'array
+ */
+userSchema.pre('save', function (next) {
+    if (!this.refreshTokens || this.refreshTokens.length === 0) {
+        return next();
+    }
+
+    const { MAX_ACTIVE_SESSIONS } = require('../config/security');
+    
+    // Se supera il limite, rimuovi le sessioni più vecchie (FIFO)
+    if (this.refreshTokens.length > MAX_ACTIVE_SESSIONS) {
+        // Ordina per lastUsedAt (più vecchia prima)
+        this.refreshTokens.sort((a, b) => {
+            const dateA = new Date(a.lastUsedAt || a.createdAt);
+            const dateB = new Date(b.lastUsedAt || b.createdAt);
+            return dateA - dateB;
+        });
+        
+        // Mantieni solo le MAX_ACTIVE_SESSIONS più recenti
+        this.refreshTokens = this.refreshTokens.slice(-MAX_ACTIVE_SESSIONS);
+    }
+
+    next();
+});
+
+// ==========================================
 // INDEXES
 // ==========================================
 

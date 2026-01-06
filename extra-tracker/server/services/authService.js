@@ -14,6 +14,8 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const securityConfig = require('../config/security');
+const { MAX_ACTIVE_SESSIONS } = require('../config/security');
+const { MAX_ACTIVE_SESSIONS } = require('../config/security');
 
 // Durata grace period per race condition (30 secondi)
 const GRACE_PERIOD_MS = 30 * 1000;
@@ -41,6 +43,52 @@ const getDeviceInfo = (req) => {
 };
 
 class AuthService {
+    // ==========================================
+    // SESSION MANAGEMENT
+    // ==========================================
+
+    /**
+     * Pulisci sessioni scadute (refresh token scaduti oltre 7 giorni)
+     * @param {User} user - Oggetto utente
+     */
+    cleanExpiredSessions(user) {
+        if (!user.refreshTokens || user.refreshTokens.length === 0) {
+            return;
+        }
+
+        const now = Date.now();
+        const refreshTokenExpiryMs = securityConfig.jwt.refreshTokenExpiry 
+            ? this.parseExpiryToMs(securityConfig.jwt.refreshTokenExpiry)
+            : 7 * 24 * 60 * 60 * 1000; // Default 7 giorni
+
+        // Rimuovi sessioni scadute (createdAt + expiry < now)
+        user.refreshTokens = user.refreshTokens.filter(session => {
+            const createdAt = new Date(session.createdAt).getTime();
+            return (createdAt + refreshTokenExpiryMs) > now;
+        });
+    }
+
+    /**
+     * Converte stringa expiry (es. '7d') in millisecondi
+     * @param {string} expiry - Stringa tipo '7d', '15m', etc.
+     * @returns {number} - Millisecondi
+     */
+    parseExpiryToMs(expiry) {
+        const match = expiry.match(/^(\d+)([smhd])$/);
+        if (!match) return 7 * 24 * 60 * 60 * 1000; // Default 7 giorni
+
+        const value = parseInt(match[1]);
+        const unit = match[2];
+
+        switch (unit) {
+            case 's': return value * 1000;
+            case 'm': return value * 60 * 1000;
+            case 'h': return value * 60 * 60 * 1000;
+            case 'd': return value * 24 * 60 * 60 * 1000;
+            default: return 7 * 24 * 60 * 60 * 1000;
+        }
+    }
+
     // ==========================================
     // PASSWORD HASHING (Argon2)
     // ==========================================
@@ -272,11 +320,26 @@ class AuthService {
             user.refreshTokens = [];
         }
 
+        // Pulisci sessioni scadute (refresh token scaduti oltre 7 giorni)
+        this.cleanExpiredSessions(user);
+
         // Genera token con device info
         const accessToken = this.generateAccessToken(user);
         const { token: refreshToken, sessionData } = await this.generateRefreshToken(user, deviceInfo);
 
-        // Aggiungi nuova sessione all'array (non sovrascrive sessioni esistenti!)
+        // Applica limite FIFO: se raggiunto il limite, rimuovi la sessione più vecchia
+        if (user.refreshTokens.length >= MAX_ACTIVE_SESSIONS) {
+            // Ordina per lastUsedAt (più vecchia prima)
+            user.refreshTokens.sort((a, b) => {
+                const dateA = new Date(a.lastUsedAt || a.createdAt);
+                const dateB = new Date(b.lastUsedAt || b.createdAt);
+                return dateA - dateB;
+            });
+            // Rimuovi la sessione più vecchia (FIFO)
+            user.refreshTokens.shift();
+        }
+
+        // Aggiungi nuova sessione all'array
         user.refreshTokens.push(sessionData);
         await user.save();
 
@@ -309,6 +372,9 @@ class AuthService {
 
         // Pulisci token scaduti dal grace period
         user.cleanExpiredGracePeriodTokens();
+
+        // Pulisci sessioni scadute (refresh token scaduti)
+        this.cleanExpiredSessions(user);
 
         // Trova sessione specifica nell'array
         const session = user.findSessionByHash(tokenHash);
@@ -361,6 +427,17 @@ class AuthService {
             s => s.hash !== tokenHash
         );
         user.refreshTokens.push(newSessionData);
+
+        // Applica limite FIFO se necessario (il pre-save hook lo farà, ma meglio essere espliciti)
+        if (user.refreshTokens.length > MAX_ACTIVE_SESSIONS) {
+            user.refreshTokens.sort((a, b) => {
+                const dateA = new Date(a.lastUsedAt || a.createdAt);
+                const dateB = new Date(b.lastUsedAt || b.createdAt);
+                return dateA - dateB;
+            });
+            user.refreshTokens = user.refreshTokens.slice(-MAX_ACTIVE_SESSIONS);
+        }
+
         await user.save();
 
         return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
