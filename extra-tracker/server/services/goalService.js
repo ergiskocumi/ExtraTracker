@@ -13,6 +13,7 @@ const Goal = require('../models/Goal');
 const CheckIn = require('../models/CheckIn');
 const AppError = require('../utils/AppError');
 const eventBus = require('../utils/eventBus');
+const activityService = require('./activityService');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 

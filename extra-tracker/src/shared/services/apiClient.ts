@@ -56,7 +56,7 @@ const axiosInstance = axios.create({
     },
     // CRITICO: Necessario per inviare/ricevere cookies cross-origin
     withCredentials: true,
-    timeout: 25000, // 25 secondi timeout per richieste AI più lente
+    timeout: 60000, // 60 secondi timeout per richieste AI più lente
 });
 
 // ==========================================
