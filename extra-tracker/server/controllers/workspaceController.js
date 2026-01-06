@@ -56,14 +56,41 @@ exports.getProject = asyncHandler(async (req, res) => {
 /**
  * POST /api/workspace/projects
  * Crea nuovo progetto
+ * 
+ * Body supportato:
+ * - name (required)
+ * - description (optional)
+ * - code (optional, auto-generato se non fornito)
+ * - type (optional, default: 'CLIENT' | 'PERSONAL')
+ * - rate (required se type='CLIENT', optional se type='PERSONAL')
+ * - color (optional, default: '#6366f1')
+ * - icon (optional, default: '📂')
+ * - status (optional, default: 'active')
+ * - estimatedHours (optional)
+ * - progress (optional)
  */
 exports.createProject = asyncHandler(async (req, res) => {
+    // Se non c'è code, genera uno automatico basato sul nome
+    let code = req.body.code;
+    if (!code && req.body.name) {
+        // Genera code dal nome: prime 3-4 lettere maiuscole
+        code = req.body.name
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .substring(0, 4)
+            .toUpperCase() || 'PROJ';
+    }
+    
     const project = await workspaceService.projects.create(req.tenantScope, {
         name: req.body.name,
         description: req.body.description,
-        color: req.body.color,
-        icon: req.body.icon,
+        code: code,
+        type: req.body.type || 'CLIENT',
+        rate: req.body.rate,
+        color: req.body.color || '#6366f1',
+        icon: req.body.icon || '📂',
         status: req.body.status || 'active',
+        estimatedHours: req.body.estimatedHours,
+        progress: req.body.progress,
     });
     res.status(201).json({ success: true, data: project });
 });

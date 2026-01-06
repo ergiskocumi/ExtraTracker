@@ -22,6 +22,7 @@ const Project = require('../models/Project');
 const WorkLog = require('../models/WorkLog');
 const AppError = require('../utils/AppError');
 const activityService = require('./activityService');
+const mongoose = require('mongoose');
 
 const MINUTES_IN_HOUR = 60;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -63,6 +64,97 @@ class ProjectService extends BaseService {
      */
     async findActive(tenantScope, options = {}) {
         return this.find(tenantScope, { status: 'active' }, options);
+    }
+
+    /**
+     * Trova progetti con conteggio entries e statistiche.
+     * 
+     * Questo metodo serve al Workspace per mostrare progetti con statistiche.
+     * Aggrega WorkLog per calcolare entriesCount, lastEntryDate, totalDuration, streak.
+     */
+    async findWithEntryCount(tenantScope, options = {}) {
+        const userId = this._getUserId(tenantScope);
+        
+        const projects = await this.Model.aggregate([
+            { $match: { user: userId } },
+            {
+                $lookup: {
+                    from: 'worklogs',
+                    localField: '_id',
+                    foreignField: 'projectId',
+                    as: 'entries',
+                },
+            },
+            {
+                $addFields: {
+                    entriesCount: { $size: '$entries' },
+                    lastEntryDate: {
+                        $max: '$entries.date',
+                    },
+                    totalDuration: {
+                        $sum: '$entries.durationMinutes',
+                    },
+                },
+            },
+            {
+                $project: {
+                    entries: 0, // Rimuovi array entries dal risultato
+                },
+            },
+            { $sort: { name: 1 } },
+        ]);
+
+        // Calcola streak per ogni progetto
+        const projectIds = projects.map(p => p._id);
+        if (projectIds.length > 0) {
+            // Recupera tutte le date uniche per tutti i progetti in una query
+            const entriesByProject = await WorkLog.aggregate([
+                { $match: { projectId: { $in: projectIds }, user: userId } },
+                {
+                    $group: {
+                        _id: '$projectId',
+                        dates: { $addToSet: '$date' }
+                    }
+                }
+            ]);
+            
+            // Crea una mappa progetto -> date
+            const datesMap = new Map();
+            entriesByProject.forEach(item => {
+                datesMap.set(item._id.toString(), new Set(item.dates));
+            });
+            
+            // Calcola streak per ogni progetto
+            const today = new Date().toISOString().split('T')[0];
+            projects.forEach(project => {
+                const projectDates = datesMap.get(project._id.toString());
+                if (!projectDates || projectDates.size === 0) {
+                    project.streak = 0;
+                    return;
+                }
+                
+                // Calcola streak: giorni consecutivi partendo da oggi
+                let streak = 0;
+                let currentDate = today;
+                
+                while (projectDates.has(currentDate)) {
+                    streak++;
+                    // Calcola la data precedente
+                    const dateObj = new Date(currentDate);
+                    dateObj.setDate(dateObj.getDate() - 1);
+                    currentDate = dateObj.toISOString().split('T')[0];
+                }
+                
+                project.streak = streak;
+            });
+        }
+
+        // Converti _id in id per coerenza con il resto dell'API
+        return projects.map(p => ({
+            ...p,
+            id: p._id.toString(),
+            _id: undefined,
+        }));
     }
 
     /**
