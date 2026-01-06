@@ -462,18 +462,17 @@ class AuthService {
         const accessToken = this.generateAccessToken(user);
         const { token: refreshToken, sessionData } = await this.generateRefreshToken(user, deviceInfo);
 
-        // Usa operatori atomici MongoDB per evitare conflitti di versione
-        // Pulisci sessioni scadute e aggiungi nuova sessione atomicamente
+        // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
+        // MongoDB non permette $push e $pull sullo stesso array nella stessa operazione
         const refreshTokenExpiryMs = securityConfig.jwt.refreshTokenExpiry 
             ? this.parseExpiryToMs(securityConfig.jwt.refreshTokenExpiry)
             : 7 * 24 * 60 * 60 * 1000;
         const expiryDate = new Date(Date.now() - refreshTokenExpiryMs);
 
-        // Operazione atomica: pulisci scadute e aggiungi nuova
+        // 1. Pulisci le sessioni scadute (Safe to do first)
         await User.updateOne(
             { _id: user._id },
             {
-                $push: { refreshTokens: sessionData },
                 $pull: {
                     refreshTokens: {
                         createdAt: { $lt: expiryDate }
@@ -482,11 +481,20 @@ class AuthService {
             }
         );
 
-        // Applica limite FIFO se necessario (operazione separata ma atomica)
-        // Usa findOneAndUpdate con aggregation pipeline per garantire atomicità
-        const result = await User.findOneAndUpdate(
+        // 2. Aggiungi la nuova sessione e applica il limite FIFO (usando la pipeline atomica)
+        // Nota: La pipeline gestisce sia l'inserimento che il taglio dell'array in un colpo solo
+        const updatedUser = await User.findOneAndUpdate(
             { _id: user._id },
             [
+                // Aggiungi la nuova sessione
+                {
+                    $set: {
+                        refreshTokens: {
+                            $concatArrays: ['$refreshTokens', [sessionData]]
+                        }
+                    }
+                },
+                // Applica il limite FIFO (tieni solo gli ultimi MAX_ACTIVE_SESSIONS)
                 {
                     $set: {
                         refreshTokens: {
@@ -513,8 +521,8 @@ class AuthService {
         );
 
         // Aggiorna oggetto user locale con risultato
-        if (result) {
-            Object.assign(user, result.toObject());
+        if (updatedUser) {
+            Object.assign(user, updatedUser.toObject());
         }
 
         return { user, accessToken, refreshToken };
@@ -608,8 +616,22 @@ class AuthService {
 
         // IMPORTANTE: Aggiungi vecchio token al grace period PRIMA di rimuoverlo
         // Questo previene race conditions se arrivano richieste concorrenti
-        // Usa operatori atomici per evitare conflitti di versione
+        // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
         const graceExpiresAt = new Date(Date.now() + GRACE_PERIOD_MS);
+        
+        // 1. Pulisci token scaduti dal grace period (Safe to do first)
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $pull: {
+                    gracePeriodTokens: {
+                        expiresAt: { $lt: new Date() }
+                    }
+                }
+            }
+        );
+        
+        // 2. Aggiungi nuovo token al grace period
         await User.updateOne(
             { _id: user._id },
             {
@@ -617,11 +639,6 @@ class AuthService {
                     gracePeriodTokens: {
                         hash: tokenHash,
                         expiresAt: graceExpiresAt,
-                    }
-                },
-                $pull: {
-                    gracePeriodTokens: {
-                        expiresAt: { $lt: new Date() } // Pulisci scaduti
                     }
                 }
             }

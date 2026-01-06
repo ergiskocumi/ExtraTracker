@@ -513,7 +513,22 @@ userSchema.methods.findInGracePeriod = function (tokenHash) {
 userSchema.methods.addToGracePeriod = async function (tokenHash, gracePeriodMs = 30000) {
     const expiresAt = new Date(Date.now() + gracePeriodMs);
     
-    // Usa operatori atomici: pulisci scaduti e aggiungi nuovo token
+    // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
+    // MongoDB non permette $push e $pull sullo stesso array nella stessa operazione
+    
+    // 1. Pulisci token scaduti dal grace period (Safe to do first)
+    await User.updateOne(
+        { _id: this._id },
+        {
+            $pull: {
+                gracePeriodTokens: {
+                    expiresAt: { $lt: new Date() }
+                }
+            }
+        }
+    );
+    
+    // 2. Aggiungi nuovo token al grace period
     await User.updateOne(
         { _id: this._id },
         {
@@ -521,11 +536,6 @@ userSchema.methods.addToGracePeriod = async function (tokenHash, gracePeriodMs =
                 gracePeriodTokens: {
                     hash: tokenHash,
                     expiresAt: expiresAt,
-                }
-            },
-            $pull: {
-                gracePeriodTokens: {
-                    expiresAt: { $lt: new Date() } // Pulisci token scaduti
                 }
             }
         }

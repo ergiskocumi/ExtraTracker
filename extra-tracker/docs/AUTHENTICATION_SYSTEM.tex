@@ -747,6 +747,90 @@ async refreshAccessToken(refreshToken, deviceInfo = {}) {
     \item \textbf{Retry mechanism}: Se devi usare \code{user.save()}, implementa retry su \code{VersionError}
 \end{itemize}
 
+\important{Limite MongoDB: Non puoi fare \$push e \$pull sullo stesso array nella stessa operazione}
+
+\textbf{Problema:}
+MongoDB non permette di modificare lo stesso array (path) due volte nella stessa operazione \code{updateOne} perché non sa in che ordine eseguirle. Questo causa errore:
+\begin{lstlisting}
+MongoServerError: Updating the path 'refreshTokens' would create a conflict at 'refreshTokens'
+\end{lstlisting}
+
+\textbf{Soluzione: Separare le Operazioni}
+
+\begin{lstlisting}[caption=Login Corretto - Separazione Operazioni]
+async login(data, deviceInfo = {}) {
+    // ... verifica password ...
+    
+    // Genera token
+    const accessToken = this.generateAccessToken(user);
+    const { token: refreshToken, sessionData } = 
+        await this.generateRefreshToken(user, deviceInfo);
+
+    const refreshTokenExpiryMs = this.parseExpiryToMs(
+        securityConfig.jwt.refreshTokenExpiry
+    );
+    const expiryDate = new Date(Date.now() - refreshTokenExpiryMs);
+
+    // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
+    
+    // 1. Pulisci le sessioni scadute (Safe to do first)
+    await User.updateOne(
+        { _id: user._id },
+        {
+            $pull: {
+                refreshTokens: {
+                    createdAt: { $lt: expiryDate }
+                }
+            }
+        }
+    );
+
+    // 2. Aggiungi la nuova sessione e applica il limite FIFO
+    const updatedUser = await User.findOneAndUpdate(
+        { _id: user._id },
+        [
+            {
+                $set: {
+                    refreshTokens: {
+                        $concatArrays: ['$refreshTokens', [sessionData]]
+                    }
+                }
+            },
+            {
+                $set: {
+                    refreshTokens: {
+                        $cond: {
+                            if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                            then: {
+                                $slice: [
+                                    {
+                                        $sortArray: {
+                                            input: '$refreshTokens',
+                                            sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                        }
+                                    },
+                                    -MAX_ACTIVE_SESSIONS
+                                ]
+                            },
+                            else: '$refreshTokens'
+                        }
+                    }
+                }
+            }
+        ],
+        { new: true }
+    );
+}
+\end{lstlisting}
+
+\textbf{Regola Generale:}
+\begin{itemize}
+    \item \important{Non fare} \code{\$push} e \code{\$pull} sullo stesso array nella stessa operazione
+    \item \textbf{Separa} le operazioni in due \code{updateOne} sequenziali
+    \item \textbf{Ordine}: Prima \code{\$pull} (rimuovi), poi \code{\$push} (aggiungi)
+    \item \textbf{Alternative}: Usa aggregation pipeline per operazioni complesse
+\end{itemize}
+
 \subsubsection{Refresh Token con Validazione Hash}
 
 \begin{lstlisting}[caption=Refresh Token con Validazione Multi-Sessione e Grace Period]
