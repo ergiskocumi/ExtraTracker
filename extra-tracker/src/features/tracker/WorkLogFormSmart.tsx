@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     FiEdit2, FiFolder, FiCalendar, FiPlay, FiSquare, FiPlus, FiFileText, 
-    FiClock, FiZap, FiX, FiChevronDown, FiSun, FiSunset, FiMoon
+    FiClock, FiZap, FiX, FiChevronDown, FiSun, FiSunset, FiMoon, FiLock, FiUnlock
 } from "react-icons/fi";
 import type { WorkLog, WorkLogFormMode } from "./type";
 import DatePicker, { registerLocale } from "react-datepicker";
@@ -17,7 +17,14 @@ registerLocale("it", it);
 
 interface WorkLogFormProps {
     projects: Project[];
-    onSave: (data: { projectId: string; date: string; startTime: string; endTime: string }) => void;
+    onSave: (data: { 
+        projectId: string; 
+        date: string; 
+        startTime: string; 
+        endTime: string;
+        durationMinutes?: number;
+        isManualDuration?: boolean;
+    }) => void;
     initialData: WorkLog | null;
     mode: WorkLogFormMode;
     onCancel: () => void;
@@ -55,6 +62,12 @@ export const WorkLogForm = ({ projects, onSave, initialData, mode, onCancel }: W
     
     const [showProjectDropdown, setShowProjectDropdown] = useState(false);
     const [showQuickTimes, setShowQuickTimes] = useState(true);
+    
+    // Stato per durata manuale
+    const [isManualDuration, setIsManualDuration] = useState(initialData?.isManualDuration || false);
+    const [manualDurationHours, setManualDurationHours] = useState<number | ''>(
+        initialData?.durationMinutes ? (initialData.durationMinutes / 60) : ''
+    );
 
     // Allinea il form quando cambia il dato in ingresso
     useEffect(() => {
@@ -65,10 +78,24 @@ export const WorkLogForm = ({ projects, onSave, initialData, mode, onCancel }: W
             endTime: initialData?.endTime || "",
         });
         setSelectedDate(initialData?.date ? new Date(initialData.date) : null);
+        setIsManualDuration(initialData?.isManualDuration || false);
+        setManualDurationHours(
+            initialData?.durationMinutes ? (initialData.durationMinutes / 60) : ''
+        );
     }, [initialData, mode]);
 
-    // Calcola durata e guadagno stimato
+    // Calcola durata e guadagno stimato (solo se non è manuale)
     const calculations = useMemo(() => {
+        if (isManualDuration) {
+            // Se è manuale, usa la durata manuale
+            if (typeof manualDurationHours === 'number' && manualDurationHours > 0) {
+                const project = projects.find(p => p.id === formData.projectId);
+                const earnings = project ? manualDurationHours * project.rate : 0;
+                return { hours: manualDurationHours, earnings, project };
+            }
+            return null;
+        }
+        
         if (!formData.startTime || !formData.endTime) return null;
         
         const start = new Date(`2000-01-01T${formData.startTime}`);
@@ -81,7 +108,19 @@ export const WorkLogForm = ({ projects, onSave, initialData, mode, onCancel }: W
         const earnings = project ? hours * project.rate : 0;
         
         return { hours, earnings, project };
-    }, [formData.startTime, formData.endTime, formData.projectId, projects]);
+    }, [formData.startTime, formData.endTime, formData.projectId, projects, isManualDuration, manualDurationHours]);
+    
+    // Ricalcola automaticamente la durata quando cambiano gli orari (solo se non è manuale)
+    useEffect(() => {
+        if (!isManualDuration && formData.startTime && formData.endTime) {
+            const start = new Date(`2000-01-01T${formData.startTime}`);
+            const end = new Date(`2000-01-01T${formData.endTime}`);
+            const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+            if (hours > 0) {
+                setManualDurationHours(hours);
+            }
+        }
+    }, [formData.startTime, formData.endTime, isManualDuration]);
 
     const selectedProject = projects.find(p => p.id === formData.projectId);
 
@@ -106,6 +145,10 @@ export const WorkLogForm = ({ projects, onSave, initialData, mode, onCancel }: W
             endTime: preset.end
         }));
         setShowQuickTimes(false);
+        // Se non è manuale, ricalcola la durata
+        if (!isManualDuration) {
+            setManualDurationHours(preset.hours);
+        }
     };
 
     // Apply quick duration from start time
@@ -117,6 +160,34 @@ export const WorkLogForm = ({ projects, onSave, initialData, mode, onCancel }: W
         const endTime = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
         
         setFormData(prev => ({ ...prev, endTime }));
+        // Se non è manuale, aggiorna la durata
+        if (!isManualDuration) {
+            setManualDurationHours(hours);
+        }
+    };
+    
+    // Handler per modifica manuale della durata
+    const handleManualDurationChange = (value: string) => {
+        const numValue = value === '' ? '' : parseFloat(value);
+        setManualDurationHours(numValue);
+        // Attiva il lock quando l'utente modifica manualmente
+        if (value !== '' && !isManualDuration) {
+            setIsManualDuration(true);
+        }
+    };
+    
+    // Handler per sbloccare la durata manuale
+    const handleUnlockDuration = () => {
+        setIsManualDuration(false);
+        // Ricalcola dalla durata degli orari se presenti
+        if (formData.startTime && formData.endTime) {
+            const start = new Date(`2000-01-01T${formData.startTime}`);
+            const end = new Date(`2000-01-01T${formData.endTime}`);
+            const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+            if (hours > 0) {
+                setManualDurationHours(hours);
+            }
+        }
     };
 
     // Set today's date quickly
@@ -128,12 +199,25 @@ export const WorkLogForm = ({ projects, onSave, initialData, mode, onCancel }: W
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(formData);
+        const submitData: any = { ...formData };
+        
+        // Se la durata è manuale, includi durationMinutes e isManualDuration
+        if (isManualDuration && typeof manualDurationHours === 'number' && manualDurationHours > 0) {
+            submitData.durationMinutes = Math.round(manualDurationHours * 60);
+            submitData.isManualDuration = true;
+        } else if (isManualDuration) {
+            // Se è manuale ma non c'è valore, invia comunque il flag
+            submitData.isManualDuration = true;
+        }
+        
+        onSave(submitData);
         
         if (!initialData || mode === "smartCopy") {
             setFormData({ projectId: '', date: '', startTime: '', endTime: '' });
             setSelectedDate(null);
             setShowQuickTimes(true);
+            setIsManualDuration(false);
+            setManualDurationHours('');
         }
     };
 
@@ -248,7 +332,7 @@ export const WorkLogForm = ({ projects, onSave, initialData, mode, onCancel }: W
                     )}
                 </AnimatePresence>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6">
                     {/* Project Selector */}
                     <div className="lg:col-span-1">
                         <label className="block mb-2 text-xs font-medium text-white/60">
@@ -398,6 +482,62 @@ export const WorkLogForm = ({ projects, onSave, initialData, mode, onCancel }: W
                                     </button>
                                 ))}
                             </div>
+                        )}
+                    </div>
+
+                    {/* Manual Duration Field */}
+                    <div>
+                        <label className="block mb-2 text-xs font-medium text-white/60">
+                            <div className="flex items-center justify-between">
+                                <span>
+                                    <FiClock className="inline mr-1" size={12} />
+                                    Durata {isManualDuration && <span className="text-amber-400">(Manuale)</span>}
+                                </span>
+                                {isManualDuration && (
+                                    <button
+                                        type="button"
+                                        onClick={handleUnlockDuration}
+                                        className="p-1 rounded hover:bg-white/[0.1] transition-colors group"
+                                        title="Sblocca e ricalcola dagli orari"
+                                    >
+                                        <FiUnlock className="text-amber-400 group-hover:text-amber-300" size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                step="0.25"
+                                min="0"
+                                value={manualDurationHours}
+                                onChange={(e) => handleManualDurationChange(e.target.value)}
+                                placeholder="0.00"
+                                className={`w-full px-4 py-3 rounded-xl bg-white/[0.05] border ${
+                                    isManualDuration 
+                                        ? 'border-amber-500/50 focus:border-amber-500/80' 
+                                        : 'border-white/[0.08] focus:border-primary-500/50'
+                                } text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 ${
+                                    isManualDuration 
+                                        ? 'focus:ring-amber-500/50' 
+                                        : 'focus:ring-primary-500/50'
+                                }`}
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-white/40">
+                                h
+                            </span>
+                            {isManualDuration && (
+                                <div className="absolute -top-1 -right-1">
+                                    <div className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center">
+                                        <FiLock className="text-amber-400" size={10} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        {isManualDuration && (
+                            <p className="mt-1 text-xs text-amber-400/70">
+                                Durata bloccata: modifica manualmente per pause non tracciate
+                            </p>
                         )}
                     </div>
 

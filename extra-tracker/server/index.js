@@ -26,6 +26,13 @@ const { initRedis, closeRedis } = require('./config/redis');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const { errorHandler } = require('./middleware/errorHandler');
 
+// Subscribers (Pattern Observer)
+const { initializeSubscribers } = require('./subscribers/activitySubscriber');
+
+// Queue e Metriche
+const { initializeQueue, closeQueue } = require('./queues/activityQueue');
+const eventMetrics = require('./utils/eventMetrics');
+
 // Routes
 const apiRoutes = require('./routes/api');
 const goalsRoutes = require('./routes/goals');
@@ -168,9 +175,16 @@ const connectDB = async () => {
 const gracefulShutdown = async (signal) => {
     console.log(`\n🛑 Ricevuto ${signal}. Chiusura graceful...`);
     try {
+        // Chiudi queue gracefulmente
+        await closeQueue();
+        
+        // Chiudi Redis
         await closeRedis();
+        
+        // Chiudi MongoDB
         await mongoose.connection.close();
         console.log('✅ Connessione MongoDB chiusa');
+        
         process.exit(0);
     } catch (err) {
         console.error('❌ Errore shutdown:', err);
@@ -192,11 +206,30 @@ const startServer = async () => {
     // Connetti a MongoDB
     await connectDB();
     
+    // Inizializza activity queue (con retry automatico)
+    // Deve essere fatto dopo la connessione a Redis
+    initializeQueue();
+    
+    // Inizializza subscribers (Pattern Observer)
+    // Deve essere fatto dopo la connessione al DB
+    initializeSubscribers();
+    
+    // Log metriche ogni 5 minuti (solo in sviluppo)
+    if (process.env.NODE_ENV !== 'production') {
+        setInterval(() => {
+            const summary = eventMetrics.getSummary();
+            console.log('📊 Event Metrics:', JSON.stringify(summary, null, 2));
+        }, 5 * 60 * 1000);
+    }
+    
     app.listen(PORT, () => {
         console.log(`
 🚀 Server in ascolto sulla porta ${PORT}
 📍 Environment: ${process.env.NODE_ENV || 'development'}
 🔒 Security: Helmet, CORS, Rate Limiting attivi
+📡 Event Bus: Pattern Observer attivo
+🔄 Activity Queue: Retry automatico attivo
+📊 Event Metrics: Monitoring attivo
         `);
     });
 };

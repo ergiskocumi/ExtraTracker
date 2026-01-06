@@ -89,6 +89,13 @@ const workLogSchema = new mongoose.Schema({
         default: 0,
     },
     
+    // Flag per indicare se la durata è stata impostata manualmente dall'utente
+    // Se true, il pre-save hook NON ricalcola la durata anche se startTime/endTime sono presenti
+    isManualDuration: {
+        type: Boolean,
+        default: false,
+    },
+    
 }, {
     timestamps: true,
 });
@@ -142,11 +149,18 @@ workLogSchema.virtual('durationHours').get(function() {
 
 /**
  * Pre-save: calcola automaticamente la durata in minuti SOLO se orari sono presenti.
+ * Se isManualDuration è true, salta il calcolo automatico e rispetta il valore manuale.
  * Se orari mancano, durationMinutes rimane 0 (o valore inserito manualmente).
  */
-workLogSchema.pre('save', function() {
+workLogSchema.pre('save', function(next) {
+    // Se la durata è manuale, fidati dell'utente e salta il calcolo automatico
+    if (this.isManualDuration) {
+        return next();
+    }
+
     // Calcola durationMinutes solo se startTime E endTime sono entrambi presenti
     if (this.startTime && this.endTime) {
+        // Ricalcola solo se gli orari sono stati modificati
         if (this.isModified('startTime') || this.isModified('endTime')) {
             const [startHour, startMin] = this.startTime.split(':').map(Number);
             const [endHour, endMin] = this.endTime.split(':').map(Number);
@@ -167,6 +181,8 @@ workLogSchema.pre('save', function() {
             this.durationMinutes = 0;
         }
     }
+    
+    next();
 });
 
 // =========================================

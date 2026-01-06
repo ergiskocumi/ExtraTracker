@@ -13,6 +13,7 @@ export interface WorkLog {
     startTime?: string; // orario di inizio del lavoro (HH:mm) - OPZIONALE
     endTime?: string; // orario di fine del lavoro (HH:mm) - OPZIONALE
     durationMinutes?: number; // durata in minuti (calcolata se orari presenti, altrimenti 0)
+    isManualDuration?: boolean; // flag per indicare se la durata è stata impostata manualmente
     createdAt: string; // timestamp creazione
     updatedAt: string; // timestamp ultimo aggiornamento
 }

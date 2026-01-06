@@ -162,6 +162,8 @@ router.post('/worklogs', asyncHandler(async (req, res) => {
         isBillable: req.body.isBillable,
         startTime: req.body.startTime,
         endTime: req.body.endTime,
+        durationMinutes: req.body.durationMinutes,
+        isManualDuration: req.body.isManualDuration,
     });
     res.status(201).json({ success: true, data: log });
 }));

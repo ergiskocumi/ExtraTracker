@@ -16,7 +16,7 @@ const BaseService = require('./BaseService');
 const WorkLog = require('../models/WorkLog');
 const Project = require('../models/Project');
 const AppError = require('../utils/AppError');
-const activityService = require('./activityService');
+const eventBus = require('../utils/eventBus');
 
 class WorkLogService extends BaseService {
     constructor() {
@@ -326,6 +326,12 @@ class WorkLogService extends BaseService {
      * Gestisce sia inserimenti "Timer" (con orari) che "Journal" (solo testo).
      * - Se ci sono startTime e endTime: valida e calcola durata (Model lo fa automaticamente)
      * - Se non ci sono orari: permette creazione come nota/journal (durationMinutes = 0)
+     * 
+     * Pattern Observer: emette evento invece di chiamare direttamente ActivityService.
+     * Questo decoupling permette:
+     * - Fire and forget: non blocca la risposta HTTP
+     * - Gestione errori in background (subscriber)
+     * - Facile aggiungere altri subscriber per altri eventi
      */
     async create(tenantScope, data) {
         // La validazione è già fatta in beforeCreate()
@@ -333,42 +339,38 @@ class WorkLogService extends BaseService {
         
         const created = await super.create(tenantScope, data);
         const userId = this._getUserId(tenantScope);
-        const durationMinutes = Number.isFinite(created.durationMinutes)
-            ? created.durationMinutes
-            : 0;
-        const tags = Array.isArray(data?.tags) ? data.tags : [];
-        const timeOfDay = this._getTimeOfDayLabel(new Date());
 
-        // Determina tipo di attività per analytics
-        const activityType = (created.startTime && created.endTime) 
-            ? 'WORK_SESSION_LOGGED' 
-            : 'WORK_NOTE_CREATED';
-
-        // Registra attività (non blocca la creazione se fallisce)
-        try {
-            await activityService.recordActivity(userId, activityType, {
-                entityId: created._id,
-                category: 'work',
-                metadata: {
-                    entityId: created._id,
-                    projectId: created.projectId,
-                    durationMinutes,
-                    tags,
-                    timeOfDay,
-                    date: created.date,
-                    startTime: created.startTime || null,
-                    endTime: created.endTime || null,
-                    hasTimeTracking: !!(created.startTime && created.endTime),
-                },
-            });
-        } catch (activityErr) {
-            // Log errore ma non bloccare la creazione del worklog
-            // L'activity tracking è opzionale e non deve impedire la creazione
-            console.error(`❌ Activity log error (${activityType}):`, activityErr.message);
-            // Non propagare l'errore - il worklog è stato creato con successo
-        }
+        // Emetti evento per activity tracking (Pattern Observer)
+        // Il subscriber gestirà la chiamata a ActivityService in background
+        // Non blocca la risposta HTTP al client
+        eventBus.emit('worklog.created', {
+            userId,
+            workLog: created,
+        });
 
         return created;
+    }
+
+    /**
+     * Override update per emettere evento worklog.updated
+     */
+    async update(tenantScope, id, data, options = {}) {
+        // Recupera il worklog precedente per confronto
+        const previous = await this.findById(tenantScope, id, { throwIfNotFound: true });
+        
+        // Esegui update normale
+        const updated = await super.update(tenantScope, id, data, options);
+        
+        const userId = this._getUserId(tenantScope);
+        
+        // Emetti evento per activity tracking (Pattern Observer)
+        eventBus.emit('worklog.updated', {
+            userId,
+            workLog: updated,
+            previousWorkLog: previous,
+        });
+
+        return updated;
     }
 
     /**

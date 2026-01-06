@@ -13,7 +13,7 @@ const Deck = require('../models/Deck');
 const Goal = require('../models/Goal');
 const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
-const activityService = require('./activityService');
+const eventBus = require('../utils/eventBus');
 const OpenAI = require('openai');
 const { PDFParse } = require('pdf-parse');
 const fs = require('fs/promises');
@@ -614,18 +614,14 @@ class StudyService extends BaseService {
         let gamification = null;
         const shouldRecord = sessionMeta?.isComplete || sessionMeta?.completed;
         if (shouldRecord) {
-            try {
-                gamification = await activityService.recordActivity(userId, 'SESSION_COMPLETE', {
-                    entityId: deckId,
-                    category: 'study',
-                    metadata: {
-                        ...sessionMeta,
-                        deckId,
-                    },
-                });
-            } catch (err) {
-                console.error('❌ Gamification error:', err.message);
-            }
+            // Emetti evento per activity tracking (Pattern Observer)
+            eventBus.emit('session.completed', {
+                userId,
+                session: {
+                    deckId,
+                    ...sessionMeta,
+                },
+            });
         }
 
         const updatedCard = this._serializeCard(card);
