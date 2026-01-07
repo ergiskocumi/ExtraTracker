@@ -1,0 +1,754 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+
+\geometry{margin=2.5cm}
+
+% Configurazione per il codice
+\lstset{
+    language=JavaScript,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=2,
+    showspaces=false,
+    showstringspaces=false
+}
+
+\title{Sistema di Gamification\\
+\large Documentazione Tecnica Completa}
+\author{ExtraTracker}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduzione}
+
+Questo documento fornisce una documentazione completa ed esaustiva del sistema di gamification implementato in ExtraTracker. Il sistema utilizza un meccanismo di punti esperienza (XP), livelli e streak per incentivare l'utilizzo continuativo della piattaforma.
+
+\subsection{Obiettivi del Sistema}
+
+Il sistema di gamification ha i seguenti obiettivi:
+\begin{itemize}
+    \item \textbf{Engagement}: Motivare gli utenti a utilizzare regolarmente la piattaforma
+    \item \textbf{Consistenza}: Promuovere sessioni di studio e lavoro quotidiane attraverso lo streak
+    \item \textbf{Qualità}: Premiare la qualità delle risposte e la velocità di apprendimento
+    \item \textbf{Progresso}: Fornire feedback visivo sul progresso dell'utente
+\end{itemize}
+
+\subsection{Architettura Generale}
+
+Il sistema di gamification è centralizzato nel servizio \texttt{ActivityService}, che gestisce:
+\begin{itemize}
+    \item Registrazione di tutte le attività utente
+    \item Calcolo degli XP guadagnati
+    \item Aggiornamento del livello utente
+    \item Gestione dello streak (giorni consecutivi di attività)
+    \item Statistiche aggregate
+\end{itemize}
+
+\section{Componenti Principali}
+
+\subsection{ActivityService}
+
+Il servizio principale per la gestione della gamification si trova in:
+\begin{lstlisting}
+server/services/activityService.js
+\end{lstlisting}
+
+Questo servizio è responsabile di:
+\begin{enumerate}
+    \item Registrare tutte le attività utente nel database (\texttt{UserActivity})
+    \item Calcolare gli XP guadagnati per ogni attività
+    \item Aggiornare il livello dell'utente in base agli XP totali
+    \item Gestire lo streak in modo atomico (prevenendo race conditions)
+    \item Mantenere statistiche aggregate (sessioni di studio, carte riviste, ecc.)
+\end{enumerate}
+
+\subsection{Modello Dati Utente}
+
+I dati di gamification sono memorizzati nel modello \texttt{User} nella struttura:
+
+\begin{lstlisting}
+gamification: {
+    xp: Number,              // XP totali accumulati
+    level: Number,           // Livello corrente (calcolato)
+    streak: {
+        current: Number,     // Streak corrente (giorni consecutivi)
+        best: Number,         // Miglior streak mai raggiunto
+        lastActivityDate: Date // Ultima data di attività
+    },
+    stats: {
+        totalStudySessions: Number,
+        totalFlashcardsReviewed: Number,
+        correctAnswers: Number
+    }
+}
+\end{lstlisting}
+
+\section{Sistema di Livelli}
+
+\subsection{Formula di Calcolo del Livello}
+
+Il livello viene calcolato utilizzando una formula quadratica inversa basata sulla radice quadrata:
+
+\begin{equation}
+\text{level} = \max\left(1, \left\lfloor \sqrt{\frac{\text{xp}}{100}} \right\rfloor + 1\right)
+\end{equation}
+
+Dove:
+\begin{itemize}
+    \item $\text{xp}$ è l'XP totale accumulato dall'utente
+    \item $100$ è la costante \texttt{XP\_LEVEL\_BASE}
+    \item $\lfloor \cdot \rfloor$ è la funzione floor (arrotondamento per difetto)
+    \item Il risultato è sempre almeno 1 (livello minimo)
+\end{itemize}
+
+\subsection{Implementazione}
+
+\begin{lstlisting}
+getLevelFromXP(xp) {
+    const safeXp = this._toNumber(xp, 0);
+    return Math.max(1, Math.floor(Math.sqrt(safeXp / XP_LEVEL_BASE)) + 1);
+}
+\end{lstlisting}
+
+\subsection{Calcolo XP per il Prossimo Livello}
+
+L'XP necessario per raggiungere il prossimo livello è calcolato come:
+
+\begin{equation}
+\text{nextLevelXp} = \max(100, \text{level}^2 \times 100)
+\end{equation}
+
+Per il livello 1, il prossimo livello richiede 100 XP. Per livelli superiori, la formula è $\text{level}^2 \times 100$.
+
+\subsection{Esempi di Progressione}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+\textbf{Livello} & \textbf{XP Minimo} & \textbf{XP Massimo} & \textbf{XP per Prossimo} & \textbf{Delta XP} \\
+\midrule
+1 & 0 & 99 & 100 & 100 \\
+2 & 100 & 399 & 400 & 300 \\
+3 & 400 & 899 & 900 & 500 \\
+4 & 900 & 1599 & 1600 & 700 \\
+5 & 1600 & 2499 & 2500 & 900 \\
+10 & 8100 & 9999 & 10000 & 1900 \\
+20 & 36100 & 39999 & 40000 & 3900 \\
+\bottomrule
+\end{tabular}
+\caption{Progressione dei livelli}
+\end{table}
+
+Come si può osservare, la progressione diventa sempre più difficile, richiedendo più XP per ogni livello successivo. Questo crea un sistema di progressione bilanciato che premia la costanza nel tempo.
+
+\section{Sistema di XP (Punti Esperienza)}
+
+\subsection{Attività che Generano XP}
+
+Il sistema riconosce diversi tipi di attività che possono generare XP:
+
+\begin{enumerate}
+    \item \textbf{SESSION\_COMPLETE}: Completamento di una sessione di studio
+    \item \textbf{GOAL\_COMPLETED}: Completamento di un obiettivo
+    \item \textbf{STREAK\_BONUS}: Bonus per streak (attualmente non utilizzato direttamente)
+\end{enumerate}
+
+\subsection{Attività che NON Generano XP}
+
+Le seguenti attività vengono registrate ma non generano XP:
+\begin{itemize}
+    \item \texttt{GOAL\_CREATED}: Creazione di un obiettivo (0 XP)
+    \item \texttt{GOAL\_ARCHIVED}: Archiviazione di un obiettivo (0 XP)
+    \item \texttt{WORK\_SESSION\_LOGGED}: Registrazione di una sessione di lavoro (0 XP)
+    \item \texttt{WORK\_NOTE\_CREATED}: Creazione di una nota di lavoro (0 XP)
+    \item \texttt{HABIT\_CHECKIN}: Check-in di un'abitudine (0 XP)
+    \item \texttt{HABIT\_SKIPPED}: Saltare un'abitudine (0 XP)
+    \item \texttt{PROJECT\_CREATED}: Creazione di un progetto (0 XP)
+    \item \texttt{PROJECT\_COMPLETED}: Completamento di un progetto (0 XP)
+\end{itemize}
+
+Queste attività vengono comunque registrate per analytics e tracking, ma non contribuiscono direttamente alla progressione di livello.
+
+\section{Calcolo XP per Sessioni di Studio}
+
+\subsection{Formula Completa}
+
+L'XP guadagnato per una sessione di studio è calcolato come:
+
+\begin{equation}
+\text{XP}_{\text{sessione}} = \text{Base} + \text{Corrette} + \text{Speed Bonus} + \text{Streak Bonus}
+\end{equation}
+
+Dove:
+\begin{align}
+\text{Base} &= 10 \text{ XP} \\
+\text{Corrette} &= \text{correctCount} \times 2 \\
+\text{Speed Bonus} &= \max\left(0, \left\lfloor 10 - \frac{\text{timePerCard}}{3} \right\rfloor\right) \\
+\text{Streak Bonus} &= \text{metadata.streakBonus} \text{ (attualmente sempre 0)}
+\end{align}
+
+E:
+\begin{equation}
+\text{timePerCard} = \begin{cases}
+\frac{\text{timeSpentSeconds}}{\text{totalCards}} & \text{se } \text{totalCards} > 0 \\
+0 & \text{altrimenti}
+\end{cases}
+\end{equation}
+
+\subsection{Implementazione}
+
+\begin{lstlisting}
+_calculateSessionXp(metadata) {
+    const baseXP = 10;
+    const correctCount = this._toNumber(metadata.correctCount, 0);
+    const wrongCount = this._toNumber(metadata.wrongCount, 0);
+    const timeSpentSeconds = this._toNumber(metadata.timeSpentSeconds, 0);
+    const totalCards = this._toNumber(metadata.totalCards, correctCount + wrongCount);
+
+    const timePerCard = totalCards > 0 ? timeSpentSeconds / totalCards : 0;
+    const timeBonus = timePerCard > 0
+        ? Math.max(0, Math.round(10 - timePerCard / 3))
+        : 0;
+
+    const streakBonus = this._toNumber(metadata.streakBonus, 0);
+
+    return baseXP + (correctCount * 2) + timeBonus + streakBonus;
+}
+\end{lstlisting}
+
+\subsection{Breakdown Dettagliato}
+
+\subsubsection{Base XP}
+
+Ogni sessione di studio completata garantisce \textbf{10 XP base}, indipendentemente dai risultati. Questo premia la semplice azione di completare una sessione.
+
+\subsubsection{XP per Risposte Corrette}
+
+Ogni risposta corretta vale \textbf{2 XP}. Questo incentiva la qualità delle risposte durante lo studio.
+
+\textbf{Esempio}: Se un utente risponde correttamente a 15 carte su 20:
+\begin{equation}
+\text{XP}_{\text{corrette}} = 15 \times 2 = 30 \text{ XP}
+\end{equation}
+
+\subsubsection{Speed Bonus}
+
+Il bonus velocità premia sessioni rapide ma accurate. La formula è:
+
+\begin{equation}
+\text{Speed Bonus} = \max\left(0, \left\lfloor 10 - \frac{\text{secondi per carta}}{3} \right\rfloor\right)
+\end{equation}
+
+\textbf{Caratteristiche}:
+\begin{itemize}
+    \item Il bonus massimo è 10 XP (raggiunto con 0 secondi per carta, teoricamente)
+    \item Il bonus diminuisce di 1 XP ogni 3 secondi aggiuntivi per carta
+    \item Il bonus diventa 0 quando il tempo per carta supera i 30 secondi
+    \item Se non ci sono carte, il bonus è 0
+\end{itemize}
+
+\textbf{Esempi}:
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}cc@{}}
+\toprule
+\textbf{Tempo per Carta} & \textbf{Speed Bonus} \\
+\midrule
+0-2.9s & 10 XP \\
+3-5.9s & 9 XP \\
+6-8.9s & 8 XP \\
+9-11.9s & 7 XP \\
+12-14.9s & 6 XP \\
+15-17.9s & 5 XP \\
+18-20.9s & 4 XP \\
+21-23.9s & 3 XP \\
+24-26.9s & 2 XP \\
+27-29.9s & 1 XP \\
+$\geq$ 30s & 0 XP \\
+\bottomrule
+\end{tabular}
+\caption{Speed Bonus in base al tempo per carta}
+\end{table}
+
+\subsubsection{Streak Bonus}
+
+Attualmente, lo streak bonus è sempre impostato a 0. Il campo esiste nella struttura dati per future implementazioni, ma non viene calcolato automaticamente.
+
+\subsection{Esempio Completo di Calcolo}
+
+Consideriamo una sessione con:
+\begin{itemize}
+    \item 20 carte totali
+    \item 17 risposte corrette
+    \item 3 risposte sbagliate
+    \item 120 secondi totali (2 minuti)
+    \item Streak bonus: 0
+\end{itemize}
+
+\textbf{Calcolo}:
+\begin{align}
+\text{timePerCard} &= \frac{120}{20} = 6 \text{ secondi} \\
+\text{Speed Bonus} &= \left\lfloor 10 - \frac{6}{3} \right\rfloor = \left\lfloor 10 - 2 \right\rfloor = 8 \text{ XP} \\
+\text{Corrette} &= 17 \times 2 = 34 \text{ XP} \\
+\text{Base} &= 10 \text{ XP} \\
+\text{Streak Bonus} &= 0 \text{ XP} \\
+\text{XP Totale} &= 10 + 34 + 8 + 0 = \textbf{52 XP}
+\end{align}
+
+\section{Calcolo XP per Obiettivi}
+
+\subsection{GOAL\_COMPLETED}
+
+Quando un obiettivo viene completato, l'utente riceve XP. Il valore predefinito è \textbf{25 XP}, ma può essere personalizzato tramite il campo \texttt{metadata.xpEarned}.
+
+\begin{lstlisting}
+if (type === 'GOAL_COMPLETED') {
+    return this._toNumber(metadata.xpEarned, 25);
+}
+\end{lstlisting}
+
+\textbf{Nota}: Attualmente, il sistema non calcola dinamicamente l'XP in base alla difficoltà o alla categoria dell'obiettivo. Tutti gli obiettivi completati danno 25 XP per default.
+
+\subsection{STREAK\_BONUS}
+
+Il tipo di attività \texttt{STREAK\_BONUS} può dare XP bonus, con un default di \textbf{5 XP}. Attualmente, questo tipo di attività non viene utilizzato automaticamente nel sistema.
+
+\begin{lstlisting}
+if (type === 'STREAK_BONUS') {
+    return this._toNumber(metadata.xpEarned, 5);
+}
+\end{lstlisting}
+
+\section{Sistema di Streak}
+
+\subsection{Definizione}
+
+Lo \textbf{streak} rappresenta il numero di giorni consecutivi in cui l'utente ha completato almeno un'attività che genera XP o viene registrata nel sistema.
+
+\subsection{Logica di Aggiornamento Atomico}
+
+Il sistema utilizza un aggiornamento atomico per prevenire race conditions quando più richieste arrivano simultaneamente. L'implementazione usa operatori MongoDB atomici invece di read-modify-write.
+
+\subsubsection{Algoritmo}
+
+L'algoritmo di aggiornamento dello streak funziona come segue:
+
+\begin{enumerate}
+    \item \textbf{Se \texttt{lastActivityDate} non è oggi}:
+    \begin{itemize}
+        \item \textbf{Se è ieri}: Incrementa lo streak corrente di 1
+        \item \textbf{Altrimenti}: Reset dello streak a 1
+        \item Aggiorna \texttt{lastActivityDate} a oggi
+    \end{itemize}
+    \item \textbf{Se \texttt{lastActivityDate} è già oggi}: Nessuna modifica (idempotente)
+\end{enumerate}
+
+\subsubsection{Implementazione}
+
+Il metodo \texttt{updateStreakAtomically} esegue due operazioni atomiche sequenziali:
+
+\begin{lstlisting}
+async updateStreakAtomically(userId) {
+    const today = this._startOfDay(new Date());
+    const yesterdayStart = new Date(today.getTime() - MS_PER_DAY);
+    
+    // OPERAZIONE 1: Incrementa streak se lastActivityDate è ieri
+    const incrementResult = await User.updateOne(
+        {
+            _id: userId,
+            $or: [
+                { 'gamification.streak.lastActivityDate': { $exists: false } },
+                { 'gamification.streak.lastActivityDate': null },
+                {
+                    $and: [
+                        { 'gamification.streak.lastActivityDate': { $gte: yesterdayStart } },
+                        { 'gamification.streak.lastActivityDate': { $lt: today } },
+                    ],
+                },
+            ],
+        },
+        {
+            $inc: { 'gamification.streak.current': 1 },
+            $set: { 'gamification.streak.lastActivityDate': today },
+        }
+    );
+
+    // OPERAZIONE 2: Reset streak se lastActivityDate è più vecchio di ieri
+    if (incrementResult.matchedCount === 0) {
+        const resetResult = await User.updateOne(
+            {
+                _id: userId,
+                'gamification.streak.lastActivityDate': {
+                    $exists: true,
+                    $ne: null,
+                    $lt: yesterdayStart,
+                },
+            },
+            {
+                $set: {
+                    'gamification.streak.current': 1,
+                    'gamification.streak.lastActivityDate': today,
+                },
+            }
+        );
+    }
+    
+    // Aggiorna best streak se necessario
+    // ...
+}
+\end{lstlisting}
+
+\subsection{Best Streak}
+
+Il sistema mantiene anche il \textbf{best streak}, che rappresenta il miglior streak mai raggiunto dall'utente. Questo valore viene aggiornato automaticamente quando lo streak corrente supera il best streak.
+
+\subsection{Attività che Aggiornano lo Streak}
+
+Tutte le attività registrate tramite \texttt{recordActivity} aggiornano automaticamente lo streak, indipendentemente dal fatto che generino XP o meno. Questo include:
+\begin{itemize}
+    \item Sessioni di studio completate
+    \item Obiettivi creati/completati
+    \item Sessioni di lavoro registrate
+    \item Check-in di abitudini
+    \item Creazione di progetti
+\end{itemize}
+
+\section{Flusso di Registrazione Attività}
+
+\subsection{Metodo recordActivity}
+
+Il metodo principale per registrare attività è \texttt{recordActivity}, che esegue le seguenti operazioni:
+
+\begin{enumerate}
+    \item \textbf{Validazione}: Verifica che il tipo di attività sia valido
+    \item \textbf{Arricchimento Metadata}: Aggiunge \texttt{dayOfWeek} e \texttt{timeOfDay}
+    \item \textbf{Calcolo XP}: Calcola gli XP guadagnati per questa attività
+    \item \textbf{Registrazione}: Crea un record in \texttt{UserActivity}
+    \item \textbf{Aggiornamento Utente}:
+    \begin{itemize}
+        \item Aggiorna XP totale
+        \item Ricalcola livello
+        \item Aggiorna streak (atomicamente)
+        \item Aggiorna statistiche (se applicabile)
+    \end{itemize}
+    \item \textbf{Ritorno Risultato}: Restituisce se c'è stato un level-up, XP guadagnati e nuovo livello
+\end{enumerate}
+
+\subsection{Pattern Observer}
+
+Il sistema utilizza il Pattern Observer per decoupling tra servizi. I servizi emettono eventi invece di chiamare direttamente \texttt{ActivityService}:
+
+\begin{itemize}
+    \item \texttt{worklog.created} $\rightarrow$ \texttt{WORK\_SESSION\_LOGGED}
+    \item \texttt{goal.completed} $\rightarrow$ \texttt{GOAL\_COMPLETED}
+    \item \texttt{session.completed} $\rightarrow$ \texttt{SESSION\_COMPLETE}
+\end{itemize}
+
+L'\texttt{ActivitySubscriber} ascolta questi eventi e li converte in chiamate a \texttt{recordActivity}, utilizzando una coda con retry automatico per gestire errori.
+
+\section{Statistiche Aggregate}
+
+\subsection{Statistiche Mantenute}
+
+Il sistema mantiene le seguenti statistiche aggregate per ogni utente:
+
+\begin{itemize}
+    \item \textbf{totalStudySessions}: Numero totale di sessioni di studio completate
+    \item \textbf{totalFlashcardsReviewed}: Numero totale di carte riviste
+    \item \textbf{correctAnswers}: Numero totale di risposte corrette
+\end{itemize}
+
+\subsection{Aggiornamento Statistiche}
+
+Le statistiche vengono aggiornate solo per attività di tipo \texttt{SESSION\_COMPLETE}:
+
+\begin{lstlisting}
+if (type === 'SESSION_COMPLETE') {
+    const correctCount = this._toNumber(enrichedMetadata.correctCount, 0);
+    const wrongCount = this._toNumber(enrichedMetadata.wrongCount, 0);
+    const totalCards = this._toNumber(enrichedMetadata.totalCards, correctCount + wrongCount);
+
+    nextStats.totalStudySessions += 1;
+    nextStats.totalFlashcardsReviewed += totalCards;
+    nextStats.correctAnswers += correctCount;
+}
+\end{lstlisting}
+
+\section{Integrazione Frontend}
+
+\subsection{Componenti UI}
+
+Il frontend include diversi componenti per visualizzare la gamification:
+
+\subsubsection{UserLevelWidget}
+
+Componente che mostra:
+\begin{itemize}
+    \item Livello corrente
+    \item XP totale e XP necessario per il prossimo livello
+    \item Barra di progresso verso il prossimo livello
+    \item Streak corrente
+\end{itemize}
+
+\textbf{Posizione}: \texttt{src/features/gamification/UserLevelWidget.tsx}
+
+\subsubsection{SessionSummaryModal}
+
+Modal che mostra il riepilogo completo di una sessione di studio completata:
+\begin{itemize}
+    \item Statistiche (corrette, sbagliate, tempo)
+    \item Breakdown XP dettagliato (base, corrette, speed bonus, streak bonus)
+    \item Progresso verso il prossimo livello
+    \item Messaggi celebrativi per performance eccellenti
+\end{itemize}
+
+\textbf{Posizione}: \texttt{src/features/gamification/SessionSummaryModal.tsx}
+
+\subsection{API Endpoints}
+
+\subsubsection{GET /api/dashboard/summary}
+
+Restituisce un riepilogo della dashboard inclusa la gamification:
+
+\begin{lstlisting}
+gamification: {
+    streak: number,        // Streak corrente
+    level: number,         // Livello corrente
+    xp: number,           // XP totale
+    nextLevelXp: number,  // XP necessario per prossimo livello
+    progress: number      // Percentuale progresso (0-100)
+}
+\end{lstlisting}
+
+\section{Considerazioni Tecniche}
+
+\subsection{Atomicità delle Operazioni}
+
+Il sistema utilizza operazioni atomiche MongoDB per:
+\begin{itemize}
+    \item Aggiornamento dello streak (prevenzione race conditions)
+    \item Incremento XP e aggiornamento livello
+\end{itemize}
+
+Questo garantisce che anche in caso di richieste simultanee, i dati rimangano consistenti.
+
+\subsection{Gestione Errori}
+
+Il sistema è progettato per essere resiliente:
+\begin{itemize}
+    \item Se la registrazione di attività fallisce, l'operazione principale (es. completamento sessione) non viene bloccata
+    \item Utilizzo di code con retry automatico per attività asincrone
+    \item Fallback a chiamata diretta se Redis non è disponibile
+\end{itemize}
+
+\subsection{Performance}
+
+Le operazioni di gamification sono ottimizzate per:
+\begin{itemize}
+    \item Utilizzo di \texttt{validateModifiedOnly} in Mongoose per salvare solo i campi modificati
+    \item Query selettive (solo campi necessari)
+    \item Aggiornamenti atomici invece di read-modify-write
+\end{itemize}
+
+\section{Punti di Integrazione}
+
+\subsection{StudyService}
+
+Il \texttt{StudyService} chiama \texttt{recordActivity} quando una sessione viene completata:
+
+\begin{lstlisting}
+const result = await activityService.recordActivity(userId, 'SESSION_COMPLETE', {
+    entityId: deckId,
+    category: 'study',
+    metadata: {
+        correctCount,
+        wrongCount,
+        timeSpentSeconds,
+        totalCards,
+        deckId,
+        mode,
+    },
+});
+\end{lstlisting}
+
+\subsection{GoalService}
+
+Il \texttt{GoalService} registra attività quando:
+\begin{itemize}
+    \item Un obiettivo viene creato: \texttt{GOAL\_CREATED} (0 XP)
+    \item Un obiettivo viene completato: emette evento \texttt{goal.completed} che viene convertito in \texttt{GOAL\_COMPLETED} (25 XP)
+\end{itemize}
+
+\subsection{WorkLogService}
+
+Il \texttt{WorkLogService} emette eventi quando:
+\begin{itemize}
+    \item Un worklog viene creato: \texttt{worklog.created} $\rightarrow$ \texttt{WORK\_SESSION\_LOGGED} (0 XP)
+    \item Un worklog viene aggiornato: \texttt{worklog.updated} $\rightarrow$ \texttt{WORK\_SESSION\_UPDATED} (0 XP)
+\end{itemize}
+
+\subsection{ProjectService}
+
+Il \texttt{ProjectService} registra attività quando:
+\begin{itemize}
+    \item Un progetto viene creato: \texttt{PROJECT\_CREATED} (0 XP)
+    \item Un progetto viene completato: \texttt{PROJECT\_COMPLETED} (0 XP)
+\end{itemize}
+
+\section{Esempi di Utilizzo}
+
+\subsection{Esempio 1: Sessione di Studio}
+
+Un utente completa una sessione di studio con:
+\begin{itemize}
+    \item 25 carte totali
+    \item 22 corrette, 3 sbagliate
+    \item 90 secondi totali
+\end{itemize}
+
+\textbf{Calcolo}:
+\begin{align}
+\text{timePerCard} &= \frac{90}{25} = 3.6 \text{ secondi} \\
+\text{Speed Bonus} &= \left\lfloor 10 - \frac{3.6}{3} \right\rfloor = \left\lfloor 10 - 1.2 \right\rfloor = 8 \text{ XP} \\
+\text{Corrette} &= 22 \times 2 = 44 \text{ XP} \\
+\text{Base} &= 10 \text{ XP} \\
+\text{XP Totale} &= 10 + 44 + 8 = \textbf{62 XP}
+\end{align}
+
+Se l'utente aveva 450 XP (livello 3), dopo questa sessione avrà:
+\begin{align}
+\text{XP Nuovo} &= 450 + 62 = 512 \text{ XP} \\
+\text{Livello Nuovo} &= \left\lfloor \sqrt{\frac{512}{100}} \right\rfloor + 1 = \left\lfloor 2.26 \right\rfloor + 1 = 3
+\end{align}
+
+Nessun level-up in questo caso.
+
+\subsection{Esempio 2: Level-Up}
+
+Un utente al livello 2 (400 XP) completa una sessione che gli dà 150 XP:
+
+\begin{align}
+\text{XP Nuovo} &= 400 + 150 = 550 \text{ XP} \\
+\text{Livello Nuovo} &= \left\lfloor \sqrt{\frac{550}{100}} \right\rfloor + 1 = \left\lfloor 2.35 \right\rfloor + 1 = 3
+\end{align}
+
+L'utente passa dal livello 2 al livello 3! Il sistema restituisce \texttt{leveledUp: true}.
+
+\subsection{Esempio 3: Streak}
+
+Un utente con streak di 5 giorni completa un'attività oggi:
+
+\begin{itemize}
+    \item Se l'ultima attività era ieri: streak diventa 6
+    \item Se l'ultima attività era oggi: streak rimane 6 (idempotente)
+    \item Se l'ultima attività era 3 giorni fa: streak viene resettato a 1
+\end{itemize}
+
+\section{Future Implementazioni}
+
+\subsection{Possibili Miglioramenti}
+
+Il sistema è progettato per essere estendibile. Possibili miglioramenti futuri:
+
+\begin{enumerate}
+    \item \textbf{Streak Bonus Dinamico}: Calcolare automaticamente bonus XP basati sullo streak corrente
+    \item \textbf{XP Differenziati per Obiettivi}: Assegnare XP in base alla difficoltà o categoria dell'obiettivo
+    \item \textbf{Bonus per Completamento Progetti}: Assegnare XP quando un progetto viene completato
+    \item \textbf{Achievement System}: Badge e achievement per milestone specifiche
+    \item \textbf{Leaderboard}: Classifiche per livello, XP, streak
+    \item \textbf{Multiplier per Orari}: Bonus XP per sessioni in orari specifici
+    \item \textbf{Weekend Bonus}: Bonus per attività durante il weekend
+\end{enumerate}
+
+\section{Conclusioni}
+
+Il sistema di gamification di ExtraTracker è un sistema completo e ben strutturato che:
+
+\begin{itemize}
+    \item Incentiva l'utilizzo regolare della piattaforma
+    \item Premia la qualità (risposte corrette) e la velocità (speed bonus)
+    \item Utilizza operazioni atomiche per garantire consistenza
+    \item È estendibile per future implementazioni
+    \item Fornisce feedback visivo chiaro all'utente
+\end{itemize}
+
+La progressione quadratica inversa garantisce che il sistema rimanga bilanciato nel lungo termine, mentre lo streak promuove la costanza quotidiana.
+
+\appendix
+
+\section{Codice Completo ActivityService}
+
+\begin{lstlisting}
+// File: server/services/activityService.js
+// (Vedi file sorgente per codice completo)
+\end{lstlisting}
+
+\section{Costanti}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Costante} & \textbf{Valore} \\
+\midrule
+\texttt{XP\_LEVEL\_BASE} & 100 \\
+\texttt{SESSION\_BASE\_XP} & 10 \\
+\texttt{GOAL\_COMPLETED\_XP} & 25 \\
+\texttt{STREAK\_BONUS\_XP} & 5 \\
+\texttt{XP\_PER\_CORRECT} & 2 \\
+\texttt{SPEED\_BONUS\_MAX} & 10 \\
+\bottomrule
+\end{tabular}
+\caption{Costanti del sistema di gamification}
+\end{table}
+
+\section{Tipi di Attività}
+
+\begin{longtable}{@{}lp{8cm}l@{}}
+\toprule
+\textbf{Tipo} & \textbf{Descrizione} & \textbf{XP} \\
+\midrule
+\texttt{SESSION\_COMPLETE} & Sessione di studio completata & Variabile \\
+\texttt{GOAL\_CREATED} & Obiettivo creato & 0 \\
+\texttt{GOAL\_COMPLETED} & Obiettivo completato & 25 (default) \\
+\texttt{GOAL\_ARCHIVED} & Obiettivo archiviato & 0 \\
+\texttt{WORK\_SESSION\_LOGGED} & Sessione di lavoro registrata & 0 \\
+\texttt{WORK\_NOTE\_CREATED} & Nota di lavoro creata & 0 \\
+\texttt{HABIT\_CHECKIN} & Check-in abitudine & 0 \\
+\texttt{HABIT\_SKIPPED} & Abitudine saltata & 0 \\
+\texttt{PROJECT\_CREATED} & Progetto creato & 0 \\
+\texttt{PROJECT\_COMPLETED} & Progetto completato & 0 \\
+\texttt{STREAK\_BONUS} & Bonus streak & 5 (default) \\
+\bottomrule
+\caption{Tipi di attività e XP associati}
+\end{longtable}
+
+\end{document}

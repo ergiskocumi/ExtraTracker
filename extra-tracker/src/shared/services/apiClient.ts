@@ -56,7 +56,7 @@ const axiosInstance = axios.create({
     },
     // CRITICO: Necessario per inviare/ricevere cookies cross-origin
     withCredentials: true,
-    timeout: 25000, // 25 secondi timeout per richieste AI più lente
+    timeout: 60000, // 60 secondi timeout per richieste AI più lente
 });
 
 // ==========================================
@@ -78,6 +78,10 @@ const axiosInstance = axios.create({
 
 // Mutex: lock per refresh token (solo uno alla volta)
 let isRefreshing = false;
+
+// Flag globale: sessione definitivamente morta (account disattivato o refresh fallito definitivamente)
+// Quando true, tutte le richieste future vengono rifiutate immediatamente senza provare refresh
+let isSessionDead = false;
 
 // Coda delle richieste in attesa del refresh
 let failedQueue: Array<{
@@ -114,7 +118,15 @@ const NO_REFRESH_URLS = ['/auth/login', '/auth/register', '/auth/refresh', '/aut
 
 axiosInstance.interceptors.response.use(
     // Risposta OK: passa attraverso
-    (response: AxiosResponse) => response,
+    (response: AxiosResponse) => {
+        // Se riceviamo una risposta OK da login/register, resetta il flag di sessione morta
+        // Questo permette all'utente di fare login dopo che l'account è stato riattivato
+        const requestUrl = response.config?.url || '';
+        if (requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register')) {
+            isSessionDead = false;
+        }
+        return response;
+    },
     
     // Errore: gestisci 401 con refresh automatico (MUTEX PATTERN BLINDATO)
     async (error: AxiosError) => {
@@ -135,6 +147,12 @@ axiosInstance.interceptors.response.use(
         // ==========================================
         if (error.response?.status === 401 && !originalRequest._retry && !shouldSkipRefresh) {
             
+            // CRITICO: Se la sessione è definitivamente morta, rifiuta immediatamente
+            // Previene loop infiniti quando l'account è disattivato
+            if (isSessionDead) {
+                return Promise.reject(error);
+            }
+            
             // CASO 1: Refresh già in corso (MUTEX ATTIVO) - EFFETTO VALANGA PREVENUTO
             // Metti questa richiesta in coda e aspetta che il refresh finisca
             if (isRefreshing) {
@@ -142,6 +160,11 @@ axiosInstance.interceptors.response.use(
                     failedQueue.push({ resolve, reject });
                 })
                     .then(() => {
+                        // Se la sessione è morta mentre eravamo in coda, rifiuta immediatamente
+                        if (isSessionDead) {
+                            return Promise.reject(new Error('Sessione scaduta'));
+                        }
+                        
                         // Quando la coda viene risolta (refresh riuscito), riprova la richiesta originale
                         // IMPORTANTE: Clona la richiesta per evitare modifiche alla richiesta originale
                         return axiosInstance({
@@ -174,6 +197,17 @@ axiosInstance.interceptors.response.use(
                 return axiosInstance(originalRequest);
 
             } catch (refreshError) {
+                // Verifica se l'errore indica che l'account è disattivato o la sessione è definitivamente morta
+                const refreshErrorData = (refreshError as any)?.response?.data;
+                const errorMessage = refreshErrorData?.error?.message || refreshErrorData?.message || '';
+                const isAccountDeactivated = errorMessage.includes('disattivato') || errorMessage.includes('Account disattivato');
+                
+                // Se l'account è disattivato, marca la sessione come definitivamente morta
+                // Questo previene qualsiasi tentativo futuro di refresh
+                if (isAccountDeactivated) {
+                    isSessionDead = true;
+                }
+                
                 // Refresh fallito: rifiuta tutte le richieste in coda
                 // Tutte le richieste in attesa riceveranno lo stesso errore
                 processQueue(refreshError as Error, null);
@@ -183,8 +217,12 @@ axiosInstance.interceptors.response.use(
                 if (!isSessionExpiredToastShown) {
                     isSessionExpiredToastShown = true;
                     
-                    emitToast.error('Sessione scaduta. Effettua nuovamente il login.', {
-                        title: 'Sessione scaduta',
+                    const toastMessage = isAccountDeactivated 
+                        ? 'Account disattivato. Contatta il supporto.'
+                        : 'Sessione scaduta. Effettua nuovamente il login.';
+                    
+                    emitToast.error(toastMessage, {
+                        title: isAccountDeactivated ? 'Account disattivato' : 'Sessione scaduta',
                         duration: 5000,
                         id: 'session-expired', // ID univoco per evitare duplicati visivi
                     });
@@ -201,7 +239,7 @@ axiosInstance.interceptors.response.use(
                 return Promise.reject(refreshError);
             } finally {
                 // Rilascia il lock sempre, sia in caso di successo che errore
-                // IMPORTANTE: Questo permette a nuove richieste di riprovare se necessario
+                // IMPORTANTE: Se la sessione è morta, non permettere nuovi refresh
                 isRefreshing = false;
             }
         }
@@ -217,12 +255,26 @@ axiosInstance.interceptors.response.use(
             // EVITA LOOP INFINITI: Se l'errore viene dalla rotta di refresh, è finita.
             // Non provare a fare refresh del refresh.
             if (requestUrl.includes('/auth/refresh')) {
+                // Verifica se l'account è disattivato
+                const errorData = error.response?.data as any;
+                const errorMessage = errorData?.error?.message || errorData?.message || '';
+                const isAccountDeactivated = errorMessage.includes('disattivato') || errorMessage.includes('Account disattivato');
+                
+                // Se l'account è disattivato, marca la sessione come definitivamente morta
+                if (isAccountDeactivated) {
+                    isSessionDead = true;
+                }
+                
                 // Refresh fallito: sessione morta davvero
                 if (!isSessionExpiredToastShown) {
                     isSessionExpiredToastShown = true;
                     
-                    emitToast.error('Sessione scaduta. Effettua nuovamente il login.', {
-                        title: 'Sessione scaduta',
+                    const toastMessage = isAccountDeactivated 
+                        ? 'Account disattivato. Contatta il supporto.'
+                        : 'Sessione scaduta. Effettua nuovamente il login.';
+                    
+                    emitToast.error(toastMessage, {
+                        title: isAccountDeactivated ? 'Account disattivato' : 'Sessione scaduta',
                         duration: 5000,
                         id: 'session-expired',
                     });

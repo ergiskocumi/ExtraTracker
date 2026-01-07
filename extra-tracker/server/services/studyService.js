@@ -15,11 +15,12 @@ const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
 const eventBus = require('../utils/eventBus');
 const OpenAI = require('openai');
-const { PDFParse } = require('pdf-parse');
+const pdfParse = require('pdf-parse');
 const fs = require('fs/promises');
 const path = require('path');
 const vectorStoreService = require('./vectorStoreService');
 const { AlgorithmFactory } = require('./spacedRepetitionAlgorithms');
+const activityService = require('./activityService');
 
 const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
@@ -685,18 +686,12 @@ class StudyService extends BaseService {
 
         // 2. Estrai testo dal PDF
         let pdfText;
-        let parser;
         try {
-            parser = new PDFParse({ data: pdfBuffer });
-            const pdfData = await parser.getText();
+            const pdfData = await pdfParse(pdfBuffer);
             pdfText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
             console.error('❌ PDF Parse Error:', err.message);
             throw AppError.validation('Impossibile leggere il PDF. Assicurati che sia un file PDF valido e non protetto.');
-        } finally {
-            if (parser?.destroy) {
-                await parser.destroy();
-            }
         }
 
         if (!pdfText || pdfText.trim().length < 50) {
@@ -916,10 +911,8 @@ class StudyService extends BaseService {
             }
 
             let pdfText;
-            let parser;
             try {
-                parser = new PDFParse({ data: pdfBuffer });
-                const pdfData = await parser.getText();
+                const pdfData = await pdfParse(pdfBuffer);
                 pdfText = this._formatPdfTextWithPages(pdfData);
             } catch (err) {
                 console.error('❌ PDF Parse Error (Tutor):', err.message);
@@ -927,10 +920,6 @@ class StudyService extends BaseService {
                     throw AppError.validation('Impossibile leggere il PDF per la chat. Riprova con un PDF valido.');
                 }
                 return null;
-            } finally {
-                if (parser?.destroy) {
-                    await parser.destroy();
-                }
             }
 
             const normalizedExtracted = this._normalizeExtractedText(pdfText);
