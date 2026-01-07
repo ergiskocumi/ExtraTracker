@@ -1,0 +1,1027 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tcolorbox}
+
+\geometry{margin=2.5cm}
+
+% Configurazione codice
+\lstset{
+    language=JavaScript,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{green!60!black},
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    numbersep=5pt,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=2,
+    escapeinside={(*@}{@*)}
+}
+
+% Box per evidenziare sezioni importanti
+\newtcolorbox{importantbox}[1]{
+    colback=red!5!white,
+    colframe=red!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{warningbox}[1]{
+    colback=orange!5!white,
+    colframe=orange!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{tipbox}[1]{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\title{\textbf{Analisi Componente: WorkLogService}\\
+\large Documentazione Tecnica Esaustiva}
+\author{Documentazione Sistema}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Storico Modifiche}
+
+\begin{importantbox}{Stato Attuale - \today}
+WorkLogService è il \textbf{Cuore Operativo} del sistema di tracciamento lavoro.
+Se questo componente fallisce, l'app diventa inutile per l'utente.
+\end{importantbox}
+
+\section{Responsabilità}
+
+\subsection{Cosa fa esattamente questo componente?}
+
+\textbf{WorkLogService} è una classe che estende \texttt{BaseService} e gestisce i log delle ore lavorate (straordinari) degli utenti. È responsabile di:
+
+\textbf{Funzioni principali}:
+\begin{itemize}
+    \item \textbf{CRUD WorkLog}: Creazione, lettura, aggiornamento ed eliminazione di log di lavoro
+    \item \textbf{Validazione Relazioni}: Verifica che i progetti associati appartengano all'utente corrente (prevenzione IDOR)
+    \item \textbf{Calcolo Durata}: Gestisce il calcolo automatico della durata in minuti (incluso lavoro oltre mezzanotte)
+    \item \textbf{Query Specializzate}: Ricerca per mese, per progetto, aggregazioni per statistiche
+    \item \textbf{Activity Tracking}: Registra automaticamente le attività di logging nel sistema di analytics
+\end{itemize}
+
+\subsection{Perché esiste?}
+
+\begin{importantbox}{Problema Risolto}
+Senza WorkLogService, ogni controller dovrebbe:
+\begin{itemize}
+    \item Implementare manualmente la validazione di ownership del progetto
+    \item Gestire il calcolo della durata (con edge case mezzanotte)
+    \item Scrivere query aggregate per statistiche
+    \item Gestire la logica di ricerca per mese/progetto
+    \item Registrare attività manualmente
+\end{itemize}
+\end{importantbox}
+
+\textbf{Vantaggi dell'approccio}:
+\begin{enumerate}
+    \item \textbf{Sicurezza by Default}: Validazione ownership automatica su ogni creazione/update
+    \item \textbf{Calcolo Automatico}: Durata calcolata nel Model (pre-save hook), garantisce coerenza
+    \item \textbf{DRY}: Logica comune ereditata da BaseService
+    \item \textbf{Activity Tracking}: Integrazione automatica con sistema analytics
+    \item \textbf{Query Ottimizzate}: Indici composti per performance su query frequenti
+\end{enumerate}
+
+\section{Struttura del Codice}
+
+\subsection{Architettura}
+
+WorkLogService implementa il pattern \textbf{Template Method} ereditando da BaseService:
+
+\begin{lstlisting}
+[HTTP Request] POST /api/worklogs
+     │
+     ▼
+[Controller] workLogService.create(req.tenantScope, data)
+     │
+     ▼
+[WorkLogService.create()] 
+     │
+     ├─► [beforeCreate()] 
+     │   ├─► validateProjectOwnership() // Verifica ownership
+     │   └─► validateTimeRange() // Verifica orari validi
+     │
+     ├─► [BaseService.create()] 
+     │   └─► [Model.save()] 
+     │       └─► [pre-save hook] // Calcola durationMinutes
+     │
+     └─► [Activity Tracking] // Registra WORK_SESSION_LOGGED
+\end{lstlisting}
+
+\subsection{Model: WorkLog Schema}
+
+\begin{lstlisting}
+{
+    projectId: ObjectId,      // Riferimento a Project (required)
+    date: String,             // YYYY-MM-DD (required, regex validated)
+    startTime: String,        // HH:mm (required, regex validated)
+    endTime: String,          // HH:mm (required, regex validated)
+    description: String,       // Max 500 caratteri
+    durationMinutes: Number,   // Calcolato automaticamente (min: 0)
+    user: ObjectId,           // Iniettato da multiTenancyPlugin
+    createdAt: Date,          // Timestamp automatico
+    updatedAt: Date           // Timestamp automatico
+}
+\end{lstlisting}
+
+\textbf{Indici}:
+\begin{itemize}
+    \item \texttt{\{user: 1, date: -1\}}: Query per utente e data (ordinamento cronologico)
+    \item \texttt{\{user: 1, projectId: 1, date: -1\}}: Query per utente, progetto e data
+\end{itemize}
+
+\subsection{Metodi Principali}
+
+\subsubsection{Metodi Ereditati da BaseService}
+
+\begin{itemize}
+    \item \texttt{find(tenantScope, filters, options)}: Lista worklog con filtri
+    \item \texttt{findById(tenantScope, id, options)}: Dettaglio singolo worklog
+    \item \texttt{create(tenantScope, data)}: Crea worklog (override con activity tracking)
+    \item \texttt{update(tenantScope, id, data)}: Aggiorna worklog
+    \item \texttt{delete(tenantScope, id)}: Elimina worklog
+    \item \texttt{search(tenantScope, searchTerm)}: Ricerca testuale su \texttt{description}
+\end{itemize}
+
+\subsubsection{Metodi Custom}
+
+\begin{lstlisting}
+// Trova worklog di un mese specifico
+async findByMonth(tenantScope, year, month) {
+    const monthStr = String(month).padStart(2, '0');
+    const pattern = new RegExp(`^${year}-${monthStr}-`);
+    return this.find(tenantScope, { date: pattern });
+}
+
+// Trova worklog di un progetto specifico
+async findByProject(tenantScope, projectId, options = {}) {
+    return this.find(tenantScope, { projectId }, options);
+}
+\end{lstlisting}
+
+\textbf{Logica}:
+\begin{itemize}
+    \item \texttt{findByMonth()}: Usa regex pattern per filtrare date del mese (es. \texttt{/^2024-03-/})
+    \item \texttt{findByProject()}: Filtra per \texttt{projectId} (già protetto da BaseService con filtro \texttt{user})
+\end{itemize}
+
+\subsubsection{Aggregazioni}
+
+\begin{lstlisting}
+// Calcola totali (ore, guadagni) per un periodo
+async getTotalsByPeriod(tenantScope, startDate, endDate) {
+    const userId = this._getUserId(tenantScope);
+    
+    const results = await WorkLog.aggregate([
+        {
+            $match: {
+                user: userId,  // 🔒 SICUREZZA: Filtro esplicito
+                date: { $gte: startDate, $lte: endDate },
+            },
+        },
+        {
+            $lookup: {
+                from: 'projects',
+                localField: 'projectId',
+                foreignField: '_id',
+                as: 'project',
+            },
+        },
+        { $unwind: '$project' },
+        {
+            $group: {
+                _id: null,
+                totalMinutes: { $sum: '$durationMinutes' },
+                totalEarnings: {
+                    $sum: {
+                        $multiply: [
+                            { $divide: ['$durationMinutes', 60] },
+                            '$project.rate',
+                        ],
+                    },
+                },
+                logCount: { $sum: 1 },
+            },
+        },
+    ]);
+    
+    return results[0] || { totalMinutes: 0, totalEarnings: 0, logCount: 0 };
+}
+\end{lstlisting}
+
+\textbf{Logica}:
+\begin{itemize}
+    \item \textbf{Sicurezza}: Filtro esplicito \texttt{\{user: userId\}} nella pipeline
+    \item \textbf{Lookup}: Join con collection \texttt{projects} per ottenere \texttt{rate}
+    \item \textbf{Calcolo Guadagni}: \texttt{(durationMinutes / 60) * project.rate}
+    \item \textbf{Risultato}: Oggetto con \texttt{totalMinutes}, \texttt{totalEarnings}, \texttt{logCount}
+\end{itemize}
+
+\begin{lstlisting}
+// Raggruppa worklog per data (timeline view)
+async groupByDate(tenantScope, limit = 30) {
+    const userId = this._getUserId(tenantScope);
+    
+    return WorkLog.aggregate([
+        { $match: { user: userId } },  // 🔒 SICUREZZA: Filtro esplicito
+        { $sort: { date: -1 } },
+        {
+            $group: {
+                _id: '$date',
+                logs: { $push: '$$ROOT' },
+                totalMinutes: { $sum: '$durationMinutes' },
+            },
+        },
+        { $sort: { _id: -1 } },
+        { $limit: limit },
+    ]);
+}
+\end{lstlisting}
+
+\textbf{Logica}:
+\begin{itemize}
+    \item \textbf{Raggruppamento}: Raggruppa per campo \texttt{date}
+    \item \textbf{Array Logs}: Ogni gruppo contiene array di worklog (\texttt{\$push: '\$\$ROOT'})
+    \item \textbf{Totale Minuti}: Somma \texttt{durationMinutes} per data
+    \item \textbf{Limit}: Limita a ultime N date (default 30)
+\end{itemize}
+
+\subsubsection{Lifecycle Hooks}
+
+\begin{lstlisting}
+// Validazione pre-creazione
+async beforeCreate(tenantScope, data) {
+    // 1. Validazione ownership progetto
+    await this.validateProjectOwnership(tenantScope, data.projectId);
+    
+    // 2. Validazione orari
+    this.validateTimeRange(data.startTime, data.endTime);
+    
+    return data;
+}
+
+// Override create per activity tracking
+async create(tenantScope, data) {
+    const created = await super.create(tenantScope, data);
+    const userId = this._getUserId(tenantScope);
+    
+    // Registra attività
+    await activityService.recordActivity(userId, 'WORK_SESSION_LOGGED', {
+        entityId: created._id,
+        category: 'work',
+        metadata: {
+            projectId: created.projectId,
+            durationMinutes: created.durationMinutes,
+            date: created.date,
+            startTime: created.startTime,
+            endTime: created.endTime,
+        },
+    });
+    
+    return created;
+}
+
+// Validazione pre-update
+async beforeUpdate(tenantScope, id, data) {
+    // Se cambia progetto, verifica ownership
+    if (data.projectId) {
+        await this.validateProjectOwnership(tenantScope, data.projectId);
+    }
+    
+    // Se cambiano orari, valida range
+    if (data.startTime || data.endTime) {
+        const existing = await this.findById(tenantScope, id);
+        const startTime = data.startTime || existing.startTime;
+        const endTime = data.endTime || existing.endTime;
+        this.validateTimeRange(startTime, endTime);
+    }
+    
+    return data;
+}
+\end{lstlisting}
+
+\textbf{Logica}:
+\begin{itemize}
+    \item \textbf{beforeCreate()}: Validazione ownership + orari prima della creazione
+    \item \textbf{create()}: Override per aggiungere activity tracking dopo creazione
+    \item \textbf{beforeUpdate()}: Validazione condizionale (solo se cambiano campi rilevanti)
+\end{itemize}
+
+\subsubsection{Validazioni Private}
+
+\begin{lstlisting}
+// Verifica ownership progetto
+async validateProjectOwnership(tenantScope, projectId) {
+    if (!projectId) {
+        throw AppError.validation('Il progetto è obbligatorio');
+    }
+
+    const userId = this._getUserId(tenantScope);
+    
+    // 🔒 Query diretta con filtro esplicito
+    const project = await Project.findOne({ 
+        _id: projectId, 
+        user: userId 
+    });
+    
+    if (!project) {
+        // ATTENZIONE: Non rivelare se esiste ma appartiene ad altri!
+        throw AppError.notFound('Progetto');
+    }
+}
+
+// Verifica range orari valido
+validateTimeRange(startTime, endTime) {
+    if (!startTime || !endTime) return;
+    
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    
+    // Permetti lavoro oltre mezzanotte (es. 23:00 - 02:00)
+    // ma non intervalli nulli (stesso orario)
+    if (startMinutes === endMinutes) {
+        throw AppError.validation(
+            'L\'ora di fine deve essere diversa dall\'ora di inizio'
+        );
+    }
+}
+\end{lstlisting}
+
+\textbf{Logica}:
+\begin{itemize}
+    \item \textbf{validateProjectOwnership()}: Query diretta con filtro \texttt{\{_id, user\}} per prevenire IDOR
+    \item \textbf{validateTimeRange()}: Verifica che orari siano diversi (non controlla se endTime > startTime perché gestisce mezzanotte)
+\end{itemize}
+
+\section{Gestione Date e Timezone}
+
+\subsection{Formato Date}
+
+\begin{importantbox}{Scelta Architetturale}
+Il campo \texttt{date} è una \textbf{stringa} in formato \texttt{YYYY-MM-DD}, NON un oggetto \texttt{Date} di JavaScript.
+\end{importantbox}
+
+\textbf{Perché stringa invece di Date?}
+\begin{enumerate}
+    \item \textbf{No Timezone Issues}: Le stringhe non hanno timezone, evitano problemi di conversione
+    \item \textbf{Query Semplici}: Regex pattern per filtrare per mese (es. \texttt{/^2024-03-/})
+    \item \textbf{UI Friendly}: Formato ISO standard, facile da usare in form HTML
+    \item \textbf{Consistenza}: Stesso formato usato in tutto il sistema
+\end{enumerate}
+
+\textbf{Validazione}:
+\begin{lstlisting}
+date: { 
+    type: String, 
+    required: [true, 'La data è obbligatoria'],
+    match: [/^\d{4}-\d{2}-\d{2}$/, 'Formato data non valido (usa YYYY-MM-DD)'],
+}
+\end{lstlisting}
+
+\subsection{Formato Orari}
+
+\begin{importantbox}{Scelta Architetturale}
+I campi \texttt{startTime} e \texttt{endTime} sono \textbf{stringhe} in formato \texttt{HH:mm}, NON oggetti \texttt{Date}.
+\end{importantbox}
+
+\textbf{Perché stringa invece di Date?}
+\begin{enumerate}
+    \item \textbf{No Timezone}: Solo orari locali, nessuna conversione timezone
+    \item \textbf{Semplicità}: Facile da validare e manipolare
+    \item \textbf{UI Friendly}: Formato standard per input HTML \texttt{type="time"}
+    \item \textbf{Calcolo Semplice}: Conversione diretta a minuti per calcolo durata
+\end{enumerate}
+
+\textbf{Validazione}:
+\begin{lstlisting}
+startTime: { 
+    type: String, 
+    required: [true, 'L\'ora di inizio è obbligatoria'],
+    match: [/^\d{2}:\d{2}$/, 'Formato ora non valido (usa HH:mm)'],
+}
+\end{lstlisting}
+
+\subsection{Calcolo Durata: Gestione Mezzanotte}
+
+\begin{importantbox}{Edge Case Critico}
+Il sistema DEVE gestire correttamente sessioni di lavoro che attraversano la mezzanotte (es. 23:00 - 02:00).
+\end{importantbox}
+
+\textbf{Implementazione nel Model (pre-save hook)}:
+\begin{lstlisting}
+workLogSchema.pre('save', function() {
+    if (this.isModified('startTime') || this.isModified('endTime')) {
+        const [startHour, startMin] = this.startTime.split(':').map(Number);
+        const [endHour, endMin] = this.endTime.split(':').map(Number);
+        
+        let duration = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+        
+        // Gestisce lavoro oltre mezzanotte
+        if (duration < 0) {
+            duration += 24 * 60;  // Aggiunge 24 ore (1440 minuti)
+        }
+        
+        this.durationMinutes = duration;
+    }
+});
+\end{lstlisting}
+
+\textbf{Esempi di Calcolo}:
+\begin{itemize}
+    \item \textbf{23:00 - 01:00}: 
+    \begin{itemize}
+        \item \texttt{startMinutes = 23 * 60 + 0 = 1380}
+        \item \texttt{endMinutes = 1 * 60 + 0 = 60}
+        \item \texttt{duration = 60 - 1380 = -1320} (negativo!)
+        \item \texttt{duration += 1440 = 120 minuti} ✅ (2 ore)
+    \end{itemize}
+    
+    \item \textbf{09:00 - 17:30}:
+    \begin{itemize}
+        \item \texttt{startMinutes = 9 * 60 + 0 = 540}
+        \item \texttt{endMinutes = 17 * 60 + 30 = 1050}
+        \item \texttt{duration = 1050 - 540 = 510 minuti} ✅ (8.5 ore)
+    \end{itemize}
+    
+    \item \textbf{00:00 - 00:00}:
+    \begin{itemize}
+        \item \texttt{duration = 0} (stesso orario)
+        \item \textbf{Validazione}: \texttt{validateTimeRange()} blocca questo caso
+    \end{itemize}
+\end{itemize}
+
+\textbf{Vantaggi dell'approccio}:
+\begin{enumerate}
+    \item \textbf{Calcolo nel Model}: Garantisce coerenza (sempre calcolato su save)
+    \item \textbf{Automatico}: Non serve calcolare manualmente nel service
+    \item \textbf{Edge Case Gestito}: Mezzanotte gestita correttamente
+    \item \textbf{Performance}: Calcolo una sola volta (non ad ogni query)
+\end{enumerate}
+
+\section{Consistency e Sicurezza}
+
+\subsection{Validazione Ownership Progetto}
+
+\begin{importantbox}{Prevenzione IDOR}
+La validazione di ownership è \textbf{CRITICA} per prevenire attacchi IDOR (Insecure Direct Object Reference).
+\end{importantbox}
+
+\textbf{Scenario di Attacco (senza validazione)}:
+\begin{enumerate}
+    \item Utente A conosce l'ID di un progetto di Utente B (es. da URL leak)
+    \item Utente A crea WorkLog con \texttt{projectId} del progetto di Utente B
+    \item WorkLog viene associato al progetto di Utente B
+    \item Utente B vede worklog "fantasma" nel suo progetto
+\end{enumerate}
+
+\textbf{Protezione Implementata}:
+\begin{lstlisting}
+async validateProjectOwnership(tenantScope, projectId) {
+    const userId = this._getUserId(tenantScope);
+    
+    // 🔒 Query diretta con filtro esplicito
+    const project = await Project.findOne({ 
+        _id: projectId, 
+        user: userId  // ← Filtro esplicito per user
+    });
+    
+    if (!project) {
+        // Non rivelare se esiste ma appartiene ad altri!
+        throw AppError.notFound('Progetto');
+    }
+}
+\end{lstlisting}
+
+\textbf{Quando viene chiamata?}
+\begin{itemize}
+    \item \textbf{beforeCreate()}: Sempre (progetto obbligatorio)
+    \item \textbf{beforeUpdate()}: Solo se \texttt{data.projectId} è presente (cambio progetto)
+\end{itemize}
+
+\textbf{Perché query diretta invece di BaseService?}
+\begin{itemize}
+    \item \textbf{Performance}: Query diretta più veloce (no overhead BaseService)
+    \item \textbf{Esplicito}: Chiaro che stiamo verificando ownership
+    \item \textbf{Fail-Fast}: Errore immediato se progetto non esiste o non appartiene all'utente
+\end{itemize}
+
+\subsection{Validazione Orari}
+
+\textbf{Regole}:
+\begin{enumerate}
+    \item \texttt{startTime} e \texttt{endTime} devono essere diversi (non stesso orario)
+    \item \texttt{endTime} può essere minore di \texttt{startTime} (lavoro oltre mezzanotte)
+    \item Formato deve essere \texttt{HH:mm} (validato da schema)
+\end{enumerate}
+
+\textbf{Implementazione}:
+\begin{lstlisting}
+validateTimeRange(startTime, endTime) {
+    if (!startTime || !endTime) return;  // Skip se mancanti
+    
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    
+    // Blocca stesso orario (durata zero)
+    if (startMinutes === endMinutes) {
+        throw AppError.validation(
+            'L\'ora di fine deve essere diversa dall\'ora di inizio'
+        );
+    }
+    // NOTA: Non blocca endTime < startTime (gestito da pre-save hook)
+}
+\end{lstlisting}
+
+\section{Dipendenze}
+
+\subsection{Dipendenze Dirette}
+
+\begin{itemize}
+    \item \textbf{BaseService}: Classe base per operazioni CRUD standardizzate
+    \item \textbf{WorkLog Model}: Schema Mongoose per worklog
+    \item \textbf{Project Model}: Per validazione ownership
+    \item \textbf{AppError}: Per errori standardizzati
+    \item \textbf{activityService}: Per registrazione attività analytics
+\end{itemize}
+
+\subsection{Dipendenze Indirette}
+
+\begin{itemize}
+    \item \textbf{multiTenancyPlugin}: Applicato a WorkLog schema per isolamento tenant
+    \item \textbf{tenantContext Middleware}: Fornisce \texttt{req.tenantScope} alle routes
+\end{itemize}
+
+\section{Analisi Critica}
+
+\subsection{Punti di Forza}
+
+\begin{enumerate}
+    \item \textbf{Sicurezza by Default}:
+    \begin{itemize}
+        \item Validazione ownership automatica su ogni creazione/update
+        \item Query aggregate con filtri espliciti \texttt{\{user: userId\}}
+        \item Prevenzione IDOR cross-tenant
+    \end{itemize}
+    
+    \item \textbf{Calcolo Durata Automatico}:
+    \begin{itemize}
+        \item Calcolo nel pre-save hook garantisce coerenza
+        \item Gestione corretta di lavoro oltre mezzanotte
+        \item Non serve calcolare manualmente nel service
+    \end{itemize}
+    
+    \item \textbf{Activity Tracking Integrato}:
+    \begin{itemize}
+        \item Registrazione automatica di \texttt{WORK\_SESSION\_LOGGED}
+        \item Metadata completo per analytics
+        \item Non blocca creazione se activity tracking fallisce (try-catch)
+    \end{itemize}
+    
+    \item \textbf{Query Ottimizzate}:
+    \begin{itemize}
+        \item Indici composti per query frequenti
+        \item Aggregazioni efficienti con \texttt{\$lookup} per join progetti
+    \end{itemize}
+    
+    \item \textbf{DRY}:
+    \begin{itemize}
+        \item Eredita logica comune da BaseService
+        \item Metodi custom solo per logica specifica worklog
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Possibili Bug/Rischi}
+
+\begin{enumerate}
+    \item \textbf{Date senza validazione formato}:
+    \begin{itemize}
+        \item \textbf{Stato attuale}: Validazione regex \texttt{/^\d{4}-\d{2}-\d{2}\$/} nello schema
+        \item \textbf{Rischio}: Basso, ma regex non valida date invalide (es. \texttt{2024-13-45})
+        \item \textbf{Miglioramento Futuro}: Validazione con \texttt{Date.parse()} o libreria date
+    \end{itemize}
+    
+    \item \textbf{Orari senza validazione range}:
+    \begin{itemize}
+        \item \textbf{Stato attuale}: Regex \texttt{/^\d{2}:\d{2}\$/} valida formato ma non range
+        \item \textbf{Rischio}: Accetta \texttt{25:99} (non valido)
+        \item \textbf{Miglioramento Futuro}: Validazione custom che verifica \texttt{hour < 24 && minute < 60}
+    \end{itemize}
+    
+    \item \textbf{Calcolo durata con orari invalidi}:
+    \begin{itemize}
+        \item \textbf{Stato attuale}: Se \texttt{startTime = "25:00"}, calcolo fallisce silenziosamente
+        \item \textbf{Rischio}: \texttt{durationMinutes} potrebbe essere NaN o negativo inaspettato
+        \item \textbf{Miglioramento Futuro}: Validazione range orari prima del calcolo
+    \end{itemize}
+    
+    \item \textbf{ProjectId mancante in update}:
+    \begin{itemize}
+        \item \textbf{Stato attuale}: Se \texttt{data.projectId} non è presente in update, non valida ownership
+        \item \textbf{Rischio}: Basso (projectId è required nello schema, ma potrebbe essere rimosso)
+        \item \textbf{Miglioramento Futuro}: Considerare validazione anche se projectId non cambia (verifica che esista ancora)
+    \end{itemize}
+    
+    \item \textbf{Aggregazione senza filtro user}:
+    \begin{itemize}
+        \item \textbf{Stato attuale}: ✅ \textbf{GESTITO} - Tutte le aggregazioni hanno filtro \texttt{\{user: userId\}}
+        \item \textbf{Protezione}: Query dirette con filtro esplicito
+    \end{itemize}
+    
+    \item \textbf{Activity tracking fallisce silenziosamente}:
+    \begin{itemize}
+        \item \textbf{Stato attuale}: Try-catch che logga errore ma non blocca creazione
+        \item \textbf{Rischio}: Basso (activity tracking non è critico per funzionalità core)
+        \item \textbf{Decisione}: Corretto (non bloccare creazione worklog se analytics fallisce)
+    \end{itemize}
+    
+    \item \textbf{Regex injection in findByMonth}:
+    \begin{itemize}
+        \item \textbf{Stato attuale}: Pattern costruito con \texttt{new RegExp(\`\^\{year\}-\{monthStr\}-\`)}
+        \item \textbf{Rischio}: Se \texttt{year} o \texttt{month} contengono caratteri speciali regex, pattern invalido
+        \item \textbf{Miglioramento Futuro}: Validare che \texttt{year} e \texttt{month} siano numeri, o usare \texttt{escapeRegex()}
+    \end{itemize}
+    
+    \item \textbf{Timezone non gestito}:
+    \begin{itemize}
+        \item \textbf{Stato attuale}: Date e orari sono stringhe senza timezone
+        \item \textbf{Rischio}: Se utente viaggia o cambia timezone, dati potrebbero essere inconsistenti
+        \item \textbf{Decisione}: Corretto per questo use case (orari locali sono sufficienti)
+        \item \textbf{Miglioramento Futuro}: Considerare campo \texttt{timezone} opzionale se necessario
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Performance}
+
+\begin{enumerate}
+    \item \textbf{Query per mese con regex}:
+    \begin{itemize}
+        \item \textbf{Problema}: Regex pattern \texttt{/^2024-03-\$/} non può usare indice su campo \texttt{date}
+        \item \textbf{Impatto}: Full collection scan su collezioni grandi
+        \item \textbf{Miglioramento}: Usare range query \texttt{\{date: \{ \$gte: '2024-03-01', \$lte: '2024-03-31' \}\}} invece di regex
+    \end{itemize}
+    
+    \item \textbf{Aggregazione getTotalsByPeriod}:
+    \begin{itemize}
+        \item \textbf{Problema}: \texttt{\$lookup} su collection \texttt{projects} per ogni worklog
+        \item \textbf{Impatto}: Query lenta se molti worklog nel periodo
+        \item \textbf{Miglioramento}: Considerare caching risultati per periodi frequenti
+    \end{itemize}
+    
+    \item \textbf{Populate automatico projectId}:
+    \begin{itemize}
+        \item \textbf{Problema}: \texttt{populateFields: ['projectId']} popola sempre, anche quando non necessario
+        \item \textbf{Impatto}: Query aggiuntive per ogni worklog
+        \item \textbf{Miglioramento}: Populate selettivo solo quando necessario
+    \end{itemize}
+    
+    \item \textbf{Indici mancanti}:
+    \begin{itemize}
+        \item \textbf{Stato attuale}: Indici su \texttt{\{user, date\}} e \texttt{\{user, projectId, date\}}
+        \item \textbf{Copertura}: Buona per query frequenti
+        \item \textbf{Miglioramento}: Considerare indice su \texttt{date} singolo se query per data senza user (raro)
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Miglioramenti Codice (Clean Code)}
+
+\begin{tipbox}{Suggerimenti per Migliorare}
+\end{tipbox}
+
+\begin{enumerate}
+    \item \textbf{Validazione Range Orari}:
+    \begin{lstlisting}
+// PRIMA
+startTime: { 
+    type: String, 
+    match: [/^\d{2}:\d{2}$/, 'Formato ora non valido'],
+}
+
+// DOPO
+startTime: { 
+    type: String, 
+    match: [/^\d{2}:\d{2}$/, 'Formato ora non valido'],
+    validate: {
+        validator: function(v) {
+            const [hour, minute] = v.split(':').map(Number);
+            return hour >= 0 && hour < 24 && minute >= 0 && minute < 60;
+        },
+        message: 'Ora non valida (usa formato HH:mm con valori validi)',
+    },
+}
+    \end{lstlisting}
+    
+    \item \textbf{Validazione Date}:
+    \begin{lstlisting}
+// DOPO
+date: { 
+    type: String, 
+    match: [/^\d{4}-\d{2}-\d{2}$/, 'Formato data non valido'],
+    validate: {
+        validator: function(v) {
+            const date = new Date(v + 'T00:00:00');
+            return date instanceof Date && !isNaN(date) && 
+                   date.toISOString().startsWith(v);
+        },
+        message: 'Data non valida',
+    },
+}
+    \end{lstlisting}
+    
+    \item \textbf{findByMonth con Range Query}:
+    \begin{lstlisting}
+// PRIMA (regex, non usa indice)
+async findByMonth(tenantScope, year, month) {
+    const monthStr = String(month).padStart(2, '0');
+    const pattern = new RegExp(`^${year}-${monthStr}-`);
+    return this.find(tenantScope, { date: pattern });
+}
+
+// DOPO (range query, usa indice)
+async findByMonth(tenantScope, year, month) {
+    const monthStr = String(month).padStart(2, '0');
+    const startDate = `${year}-${monthStr}-01`;
+    const endDate = `${year}-${monthStr}-31`;  // MongoDB accetta anche date invalide
+    return this.find(tenantScope, { 
+        date: { $gte: startDate, $lte: endDate } 
+    });
+}
+    \end{lstlisting}
+    
+    \item \textbf{Escape Regex in findByMonth}:
+    \begin{lstlisting}
+// DOPO (se si mantiene regex)
+async findByMonth(tenantScope, year, month) {
+    // Validazione input
+    if (!Number.isInteger(year) || !Number.isInteger(month) || 
+        month < 1 || month > 12) {
+        throw AppError.validation('Anno o mese non validi');
+    }
+    
+    const monthStr = String(month).padStart(2, '0');
+    const pattern = new RegExp(`^${year}-${monthStr}-`);
+    return this.find(tenantScope, { date: pattern });
+}
+    \end{lstlisting}
+    
+    \item \textbf{TypeScript per Type Safety}:
+    \begin{itemize}
+        \item Convertire in TypeScript per type checking
+        \item Definire interfacce per \texttt{WorkLogData}, \texttt{TotalsResult}, etc.
+        \item Previene errori a compile-time
+    \end{itemize}
+    
+    \item \textbf{Logging per Debug}:
+    \begin{lstlisting}
+// Aggiungere logging opzionale
+async create(tenantScope, data) {
+    if (process.env.DEBUG_WORKLOG === 'true') {
+        console.log(`[WorkLogService.create] User: ${tenantScope.tenantId}, Data:`, data);
+    }
+    // ...
+}
+    \end{lstlisting}
+\end{enumerate}
+
+\section{UI/UX Impact}
+
+\subsection{Velocità di Risposta}
+
+\begin{itemize}
+    \item \textbf{Query Ottimizzate}: Indici composti per query frequenti (per mese, per progetto)
+    \item \textbf{Aggregazioni}: Calcolo totali efficiente con pipeline MongoDB
+    \item \textbf{Populate Selettivo}: Populate solo quando necessario (configurabile)
+\end{itemize}
+
+\subsection{Sicurezza dei Dati}
+
+\begin{importantbox}{Impatto Sicurezza}
+WorkLogService garantisce che:
+\begin{itemize}
+    \item \textbf{Isolamento Completo}: Utente A non può mai vedere/modificare worklog di Utente B
+    \item \textbf{Prevenzione IDOR}: Impossibile associare worklog a progetti di altri utenti
+    \item \textbf{Validazione Ownership}: Verifica esplicita che progetti appartengano all'utente
+\end{itemize}
+\end{importantbox}
+
+\subsection{Messaggi di Errore}
+
+\begin{itemize}
+    \item \textbf{Standardizzati}: Uso di \texttt{AppError} per messaggi consistenti
+    \item \textbf{User-Friendly}: "Il progetto è obbligatorio" invece di "projectId required"
+    \item \textbf{Sicurezza}: Non rivela se progetto esiste ma appartiene ad altri ("Progetto non trovato")
+\end{itemize}
+
+\subsection{Esperienza Utente}
+
+\begin{itemize}
+    \item \textbf{Calcolo Automatico}: Durata calcolata automaticamente, utente non deve calcolare manualmente
+    \item \textbf{Gestione Mezzanotte}: Sistema gestisce correttamente sessioni che attraversano mezzanotte
+    \item \textbf{Activity Tracking}: Registrazione automatica per analytics (utente non deve fare nulla)
+\end{itemize}
+
+\section{Esempi di Utilizzo}
+
+\subsection{Esempio 1: Creazione WorkLog}
+
+\begin{lstlisting}
+// Controller
+router.post('/worklogs', asyncHandler(async (req, res) => {
+    const log = await workLogService.create(req.tenantScope, {
+        projectId: req.body.projectId,      // Verifica ownership automatica
+        date: '2024-03-15',                 // Formato YYYY-MM-DD
+        startTime: '09:00',                 // Formato HH:mm
+        endTime: '17:30',                   // Formato HH:mm
+        description: 'Sviluppo feature X',
+    });
+    
+    // durationMinutes calcolato automaticamente: 510 minuti (8.5 ore)
+    // Activity WORK_SESSION_LOGGED registrato automaticamente
+    
+    res.status(201).json({ success: true, data: log });
+}));
+\end{lstlisting}
+
+\subsection{Esempio 2: WorkLog Oltre Mezzanotte}
+
+\begin{lstlisting}
+// Controller
+const log = await workLogService.create(req.tenantScope, {
+    projectId: '507f1f77bcf86cd799439011',
+    date: '2024-03-15',
+    startTime: '23:00',  // Inizio notte
+    endTime: '02:00',    // Fine notte (giorno successivo)
+    description: 'Lavoro notturno',
+});
+
+// durationMinutes calcolato: 180 minuti (3 ore)
+// Sistema gestisce correttamente il passaggio mezzanotte
+\end{lstlisting}
+
+\subsection{Esempio 3: Query per Mese}
+
+\begin{lstlisting}
+// Controller
+const logs = await workLogService.findByMonth(
+    req.tenantScope,
+    2024,  // year
+    3      // month
+);
+
+// Query eseguita: WorkLog.find({ 
+//     user: userId, 
+//     date: /^2024-03-/ 
+// })
+\end{lstlisting}
+
+\subsection{Esempio 4: Statistiche Periodo}
+
+\begin{lstlisting}
+// Controller
+const totals = await workLogService.getTotalsByPeriod(
+    req.tenantScope,
+    '2024-01-01',  // startDate
+    '2024-03-31'   // endDate
+);
+
+// Risultato:
+// {
+//     totalMinutes: 14400,      // 240 ore
+//     totalEarnings: 4800.00,   // €20/ora * 240 ore
+//     logCount: 45
+// }
+\end{lstlisting}
+
+\subsection{Esempio 5: Timeline View}
+
+\begin{lstlisting}
+// Controller
+const timeline = await workLogService.groupByDate(
+    req.tenantScope,
+    30  // limit: ultime 30 date
+);
+
+// Risultato:
+// [
+//     {
+//         _id: '2024-03-15',
+//         logs: [ /* array di worklog del giorno */ ],
+//         totalMinutes: 510
+//     },
+//     {
+//         _id: '2024-03-14',
+//         logs: [ /* ... */ ],
+//         totalMinutes: 360
+//     },
+//     // ...
+// ]
+\end{lstlisting}
+
+\section{Pattern e Principi}
+
+\subsection{Template Method Pattern}
+
+\textbf{Definizione}: Definisce lo scheletro di un algoritmo, delegando alcuni passi alle sottoclassi.
+
+\textbf{Implementazione in WorkLogService}:
+\begin{itemize}
+    \item \textbf{Template (BaseService)}: \texttt{create()}, \texttt{update()}, \texttt{delete()}
+    \item \textbf{Hook (Override)}: \texttt{beforeCreate()}, \texttt{beforeUpdate()}, \texttt{create()}
+\end{itemize}
+
+\textbf{Vantaggi}:
+\begin{itemize}
+    \item Codice comune in BaseService
+    \item Estensibilità senza modificare codice base
+    \item Validazioni custom nei hook
+\end{itemize}
+
+\subsection{Repository Pattern (Semplificato)}
+
+\textbf{Definizione}: Astrae l'accesso ai dati, nascondendo i dettagli di implementazione.
+
+\textbf{Implementazione in WorkLogService}:
+\begin{itemize}
+    \item Controller chiama \texttt{workLogService.create()}, non sa che usa MongoDB
+    \item Se domani si cambia database, basta modificare BaseService
+\end{itemize}
+
+\subsection{Principi SOLID}
+
+\begin{enumerate}
+    \item \textbf{[S] Single Responsibility}: WorkLogService ha una sola responsabilità: gestione worklog
+    \item \textbf{[O] Open/Closed}: Aperto per estensione (hook), chiuso per modifica
+    \item \textbf{[L] Liskov Substitution}: Può sostituire BaseService (ereditarietà corretta)
+    \item \textbf{[I] Interface Segregation}: Metodi granulari, usa solo quelli necessari
+    \item \textbf{[D] Dependency Inversion}: Dipende da astrazione (BaseService), non da implementazione
+\end{enumerate}
+
+\section{Conclusioni}
+
+WorkLogService è un componente \textbf{critico} per il funzionamento dell'app. Se questo fallisce, l'app diventa inutile per l'utente.
+
+\textbf{Punti Chiave}:
+\begin{itemize}
+    \item ✅ Sicurezza by default con validazione ownership automatica
+    \item ✅ Calcolo durata automatico con gestione mezzanotte
+    \item ✅ Query ottimizzate con indici composti
+    \item ✅ Activity tracking integrato per analytics
+    \item ✅ DRY: eredita logica comune da BaseService
+    \item ✅ Gestione date/orari come stringhe (no timezone issues)
+\end{itemize}
+
+\textbf{Raccomandazioni Future}:
+\begin{enumerate}
+    \item Validazione range orari nello schema (hour < 24, minute < 60)
+    \item Validazione date con \texttt{Date.parse()} o libreria date
+    \item \texttt{findByMonth()} con range query invece di regex (performance)
+    \item Escape regex in \texttt{findByMonth()} per sicurezza
+    \item Considerare TypeScript per type safety
+    \item Validazione che projectId esista ancora in update (anche se non cambia)
+\end{enumerate}
+
+\textbf{Relazione con Altri Componenti}:
+\begin{itemize}
+    \item \textbf{BaseService}: Eredita operazioni CRUD standardizzate
+    \item \textbf{TenantContext}: Fornisce \texttt{req.tenantScope} per isolamento tenant
+    \item \textbf{Project Model}: Validazione ownership progetti
+    \item \textbf{ActivityService}: Registrazione attività per analytics
+\end{itemize}
+
+\vspace{1cm}
+
+\textit{Documento generato il \today}
+
+\end{document}

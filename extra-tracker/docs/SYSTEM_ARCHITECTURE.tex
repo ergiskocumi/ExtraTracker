@@ -1,0 +1,1210 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+
+\geometry{margin=2.5cm}
+
+% Configurazione codice
+\lstset{
+    language=JavaScript,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{green!60!black},
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    numbersep=5pt,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=2
+}
+
+\title{\textbf{Architettura del Sistema ExtraTracker}\\
+\large Documentazione Tecnica Completa}
+\author{Documentazione Sistema}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduzione}
+
+Questo documento descrive in modo esaustivo l'architettura del sistema \textbf{ExtraTracker}, un'applicazione Full-Stack per la gestione delle ore di lavoro, il tracciamento degli straordinari, la gestione degli obiettivi personali e lo studio con flashcard.
+
+Il sistema è progettato seguendo i principi di:
+\begin{itemize}
+    \item \textbf{Multi-tenancy}: Isolamento completo dei dati per utente
+    \item \textbf{Sicurezza}: Autenticazione JWT, rate limiting, protezione CSRF/XSS
+    \item \textbf{Scalabilità}: Architettura modulare, caching con Redis, ottimizzazioni database
+    \item \textbf{Manutenibilità}: Separazione delle responsabilità, pattern MVC, codice tipizzato
+\end{itemize}
+
+\section{Architettura Generale}
+
+\subsection{Visione d'Insieme}
+
+Il sistema segue un'architettura \textbf{Client-Server} disaccoppiata con tre livelli principali:
+
+\begin{enumerate}
+    \item \textbf{Frontend (Client)}: React 19 + TypeScript, Single Page Application (SPA)
+    \item \textbf{Backend (Server)}: Node.js + Express.js, REST API
+    \item \textbf{Database}: MongoDB (dati persistenti) + Redis (cache e sessioni)
+\end{enumerate}
+
+\subsection{Stack Tecnologico}
+
+\subsubsection{Frontend}
+\begin{itemize}
+    \item \textbf{Framework}: React 19 con Vite
+    \item \textbf{Linguaggio}: TypeScript
+    \item \textbf{Styling}: TailwindCSS
+    \item \textbf{State Management}: React Context API
+    \item \textbf{Routing}: React Router v7
+    \item \textbf{Animazioni}: Framer Motion
+    \item \textbf{HTTP Client}: Axios con interceptors personalizzati
+\end{itemize}
+
+\subsubsection{Backend}
+\begin{itemize}
+    \item \textbf{Runtime}: Node.js
+    \item \textbf{Framework}: Express.js
+    \item \textbf{ODM}: Mongoose (MongoDB)
+    \item \textbf{Autenticazione}: JWT (Access Token + Refresh Token)
+    \item \textbf{Validazione}: Zod
+    \item \textbf{Sicurezza}: Helmet, CORS, Rate Limiting, HPP
+    \item \textbf{Password Hashing}: Argon2id
+\end{itemize}
+
+\subsubsection{Database e Servizi}
+\begin{itemize}
+    \item \textbf{Database Primario}: MongoDB (dati utente, progetti, obiettivi, worklog)
+    \item \textbf{Cache/Sessioni}: Redis (rate limiting distribuito, blacklist token)
+    \item \textbf{Orchestrazione}: Docker Compose
+\end{itemize}
+
+\section{Componenti Frontend}
+
+Il frontend è organizzato seguendo un pattern \textbf{Feature-First}, dove ogni feature è un modulo autonomo con i propri componenti, servizi, context e tipi.
+
+\subsection{Struttura delle Features}
+
+\subsubsection{1. Autenticazione (\texttt{features/auth})}
+
+\textbf{Problema risolto}: Gestione completa del ciclo di vita dell'autenticazione utente.
+
+\textbf{Componenti}:
+\begin{itemize}
+    \item \texttt{AuthContext.tsx}: Context provider per stato autenticazione globale
+    \item \texttt{LoginPage.tsx}: Pagina di login
+    \item \texttt{RegisterPage.tsx}: Pagina di registrazione
+    \item \texttt{ForgotPasswordPage.tsx}: Recupero password
+    \item \texttt{ResetPasswordPage.tsx}: Reset password con token
+    \item \texttt{VerifyEmailPage.tsx}: Verifica email
+\end{itemize}
+
+\textbf{Servizi}:
+\begin{itemize}
+    \item \texttt{authService.ts}: Wrapper per chiamate API di autenticazione
+\end{itemize}
+
+\textbf{Comunicazione}:
+\begin{itemize}
+    \item \textbf{API utilizzate}: \texttt{POST /api/auth/login}, \texttt{POST /api/auth/register}, \texttt{POST /api/auth/refresh}, \texttt{GET /api/auth/check}
+    \item \textbf{Dati scambiati}: Credenziali (email/password), JWT tokens (in cookie HttpOnly)
+    \item \textbf{Scritture DB}: Nessuna diretta (gestite dal backend)
+\end{itemize}
+
+\textbf{Flusso di Autenticazione}:
+\begin{enumerate}
+    \item Utente inserisce credenziali
+    \item Frontend chiama \texttt{authService.login()}
+    \item Backend valida, genera JWT, setta cookie HttpOnly
+    \item Frontend riceve risposta, aggiorna \texttt{AuthContext}
+    \item Redirect alla dashboard
+\end{enumerate}
+
+\subsubsection{2. Dashboard (\texttt{features/dashboard})}
+
+\textbf{Problema risolto}: Visualizzazione immediata delle metriche chiave e accesso rapido alle funzionalità principali.
+
+\textbf{Componenti}:
+\begin{itemize}
+    \item \texttt{DashboardPage.tsx}: Pagina principale dashboard
+    \item \texttt{QuickStats.tsx}: Statistiche rapide (ore totali, guadagni, obiettivi)
+    \item \texttt{QuickActions.tsx}: Azioni rapide (nuovo progetto, nuovo worklog)
+    \item \texttt{GoalsWidget.tsx}: Widget obiettivi in corso
+    \item \texttt{AIInsightsWidget.tsx}: Insight generati da AI
+    \item \texttt{WeeklyMiniChart.tsx}: Grafico settimanale compatto
+\end{itemize}
+
+\textbf{Servizi}:
+\begin{itemize}
+    \item \texttt{dashboardService.ts}: Chiamate API per dati dashboard
+\end{itemize}
+
+\textbf{Comunicazione}:
+\begin{itemize}
+    \item \textbf{API utilizzate}: \texttt{GET /api/dashboard/summary}, \texttt{GET /api/dashboard/quick-actions}
+    \item \textbf{Dati scambiati}: Statistiche aggregate (ore, guadagni, progetti attivi, obiettivi)
+    \item \textbf{Scritture DB}: Nessuna (solo letture)
+\end{itemize}
+
+\subsubsection{3. Obiettivi (\texttt{features/goals})}
+
+\textbf{Problema risolto}: Gestione completa degli obiettivi personali con milestone, check-in, gamification e AI.
+
+\textbf{Componenti}:
+\begin{itemize}
+    \item \texttt{GoalsPage.tsx}: Lista obiettivi con filtri
+    \item \texttt{GoalDetailPage.tsx}: Dettaglio obiettivo (roadmap, journal, stats)
+    \item \texttt{GoalWizard.tsx}: Wizard creazione obiettivo manuale
+    \item \texttt{GoalWizardAI.tsx}: Wizard AI per creazione obiettivi da intent
+    \item \texttt{ActivityHeatmap.tsx}: Heatmap attività (stile GitHub)
+    \item \texttt{BurndownChart.tsx}: Grafico burndown per obiettivi target
+    \item \texttt{MoodStats.tsx}: Statistiche mood dai check-in
+\end{itemize}
+
+\textbf{Context}:
+\begin{itemize}
+    \item \texttt{GoalsContext.tsx}: Stato globale obiettivi, CRUD operations
+\end{itemize}
+
+\textbf{Servizi}:
+\begin{itemize}
+    \item \texttt{goalsService.ts}: Chiamate API obiettivi
+\end{itemize}
+
+\textbf{Comunicazione}:
+\begin{itemize}
+    \item \textbf{API utilizzate}: 
+    \begin{itemize}
+        \item \texttt{GET /api/goals/goals}: Lista obiettivi
+        \item \texttt{GET /api/goals/goals/:id}: Dettaglio obiettivo
+        \item \texttt{POST /api/goals/goals}: Crea obiettivo
+        \item \texttt{PUT /api/goals/goals/:id}: Aggiorna obiettivo
+        \item \texttt{DELETE /api/goals/goals/:id}: Elimina obiettivo
+        \item \texttt{POST /api/goals/goals/:goalId/quick-checkin}: Check-in rapido
+        \item \texttt{POST /api/goals/goals/suggest}: Suggerimenti AI obiettivi
+    \end{itemize}
+    \item \textbf{Dati scambiati}: 
+    \begin{itemize}
+        \item \textbf{Input}: Titolo, categoria, tipo (TARGET/HABIT), milestone, action steps
+        \item \textbf{Output}: Obiettivo completo con progresso, milestone completate, check-in history
+    \end{itemize}
+    \item \textbf{Scritture DB}: 
+    \begin{itemize}
+        \item \texttt{goals} collection: Inserimento/aggiornamento obiettivi
+        \item \texttt{checkins} collection: Inserimento check-in con mood, note, progresso
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{4. Workspace (\texttt{features/workspace})}
+
+\textbf{Problema risolto}: Gestione progetti lavorativi con work journal, todo list e tracking ore.
+
+\textbf{Componenti}:
+\begin{itemize}
+    \item \texttt{WorkspacePage.tsx}: Pagina principale workspace
+    \item \texttt{ProjectDetailPage.tsx}: Dettaglio progetto con entries e todos
+    \item \texttt{ProjectCard.tsx}: Card progetto con statistiche
+    \item \texttt{WorkEntryForm.tsx}: Form inserimento work entry
+    \item \texttt{WorkEntryList.tsx}: Lista work entries con filtri
+    \item \texttt{TodoList.tsx}: Lista TODO con drag \& drop
+    \item \texttt{TimelineView.tsx}: Vista timeline cronologica
+\end{itemize}
+
+\textbf{Context}:
+\begin{itemize}
+    \item \texttt{WorkspaceContext.tsx}: Stato globale workspace (progetti, entries, todos)
+\end{itemize}
+
+\textbf{Servizi}:
+\begin{itemize}
+    \item \texttt{workspaceService.ts}: Chiamate API workspace
+\end{itemize}
+
+\textbf{Comunicazione}:
+\begin{itemize}
+    \item \textbf{API utilizzate}: 
+    \begin{itemize}
+        \item \texttt{GET /api/workspace/projects}: Lista progetti
+        \item \texttt{POST /api/workspace/projects}: Crea progetto
+        \item \texttt{GET /api/workspace/entries}: Lista work entries
+        \item \texttt{POST /api/workspace/entries}: Crea work entry
+        \item \texttt{GET /api/workspace/todos}: Lista TODO
+        \item \texttt{POST /api/workspace/todos}: Crea TODO
+    \end{itemize}
+    \item \textbf{Dati scambiati}: 
+    \begin{itemize}
+        \item \textbf{Progetti}: Nome, descrizione, colore, stato
+        \item \textbf{Work Entries}: Data, ora inizio/fine, descrizione, progetto
+        \item \textbf{TODOs}: Titolo, descrizione, scadenza, priorità, stato
+    \end{itemize}
+    \item \textbf{Scritture DB}: 
+    \begin{itemize}
+        \item \texttt{workprojects} collection: Progetti workspace
+        \item \texttt{workentries} collection: Work entries
+        \item \texttt{worktodos} collection: TODO items
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{5. Tracker (\texttt{features/tracker})}
+
+\textbf{Problema risolto}: Tracciamento ore lavorate (straordinari) con calcolo automatico guadagni.
+
+\textbf{Componenti}:
+\begin{itemize}
+    \item \texttt{TimelinePage.tsx}: Timeline cronologica worklog
+    \item \texttt{WorkLogForm.tsx}: Form inserimento worklog
+    \item \texttt{WorkLogFormSmart.tsx}: Form intelligente con suggerimenti
+    \item \texttt{WorkLogList.tsx}: Lista worklog con filtri mensili
+    \item \texttt{ProjectSummary.tsx}: Riepilogo progetti con ore e guadagni
+\end{itemize}
+
+\textbf{Context}:
+\begin{itemize}
+    \item \texttt{WorkLogContext.tsx}: Stato globale worklog
+\end{itemize}
+
+\textbf{Comunicazione}:
+\begin{itemize}
+    \item \textbf{API utilizzate}: 
+    \begin{itemize}
+        \item \texttt{GET /api/worklogs}: Lista worklog
+        \item \texttt{POST /api/worklogs}: Crea worklog
+        \item \texttt{GET /api/worklogs/by-month/:year/:month}: Worklog per mese
+        \item \texttt{GET /api/worklogs/totals}: Totali per periodo
+    \end{itemize}
+    \item \textbf{Dati scambiati}: 
+    \begin{itemize}
+        \item \textbf{Input}: projectId, data, startTime, endTime, description
+        \item \textbf{Output}: Worklog con durata calcolata, guadagno (rate × ore)
+    \end{itemize}
+    \item \textbf{Scritture DB}: 
+    \begin{itemize}
+        \item \texttt{worklogs} collection: Inserimento worklog con calcolo \texttt{durationMinutes}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{6. Studio (\texttt{features/study})}
+
+\textbf{Problema risolto}: Sistema di studio con flashcard e spaced repetition (algoritmo SM-2).
+
+\textbf{Componenti}:
+\begin{itemize}
+    \item \texttt{StudyPage.tsx}: Pagina principale studio
+    \item \texttt{SplitStudyPage.tsx}: Vista split screen (card + note)
+    \item \texttt{DeckList.tsx}: Lista deck flashcard
+    \item \texttt{CardView.tsx}: Vista singola card
+    \item \texttt{SessionSummary.tsx}: Riepilogo sessione studio
+\end{itemize}
+
+\textbf{Comunicazione}:
+\begin{itemize}
+    \item \textbf{API utilizzate}: 
+    \begin{itemize}
+        \item \texttt{GET /api/study/decks}: Lista deck
+        \item \texttt{POST /api/study/decks}: Crea deck
+        \item \texttt{POST /api/study/decks/:id/review}: Submit review card
+        \item \texttt{POST /api/study/decks/:id/session-complete}: Completa sessione
+    \end{itemize}
+    \item \textbf{Dati scambiati}: 
+    \begin{itemize}
+        \item \textbf{Deck}: Nome, descrizione, cards
+        \item \textbf{Card}: Front, back, ease factor, interval, next review date
+        \item \textbf{Review}: Quality (0-5), timestamp
+    \end{itemize}
+    \item \textbf{Scritture DB}: 
+    \begin{itemize}
+        \item \texttt{decks} collection: Deck e cards con spaced repetition data
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{7. Impostazioni (\texttt{features/settings})}
+
+\textbf{Problema risolto}: Gestione profilo utente, preferenze, notifiche, export dati.
+
+\textbf{Componenti}:
+\begin{itemize}
+    \item \texttt{SettingsPage.tsx}: Pagina principale impostazioni
+    \item \texttt{ProfileSettings.tsx}: Modifica profilo
+    \item \texttt{PreferencesSettings.tsx}: Preferenze UI (tema, lingua)
+    \item \texttt{NotificationsSettings.tsx}: Gestione notifiche
+    \item \texttt{ExportSettings.tsx}: Export dati (GDPR)
+    \item \texttt{DeleteAccountSettings.tsx}: Eliminazione account
+\end{itemize}
+
+\textbf{Comunicazione}:
+\begin{itemize}
+    \item \textbf{API utilizzate}: 
+    \begin{itemize}
+        \item \texttt{GET /api/settings/profile}: Profilo utente
+        \item \texttt{PUT /api/settings/profile}: Aggiorna profilo
+        \item \texttt{GET /api/settings/preferences}: Preferenze
+        \item \texttt{PUT /api/settings/preferences}: Aggiorna preferenze
+        \item \texttt{GET /api/settings/export}: Export dati
+        \item \texttt{DELETE /api/settings/account}: Elimina account
+    \end{itemize}
+    \item \textbf{Dati scambiati}: 
+    \begin{itemize}
+        \item \textbf{Profilo}: firstName, lastName, displayName, phone, bio, avatar
+        \item \textbf{Preferenze}: theme, language, timezone, dateFormat
+    \end{itemize}
+    \item \textbf{Scritture DB}: 
+    \begin{itemize}
+        \item \texttt{users} collection: Aggiornamento \texttt{profile} e \texttt{preferences}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{8. Analytics (\texttt{features/analytics})}
+
+\textbf{Problema risolto}: Visualizzazione analisi produttività e insights.
+
+\textbf{Componenti}:
+\begin{itemize}
+    \item \texttt{ProductivityChart.tsx}: Grafico produttività settimanale
+    \item \texttt{ActivityFeed.tsx}: Feed attività recenti
+\end{itemize}
+
+\textbf{Comunicazione}:
+\begin{itemize}
+    \item \textbf{API utilizzate}: 
+    \begin{itemize}
+        \item \texttt{GET /api/analytics/weekly}: Dati settimanali
+        \item \texttt{GET /api/analytics/insights}: Insight AI
+    \end{itemize}
+    \item \textbf{Scritture DB}: Nessuna (solo letture aggregate)
+\end{itemize}
+
+\subsection{Componenti Condivisi (\texttt{shared})}
+
+\subsubsection{API Client (\texttt{shared/services/apiClient.ts})}
+
+\textbf{Problema risolto}: Gestione centralizzata delle chiamate HTTP con refresh token automatico, gestione errori e prevenzione "effetto valanga".
+
+\textbf{Caratteristiche}:
+\begin{itemize}
+    \item \textbf{Mutex Pattern}: Solo una richiesta di refresh token alla volta
+    \item \textbf{Request Queueing}: Richieste in attesa durante refresh
+    \item \textbf{Auto Refresh}: Refresh automatico su 401
+    \item \textbf{Error Handling}: Toast automatici con messaggi user-friendly
+    \item \textbf{Anti-Spam}: Prevenzione toast duplicati
+\end{itemize}
+
+\textbf{Flusso Refresh Token}:
+\begin{enumerate}
+    \item Richiesta API fallisce con 401
+    \item Se refresh già in corso: metti richiesta in coda
+    \item Se primo refresh: acquisisci lock, chiama \texttt{POST /api/auth/refresh}
+    \item Se successo: sblocca coda, riprova tutte le richieste
+    \item Se fallimento: rifiuta coda, mostra toast, logout
+\end{enumerate}
+
+\subsubsection{Layouts (\texttt{shared/layouts})}
+
+\textbf{Componenti}:
+\begin{itemize}
+    \item \texttt{AppLayout.tsx}: Layout principale con sidebar, header, navigazione
+    \item \texttt{AuthLayout.tsx}: Layout autenticazione (centrato, senza sidebar)
+\end{itemize}
+
+\subsubsection{Toast System (\texttt{shared/components/toast})}
+
+\textbf{Problema risolto}: Sistema di notifiche centralizzato con deduplicazione.
+
+\textbf{Componenti}:
+\begin{itemize}
+    \item \texttt{ToastContext.tsx}: Context provider per toast
+    \item \texttt{toastEvents.ts}: Event emitter per toast da codice non-React
+    \item \texttt{types.ts}: TypeScript types per toast
+\end{itemize}
+
+\section{Componenti Backend}
+
+Il backend segue un'architettura \textbf{MVC (Model-View-Controller)} con separazione delle responsabilità.
+
+\subsection{Struttura Backend}
+
+\begin{itemize}
+    \item \texttt{models/}: Schemi Mongoose (User, Goal, WorkLog, Project, etc.)
+    \item \texttt{controllers/}: Logica di gestione richieste HTTP
+    \item \texttt{services/}: Business logic (separata dai controller)
+    \item \texttt{routes/}: Definizione endpoint API
+    \item \texttt{middleware/}: Autenticazione, error handling, rate limiting, tenant context
+    \item \texttt{config/}: Configurazione sicurezza, Redis, CORS
+    \item \texttt{utils/}: Utility (AppError, validators)
+\end{itemize}
+
+\subsection{Modelli Database (MongoDB)}
+
+\subsubsection{User Model}
+
+\textbf{Collection}: \texttt{users}
+
+\textbf{Campi Principali}:
+\begin{itemize}
+    \item \texttt{email}: String (unique, indexed)
+    \item \texttt{password}: String (hashed con Argon2id, select: false)
+    \item \texttt{profile}: Object (firstName, lastName, displayName, phone, bio, avatar, company, jobTitle, location, website)
+    \item \texttt{preferences}: Object (theme, language, timezone, dateFormat, notifications)
+    \item \texttt{refreshTokens}: Array (sessioni multi-device)
+    \item \texttt{gracePeriodTokens}: Array (token temporanei per race conditions)
+    \item \texttt{emailVerified}: Boolean
+    \item \texttt{emailVerificationToken}: String
+    \item \texttt{passwordResetToken}: String
+    \item \texttt{passwordResetExpires}: Date
+    \item \texttt{isActive}: Boolean
+    \item \texttt{lastLoginAt}: Date
+    \item \texttt{loginAttempts}: Number
+    \item \texttt{lockUntil}: Date
+\end{itemize}
+
+\textbf{Metodi}:
+\begin{itemize}
+    \item \texttt{comparePassword()}: Verifica password
+    \item \texttt{addSession()}: Aggiunge sessione refresh token
+    \item \texttt{removeSessionByHash()}: Rimuove sessione specifica
+    \item \texttt{removeAllSessions()}: Rimuove tutte le sessioni
+    \item \texttt{addToGracePeriod()}: Aggiunge token a grace period
+    \item \texttt{removeFromGracePeriod()}: Rimuove token scaduti
+\end{itemize}
+
+\textbf{Scritture DB}:
+\begin{itemize}
+    \item \textbf{Registrazione}: Inserimento nuovo documento User
+    \item \textbf{Login}: Aggiornamento \texttt{refreshTokens}, \texttt{lastLoginAt}
+    \item \textbf{Refresh Token}: Aggiornamento \texttt{refreshTokens} (rotazione), \texttt{gracePeriodTokens}
+    \item \textbf{Logout}: Aggiornamento \texttt{refreshTokens} (rimozione sessione)
+    \item \textbf{Cambio Password}: Aggiornamento \texttt{password}, reset \texttt{refreshTokens}
+\end{itemize}
+
+\subsubsection{Goal Model}
+
+\textbf{Collection}: \texttt{goals}
+
+\textbf{Campi Principali}:
+\begin{itemize}
+    \item \texttt{user}: ObjectId (ref: User, multi-tenancy)
+    \item \texttt{title}: String
+    \item \texttt{category}: String (enum: HEALTH, CAREER, FINANCE, LEARNING, RELATIONSHIPS, PERSONAL, CREATIVE, TRAVEL, OTHER)
+    \item \texttt{type}: String (enum: TARGET, HABIT)
+    \item \texttt{targetValue}: Number (per TARGET)
+    \item \texttt{currentValue}: Number (per TARGET)
+    \item \texttt{unit}: String (per TARGET: EUR, USD, KG, KM, etc.)
+    \item \texttt{frequency}: Object (per HABIT: timesPerWeek, timesPerMonth)
+    \item \texttt{milestones}: Array (titolo, note, isCompleted, weight, completedAt, actionSteps)
+    \item \texttt{deadline}: Date
+    \item \texttt{status}: String (enum: ACTIVE, COMPLETED, PAUSED, CANCELLED)
+    \item \texttt{progress}: Number (0-100)
+    \item \texttt{aiGenerated}: Boolean
+    \item \texttt{aiPlan}: Object (per obiettivi generati da AI)
+\end{itemize}
+
+\textbf{Scritture DB}:
+\begin{itemize}
+    \item \textbf{Creazione}: Inserimento nuovo documento Goal
+    \item \textbf{Aggiornamento}: Update milestone, progress, status
+    \item \textbf{Check-in}: Inserimento in \texttt{checkins} collection (collegato via \texttt{goalId})
+\end{itemize}
+
+\subsubsection{WorkLog Model}
+
+\textbf{Collection}: \texttt{worklogs}
+
+\textbf{Campi Principali}:
+\begin{itemize}
+    \item \texttt{user}: ObjectId (ref: User, multi-tenancy)
+    \item \texttt{projectId}: ObjectId (ref: Project)
+    \item \texttt{date}: String (YYYY-MM-DD)
+    \item \texttt{startTime}: String (HH:mm)
+    \item \texttt{endTime}: String (HH:mm)
+    \item \texttt{description}: String
+    \item \texttt{durationMinutes}: Number (calcolato automaticamente)
+\end{itemize}
+
+\textbf{Indici}:
+\begin{itemize}
+    \item \texttt{\{user: 1, date: -1\}}: Query per mese
+    \item \texttt{\{user: 1, projectId: 1, date: -1\}}: Query per progetto
+\end{itemize}
+
+\textbf{Scritture DB}:
+\begin{itemize}
+    \item \textbf{Creazione}: Inserimento worklog con calcolo \texttt{durationMinutes}
+    \item \textbf{Aggiornamento}: Modifica date/times, ricalcolo durata
+    \item \textbf{Eliminazione}: Rimozione worklog
+\end{itemize}
+
+\subsubsection{Project Model}
+
+\textbf{Collection}: \texttt{projects}
+
+\textbf{Campi Principali}:
+\begin{itemize}
+    \item \texttt{user}: ObjectId (ref: User, multi-tenancy)
+    \item \texttt{name}: String
+    \item \texttt{code}: String (codice commessa)
+    \item \texttt{description}: String
+    \item \texttt{rate}: Number (tariffa oraria)
+    \item \texttt{estimatedHours}: Number
+    \item \texttt{progress}: Number (0-100)
+    \item \texttt{status}: String (enum: ACTIVE, COMPLETED, ON_HOLD, CANCELLED)
+    \item \texttt{color}: String (hex color)
+\end{itemize}
+
+\textbf{Scritture DB}:
+\begin{itemize}
+    \item \textbf{Creazione}: Inserimento progetto
+    \item \textbf{Aggiornamento}: Modifica rate, status, progress
+    \item \textbf{Eliminazione}: Solo se non ha worklog associati
+\end{itemize}
+
+\subsubsection{Altri Modelli}
+
+\begin{itemize}
+    \item \texttt{CheckIn}: Check-in obiettivi (mood, note, progresso)
+    \item \texttt{Deck}: Deck flashcard per studio
+    \item \texttt{WorkEntry}: Work entry nel workspace
+    \item \texttt{WorkTodo}: TODO items nel workspace
+    \item \texttt{UserActivity}: Log attività utente (analytics)
+\end{itemize}
+
+\subsection{Controllers}
+
+I controller gestiscono le richieste HTTP e delegano la business logic ai servizi.
+
+\subsubsection{Auth Controller}
+
+\textbf{File}: \texttt{controllers/authController.js}
+
+\textbf{Metodi}:
+\begin{itemize}
+    \item \texttt{register()}: Registrazione nuovo utente
+    \item \texttt{login()}: Login utente
+    \item \texttt{logout()}: Logout (rimozione sessione)
+    \item \texttt{refresh()}: Refresh access token
+    \item \texttt{check()}: Verifica sessione corrente
+    \item \texttt{verifyEmail()}: Verifica email con token
+    \item \texttt{forgotPassword()}: Richiesta reset password
+    \item \texttt{resetPassword()}: Reset password con token
+    \item \texttt{changePassword()}: Cambio password (autenticato)
+\end{itemize}
+
+\textbf{Flusso Login}:
+\begin{enumerate}
+    \item Riceve email/password
+    \item Valida con Zod
+    \item Chiama \texttt{authService.login()}
+    \item Genera JWT access token (15 min)
+    \item Genera refresh token (7 giorni)
+    \item Hash refresh token, salva in \texttt{refreshTokens} array
+    \item Setta cookie HttpOnly con tokens
+    \item Ritorna user (senza password)
+\end{enumerate}
+
+\subsubsection{Goal Controller}
+
+\textbf{File}: \texttt{controllers/goalController.js}
+
+\textbf{Metodi}:
+\begin{itemize}
+    \item \texttt{getGoals()}: Lista obiettivi utente
+    \item \texttt{getGoalById()}: Dettaglio obiettivo
+    \item \texttt{createGoal()}: Crea obiettivo
+    \item \texttt{updateGoal()}: Aggiorna obiettivo
+    \item \texttt{deleteGoal()}: Elimina obiettivo
+    \item \texttt{toggleMilestone()}: Completa/riapre milestone
+    \item \texttt{quickCheckIn()}: Check-in rapido
+    \item \texttt{getCheckIns()}: Lista check-in obiettivo
+    \item \texttt{getStats()}: Statistiche obiettivi
+\end{itemize}
+
+\subsubsection{Altri Controllers}
+
+\begin{itemize}
+    \item \texttt{workspaceController.js}: Gestione workspace (progetti, entries, todos)
+    \item \texttt{dashboardController.js}: Dati dashboard
+    \item \texttt{analyticsController.js}: Analytics e insights
+    \item \texttt{settingsController.js}: Impostazioni utente
+    \item \texttt{studyController.js}: Studio con flashcard
+\end{itemize}
+
+\subsection{Services}
+
+I servizi contengono la business logic pura, separata dalla gestione HTTP.
+
+\subsubsection{Auth Service}
+
+\textbf{File}: \texttt{services/authService.js}
+
+\textbf{Metodi}:
+\begin{itemize}
+    \item \texttt{register()}: Crea utente, hash password, genera email verification token
+    \item \texttt{login()}: Verifica credenziali, genera tokens, gestisce sessioni multi-device
+    \item \texttt{refreshAccessToken()}: Ruota refresh token, genera nuovo access token
+    \item \texttt{logout()}: Rimuove sessione specifica o tutte le sessioni
+    \item \texttt{changePassword()}: Cambia password, invalida tutte le sessioni
+    \item \texttt{addToBlacklist()}: Aggiunge token a blacklist Redis
+    \item \texttt{isTokenBlacklisted()}: Verifica se token è in blacklist
+\end{itemize}
+
+\textbf{Scritture DB}:
+\begin{itemize}
+    \item \textbf{Register}: \texttt{User.create()} con password hashata
+    \item \textbf{Login}: \texttt{User.updateOne()} con \texttt{\$push} per \texttt{refreshTokens} (FIFO limit 10)
+    \item \textbf{Refresh}: \texttt{User.findOneAndUpdate()} con aggregation pipeline (rimozione vecchio token, inserimento nuovo, FIFO)
+    \item \textbf{Logout}: \texttt{User.updateOne()} con \texttt{\$pull} per rimuovere sessione
+\end{itemize}
+
+\subsubsection{Goal Service}
+
+\textbf{File}: \texttt{services/goalService.js}
+
+\textbf{Metodi}:
+\begin{itemize}
+    \item \texttt{create()}: Crea obiettivo con validazione
+    \item \texttt{update()}: Aggiorna obiettivo
+    \item \texttt{calculateProgress()}: Calcola progresso automatico
+    \item \texttt{getStats()}: Statistiche aggregate
+\end{itemize}
+
+\textbf{Scritture DB}:
+\begin{itemize}
+    \item \textbf{Creazione}: \texttt{Goal.create()} con \texttt{user} dal \texttt{tenantScope}
+    \item \textbf{Aggiornamento}: \texttt{Goal.updateOne()} con filtro \texttt{user}
+    \item \textbf{Check-in}: \texttt{CheckIn.create()} collegato a goal
+\end{itemize}
+
+\subsubsection{WorkLog Service}
+
+\textbf{File}: \texttt{services/workLogService.js}
+
+\textbf{Metodi}:
+\begin{itemize}
+    \item \texttt{create()}: Crea worklog, verifica \texttt{projectId} appartiene a utente, calcola \texttt{durationMinutes}
+    \item \texttt{findByMonth()}: Query worklog per mese
+    \item \texttt{getTotalsByPeriod()}: Aggregazione totali (ore, guadagni) per periodo
+\end{itemize}
+
+\textbf{Scritture DB}:
+\begin{itemize}
+    \item \textbf{Creazione}: \texttt{WorkLog.create()} con calcolo durata
+    \item \textbf{Query}: \texttt{WorkLog.aggregate()} per statistiche
+\end{itemize}
+
+\subsubsection{Base Service}
+
+\textbf{File}: \texttt{services/BaseService.js}
+
+\textbf{Pattern}: Classe base per tutti i servizi con metodi comuni:
+\begin{itemize}
+    \item \texttt{find()}: Lista con filtro \texttt{tenantScope}
+    \item \texttt{findById()}: Dettaglio con verifica ownership
+    \item \texttt{create()}: Creazione con \texttt{user} automatico
+    \item \texttt{update()}: Update con verifica ownership
+    \item \texttt{delete()}: Delete con verifica ownership
+\end{itemize}
+
+\textbf{Multi-Tenancy}: Tutti i metodi filtrano automaticamente per \texttt{req.tenantScope.userId}.
+
+\subsection{Routes}
+
+Le routes definiscono gli endpoint API e collegano middleware, controller e servizi.
+
+\subsubsection{Auth Routes}
+
+\textbf{File}: \texttt{routes/auth.js}
+
+\textbf{Endpoints}:
+\begin{itemize}
+    \item \texttt{POST /api/auth/register}: Registrazione
+    \item \texttt{POST /api/auth/login}: Login
+    \item \texttt{POST /api/auth/logout}: Logout
+    \item \texttt{POST /api/auth/refresh}: Refresh token
+    \item \texttt{GET /api/auth/check}: Verifica sessione
+    \item \texttt{GET /api/auth/verify-email/:token}: Verifica email
+    \item \texttt{POST /api/auth/forgot-password}: Richiesta reset password
+    \item \texttt{POST /api/auth/reset-password}: Reset password
+    \item \texttt{PUT /api/auth/change-password}: Cambio password
+\end{itemize}
+
+\subsubsection{Goals Routes}
+
+\textbf{File}: \texttt{routes/goals.js}
+
+\textbf{Endpoints}:
+\begin{itemize}
+    \item \texttt{GET /api/goals/goals}: Lista obiettivi
+    \item \texttt{GET /api/goals/goals/:id}: Dettaglio obiettivo
+    \item \texttt{POST /api/goals/goals}: Crea obiettivo
+    \item \texttt{PUT /api/goals/goals/:id}: Aggiorna obiettivo
+    \item \texttt{DELETE /api/goals/goals/:id}: Elimina obiettivo
+    \item \texttt{PATCH /api/goals/goals/:id/milestones/:milestoneId/toggle}: Toggle milestone
+    \item \texttt{POST /api/goals/goals/:goalId/quick-checkin}: Check-in rapido
+    \item \texttt{GET /api/goals/goals/:goalId/checkins}: Lista check-in
+    \item \texttt{POST /api/goals/goals/suggest}: Suggerimenti AI
+    \item \texttt{GET /api/goals/goals-stats}: Statistiche obiettivi
+\end{itemize}
+
+\subsubsection{API Routes (Workspace)}
+
+\textbf{File}: \texttt{routes/api.js}
+
+\textbf{Endpoints}:
+\begin{itemize}
+    \item \texttt{GET /api/projects}: Lista progetti
+    \item \texttt{POST /api/projects}: Crea progetto
+    \item \texttt{GET /api/worklogs}: Lista worklog
+    \item \texttt{POST /api/worklogs}: Crea worklog
+    \item \texttt{GET /api/workspace/projects}: Lista progetti workspace
+    \item \texttt{POST /api/workspace/entries}: Crea work entry
+    \item \texttt{GET /api/workspace/todos}: Lista TODO
+    \item \texttt{POST /api/workspace/todos}: Crea TODO
+\end{itemize}
+
+\subsection{Middleware}
+
+\subsubsection{Auth Middleware}
+
+\textbf{File}: \texttt{middleware/auth.js}
+
+\textbf{Funzione}: Verifica JWT access token, estrae payload, aggiunge \texttt{req.user}.
+
+\textbf{Flusso}:
+\begin{enumerate}
+    \item Estrae token da cookie o header
+    \item Verifica firma JWT
+    \item Verifica scadenza
+    \item Verifica blacklist Redis (se token revocato)
+    \item Verifica utente attivo nel DB
+    \item Aggiunge \texttt{req.user} alla request
+\end{enumerate}
+
+\subsubsection{Tenant Context Middleware}
+
+\textbf{File}: \texttt{middleware/tenantContext.js}
+
+\textbf{Funzione}: Inietta \texttt{req.tenantScope} con \texttt{userId} per multi-tenancy.
+
+\textbf{Utilizzo}: Tutti i servizi usano \texttt{req.tenantScope} per filtrare automaticamente i dati.
+
+\subsubsection{Rate Limiter Middleware}
+
+\textbf{File}: \texttt{middleware/rateLimiter.js}
+
+\textbf{Funzione}: Limita richieste per IP/utente per prevenire brute force e DDoS.
+
+\textbf{Configurazione}:
+\begin{itemize}
+    \item \textbf{Store}: Redis (distribuito) o MemoryStore (locale)
+    \item \textbf{Limiti}: 100 richieste/15 min (generale), 5 tentativi/15 min (login)
+\end{itemize}
+
+\subsubsection{Error Handler Middleware}
+
+\textbf{File}: \texttt{middleware/errorHandler.js}
+
+\textbf{Funzione}: Gestione centralizzata errori, logging, risposte user-friendly.
+
+\textbf{Caratteristiche}:
+\begin{itemize}
+    \item Distingue errori operazionali (4xx) da bug (5xx)
+    \item Log dettagliato in sviluppo, messaggi user-friendly in produzione
+    \item Silenzia 401 su \texttt{/auth/check} (utente anonimo normale)
+    \item Trasforma errori Mongoose/JWT in messaggi leggibili
+\end{itemize}
+
+\section{Comunicazione tra Componenti}
+
+\subsection{Flusso Richiesta API}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: Componente chiama \texttt{apiClient.get('/api/goals/goals')}
+    \item \textbf{API Client}: Interceptor aggiunge cookie, gestisce refresh token
+    \item \textbf{Network}: Richiesta HTTP a backend
+    \item \textbf{Backend}: Express riceve richiesta
+    \item \textbf{Middleware Chain}:
+    \begin{itemize}
+        \item Helmet (security headers)
+        \item CORS
+        \item Rate Limiter
+        \item Body Parser
+        \item Auth Middleware (verifica JWT)
+        \item Tenant Context (inietta userId)
+    \end{itemize}
+    \item \textbf{Route}: \texttt{GET /api/goals/goals} → \texttt{goalsController.getGoals()}
+    \item \textbf{Controller}: Chiama \texttt{goalService.find(req.tenantScope)}
+    \item \textbf{Service}: Query MongoDB con filtro \texttt{user: req.tenantScope.userId}
+    \item \textbf{Database}: Ritorna documenti Goal
+    \item \textbf{Service}: Ritorna array obiettivi
+    \item \textbf{Controller}: \texttt{res.json(\{success: true, data: goals\})}
+    \item \textbf{Frontend}: Riceve risposta, aggiorna Context, re-render UI
+\end{enumerate}
+
+\subsection{Flusso Autenticazione}
+
+\begin{enumerate}
+    \item \textbf{Login}: Frontend invia email/password
+    \item \textbf{Backend}: Valida, hash password, genera JWT
+    \item \textbf{Backend}: Salva refresh token hash in \texttt{refreshTokens} array
+    \item \textbf{Backend}: Setta cookie HttpOnly con tokens
+    \item \textbf{Frontend}: Riceve risposta, aggiorna \texttt{AuthContext}
+    \item \textbf{Richieste successive}: Cookie inviati automaticamente
+    \item \textbf{401 su richiesta}: Frontend interceptor cattura, fa refresh automatico
+    \item \textbf{Refresh}: Backend ruota refresh token, genera nuovo access token
+    \item \textbf{Frontend}: Riprova richiesta originale con nuovo token
+\end{enumerate}
+
+\subsection{Flusso Multi-Device}
+
+\begin{enumerate}
+    \item \textbf{Login Device A}: Backend aggiunge sessione a \texttt{refreshTokens} array
+    \item \textbf{Login Device B}: Backend aggiunge altra sessione (FIFO: max 10)
+    \item \textbf{Refresh Device A}: Backend trova sessione, ruota token, aggiorna array
+    \item \textbf{Logout Device B}: Backend rimuove solo sessione Device B
+    \item \textbf{Device A}: Continua a funzionare (sessione indipendente)
+\end{enumerate}
+
+\section{Scritture Database}
+
+\subsection{Operazioni CRUD Principali}
+
+\subsubsection{User}
+
+\begin{itemize}
+    \item \textbf{CREATE}: \texttt{User.create(\{email, password: hashed\})}
+    \item \textbf{UPDATE}: \texttt{User.updateOne(\{_id\}, \{\$push: \{refreshTokens\}\})}
+    \item \textbf{UPDATE}: \texttt{User.updateOne(\{_id\}, \{\$pull: \{refreshTokens: \{hash\}\}\})}
+    \item \textbf{UPDATE}: \texttt{User.updateOne(\{_id\}, \{\$set: \{profile, preferences\}\})}
+\end{itemize}
+
+\subsubsection{Goal}
+
+\begin{itemize}
+    \item \textbf{CREATE}: \texttt{Goal.create(\{user, title, category, type, milestones\})}
+    \item \textbf{UPDATE}: \texttt{Goal.updateOne(\{_id, user\}, \{\$set: \{progress, status\}\})}
+    \item \textbf{UPDATE}: \texttt{Goal.updateOne(\{_id, user\}, \{\$set: \{"milestones.\$[elem].isCompleted": true\}\})}
+    \item \textbf{DELETE}: \texttt{Goal.deleteOne(\{_id, user\})}
+\end{itemize}
+
+\subsubsection{WorkLog}
+
+\begin{itemize}
+    \item \textbf{CREATE}: \texttt{WorkLog.create(\{user, projectId, date, startTime, endTime, durationMinutes\})}
+    \item \textbf{UPDATE}: \texttt{WorkLog.updateOne(\{_id, user\}, \{\$set: \{date, startTime, endTime, durationMinutes\}\})}
+    \item \textbf{DELETE}: \texttt{WorkLog.deleteOne(\{_id, user\})}
+\end{itemize}
+
+\subsection{Operazioni Atomiche}
+
+\subsubsection{Refresh Token Rotation}
+
+\textbf{Problema}: Evitare race conditions su \texttt{refreshTokens} array.
+
+\textbf{Soluzione}: Aggregation pipeline atomica:
+
+\begin{lstlisting}
+User.findOneAndUpdate(
+    { _id: userId, 'refreshTokens.hash': oldHash },
+    [
+        { $set: { refreshTokens: { $filter: { input: '$refreshTokens', cond: { $ne: ['$$this.hash', oldHash] } } } } },
+        { $set: { refreshTokens: { $concatArrays: ['$refreshTokens', [newSession]] } } },
+        { $set: { refreshTokens: { $slice: [{ $sortArray: { input: '$refreshTokens', sortBy: { lastUsedAt: -1 } } }, MAX_SESSIONS] } } }
+    ]
+)
+\end{lstlisting}
+
+\subsubsection{FIFO Session Limit}
+
+\textbf{Problema}: Array \texttt{refreshTokens} può crescere infinitamente.
+
+\textbf{Soluzione}: Limite FIFO (First In, First Out) con aggregation pipeline:
+
+\begin{lstlisting}
+User.updateOne(
+    { _id: userId },
+    [
+        { $set: { refreshTokens: { $concatArrays: ['$refreshTokens', [newSession]] } } },
+        { $set: { refreshTokens: { $slice: [{ $sortArray: { input: '$refreshTokens', sortBy: { lastUsedAt: 1 } } }, -MAX_SESSIONS] } } }
+    ]
+)
+\end{lstlisting}
+
+\section{API Endpoints Completi}
+
+\subsection{Autenticazione}
+
+\begin{longtable}{|p{3cm}|p{2cm}|p{4cm}|p{6cm}|}
+\hline
+\textbf{Endpoint} & \textbf{Method} & \textbf{Input} & \textbf{Output} \\
+\hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+\texttt{/api/auth/register} & POST & \texttt{\{email, password\}} & \texttt{\{success, data: \{user\}\}} \\
+\texttt{/api/auth/login} & POST & \texttt{\{email, password\}} & \texttt{\{success, data: \{user\}\}} (cookie: accessToken, refreshToken) \\
+\texttt{/api/auth/logout} & POST & Cookie: refreshToken & \texttt{\{success, message\}} \\
+\texttt{/api/auth/refresh} & POST & Cookie: refreshToken & \texttt{\{success\}} (cookie: accessToken, refreshToken) \\
+\texttt{/api/auth/check} & GET & Cookie: accessToken & \texttt{\{success, data: \{user, isAuthenticated\}\}} \\
+\texttt{/api/auth/verify-email/:token} & GET & Token in URL & \texttt{\{success, message\}} \\
+\texttt{/api/auth/forgot-password} & POST & \texttt{\{email\}} & \texttt{\{success, message\}} \\
+\texttt{/api/auth/reset-password} & POST & \texttt{\{token, password\}} & \texttt{\{success, message\}} \\
+\texttt{/api/auth/change-password} & PUT & \texttt{\{currentPassword, newPassword\}} & \texttt{\{success, message\}} \\
+\hline
+\end{longtable}
+
+\subsection{Obiettivi}
+
+\begin{longtable}{|p{3cm}|p{2cm}|p{4cm}|p{6cm}|}
+\hline
+\textbf{Endpoint} & \textbf{Method} & \textbf{Input} & \textbf{Output} \\
+\hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+\texttt{/api/goals/goals} & GET & Query: \texttt{?status=ACTIVE} & \texttt{\{success, data: [goals]\}} \\
+\texttt{/api/goals/goals/:id} & GET & - & \texttt{\{success, data: goal\}} \\
+\texttt{/api/goals/goals} & POST & \texttt{\{title, category, type, milestones\}} & \texttt{\{success, data: goal\}} \\
+\texttt{/api/goals/goals/:id} & PUT & \texttt{\{title, progress, status\}} & \texttt{\{success, data: goal\}} \\
+\texttt{/api/goals/goals/:id} & DELETE & - & \texttt{\{success, message\}} \\
+\texttt{/api/goals/goals/:id/milestones/:milestoneId/toggle} & PATCH & - & \texttt{\{success, data: goal\}} \\
+\texttt{/api/goals/goals/:goalId/quick-checkin} & POST & \texttt{\{mood, notes, progress\}} & \texttt{\{success, data: checkin\}} \\
+\texttt{/api/goals/goals/:goalId/checkins} & GET & - & \texttt{\{success, data: [checkins]\}} \\
+\texttt{/api/goals/goals/suggest} & POST & \texttt{\{intent, category, intensity\}} & \texttt{\{success, data: \{plan\}\}} \\
+\texttt{/api/goals/goals-stats} & GET & - & \texttt{\{success, data: \{stats\}\}} \\
+\hline
+\end{longtable}
+
+\subsection{Workspace}
+
+\begin{longtable}{|p{3cm}|p{2cm}|p{4cm}|p{6cm}|}
+\hline
+\textbf{Endpoint} & \textbf{Method} & \textbf{Input} & \textbf{Output} \\
+\hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+\texttt{/api/workspace/projects} & GET & - & \texttt{\{success, data: [projects]\}} \\
+\texttt{/api/workspace/projects} & POST & \texttt{\{name, description, color\}} & \texttt{\{success, data: project\}} \\
+\texttt{/api/workspace/entries} & GET & Query: \texttt{?projectId=xxx} & \texttt{\{success, data: [entries]\}} \\
+\texttt{/api/workspace/entries} & POST & \texttt{\{projectId, date, startTime, endTime, description\}} & \texttt{\{success, data: entry\}} \\
+\texttt{/api/workspace/todos} & GET & Query: \texttt{?projectId=xxx} & \texttt{\{success, data: [todos]\}} \\
+\texttt{/api/workspace/todos} & POST & \texttt{\{projectId, title, description, dueDate, priority\}} & \texttt{\{success, data: todo\}} \\
+\texttt{/api/workspace/todos/:id/complete} & PATCH & - & \texttt{\{success, data: todo\}} \\
+\hline
+\end{longtable}
+
+\subsection{Dashboard e Analytics}
+
+\begin{longtable}{|p{3cm}|p{2cm}|p{4cm}|p{6cm}|}
+\hline
+\textbf{Endpoint} & \textbf{Method} & \textbf{Input} & \textbf{Output} \\
+\hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+\texttt{/api/dashboard/summary} & GET & - & \texttt{\{success, data: \{hours, earnings, goals, projects\}\}} \\
+\texttt{/api/dashboard/quick-actions} & GET & - & \texttt{\{success, data: [actions]\}} \\
+\texttt{/api/analytics/weekly} & GET & - & \texttt{\{success, data: [dailyStats]\}} \\
+\texttt{/api/analytics/insights} & GET & - & \texttt{\{success, data: [insights]\}} \\
+\hline
+\end{longtable}
+
+\section{Pattern e Architetture}
+
+\subsection{Multi-Tenancy}
+
+\textbf{Implementazione}: Plugin Mongoose che aggiunge automaticamente filtro \texttt{user} a tutte le query.
+
+\textbf{Vantaggi}:
+\begin{itemize}
+    \item Isolamento completo dati per utente
+    \item Nessun rischio di accesso cross-user
+    \item Query automaticamente filtrate
+\end{itemize}
+
+\textbf{Utilizzo}: Tutti i modelli (tranne User) hanno campo \texttt{user: ObjectId} e usano \texttt{multiTenancyPlugin}.
+
+\subsection{Refresh Token Rotation}
+
+\textbf{Pattern}: Ad ogni refresh, il vecchio token viene invalidato e ne viene generato uno nuovo.
+
+\textbf{Vantaggi}:
+\begin{itemize}
+    \item Rilevamento furto token (se vecchio token viene riutilizzato)
+    \item Limite danno in caso di compromissione
+\end{itemize}
+
+\textbf{Grace Period}: Vecchi token rimangono validi per 10-30 secondi per gestire race conditions.
+
+\subsection{Mutex Pattern (Frontend)}
+
+\textbf{Problema}: Multiple richieste simultanee che falliscono con 401 causano multiple chiamate refresh.
+
+\textbf{Soluzione}: Solo una richiesta può fare refresh alla volta, le altre aspettano in coda.
+
+\textbf{Implementazione}: Flag \texttt{isRefreshing} + array \texttt{failedQueue} in \texttt{apiClient.ts}.
+
+\subsection{Error Handling Centralizzato}
+
+\textbf{Backend}: Middleware \texttt{errorHandler} cattura tutti gli errori, logga dettagli, invia messaggi user-friendly.
+
+\textbf{Frontend}: Interceptor Axios cattura errori, estrae messaggio backend, mostra toast automatico.
+
+\subsection{Servizi Aggiuntivi}
+
+\subsubsection{Activity Service}
+
+\textbf{File}: \texttt{services/activityService.js}
+
+\textbf{Problema risolto}: Tracciamento attività utente per gamification e analytics.
+
+\textbf{Funzionalità}:
+\begin{itemize}
+    \item Calcolo XP (Experience Points) per azioni utente
+    \item Sistema di livelli basato su XP
+    \item Gestione streak (giorni consecutivi di attività)
+    \item Log attività per analytics
+\end{itemize}
+
+\textbf{Scritture DB}:
+\begin{itemize}
+    \item \texttt{useractivities} collection: Log attività con timestamp, tipo, XP guadagnato
+    \item \texttt{users} collection: Aggiornamento \texttt{xp}, \texttt{level}, \texttt{streak}
+\end{itemize}
+
+\subsubsection{Insight Service}
+
+\textbf{File}: \texttt{services/insightService.js}
+
+\textbf{Problema risolto}: Generazione insight AI per produttività e obiettivi.
+
+\textbf{Funzionalità}:
+\begin{itemize}
+    \item Analisi pattern produttività
+    \item Suggerimenti personalizzati
+    \item Rilevamento anomalie (es. calo produttività)
+\end{itemize}
+
+\textbf{Comunicazione}: Utilizza OpenAI API per generare insight basati su dati utente aggregati.
+
+\subsubsection{Email Service}
+
+\textbf{File}: \texttt{services/emailService.js}
+
+\textbf{Problema risolto}: Invio email per verifica account, reset password, notifiche.
+
+\textbf{Funzionalità}:
+\begin{itemize}
+    \item Email verifica account
+    \item Email reset password
+    \item Notifiche obiettivi (opzionale)
+\end{itemize}
+
+\textbf{Configurazione}: Utilizza servizio email esterno (es. SendGrid, AWS SES) configurato via variabili ambiente.
+
+\subsubsection{Vector Store Service}
+
+\textbf{File}: \texttt{services/vectorStoreService.js}
+
+\textbf{Problema risolto}: Storage e ricerca vettoriale per contenuti PDF e documenti (studio).
+
+\textbf{Funzionalità}:
+\begin{itemize}
+    \item Embedding di testo con OpenAI
+    \item Storage vettori in MongoDB
+    \item Ricerca semantica per contenuti simili
+\end{itemize}
+
+\textbf{Utilizzo}: Sistema di studio con flashcard, estrazione contenuti da PDF.
+
+\subsubsection{AI Goal Service}
+
+\textbf{File}: \texttt{services/aiGoalService.js}
+
+\textbf{Problema risolto}: Generazione automatica di piani obiettivi da intent utente.
+
+\textbf{Funzionalità}:
+\begin{itemize}
+    \item Analisi intent utente (testo libero)
+    \item Generazione milestone e action steps
+    \item Calcolo intensità e difficoltà
+\end{itemize}
+
+\textbf{Comunicazione}: Utilizza OpenAI API per generare piani strutturati da intent naturali.
+
+\subsubsection{Spaced Repetition Algorithms}
+
+\textbf{File}: \texttt{services/spacedRepetitionAlgorithms.js}
+
+\textbf{Problema risolto}: Algoritmi di spaced repetition per ottimizzare apprendimento flashcard.
+
+\textbf{Algoritmi}:
+\begin{itemize}
+    \item \textbf{SM-2}: Algoritmo classico SuperMemo 2
+    \item \textbf{FSRS}: Free Spaced Repetition Scheduler (moderno)
+\end{itemize}
+
+\textbf{Calcoli}:
+\begin{itemize}
+    \item Ease factor (facilità di richiamo)
+    \item Interval (giorni fino prossima review)
+    \item Next review date
+\end{itemize}
+
+\section{Conclusioni}
+
+Il sistema ExtraTracker è progettato con un'architettura modulare, scalabile e sicura. La separazione tra frontend e backend, l'uso di pattern consolidati (MVC, Multi-Tenancy, Mutex) e l'implementazione di sicurezza a più livelli (JWT, rate limiting, CORS, Helmet) garantiscono un'applicazione robusta e pronta per la produzione.
+
+\subsection{Riepilogo Componenti}
+
+\begin{itemize}
+    \item \textbf{Frontend}: 8 features principali + componenti condivisi
+    \item \textbf{Backend}: 8 controllers + 15+ services + 10+ models
+    \item \textbf{API Endpoints}: 50+ endpoint REST
+    \item \textbf{Database}: 10+ collections MongoDB
+    \item \textbf{Sicurezza}: JWT, Argon2id, Rate Limiting, CORS, Helmet, Multi-Tenancy
+    \item \textbf{Scalabilità}: Redis per cache, pattern Mutex, operazioni atomiche MongoDB
+\end{itemize}
+
+\subsection{Pattern Architetturali Utilizzati}
+
+\begin{itemize}
+    \item \textbf{MVC (Model-View-Controller)}: Separazione responsabilità backend
+    \item \textbf{Repository Pattern}: BaseService astrae accesso dati
+    \item \textbf{Template Method Pattern}: BaseService definisce scheletro algoritmi
+    \item \textbf{Multi-Tenancy}: Isolamento dati per utente
+    \item \textbf{Mutex Pattern}: Prevenzione race conditions frontend
+    \item \textbf{Error Handling Centralizzato}: Gestione errori unificata
+    \item \textbf{Service Layer}: Business logic separata da HTTP
+\end{itemize}
+
+\vspace{1cm}
+
+\textit{Documento generato il \today}
+
+\end{document}

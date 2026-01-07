@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  # 1. IL DATABASE
+  mongodb:
+    image: mongo:latest
+    container_name: extra-tracker-db
+    restart: always
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+    volumes:
+      - mongo-data:/data/db # Persistenza: salva i dati anche se spegni docker
+
+volumes:
+  mongo-data:

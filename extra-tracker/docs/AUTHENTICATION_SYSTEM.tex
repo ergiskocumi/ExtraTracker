@@ -1,0 +1,2837 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{float}
+
+% Configurazione geometria pagina
+\geometry{
+    left=2.5cm,
+    right=2.5cm,
+    top=3cm,
+    bottom=3cm
+}
+
+% Configurazione hyperref
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Sistema di Autenticazione - Documentazione Tecnica},
+    pdfauthor={ExtraTracker Team}
+}
+
+% Configurazione listings per codice
+\lstset{
+    language=JavaScript,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=2,
+    showstringspaces=false,
+    escapeinside={\%*}{*)}
+}
+
+% Configurazione titoli
+\titleformat{\section}
+{\Large\bfseries\color{blue!80!black}}
+{}
+{0em}
+{}[\titlerule]
+
+\titleformat{\subsection}
+{\large\bfseries\color{blue!60!black}}
+{}
+{0em}
+{}
+
+% Header e footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{\thepage}
+\fancyfoot[C]{Sistema di Autenticazione - Documentazione Tecnica}
+
+% Comandi personalizzati
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\tech}[1]{\textbf{\textit{#1}}}
+\newcommand{\important}[1]{\textcolor{red!80!black}{\textbf{#1}}}
+
+\title{
+    \vspace{-2cm}
+    \textbf{\Huge Sistema di Autenticazione}\\
+    \Large Documentazione Tecnica Completa\\
+    \large Backend e Frontend
+    \vspace{0.5cm}
+}
+
+\author{ExtraTracker Development Team}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduzione}
+
+Questo documento fornisce una documentazione esaustiva del sistema di autenticazione implementato in ExtraTracker, analizzando in dettaglio tutte le tecniche utilizzate, le scelte progettuali e le implicazioni di sicurezza.
+
+\subsection{Obiettivi del Sistema}
+
+Il sistema di autenticazione è progettato per garantire:
+
+\begin{itemize}
+    \item \textbf{Sicurezza}: Protezione contro attacchi comuni (brute force, XSS, CSRF, token theft)
+    \item \textbf{Usabilità}: Esperienza utente fluida con refresh automatico dei token
+    \item \textbf{Conformità}: Rispetto dei principi GDPR e best practices di sicurezza
+    \item \textbf{Scalabilità}: Architettura modulare e testabile
+\end{itemize}
+
+\subsection{Architettura Generale}
+
+Il sistema segue un'architettura a \tech{tre livelli}:
+
+\begin{enumerate}
+    \item \textbf{Controller Layer}: Gestisce HTTP request/response, validazione input, gestione cookie
+    \item \textbf{Service Layer}: Contiene la logica di business pura (hashing, generazione token, validazione)
+    \item \textbf{Model Layer}: Schema database e metodi di accesso ai dati
+\end{enumerate}
+
+Questa separazione garantisce:
+\begin{itemize}
+    \item \textbf{Testabilità}: Ogni layer può essere testato indipendentemente
+    \item \textbf{Manutenibilità}: Modifiche isolate per responsabilità
+    \item \textbf{Riutilizzabilità}: I service possono essere usati da CLI, worker, etc.
+\end{itemize}
+
+\section{Backend: Architettura e Componenti}
+
+\subsection{Controller Layer}
+
+Il controller (\code{authController.js}) gestisce esclusivamente la comunicazione HTTP. \important{Non contiene logica di business}.
+
+\subsubsection{Gestione Cookie Sicuri}
+
+I token vengono memorizzati in \tech{HttpOnly cookies} per prevenire accesso da JavaScript (protezione XSS):
+
+\begin{lstlisting}[caption=Impostazione Cookie Sicuri]
+const setAuthCookies = (res, accessToken, refreshToken) => {
+    // Access token cookie
+    res.cookie(
+        securityConfig.cookie.name,
+        accessToken,
+        securityConfig.cookie.options  // httpOnly: true, secure: true, sameSite: 'none'
+    );
+
+    // Refresh token cookie (path specifico!)
+    res.cookie(
+        securityConfig.cookie.refreshName,
+        refreshToken,
+        securityConfig.cookie.refreshOptions  // path: '/api/auth/refresh'
+    );
+};
+\end{lstlisting}
+
+\textbf{Perché HttpOnly?}
+\begin{itemize}
+    \item Previene accesso da \code{document.cookie} (XSS attacks)
+    \item Il browser invia automaticamente i cookie nelle richieste
+    \item Non accessibile da JavaScript malizioso
+\end{itemize}
+
+\textbf{Perché SameSite: 'none'?}
+\begin{itemize}
+    \item Necessario per richieste cross-origin (frontend e backend su domini diversi)
+    \item Richiede \code{secure: true} (HTTPS in produzione)
+    \item Previene attacchi CSRF quando configurato correttamente
+\end{itemize}
+
+\subsubsection{Flusso di Registrazione}
+
+\begin{lstlisting}[caption=Registrazione Utente]
+const register = asyncHandler(async (req, res) => {
+    // 1. Validazione input (Zod middleware)
+    // 2. Chiamata service per logica business
+    const { user, accessToken, refreshToken } = 
+        await authService.register(req.body);
+
+    // 3. Genera token verifica email (non blocca risposta)
+    const verificationToken = generateToken();
+    const hashedToken = hashToken(verificationToken);
+    
+    // 4. Salva token hashato nel DB
+    await User.findByIdAndUpdate(user._id, {
+        emailVerificationToken: hashedToken,
+        emailVerificationExpires: new Date(Date.now() + 24h),
+    });
+
+    // 5. Invia email (async, non blocca)
+    emailService.sendVerificationEmail(user.email, verificationToken)
+        .catch(err => console.error('Errore invio email:', err));
+
+    // 6. Imposta cookie e rispondi
+    setAuthCookies(res, accessToken, refreshToken);
+    res.status(201).json({ success: true, data: { user } });
+});
+\end{lstlisting}
+
+\textbf{Scelte progettuali:}
+\begin{itemize}
+    \item \textbf{Token hashato nel DB}: Il token di verifica email viene hashato prima di essere salvato (SHA-256). Solo il token in chiaro viene inviato via email.
+    \item \textbf{Email asincrona}: L'invio email non blocca la risposta HTTP, migliorando la performance percepita.
+    \item \textbf{TTL 24h}: Il token di verifica scade dopo 24 ore per bilanciare sicurezza e usabilità.
+\end{itemize}
+
+\subsubsection{Flusso di Login}
+
+\begin{lstlisting}[caption=Login con Protezione Brute Force]
+const login = asyncHandler(async (req, res) => {
+    const { user, accessToken, refreshToken } = 
+        await authService.login(req.body);
+    
+    setAuthCookies(res, accessToken, refreshToken);
+    res.status(200).json({ success: true, data: { user } });
+});
+\end{lstlisting}
+
+Il controller è semplice perché la logica complessa (verifica password, lockout account) è nel service layer.
+
+\subsubsection{Refresh Token con Rotazione}
+
+\begin{lstlisting}[caption=Refresh Token con Rotazione]
+const refresh = asyncHandler(async (req, res) => {
+    const refreshToken = req.cookies?.[securityConfig.cookie.refreshName];
+
+    if (!refreshToken) {
+        return res.status(401).json({
+            success: false,
+            error: { message: 'Sessione scaduta', code: 'NO_REFRESH_TOKEN' }
+        });
+    }
+
+    // Service genera NUOVI token (rotation)
+    const { accessToken, refreshToken: newRefreshToken } = 
+        await authService.refreshAccessToken(refreshToken);
+
+    // Ruota i token (il vecchio refresh token non è più valido)
+    setAuthCookies(res, accessToken, newRefreshToken);
+
+    res.status(200).json({ success: true, message: 'Token rinnovato' });
+});
+\end{lstlisting}
+
+\textbf{Perché Refresh Token Rotation?}
+\begin{itemize}
+    \item \textbf{Sicurezza}: Se un refresh token viene rubato, può essere usato solo una volta
+    \item \textbf{Rilevamento furto}: Se il vecchio token viene riutilizzato, è segno di compromissione
+    \item \textbf{Invalidazione automatica}: Il vecchio token diventa immediatamente inutile
+\end{itemize}
+
+\subsection{Service Layer}
+
+Il service layer (\code{authService.js}) contiene la \important{logica pura di business}, senza dipendenze da Express o HTTP.
+
+\subsubsection{Password Hashing con Argon2id}
+
+\begin{lstlisting}[caption=Hashing Password con Argon2id]
+async hashPassword(password) {
+    return argon2.hash(password, {
+        type: argon2.argon2id,        // Tipo più sicuro
+        memoryCost: 65536,            // 64MB (resiste a GPU attacks)
+        timeCost: 3,                  // Iterazioni
+        parallelism: 4,               // Usa 4 core CPU
+        hashLength: 32,               // 32 bytes hash
+    });
+}
+\end{lstlisting}
+
+\textbf{Perché Argon2id invece di bcrypt o scrypt?}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Algoritmo} & \textbf{GPU Resistance} & \textbf{Side-Channel} & \textbf{Standard} \\
+\midrule
+bcrypt & Media & Vulnerabile & No \\
+scrypt & Alta & Vulnerabile & No \\
+Argon2id & Alta & Resistente & \checkmark (PHC 2015) \\
+\bottomrule
+\end{tabular}
+\caption{Confronto algoritmi di hashing}
+\end{table}
+
+\textbf{Vantaggi di Argon2id:}
+\begin{itemize}
+    \item \textbf{Memory-hard}: Richiede grandi quantità di memoria, rendendo attacchi GPU costosi
+    \item \textbf{Resistente a side-channel}: Protegge contro timing attacks
+    \item \textbf{Vincitore Password Hashing Competition 2015}: Standard de facto
+    \item \textbf{Configurabile}: Parametri ottimizzabili per performance/sicurezza
+\end{itemize}
+
+\textbf{Parametri scelti:}
+\begin{itemize}
+    \item \code{memoryCost: 65536} (64MB): Bilanciamento tra sicurezza e performance
+    \item \code{timeCost: 3}: ~200ms per hash (accettabile per UX)
+    \item \code{parallelism: 4}: Sfrutta multi-core moderni
+\end{itemize}
+
+\subsubsection{Generazione JWT Token}
+
+\begin{lstlisting}[caption=Generazione Access Token]
+generateAccessToken(user) {
+    const payload = {
+        sub: user._id.toString(),  // Subject: ID utente
+        email: user.email,
+        type: 'access',             // Distingue access da refresh
+    };
+
+    return jwt.sign(payload, securityConfig.jwt.secret, {
+        expiresIn: '15m',           // Breve durata per sicurezza
+        algorithm: 'HS256',         // Algoritmo simmetrico
+    });
+}
+\end{lstlisting}
+
+\textbf{Perché 15 minuti per access token?}
+\begin{itemize}
+    \item \textbf{Minimizza finestra di compromissione}: Se rubato, è valido solo 15 minuti
+    \item \textbf{Refresh automatico}: Il frontend rinnova automaticamente quando scade
+    \item \textbf{Bilanciamento}: Non troppo breve (troppe richieste) né troppo lungo (rischio sicurezza)
+\end{itemize}
+
+\begin{lstlisting}[caption=Generazione Refresh Token con Device Tracking]
+async generateRefreshToken(user, deviceInfo = {}) {
+    // Parte random per unicità
+    const randomPart = crypto.randomBytes(32).toString('hex');
+
+    const payload = {
+        sub: user._id.toString(),
+        type: 'refresh',
+        jti: randomPart,  // JWT ID unico
+    };
+
+    const token = jwt.sign(payload, securityConfig.jwt.secret, {
+        expiresIn: '7d',  // Durata più lunga
+        algorithm: 'HS256',
+    });
+
+    // Hash del token per salvarlo nel DB (NON salvare token in chiaro!)
+    const hash = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+    // Dati sessione da salvare nel DB (per multi-device support)
+    const sessionData = {
+        hash,
+        device: deviceInfo.device || 'Unknown',
+        userAgent: deviceInfo.userAgent || 'Unknown',
+        ip: deviceInfo.ip || 'Unknown',
+        createdAt: new Date(),
+        lastUsedAt: new Date(),
+    };
+
+    return { token, hash, sessionData };
+}
+\end{lstlisting}
+
+\textbf{Perché hashare il refresh token nel DB?}
+\begin{itemize}
+    \item \textbf{Protezione database}: Se il DB viene compromesso, i token non sono utilizzabili
+    \item \textbf{Verifica integrità}: Confronto hash per validare token durante refresh
+    \item \textbf{Best practice}: Mai salvare token in chiaro nel database
+\end{itemize}
+
+\subsubsection{Multi-Device Support: Gestione Sessioni Multiple}
+
+\important{Problema della Mono-Sessione}: Il sistema originale supportava solo una sessione per utente. Quando un utente si loggava da un nuovo dispositivo, il refresh token precedente veniva invalidato, causando logout forzato su altri dispositivi.
+
+\textbf{Soluzione Implementata}: Array di sessioni nel modello User.
+
+\begin{lstlisting}[caption=Schema RefreshTokens Array nel Modello User]
+refreshTokens: [{
+    hash: {
+        type: String,
+        required: true,
+    },
+    device: {
+        type: String,  // 'Desktop', 'Mobile', 'Tablet', 'Unknown'
+        required: true,
+    },
+    userAgent: {
+        type: String,
+        trim: true,
+    },
+    ip: {
+        type: String,
+        trim: true,
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+    lastUsedAt: {
+        type: Date,
+        default: Date.now,
+    },
+}]
+\end{lstlisting}
+
+\textbf{Vantaggi del Sistema Multi-Sessione:}
+\begin{itemize}
+    \item \textbf{Multi-device}: Utente può essere loggato su PC, telefono e tablet simultaneamente
+    \item \textbf{Device tracking}: Ogni sessione traccia dispositivo, user-agent e IP
+    \item \textbf{Logout selettivo}: Possibilità di invalidare una singola sessione o tutte
+    \item \textbf{Monitoraggio}: \code{lastUsedAt} permette di identificare sessioni inattive
+    \item \textbf{Sicurezza}: Ogni dispositivo ha il proprio refresh token indipendente
+    \item \textbf{Limite FIFO}: Massimo 10 sessioni attive, previene crescita infinita array
+\end{itemize}
+
+\subsubsection{Protezione DoS: Limite FIFO Sessioni}
+
+\important{Problema dell'Array Infinito}: Senza limiti, l'array \code{refreshTokens} può crescere indefinitamente, causando:
+\begin{itemize}
+    \item \textbf{DoS su se stessi}: Documento MongoDB può superare 16MB (limite BSON)
+    \item \textbf{Performance degradate}: Caricare KB di sessioni vecchie ad ogni query
+    \item \textbf{Account rotto}: Se supera 16MB, MongoDB rifiuta il documento
+\end{itemize}
+
+\textbf{Scenario Problematico:}
+\begin{enumerate}
+    \item Utente si logga da browser incognito, chiude, riapre, si rilogga
+    \item Lo fa 50 volte (o script malevolo bypassa rate limit)
+    \item L'array \code{refreshTokens} cresce a 50+ elementi
+    \item Ogni query utente carica KB di dati inutili
+    \item Se supera 16MB, l'account si rompe
+\end{enumerate}
+
+\textbf{Soluzione: Limite FIFO (First In, First Out)}
+
+\begin{lstlisting}[caption=Configurazione Limite Sessioni]
+// config/security.js
+const MAX_ACTIVE_SESSIONS = 10; // Limite massimo dispositivi
+
+module.exports = {
+    session: {
+        maxActiveSessions: MAX_ACTIVE_SESSIONS,
+        refreshTokenExpiryDays: 7,
+    },
+};
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Login con Limite FIFO]
+async login(data, deviceInfo = {}) {
+    // ... verifica password ...
+    
+    // Assicurati che refreshTokens sia un array
+    if (!user.refreshTokens) {
+        user.refreshTokens = [];
+    }
+
+    // Pulisci sessioni scadute (refresh token scaduti oltre 7 giorni)
+    this.cleanExpiredSessions(user);
+
+    // Genera token con device info
+    const accessToken = this.generateAccessToken(user);
+    const { token: refreshToken, sessionData } = 
+        await this.generateRefreshToken(user, deviceInfo);
+
+    // Applica limite FIFO: se raggiunto il limite, rimuovi la sessione più vecchia
+    if (user.refreshTokens.length >= MAX_ACTIVE_SESSIONS) {
+        // Ordina per lastUsedAt (più vecchia prima)
+        user.refreshTokens.sort((a, b) => {
+            const dateA = new Date(a.lastUsedAt || a.createdAt);
+            const dateB = new Date(b.lastUsedAt || b.createdAt);
+            return dateA - dateB;
+        });
+        // Rimuovi la sessione più vecchia (FIFO)
+        user.refreshTokens.shift();
+    }
+
+    // Aggiungi nuova sessione all'array
+    user.refreshTokens.push(sessionData);
+    await user.save();
+}
+\end{lstlisting}
+
+\textbf{Pre-Save Hook nel Modello User:}
+
+\begin{lstlisting}[caption=Pre-Save Hook per Garantire Limite]
+userSchema.pre('save', function (next) {
+    if (!this.refreshTokens || this.refreshTokens.length === 0) {
+        return next();
+    }
+
+    const { MAX_ACTIVE_SESSIONS } = require('../config/security');
+    
+    // Se supera il limite, rimuovi le sessioni più vecchie (FIFO)
+    if (this.refreshTokens.length > MAX_ACTIVE_SESSIONS) {
+        // Ordina per lastUsedAt (più vecchia prima)
+        this.refreshTokens.sort((a, b) => {
+            const dateA = new Date(a.lastUsedAt || a.createdAt);
+            const dateB = new Date(b.lastUsedAt || b.createdAt);
+            return dateA - dateB;
+        });
+        
+        // Mantieni solo le MAX_ACTIVE_SESSIONS più recenti
+        this.refreshTokens = this.refreshTokens.slice(-MAX_ACTIVE_SESSIONS);
+    }
+
+    next();
+});
+\end{lstlisting}
+
+\textbf{Protezioni Implementate:}
+\begin{itemize}
+    \item \textbf{Limite massimo}: 10 sessioni attive per utente
+    \item \textbf{FIFO}: Rimuove sempre la sessione più vecchia (basata su \code{lastUsedAt})
+    \item \textbf{Pulizia automatica}: Rimuove sessioni scadute (refresh token oltre 7 giorni)
+    \item \textbf{Pre-save hook}: Garantisce che il limite sia sempre rispettato
+    \item \textbf{Doppia protezione}: Logica nel service + hook nel modello
+\end{itemize}
+
+\textbf{Perché 10 Sessioni?}
+\begin{itemize}
+    \item Bilanciamento tra usabilità e sicurezza
+    \item Utente tipico: PC, telefono, tablet, laptop = 4 dispositivi
+    \item 10 permette margine per dispositivi temporanei
+    \item Previene crescita infinita mantenendo flessibilità
+\end{itemize}
+
+\textbf{Utility per Rilevare Device Info:}
+
+\begin{lstlisting}[caption=Utility getDeviceInfo]
+const getDeviceInfo = (req) => {
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const ip = req.ip || req.socket?.remoteAddress || 'Unknown';
+    
+    // Estrai tipo dispositivo da User-Agent
+    let device = 'Unknown';
+    if (userAgent.includes('Mobile') || userAgent.includes('Android') || 
+        userAgent.includes('iPhone')) {
+        device = 'Mobile';
+    } else if (userAgent.includes('Tablet') || userAgent.includes('iPad')) {
+        device = 'Tablet';
+    } else if (userAgent.includes('Windows') || userAgent.includes('Mac') || 
+               userAgent.includes('Linux')) {
+        device = 'Desktop';
+    }
+    
+    return { device, userAgent, ip };
+};
+\end{lstlisting}
+
+\subsubsection{Optimistic Concurrency Control: Operatori Atomici MongoDB}
+
+\important{Problema della Concorrenza}: Mongoose usa il campo \code{__v} (version key) per rilevare conflitti. Quando due dispositivi fanno operazioni simultanee sullo stesso documento, il secondo salvataggio fallisce con \code{VersionError}.
+
+\textbf{Scenario Problematico:}
+\begin{enumerate}
+    \item Device A legge utente (\code{__v=1})
+    \item Device B legge utente (\code{__v=1})
+    \item Device A fa refresh, aggiorna array e salva → DB passa a \code{__v=2}
+    \item Device B prova a salvare → \important{ERRORE!} \code{VersionError: No matching document}
+    \item Device B riceve errore 500 invece di refresh riuscito
+\end{enumerate}
+
+\textbf{Perché è un Problema:}
+\begin{itemize}
+    \item Con sistema multi-device, è probabile che due dispositivi facciano azioni simultanee
+    \item App fa refresh in background sia su telefono che tablet nello stesso momento
+    \item Uno dei due fallisce con errore 500
+    \item Esperienza utente degradata
+\end{itemize}
+
+\textbf{Soluzione: Operatori Atomici MongoDB}
+
+Invece di \code{user.save()}, usiamo operatori atomici MongoDB (\code{\$push}, \code{\$pull}, \code{\$set}) che:
+\begin{itemize}
+    \item Non incrementano \code{__v} (non conflittano)
+    \item Sono atomici a livello database
+    \item Non conflittano se si toccano elementi diversi dell'array
+\end{itemize}
+
+\begin{lstlisting}[caption=Login con Operatori Atomici]
+async login(data, deviceInfo = {}) {
+    // ... verifica password ...
+    
+    // Genera token con device info
+    const accessToken = this.generateAccessToken(user);
+    const { token: refreshToken, sessionData } = 
+        await this.generateRefreshToken(user, deviceInfo);
+
+    // Usa operatori atomici MongoDB per evitare conflitti di versione
+    // Pulisci sessioni scadute e aggiungi nuova sessione atomicamente
+    const refreshTokenExpiryMs = this.parseExpiryToMs(
+        securityConfig.jwt.refreshTokenExpiry
+    );
+    const expiryDate = new Date(Date.now() - refreshTokenExpiryMs);
+
+    // Operazione atomica: pulisci scadute e aggiungi nuova
+    await User.updateOne(
+        { _id: user._id },
+        {
+            $push: { refreshTokens: sessionData },
+            $pull: {
+                refreshTokens: {
+                    createdAt: { $lt: expiryDate }
+                }
+            }
+        }
+    );
+
+    // Applica limite FIFO usando aggregation pipeline (atomico)
+    const result = await User.findOneAndUpdate(
+        { _id: user._id },
+        [
+            {
+                $set: {
+                    refreshTokens: {
+                        $cond: {
+                            if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                            then: {
+                                $slice: [
+                                    {
+                                        $sortArray: {
+                                            input: '$refreshTokens',
+                                            sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                        }
+                                    },
+                                    -MAX_ACTIVE_SESSIONS
+                                ]
+                            },
+                            else: '$refreshTokens'
+                        }
+                    }
+                }
+            }
+        ],
+        { new: true }
+    );
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Refresh Token Rotation con Operatori Atomici]
+async refreshAccessToken(refreshToken, deviceInfo = {}) {
+    // ... verifica token ...
+    
+    // Aggiorna lastUsedAt (operatore atomico)
+    await User.updateOne(
+        { 
+            _id: user._id,
+            'refreshTokens.hash': tokenHash
+        },
+        {
+            $set: {
+                'refreshTokens.$.lastUsedAt': new Date()
+            }
+        }
+    );
+
+    // Aggiungi al grace period (operatore atomico)
+    await User.updateOne(
+        { _id: user._id },
+        {
+            $push: {
+                gracePeriodTokens: {
+                    hash: tokenHash,
+                    expiresAt: new Date(Date.now() + GRACE_PERIOD_MS),
+                }
+            },
+            $pull: {
+                gracePeriodTokens: {
+                    expiresAt: { $lt: new Date() }
+                }
+            }
+        }
+    );
+
+    // Rimuovi vecchia sessione e aggiungi nuova (aggregation pipeline atomica)
+    const updatedUser = await User.findOneAndUpdate(
+        { _id: user._id },
+        [
+            {
+                $set: {
+                    refreshTokens: {
+                        $filter: {
+                            input: '$refreshTokens',
+                            as: 'session',
+                            cond: { $ne: ['$$session.hash', tokenHash] }
+                        }
+                    }
+                }
+            },
+            {
+                $set: {
+                    refreshTokens: {
+                        $concatArrays: ['$refreshTokens', [newSessionData]]
+                    }
+                }
+            },
+            {
+                $set: {
+                    refreshTokens: {
+                        $cond: {
+                            if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                            then: {
+                                $slice: [
+                                    {
+                                        $sortArray: {
+                                            input: '$refreshTokens',
+                                            sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                        }
+                                    },
+                                    -MAX_ACTIVE_SESSIONS
+                                ]
+                            },
+                            else: '$refreshTokens'
+                        }
+                    }
+                }
+            }
+        ],
+        { new: true }
+    );
+}
+\end{lstlisting}
+
+\textbf{Operatori Atomici Utilizzati:}
+\begin{itemize}
+    \item \code{\$push}: Aggiunge elemento all'array (atomico)
+    \item \code{\$pull}: Rimuove elementi dall'array che matchano condizione (atomico)
+    \item \code{\$set}: Imposta valore (atomico)
+    \item \code{\$filter}: Filtra array (in aggregation pipeline, atomico)
+    \item \code{\$concatArrays}: Concatena array (in aggregation pipeline, atomico)
+    \item \code{\$sortArray}: Ordina array (in aggregation pipeline, atomico)
+    \item \code{\$slice}: Limita array (in aggregation pipeline, atomico)
+\end{itemize}
+
+\textbf{Vantaggi degli Operatori Atomici:}
+\begin{itemize}
+    \item \textbf{No Version Conflicts}: Non incrementano \code{__v}, non conflittano
+    \item \textbf{Atomicità}: Operazioni garantite atomiche a livello database
+    \item \textbf{Performance}: Più veloci di \code{user.save()} (meno overhead)
+    \item \textbf{Concorrenza}: Multiple operazioni simultanee non falliscono
+    \item \textbf{Aggregation Pipeline}: Operazioni complesse (FIFO, filtri) in un'unica query atomica
+\end{itemize}
+
+\textbf{Quando Usare Operatori Atomici vs. user.save():}
+\begin{itemize}
+    \item \textbf{Operatori atomici}: Per modifiche agli array (refreshTokens, gracePeriodTokens)
+    \item \textbf{user.save()}: Per modifiche a campi semplici o quando serve validazione Mongoose
+    \item \textbf{Retry mechanism}: Se devi usare \code{user.save()}, implementa retry su \code{VersionError}
+\end{itemize}
+
+\important{Limite MongoDB: Non puoi fare \$push e \$pull sullo stesso array nella stessa operazione}
+
+\textbf{Problema:}
+MongoDB non permette di modificare lo stesso array (path) due volte nella stessa operazione \code{updateOne} perché non sa in che ordine eseguirle. Questo causa errore:
+\begin{lstlisting}
+MongoServerError: Updating the path 'refreshTokens' would create a conflict at 'refreshTokens'
+\end{lstlisting}
+
+\textbf{Soluzione: Separare le Operazioni}
+
+\begin{lstlisting}[caption=Login Corretto - Separazione Operazioni]
+async login(data, deviceInfo = {}) {
+    // ... verifica password ...
+    
+    // Genera token
+    const accessToken = this.generateAccessToken(user);
+    const { token: refreshToken, sessionData } = 
+        await this.generateRefreshToken(user, deviceInfo);
+
+    const refreshTokenExpiryMs = this.parseExpiryToMs(
+        securityConfig.jwt.refreshTokenExpiry
+    );
+    const expiryDate = new Date(Date.now() - refreshTokenExpiryMs);
+
+    // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
+    
+    // 1. Pulisci le sessioni scadute (Safe to do first)
+    await User.updateOne(
+        { _id: user._id },
+        {
+            $pull: {
+                refreshTokens: {
+                    createdAt: { $lt: expiryDate }
+                }
+            }
+        }
+    );
+
+    // 2. Aggiungi la nuova sessione e applica il limite FIFO
+    const updatedUser = await User.findOneAndUpdate(
+        { _id: user._id },
+        [
+            {
+                $set: {
+                    refreshTokens: {
+                        $concatArrays: ['$refreshTokens', [sessionData]]
+                    }
+                }
+            },
+            {
+                $set: {
+                    refreshTokens: {
+                        $cond: {
+                            if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                            then: {
+                                $slice: [
+                                    {
+                                        $sortArray: {
+                                            input: '$refreshTokens',
+                                            sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                        }
+                                    },
+                                    -MAX_ACTIVE_SESSIONS
+                                ]
+                            },
+                            else: '$refreshTokens'
+                        }
+                    }
+                }
+            }
+        ],
+        { new: true }
+    );
+}
+\end{lstlisting}
+
+\textbf{Regola Generale:}
+\begin{itemize}
+    \item \important{Non fare} \code{\$push} e \code{\$pull} sullo stesso array nella stessa operazione
+    \item \textbf{Separa} le operazioni in due \code{updateOne} sequenziali
+    \item \textbf{Ordine}: Prima \code{\$pull} (rimuovi), poi \code{\$push} (aggiungi)
+    \item \textbf{Alternative}: Usa aggregation pipeline per operazioni complesse
+\end{itemize}
+
+\subsubsection{Refresh Token con Validazione Hash}
+
+\begin{lstlisting}[caption=Refresh Token con Validazione Multi-Sessione e Grace Period]
+async refreshAccessToken(refreshToken, deviceInfo = {}) {
+    // 1. Verifica firma JWT
+    const payload = this.verifyToken(refreshToken, 'refresh');
+
+    // 2. Trova utente con array refreshTokens e gracePeriodTokens
+    const user = await User.findByRefreshToken(payload.sub);
+    if (!user) {
+        throw AppError.unauthorized('Sessione non valida');
+    }
+
+    // 3. Verifica hash del refresh token
+    const tokenHash = crypto
+        .createHash('sha256')
+        .update(refreshToken)
+        .digest('hex');
+
+    // 4. Pulisci token scaduti dal grace period
+    user.cleanExpiredGracePeriodTokens();
+
+    // 5. Trova sessione specifica nell'array
+    const session = user.findSessionByHash(tokenHash);
+    
+    // 6. Se non trovato nelle sessioni attive, controlla grace period
+    if (!session) {
+        const graceToken = user.findInGracePeriod(tokenHash);
+        
+        if (graceToken) {
+            // Token nel grace period: è una race condition legittima
+            // Genera nuovi token senza invalidare nulla
+            const newAccessToken = this.generateAccessToken(user);
+            const { token: newRefreshToken } = 
+                await this.generateRefreshToken(user, deviceInfo);
+            
+            // Rimuovi dal grace period (già usato)
+            await user.removeFromGracePeriod(tokenHash);
+            
+            return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
+        }
+        
+        // Token non trovato né in sessioni attive né in grace period
+        // Possibile furto o token già invalidato
+        // Invalida tutte le sessioni per sicurezza (usa operatori atomici)
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $set: { 
+                    refreshTokens: [],
+                    gracePeriodTokens: []
+                }
+            }
+        );
+        throw AppError.unauthorized('Sessione non valida o scaduta');
+    }
+
+    // 7. Aggiorna lastUsedAt per questa sessione (operatore atomico)
+    await User.updateOne(
+        { 
+            _id: user._id,
+            'refreshTokens.hash': tokenHash
+        },
+        {
+            $set: {
+                'refreshTokens.$.lastUsedAt': new Date()
+            }
+        }
+    );
+
+    // 8. Genera nuovi token (rotation) - mantieni stesso device info
+    const newAccessToken = this.generateAccessToken(user);
+    const { token: newRefreshToken, sessionData: newSessionData } = 
+        await this.generateRefreshToken(user, {
+            device: session.device,
+            userAgent: deviceInfo.userAgent || session.userAgent,
+            ip: deviceInfo.ip || session.ip,
+        });
+
+    // 9. IMPORTANTE: Aggiungi vecchio token al grace period PRIMA di rimuoverlo
+    // Questo previene race conditions se arrivano richieste concorrenti
+    // Usa operatori atomici per evitare conflitti di versione
+    const graceExpiresAt = new Date(Date.now() + GRACE_PERIOD_MS);
+    await User.updateOne(
+        { _id: user._id },
+        {
+            $push: {
+                gracePeriodTokens: {
+                    hash: tokenHash,
+                    expiresAt: graceExpiresAt,
+                }
+            },
+            $pull: {
+                gracePeriodTokens: {
+                    expiresAt: { $lt: new Date() }
+                }
+            }
+        }
+    );
+
+    // 10. Rimuovi vecchia sessione e aggiungi nuova (rotation) usando operatori atomici
+    // Usa aggregation pipeline per garantire atomicità e limite FIFO
+    const updatedUser = await User.findOneAndUpdate(
+        { _id: user._id },
+        [
+            {
+                $set: {
+                    refreshTokens: {
+                        $filter: {
+                            input: '$refreshTokens',
+                            as: 'session',
+                            cond: { $ne: ['$$session.hash', tokenHash] }
+                        }
+                    }
+                }
+            },
+            {
+                $set: {
+                    refreshTokens: {
+                        $concatArrays: ['$refreshTokens', [newSessionData]]
+                    }
+                }
+            },
+            {
+                $set: {
+                    refreshTokens: {
+                        $cond: {
+                            if: { $gt: [{ $size: '$refreshTokens' }, MAX_ACTIVE_SESSIONS] },
+                            then: {
+                                $slice: [
+                                    {
+                                        $sortArray: {
+                                            input: '$refreshTokens',
+                                            sortBy: { lastUsedAt: 1, createdAt: 1 }
+                                        }
+                                    },
+                                    -MAX_ACTIVE_SESSIONS
+                                ]
+                            },
+                            else: '$refreshTokens'
+                        }
+                    }
+                }
+            }
+        ],
+        { new: true }
+    );
+    
+    // Aggiorna oggetto user locale per coerenza
+    if (updatedUser) {
+        Object.assign(user, updatedUser.toObject());
+    }
+
+    return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
+}
+\end{lstlisting}
+
+\textbf{Meccanismo di sicurezza con multi-sessione e grace period:}
+\begin{enumerate}
+    \item Verifica firma JWT (garantisce autenticità)
+    \item Cerca sessione specifica nell'array \code{refreshTokens}
+    \item Se non trovata, controlla \code{gracePeriodTokens} (gestione race conditions)
+    \item Se nel grace period: genera nuovi token senza invalidare (race condition legittima)
+    \item Se non trovata da nessuna parte: possibile furto, invalida tutte le sessioni
+    \item Aggiorna \code{lastUsedAt} per tracciare attività
+    \item Genera nuovi token (rotation) mantenendo device info originale
+    \item \important{Aggiunge vecchio token al grace period} prima di rimuoverlo
+    \item Rimuove vecchia sessione e aggiunge nuova (rotation per singola sessione)
+\end{enumerate}
+
+\subsubsection{Grace Period: Protezione contro Race Conditions}
+
+\important{Problema delle Race Conditions}: Quando due richieste di refresh arrivano quasi simultaneamente con lo stesso token, la seconda viene interpretata come riutilizzo del token (furto) e invalida tutte le sessioni.
+
+\textbf{Scenario Problematico:}
+\begin{enumerate}
+    \item Richiesta A arriva al server con token T1
+    \item Server valida T1, genera T2, rimuove T1 dal DB
+    \item Richiesta B arriva con T1 (cookie non ancora aggiornato)
+    \item Server non trova T1 nel DB → pensa: "Furto!" → invalida tutto
+\end{enumerate}
+
+\textbf{Soluzione: Grace Period}
+
+Il sistema implementa un \tech{periodo di grazia} di 30 secondi durante il quale i token vecchi rimangono validi anche dopo la rotazione.
+
+\begin{lstlisting}[caption=Schema Grace Period nel Modello User]
+gracePeriodTokens: [{
+    hash: {
+        type: String,
+        required: true,
+    },
+    expiresAt: {
+        type: Date,
+        required: true,
+    },
+}]
+\end{lstlisting}
+
+\textbf{Metodi per Gestione Grace Period:}
+
+\begin{lstlisting}[caption=Metodi Grace Period]
+/**
+ * Trova token nel grace period (per gestire race conditions)
+ */
+userSchema.methods.findInGracePeriod = function (tokenHash) {
+    if (!this.gracePeriodTokens || this.gracePeriodTokens.length === 0) {
+        return null;
+    }
+    // Cerca token e verifica che non sia scaduto
+    const graceToken = this.gracePeriodTokens.find(
+        gt => gt.hash === tokenHash && gt.expiresAt > new Date()
+    );
+    return graceToken || null;
+};
+
+/**
+ * Aggiungi token al grace period (durata default 30 secondi)
+ */
+userSchema.methods.addToGracePeriod = async function (tokenHash, gracePeriodMs = 30000) {
+    if (!this.gracePeriodTokens) {
+        this.gracePeriodTokens = [];
+    }
+    
+    // Rimuovi eventuali token scaduti prima di aggiungere
+    this.cleanExpiredGracePeriodTokens();
+    
+    // Aggiungi nuovo token al grace period
+    this.gracePeriodTokens.push({
+        hash: tokenHash,
+        expiresAt: new Date(Date.now() + gracePeriodMs),
+    });
+    
+    return this.save();
+};
+
+/**
+ * Pulisci token scaduti dal grace period
+ */
+userSchema.methods.cleanExpiredGracePeriodTokens = function () {
+    if (!this.gracePeriodTokens) {
+        return;
+    }
+    
+    const now = new Date();
+    this.gracePeriodTokens = this.gracePeriodTokens.filter(
+        gt => gt.expiresAt > now
+    );
+};
+\end{lstlisting}
+
+\textbf{Vantaggi del Grace Period:}
+\begin{itemize}
+    \item \textbf{Previene falsi positivi}: Race conditions legittime non scatenano allarmi di sicurezza
+    \item \textbf{Mantiene sicurezza}: Token scaduti vengono rimossi automaticamente dopo 30 secondi
+    \item \textbf{Resilienza}: Gestisce richieste concorrenti da tab multiple o reti lente
+    \item \textbf{Performance}: Pulizia automatica dei token scaduti ad ogni verifica
+\end{itemize}
+
+\textbf{Flusso con Grace Period:}
+\begin{enumerate}
+    \item Richiesta A: trova T1 in \code{refreshTokens}, genera T2
+    \item Richiesta A: aggiunge T1 a \code{gracePeriodTokens} (30s)
+    \item Richiesta A: rimuove T1 da \code{refreshTokens}, aggiunge T2
+    \item Richiesta B: non trova T1 in \code{refreshTokens}
+    \item Richiesta B: trova T1 in \code{gracePeriodTokens} → \important{legittimo!}
+    \item Richiesta B: genera T3, rimuove T1 dal grace period
+    \item Dopo 30s: T1 scade automaticamente dal grace period
+\end{enumerate}
+
+\textbf{Differenze chiave rispetto al sistema mono-sessione:}
+\begin{itemize}
+    \item \textbf{Ricerca nell'array}: Cerca la sessione specifica invece di confrontare un singolo hash
+    \item \textbf{Rotazione per sessione}: Ogni dispositivo ha la propria rotazione indipendente
+    \item \textbf{Grace period}: Previene race conditions durante rotazione token
+    \item \textbf{Device info persistente}: Mantiene informazioni dispositivo originali
+    \item \textbf{Tracking attività}: \code{lastUsedAt} permette identificare sessioni inattive
+\end{itemize}
+
+\subsubsection{Login con Protezione Brute Force}
+
+\begin{lstlisting}[caption=Login con Account Lockout e Multi-Sessione]
+async login(data, deviceInfo = {}) {
+    const { email, password } = data;
+
+    // Trova utente con campi nascosti (password, failedAttempts)
+    const user = await User.findForLogin(email);
+
+    if (!user) {
+        // Messaggio generico per non rivelare se email esiste
+        throw AppError.unauthorized('Email o password non corretti');
+    }
+
+    // Verifica se account bloccato
+    if (user.isLocked) {
+        const minutesLeft = Math.ceil((user.lockUntil - Date.now()) / 60000);
+        throw AppError.unauthorized(
+            `Account temporaneamente bloccato. Riprova tra ${minutesLeft} minuti`
+        );
+    }
+
+    // Verifica password
+    const isValidPassword = await this.verifyPassword(user.password, password);
+
+    if (!isValidPassword) {
+        // Incrementa tentativi falliti
+        await user.incrementFailedAttempts();
+        throw AppError.unauthorized('Email o password non corretti');
+    }
+
+    // Login riuscito: resetta contatore
+    await user.resetFailedAttempts();
+
+    // Assicurati che refreshTokens sia un array
+    if (!user.refreshTokens) {
+        user.refreshTokens = [];
+    }
+
+    // Genera token con device info
+    const accessToken = this.generateAccessToken(user);
+    const { token: refreshToken, sessionData } = 
+        await this.generateRefreshToken(user, deviceInfo);
+
+    // Aggiungi nuova sessione all'array (NON sovrascrive sessioni esistenti!)
+    user.refreshTokens.push(sessionData);
+    await user.save();
+
+    return { user, accessToken, refreshToken };
+}
+\end{lstlisting}
+
+\textbf{Protezioni implementate:}
+\begin{itemize}
+    \item \textbf{Account Lockout}: Dopo 5 tentativi falliti, account bloccato per 15 minuti
+    \item \textbf{Messaggi generici}: Non rivela se l'email esiste (previene enumeration attacks)
+    \item \textbf{Reset automatico}: Dopo login riuscito, contatore resettato
+    \item \textbf{Multi-sessione}: Aggiunge nuova sessione all'array senza invalidare quelle esistenti
+    \item \textbf{Device tracking}: Ogni sessione traccia dispositivo, user-agent e IP
+\end{itemize}
+
+\subsection{Middleware di Autenticazione}
+
+\subsubsection{requireAuth Middleware}
+
+\begin{lstlisting}[caption=Middleware Require Auth]
+const requireAuth = async (req, res, next) => {
+    try {
+        // 1. Estrai token dal cookie HttpOnly
+        const token = req.cookies?.[securityConfig.cookie.name];
+
+        if (!token) {
+            throw AppError.unauthorized('Accesso negato. Effettua il login.');
+        }
+
+        // 2. Verifica token
+        const payload = authService.verifyToken(token, 'access');
+
+        // 3. Aggiungi dati utente alla request
+        req.user = {
+            id: payload.sub,
+            email: payload.email,
+        };
+
+        next();
+    } catch (error) {
+        next(error);  // Passa all'error handler
+    }
+};
+\end{lstlisting}
+
+\textbf{Caratteristiche:}
+\begin{itemize}
+    \item \textbf{Estrazione da cookie}: Non richiede header Authorization (più sicuro)
+    \item \textbf{Verifica tipo token}: Assicura che sia un access token, non refresh
+    \item \textbf{Iniezione req.user}: Dati utente disponibili in tutti i controller successivi
+\end{itemize}
+
+\subsubsection{optionalAuth Middleware}
+
+\begin{lstlisting}[caption=Middleware Optional Auth]
+const optionalAuth = async (req, res, next) => {
+    try {
+        const token = req.cookies?.[securityConfig.cookie.name];
+
+        if (token) {
+            const payload = authService.verifyToken(token, 'access');
+            req.user = {
+                id: payload.sub,
+                email: payload.email,
+            };
+        }
+    } catch {
+        // Ignora errori, l'utente semplicemente non è autenticato
+        req.user = null;
+    }
+
+    next();
+};
+\end{lstlisting}
+
+\textbf{Use case:}
+\begin{itemize}
+    \item Route che funzionano sia per utenti autenticati che non
+    \item Logout: deve funzionare anche se il token è scaduto
+\end{itemize}
+
+\subsection{Validazione Input con Zod}
+
+\subsubsection{Schema di Validazione}
+
+\begin{lstlisting}[caption=Schema Zod per Registrazione]
+const emailSchema = z
+    .string({
+        required_error: 'Email obbligatoria',
+        invalid_type_error: 'Email deve essere una stringa',
+    })
+    .email('Formato email non valido')
+    .min(5, 'Email troppo corta')
+    .max(255, 'Email troppo lunga')
+    .toLowerCase()  // Normalizza a minuscolo
+    .trim();        // Rimuovi spazi
+
+const passwordSchema = z
+    .string({
+        required_error: 'Password obbligatoria',
+    })
+    .min(8, 'Password deve essere almeno 8 caratteri')
+    .max(128, 'Password troppo lunga')
+    .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        'Password deve contenere almeno: 1 maiuscola, 1 minuscola, 1 numero'
+    );
+
+const registerSchema = z.object({
+    email: emailSchema,
+    password: passwordSchema,
+    acceptTerms: z
+        .boolean({
+            required_error: 'Devi accettare i termini e condizioni',
+        })
+        .refine((val) => val === true, {
+            message: 'Devi accettare i termini e condizioni',
+        }),
+});
+\end{lstlisting}
+
+\textbf{Perché Zod invece di validazione manuale?}
+\begin{itemize}
+    \item \textbf{Type-safe}: Genera tipi TypeScript automaticamente
+    \item \textbf{Composabile}: Schemi riutilizzabili e estendibili
+    \item \textbf{Messaggi chiari}: Errori strutturati per il frontend
+    \item \textbf{Previene NoSQL Injection}: Valida tipi rigorosi prima del DB
+    \item \textbf{Sanitizzazione automatica}: \code{toLowerCase()}, \code{trim()} applicati automaticamente
+\end{itemize}
+
+\subsubsection{Middleware di Validazione}
+
+\begin{lstlisting}[caption=Middleware Validazione Zod]
+const validateMiddleware = (schema) => {
+    return (req, res, next) => {
+        const result = schema.safeParse(req.body);
+        
+        if (!result.success) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Errore di validazione',
+                    code: 'VALIDATION_ERROR',
+                    details: result.error.errors.map((err) => ({
+                        field: err.path.join('.'),
+                        message: err.message,
+                    })),
+                },
+            });
+        }
+        
+        // Sostituisci req.body con dati validati e sanitizzati
+        req.body = result.data;
+        next();
+    };
+};
+\end{lstlisting}
+
+\textbf{Vantaggi:}
+\begin{itemize}
+    \item \textbf{Validazione precoce}: Blocca richieste malformate prima del service
+    \item \textbf{Sanitizzazione}: \code{req.body} contiene solo dati validati
+    \item \textbf{Errori strutturati}: Frontend può mostrare errori per campo
+\end{itemize}
+
+\subsection{Rate Limiting}
+
+\subsubsection{Problema della Scalabilità: Rate Limiting Locale vs. Distribuito}
+
+\important{Problema del Rate Limiting Locale}: Il rate limiter di default usa memoria RAM locale del processo Node.js. In un ambiente distribuito (cluster, Kubernetes, multiple istanze), ogni server ha la propria memoria non condivisa.
+
+\textbf{Scenario Problematico:}
+\begin{enumerate}
+    \item L'hacker fa 10 tentativi di login
+    \item Load Balancer distribuisce: 5 richieste al Server A, 5 al Server B
+    \item Server A conta 5 tentativi (sotto il limite di 15)
+    \item Server B conta 5 tentativi (sotto il limite di 15)
+    \item \important{Nessun server rileva il limite} → l'hacker ha raddoppiato le sue chance
+\end{enumerate}
+
+\textbf{Altri Problemi:}
+\begin{itemize}
+    \item \textbf{Reset al riavvio}: Ogni deploy/riavvio azzera i contatori
+    \item \textbf{Non scalabile}: Non funziona con scaling orizzontale
+    \item \textbf{Inconsistenza}: Limiti diversi per istanza
+\end{itemize}
+
+\textbf{Soluzione: Redis come Store Distribuito}
+
+Redis è un database in-memory veloce che funge da "verità unica" condivisa tra tutte le istanze del server.
+
+\subsubsection{Configurazione Redis per Rate Limiting}
+
+\begin{lstlisting}[caption=Configurazione Redis]
+const { createClient } = require('redis');
+
+let redisClient = null;
+let isRedisAvailable = false;
+
+const initRedis = async () => {
+    // Se REDIS_URL non è configurato, usa memoria locale
+    if (!process.env.REDIS_URL) {
+        console.log('⚠️  Redis non configurato. Rate limiter userà memoria locale.');
+        return false;
+    }
+
+    try {
+        redisClient = createClient({
+            url: process.env.REDIS_URL,
+            socket: {
+                reconnectStrategy: (retries) => {
+                    // Riconnessione esponenziale
+                    const delay = Math.min(retries * 50, 3000);
+                    return delay;
+                },
+                connectTimeout: 5000,
+            },
+        });
+
+        redisClient.on('ready', () => {
+            console.log('✅ Redis connesso e pronto');
+            isRedisAvailable = true;
+        });
+
+        await redisClient.connect();
+        return true;
+    } catch (error) {
+        console.error('❌ Impossibile connettersi a Redis:', error.message);
+        console.log('⚠️  Rate limiter userà memoria locale come fallback');
+        return false;
+    }
+};
+\end{lstlisting}
+
+\subsubsection{Rate Limiter con Redis Store}
+
+\begin{lstlisting}[caption=Rate Limiter con Redis Store]
+const rateLimit = require('express-rate-limit');
+const { RedisStore } = require('rate-limit-redis');
+const { getRedisAvailable, getRedisClient } = require('../config/redis');
+
+/**
+ * Crea store per rate limiter (Redis se disponibile, altrimenti memoria locale)
+ */
+const createRateLimitStore = () => {
+    if (getRedisAvailable()) {
+        const redisClient = getRedisClient();
+        if (redisClient) {
+            console.log('✅ Rate limiter usando Redis (distribuito)');
+            return new RedisStore({
+                sendCommand: (...args) => redisClient.sendCommand(args),
+                prefix: 'rl:', // Prefix per chiavi Redis
+            });
+        }
+    }
+    
+    // Fallback a memoria locale
+    console.log('⚠️  Rate limiter usando memoria locale (non distribuito)');
+    return undefined; // undefined = usa memoria locale di default
+};
+
+/**
+ * Rate limiter per autenticazione
+ * Usa Redis se disponibile (distribuito), altrimenti memoria locale
+ */
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,  // 15 minuti
+    max: 15,                    // 15 tentativi
+    store: createRateLimitStore(), // Redis se disponibile
+    keyGenerator: (req) => getClientIpForRateLimit(req),
+    skipSuccessfulRequests: true,
+    handler: (req, res) => {
+        res.status(429).json({
+            success: false,
+            error: {
+                message: 'Troppi tentativi di accesso. Account temporaneamente bloccato.',
+                code: 'TOO_MANY_ATTEMPTS',
+                retryAfter: 15 * 60,
+            },
+        });
+    },
+});
+\end{lstlisting}
+
+\textbf{Vantaggi del Rate Limiting Distribuito:}
+\begin{itemize}
+    \item \textbf{Scaling orizzontale}: Funziona con multiple istanze (cluster, Kubernetes)
+    \item \textbf{Verità unica}: Tutte le istanze condividono lo stesso contatore
+    \item \textbf{Persistenza}: I contatori sopravvivono ai riavvii (se Redis è persistente)
+    \item \textbf{Performance}: Redis è in-memory, velocissimo
+    \item \textbf{Fallback graceful}: Se Redis non disponibile, usa memoria locale
+\end{itemize}
+
+\textbf{Protezioni:}
+\begin{itemize}
+    \item \textbf{Brute Force}: Limita tentativi di login per IP (condiviso tra istanze)
+    \item \textbf{Enumeration}: Previene discovery di email esistenti
+    \item \textbf{DDoS parziale}: Limita richieste totali per IP
+    \item \textbf{Distribuito}: Funziona correttamente con load balancer
+\end{itemize}
+
+\textbf{Perché 15 tentativi?}
+\begin{itemize}
+    \item Bilanciamento tra sicurezza e usabilità
+    \item Considera utenti che dimenticano password
+    \item Combinato con account lockout (5 tentativi) fornisce doppia protezione
+\end{itemize}
+
+\textbf{Configurazione Ambiente:}
+\begin{itemize}
+    \item \textbf{Development}: Può usare memoria locale (Redis opzionale)
+    \item \textbf{Production}: \important{DEVE} usare Redis per scalabilità
+    \item \textbf{Variable}: \code{REDIS_URL} (es. \code{redis://localhost:6379} o \code{redis://user:pass@host:6379})
+\end{itemize}
+
+\subsubsection{Gestione IP con Proxy}
+
+\important{Nota}: Con \code{trust proxy} configurato (vedi sezione dedicata), Express gestisce automaticamente \code{X-Forwarded-For} e \code{req.ip} è già corretto. La funzione \code{getClientIpForRateLimit} è mantenuta per compatibilità e come fallback.
+
+\begin{lstlisting}[caption=Estrazione IP Reale con Trust Proxy]
+/**
+ * Estrae l'IP del client per rate limiting
+ * Con trust proxy configurato, req.ip è già corretto
+ * Questa funzione è mantenuta per compatibilità e come fallback
+ */
+const getClientIpForRateLimit = (req) => {
+    // Con trust proxy configurato, req.ip è già corretto
+    // Express gestisce automaticamente X-Forwarded-For quando trust proxy è attivo
+    if (req.ip && req.ip !== '::ffff:127.0.0.1' && req.ip !== '127.0.0.1' && req.ip !== '::1') {
+        return req.ip;
+    }
+
+    // Fallback per casi edge (sviluppo locale senza proxy)
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    if (typeof xForwardedFor === 'string' && xForwardedFor.length > 0) {
+        return xForwardedFor.split(',')[0].trim();
+    }
+
+    return req.ip || req.socket?.remoteAddress || 'unknown';
+};
+\end{lstlisting}
+
+\textbf{Sicurezza:}
+\begin{itemize}
+    \item \textbf{Trust Proxy}: Express gestisce automaticamente \code{X-Forwarded-For} quando \code{trust proxy} è configurato
+    \item \textbf{Fallback}: Funzione mantiene logica custom per casi edge
+    \item \textbf{Supporta Vite dev server}: In sviluppo, Vite fa da proxy
+    \item \textbf{Produzione-ready}: Funziona con reverse proxy (Nginx, Cloudflare, AWS ELB)
+\end{itemize}
+
+\subsection{Modello Utente}
+
+\subsubsection{Schema Mongoose}
+
+\begin{lstlisting}[caption=Schema Utente con Campi Sensibili Nascosti]
+const userSchema = new mongoose.Schema({
+    email: {
+        type: String,
+        required: true,
+        unique: true,
+        lowercase: true,
+        trim: true,
+        index: true,
+    },
+    
+    password: {
+        type: String,
+        required: true,
+        select: false,  // Non includere nelle query di default
+    },
+    
+    // Array di refresh tokens per supportare multi-device
+    refreshTokens: [{
+        hash: {
+            type: String,
+            required: true,
+        },
+        device: {
+            type: String,  // 'Desktop', 'Mobile', 'Tablet', 'Unknown'
+            required: true,
+        },
+        userAgent: {
+            type: String,
+            trim: true,
+        },
+        ip: {
+            type: String,
+            trim: true,
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now,
+        },
+        lastUsedAt: {
+            type: Date,
+            default: Date.now,
+        },
+    }],
+
+    // Grace period tokens: token vecchi ancora validi per breve periodo
+    // Previene race conditions durante refresh token rotation
+    gracePeriodTokens: [{
+        hash: {
+            type: String,
+            required: true,
+        },
+        expiresAt: {
+            type: Date,
+            required: true,
+        },
+    }],
+
+    failedLoginAttempts: {
+        type: Number,
+        default: 0,
+        select: false,  // Campo sensibile
+    },
+    
+    lockUntil: {
+        type: Date,
+        select: false,  // Campo sensibile
+    },
+    
+    // ... altri campi
+}, {
+    timestamps: true,  // createdAt, updatedAt automatici
+    toJSON: {
+        transform: (doc, ret) => {
+            // Rimuovi campi sensibili quando converti in JSON
+            delete ret.password;
+            delete ret.refreshTokens;  // Array di sessioni sensibile
+            delete ret.gracePeriodTokens;  // Grace period tokens sensibili
+            delete ret.failedLoginAttempts;
+            delete ret.lockUntil;
+            return ret;
+        },
+    },
+});
+\end{lstlisting}
+
+\textbf{Protezioni:}
+\begin{itemize}
+    \item \textbf{select: false}: Campi sensibili non inclusi nelle query di default
+    \item \textbf{toJSON transform}: Rimozione automatica campi sensibili
+    \item \textbf{Metodi statici}: \code{findForLogin()} include campi necessari esplicitamente
+\end{itemize}
+
+\subsubsection{Account Lockout}
+
+\begin{lstlisting}[caption=Metodi per Gestione Lockout]
+userSchema.methods.incrementFailedAttempts = async function () {
+    // Se lockout è scaduto, resetta
+    if (this.lockUntil && this.lockUntil < Date.now()) {
+        return this.updateOne({
+            $set: { failedLoginAttempts: 1 },
+            $unset: { lockUntil: 1 },
+        });
+    }
+
+    const updates = { $inc: { failedLoginAttempts: 1 } };
+
+    // Se raggiunti 5 tentativi, blocca per 15 minuti
+    if (this.failedLoginAttempts + 1 >= 5) {
+        updates.$set = { lockUntil: Date.now() + 15 * 60 * 1000 };
+    }
+
+    return this.updateOne(updates);
+};
+
+userSchema.methods.resetFailedAttempts = async function () {
+    return this.updateOne({
+        $set: { failedLoginAttempts: 0, lastLoginAt: new Date() },
+        $unset: { lockUntil: 1 },
+    });
+};
+\end{lstlisting}
+
+\textbf{Meccanismo:}
+\begin{itemize}
+    \item Dopo 5 tentativi falliti, account bloccato per 15 minuti
+    \item Reset automatico dopo login riuscito
+    \item Reset automatico se lockout scaduto
+\end{itemize}
+
+\subsubsection{Metodi per Gestione Sessioni Multi-Device}
+
+\begin{lstlisting}[caption=Metodi per Gestione Array Sessioni]
+/**
+ * Trova sessione specifica per hash token
+ */
+userSchema.methods.findSessionByHash = function (tokenHash) {
+    if (!this.refreshTokens || this.refreshTokens.length === 0) {
+        return null;
+    }
+    return this.refreshTokens.find(session => session.hash === tokenHash);
+};
+
+/**
+ * Rimuovi sessione specifica per hash token
+ */
+userSchema.methods.removeSessionByHash = async function (tokenHash) {
+    this.refreshTokens = this.refreshTokens.filter(
+        session => session.hash !== tokenHash
+    );
+    return this.save();
+};
+
+/**
+ * Rimuovi tutte le sessioni (logout da tutti i dispositivi)
+ */
+userSchema.methods.removeAllSessions = async function () {
+    this.refreshTokens = [];
+    return this.save();
+};
+
+/**
+ * Trova utente per refresh token (include array refreshTokens)
+ */
+userSchema.statics.findByRefreshToken = function (userId) {
+    return this.findOne({ _id: userId, isActive: true })
+        .select('+refreshTokens');
+};
+\end{lstlisting}
+
+\textbf{Metodi per Gestione Sessioni:}
+\begin{itemize}
+    \item \textbf{findSessionByHash}: Trova una sessione specifica nell'array per hash token
+    \item \textbf{removeSessionByHash}: Rimuove una singola sessione (logout selettivo)
+    \item \textbf{removeAllSessions}: Svuota l'array (logout da tutti i dispositivi)
+    \item \textbf{findByRefreshToken}: Metodo statico che include array \code{refreshTokens} nelle query
+\end{itemize}
+
+\section{Frontend: Architettura e Componenti}
+
+\subsection{API Client con Interceptor}
+
+\subsubsection{Configurazione Axios}
+
+\begin{lstlisting}[caption=Configurazione Axios con Credentials]
+const axiosInstance = axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    // CRITICO: Necessario per inviare/ricevere cookies cross-origin
+    withCredentials: true,
+    timeout: 25000,
+});
+\end{lstlisting}
+
+\textbf{Perché withCredentials: true?}
+\begin{itemize}
+    \item \textbf{Cookie cross-origin}: Permette invio cookie HttpOnly tra domini diversi
+    \item \textbf{Sicurezza}: Il browser gestisce automaticamente i cookie
+    \item \textbf{Requisito CORS}: Il backend deve avere \code{credentials: true} in CORS
+\end{itemize}
+
+\subsubsection{Interceptor per Refresh Automatico}
+
+\begin{lstlisting}[caption=Interceptor Refresh Token Automatico]
+// Flag per evitare loop infiniti
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error) => {
+    failedQueue.forEach((prom) => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve();
+        }
+    });
+    failedQueue = [];
+};
+
+axiosInstance.interceptors.response.use(
+    (response) => response,
+    
+    async (error) => {
+        const originalRequest = error.config;
+        const requestUrl = originalRequest?.url || '';
+
+        // NON fare refresh per endpoint di auth
+        const shouldSkipRefresh = 
+            ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout']
+            .some(url => requestUrl.includes(url));
+        
+        if (error.response?.status === 401 && 
+            !originalRequest._retry && 
+            !shouldSkipRefresh) {
+            
+            // Se stiamo già facendo refresh, accoda la richiesta
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(() => axiosInstance(originalRequest));
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            try {
+                // Prova a fare refresh del token
+                await axiosInstance.post('/auth/refresh');
+                processQueue(null);
+                
+                // Riprova la richiesta originale
+                return axiosInstance(originalRequest);
+            } catch (refreshError) {
+                processQueue(refreshError);
+                
+                // Refresh fallito: emetti evento per logout
+                window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+                
+                return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+
+        return Promise.reject(error);
+    }
+);
+\end{lstlisting}
+
+\textbf{Meccanismo:}
+\begin{enumerate}
+    \item Richiesta riceve 401 (token scaduto)
+    \item Se non è già in refresh, chiama \code{/auth/refresh}
+    \item Se altre richieste arrivano durante refresh, vengono accodate
+    \item Dopo refresh riuscito, tutte le richieste accodate vengono rieseguite
+    \item Se refresh fallisce, emette evento per logout
+\end{enumerate}
+
+\textbf{Vantaggi:}
+\begin{itemize}
+    \item \textbf{Trasparente}: L'utente non nota il refresh
+    \item \textbf{Efficiente}: Una sola chiamata refresh anche con multiple richieste simultanee
+    \item \textbf{Resiliente}: Gestisce correttamente errori e race conditions
+\end{itemize}
+
+\subsubsection{Interceptor per Error Handling}
+
+\begin{lstlisting}[caption=Interceptor Error Handling Centralizzato]
+axiosInstance.interceptors.response.use(
+    (response) => response,
+    
+    (error) => {
+        const status = error.response?.status;
+        const requestUrl = error.config?.url || '';
+        
+        // Skip toast per endpoint di auth (hanno gestione custom)
+        const isAuthEndpoint = 
+            ['/auth/login', '/auth/register', '/auth/refresh']
+            .some(url => requestUrl.includes(url));
+        
+        // Skip toast per 401 (gestito dal refresh token flow)
+        if (status === 401) {
+            return Promise.reject(error);
+        }
+
+        // Estrai messaggio errore
+        let errorMessage = 'Si è verificato un errore imprevisto';
+        
+        if (error.response?.data?.error?.message) {
+            errorMessage = error.response.data.error.message;
+        } else if (error.message === 'Network Error') {
+            errorMessage = 'Errore di connessione. Verifica la tua rete.';
+        }
+
+        // Mostra toast di errore (solo se non è un endpoint di auth)
+        if (!isAuthEndpoint) {
+            emitToast.error(errorMessage, {
+                title: 'Errore',
+                duration: 6000,
+            });
+        }
+
+        return Promise.reject(error);
+    }
+);
+\end{lstlisting}
+
+\textbf{Pattern: Centralized Error Handling}
+\begin{itemize}
+    \item \textbf{DRY}: Non devi gestire errori in ogni componente
+    \item \textbf{Consistenza}: Tutti gli errori appaiono nello stesso modo
+    \item \textbf{Manutenibilità}: Cambio formato toast in un solo posto
+\end{itemize}
+
+\subsection{Auth Context}
+
+\subsubsection{Provider e Stato}
+
+\begin{lstlisting}[caption=Auth Context Provider]
+export const AuthProvider = ({ children }) => {
+    const [state, setState] = useState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: true,  // Inizia con loading per verificare sessione
+        error: null,
+    });
+
+    const initialCheckDoneRef = useRef(false);
+    const checkInFlightRef = useRef(false);
+    const lastCheckAtRef = useRef(0);
+
+    // Verifica sessione all'avvio
+    useEffect(() => {
+        if (initialCheckDoneRef.current) return;
+        initialCheckDoneRef.current = true;
+        checkAuth();
+    }, [checkAuth]);
+
+    // Gestisci evento sessione scaduta
+    useEffect(() => {
+        const handleSessionExpired = () => {
+            setState({
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+                error: 'Sessione scaduta. Effettua nuovamente il login.',
+            });
+        };
+
+        window.addEventListener('auth:sessionExpired', handleSessionExpired);
+        return () => {
+            window.removeEventListener('auth:sessionExpired', handleSessionExpired);
+        };
+    }, []);
+
+    // ... metodi login, register, logout
+};
+\end{lstlisting}
+
+\textbf{Caratteristiche:}
+\begin{itemize}
+    \item \textbf{Verifica automatica}: Controlla sessione all'avvio app
+    \item \textbf{Protezione doppio mount}: \code{useRef} previene chiamate duplicate (React StrictMode)
+    \item \textbf{Event-driven}: Ascolta evento \code{auth:sessionExpired} emesso da apiClient
+    \item \textbf{Loading state}: Mostra loading durante verifica iniziale
+\end{itemize}
+
+\subsubsection{Metodo Login}
+
+\begin{lstlisting}[caption=Metodo Login nel Context]
+const login = useCallback(async (data) => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+        const response = await authService.login(data);
+
+        if (response.success && response.data?.user) {
+            setState({
+                user: response.data.user,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+            });
+        } else {
+            setState((prev) => ({
+                ...prev,
+                isLoading: false,
+                error: response.error?.message || 'Errore durante il login',
+            }));
+        }
+
+        return response;
+    } catch (err) {
+        const message = err instanceof Error ? err.message : 'Errore durante il login';
+        setState((prev) => ({
+            ...prev,
+            isLoading: false,
+            error: message,
+        }));
+        throw err;
+    }
+}, []);
+\end{lstlisting}
+
+\textbf{Pattern:}
+\begin{itemize}
+    \item \textbf{Optimistic UI}: Aggiorna stato solo se risposta successo
+    \item \textbf{Error handling}: Cattura errori e aggiorna stato
+    \item \textbf{Return response}: Permette al componente di gestire successo/errore
+\end{itemize}
+
+\subsubsection{Protected Route Component}
+
+\begin{lstlisting}[caption=Componente Protected Route]
+export const ProtectedRoute = ({ children, redirectTo = '/login' }) => {
+    const { isAuthenticated, isLoading } = useAuth();
+    const location = useLocation();
+
+    // Mostra loading mentre verifica
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="w-12 h-12 border-2 rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    // Se non autenticato, redirect a login salvando la pagina corrente
+    if (!isAuthenticated) {
+        return <Navigate to={redirectTo} state={{ from: location }} replace />;
+    }
+
+    return <>{children}</>;
+};
+\end{lstlisting}
+
+\textbf{Caratteristiche:}
+\begin{itemize}
+    \item \textbf{Loading state}: Mostra spinner durante verifica
+    \item \textbf{Redirect con state}: Salva pagina corrente per redirect dopo login
+    \item \textbf{Replace navigation}: Non aggiunge entry alla history
+\end{itemize}
+
+\subsection{Validazione Frontend}
+
+\subsubsection{Schemi Zod Identici al Backend}
+
+\begin{lstlisting}[caption=Schema Zod Frontend]
+export const emailSchema = z
+    .string()
+    .min(1, 'Email obbligatoria')
+    .email('Formato email non valido')
+    .max(255, 'Email troppo lunga');
+
+export const passwordSchema = z
+    .string()
+    .min(8, 'Password deve essere almeno 8 caratteri')
+    .max(128, 'Password troppo lunga')
+    .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        'Deve contenere almeno: 1 maiuscola, 1 minuscola, 1 numero'
+    );
+
+export const registerSchema = z.object({
+    email: emailSchema,
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, 'Conferma password obbligatoria'),
+    acceptTerms: z.boolean().refine((val) => val === true, {
+        message: 'Devi accettare i termini e condizioni',
+    }),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: 'Le password non coincidono',
+    path: ['confirmPassword'],
+});
+\end{lstlisting}
+
+\textbf{Perché validazione anche nel frontend?}
+\begin{itemize}
+    \item \textbf{Feedback immediato}: L'utente vede errori prima di inviare
+    \item \textbf{Riduce chiamate API}: Blocca richieste malformate
+    \item \textbf{UX migliore}: Validazione in tempo reale durante digitazione
+    \item \textbf{Consistenza}: Stessi schemi del backend garantiscono coerenza
+\end{itemize}
+
+\textbf{Nota importante:} La validazione frontend \important{non sostituisce} quella backend. Il backend deve sempre validare per sicurezza.
+
+\section{Sicurezza: Tecniche e Best Practices}
+
+\subsection{Helmet: Security HTTP Headers}
+
+\important{Problema}: Express di default espone l'header \code{X-Powered-By: Express}, che rivela la tecnologia usata agli attaccanti. Inoltre, mancano headers per prevenire clickjacking, MIME sniffing, e altri attacchi.
+
+\textbf{Soluzione: Helmet}
+
+Helmet è un middleware Express che imposta automaticamente vari header di sicurezza HTTP. È configurato come \important{primo middleware} nel server per garantire che tutti gli header siano presenti in ogni risposta.
+
+\begin{lstlisting}[caption=Configurazione Helmet nel Server]
+// index.js
+const helmet = require('helmet');
+const securityConfig = require('./config/security');
+
+// Helmet: imposta headers di sicurezza HTTP (PRIMO middleware!)
+app.use(helmet(securityConfig.helmet));
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Configurazione Helmet Dettagliata]
+helmet: {
+    // Rimuove X-Powered-By: Express (nasconde tecnologia usata)
+    
+    // Content Security Policy (previene XSS)
+    contentSecurityPolicy: isProduction ? {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", 'data:', 'https:'],
+            connectSrc: ["'self'"],
+            fontSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: [], // Forza HTTPS
+        },
+    } : false, // Disabilitato in sviluppo
+    
+    // X-Frame-Options: previene clickjacking (iframe embedding)
+    frameguard: {
+        action: 'deny', // Blocca completamente embedding in iframe
+    },
+    
+    // X-Content-Type-Options: previene MIME type sniffing
+    // Helmet lo imposta automaticamente a 'nosniff'
+    
+    // Strict-Transport-Security (HSTS): forza HTTPS
+    hsts: isProduction ? {
+        maxAge: 31536000, // 1 anno
+        includeSubDomains: true,
+        preload: true,
+    } : false,
+    
+    // Cross-Origin policies
+    crossOriginEmbedderPolicy: isProduction,
+    crossOriginOpenerPolicy: { policy: 'same-origin' },
+    crossOriginResourcePolicy: { policy: 'same-origin' },
+    
+    // Referrer-Policy: controlla quanto del referrer viene inviato
+    referrerPolicy: {
+        policy: 'strict-origin-when-cross-origin',
+    },
+    
+    // Permissions-Policy: disabilita feature del browser non necessarie
+    permissionsPolicy: {
+        features: {
+            camera: ["'none'"],
+            microphone: ["'none'"],
+            geolocation: ["'none'"],
+        },
+    },
+}
+\end{lstlisting}
+
+\textbf{Header di Sicurezza Impostati da Helmet:}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Header} & \textbf{Protezione} \\
+\midrule
+\texttt{X-Powered-By} & Rimosso (nasconde tecnologia) \\
+\texttt{X-Frame-Options} & Previene clickjacking \\
+\texttt{X-Content-Type-Options} & Previene MIME sniffing \\
+\texttt{X-XSS-Protection} & Attiva protezione XSS browser \\
+\texttt{Strict-Transport-Security} & Forza HTTPS (HSTS) \\
+\texttt{Content-Security-Policy} & Previene XSS, injection \\
+\texttt{Cross-Origin-Embedder-Policy} & Isola contesto esecuzione \\
+\texttt{Cross-Origin-Opener-Policy} & Previene attacchi cross-origin \\
+\texttt{Cross-Origin-Resource-Policy} & Controlla chi può caricare risorse \\
+\texttt{Referrer-Policy} & Controlla referrer inviato \\
+\texttt{Permissions-Policy} & Disabilita feature non necessarie \\
+\bottomrule
+\end{tabular}
+\caption{Header di sicurezza impostati da Helmet}
+\end{table}
+
+\textbf{Protezioni Fornite:}
+\begin{itemize}
+    \item \textbf{Clickjacking}: \code{X-Frame-Options: DENY} previene embedding in iframe
+    \item \textbf{MIME Sniffing}: \code{X-Content-Type-Options: nosniff} previene interpretazione errata di file
+    \item \textbf{XSS}: \code{Content-Security-Policy} limita da dove possono essere caricati script
+    \item \textbf{HTTPS Enforcement}: \code{Strict-Transport-Security} forza connessioni HTTPS
+    \item \textbf{Information Disclosure}: Rimozione \code{X-Powered-By} nasconde tecnologia usata
+    \item \textbf{Cross-Origin Attacks}: Policy cross-origin limitano interazioni tra domini
+\end{itemize}
+
+\textbf{Perché Primo Middleware?}
+\begin{itemize}
+    \item Gli header di sicurezza devono essere presenti in \important{tutte} le risposte
+    \item Se Helmet viene dopo altri middleware, alcune risposte potrebbero non avere gli header
+    \item Best practice: sicurezza prima di tutto
+\end{itemize}
+
+\subsection{Trust Proxy: Il Pezzo Mancante di Express}
+
+\important{Problema dell'IP del Client}: In produzione (dietro Nginx, AWS ELB, Cloudflare, Heroku), l'IP diretto è sempre quello del bilanciatore di carico (es. \code{10.0.0.1}). Se non dici a Express di "fidarsi" del proxy, \code{req.ip} sarà sempre l'IP interno del load balancer.
+
+\textbf{Scenario Problematico:}
+\begin{enumerate}
+    \item Utente reale ha IP \code{203.0.113.42}
+    \item Richiesta passa attraverso Nginx (IP interno: \code{10.0.0.1})
+    \item Express vede solo \code{10.0.0.1} (IP del proxy)
+    \item Rate limiting conta tutte le richieste come se venissero dallo stesso IP (proxy)
+    \item Rate limiting non funziona correttamente
+\end{enumerate}
+
+\textbf{Header X-Forwarded-For:}
+\begin{itemize}
+    \item Proxy aggiunge header \code{X-Forwarded-For: 203.0.113.42}
+    \item Express di default \important{non} legge questo header per sicurezza
+    \item Senza \code{trust proxy}, \code{req.ip} ignora \code{X-Forwarded-For}
+\end{itemize}
+
+\textbf{Soluzione: Trust Proxy}
+
+\begin{lstlisting}[caption=Configurazione Trust Proxy]
+// Trust proxy: fidati del primo hop del proxy
+// Questo rende req.ip automaticamente corretto e funziona meglio con rate limiting
+// Valore 1 = fidati del primo proxy (sicuro per la maggior parte dei casi)
+// In sviluppo, funziona anche con Vite proxy
+app.set('trust proxy', 1);
+\end{lstlisting}
+
+\textbf{Cosa fa \code{trust proxy: 1}:}
+\begin{itemize}
+    \item Express legge automaticamente \code{X-Forwarded-For}
+    \item \code{req.ip} diventa l'IP del client reale (non del proxy)
+    \item Rate limiting funziona correttamente per IP
+    \item \code{req.protocol} diventa corretto (http/https)
+    \item \code{req.hostname} diventa corretto
+\end{itemize}
+
+\textbf{Valori Possibili:}
+\begin{itemize}
+    \item \code{false}: Non fidarsi di nessun proxy (default, sicuro ma non funziona dietro proxy)
+    \item \code{true}: Fidarsi di tutti i proxy (pericoloso, accetta qualsiasi \code{X-Forwarded-For})
+    \item \code{1}: Fidarsi del primo proxy (sicuro per la maggior parte dei casi)
+    \item \code{'loopback'}: Fidarsi solo di proxy locali (sviluppo)
+    \item \code{['127.0.0.1', '10.0.0.1']}: Fidarsi solo di IP specifici (massima sicurezza)
+\end{itemize}
+
+\textbf{Perché 1 è Sicuro:}
+\begin{itemize}
+    \item Fidati solo del primo proxy (quello che controlli tu)
+    \item Ignora proxy intermedi (potenzialmente non fidati)
+    \item Previene header spoofing da proxy non autorizzati
+    \item Funziona con Nginx, AWS ELB, Cloudflare, Heroku
+\end{itemize}
+
+\textbf{Semplificazione getClientIpForRateLimit:}
+
+Con \code{trust proxy} configurato, la funzione \code{getClientIpForRateLimit} può essere semplificata:
+
+\begin{lstlisting}[caption=Funzione Semplificata con Trust Proxy]
+/**
+ * Estrae l'IP del client per rate limiting
+ * Con trust proxy configurato, req.ip è già corretto
+ */
+const getClientIpForRateLimit = (req) => {
+    // Con trust proxy configurato, req.ip è già corretto
+    // Express gestisce automaticamente X-Forwarded-For quando trust proxy è attivo
+    if (req.ip && req.ip !== '::ffff:127.0.0.1' && req.ip !== '127.0.0.1' && req.ip !== '::1') {
+        return req.ip;
+    }
+
+    // Fallback per casi edge (sviluppo locale senza proxy)
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    if (typeof xForwardedFor === 'string' && xForwardedFor.length > 0) {
+        return xForwardedFor.split(',')[0].trim();
+    }
+
+    return req.ip || req.socket?.remoteAddress || 'unknown';
+};
+\end{lstlisting}
+
+\textbf{Vantaggi:}
+\begin{itemize}
+    \item \textbf{Automatico}: Express gestisce \code{X-Forwarded-For} automaticamente
+    \item \textbf{Sicuro}: Solo primo proxy fidato, previene spoofing
+    \item \textbf{Compatibile}: Funziona con tutti i proxy comuni
+    \item \textbf{Semplice}: Meno codice custom, più affidabile
+\end{itemize}
+
+\subsection{Token Blacklist: Revoca Immediata}
+
+\important{Problema della Revoca Lenta}: Gli access token durano 15 minuti. Se un utente viene bannato (\code{isActive: false}) o fa logout, può ancora usare il token valido per altri 14 minuti perché \code{requireAuth} non controlla il DB (per performance).
+
+\textbf{Scenario Critico:}
+\begin{enumerate}
+    \item Utente viene licenziato o segnalato come hacker
+    \item Admin clicca "Blocca Utente" (imposta \code{isActive: false} nel DB)
+    \item Utente ha access token valido per altri 14 minuti
+    \item \code{requireAuth} verifica solo firma JWT (non controlla DB)
+    \item Utente continua a scaricare dati sensibili per 14 minuti
+\end{enumerate}
+
+\textbf{Trade-off Performance vs. Sicurezza:}
+\begin{itemize}
+    \item \textbf{Massima Performance (attuale)}: Accetta rischio di 15 minuti
+    \item \textbf{Massima Sicurezza (blindato)}: Controlla blacklist in Redis (veloce)
+\end{itemize}
+
+\textbf{Soluzione: Cache-aside Pattern con Redis}
+
+\begin{lstlisting}[caption=Blacklist Redis per Token Revocati]
+class AuthService {
+    /**
+     * Aggiungi token alla blacklist (revoca immediata)
+     * Usa Redis per performance (cache-aside pattern)
+     * TTL = durata access token (15 minuti) per pulizia automatica
+     */
+    async addToBlacklist(token, ttlSeconds = 15 * 60) {
+        if (!getRedisAvailable()) {
+            return; // Fallback graceful se Redis non disponibile
+        }
+
+        const redisClient = getRedisClient();
+        if (!redisClient) return;
+
+        // Hash del token come chiave (più sicuro che salvare token completo)
+        const tokenHash = crypto
+            .createHash('sha256')
+            .update(token)
+            .digest('hex');
+
+        // Salva in Redis con TTL (pulizia automatica dopo scadenza)
+        await redisClient.setEx(`blacklist:${tokenHash}`, ttlSeconds, '1');
+    }
+
+    /**
+     * Verifica se token è nella blacklist
+     */
+    async isTokenBlacklisted(token) {
+        if (!getRedisAvailable()) {
+            return false; // Fallback: assume token valido
+        }
+
+        const redisClient = getRedisClient();
+        if (!redisClient) return false;
+
+        const tokenHash = crypto
+            .createHash('sha256')
+            .update(token)
+            .digest('hex');
+
+        const result = await redisClient.get(`blacklist:${tokenHash}`);
+        return result === '1';
+    }
+
+    /**
+     * Aggiungi tutti i token di un utente alla blacklist (ban utente)
+     */
+    async blacklistUserTokens(userId) {
+        if (!getRedisAvailable()) return;
+
+        const redisClient = getRedisClient();
+        if (!redisClient) return;
+
+        // Aggiungi userId alla blacklist (controllo veloce in requireAuth)
+        await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
+    }
+
+    /**
+     * Verifica se utente è bannato (isActive: false)
+     * Cache-aside pattern: controlla Redis, se non trovato controlla DB
+     */
+    async isUserBlacklisted(userId) {
+        if (!getRedisAvailable()) {
+            // Fallback a DB se Redis non disponibile
+            const user = await User.findById(userId).select('isActive');
+            return user ? !user.isActive : false;
+        }
+
+        const redisClient = getRedisClient();
+        if (!redisClient) {
+            const user = await User.findById(userId).select('isActive');
+            return user ? !user.isActive : false;
+        }
+
+        // Controlla cache Redis (veloce)
+        const result = await redisClient.get(`blacklist:user:${userId}`);
+        if (result === '1') {
+            return true;
+        }
+
+        // Se non in cache, controlla DB e aggiorna cache
+        const user = await User.findById(userId).select('isActive');
+        const isBanned = user ? !user.isActive : false;
+
+        if (isBanned) {
+            // Aggiorna cache per prossime richieste
+            await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
+        }
+
+        return isBanned;
+    }
+}
+\end{lstlisting}
+
+\textbf{Middleware requireAuth Blindato:}
+
+\begin{lstlisting}[caption=requireAuth con Blacklist Check]
+const requireAuth = async (req, res, next) => {
+    try {
+        // 1. Estrai token dal cookie
+        const token = req.cookies?.[securityConfig.cookie.name];
+        if (!token) {
+            throw AppError.unauthorized('Accesso negato. Effettua il login.');
+        }
+
+        // 2. Verifica token (firma JWT)
+        const payload = authService.verifyToken(token, 'access');
+
+        // 3. Verifica blacklist: token revocato?
+        const isTokenBlacklisted = await authService.isTokenBlacklisted(token);
+        if (isTokenBlacklisted) {
+            throw AppError.unauthorized('Token revocato. Effettua il login.');
+        }
+
+        // 4. Verifica blacklist: utente bannato?
+        const isUserBlacklisted = await authService.isUserBlacklisted(payload.sub);
+        if (isUserBlacklisted) {
+            throw AppError.unauthorized('Account disattivato. Contatta il supporto.');
+        }
+
+        // 5. Aggiungi dati utente alla request
+        req.user = {
+            id: payload.sub,
+            email: payload.email,
+        };
+
+        next();
+    } catch (error) {
+        next(error);
+    }
+};
+\end{lstlisting}
+
+\textbf{Logout con Blacklist:}
+
+\begin{lstlisting}[caption=Logout con Revoca Immediata Token]
+async logout(userId, refreshToken = null, accessToken = null) {
+    const user = await User.findById(userId).select('+refreshTokens');
+    
+    if (!user) {
+        return;
+    }
+
+    // Aggiungi access token alla blacklist (revoca immediata)
+    if (accessToken) {
+        await this.addToBlacklist(accessToken);
+    }
+
+    if (refreshToken) {
+        // Invalida solo la sessione specifica
+        const tokenHash = crypto
+            .createHash('sha256')
+            .update(refreshToken)
+            .digest('hex');
+        await user.removeSessionByHash(tokenHash);
+    } else {
+        // Invalida tutte le sessioni (logout da tutti i dispositivi)
+        await user.removeAllSessions();
+        // Aggiungi utente alla blacklist per revocare tutti i token attivi
+        await this.blacklistUserTokens(userId);
+    }
+}
+\end{lstlisting}
+
+\textbf{Caratteristiche della Blacklist:}
+\begin{itemize}
+    \item \textbf{TTL Automatico}: Token scadono automaticamente dopo 15 minuti (durata access token)
+    \item \textbf{Hash-based}: Salva hash del token, non token completo (più sicuro)
+    \item \textbf{Cache-aside Pattern}: Controlla Redis, se non trovato controlla DB e aggiorna cache
+    \item \textbf{Fail-open}: Se Redis non disponibile, assume token valido (non blocca richieste)
+    \item \textbf{Performance}: Controllo Redis è O(1), molto veloce (< 1ms)
+\end{itemize}
+
+\textbf{Vantaggi:}
+\begin{itemize}
+    \item \textbf{Revoca Immediata}: Token revocati non funzionano più subito
+    \item \textbf{Performance}: Controllo Redis è veloce (non query DB pesante)
+    \item \textbf{Scalabilità}: Redis condiviso tra tutte le istanze
+    \item \textbf{Pulizia Automatica}: TTL rimuove token scaduti automaticamente
+    \item \textbf{Fail-open}: Se Redis down, sistema continua a funzionare (assume token validi)
+\end{itemize}
+
+\textbf{Trade-off:}
+\begin{itemize}
+    \item \textbf{Performance}: Aggiunge 1-2ms per richiesta (controllo Redis)
+    \item \textbf{Dipendenza Redis}: Richiede Redis per massima sicurezza (fallback a DB se non disponibile)
+    \item \textbf{Memoria Redis}: Ogni token revocato occupa ~50 bytes per 15 minuti
+\end{itemize}
+
+\textbf{Quando Usare Blacklist:}
+\begin{itemize}
+    \item \textbf{Logout}: Revoca immediata access token corrente
+    \item \textbf{Ban Utente}: Revoca tutti i token attivi dell'utente
+    \item \textbf{Cambio Password}: Revoca tutti i token (già implementato con refresh token)
+    \item \textbf{Sicurezza Critica}: Quando 15 minuti di accesso non autorizzato sono inaccettabili
+\end{itemize}
+
+\subsection{Protezione contro Attacchi Comuni}
+
+\subsubsection{XSS (Cross-Site Scripting)}
+
+\textbf{Protezioni implementate:}
+\begin{itemize}
+    \item \textbf{HttpOnly cookies}: Token non accessibili da JavaScript
+    \item \textbf{Helmet}: Imposta automaticamente header di sicurezza (CSP, X-XSS-Protection, etc.)
+    \item \textbf{Content Security Policy}: Headers CSP configurati in Helmet limitano da dove possono essere caricati script
+    \item \textbf{Sanitizzazione input}: Zod valida e sanitizza tutti gli input
+    \item \textbf{Escape output}: React escape automaticamente i valori
+\end{itemize}
+
+\subsubsection{CSRF (Cross-Site Request Forgery)}
+
+\textbf{Protezioni implementate:}
+\begin{itemize}
+    \item \textbf{SameSite cookies}: \code{sameSite: 'none'} con \code{secure: true}
+    \item \textbf{CORS configurato}: Solo origini permesse possono fare richieste
+    \item \textbf{Double Submit Cookie}: I cookie HttpOnly non sono leggibili da JavaScript malizioso
+\end{itemize}
+
+\subsubsection{Brute Force Attacks}
+
+\textbf{Protezioni implementate:}
+\begin{enumerate}
+    \item \textbf{Rate limiting}: 15 tentativi per 15 minuti per IP
+    \item \textbf{Account lockout}: 5 tentativi falliti bloccano account per 15 minuti
+    \item \textbf{Messaggi generici}: Non rivela se email esiste
+\end{enumerate}
+
+\subsubsection{Token Theft}
+
+\textbf{Protezioni implementate:}
+\begin{enumerate}
+    \item \textbf{HttpOnly cookies}: Token non accessibili da JavaScript
+    \item \textbf{Refresh token rotation}: Token rubato può essere usato solo una volta
+    \item \textbf{Hash nel DB}: Refresh token hashato, non in chiaro
+    \item \textbf{Validazione hash}: Verifica integrità token durante refresh
+    \item \textbf{Invalidazione automatica}: Se hash non corrisponde, invalida immediatamente
+\end{enumerate}
+
+\subsubsection{Password Attacks}
+
+\textbf{Protezioni implementate:}
+\begin{enumerate}
+    \item \textbf{Argon2id}: Algoritmo memory-hard resistente a GPU attacks
+    \item \textbf{Parametri elevati}: 64MB memoria, 3 iterazioni, 4 parallelism
+    \item \textbf{Password policy}: Minimo 8 caratteri, maiuscola, minuscola, numero
+    \item \textbf{Never in plaintext}: Password mai salvate in chiaro
+\end{enumerate}
+
+\subsection{Configurazione Sicurezza}
+
+\subsubsection{JWT Configuration}
+
+\begin{lstlisting}[caption=Configurazione JWT]
+jwt: {
+    secret: process.env.JWT_SECRET || 'CHANGE_ME_IN_PRODUCTION',
+    accessTokenExpiry: '15m',      // Breve durata
+    refreshTokenExpiry: '7d',      // Durata più lunga
+    algorithm: 'HS256',            // Algoritmo simmetrico
+}
+\end{lstlisting}
+
+\textbf{Best practices:}
+\begin{itemize}
+    \item \textbf{Secret forte}: Minimo 32 caratteri random in produzione
+    \item \textbf{Environment variable}: Secret mai committato nel codice
+    \item \textbf{Access token breve}: Minimizza finestra compromissione
+    \item \textbf{Refresh token lungo}: Bilanciamento sicurezza/UX
+\end{itemize}
+
+\subsubsection{Cookie Configuration: Il Dilemma SameSite}
+
+\important{Problema dei Cookie Cross-Origin}: La gestione dei cookie con \code{SameSite} è una delle parti più complesse dell'autenticazione moderna.
+
+\textbf{Regole SameSite:}
+\begin{itemize}
+    \item \textbf{'strict'}: Cookie inviato solo per richieste same-site (stesso dominio esatto)
+    \item \textbf{'lax'}: Cookie inviato per navigazione top-level (default moderno, buon compromesso)
+    \item \textbf{'none'}: Cookie sempre inviato, anche cross-origin (richiede \code{Secure: true})
+\end{itemize}
+
+\textbf{Problema Critico:}
+\begin{itemize}
+    \item \code{SameSite: 'none'} \important{richiede obbligatoriamente} \code{Secure: true} (HTTPS)
+    \item In locale (localhost) spesso si lavora in HTTP
+    \item Safari/Mobile su rete locale (IP 192.168.x.x) non è localhost → \code{SameSite: 'none'} senza HTTPS fallisce silenziosamente
+    \item Il cookie non viene settato e l'autenticazione fallisce senza errori chiari
+\end{itemize}
+
+\textbf{Soluzione Implementata:}
+
+\begin{lstlisting}[caption=Configurazione Cookie Intelligente]
+/**
+ * Determina SameSite policy ottimale
+ */
+const getSameSitePolicy = () => {
+    // In sviluppo: usa 'lax' perché Vite proxy fa sembrare tutto same-origin
+    if (!isProduction) {
+        return 'lax';
+    }
+    
+    // In produzione: se stesso dominio, usa 'lax' (più sicuro)
+    if (isSameOrigin()) {
+        return 'lax';
+    }
+    
+    // Cross-origin in produzione: devi usare 'none' (richiede HTTPS)
+    return 'none';
+};
+
+cookie: {
+    name: 'accessToken',
+    refreshName: 'refreshToken',
+    
+    options: {
+        httpOnly: true,
+        // Secure: true se produzione O se SameSite: 'none' (richiesto)
+        secure: isProduction || getSameSitePolicy() === 'none',
+        sameSite: getSameSitePolicy(), // 'lax' in dev, 'lax' o 'none' in prod
+        path: '/',
+        maxAge: 15 * 60 * 1000,
+    },
+    
+    refreshOptions: {
+        httpOnly: true,
+        secure: isProduction || getSameSitePolicy() === 'none',
+        sameSite: getSameSitePolicy(),
+        path: '/api/auth/refresh',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    },
+}
+\end{lstlisting}
+
+\textbf{Strategia per Ambiente:}
+
+\begin{enumerate}
+    \item \textbf{Sviluppo Locale}:
+        \begin{itemize}
+            \item Vite proxy: \code{/api} → \code{http://localhost:3001}
+            \item Per il browser, tutto avviene su \code{localhost:5173} (same-origin)
+            \item \code{SameSite: 'lax'}, \code{Secure: false} (HTTP locale)
+            \item Funziona perfettamente senza problemi
+        \end{itemize}
+    
+    \item \textbf{Produzione Same-Origin}:
+        \begin{itemize}
+            \item Frontend e backend sullo stesso dominio (es: reverse proxy Nginx)
+            \item \code{example.com/app} e \code{example.com/api} → stesso dominio
+            \item \code{SameSite: 'lax'} o \code{'strict'} (più sicuro contro CSRF)
+            \item \code{Secure: true} (HTTPS in produzione)
+        \end{itemize}
+    
+    \item \textbf{Produzione Cross-Origin}:
+        \begin{itemize}
+            \item Frontend e backend su domini diversi (es: \code{app.example.com} e \code{api.example.com})
+            \item \code{SameSite: 'none'} (necessario per cross-origin)
+            \item \code{Secure: true} (obbligatorio con 'none')
+            \item Richiede HTTPS in produzione
+        \end{itemize}
+\end{enumerate}
+
+\textbf{Best Practice: Evitare SameSite: 'none'}
+
+\important{Consiglio}: Architettare l'infrastruttura per evitare \code{SameSite: 'none'} quando possibile usando reverse proxy Nginx per servire tutto dallo stesso dominio.
+
+\textbf{Configurazione Vite Proxy (Sviluppo):}
+
+\begin{lstlisting}[caption=Vite Proxy Configuration]
+// vite.config.ts
+export default defineConfig({
+  server: {
+    host: true,
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        xfwd: true,
+      },
+    },
+  }
+})
+\end{lstlisting}
+
+\textbf{Perché il Proxy Risolve il Problema:}
+\begin{itemize}
+    \item Frontend fa richieste a \code{localhost:5173/api/auth/login}
+    \item Vite proxy inoltra a \code{localhost:3001/api/auth/login}
+    \item Per il browser, tutto avviene su \code{localhost:5173} (same-origin)
+    \item Cookie con \code{SameSite: 'lax'} funzionano perfettamente
+    \item Nessun problema con Safari/Mobile su rete locale
+\end{itemize}
+
+\subsubsection{CORS Configuration}
+
+\begin{lstlisting}[caption=Configurazione CORS]
+cors: {
+    origin: (origin, callback) => {
+        const allowedOrigins = [
+            process.env.FRONTEND_URL,
+            'http://localhost:5173',
+            'http://localhost:5174',
+        ].filter(Boolean);
+        
+        // Permetti richieste senza origin (Postman, curl)
+        if (!origin) {
+            return callback(null, true);
+        }
+        
+        // Controlla lista
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        
+        callback(new Error('Not allowed by CORS'));
+    },
+    
+    credentials: true,  // CRITICO: necessario per cookies
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+}
+\end{lstlisting}
+
+\textbf{Importante:}
+\begin{itemize}
+    \item \textbf{credentials: true}: Necessario per inviare cookie cross-origin
+    \item \textbf{Origin whitelist}: Solo origini permesse possono fare richieste
+    \item \textbf{No wildcard}: Non usare \code{origin: '*'} con credentials
+\end{itemize}
+
+\section{Flussi di Autenticazione}
+
+\subsection{Flusso di Registrazione}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: Utente compila form, validazione Zod client-side
+    \item \textbf{Frontend}: Invia \code{POST /api/auth/register} con \code{withCredentials: true}
+    \item \textbf{Backend}: Rate limiter verifica limite richieste
+    \item \textbf{Backend}: Validazione Zod server-side
+    \item \textbf{Backend}: Service verifica email non esistente
+    \item \textbf{Backend}: Service hasha password con Argon2id
+    \item \textbf{Backend}: Crea utente nel database
+    \item \textbf{Backend}: Genera access token (15m) e refresh token (7d)
+    \item \textbf{Backend}: Hash refresh token e salva nel DB
+    \item \textbf{Backend}: Genera token verifica email (hashato nel DB)
+    \item \textbf{Backend}: Imposta cookie HttpOnly con token
+    \item \textbf{Backend}: Invia email verifica (async, non blocca)
+    \item \textbf{Backend}: Risponde con dati utente (senza password)
+    \item \textbf{Frontend}: Aggiorna AuthContext con utente
+    \item \textbf{Frontend}: Redirect a dashboard
+\end{enumerate}
+
+\subsection{Flusso di Login}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: Utente inserisce email/password
+    \item \textbf{Frontend}: Validazione Zod client-side
+    \item \textbf{Frontend}: Invia \code{POST /api/auth/login}
+    \item \textbf{Backend}: Rate limiter verifica limite (15 tentativi/15min)
+    \item \textbf{Backend}: Validazione Zod server-side
+    \item \textbf{Backend}: Service trova utente con \code{findForLogin()} (include password)
+    \item \textbf{Backend}: Verifica account non bloccato (\code{isLocked})
+    \item \textbf{Backend}: Verifica password con Argon2
+    \item \textbf{Backend}: Se password errata:
+        \begin{itemize}
+            \item Incrementa \code{failedLoginAttempts}
+            \item Se $\geq$ 5, imposta \code{lockUntil} (15 minuti)
+            \item Lancia errore generico
+        \end{itemize}
+    \item \textbf{Backend}: Se password corretta:
+        \begin{itemize}
+            \item Resetta \code{failedLoginAttempts}
+            \item Aggiorna \code{lastLoginAt}
+            \item Genera nuovi token
+            \item Salva hash refresh token nel DB
+        \end{itemize}
+    \item \textbf{Backend}: Imposta cookie HttpOnly
+    \item \textbf{Backend}: Risponde con dati utente
+    \item \textbf{Frontend}: Aggiorna AuthContext
+    \item \textbf{Frontend}: Redirect a dashboard
+\end{enumerate}
+
+\subsection{Flusso di Refresh Token}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: Richiesta API riceve 401 (token scaduto)
+    \item \textbf{Frontend}: Interceptor cattura errore
+    \item \textbf{Frontend}: Se non è già in refresh, chiama \code{POST /api/auth/refresh}
+    \item \textbf{Frontend}: Altre richieste simultanee vengono accodate
+    \item \textbf{Backend}: Estrae refresh token da cookie
+    \item \textbf{Backend}: Verifica firma JWT
+    \item \textbf{Backend}: Trova utente con \code{findByRefreshToken()}
+    \item \textbf{Backend}: Hash refresh token ricevuto
+    \item \textbf{Backend}: Confronta hash con quello nel DB
+    \item \textbf{Backend}: Se hash non corrisponde:
+        \begin{itemize}
+            \item Possibile furto token!
+            \item Invalida \code{refreshTokenHash} nel DB
+            \item Lancia errore
+        \end{itemize}
+    \item \textbf{Backend}: Se hash corrisponde:
+        \begin{itemize}
+            \item Genera NUOVI token (rotation)
+            \item Hash nuovo refresh token
+            \item Aggiorna \code{refreshTokenHash} nel DB
+            \item Imposta nuovi cookie
+        \end{itemize}
+    \item \textbf{Frontend}: Se refresh riuscito, riesegue richiesta originale
+    \item \textbf{Frontend}: Se refresh fallito, emette evento \code{auth:sessionExpired}
+    \item \textbf{Frontend}: AuthContext ascolta evento e fa logout
+\end{enumerate}
+
+\subsection{Flusso di Logout}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: Utente clicca logout
+    \item \textbf{Frontend}: Chiama \code{POST /api/auth/logout}
+    \item \textbf{Backend}: Se utente autenticato:
+        \begin{itemize}
+            \item Se c'è refresh token nel cookie: invalida solo quella sessione specifica
+            \item Se non c'è refresh token: invalida tutte le sessioni (logout da tutti i dispositivi)
+        \end{itemize}
+    \item \textbf{Backend}: Cancella cookie (access e refresh)
+    \item \textbf{Backend}: Risponde successo
+    \item \textbf{Frontend}: Aggiorna AuthContext (user = null, isAuthenticated = false)
+    \item \textbf{Frontend}: Redirect a login
+\end{enumerate}
+
+\textbf{Logout Selettivo vs Logout Globale:}
+\begin{itemize}
+    \item \textbf{Logout selettivo}: Rimuove solo la sessione corrente dall'array \code{refreshTokens}
+    \item \textbf{Logout globale}: Svuota completamente l'array \code{refreshTokens}
+    \item \textbf{Use case}: Utente può fare logout da un dispositivo senza disconnettere gli altri
+\end{itemize}
+
+\section{Considerazioni Finali}
+
+\subsection{Scelte Progettuali Riepilogate}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Scelta} & \textbf{Motivazione} \\
+\midrule
+HttpOnly Cookies & Protezione XSS, gestione automatica browser \\
+Argon2id & Resistenza GPU + side-channel, standard moderno \\
+JWT con rotazione & Sicurezza token, rilevamento furti \\
+Refresh automatico & UX trasparente, sicurezza mantenuta \\
+Zod validazione & Type-safe, composabile, previene injection \\
+Rate limiting & Protezione brute force, DDoS parziale \\
+Account lockout & Doppia protezione brute force \\
+SameSite: 'none' & Supporto cross-origin (necessario) \\
+\bottomrule
+\end{tabular}
+\caption{Riepilogo scelte progettuali}
+\end{table}
+
+\subsection{Best Practices Applicate}
+
+\begin{itemize}
+    \item \textbf{Defense in Depth}: Multiple layer di sicurezza
+    \item \textbf{Principle of Least Privilege}: Token con durata minima necessaria
+    \item \textbf{Fail Secure}: In caso di errore, sistema si chiude in modo sicuro
+    \item \textbf{Never Trust Input}: Validazione sempre, frontend e backend
+    \item \textbf{Secure by Default}: Configurazioni sicure di default
+    \item \textbf{Separation of Concerns}: Controller/Service/Model separati
+\end{itemize}
+
+\subsection{Possibili Miglioramenti Futuri}
+
+\begin{itemize}
+    \item \textbf{2FA/MFA}: Autenticazione a due fattori
+    \item \textbf{Device fingerprinting}: Rilevamento dispositivi sospetti
+    \item \textbf{Session management}: Dashboard sessioni attive
+    \item \textbf{IP whitelisting}: Per account critici
+    \item \textbf{Biometric auth}: Supporto WebAuthn
+    \item \textbf{OAuth2/SSO}: Integrazione con provider esterni
+\end{itemize}
+
+\section{Conclusioni}
+
+Il sistema di autenticazione implementato in ExtraTracker segue best practices moderne di sicurezza, bilanciando protezione e usabilità. L'architettura modulare garantisce manutenibilità e testabilità, mentre le multiple layer di sicurezza proteggono contro attacchi comuni.
+
+Le scelte tecniche (Argon2id, JWT con rotazione, HttpOnly cookies, rate limiting) sono state selezionate per fornire il miglior compromesso tra sicurezza, performance e esperienza utente.
+
+\vspace{1cm}
+
+\textit{Documento generato il \today}
+
+\end{document}
