@@ -1,20 +1,32 @@
 /**
- * 🎴 FLASHCARD CAROUSEL (Flashka.ai Style)
- * =========================================
+ * 🎴 FLASHCARD LIST (Continuous View)
+ * ====================================
  * 
- * Mostra una flashcard alla volta con navigazione prev/next.
- * Stile minimalista e focalizzato per ridurre il carico cognitivo.
+ * Mostra TUTTE le flashcard in una lista scrollabile continua.
+ * Permette confronto rapido e editing inline per migliorare l'UX.
  * 
  * FEATURES:
- * - Card singola con animazione flip
- * - Navigazione prev/next con contatore
- * - Editing inline
- * - Keyboard navigation (frecce, spazio)
+ * - Vista continua di tutte le card
+ * - Card espandibile per vedere la risposta
+ * - Editing inline per ogni card
+ * - Scroll automatico alla card selezionata
+ * - Highlight della card attiva (sincronizzata col PDF)
+ * - Search/filter cards
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Edit3, Check, X } from 'lucide-react';
+import { 
+    ChevronDown, 
+    ChevronUp, 
+    Edit3, 
+    Check, 
+    X, 
+    Search,
+    Layers,
+    Eye,
+    EyeOff
+} from 'lucide-react';
 import type { Card, Deck } from '../services/studyService';
 
 // ─────────────────────────────────────────────────────────────
@@ -30,22 +42,217 @@ export interface FlashcardCarouselProps {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Animation Variants
+// Single Card Component
 // ─────────────────────────────────────────────────────────────
 
-const slideVariants = {
-    enter: (direction: number) => ({
-        x: direction > 0 ? 200 : -200,
-        opacity: 0,
-    }),
-    center: {
-        x: 0,
-        opacity: 1,
-    },
-    exit: (direction: number) => ({
-        x: direction < 0 ? 200 : -200,
-        opacity: 0,
-    }),
+interface CardItemProps {
+    card: Card;
+    index: number;
+    isActive: boolean;
+    isExpanded: boolean;
+    isEditing: boolean;
+    onToggleExpand: () => void;
+    onStartEdit: () => void;
+    onCancelEdit: () => void;
+    onSaveEdit: (front: string, back: string) => Promise<void>;
+    onClick: () => void;
+}
+
+const CardItem: React.FC<CardItemProps> = ({
+    card,
+    index,
+    isActive,
+    isExpanded,
+    isEditing,
+    onToggleExpand,
+    onStartEdit,
+    onCancelEdit,
+    onSaveEdit,
+    onClick,
+}) => {
+    const [editFront, setEditFront] = useState(card.front);
+    const [editBack, setEditBack] = useState(card.back);
+    const [saving, setSaving] = useState(false);
+
+    // Reset edit values when card changes or edit mode ends
+    useEffect(() => {
+        if (!isEditing) {
+            setEditFront(card.front);
+            setEditBack(card.back);
+        }
+    }, [card.front, card.back, isEditing]);
+
+    const handleSave = async () => {
+        if (saving || !editFront.trim() || !editBack.trim()) return;
+        setSaving(true);
+        try {
+            await onSaveEdit(editFront.trim(), editBack.trim());
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            onCancelEdit();
+        } else if (e.key === 'Enter' && e.metaKey) {
+            handleSave();
+        }
+    };
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className={`
+                rounded-xl border transition-all duration-200
+                ${isActive 
+                    ? 'bg-violet-500/10 border-violet-500/40 ring-2 ring-violet-500/20' 
+                    : 'bg-zinc-800/40 border-white/10 hover:border-white/20'
+                }
+            `}
+        >
+            {isEditing ? (
+                /* ─── Edit Mode ─── */
+                <div className="p-4 space-y-3" onKeyDown={handleKeyDown}>
+                    {/* Edit Header */}
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-violet-400">
+                            Modifica Card #{index + 1}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={onCancelEdit}
+                                disabled={saving}
+                                className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-all"
+                                title="Annulla (Esc)"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving || !editFront.trim() || !editBack.trim()}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500 text-white text-xs font-medium hover:bg-violet-600 transition-all disabled:opacity-50"
+                                title="Salva (⌘+Enter)"
+                            >
+                                <Check className="w-3.5 h-3.5" />
+                                {saving ? 'Salvo...' : 'Salva'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Front Edit */}
+                    <div>
+                        <label className="block mb-1.5 text-xs text-white/50">Domanda</label>
+                        <textarea
+                            value={editFront}
+                            onChange={(e) => setEditFront(e.target.value)}
+                            rows={2}
+                            autoFocus
+                            className="w-full p-3 rounded-lg bg-zinc-900/80 border border-zinc-700 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/50 resize-none"
+                            placeholder="Scrivi la domanda..."
+                        />
+                    </div>
+
+                    {/* Back Edit */}
+                    <div>
+                        <label className="block mb-1.5 text-xs text-white/50">Risposta</label>
+                        <textarea
+                            value={editBack}
+                            onChange={(e) => setEditBack(e.target.value)}
+                            rows={4}
+                            className="w-full p-3 rounded-lg bg-zinc-900/80 border border-zinc-700 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/50 resize-none"
+                            placeholder="Scrivi la risposta..."
+                        />
+                    </div>
+                </div>
+            ) : (
+                /* ─── Display Mode ─── */
+                <div>
+                    {/* Card Header - Always visible */}
+                    <div 
+                        className="flex items-start gap-3 p-4 cursor-pointer"
+                        onClick={onClick}
+                    >
+                        {/* Index Badge */}
+                        <div className={`
+                            flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold
+                            ${isActive 
+                                ? 'bg-violet-500 text-white' 
+                                : 'bg-white/10 text-white/60'
+                            }
+                        `}>
+                            {index + 1}
+                        </div>
+
+                        {/* Question */}
+                        <div className="flex-1 min-w-0">
+                            <p className={`text-sm leading-relaxed ${isActive ? 'text-white' : 'text-white/90'}`}>
+                                {card.front}
+                            </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex-shrink-0 flex items-center gap-1">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onStartEdit();
+                                }}
+                                className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                title="Modifica"
+                            >
+                                <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleExpand();
+                                }}
+                                className={`p-1.5 rounded-lg transition-all ${
+                                    isExpanded 
+                                        ? 'text-emerald-400 bg-emerald-500/20' 
+                                        : 'text-white/40 hover:text-white hover:bg-white/10'
+                                }`}
+                                title={isExpanded ? 'Nascondi risposta' : 'Mostra risposta'}
+                            >
+                                {isExpanded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Answer - Expandable */}
+                    <AnimatePresence>
+                        {isExpanded && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="px-4 pb-4 pt-0">
+                                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
+                                                Risposta
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">
+                                            {card.back}
+                                        </p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+        </motion.div>
+    );
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -59,126 +266,110 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
     onUpdate,
     className = '',
 }) => {
-    const [internalIndex, setInternalIndex] = useState(0);
-    const [isFlipped, setIsFlipped] = useState(false);
-    const [direction, setDirection] = useState(0);
-    
-    // Edit state
-    const [isEditing, setIsEditing] = useState(false);
-    const [editFront, setEditFront] = useState('');
-    const [editBack, setEditBack] = useState('');
-    const [saving, setSaving] = useState(false);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+    const [activeIndex, setActiveIndex] = useState(controlledIndex ?? 0);
+    const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+    const [editingCardId, setEditingCardId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showAllAnswers, setShowAllAnswers] = useState(false);
 
     const cards = deck.cards || [];
     const totalCards = cards.length;
-    const isControlled = controlledIndex !== undefined;
-    const currentIndex = isControlled ? controlledIndex : internalIndex;
-    const currentCard = cards[currentIndex] || null;
 
-    // ─── Sync state ──────────────────────────────────────────
+    // Filter cards based on search
+    const filteredCards = searchQuery.trim()
+        ? cards.filter(card => 
+            card.front.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            card.back.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : cards;
+
+    // ─── Sync with controlled index ──────────────────────────
 
     useEffect(() => {
-        if (isControlled && controlledIndex !== undefined) {
-            setInternalIndex(controlledIndex);
+        if (controlledIndex !== undefined && controlledIndex !== activeIndex) {
+            setActiveIndex(controlledIndex);
         }
-    }, [isControlled, controlledIndex]);
+    }, [controlledIndex]);
 
-    // Reset flip quando cambia card
+    // ─── Scroll to active card ───────────────────────────────
+
     useEffect(() => {
-        setIsFlipped(false);
-        setIsEditing(false);
-    }, [currentIndex]);
+        if (activeIndex >= 0 && activeIndex < cards.length) {
+            const card = cards[activeIndex];
+            if (card) {
+                const cardEl = cardRefs.current.get(card.id);
+                if (cardEl && scrollContainerRef.current) {
+                    const container = scrollContainerRef.current;
+                    const cardTop = cardEl.offsetTop;
+                    const cardHeight = cardEl.offsetHeight;
+                    const containerHeight = container.clientHeight;
+                    const scrollTop = container.scrollTop;
 
-    // Notifica parent
-    useEffect(() => {
-        if (currentCard && onCardChange) {
-            onCardChange(currentCard, currentIndex);
+                    // Check if card is not fully visible
+                    if (cardTop < scrollTop || cardTop + cardHeight > scrollTop + containerHeight) {
+                        cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }
         }
-    }, [currentCard, currentIndex, onCardChange]);
+    }, [activeIndex, cards]);
 
-    // ─── Navigation ──────────────────────────────────────────
+    // ─── Handlers ────────────────────────────────────────────
 
-    const goToPrev = useCallback(() => {
-        if (totalCards === 0 || currentIndex <= 0) return;
-        setDirection(-1);
-        if (!isControlled) {
-            setInternalIndex((i) => i - 1);
+    const handleCardClick = useCallback((card: Card, index: number) => {
+        setActiveIndex(index);
+        if (onCardChange) {
+            onCardChange(card, index);
         }
-    }, [currentIndex, totalCards, isControlled]);
+    }, [onCardChange]);
 
-    const goToNext = useCallback(() => {
-        if (totalCards === 0 || currentIndex >= totalCards - 1) return;
-        setDirection(1);
-        if (!isControlled) {
-            setInternalIndex((i) => i + 1);
-        }
-    }, [currentIndex, totalCards, isControlled]);
-
-    // ─── Edit handlers ───────────────────────────────────────
-
-    const handleStartEdit = useCallback(() => {
-        if (!currentCard) return;
-        setEditFront(currentCard.front);
-        setEditBack(currentCard.back);
-        setIsEditing(true);
-        setIsFlipped(false);
-    }, [currentCard]);
-
-    const handleCancelEdit = useCallback(() => {
-        setIsEditing(false);
-        setEditFront('');
-        setEditBack('');
+    const handleToggleExpand = useCallback((cardId: string) => {
+        setExpandedCards(prev => {
+            const next = new Set(prev);
+            if (next.has(cardId)) {
+                next.delete(cardId);
+            } else {
+                next.add(cardId);
+            }
+            return next;
+        });
     }, []);
 
-    const handleSaveEdit = useCallback(async () => {
-        if (!currentCard || !onUpdate || saving) return;
-        if (!editFront.trim() || !editBack.trim()) return;
-
-        setSaving(true);
-        try {
-            await onUpdate(currentCard.id, editFront.trim(), editBack.trim());
-            setIsEditing(false);
-        } catch {
-            // Error handled by parent
-        } finally {
-            setSaving(false);
+    const handleToggleAllAnswers = useCallback(() => {
+        if (showAllAnswers) {
+            setExpandedCards(new Set());
+        } else {
+            setExpandedCards(new Set(cards.map(c => c.id)));
         }
-    }, [currentCard, onUpdate, editFront, editBack, saving]);
+        setShowAllAnswers(!showAllAnswers);
+    }, [showAllAnswers, cards]);
 
-    // ─── Keyboard navigation ─────────────────────────────────
+    const handleStartEdit = useCallback((cardId: string) => {
+        setEditingCardId(cardId);
+    }, []);
 
-    useEffect(() => {
-        if (isEditing) return;
+    const handleCancelEdit = useCallback(() => {
+        setEditingCardId(null);
+    }, []);
 
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Ignora se focus su input/textarea
-            if (
-                e.target instanceof HTMLInputElement ||
-                e.target instanceof HTMLTextAreaElement
-            ) {
-                return;
-            }
+    const handleSaveEdit = useCallback(async (cardId: string, front: string, back: string) => {
+        if (!onUpdate) return;
+        await onUpdate(cardId, front, back);
+        setEditingCardId(null);
+    }, [onUpdate]);
 
-            switch (e.key) {
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    goToPrev();
-                    break;
-                case 'ArrowRight':
-                    e.preventDefault();
-                    goToNext();
-                    break;
-                case ' ':
-                case 'Enter':
-                    e.preventDefault();
-                    setIsFlipped((f) => !f);
-                    break;
-            }
-        };
+    // ─── Register card refs ──────────────────────────────────
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [goToPrev, goToNext, isEditing]);
+    const setCardRef = useCallback((cardId: string, el: HTMLDivElement | null) => {
+        if (el) {
+            cardRefs.current.set(cardId, el);
+        } else {
+            cardRefs.current.delete(cardId);
+        }
+    }, []);
 
     // ─── Empty state ─────────────────────────────────────────
 
@@ -187,7 +378,7 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
             <div className={`flex flex-col items-center justify-center h-full p-8 ${className}`}>
                 <div className="text-center max-w-sm">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                        <span className="text-3xl">🎴</span>
+                        <Layers className="w-7 h-7 text-white/40" />
                     </div>
                     <h3 className="text-lg font-semibold text-white mb-2">Nessuna flashcard</h3>
                     <p className="text-sm text-white/60">
@@ -202,211 +393,113 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
 
     return (
         <div className={`flex flex-col h-full ${className}`}>
-            {/* Header */}
-            <div className="flex-shrink-0 px-5 py-4 border-b border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-white tabular-nums">
-                        {currentIndex + 1} / {totalCards}
-                    </span>
-                </div>
-                {!isEditing && onUpdate && (
+            {/* Header with Search */}
+            <div className="flex-shrink-0 p-4 border-b border-white/10 space-y-3">
+                {/* Stats Row */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-white">
+                            {totalCards} Flashcard
+                        </span>
+                        {searchQuery && (
+                            <span className="text-xs text-white/50">
+                                ({filteredCards.length} risultati)
+                            </span>
+                        )}
+                    </div>
                     <button
-                        onClick={handleStartEdit}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-white/60 hover:text-white rounded-lg hover:bg-white/5 transition-all"
+                        onClick={handleToggleAllAnswers}
+                        className={`
+                            flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+                            ${showAllAnswers 
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                                : 'bg-white/5 text-white/60 hover:text-white border border-white/10'
+                            }
+                        `}
                     >
-                        <Edit3 className="w-4 h-4" />
-                        Modifica
+                        {showAllAnswers ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        {showAllAnswers ? 'Nascondi tutte' : 'Mostra tutte'}
                     </button>
+                </div>
+
+                {/* Search */}
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Cerca nelle flashcard..."
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-800/50 border border-white/10 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-white/40 hover:text-white hover:bg-white/10"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Cards List */}
+            <div 
+                ref={scrollContainerRef}
+                className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
+            >
+                <AnimatePresence mode="popLayout">
+                    {filteredCards.map((card, index) => {
+                        const originalIndex = cards.findIndex(c => c.id === card.id);
+                        return (
+                            <div
+                                key={card.id}
+                                ref={(el) => setCardRef(card.id, el)}
+                            >
+                                <CardItem
+                                    card={card}
+                                    index={originalIndex}
+                                    isActive={originalIndex === activeIndex}
+                                    isExpanded={expandedCards.has(card.id)}
+                                    isEditing={editingCardId === card.id}
+                                    onToggleExpand={() => handleToggleExpand(card.id)}
+                                    onStartEdit={() => handleStartEdit(card.id)}
+                                    onCancelEdit={handleCancelEdit}
+                                    onSaveEdit={(front, back) => handleSaveEdit(card.id, front, back)}
+                                    onClick={() => handleCardClick(card, originalIndex)}
+                                />
+                            </div>
+                        );
+                    })}
+                </AnimatePresence>
+
+                {/* No results */}
+                {filteredCards.length === 0 && searchQuery && (
+                    <div className="py-12 text-center">
+                        <p className="text-white/50 text-sm">
+                            Nessuna flashcard corrisponde a "{searchQuery}"
+                        </p>
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="mt-3 px-4 py-2 rounded-lg bg-white/5 text-white/70 text-sm hover:bg-white/10 transition-all"
+                        >
+                            Cancella ricerca
+                        </button>
+                    </div>
                 )}
             </div>
 
-            {/* Card Area */}
-            <div className="flex-1 flex items-center justify-center p-6 overflow-hidden">
-                <AnimatePresence mode="wait" custom={direction}>
-                    {currentCard && (
-                        <motion.div
-                            key={currentCard.id}
-                            custom={direction}
-                            variants={slideVariants}
-                            initial="enter"
-                            animate="center"
-                            exit="exit"
-                            transition={{ duration: 0.25, ease: 'easeInOut' }}
-                            className="w-full max-w-xl"
-                        >
-                            {isEditing ? (
-                                /* Edit Mode */
-                                <div className="space-y-4 p-6 rounded-2xl bg-zinc-800/50 border border-white/10">
-                                    <div>
-                                        <label className="block mb-2 text-xs font-medium text-white/70">
-                                            Domanda (Fronte)
-                                        </label>
-                                        <textarea
-                                            value={editFront}
-                                            onChange={(e) => setEditFront(e.target.value)}
-                                            rows={3}
-                                            autoFocus
-                                            className="w-full p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 resize-none"
-                                            placeholder="Scrivi la domanda..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block mb-2 text-xs font-medium text-white/70">
-                                            Risposta (Retro)
-                                        </label>
-                                        <textarea
-                                            value={editBack}
-                                            onChange={(e) => setEditBack(e.target.value)}
-                                            rows={5}
-                                            className="w-full p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 resize-none"
-                                            placeholder="Scrivi la risposta..."
-                                        />
-                                    </div>
-                                    <div className="flex items-center gap-3 pt-2">
-                                        <button
-                                            onClick={handleCancelEdit}
-                                            disabled={saving}
-                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 text-white/70 hover:bg-white/10 transition-all disabled:opacity-50"
-                                        >
-                                            <X className="w-4 h-4" />
-                                            Annulla
-                                        </button>
-                                        <button
-                                            onClick={handleSaveEdit}
-                                            disabled={saving || !editFront.trim() || !editBack.trim()}
-                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-medium shadow-lg shadow-violet-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <Check className="w-4 h-4" />
-                                            {saving ? 'Salvo...' : 'Salva'}
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                /* Card Display */
-                                <div
-                                    onClick={() => setIsFlipped((f) => !f)}
-                                    className="cursor-pointer select-none"
-                                    style={{ perspective: '1000px' }}
-                                >
-                                    <motion.div
-                                        animate={{ rotateY: isFlipped ? 180 : 0 }}
-                                        transition={{ duration: 0.5, ease: 'easeInOut' }}
-                                        className="relative w-full"
-                                        style={{
-                                            transformStyle: 'preserve-3d',
-                                            minHeight: '280px',
-                                        }}
-                                    >
-                                        {/* Front (Question) */}
-                                        <div
-                                            className="absolute inset-0 w-full rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-900 border border-white/10 p-6 flex flex-col"
-                                            style={{ backfaceVisibility: 'hidden' }}
-                                        >
-                                            <div className="flex-shrink-0 mb-4">
-                                                <span className="inline-block px-3 py-1 rounded-full bg-violet-500/20 border border-violet-500/30 text-xs font-medium text-violet-300">
-                                                    DOMANDA
-                                                </span>
-                                            </div>
-                                            <div className="flex-1 flex items-center justify-center overflow-y-auto">
-                                                <p className="text-lg md:text-xl font-medium text-white text-center leading-relaxed">
-                                                    {currentCard.front}
-                                                </p>
-                                            </div>
-                                            <div className="flex-shrink-0 mt-4 pt-4 border-t border-white/10 text-center">
-                                                <span className="text-xs text-white/40">
-                                                    Clicca per vedere la risposta
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Back (Answer) */}
-                                        <div
-                                            className="absolute inset-0 w-full rounded-2xl bg-gradient-to-br from-emerald-900/50 to-zinc-900 border border-emerald-500/20 p-6 flex flex-col"
-                                            style={{
-                                                backfaceVisibility: 'hidden',
-                                                transform: 'rotateY(180deg)',
-                                            }}
-                                        >
-                                            <div className="flex-shrink-0 mb-4">
-                                                <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-xs font-medium text-emerald-300">
-                                                    RISPOSTA
-                                                </span>
-                                            </div>
-                                            <div className="flex-1 flex items-center overflow-y-auto">
-                                                <p className="text-base md:text-lg text-white/90 leading-relaxed whitespace-pre-wrap">
-                                                    {currentCard.back}
-                                                </p>
-                                            </div>
-                                            <div className="flex-shrink-0 mt-4 pt-4 border-t border-white/10 text-center">
-                                                <span className="text-xs text-white/40">
-                                                    Clicca per vedere la domanda
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                </div>
-                            )}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            {/* Navigation */}
-            {!isEditing && (
-                <div className="flex-shrink-0 px-5 py-4 border-t border-white/10">
-                    <div className="flex items-center justify-between">
-                        {/* Prev */}
-                        <button
-                            onClick={goToPrev}
-                            disabled={currentIndex === 0}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
-                        >
-                            <ChevronLeft className="w-5 h-5" />
-                            <span className="hidden sm:inline text-sm">Precedente</span>
-                        </button>
-
-                        {/* Progress dots */}
-                        <div className="flex items-center gap-1.5">
-                            {Array.from({ length: Math.min(totalCards, 10) }, (_, i) => {
-                                // Calcola quale dot è attivo
-                                const dotIndex = totalCards <= 10
-                                    ? i
-                                    : Math.floor((currentIndex / (totalCards - 1)) * 9);
-                                const isActive = totalCards <= 10
-                                    ? i === currentIndex
-                                    : i === dotIndex;
-
-                                return (
-                                    <div
-                                        key={i}
-                                        className={`rounded-full transition-all ${
-                                            isActive
-                                                ? 'w-6 h-1.5 bg-violet-500'
-                                                : 'w-1.5 h-1.5 bg-white/20'
-                                        }`}
-                                    />
-                                );
-                            })}
-                        </div>
-
-                        {/* Next */}
-                        <button
-                            onClick={goToNext}
-                            disabled={currentIndex === totalCards - 1}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
-                        >
-                            <span className="hidden sm:inline text-sm">Successiva</span>
-                            <ChevronRight className="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    {/* Keyboard hints */}
-                    <div className="mt-3 flex items-center justify-center gap-4 text-xs text-white/30">
-                        <span>← → Naviga</span>
-                        <span>Spazio = Gira</span>
-                    </div>
+            {/* Footer Stats */}
+            <div className="flex-shrink-0 px-4 py-3 border-t border-white/10 bg-zinc-900/50">
+                <div className="flex items-center justify-between text-xs text-white/40">
+                    <span>
+                        Card attiva: {activeIndex + 1} di {totalCards}
+                    </span>
+                    <span>
+                        {expandedCards.size} risposte visibili
+                    </span>
                 </div>
-            )}
+            </div>
         </div>
     );
 };

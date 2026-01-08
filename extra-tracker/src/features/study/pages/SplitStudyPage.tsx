@@ -5,7 +5,7 @@
  * Professional responsive study interface:
  * 
  * 🖥️ DESKTOP (md+):
- *    - Resizable panels using react-resizable-panels
+ *    - Resizable panels using react-resizable-panels v4.x
  *    - Left: Continuous PDF viewer (60% default)
  *    - Right: Flashcard Carousel (40% default)
  *    - Synchronized highlighting
@@ -19,7 +19,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+// react-resizable-panels v4.x API
+import { Panel, Group as PanelGroup, Separator } from 'react-resizable-panels';
 import { 
     ArrowLeft, 
     BookOpen, 
@@ -39,19 +40,19 @@ import { ContinuousPDFViewer } from '../components/ContinuousPDFViewer';
 import { FlashcardCarousel } from '../components/FlashcardCarousel';
 
 // ─────────────────────────────────────────────────────────────
-// Desktop Resize Handle
+// Desktop Resize Handle Component
 // ─────────────────────────────────────────────────────────────
 
 const ResizeHandle: React.FC = () => {
     return (
-        <PanelResizeHandle className="group relative flex items-center justify-center w-2 hover:w-3 bg-white/[0.02] hover:bg-violet-500/20 border-x border-white/[0.05] hover:border-violet-500/30 transition-all duration-200 cursor-col-resize">
+        <Separator className="group relative flex items-center justify-center w-2 hover:w-3 bg-white/[0.02] hover:bg-violet-500/20 border-x border-white/[0.05] hover:border-violet-500/30 transition-all duration-200 cursor-col-resize">
             {/* Grip Icon */}
             <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <GripVertical className="w-4 h-4 text-violet-400" />
             </div>
             {/* Hover line */}
             <div className="absolute inset-y-4 w-0.5 bg-violet-500/0 group-hover:bg-violet-500/50 rounded-full transition-all duration-200" />
-        </PanelResizeHandle>
+        </Separator>
     );
 };
 
@@ -218,7 +219,6 @@ export const SplitStudyPage: React.FC = () => {
     useEffect(() => {
         if (deck && deck.cards.length > 0) {
             setCurrentCardIndex(0);
-            // Evidenzia subito la prima card
             setHighlightText(deck.cards[0]?.back);
         }
     }, [deck?.id]);
@@ -261,9 +261,8 @@ export const SplitStudyPage: React.FC = () => {
 
     const handleUpdateCard = async (cardId: string, front: string, back: string) => {
         if (!deckId) {
-            const error = new Error('Deck non trovato');
-            emitToast.error(error.message, { title: 'Errore' });
-            throw error;
+            emitToast.error('Deck non trovato', { title: 'Errore' });
+            throw new Error('Deck non trovato');
         }
         try {
             const updated = await studyService.updateCard(deckId, cardId, { front, back });
@@ -412,14 +411,15 @@ export const SplitStudyPage: React.FC = () => {
                     </div>
                 </header>
 
-                {/* Resizable Panel Layout */}
+                {/* Resizable Panel Layout - react-resizable-panels v4 API */}
                 <div className="flex-1 px-6 py-4 overflow-hidden">
                     <PanelGroup
-                        direction="horizontal"
+                        orientation="horizontal"
                         className="h-full max-w-[1800px] mx-auto"
                     >
                         {/* Left Panel: Continuous PDF */}
                         <Panel
+                            id="pdf-panel"
                             defaultSize={60}
                             minSize={30}
                             className="pr-1"
@@ -454,6 +454,7 @@ export const SplitStudyPage: React.FC = () => {
 
                         {/* Right Panel: Flashcard Carousel */}
                         <Panel
+                            id="flashcard-panel"
                             defaultSize={40}
                             minSize={25}
                             className="pl-1"
