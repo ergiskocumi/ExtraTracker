@@ -444,6 +444,15 @@ class StudyService {
     }
 
     /**
+     * Aggiorna il titolo di un deck
+     */
+    async updateDeckTitle(deckId: string, title: string): Promise<Deck> {
+        const response = await apiClient.patch<any>(`${this.baseUrl}/${deckId}`, { title });
+        const raw = unwrap(response, 'Errore nell\'aggiornamento del titolo');
+        return normalizeDeck(raw);
+    }
+
+    /**
      * Ottiene analytics dettagliate per un deck
      */
     async getDeckAnalytics(deckId: string): Promise<DeckAnalytics> {

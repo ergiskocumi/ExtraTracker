@@ -202,6 +202,28 @@ class StudyService extends BaseService {
         return this.delete(tenantScope, deckId);
     }
 
+    async updateDeck(tenantScope, deckId, updates) {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        if (updates.title !== undefined) {
+            deck.title = updates.title.trim();
+        }
+        if (updates.description !== undefined) {
+            deck.description = updates.description?.trim() || '';
+        }
+        if (updates.tags !== undefined && Array.isArray(updates.tags)) {
+            deck.tags = updates.tags;
+        }
+
+        await deck.save();
+        return this._serializeDeck(deck);
+    }
+
     async updateDeckSettings(tenantScope, deckId, settings) {
         const userId = this._getUserId(tenantScope);
 

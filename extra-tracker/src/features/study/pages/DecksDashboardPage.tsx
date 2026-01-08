@@ -9,7 +9,7 @@
  * - Visual hierarchy chiara
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -31,7 +31,27 @@ import {
     MoreHorizontal,
     Eye,
     Settings,
-    X
+    X,
+    Calculator,
+    Code,
+    FlaskConical,
+    Music,
+    Palette,
+    Atom,
+    Globe,
+    Heart,
+    Brain,
+    BookMarked,
+    GraduationCap as GraduationCapIcon,
+    Languages,
+    Microscope,
+    Music2,
+    Paintbrush,
+    PenTool,
+    Rocket,
+    Target,
+    Trophy,
+    Wand2
 } from 'lucide-react';
 import { studyService, type Deck, type CreateDeckPayload, type AddCardPayload } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
@@ -45,6 +65,69 @@ import { ConfirmationModal } from '../../../shared/components/ConfirmationModal'
 // ============================================
 
 type FilterType = 'all' | 'due' | 'mastered' | 'recent';
+
+// ============================================
+// DECK THEME GENERATOR - Genera tema unico per ogni deck
+// ============================================
+
+type DeckTheme = {
+    gradient: string;
+    icon: React.ElementType;
+    iconColor: string;
+    borderColor: string;
+};
+
+// Icone disponibili per i deck
+const DECK_ICONS = [
+    Layers, BookOpen, Calculator, Code, FlaskConical, Music, Palette, Atom,
+    Globe, Heart, Brain, BookMarked, GraduationCapIcon, Languages, Microscope,
+    Music2, Paintbrush, PenTool, Rocket, Target, Trophy, Wand2, Sparkles
+];
+
+// Gradienti disponibili
+const DECK_GRADIENTS = [
+    { from: 'from-blue-500', to: 'to-cyan-500', border: 'border-blue-500/30', icon: 'text-blue-400' },
+    { from: 'from-violet-500', to: 'to-purple-500', border: 'border-violet-500/30', icon: 'text-violet-400' },
+    { from: 'from-emerald-500', to: 'to-teal-500', border: 'border-emerald-500/30', icon: 'text-emerald-400' },
+    { from: 'from-amber-500', to: 'to-orange-500', border: 'border-amber-500/30', icon: 'text-amber-400' },
+    { from: 'from-rose-500', to: 'to-pink-500', border: 'border-rose-500/30', icon: 'text-rose-400' },
+    { from: 'from-indigo-500', to: 'to-blue-500', border: 'border-indigo-500/30', icon: 'text-indigo-400' },
+    { from: 'from-teal-500', to: 'to-cyan-500', border: 'border-teal-500/30', icon: 'text-teal-400' },
+    { from: 'from-fuchsia-500', to: 'to-pink-500', border: 'border-fuchsia-500/30', icon: 'text-fuchsia-400' },
+    { from: 'from-sky-500', to: 'to-blue-500', border: 'border-sky-500/30', icon: 'text-sky-400' },
+    { from: 'from-lime-500', to: 'to-green-500', border: 'border-lime-500/30', icon: 'text-lime-400' },
+];
+
+/**
+ * Genera un hash semplice da una stringa
+ */
+function simpleHash(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+}
+
+/**
+ * Genera un tema unico per un deck basato sul titolo
+ */
+function getDeckTheme(deck: Deck): DeckTheme {
+    const hash = simpleHash(deck.title.toLowerCase().trim());
+    const iconIndex = hash % DECK_ICONS.length;
+    const gradientIndex = hash % DECK_GRADIENTS.length;
+    
+    const gradient = DECK_GRADIENTS[gradientIndex];
+    
+    return {
+        gradient: `bg-gradient-to-br ${gradient.from}/20 ${gradient.to}/10`,
+        icon: DECK_ICONS[iconIndex],
+        iconColor: gradient.icon,
+        borderColor: gradient.border,
+    };
+}
 
 // ============================================
 // HERO STATS - Compact & Clear
@@ -99,27 +182,27 @@ const HeroStats: React.FC<HeroStatsProps> = ({ totalDecks, totalCards, dueCards,
     ];
 
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-4 sm:mb-6">
             {stats.map((stat, idx) => (
                 <motion.div
                     key={stat.label}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className={`relative p-4 rounded-2xl border ${stat.bgClass} transition-all`}
+                    className={`relative p-3 sm:p-4 rounded-xl sm:rounded-2xl border ${stat.bgClass} transition-all`}
                 >
                     {stat.pulse && (
                         <motion.div
                             animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
                             transition={{ repeat: Infinity, duration: 2 }}
-                            className="absolute top-3 right-3 w-2 h-2 rounded-full bg-orange-400"
+                            className="absolute top-2 right-2 sm:top-3 sm:right-3 w-2 h-2 rounded-full bg-orange-400"
                         />
                     )}
-                    <stat.icon className={`w-5 h-5 ${stat.iconClass} mb-2`} />
-                    <p className={`text-2xl sm:text-3xl font-bold ${stat.valueClass}`}>
+                    <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.iconClass} mb-1.5 sm:mb-2`} />
+                    <p className={`text-xl sm:text-2xl md:text-3xl font-bold ${stat.valueClass}`}>
                         {stat.value}
                     </p>
-                    <p className="text-xs text-white/50 mt-0.5">{stat.label}</p>
+                    <p className="text-[10px] sm:text-xs text-white/50 mt-0.5">{stat.label}</p>
                 </motion.div>
             ))}
         </div>
@@ -138,6 +221,7 @@ interface DeckCardProps {
     onViewDetail: (deckId: string) => void;
     onSplitStudy: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
+    onUpdate: (deck: Deck) => void;
 }
 
 const DeckCard: React.FC<DeckCardProps> = ({ 
@@ -147,55 +231,132 @@ const DeckCard: React.FC<DeckCardProps> = ({
     onAddCard,
     onViewDetail, 
     onSplitStudy, 
-    onDelete 
+    onDelete,
+    onUpdate
 }) => {
     const [showMenu, setShowMenu] = useState(false);
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [editedTitle, setEditedTitle] = useState(deck.title);
+    const titleInputRef = useRef<HTMLInputElement>(null);
+    const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     
     const hasDueCards = (deck.dueCount ?? 0) > 0;
     const totalCards = deck.totalCards ?? deck.cards?.length ?? 0;
     const masteredCards = deck.cards?.filter(c => c.status === 'mastered').length ?? 0;
     const masteryPercent = totalCards > 0 ? Math.round((masteredCards / totalCards) * 100) : 0;
     const hasPdf = !!deck.pdfUrl;
+    
+    // Sincronizza editedTitle quando deck.title cambia (dopo update)
+    useEffect(() => {
+        if (!isEditingTitle) {
+            setEditedTitle(deck.title);
+        }
+    }, [deck.title, isEditingTitle]);
+    
+    // Genera tema unico per questo deck
+    const theme = useMemo(() => getDeckTheme(deck), [deck.title]);
+    const ThemeIcon = theme.icon;
+    
+    // Gestione doppio click per rinominare
+    const handleTitleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (clickTimeoutRef.current) {
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
+            // Doppio click - entra in modalità edit
+            setIsEditingTitle(true);
+            setEditedTitle(deck.title);
+            setTimeout(() => {
+                titleInputRef.current?.focus();
+                titleInputRef.current?.select();
+            }, 0);
+        } else {
+            clickTimeoutRef.current = setTimeout(() => {
+                clickTimeoutRef.current = null;
+            }, 300);
+        }
+    };
+    
+    // Salva il nuovo titolo
+    const handleTitleSave = async () => {
+        const trimmed = editedTitle.trim();
+        if (trimmed && trimmed !== deck.title && trimmed.length > 0) {
+            try {
+                const updated = await studyService.updateDeckTitle(deck.id, trimmed);
+                if (onUpdate) {
+                    onUpdate(updated);
+                }
+                emitToast.success('Titolo aggiornato');
+                setIsEditingTitle(false);
+            } catch (err: any) {
+                emitToast.error(err.message || 'Errore nell\'aggiornamento');
+                setEditedTitle(deck.title);
+                setIsEditingTitle(false);
+            }
+        } else {
+            setEditedTitle(deck.title);
+            setIsEditingTitle(false);
+        }
+    };
+    
+    // Annulla modifica
+    const handleTitleCancel = () => {
+        setEditedTitle(deck.title);
+        setIsEditingTitle(false);
+    };
+    
+    // Gestione Enter/Escape
+    const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleTitleSave();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            handleTitleCancel();
+        }
+    };
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className={`
-                relative rounded-2xl sm:rounded-3xl border overflow-hidden
+                relative rounded-xl sm:rounded-2xl md:rounded-3xl border overflow-hidden
                 transition-all duration-300 hover:shadow-xl
                 flex flex-col
-                min-h-[320px] sm:min-h-[340px]
+                min-h-[280px] sm:min-h-[320px] md:min-h-[340px]
                 ${hasDueCards 
                     ? 'border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent shadow-lg shadow-orange-500/10' 
-                    : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]'
+                    : `${theme.borderColor} bg-gradient-to-br ${theme.gradient} hover:shadow-lg`
                 }
             `}
         >
             {/* Badge - Due Cards */}
             {hasDueCards && (
-                <div className="absolute top-3 right-3 z-10">
+                <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
                     <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500 text-white text-xs font-bold shadow-lg"
+                        className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-orange-500 text-white text-[10px] sm:text-xs font-bold shadow-lg"
                     >
-                        <Clock className="w-3 h-3" />
-                        {deck.dueCount} da ripassare
+                        <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                        <span className="hidden xs:inline">{deck.dueCount} da ripassare</span>
+                        <span className="xs:hidden">{deck.dueCount}</span>
                     </motion.div>
                 </div>
             )}
 
             {/* More Menu Button */}
-            <div className="absolute top-3 left-3 z-10">
+            <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         setShowMenu(!showMenu);
                     }}
-                    className="p-2 rounded-xl bg-black/20 backdrop-blur-sm text-white/60 hover:text-white hover:bg-black/40 transition-all"
+                    className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-black/20 backdrop-blur-sm text-white/60 hover:text-white hover:bg-black/40 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    aria-label="Menu opzioni"
                 >
-                    <MoreHorizontal className="w-5 h-5" />
+                    <MoreHorizontal className="w-5 h-5 sm:w-5 sm:h-5" />
                 </button>
 
                 {/* Dropdown Menu */}
@@ -215,7 +376,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                 initial={{ opacity: 0, scale: 0.9, y: -10 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                                className="absolute left-0 top-full mt-2 z-50 w-48 py-2 rounded-xl bg-zinc-900 border border-white/10 shadow-2xl"
+                                className="absolute left-0 top-full mt-2 z-50 w-52 sm:w-56 py-2 rounded-xl bg-zinc-900 border border-white/10 shadow-2xl"
                             >
                                 <button
                                     onClick={(e) => {
@@ -223,9 +384,9 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                         onViewDetail(deck.id);
                                         setShowMenu(false);
                                     }}
-                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 transition-colors"
+                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-white/80 hover:bg-white/10 active:bg-white/15 transition-colors touch-manipulation min-h-[44px]"
                                 >
-                                    <Eye className="w-4 h-4" />
+                                    <Eye className="w-4 h-4 flex-shrink-0" />
                                     Visualizza Dettagli
                                 </button>
                                 <button
@@ -234,9 +395,9 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                         onMagicGenerate(deck);
                                         setShowMenu(false);
                                     }}
-                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-amber-400 hover:bg-amber-500/10 transition-colors"
+                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-amber-400 hover:bg-amber-500/10 active:bg-amber-500/15 transition-colors touch-manipulation min-h-[44px]"
                                 >
-                                    <Sparkles className="w-4 h-4" />
+                                    <Sparkles className="w-4 h-4 flex-shrink-0" />
                                     Magic Generate
                                 </button>
                                 <button
@@ -246,9 +407,9 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                         onViewDetail(deck.id);
                                         setShowMenu(false);
                                     }}
-                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-blue-400 hover:bg-blue-500/10 transition-colors"
+                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-blue-400 hover:bg-blue-500/10 active:bg-blue-500/15 transition-colors touch-manipulation min-h-[44px]"
                                 >
-                                    <BarChart2 className="w-4 h-4" />
+                                    <BarChart2 className="w-4 h-4 flex-shrink-0" />
                                     Statistiche
                                 </button>
                                 <div className="my-2 border-t border-white/10" />
@@ -258,9 +419,9 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                         onDelete(deck);
                                         setShowMenu(false);
                                     }}
-                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-red-400 hover:bg-red-500/10 active:bg-red-500/15 transition-colors touch-manipulation min-h-[44px]"
                                 >
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-4 h-4 flex-shrink-0" />
                                     Elimina Mazzo
                                 </button>
                             </motion.div>
@@ -271,32 +432,50 @@ const DeckCard: React.FC<DeckCardProps> = ({
 
             {/* Main Content - Clickable */}
             <div 
-                className="p-5 sm:p-6 cursor-pointer flex-1 flex flex-col"
+                className="p-4 sm:p-5 md:p-6 cursor-pointer flex-1 flex flex-col touch-manipulation"
                 onClick={() => onViewDetail(deck.id)}
             >
                 {/* Header */}
-                <div className="flex items-start gap-4 mb-4 mt-8 sm:mt-6">
+                <div className="flex items-start gap-3 sm:gap-4 mb-3 sm:mb-4 mt-6 sm:mt-8 md:mt-6">
                     <div className={`
-                        p-3 sm:p-4 rounded-xl sm:rounded-2xl flex-shrink-0
+                        p-2.5 sm:p-3 md:p-4 rounded-lg sm:rounded-xl md:rounded-2xl flex-shrink-0
                         ${hasDueCards 
                             ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30' 
-                            : 'bg-gradient-to-br from-violet-500/20 to-violet-600/10 border border-violet-500/30'
+                            : `bg-gradient-to-br ${theme.gradient} border ${theme.borderColor}`
                         }
                     `}>
-                        <Layers className={`w-6 h-6 sm:w-7 sm:h-7 ${hasDueCards ? 'text-orange-400' : 'text-violet-400'}`} />
+                        <ThemeIcon className={`w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 ${hasDueCards ? 'text-orange-400' : theme.iconColor}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h3 className="text-lg sm:text-xl font-bold text-white truncate mb-1">
-                            {deck.title}
-                        </h3>
-                        <div className="flex items-center gap-3 text-sm text-white/50">
-                            <span className="flex items-center gap-1.5">
-                                <BookOpen className="w-4 h-4" />
+                        {isEditingTitle ? (
+                            <input
+                                ref={titleInputRef}
+                                type="text"
+                                value={editedTitle}
+                                onChange={(e) => setEditedTitle(e.target.value)}
+                                onBlur={handleTitleSave}
+                                onKeyDown={handleTitleKeyDown}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full text-base sm:text-lg md:text-xl font-bold text-white bg-white/10 border border-white/20 rounded-lg px-2 py-1 mb-1 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                                maxLength={120}
+                            />
+                        ) : (
+                            <h3 
+                                className="text-base sm:text-lg md:text-xl font-bold text-white truncate mb-1 cursor-text hover:text-white/80 transition-colors"
+                                onClick={handleTitleClick}
+                                title="Doppio click per rinominare"
+                            >
+                                {deck.title}
+                            </h3>
+                        )}
+                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-white/50">
+                            <span className="flex items-center gap-1 sm:gap-1.5">
+                                <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 {totalCards} carte
                             </span>
                             {hasPdf && (
                                 <span className="flex items-center gap-1 text-blue-400">
-                                    <BookOpen className="w-3.5 h-3.5" />
+                                    <BookOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                     PDF
                                 </span>
                             )}
@@ -305,8 +484,8 @@ const DeckCard: React.FC<DeckCardProps> = ({
                 </div>
 
                 {/* Progress Bar - Sempre visibile per uniformità */}
-                <div className="mb-5">
-                    <div className="flex items-center justify-between mb-2 text-sm">
+                <div className="mb-4 sm:mb-5">
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2 text-xs sm:text-sm">
                         <span className="text-white/50">Padronanza</span>
                         <span className={`font-bold ${
                             masteryPercent === 100 ? 'text-emerald-400' : 'text-white/70'
@@ -314,7 +493,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                             {masteryPercent}%
                         </span>
                     </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-1.5 sm:h-2 bg-white/10 rounded-full overflow-hidden">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${masteryPercent}%` }}
@@ -329,7 +508,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                 </div>
 
                 {/* ═══ ACTION BUTTONS - SEMPRE VISIBILI ═══ */}
-                <div className="space-y-2.5 mt-auto">
+                <div className="space-y-2 sm:space-y-2.5 mt-auto">
                     {/* Primary CTA: Study / Review / Magic Generate */}
                     {totalCards === 0 ? (
                         // Deck vuoto: mostra Magic Generate e Aggiungi carta
@@ -340,16 +519,17 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                     onMagicGenerate(deck);
                                 }}
                                 className="
-                                    w-full flex items-center justify-center gap-2.5 
+                                    w-full flex items-center justify-center gap-2 sm:gap-2.5 
                                     px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                    font-semibold text-base transition-all
+                                    font-semibold text-sm sm:text-base transition-all
                                     bg-gradient-to-r from-amber-500 to-orange-600 text-white 
                                     shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40
-                                    active:scale-[0.98]
+                                    active:scale-[0.98] touch-manipulation
+                                    min-h-[48px] sm:min-h-[52px]
                                 "
                             >
-                                <Sparkles className="w-5 h-5" />
-                                magic Generate
+                                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                                <span>magic Generate</span>
                             </button>
                             <button
                                 onClick={(e) => {
@@ -357,17 +537,18 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                     onAddCard(deck.id);
                                 }}
                                 className="
-                                    w-full flex items-center justify-center gap-2.5 
+                                    w-full flex items-center justify-center gap-2 sm:gap-2.5 
                                     px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                    font-semibold text-base transition-all
+                                    font-semibold text-sm sm:text-base transition-all
                                     bg-gradient-to-r from-violet-500/80 to-violet-600/80 text-white 
                                     border border-violet-500/30
                                     hover:from-violet-500 hover:to-violet-600
-                                    active:scale-[0.98]
+                                    active:scale-[0.98] touch-manipulation
+                                    min-h-[48px] sm:min-h-[52px]
                                 "
                             >
-                                <Plus className="w-5 h-5" />
-                                Aggiungi carta
+                                <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                                <span>Aggiungi carta</span>
                             </button>
                         </>
                     ) : (
@@ -378,18 +559,19 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                 onStudy(deck.id);
                             }}
                             className={`
-                                w-full flex items-center justify-center gap-2.5 
+                                w-full flex items-center justify-center gap-2 sm:gap-2.5 
                                 px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                font-semibold text-base transition-all
-                                active:scale-[0.98]
+                                font-semibold text-sm sm:text-base transition-all
+                                active:scale-[0.98] touch-manipulation
+                                min-h-[48px] sm:min-h-[52px]
                                 ${hasDueCards
                                     ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40'
                                     : 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/35'
                                 }
                             `}
                         >
-                            <Play className="w-5 h-5" />
-                            {hasDueCards ? 'Ripassa Ora' : 'Studia'}
+                            <Play className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                            <span>{hasDueCards ? 'Ripassa Ora' : 'Studia'}</span>
                         </button>
                     )}
 
@@ -401,17 +583,19 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                 onSplitStudy(deck.id);
                             }}
                             className="
-                                w-full flex items-center justify-center gap-2.5 
+                                w-full flex items-center justify-center gap-2 sm:gap-2.5 
                                 px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                font-semibold text-base transition-all
+                                font-semibold text-sm sm:text-base transition-all
                                 bg-gradient-to-r from-blue-500/90 to-indigo-500/90 
                                 text-white shadow-lg shadow-blue-500/20
                                 hover:from-blue-500 hover:to-indigo-500
-                                active:scale-[0.98]
+                                active:scale-[0.98] touch-manipulation
+                                min-h-[48px] sm:min-h-[52px]
                             "
                         >
-                            <BookOpen className="w-5 h-5" />
-                            Leggi & Studia
+                            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                            <span className="hidden sm:inline">📖 Leggi & Studia</span>
+                            <span className="sm:hidden">Leggi & Studia</span>
                         </button>
                     )}
                 </div>
@@ -447,21 +631,22 @@ const FilterBar: React.FC<FilterBarProps> = ({
     ];
 
     return (
-        <div className="space-y-4 mb-6">
+        <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
             {/* Search */}
             <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-white/30" />
                 <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
                     placeholder="Cerca mazzi..."
-                    className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
+                    className="w-full pl-10 sm:pl-12 pr-10 sm:pr-4 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all text-sm sm:text-base touch-manipulation"
                 />
                 {searchQuery && (
                     <button
                         onClick={() => onSearchChange('')}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-lg text-white/40 hover:text-white"
+                        className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-1 rounded-lg text-white/40 hover:text-white active:bg-white/10 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center"
+                        aria-label="Cancella ricerca"
                     >
                         <X className="w-4 h-4" />
                     </button>
@@ -469,24 +654,25 @@ const FilterBar: React.FC<FilterBarProps> = ({
             </div>
 
             {/* Filters - Horizontal Scroll on Mobile */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
                 {filters.map((filter) => (
                     <button
                         key={filter.key}
                         onClick={() => onFilterChange(filter.key)}
                         className={`
-                            flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all
+                            flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all touch-manipulation
+                            min-h-[40px] sm:min-h-[44px]
                             ${activeFilter === filter.key
                                 ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                                : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 border border-white/10'
+                                : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 border border-white/10 active:bg-white/10'
                             }
                         `}
                     >
-                        <Filter className="w-4 h-4" />
+                        <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                         {filter.label}
                         {filter.count !== undefined && filter.count > 0 && (
                             <span className={`
-                                px-2 py-0.5 rounded-full text-xs font-bold
+                                px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold
                                 ${activeFilter === filter.key
                                     ? 'bg-violet-500/30 text-violet-200'
                                     : 'bg-orange-500/20 text-orange-400'
@@ -842,28 +1028,28 @@ export const DecksDashboardPage: React.FC = () => {
     // ========== RENDER ==========
 
     return (
-        <div className="min-h-screen px-4 sm:px-6 py-6 sm:py-8">
+        <div className="min-h-screen px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
             <div className="max-w-6xl mx-auto">
                 {/* ═══ HEADER ═══ */}
-                <header className="mb-6 sm:mb-8">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <header className="mb-4 sm:mb-6 md:mb-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
                         <div>
-                            <p className="text-xs font-bold text-violet-400 uppercase tracking-widest mb-1">
+                            <p className="text-[10px] sm:text-xs font-bold text-violet-400 uppercase tracking-widest mb-1">
                                 Learning & Study
                             </p>
-                            <h1 className="text-3xl sm:text-4xl font-bold text-white">
+                            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
                                 Flashcards
                             </h1>
-                            <p className="text-white/50 mt-1 text-sm sm:text-base">
+                            <p className="text-white/50 mt-1 text-xs sm:text-sm md:text-base">
                                 Gestisci i tuoi mazzi e migliora la memoria
                             </p>
                         </div>
                         <motion.button
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="flex items-center justify-center gap-2.5 px-5 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-violet-500 to-violet-600 text-white font-bold shadow-xl shadow-violet-500/30 text-base"
+                            className="flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-3 sm:py-3.5 md:py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-violet-500 to-violet-600 text-white font-bold shadow-xl shadow-violet-500/30 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
                         >
-                            <Plus className="w-5 h-5" />
+                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                             <span>Nuovo Mazzo</span>
                         </motion.button>
                     </div>
@@ -932,7 +1118,7 @@ export const DecksDashboardPage: React.FC = () => {
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6"
+                        className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6"
                     >
                         <AnimatePresence mode="popLayout">
                             {filteredDecks.map((deck, index) => (
@@ -951,6 +1137,9 @@ export const DecksDashboardPage: React.FC = () => {
                                         onViewDetail={handleViewDetail}
                                         onSplitStudy={handleSplitStudy}
                                         onDelete={setDeletingDeck}
+                                        onUpdate={(updated) => {
+                                            setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
+                                        }}
                                     />
                                 </motion.div>
                             ))}

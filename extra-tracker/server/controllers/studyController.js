@@ -28,6 +28,19 @@ const createDeck = asyncHandler(async (req, res) => {
 });
 
 /**
+ * PATCH /api/study/:id
+ * Aggiorna un mazzo (titolo, descrizione, tags)
+ */
+const updateDeck = asyncHandler(async (req, res) => {
+    const deck = await studyService.updateDeck(req.tenantScope, req.params.id, {
+        title: req.body.title,
+        description: req.body.description,
+        tags: req.body.tags,
+    });
+    res.json({ success: true, data: deck });
+});
+
+/**
  * DELETE /api/study/:id
  * Elimina un mazzo di flashcard
  */
@@ -275,6 +288,7 @@ const getDeckAnalytics = asyncHandler(async (req, res) => {
 
 module.exports = {
     createDeck,
+    updateDeck,
     deleteDeck,
     getDeckById,
     getSession,

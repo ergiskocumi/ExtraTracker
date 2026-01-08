@@ -71,6 +71,7 @@ router.get('/:id/analytics', studyController.getDeckAnalytics);
 router.get('/:id/session', studyController.getSession);
 router.get('/:id', studyController.getDeckById);
 router.post('/', studyController.createDeck);
+router.patch('/:id', studyController.updateDeck);
 router.post('/:id/cards', studyController.addCard);
 router.put('/:id/cards/:cardId', studyController.updateCard);
 router.put('/:id/settings', studyController.updateDeckSettings);
