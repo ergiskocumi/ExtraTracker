@@ -47,37 +47,40 @@ const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // ==========================================
-// 1. CORS - DEVE ESSERE PRIMA DI TUTTO!
+// 0. CORS - PRIMA DI TUTTO (anche prima di express parsing)
 // ==========================================
 
-// Middleware CORS - Accetta TUTTE le origini per ora
+// Handler CORS come primissima cosa - gestisce OPTIONS immediatamente
+app.options('*', (req, res) => {
+    const origin = req.headers.origin;
+    console.log(`🔍 OPTIONS Preflight from: ${origin}`);
+    
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Request-ID, Cookie');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    
+    return res.status(200).end();
+});
+
+// Middleware CORS per tutte le altre richieste
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     
-    // Log per debug
-    console.log(`🔍 CORS - Origin: ${origin || 'none'}, Method: ${req.method}, Path: ${req.path}`);
-    
-    // Imposta SEMPRE gli header CORS se c'è un'origine
     if (origin) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Request-ID, Cookie');
         res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
-        res.setHeader('Access-Control-Max-Age', '86400');
-    }
-    
-    // Rispondi subito alle richieste OPTIONS (preflight)
-    if (req.method === 'OPTIONS') {
-        console.log(`✅ CORS Preflight OK for: ${origin}`);
-        return res.status(200).end();
     }
     
     next();
 });
 
 // ==========================================
-// 2. SECURITY MIDDLEWARE
+// 1. SECURITY MIDDLEWARE
 // ==========================================
 
 // Helmet: imposta headers di sicurezza HTTP
