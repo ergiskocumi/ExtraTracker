@@ -68,6 +68,19 @@ const QUIZ_FALLBACK_OPTIONS = [
     'Informazione non presente',
 ];
 
+// =========================================
+// CONFIGURAZIONE MODELLO AI
+// =========================================
+// Usa gpt-4o-mini per default: ottimo bilanciamento costi/prestazioni per analisi testi lunghi
+// Override disponibile via OPENAI_MODEL in .env (es. gpt-4o, gpt-4o-mini-v2)
+const ACTIVE_AI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+// Log modello attivo all'avvio (utile per debugging)
+if (!global.__studyServiceModelLogged) {
+    console.log(`🤖 StudyService usando modello: ${ACTIVE_AI_MODEL}`);
+    global.__studyServiceModelLogged = true;
+}
+
 // Inizializza OpenAI client
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -983,7 +996,8 @@ class StudyService extends BaseService {
             }
         }
 
-        const model = process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+        // Usa modello configurato (supporta override via OPENAI_CHAT_MODEL per Tutor specifico)
+        const model = process.env.OPENAI_CHAT_MODEL || ACTIVE_AI_MODEL;
         const contextLimit = model.includes('gpt-3.5')
             ? 15000
             : model.includes('gpt-4o-mini') || model.includes('gpt-4o')
@@ -1302,7 +1316,7 @@ FORMATO RISPOSTA OBBLIGATORIO (JSON):
                 let aiResponse;
                 try {
                     const completion = await openai.chat.completions.create({
-                        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                        model: ACTIVE_AI_MODEL,
                         messages: [
                             { role: 'system', content: systemPrompt },
                             { role: 'user', content: `TESTO DA ANALIZZARE:\n\n${chunkText}` }
@@ -1570,7 +1584,7 @@ OUTPUT RICHIESTO:
 Se non sei sicuro, usa "other" e una lista vuota di mainTopics.`;
 
             const completion = await openai.chat.completions.create({
-                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                model: ACTIVE_AI_MODEL,
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: `Testo da analizzare:\n\n${sampleText}` },
