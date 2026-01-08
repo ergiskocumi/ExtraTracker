@@ -47,7 +47,54 @@ const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // ==========================================
-// 1. SECURITY MIDDLEWARE (prima di tutto!)
+// 1. CORS - DEVE ESSERE PRIMA DI TUTTO!
+// ==========================================
+
+// Middleware CORS manuale per preflight - PRIMA di qualsiasi altro middleware
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+    
+    // Log per debug
+    console.log(`🔍 CORS Request - Origin: ${origin || 'none'}, Method: ${req.method}, Path: ${req.path}`);
+    
+    // Lista di origini permesse
+    const allowedOrigins = [
+        frontendUrl,
+        'https://extra-tracker.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:5174',
+    ].filter(Boolean);
+    
+    // Permetti QUALSIASI dominio vercel.app (inclusi preview deployments)
+    const isVercelDomain = origin && (
+        origin.includes('vercel.app') || 
+        origin.includes('ergiskocumis-projects')
+    );
+    
+    const isAllowed = !origin || 
+        allowedOrigins.includes(origin) || 
+        isVercelDomain;
+    
+    if (isAllowed && origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Request-ID');
+        res.setHeader('Access-Control-Max-Age', '86400');
+    }
+    
+    // Rispondi subito alle richieste OPTIONS (preflight)
+    if (req.method === 'OPTIONS') {
+        console.log(`✅ CORS Preflight OK for origin: ${origin}`);
+        return res.status(204).end();
+    }
+    
+    next();
+});
+
+// ==========================================
+// 2. SECURITY MIDDLEWARE
 // ==========================================
 
 // Helmet: imposta headers di sicurezza HTTP
@@ -63,48 +110,14 @@ app.use(hpp());
 app.set('trust proxy', 1);
 
 // ==========================================
-// 2. CORS CONFIGURATION
+// 3. CORS BACKUP (standard middleware)
 // ==========================================
-
-// Middleware CORS manuale per preflight - PRIMA di tutto
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
-    
-    // Lista di origini permesse
-    const allowedOrigins = [
-        frontendUrl,
-        'https://extra-tracker.vercel.app',
-        'http://localhost:5173',
-        'http://localhost:5174',
-    ].filter(Boolean);
-    
-    // Permetti vercel.app in generale
-    const isAllowed = !origin || 
-        allowedOrigins.includes(origin) || 
-        (origin && origin.includes('vercel.app'));
-    
-    if (isAllowed) {
-        res.setHeader('Access-Control-Allow-Origin', origin || '*');
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Request-ID');
-        res.setHeader('Access-Control-Max-Age', '86400');
-    }
-    
-    // Rispondi subito alle richieste OPTIONS (preflight)
-    if (req.method === 'OPTIONS') {
-        return res.status(204).end();
-    }
-    
-    next();
-});
 
 // CORS middleware standard (come backup)
 app.use(cors(securityConfig.cors));
 
 // ==========================================
-// 3. REQUEST ID MIDDLEWARE (per tracciamento errori)
+// 4. REQUEST ID MIDDLEWARE (per tracciamento errori)
 // ==========================================
 
 // Aggiunge request ID a ogni richiesta per tracciamento errori
