@@ -271,7 +271,11 @@ class StudyService {
      */
     async deleteDeck(deckId: string): Promise<void> {
         const response = await apiClient.delete<void>(`${this.baseUrl}/${deckId}`);
-        unwrap(response, 'Errore nell\'eliminazione del mazzo');
+        // Per le DELETE, il server può restituire solo { success: true, message: '...' } senza data
+        if (!response.success) {
+            throw new Error(response.error?.message || response.message || 'Errore nell\'eliminazione del mazzo');
+        }
+        // Se success è true, l'operazione è riuscita anche senza data
     }
 
     /**

@@ -774,11 +774,19 @@ export const DecksDashboardPage: React.FC = () => {
         if (!deletingDeck) return;
         try {
             await studyService.deleteDeck(deletingDeck.id);
-            setDecks(prev => prev.filter(d => d.id !== deletingDeck.id));
+            const deckTitle = deletingDeck.title;
             setDeletingDeck(null);
-            emitToast.success('Mazzo eliminato!');
+            // Ricarica i dati dal server per assicurare sincronizzazione
+            await loadDecks();
+            emitToast.success(`Mazzo "${deckTitle}" eliminato con successo`, {
+                title: 'Mazzo Eliminato',
+                duration: 3000
+            });
         } catch (err: any) {
-            emitToast.error(err.message || 'Errore nell\'eliminazione');
+            emitToast.error(err.message || 'Errore nell\'eliminazione del mazzo', {
+                title: 'Errore',
+                duration: 5000
+            });
         }
     };
 
