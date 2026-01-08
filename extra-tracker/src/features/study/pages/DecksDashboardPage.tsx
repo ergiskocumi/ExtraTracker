@@ -398,7 +398,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                     className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-amber-400 hover:bg-amber-500/10 active:bg-amber-500/15 transition-colors touch-manipulation min-h-[44px]"
                                 >
                                     <Sparkles className="w-4 h-4 flex-shrink-0" />
-                                    Magic Generate
+                                    {totalCards === 0 ? 'Magic Generate' : 'Add Chapter via AI'}
                                 </button>
                                 <button
                                     onClick={(e) => {
@@ -511,7 +511,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                 <div className="space-y-2 sm:space-y-2.5 mt-auto">
                     {/* Primary CTA: Study / Review / Magic Generate */}
                     {totalCards === 0 ? (
-                        // Deck vuoto: mostra Magic Generate e Aggiungi carta
+                        // Deck vuoto: Magic Generate prominente + Aggiungi carta
                         <>
                             <button
                                 onClick={(e) => {
@@ -529,7 +529,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                 "
                             >
                                 <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                                <span>magic Generate</span>
+                                <span>✨ magic Generate</span>
                             </button>
                             <button
                                 onClick={(e) => {
@@ -552,27 +552,73 @@ const DeckCard: React.FC<DeckCardProps> = ({
                             </button>
                         </>
                     ) : (
-                        // Deck con carte: mostra Studia/Ripassa
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onStudy(deck.id);
-                            }}
-                            className={`
-                                w-full flex items-center justify-center gap-2 sm:gap-2.5 
-                                px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                font-semibold text-sm sm:text-base transition-all
-                                active:scale-[0.98] touch-manipulation
-                                min-h-[48px] sm:min-h-[52px]
-                                ${hasDueCards
-                                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40'
-                                    : 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/35'
-                                }
-                            `}
-                        >
-                            <Play className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                            <span>{hasDueCards ? 'Ripassa Ora' : 'Studia'}</span>
-                        </button>
+                        // Deck con carte: Studia/Ripassa + Add via AI sempre visibile
+                        <>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onStudy(deck.id);
+                                }}
+                                className={`
+                                    w-full flex items-center justify-center gap-2 sm:gap-2.5 
+                                    px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
+                                    font-semibold text-sm sm:text-base transition-all
+                                    active:scale-[0.98] touch-manipulation
+                                    min-h-[48px] sm:min-h-[52px]
+                                    ${hasDueCards
+                                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40'
+                                        : 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/35'
+                                    }
+                                `}
+                            >
+                                <Play className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                                <span>{hasDueCards ? 'Ripassa Ora' : 'Studia'}</span>
+                            </button>
+                            
+                            {/* Add via AI - Sempre visibile per mazzi con carte */}
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onMagicGenerate(deck);
+                                    }}
+                                    className="
+                                        flex-1 flex items-center justify-center gap-1.5 sm:gap-2 
+                                        px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl
+                                        font-medium text-xs sm:text-sm transition-all
+                                        bg-gradient-to-r from-amber-500/80 to-orange-500/80 text-white 
+                                        border border-amber-500/30
+                                        hover:from-amber-500 hover:to-orange-500
+                                        active:scale-[0.98] touch-manipulation
+                                        min-h-[40px] sm:min-h-[44px]
+                                    "
+                                >
+                                    <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                    <span className="hidden sm:inline">➕ Add via AI</span>
+                                    <span className="sm:hidden">➕ AI</span>
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onAddCard(deck.id);
+                                    }}
+                                    className="
+                                        flex-1 flex items-center justify-center gap-1.5 sm:gap-2 
+                                        px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl
+                                        font-medium text-xs sm:text-sm transition-all
+                                        bg-gradient-to-r from-violet-500/80 to-violet-600/80 text-white 
+                                        border border-violet-500/30
+                                        hover:from-violet-500 hover:to-violet-600
+                                        active:scale-[0.98] touch-manipulation
+                                        min-h-[40px] sm:min-h-[44px]
+                                    "
+                                >
+                                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                    <span className="hidden sm:inline">Aggiungi carta</span>
+                                    <span className="sm:hidden">➕</span>
+                                </button>
+                            </div>
+                        </>
                     )}
 
                     {/* Secondary CTA: Split Study (if PDF exists) */}
@@ -980,8 +1026,11 @@ export const DecksDashboardPage: React.FC = () => {
         setIsMagicGenerateOpen(true);
     };
 
-    const handleMagicGenerateSuccess = async () => {
+    const handleMagicGenerateSuccess = async (generatedCount: number) => {
         await loadDecks();
+        if (generatedCount > 0) {
+            emitToast.success(`✅ ${generatedCount} ${generatedCount === 1 ? 'nuova carta aggiunta' : 'nuove carte aggiunte'} al mazzo!`);
+        }
     };
 
     const handleStartSession = (config: { mode: StudyMode; shuffle: boolean; reverse: boolean }) => {
@@ -1173,7 +1222,7 @@ export const DecksDashboardPage: React.FC = () => {
                         setIsMagicGenerateOpen(false);
                         setSelectedDeck(null);
                     }}
-                    onSuccess={handleMagicGenerateSuccess}
+                    onSuccess={(count) => handleMagicGenerateSuccess(count)}
                 />
 
                 <StudyModeSelector
