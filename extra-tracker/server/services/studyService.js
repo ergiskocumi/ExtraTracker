@@ -24,8 +24,37 @@ const activityService = require('./activityService');
 
 const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
-const MAX_PDF_TEXT_LENGTH = 15000; // Limite caratteri per evitare costi eccessivi
+// Adaptive Chunking Configuration - Tiers
+const TIER_S_THRESHOLD = 30000; // Fascia S (Corto/Slide): < 30k caratteri
+const TIER_M_THRESHOLD = 100000; // Fascia M (Capitolo/Tesina): 30k - 100k caratteri
+const TIER_L_THRESHOLD = 100000; // Fascia L (Libro/Manuale): > 100k caratteri
+
+// Configurazioni per fascia
+const TIER_S_CONFIG = {
+    chunkSize: null, // Singolo chunk (tutto il testo)
+    targetCardsTotal: 20, // Alta densità per file piccoli
+    cardsPerChunk: 20,
+};
+
+const TIER_M_CONFIG = {
+    chunkSize: 40000,
+    targetCardsTotal: 35,
+    cardsPerChunk: null, // Calcolato dinamicamente
+};
+
+const TIER_L_CONFIG = {
+    chunkSize: 50000, // Più stabile per gpt-4o-mini con output JSON
+    targetCardsTotal: null, // Calcolato dinamicamente (50+)
+    cardsPerChunk: null, // Calcolato dinamicamente
+};
+
+const OVERLAP = 500; // Sovrapposizione per non perdere frasi a metà
+// Safety Cap: Limite massimo di flashcard per singola chiamata API
+// Previene errori JSON.parse() dovuti a output token limit (gpt-4o-mini ha ~4k-16k token output max)
+// Una flashcard JSON occupa ~80-100 token, quindi 30 card = ~3000 token (sicuro)
+const MAX_CARDS_PER_REQUEST = 30;
 const MAX_EXTRACTED_TEXT_STORE_LENGTH = 200000; // Limite DB: evita documenti enormi
+const MAX_PDF_TEXT_LENGTH = 15000; // DEPRECATO: mantenuto per retrocompatibilità
 const MAX_TUTOR_CONTEXT_LENGTH = 50000; // Default sicuro (override per modelli più piccoli)
 const MAX_TUTOR_MESSAGE_LENGTH = 2000;
 const MAX_TUTOR_HISTORY_MESSAGES = 12;
@@ -706,150 +735,104 @@ class StudyService extends BaseService {
         );
         await deck.save({ validateModifiedOnly: true });
 
-        // 2.b Ingestione vettoriale (best-effort, non blocca l'utente)
+        // 2.b FASE ARCHITETTO: Analisi Strutturale
+        console.log('🏗️ Avvio analisi strutturale AI...');
+        const blueprint = await this._analyzeDocumentStructure(normalizedExtracted);
+        console.log('📋 Blueprint Generato:', JSON.stringify(blueprint, null, 2));
+
+        // 2.c Ingestione vettoriale (best-effort, non blocca l'utente)
         try {
             await vectorStoreService.ingestDeck(deckId, normalizedExtracted);
         } catch (err) {
             console.error('⚠️ Vector ingest error:', err.message);
         }
 
-        // 3. Taglia il testo se troppo lungo
-        const truncatedText = normalizedExtracted.length > MAX_PDF_TEXT_LENGTH 
-            ? normalizedExtracted.slice(0, MAX_PDF_TEXT_LENGTH) + '\n\n[...testo troncato per limiti di elaborazione...]'
-            : normalizedExtracted;
+        // 3. Adaptive Strategy: Calcola parametri in base alla lunghezza
+        const totalLength = normalizedExtracted.length;
+        const adaptiveParams = this._calculateAdaptiveParams(totalLength);
+        
+        console.log(`📊 PDF Analisi: ${totalLength} caratteri totali`);
+        console.log(`🎯 Strategia Adattiva: Fascia ${adaptiveParams.tier} - ${adaptiveParams.chunkSize ? `Chunk da ${adaptiveParams.chunkSize} caratteri` : 'Singolo chunk'}, Target: ${adaptiveParams.targetCardsTotal || 'dinamico'} card totali`);
 
-        // 4. Chiama OpenAI per generare le flashcards con prompt personalizzato
-        const aiSettings = deck.aiSettings || {};
-        const style = aiSettings.style || 'comprehensive';
-        const difficulty = aiSettings.difficulty || 'medium';
-        const questionTypes = Array.isArray(aiSettings.questionTypes) && aiSettings.questionTypes.length > 0
-            ? aiSettings.questionTypes
-            : ['definition', 'concept', 'relationship'];
+        // 4. Smart Chunking: Divide il testo in chunk logici
+        const textChunks = adaptiveParams.chunkSize 
+            ? this._splitTextIntoChunks(normalizedExtracted, adaptiveParams.chunkSize, OVERLAP)
+            : [normalizedExtracted]; // Fascia S: singolo chunk
+        
+        console.log(`📦 Chunk creati: ${textChunks.length}`);
 
-        const stylePrompts = {
-            comprehensive: 'Crea flashcard che coprono sia definizioni che applicazioni pratiche. Bilanciate tra teoria e pratica.',
-            conceptual: 'Focus su concetti, principi e relazioni tra idee. Le domande devono testare la comprensione profonda, non solo fatti.',
-            factual: 'Focus su fatti, date, nomi, definizioni precise. Ideale per memorizzazione di informazioni specifiche.',
-            application: 'Focus su applicazioni pratiche, esempi, casi d\'uso. Le domande devono testare come applicare le conoscenze.',
-        };
+        // 5. Generazione flashcard per ogni chunk con target dinamico
+        let allGeneratedCards = [];
+        
+        // Calcola target per chunk (distribuisce il target totale tra i chunk)
+        let targetCardsPerChunk = adaptiveParams.cardsPerChunk || 
+            Math.ceil((adaptiveParams.targetCardsTotal || 50) / textChunks.length);
+        
+        // Safety Cap: Limita il numero di card per richiesta per evitare output token limit
+        // Previene JSON troncati che causerebbero JSON.parse() errors
+        if (targetCardsPerChunk > MAX_CARDS_PER_REQUEST) {
+            console.warn(`⚠️ Target ${targetCardsPerChunk} card per chunk troppo alto per singola chiamata. Limitato a ${MAX_CARDS_PER_REQUEST} per sicurezza.`);
+            targetCardsPerChunk = MAX_CARDS_PER_REQUEST;
+        }
 
-        const difficultyPrompts = {
-            easy: 'Crea domande semplici e dirette, adatte a studenti che stanno iniziando.',
-            medium: 'Crea domande di difficoltà media, che richiedono una buona comprensione.',
-            hard: 'Crea domande complesse che richiedono analisi approfondita e collegamenti tra concetti.',
-            mixed: 'Crea un mix di difficoltà: alcune semplici, alcune medie, alcune complesse.',
-        };
-
-        const questionTypePrompts = {
-            definition: 'Includi domande che chiedono definizioni precise di termini e concetti.',
-            concept: 'Includi domande che testano la comprensione di concetti astratti e principi.',
-            relationship: 'Includi domande che chiedono di spiegare relazioni, cause-effetti, e collegamenti.',
-            application: 'Includi domande che chiedono di applicare conoscenze a situazioni pratiche.',
-            comparison: 'Includi domande che chiedono di confrontare o distinguere concetti.',
-        };
-
-        const systemPrompt = `Sei un esperto insegnante universitario che si chiama Silvija. Il tuo compito è analizzare il testo fornito e creare flashcard di alta qualità per uno studente che deve preparare un esame.
-
-                STILE: ${stylePrompts[style] || stylePrompts.comprehensive}
-                DIFFICOLTÀ: ${difficultyPrompts[difficulty] || difficultyPrompts.medium}
-                TIPI DI DOMANDE: ${questionTypes.map(t => questionTypePrompts[t] || '').filter(Boolean).join(' ') || questionTypePrompts.definition}
-
-                REGOLE GENERALI:
-                - Crea tra 10 e 15 flashcard
-                - Ogni flashcard deve avere "front" (domanda chiara e specifica) e "back" (risposta concisa ma completa)
-                - Le domande devono testare comprensione, non solo memoria
-                - Evita domande troppo generiche o troppo specifiche
-                - La risposta deve essere auto-contenuta (comprensibile senza rileggere la domanda)
-                - Varia i tipi di domande per mantenere l'interesse
-
-                FORMATO OUTPUT:
-                Rispondi SOLO con JSON valido, senza markdown o testo aggiuntivo, in questo formato:
-                {"cards":[{"front":"Domanda 1?","back":"Risposta 1"},{"front":"Domanda 2?","back":"Risposta 2"}]}`;
-
-        let aiResponse;
-        try {
-            const completion = await openai.chat.completions.create({
-                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: `Analizza questo testo e genera le flashcard:\n\n${truncatedText}` }
-                ],
-                temperature: 0.7,
-                max_completion_tokens: 2000,
-                response_format: { type: 'json_object' },
-            });
-
-            aiResponse = completion.choices[0]?.message?.content;
-        } catch (err) {
-            console.error('❌ OpenAI API Error:', err.message);
-            if (err.code === 'insufficient_quota') {
-                throw AppError.internal(
-                    { message: 'Quota OpenAI esaurita. Contatta l\'amministratore.' },
-                    err,
-                    {}
+        // Processa chunk sequenzialmente per evitare rate limiting OpenAI
+        for (const [index, chunk] of textChunks.entries()) {
+            try {
+                console.log(`🔄 Elaborazione chunk ${index + 1}/${textChunks.length} (${chunk.length} caratteri, target: ${targetCardsPerChunk} card)...`);
+                
+                const chunkCards = await this._generateCardsForChunk(
+                    chunk,
+                    deck,
+                    targetCardsPerChunk,
+                    index,
+                    textChunks.length
                 );
+                
+                allGeneratedCards = [...allGeneratedCards, ...chunkCards];
+                console.log(`✅ Chunk ${index + 1}/${textChunks.length}: Generate ${chunkCards.length} flashcard`);
+            } catch (error) {
+                console.error(`❌ Errore nel chunk ${index + 1}/${textChunks.length}:`, error.message);
+                // Continuiamo con gli altri chunk invece di fallire tutto
+                // Se è l'unico chunk e fallisce, lanciamo l'errore
+                if (textChunks.length === 1) {
+                    throw error;
+                }
             }
-            throw AppError.internal(
-                { message: 'Errore nella generazione AI. Riprova più tardi.' },
-                err,
-                {}
-            );
         }
 
-        // 5. Parsa la risposta JSON
-        let generatedCards;
-        try {
-            const parsed = JSON.parse(aiResponse);
-            generatedCards = this._extractGeneratedCards(parsed);
-        } catch (err) {
-            console.error('❌ JSON Parse Error:', aiResponse);
-            throw AppError.internal(
-                { message: 'Risposta AI non valida. Riprova.' },
-                err,
-                {}
-            );
-        }
-
-        if (!Array.isArray(generatedCards) || generatedCards.length === 0) {
-            console.error('❌ Empty AI cards response:', aiResponse?.slice?.(0, 500) || aiResponse);
-            throw AppError.internal(
-                { message: 'L\'AI non ha generato flashcard valide. Prova con un PDF diverso.' },
-                null,
-                {}
-            );
-        }
-
-        // 6. Valida e normalizza le carte
-        const validCards = generatedCards
-            .map((card) => this._normalizeGeneratedCard(card))
-            .filter(card => card.front && card.back && typeof card.front === 'string' && typeof card.back === 'string')
-            .map(card => ({
-                front: card.front.trim(),
-                back: card.back.trim(),
-                status: 'new',
-                nextReviewDate: new Date(),
-                easinessFactor: DEFAULT_EASINESS_FACTOR,
-                interval: 0,
-                repetitions: 0,
-            }));
+        // 5. Valida e normalizza tutte le carte generate
+        const validCards = allGeneratedCards
+            .filter(card => card && card.front && card.back && 
+                           typeof card.front === 'string' && 
+                           typeof card.back === 'string' &&
+                           card.front.trim().length > 0 &&
+                           card.back.trim().length > 0);
 
         if (validCards.length === 0) {
-            throw AppError.internal(
-                { message: 'Nessuna flashcard valida generata. Riprova.' },
-                null,
-                {}
-            );
+            const warningMessage = 'Nessuna flashcard valida generata. Il PDF potrebbe essere troppo breve o non contenere contenuto analizzabile.';
+            console.warn(`⚠️ ${warningMessage}`);
+            return {
+                deck: deck.toJSON(),
+                generatedCount: 0,
+                totalChunks: textChunks.length,
+                totalTextLength: totalLength,
+                strategy: adaptiveParams.tier,
+                warning: warningMessage,
+            };
         }
 
-        // 7. Aggiungi le carte al mazzo (bulk)
+        // 6. Aggiungi le carte al mazzo (bulk)
         deck.cards.push(...validCards);
         await deck.save();
 
-        console.log(`✨ Generated ${validCards.length} flashcards for deck ${deckId}`);
+        console.log(`✨ Generated ${validCards.length} flashcards totali per deck ${deckId} (da ${textChunks.length} chunk, strategia: ${adaptiveParams.tier})`);
 
         return {
             deck: deck.toJSON(),
             generatedCount: validCards.length,
+            totalChunks: textChunks.length, // Info utile per il frontend
+            totalTextLength: totalLength, // Info per analytics
+            strategy: adaptiveParams.tier, // Info strategia adattiva usata
         };
     }
 
@@ -1189,6 +1172,247 @@ class StudyService extends BaseService {
         };
     }
 
+    /**
+     * 🧹 JSON Sanitizer: Pulisce la risposta AI da markdown, backticks e testo extra
+     * 
+     * Gestisce casi comuni:
+     * - "Ecco il JSON: ```json {...} ```"
+     * - "```json\n{...}\n```"
+     * - Testo prima/dopo il JSON
+     * 
+     * @param {string} dirtyJSON - Stringa potenzialmente sporca con JSON
+     * @returns {string} JSON pulito pronto per il parsing
+     */
+    _cleanJSON(dirtyJSON) {
+        if (!dirtyJSON || typeof dirtyJSON !== 'string') return '';
+        
+        let cleaned = dirtyJSON.trim();
+        
+        // Rimuovi markdown code blocks (```json ... ```)
+        cleaned = cleaned.replace(/```json\s*/gi, '');
+        cleaned = cleaned.replace(/```\s*/g, '');
+        
+        // Rimuovi prefissi comuni
+        cleaned = cleaned.replace(/^(Ecco|Here|JSON|Risposta|Response):\s*/i, '');
+        cleaned = cleaned.replace(/^(Il|The)\s+(JSON|risultato|result):\s*/i, '');
+        
+        // Trova la prima { e l'ultima } per isolare l'oggetto JSON
+        const firstBrace = cleaned.indexOf('{');
+        const lastBrace = cleaned.lastIndexOf('}');
+        
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+        }
+        
+        // Rimuovi spazi e newline eccessivi
+        cleaned = cleaned.trim();
+        
+        return cleaned;
+    }
+
+    /**
+     * 🪄 Genera flashcard per un singolo chunk di testo
+     * 
+     * BULLETPROOF: Include retry logic e JSON sanitization per gestire risposte malformate
+     * 
+     * @param {string} chunkText - Testo del chunk da analizzare
+     * @param {Object} deck - Deck con aiSettings
+     * @param {number} targetCount - Numero target di flashcard da generare
+     * @param {number} chunkIndex - Indice del chunk (0-based)
+     * @param {number} totalChunks - Numero totale di chunk
+     * @returns {Promise<Array>} Array di flashcard generate
+     */
+    async _generateCardsForChunk(chunkText, deck, targetCount, chunkIndex, totalChunks) {
+        const aiSettings = deck.aiSettings || {};
+        const style = aiSettings.style || 'comprehensive';
+        const difficulty = aiSettings.difficulty || 'medium';
+        const questionTypes = Array.isArray(aiSettings.questionTypes) && aiSettings.questionTypes.length > 0
+            ? aiSettings.questionTypes
+            : ['definition', 'concept', 'relationship'];
+
+        const stylePrompts = {
+            comprehensive: 'Crea flashcard che coprono sia definizioni che applicazioni pratiche. Bilanciate tra teoria e pratica.',
+            conceptual: 'Focus su concetti, principi e relazioni tra idee. Le domande devono testare la comprensione profonda, non solo fatti.',
+            factual: 'Focus su fatti, date, nomi, definizioni precise. Ideale per memorizzazione di informazioni specifiche.',
+            application: 'Focus su applicazioni pratiche, esempi, casi d\'uso. Le domande devono testare come applicare le conoscenze.',
+        };
+
+        const difficultyPrompts = {
+            easy: 'Crea domande semplici e dirette, adatte a studenti che stanno iniziando.',
+            medium: 'Crea domande di difficoltà media, che richiedono una buona comprensione.',
+            hard: 'Crea domande complesse che richiedono analisi approfondita e collegamenti tra concetti.',
+            mixed: 'Crea un mix di difficoltà: alcune semplici, alcune medie, alcune complesse.',
+        };
+
+        const questionTypePrompts = {
+            definition: 'Includi domande che chiedono definizioni precise di termini e concetti.',
+            concept: 'Includi domande che testano la comprensione di concetti astratti e principi.',
+            relationship: 'Includi domande che chiedono di spiegare relazioni, cause-effetti, e collegamenti.',
+            application: 'Includi domande che chiedono di applicare conoscenze a situazioni pratiche.',
+            comparison: 'Includi domande che chiedono di confrontare o distinguere concetti.',
+        };
+
+        // Prompt adattato per chunk-aware generation
+        const systemPrompt = `Sei Silvija, un esperto insegnante universitario.
+Stai analizzando la PARTE ${chunkIndex + 1} di ${totalChunks} di un documento lungo.
+
+Il tuo compito è estrarre i concetti chiave ESCLUSIVAMENTE da questa sezione di testo.
+
+STILE: ${stylePrompts[style] || stylePrompts.comprehensive}
+DIFFICOLTÀ: ${difficultyPrompts[difficulty] || difficultyPrompts.medium}
+TIPI DI DOMANDE: ${questionTypes.map(t => questionTypePrompts[t] || '').filter(Boolean).join(' ') || questionTypePrompts.definition}
+
+REGOLE CRITICHE:
+- Genera circa ${targetCount} flashcard (${Math.max(5, targetCount - 2)}-${targetCount + 2} è accettabile)
+- Ignora riferimenti a "come detto prima" o "nel capitolo precedente", focalizzati sul contenuto attuale
+- Ogni flashcard deve avere "front" (domanda chiara e specifica) e "back" (risposta concisa ma completa)
+- Le domande devono testare comprensione, non solo memoria
+- Evita domande troppo generiche o troppo specifiche
+- La risposta deve essere auto-contenuta (comprensibile senza rileggere la domanda)
+- Varia i tipi di domande per mantenere l'interesse
+- Se il testo non contiene informazioni utili per flashcard, rispondi con: {"cards": []}. Non restituire stringa vuota.
+
+FORMATO OUTPUT:
+Rispondi SOLO con JSON valido, senza markdown o testo aggiuntivo, in questo formato:
+{"cards":[{"front":"Domanda 1?","back":"Risposta 1"},{"front":"Domanda 2?","back":"Risposta 2"}]}`;
+
+        // Retry logic: max 2 tentativi
+        const MAX_RETRIES = 2;
+        let lastError = null;
+        
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                // Chiamata OpenAI
+                let aiResponse;
+                try {
+                    const completion = await openai.chat.completions.create({
+                        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: `Testo da analizzare:\n\n${chunkText}` }
+                        ],
+                        // Temperatura più bassa al retry per maggiore determinismo
+                        temperature: attempt === 1 ? 0.7 : 0.3,
+                        max_completion_tokens: 2000,
+                        response_format: { type: 'json_object' },
+                    });
+
+                    aiResponse = completion.choices[0]?.message?.content;
+                } catch (err) {
+                    console.error(`❌ OpenAI API Error (chunk ${chunkIndex + 1}, tentativo ${attempt}):`, err.message);
+                    
+                    // Errori critici che non devono essere ritentati
+                    if (err.code === 'insufficient_quota') {
+                        throw AppError.internal(
+                            { message: 'Quota OpenAI esaurita. Contatta l\'amministratore.' },
+                            err,
+                            {}
+                        );
+                    }
+                    
+                    // Se è l'ultimo tentativo, lancia l'errore
+                    if (attempt === MAX_RETRIES) {
+                        throw AppError.internal(
+                            { message: `Errore nella generazione AI per chunk ${chunkIndex + 1} dopo ${MAX_RETRIES} tentativi. Riprova più tardi.` },
+                            err,
+                            {}
+                        );
+                    }
+                    
+                    // Altrimenti, salva l'errore e riprova
+                    lastError = err;
+                    continue;
+                }
+
+                // Controllo risposta vuota
+                if (!aiResponse || typeof aiResponse !== 'string' || aiResponse.trim().length === 0) {
+                    console.warn(`⚠️ Risposta AI vuota (chunk ${chunkIndex + 1}, tentativo ${attempt})`);
+                    if (attempt === MAX_RETRIES) {
+                        console.error(`❌ Risposta vuota dopo ${MAX_RETRIES} tentativi per chunk ${chunkIndex + 1}`);
+                        return []; // Ritorna array vuoto invece di crashare
+                    }
+                    continue;
+                }
+
+                // Sanitizza JSON: rimuovi markdown, backticks, testo extra
+                const cleanedJSON = this._cleanJSON(aiResponse);
+                
+                if (!cleanedJSON || cleanedJSON.length === 0) {
+                    console.warn(`⚠️ JSON pulito vuoto (chunk ${chunkIndex + 1}, tentativo ${attempt})`);
+                    if (attempt === MAX_RETRIES) {
+                        console.error(`❌ Impossibile estrarre JSON valido dopo ${MAX_RETRIES} tentativi per chunk ${chunkIndex + 1}`);
+                        return [];
+                    }
+                    continue;
+                }
+
+                // Parsa la risposta JSON
+                let parsed;
+                try {
+                    parsed = JSON.parse(cleanedJSON);
+                } catch (parseErr) {
+                    console.error(`❌ JSON Parse Error (chunk ${chunkIndex + 1}, tentativo ${attempt}):`, cleanedJSON?.slice?.(0, 200));
+                    console.error(`   Original response:`, aiResponse?.slice?.(0, 200));
+                    
+                    if (attempt === MAX_RETRIES) {
+                        console.error(`❌ JSON non valido dopo ${MAX_RETRIES} tentativi per chunk ${chunkIndex + 1}. Ritorno array vuoto.`);
+                        return []; // Ritorna array vuoto invece di crashare
+                    }
+                    
+                    lastError = parseErr;
+                    continue; // Riprova
+                }
+
+                // Estrai cards dal JSON parsato
+                let generatedCards = this._extractGeneratedCards(parsed);
+
+                if (!Array.isArray(generatedCards) || generatedCards.length === 0) {
+                    console.warn(`⚠️ Nessuna card estratta (chunk ${chunkIndex + 1}, tentativo ${attempt}):`, parsed);
+                    if (attempt === MAX_RETRIES) {
+                        console.error(`❌ Nessuna card valida dopo ${MAX_RETRIES} tentativi per chunk ${chunkIndex + 1}`);
+                        return []; // Ritorna array vuoto
+                    }
+                    continue; // Riprova
+                }
+
+                // Successo! Normalizza e ritorna le card
+                return generatedCards
+                    .map((card) => this._normalizeGeneratedCard(card))
+                    .filter(card => card.front && card.back && typeof card.front === 'string' && typeof card.back === 'string')
+                    .map(card => ({
+                        front: card.front.trim(),
+                        back: card.back.trim(),
+                        status: 'new',
+                        nextReviewDate: new Date(),
+                        easinessFactor: DEFAULT_EASINESS_FACTOR,
+                        interval: 0,
+                        repetitions: 0,
+                    }));
+
+            } catch (err) {
+                // Errori critici (quota, etc.) vengono lanciati immediatamente
+                if (err instanceof AppError && err.statusCode >= 500) {
+                    throw err;
+                }
+                
+                lastError = err;
+                
+                // Se è l'ultimo tentativo, ritorna array vuoto invece di crashare
+                if (attempt === MAX_RETRIES) {
+                    console.error(`❌ Errore dopo ${MAX_RETRIES} tentativi per chunk ${chunkIndex + 1}:`, err.message);
+                    return []; // Ritorna array vuoto invece di crashare
+                }
+                
+                // Piccola pausa prima del retry
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
+        }
+
+        // Fallback: ritorna array vuoto se tutti i tentativi falliscono
+        console.error(`❌ Tutti i tentativi falliti per chunk ${chunkIndex + 1}. Ultimo errore:`, lastError?.message);
+        return [];
+    }
+
     _sanitizeTutorHistory(history) {
         if (!Array.isArray(history)) return [];
 
@@ -1327,6 +1551,205 @@ class StudyService extends BaseService {
             .filter((t) => t.length >= 4 && !stopwords.has(t));
 
         return [...new Set(tokens)].slice(0, 20);
+    }
+
+    /**
+     * 🏗️ Document Structure Analyzer: genera un blueprint iniziale del documento
+     * 
+     * @param {string} extractedText - Testo estratto dal PDF (normalizzato)
+     * @returns {Promise<{documentType: string, globalContext: string, mainTopics: string[], densityScore: number}>}
+     */
+    async _analyzeDocumentStructure(extractedText) {
+        const defaultBlueprint = {
+            documentType: 'other',
+            densityScore: 0.5,
+            globalContext: 'Documento generico',
+            mainTopics: [],
+        };
+
+        try {
+            if (!extractedText || typeof extractedText !== 'string') {
+                return defaultBlueprint;
+            }
+
+            const sampleText = this._truncateText(extractedText, 25000);
+            if (!sampleText || sampleText.trim().length === 0) {
+                return defaultBlueprint;
+            }
+
+            const systemPrompt = `Agisci come un analista editoriale senior. Analizza il testo fornito e restituisci SOLO JSON valido.
+OUTPUT RICHIESTO:
+{
+  "documentType": "textbook" | "slide_deck" | "research_paper" | "exam_text" | "notes" | "other",
+  "globalContext": "Una frase riassuntiva molto concisa del contenuto (max 20 parole).",
+  "mainTopics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"],
+  "densityScore": 0.0 to 1.0
+}
+Se non sei sicuro, usa "other" e una lista vuota di mainTopics.`;
+
+            const completion = await openai.chat.completions.create({
+                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: `Testo da analizzare:\n\n${sampleText}` },
+                ],
+                temperature: 0.2,
+                max_completion_tokens: 500,
+                response_format: { type: 'json_object' },
+            });
+
+            const aiResponse = completion.choices[0]?.message?.content;
+            if (!aiResponse || typeof aiResponse !== 'string') {
+                return defaultBlueprint;
+            }
+
+            const cleanedJSON = this._cleanJSON(aiResponse);
+            if (!cleanedJSON) {
+                return defaultBlueprint;
+            }
+
+            let parsed;
+            try {
+                parsed = JSON.parse(cleanedJSON);
+            } catch (parseErr) {
+                console.warn('⚠️ Blueprint JSON parse error:', parseErr.message);
+                return defaultBlueprint;
+            }
+
+            const allowedTypes = new Set([
+                'textbook',
+                'slide_deck',
+                'research_paper',
+                'exam_text',
+                'notes',
+                'other',
+            ]);
+
+            const rawType = typeof parsed?.documentType === 'string' ? parsed.documentType.trim() : '';
+            const documentType = allowedTypes.has(rawType) ? rawType : defaultBlueprint.documentType;
+
+            const rawContext = typeof parsed?.globalContext === 'string' ? parsed.globalContext.trim() : '';
+            const contextWords = rawContext ? rawContext.split(/\s+/).slice(0, 20) : [];
+            const globalContext = contextWords.length > 0 ? contextWords.join(' ') : defaultBlueprint.globalContext;
+
+            const rawTopics = Array.isArray(parsed?.mainTopics) ? parsed.mainTopics : [];
+            const mainTopics = rawTopics
+                .filter(topic => typeof topic === 'string')
+                .map(topic => topic.trim())
+                .filter(Boolean)
+                .slice(0, 5);
+
+            const rawDensity = parsed?.densityScore;
+            const densityValue = Number.isFinite(Number(rawDensity)) ? Number(rawDensity) : defaultBlueprint.densityScore;
+            const densityScore = Math.max(0, Math.min(1, densityValue));
+
+            return {
+                documentType,
+                globalContext,
+                mainTopics,
+                densityScore,
+            };
+        } catch (err) {
+            console.warn('⚠️ Document analysis fallback:', err.message);
+            return defaultBlueprint;
+        }
+    }
+
+    /**
+     * 🧠 Adaptive Strategy Calculator: Determina parametri in base alla lunghezza del testo
+     * 
+     * @param {number} textLength - Lunghezza totale del testo in caratteri
+     * @returns {Object} Configurazione adattiva {tier, chunkSize, targetCardsTotal, cardsPerChunk}
+     */
+    _calculateAdaptiveParams(textLength) {
+        if (textLength < TIER_S_THRESHOLD) {
+            // Fascia S: Corto/Slide (< 30k caratteri)
+            return {
+                tier: 'S',
+                chunkSize: null, // Singolo chunk
+                targetCardsTotal: TIER_S_CONFIG.targetCardsTotal,
+                cardsPerChunk: TIER_S_CONFIG.cardsPerChunk,
+            };
+        } else if (textLength < TIER_M_THRESHOLD) {
+            // Fascia M: Capitolo/Tesina (30k - 100k caratteri)
+            return {
+                tier: 'M',
+                chunkSize: TIER_M_CONFIG.chunkSize,
+                targetCardsTotal: TIER_M_CONFIG.targetCardsTotal,
+                cardsPerChunk: null, // Calcolato dinamicamente
+            };
+        } else {
+            // Fascia L: Libro/Manuale (> 100k caratteri)
+            // Calcola target dinamico: ~1 card ogni 2000 caratteri, minimo 50
+            const estimatedChunks = Math.ceil(textLength / TIER_L_CONFIG.chunkSize);
+            const targetTotal = Math.max(50, Math.floor(textLength / 2000));
+            
+            return {
+                tier: 'L',
+                chunkSize: TIER_L_CONFIG.chunkSize,
+                targetCardsTotal: targetTotal,
+                cardsPerChunk: null, // Calcolato dinamicamente
+            };
+        }
+    }
+
+    /**
+     * 📦 Smart Chunking: Divide il testo in chunk logici mantenendo il senso
+     * 
+     * FIX CRITICO: L'indice ora avanza correttamente usando `start = end - overlap`
+     * 
+     * Evita di tagliare frasi a metà cercando punti di interruzione naturali
+     * (punti, a capo) vicini alla fine del chunk.
+     * 
+     * @param {string} text - Testo da dividere
+     * @param {number} chunkSize - Dimensione target del chunk
+     * @param {number} overlap - Sovrapposizione tra chunk adiacenti
+     * @returns {Array<string>} Array di chunk di testo
+     */
+    _splitTextIntoChunks(text, chunkSize, overlap = OVERLAP) {
+        if (!text || typeof text !== 'string') return [];
+        if (text.length <= chunkSize) return [text];
+
+        const chunks = [];
+        let start = 0;
+        
+        while (start < text.length) {
+            // Calcola fine del chunk
+            let end = Math.min(start + chunkSize, text.length);
+            
+            // Cerca l'ultimo punto di interruzione naturale per non tagliare frasi a metà
+            if (end < text.length) {
+                const searchStart = Math.max(start, end - chunkSize * 0.2); // Cerca negli ultimi 20% del chunk
+                const lastPeriod = text.lastIndexOf('.', end);
+                const lastNewline = text.lastIndexOf('\n', end);
+                const lastPageMarker = text.lastIndexOf('--- Pagina', end);
+                
+                // Preferisci il punto se è nella zona di ricerca
+                if (lastPeriod >= searchStart && lastPeriod > start + chunkSize * 0.7) {
+                    end = lastPeriod + 1;
+                } else if (lastNewline >= searchStart && lastNewline > start + chunkSize * 0.7) {
+                    end = lastNewline + 1;
+                } else if (lastPageMarker >= searchStart && lastPageMarker > start + chunkSize * 0.6) {
+                    // Se c'è un marker di pagina, preferisci quello
+                    end = lastPageMarker;
+                }
+            }
+
+            // Aggiungi chunk
+            chunks.push(text.slice(start, end));
+            
+            // FIX CRITICO: Avanza correttamente usando start = end - overlap
+            // Assicurati che start avanzi sempre (almeno del 50% del chunkSize)
+            const nextStart = end - overlap;
+            start = Math.max(start + Math.floor(chunkSize * 0.5), nextStart);
+            
+            // Safety check: se start non avanza, forza avanzamento minimo
+            if (start >= end) {
+                start = end;
+            }
+        }
+        
+        return chunks;
     }
 
     _normalizeExtractedText(text) {

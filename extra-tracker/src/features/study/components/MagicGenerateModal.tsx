@@ -122,17 +122,22 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         setError(null);
         
         // Simuliamo i passaggi con timing realistico
+        // Per PDF grandi, il processo può richiedere 30-60 secondi, quindi aumentiamo i timeout
         const simulateSteps = async () => {
             setStep('uploading');
-            await new Promise(r => setTimeout(r, 800));
+            await new Promise(r => setTimeout(r, 1000));
             
             setStep('reading');
-            await new Promise(r => setTimeout(r, 1200));
+            await new Promise(r => setTimeout(r, 2000));
             
             setStep('analyzing');
-            await new Promise(r => setTimeout(r, 1500));
+            // Per PDF grandi, l'analisi può richiedere più tempo
+            // Il timeout qui è più lungo per dare tempo al backend
+            await new Promise(r => setTimeout(r, 3000));
             
             setStep('generating');
+            // Rimuoviamo il timeout fisso qui - il backend gestirà il tempo reale
+            // Continuiamo a mostrare "generating" finché non arriva la risposta
         };
 
         try {
@@ -144,9 +149,14 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
             setStep('success');
             setGeneratedCount(result.generatedCount);
             
-            emitToast.success(`✨ Generate ${result.generatedCount} flashcard!`, {
+            // Messaggio migliorato con info sui chunk se disponibili
+            const chunkInfo = (result as any).totalChunks 
+                ? ` da ${(result as any).totalChunks} sezioni` 
+                : '';
+            
+            emitToast.success(`✨ Generate ${result.generatedCount} flashcard${chunkInfo}!`, {
                 title: 'Magic Generate',
-                duration: 4000,
+                duration: 5000,
             });
 
             // Callback dopo un po' per mostrare il successo

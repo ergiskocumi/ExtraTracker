@@ -406,6 +406,8 @@ class StudyService {
         return {
             generatedCount: result.data?.generatedCount || 0,
             deck: normalizeDeck(result.data?.deck || {}),
+            totalChunks: result.data?.totalChunks, // Info aggiuntiva per UX
+            totalTextLength: result.data?.totalTextLength, // Info per analytics
         };
     }
 
