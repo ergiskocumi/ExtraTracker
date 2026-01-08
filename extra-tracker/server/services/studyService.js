@@ -217,11 +217,59 @@ class StudyService extends BaseService {
             deck.description = updates.description?.trim() || '';
         }
         if (updates.tags !== undefined && Array.isArray(updates.tags)) {
-            deck.tags = updates.tags;
+            // Normalizza e limita a 5 tag
+            const normalized = updates.tags
+                .map(tag => (typeof tag === 'string' ? tag.trim().toLowerCase() : ''))
+                .filter(tag => tag.length > 0)
+                .slice(0, 5);
+            deck.tags = [...new Set(normalized)]; // Rimuove duplicati
+        }
+        if (updates.folderId !== undefined) {
+            console.log('[StudyService] updateDeck: Updating folderId', {
+                currentFolderId: deck.folderId ? deck.folderId.toString() : null,
+                newFolderId: updates.folderId,
+            });
+            
+            // Verifica che la cartella esista e appartenga all'utente (se non è null)
+            if (updates.folderId !== null && updates.folderId !== '') {
+                const Folder = require('../models/Folder');
+                const folder = await Folder.findOne({ _id: updates.folderId, user: userId });
+                if (!folder) {
+                    throw AppError.notFound('Cartella non trovata');
+                }
+                deck.folderId = updates.folderId;
+                console.log('[StudyService] updateDeck: Folder verified, setting folderId');
+            } else {
+                // Se folderId è null o stringa vuota, rimuovi il riferimento
+                deck.folderId = null;
+                console.log('[StudyService] updateDeck: Setting folderId to null');
+            }
         }
 
         await deck.save();
-        return this._serializeDeck(deck);
+        console.log('[StudyService] updateDeck: Deck saved', {
+            deckId: deck._id.toString(),
+            folderId: deck.folderId ? deck.folderId.toString() : null,
+        });
+        
+        // Ricarica dal DB per essere sicuri
+        const savedDeck = await Deck.findOne({ _id: deck._id, user: userId });
+        if (!savedDeck) {
+            throw AppError.notFound('Mazzo non trovato dopo il salvataggio');
+        }
+        
+        console.log('[StudyService] updateDeck: Reloaded from DB', {
+            deckId: savedDeck._id.toString(),
+            folderId: savedDeck.folderId ? savedDeck.folderId.toString() : null,
+        });
+        
+        const serialized = this._serializeDeck(savedDeck);
+        console.log('[StudyService] updateDeck: Serialized deck', {
+            id: serialized.id,
+            folderId: serialized.folderId,
+        });
+        
+        return serialized;
     }
 
     async updateDeckSettings(tenantScope, deckId, settings) {
@@ -327,6 +375,8 @@ class StudyService extends BaseService {
     }
 
     _serializeDeck(deck) {
+        // Converti deck Mongoose a plain object se necessario
+        const deckObj = deck.toObject ? deck.toObject() : deck;
         return deck.toJSON();
     }
 

@@ -28,6 +28,7 @@ export interface Deck {
     description?: string;
     pdfUrl?: string | null;
     tags: string[];
+    folderId?: string | null;
     cards: Card[];
     totalCards: number;
     dueCount: number;
@@ -180,12 +181,13 @@ const normalizeCard = (raw: any): Card => ({
 const normalizeDeck = (raw: any): Deck => {
     const cards = Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [];
     return {
-        id: raw.id || raw._id,
-        goalId: raw.goalId,
+        id: raw.id || raw._id?.toString() || raw._id,
+        goalId: raw.goalId?.toString() || raw.goalId,
         title: raw.title || 'Senza titolo',
         description: raw.description,
         pdfUrl: typeof raw.pdfUrl === 'string' && raw.pdfUrl.length > 0 ? raw.pdfUrl : null,
         tags: Array.isArray(raw.tags) ? raw.tags : [],
+        folderId: raw.folderId?.toString() || raw.folderId || null,
         cards,
         totalCards: safeNumber(raw.totalCards, cards.length),
         dueCount: safeNumber(raw.dueCount, cards.length),
@@ -449,6 +451,15 @@ class StudyService {
     async updateDeckTitle(deckId: string, title: string): Promise<Deck> {
         const response = await apiClient.patch<any>(`${this.baseUrl}/${deckId}`, { title });
         const raw = unwrap(response, 'Errore nell\'aggiornamento del titolo');
+        return normalizeDeck(raw);
+    }
+
+    /**
+     * Aggiorna folderId e/o tags di un deck
+     */
+    async updateDeckOrganization(deckId: string, updates: { folderId?: string | null; tags?: string[] }): Promise<Deck> {
+        const response = await apiClient.patch<any>(`${this.baseUrl}/${deckId}`, updates);
+        const raw = unwrap(response, 'Errore nell\'aggiornamento');
         return normalizeDeck(raw);
     }
 

@@ -54,11 +54,15 @@ import {
     Wand2
 } from 'lucide-react';
 import { studyService, type Deck, type CreateDeckPayload, type AddCardPayload } from '../services/studyService';
+import { foldersService, type Folder } from '../services/foldersService';
+import { tagsService, type Tag } from '../services/tagsService';
 import { emitToast } from '../../../shared/components/toast';
 import { CreateDeckModal } from '../components/CreateDeckModal';
 import { MagicGenerateModal } from '../components/MagicGenerateModal';
 import { StudyModeSelector, type StudyMode } from '../components/StudyModeSelector';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
+import { FolderTree } from '../components/FolderTree';
+import { TagCloud } from '../components/TagCloud';
 
 // ============================================
 // TYPES
@@ -222,6 +226,7 @@ interface DeckCardProps {
     onSplitStudy: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
+    tags?: Tag[];
 }
 
 const DeckCard: React.FC<DeckCardProps> = ({ 
@@ -232,13 +237,14 @@ const DeckCard: React.FC<DeckCardProps> = ({
     onViewDetail, 
     onSplitStudy, 
     onDelete,
-    onUpdate
+    onUpdate,
+    tags = [] // Passato dal parent per mostrare i colori dei tag
 }) => {
     const [showMenu, setShowMenu] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editedTitle, setEditedTitle] = useState(deck.title);
     const titleInputRef = useRef<HTMLInputElement>(null);
-    const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     
     const hasDueCards = (deck.dueCount ?? 0) > 0;
     const totalCards = deck.totalCards ?? deck.cards?.length ?? 0;
@@ -316,19 +322,35 @@ const DeckCard: React.FC<DeckCardProps> = ({
         }
     };
 
+    const [isDragging, setIsDragging] = useState(false);
+
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('deckId', deck.id);
+        e.dataTransfer.setData('text/plain', deck.id); // Fallback per alcuni browser
+        setIsDragging(true);
+    };
+
+    const handleDragEnd = () => {
+        setIsDragging(false);
+    };
+
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+        <div
+            draggable
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
             className={`
                 relative rounded-xl sm:rounded-2xl md:rounded-3xl border overflow-hidden
                 transition-all duration-300 hover:shadow-xl
                 flex flex-col
                 min-h-[280px] sm:min-h-[320px] md:min-h-[340px]
+                cursor-move
                 ${hasDueCards 
                     ? 'border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent shadow-lg shadow-orange-500/10' 
                     : `${theme.borderColor} bg-gradient-to-br ${theme.gradient} hover:shadow-lg`
                 }
+                ${isDragging ? 'opacity-50 scale-95' : ''}
             `}
         >
             {/* Badge - Due Cards */}
@@ -468,7 +490,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                 {deck.title}
                             </h3>
                         )}
-                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-white/50">
+                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-white/50 flex-wrap">
                             <span className="flex items-center gap-1 sm:gap-1.5">
                                 <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 {totalCards} carte
@@ -478,6 +500,32 @@ const DeckCard: React.FC<DeckCardProps> = ({
                                     <BookOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                     PDF
                                 </span>
+                            )}
+                            {/* Tag badges */}
+                            {deck.tags && deck.tags.length > 0 && tags && tags.length > 0 && (
+                                <div className="flex items-center gap-1 flex-wrap">
+                                    {deck.tags.slice(0, 3).map((tagName, idx) => {
+                                        const tag = tags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+                                        return (
+                                            <span
+                                                key={idx}
+                                                className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                                                style={{
+                                                    backgroundColor: tag?.color ? `${tag.color}20` : 'rgba(255,255,255,0.1)',
+                                                    color: tag?.color || '#fff',
+                                                    border: `1px solid ${tag?.color ? `${tag.color}40` : 'rgba(255,255,255,0.2)'}`,
+                                                }}
+                                            >
+                                                {tagName}
+                                            </span>
+                                        );
+                                    })}
+                                    {deck.tags.length > 3 && (
+                                        <span className="text-[10px] text-white/40">
+                                            +{deck.tags.length - 3}
+                                        </span>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -646,7 +694,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                     )}
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 };
 
@@ -925,6 +973,13 @@ export const DecksDashboardPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterType>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // Organization state
+    const [folders, setFolders] = useState<Folder[]>([]);
+    const [tags, setTags] = useState<Tag[]>([]);
+    const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     // Modal state
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -946,6 +1001,24 @@ export const DecksDashboardPage: React.FC = () => {
     // Filtered decks
     const filteredDecks = useMemo(() => {
         let result = [...decks];
+
+        // Filtro per cartella
+        if (selectedFolderId !== null) {
+            result = result.filter(d => d.folderId === selectedFolderId);
+        } else {
+            // Se nessuna cartella selezionata, mostra tutti (anche quelli senza cartella)
+            // Per mostrare solo quelli senza cartella, usa: result = result.filter(d => !d.folderId);
+        }
+
+        // Filtro per tag (AND: tutti i tag selezionati devono essere presenti)
+        if (selectedTags.length > 0) {
+            result = result.filter(d => {
+                const deckTags = d.tags || [];
+                return selectedTags.every(selectedTag => 
+                    deckTags.some(tag => tag.toLowerCase() === selectedTag.toLowerCase())
+                );
+            });
+        }
 
         switch (filter) {
             case 'due':
@@ -975,7 +1048,7 @@ export const DecksDashboardPage: React.FC = () => {
         }
 
         return result;
-    }, [decks, filter, searchQuery]);
+    }, [decks, filter, searchQuery, selectedFolderId, selectedTags]);
 
     // Load decks
     const loadDecks = useCallback(async () => {
@@ -993,9 +1066,42 @@ export const DecksDashboardPage: React.FC = () => {
         }
     }, []);
 
+    // Load folders
+    const loadFolders = useCallback(async () => {
+        try {
+            const folderTree = await foldersService.getFolderTree();
+            setFolders(folderTree);
+        } catch (err: any) {
+            console.error('[DecksDashboardPage] loadFolders: Error:', err);
+            emitToast.error('Errore nel caricamento delle cartelle');
+        }
+    }, []);
+
+    // Load tags
+    const loadTags = useCallback(async () => {
+        try {
+            const allTags = await tagsService.getAllTags();
+            setTags(allTags);
+        } catch (err: any) {
+            console.error('[DecksDashboardPage] loadTags: Error:', err);
+            emitToast.error('Errore nel caricamento dei tag');
+        }
+    }, []);
+
     useEffect(() => {
-        loadDecks();
-    }, [loadDecks]);
+        const loadAll = async () => {
+            try {
+                await Promise.all([
+                    loadDecks(),
+                    loadFolders(),
+                    loadTags(),
+                ]);
+            } catch (err) {
+                console.error('[DecksDashboardPage] useEffect: Error loading data:', err);
+            }
+        };
+        loadAll();
+    }, [loadDecks, loadFolders, loadTags]);
 
     // Handlers
     const handleStudy = (deckId: string) => {
@@ -1074,11 +1180,173 @@ export const DecksDashboardPage: React.FC = () => {
         }
     };
 
+    // Handlers per organizzazione
+    const handleFolderSelect = (folderId: string | null) => {
+        setSelectedFolderId(folderId);
+    };
+
+    const handleTagToggle = (tagName: string) => {
+        setSelectedTags((prev: string[]) => {
+            if (prev.includes(tagName)) {
+                return prev.filter((t: string) => t !== tagName);
+            } else {
+                return [...prev, tagName];
+            }
+        });
+    };
+
+    const handleRefreshOrganization = async () => {
+        try {
+            await Promise.all([
+                loadFolders(),
+                loadTags(),
+                loadDecks(),
+            ]);
+        } catch (err) {
+            console.error('[DecksDashboardPage] handleRefreshOrganization: Error:', err);
+        }
+    };
+
+    const handleDeckDrop = async (deckId: string, folderId: string | null) => {
+        console.log('[DecksDashboardPage] handleDeckDrop: Starting', { deckId, folderId });
+        try {
+            // Trova il deck corrente per verificare lo stato
+            const currentDeck = decks.find(d => d.id === deckId);
+            if (!currentDeck) {
+                throw new Error('Mazzo non trovato');
+            }
+            
+            console.log('[DecksDashboardPage] handleDeckDrop: Current deck', {
+                id: currentDeck.id,
+                title: currentDeck.title,
+                folderId: currentDeck.folderId,
+            });
+            
+            // Aggiorna il deck
+            console.log('[DecksDashboardPage] handleDeckDrop: Calling updateDeckOrganization...');
+            const updatedDeck = await studyService.updateDeckOrganization(deckId, { folderId });
+            console.log('[DecksDashboardPage] handleDeckDrop: Received updated deck', {
+                id: updatedDeck.id,
+                title: updatedDeck.title,
+                folderId: updatedDeck.folderId,
+                hasFolderId: 'folderId' in updatedDeck,
+            });
+            
+            // Aggiorna lo stato locale immediatamente
+            setDecks(prev => {
+                const updated = prev.map(d => d.id === deckId ? updatedDeck : d);
+                console.log('[DecksDashboardPage] handleDeckDrop: Updated local state', {
+                    deckCount: updated.length,
+                    updatedDeckFolderId: updated.find(d => d.id === deckId)?.folderId,
+                });
+                return updated;
+            });
+            
+            // Ricarica per sincronizzare
+            await Promise.all([
+                loadDecks(),
+                loadFolders(), // Aggiorna contatori
+            ]);
+            
+            console.log('[DecksDashboardPage] handleDeckDrop: Success');
+            emitToast.success(folderId ? 'Mazzo spostato nella cartella' : 'Mazzo spostato nella cartella radice');
+        } catch (err: any) {
+            console.error('[DecksDashboardPage] handleDeckDrop: Error:', err);
+            console.error('[DecksDashboardPage] handleDeckDrop: Error details:', {
+                message: err.message,
+                stack: err.stack,
+                response: err.response?.data,
+            });
+            emitToast.error(err.message || 'Errore nello spostamento');
+        }
+    };
+
     // ========== RENDER ==========
 
     return (
-        <div className="min-h-screen px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
-            <div className="max-w-6xl mx-auto">
+        <div className="min-h-screen flex">
+            {/* Sidebar - Organizzazione */}
+            <AnimatePresence>
+                {isSidebarOpen && (
+                    <motion.aside
+                        initial={{ x: -300, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: -300, opacity: 0 }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                        className="hidden lg:flex flex-col w-64 border-r border-white/10 bg-zinc-900/50 backdrop-blur-sm"
+                    >
+                        <div className="p-4 border-b border-white/10">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-sm font-bold text-white/80 uppercase tracking-wider">
+                                    Organizza
+                                </h2>
+                                <button
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors lg:hidden"
+                                >
+                                    <X className="w-4 h-4 text-white/60" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                            {/* Cartelle */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                                        Cartelle
+                                    </h3>
+                                    <button
+                                        onClick={async () => {
+                                            const name = prompt('Nome della nuova cartella:');
+                                            if (name && name.trim()) {
+                                                try {
+                                                    await foldersService.createFolder({ name: name.trim() });
+                                                    emitToast.success('Cartella creata');
+                                                    handleRefreshOrganization();
+                                                } catch (err: any) {
+                                                    emitToast.error(err.message || 'Errore nella creazione');
+                                                }
+                                            }
+                                        }}
+                                        className="p-1 rounded hover:bg-white/10 transition-colors"
+                                    >
+                                        <Plus className="w-3.5 h-3.5 text-white/60" />
+                                    </button>
+                                </div>
+                                {folders.length > 0 ? (
+                                    <FolderTree
+                                        folders={folders}
+                                        selectedFolderId={selectedFolderId}
+                                        onFolderSelect={handleFolderSelect}
+                                        onRefresh={handleRefreshOrganization}
+                                        onDeckDrop={handleDeckDrop}
+                                    />
+                                ) : (
+                                    <p className="text-xs text-white/40 px-3">Nessuna cartella</p>
+                                )}
+                            </div>
+
+                            {/* Tag */}
+                            <div>
+                                <TagCloud
+                                    tags={tags}
+                                    selectedTags={selectedTags}
+                                    onTagToggle={handleTagToggle}
+                                    onRefresh={handleRefreshOrganization}
+                                />
+                                {tags.length === 0 && (
+                                    <p className="text-xs text-white/40 px-3 mt-2">Nessun tag</p>
+                                )}
+                            </div>
+                        </div>
+                    </motion.aside>
+                )}
+            </AnimatePresence>
+
+            {/* Main Content */}
+            <div className="flex-1 min-h-screen px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+                <div className="max-w-6xl mx-auto">
                 {/* ═══ HEADER ═══ */}
                 <header className="mb-4 sm:mb-6 md:mb-8">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -1189,6 +1457,7 @@ export const DecksDashboardPage: React.FC = () => {
                                         onUpdate={(updated) => {
                                             setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
                                         }}
+                                        tags={tags}
                                     />
                                 </motion.div>
                             ))}
@@ -1244,6 +1513,7 @@ export const DecksDashboardPage: React.FC = () => {
                     onConfirm={handleDeleteDeck}
                     onCancel={() => setDeletingDeck(null)}
                 />
+                </div>
             </div>
         </div>
     );

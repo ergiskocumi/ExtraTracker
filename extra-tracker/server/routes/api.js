@@ -25,6 +25,10 @@ const workLogService = require('../services/workLogService');
 // Controllers
 const workspaceController = require('../controllers/workspaceController');
 
+// Study routes (folders & tags)
+const foldersRoutes = require('./folders');
+const tagsRoutes = require('./tags');
+
 // =========================================
 // MIDDLEWARE: Applica a TUTTE le routes
 // =========================================
@@ -420,5 +424,17 @@ router.patch('/workspace/todos/:id/reopen', workspaceController.reopenTodo);
  * Elimina TODO
  */
 router.delete('/workspace/todos/:id', workspaceController.deleteTodo);
+
+// =========================================
+// FOLDERS ROUTES (Study Organization)
+// =========================================
+
+router.use('/folders', foldersRoutes);
+
+// =========================================
+// TAGS ROUTES (Study Organization)
+// =========================================
+
+router.use('/tags', tagsRoutes);
 
 module.exports = router;
