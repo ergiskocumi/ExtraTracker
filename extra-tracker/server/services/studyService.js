@@ -14,6 +14,7 @@ const Goal = require('../models/Goal');
 const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
 const eventBus = require('../utils/eventBus');
+const sseManager = require('../utils/SSEManager');
 const OpenAI = require('openai');
 const pdfParse = require('pdf-parse');
 const fs = require('fs/promises');
@@ -705,6 +706,8 @@ class StudyService extends BaseService {
         deck.pdfUrl = pdfUrl;
         await deck.save({ validateModifiedOnly: true });
 
+        sseManager.sendToUser(userId, 'pdf-progress', { step: 'analyzing' });
+
         let pdfBuffer;
         try {
             pdfBuffer = await fs.readFile(pdfFilePath);
@@ -740,6 +743,8 @@ class StudyService extends BaseService {
         const blueprint = await this._analyzeDocumentStructure(normalizedExtracted);
         console.log('📋 Blueprint Generato:', JSON.stringify(blueprint, null, 2));
         const globalContext = blueprint?.globalContext || 'Documento generico';
+        const blueprintTopics = Array.isArray(blueprint?.mainTopics) ? blueprint.mainTopics : [];
+        sseManager.sendToUser(userId, 'pdf-progress', { step: 'blueprint', blueprint });
 
         // 2.c Ingestione vettoriale (best-effort, non blocca l'utente)
         try {
@@ -761,6 +766,11 @@ class StudyService extends BaseService {
             : [normalizedExtracted]; // Fascia S: singolo chunk
         
         console.log(`📦 Chunk creati: ${textChunks.length}`);
+        sseManager.sendToUser(userId, 'pdf-progress', {
+            step: 'chunking',
+            totalChunks: textChunks.length,
+            strategy: adaptiveParams.tier,
+        });
 
         // 5. Generazione flashcard per ogni chunk con target dinamico
         let allGeneratedCards = [];
@@ -792,6 +802,16 @@ class StudyService extends BaseService {
                 
                 allGeneratedCards = [...allGeneratedCards, ...chunkCards];
                 console.log(`✅ Chunk ${index + 1}/${textChunks.length}: Generate ${chunkCards.length} flashcard`);
+                const currentTopic = blueprintTopics.length > 0
+                    ? blueprintTopics[index % blueprintTopics.length]
+                    : null;
+                sseManager.sendToUser(userId, 'pdf-progress', {
+                    step: 'generating',
+                    currentChunk: index + 1,
+                    totalChunks: textChunks.length,
+                    generatedSoFar: allGeneratedCards.length,
+                    currentTopic,
+                });
             } catch (error) {
                 console.error(`❌ Errore nel chunk ${index + 1}/${textChunks.length}:`, error.message);
                 // Continuiamo con gli altri chunk invece di fallire tutto
@@ -813,6 +833,7 @@ class StudyService extends BaseService {
         if (validCards.length === 0) {
             const warningMessage = 'Nessuna flashcard valida generata. Il PDF potrebbe essere troppo breve o non contenere contenuto analizzabile.';
             console.warn(`⚠️ ${warningMessage}`);
+            sseManager.sendToUser(userId, 'pdf-progress', { step: 'completed', totalCards: 0 });
             return {
                 deck: deck.toJSON(),
                 generatedCount: 0,
@@ -828,6 +849,7 @@ class StudyService extends BaseService {
         await deck.save();
 
         console.log(`✨ Generated ${validCards.length} flashcards totali per deck ${deckId} (da ${textChunks.length} chunk, strategia: ${adaptiveParams.tier})`);
+        sseManager.sendToUser(userId, 'pdf-progress', { step: 'completed', totalCards: validCards.length });
 
         return {
             deck: deck.toJSON(),

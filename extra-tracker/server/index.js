@@ -41,6 +41,7 @@ const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
 const analyticsRoutes = require('./routes/analytics');
 const dashboardRoutes = require('./routes/dashboard');
+const sseRoutes = require('./routes/sse');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -144,6 +145,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/sse', sseRoutes);
 app.use('/api', apiRoutes);
 app.use('/api', goalsRoutes);
 app.use('/api/study', studyRoutes);
