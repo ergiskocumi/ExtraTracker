@@ -16,9 +16,14 @@ const { serializeDocument, serializeDocuments } = require('../utils/serializeDoc
 // =========================================
 
 const getAllFolders = asyncHandler(async (req, res) => {
-    const folders = await req.tenantScope.model(Folder)
-        .find()
+    // SICUREZZA: Usa esplicitamente il filtro tenant
+    const userId = req.tenantScope.userId || req.tenantScope.tenantId;
+    console.log('[FoldersController] getAllFolders: userId:', userId);
+    
+    const folders = await Folder.find({ user: userId })
         .sort({ order: 1, createdAt: 1 });
+    
+    console.log('[FoldersController] getAllFolders: Found folders:', folders.length);
     
     const serialized = serializeDocuments(folders);
     res.json({ success: true, data: serialized });
@@ -29,16 +34,21 @@ const getAllFolders = asyncHandler(async (req, res) => {
 // =========================================
 
 const getFolderTree = asyncHandler(async (req, res) => {
-    const folders = await req.tenantScope.model(Folder)
-        .find()
+    // SICUREZZA: Usa esplicitamente il filtro tenant
+    const userId = req.tenantScope.userId || req.tenantScope.tenantId;
+    console.log('[FoldersController] getFolderTree: userId:', userId);
+    
+    const folders = await Folder.find({ user: userId })
         .sort({ order: 1, createdAt: 1 });
+    
+    console.log('[FoldersController] getFolderTree: Found folders:', folders.length);
     
     const serializedFolders = serializeDocuments(folders);
     
     // Conta i deck per ogni cartella (usa ObjectId per il match)
     const folderObjectIds = folders.map(f => f._id);
     const deckCounts = await Deck.aggregate([
-        { $match: { ...req.tenantScope.filter, folderId: { $in: folderObjectIds } } },
+        { $match: { user: userId, folderId: { $in: folderObjectIds } } },
         { $group: { _id: '$folderId', count: { $sum: 1 } } },
     ]);
     
@@ -93,20 +103,27 @@ const createFolder = asyncHandler(async (req, res) => {
         throw AppError.validation('Il nome della cartella è obbligatorio');
     }
     
+    // SICUREZZA: Usa esplicitamente il filtro tenant
+    const userId = req.tenantScope.userId || req.tenantScope.tenantId;
+    console.log('[FoldersController] createFolder: userId:', userId);
+    
     // Verifica parent se specificato
     if (parentId) {
-        const parent = await req.tenantScope.model(Folder).findOne({ _id: parentId });
+        const parent = await Folder.findOne({ _id: parentId, user: userId });
         if (!parent) {
             throw AppError.notFound('Cartella parent non trovata');
         }
     }
     
-    const folder = await req.tenantScope.create(Folder, {
+    const folder = await Folder.create({
         name: name.trim(),
         parentId: parentId || null,
         icon: icon || '📁',
         color: color || '#888888',
+        user: userId, // SICUREZZA: Imposta esplicitamente l'utente
     });
+    
+    console.log('[FoldersController] createFolder: Created folder:', folder._id, 'for user:', userId);
     
     res.status(201).json({ success: true, data: serializeDocument(folder) });
 });
@@ -119,7 +136,9 @@ const updateFolder = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { name, parentId, icon, color, order } = req.body;
     
-    const folder = await Folder.findOne({ _id: id, user: req.tenantScope.userId });
+    // SICUREZZA: Usa esplicitamente il filtro tenant
+    const userId = req.tenantScope.userId || req.tenantScope.tenantId;
+    const folder = await Folder.findOne({ _id: id, user: userId });
     if (!folder) {
         throw AppError.notFound('Cartella non trovata');
     }
@@ -139,7 +158,7 @@ const updateFolder = asyncHandler(async (req, res) => {
                 throw AppError.validation('Una cartella non può essere parent di se stessa');
             }
             
-            const parent = await req.tenantScope.model(Folder).findOne({ _id: parentId });
+            const parent = await Folder.findOne({ _id: parentId, user: userId });
             if (!parent) {
                 throw AppError.notFound('Cartella parent non trovata');
             }
@@ -160,19 +179,21 @@ const updateFolder = asyncHandler(async (req, res) => {
 const deleteFolder = asyncHandler(async (req, res) => {
     const { id } = req.params;
     
-    const folder = await req.tenantScope.model(Folder).findOne({ _id: id });
+    // SICUREZZA: Usa esplicitamente il filtro tenant
+    const userId = req.tenantScope.userId || req.tenantScope.tenantId;
+    const folder = await Folder.findOne({ _id: id, user: userId });
     if (!folder) {
         throw AppError.notFound('Cartella non trovata');
     }
     
     // Sposta i deck nella cartella radice (null)
     await Deck.updateMany(
-        { ...req.tenantScope.filter, folderId: id },
+        { user: userId, folderId: id },
         { $unset: { folderId: 1 } }
     );
     
     // Elimina la cartella (i children vengono gestiti dal pre-remove hook)
-    await folder.remove();
+    await folder.deleteOne();
     
     res.json({ success: true, message: 'Cartella eliminata' });
 });
@@ -189,9 +210,12 @@ const moveDecksToFolder = asyncHandler(async (req, res) => {
         throw AppError.validation('Devi specificare almeno un mazzo da spostare');
     }
     
+    // SICUREZZA: Usa esplicitamente il filtro tenant
+    const userId = req.tenantScope.userId || req.tenantScope.tenantId;
+    
     // Verifica che la cartella esista (se id non è null)
     if (id !== 'null' && id !== 'root') {
-        const folder = await req.tenantScope.model(Folder).findOne({ _id: id });
+        const folder = await Folder.findOne({ _id: id, user: userId });
         if (!folder) {
             throw AppError.notFound('Cartella non trovata');
         }
@@ -199,9 +223,9 @@ const moveDecksToFolder = asyncHandler(async (req, res) => {
     
     const folderId = (id === 'null' || id === 'root') ? null : id;
     
-    // Sposta i deck
+    // Sposta i deck - SICUREZZA: Filtra per user
     await Deck.updateMany(
-        { ...req.tenantScope.filter, _id: { $in: deckIds } },
+        { user: userId, _id: { $in: deckIds } },
         { folderId }
     );
     

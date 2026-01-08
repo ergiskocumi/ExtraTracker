@@ -54,6 +54,7 @@ tagSchema.pre('save', function(next) {
 });
 
 // Metodo per contare i deck con questo tag
+// IMPORTANTE: Filtra per user per garantire multi-tenancy
 tagSchema.methods.getDeckCount = async function() {
     const Deck = mongoose.model('Deck');
     return await Deck.countDocuments({

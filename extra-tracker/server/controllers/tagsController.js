@@ -16,16 +16,21 @@ const { serializeDocument, serializeDocuments } = require('../utils/serializeDoc
 // =========================================
 
 const getAllTags = asyncHandler(async (req, res) => {
-    const tags = await req.tenantScope.model(Tag)
-        .find()
+    // SICUREZZA: Usa esplicitamente il filtro tenant
+    const userId = req.tenantScope.userId || req.tenantScope.tenantId;
+    console.log('[TagsController] getAllTags: userId:', userId);
+    
+    const tags = await Tag.find({ user: userId })
         .sort({ order: 1, createdAt: 1 });
+    
+    console.log('[TagsController] getAllTags: Found tags:', tags.length);
     
     const serializedTags = serializeDocuments(tags);
     
     // Conta i deck per ogni tag
     const tagNames = serializedTags.map(t => t.name);
     const deckCounts = await Deck.aggregate([
-        { $match: { ...req.tenantScope.filter, tags: { $in: tagNames } } },
+        { $match: { user: userId, tags: { $in: tagNames } } },
         { $unwind: '$tags' },
         { $match: { tags: { $in: tagNames } } },
         { $group: { _id: '$tags', count: { $sum: 1 } } },
@@ -55,8 +60,13 @@ const createTag = asyncHandler(async (req, res) => {
         throw AppError.validation('Il nome del tag è obbligatorio');
     }
     
+    // SICUREZZA: Usa esplicitamente il filtro tenant
+    const userId = req.tenantScope.userId || req.tenantScope.tenantId;
+    console.log('[TagsController] createTag: userId:', userId);
+    
     // Verifica se esiste già (case-insensitive)
-    const existing = await req.tenantScope.model(Tag).findOne({
+    const existing = await Tag.findOne({
+        user: userId,
         name: name.trim().toLowerCase(),
     });
     
@@ -64,11 +74,14 @@ const createTag = asyncHandler(async (req, res) => {
         throw AppError.validation('Un tag con questo nome esiste già');
     }
     
-    const tag = await req.tenantScope.create(Tag, {
+    const tag = await Tag.create({
         name: name.trim().toLowerCase(),
         color: color || '#888888',
         icon: icon || '🏷️',
+        user: userId, // SICUREZZA: Imposta esplicitamente l'utente
     });
+    
+    console.log('[TagsController] createTag: Created tag:', tag._id, 'for user:', userId);
     
     res.status(201).json({ success: true, data: serializeDocument(tag) });
 });
@@ -81,14 +94,17 @@ const updateTag = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { name, color, icon, order } = req.body;
     
-    const tag = await req.tenantScope.model(Tag).findOne({ _id: id });
+    // SICUREZZA: Usa esplicitamente il filtro tenant
+    const userId = req.tenantScope.userId || req.tenantScope.tenantId;
+    const tag = await Tag.findOne({ _id: id, user: userId });
     if (!tag) {
         throw AppError.notFound('Tag non trovato');
     }
     
     // Se si cambia il nome, verifica duplicati
     if (name !== undefined && name.trim().toLowerCase() !== tag.name) {
-        const existing = await req.tenantScope.model(Tag).findOne({
+        const existing = await Tag.findOne({
+            user: userId,
             name: name.trim().toLowerCase(),
             _id: { $ne: id },
         });
@@ -102,7 +118,7 @@ const updateTag = asyncHandler(async (req, res) => {
         const newName = name.trim().toLowerCase();
         
         await Deck.updateMany(
-            { ...req.tenantScope.filter, tags: oldName },
+            { user: userId, tags: oldName },
             { $set: { 'tags.$': newName } }
         );
         
@@ -125,18 +141,20 @@ const updateTag = asyncHandler(async (req, res) => {
 const deleteTag = asyncHandler(async (req, res) => {
     const { id } = req.params;
     
-    const tag = await req.tenantScope.model(Tag).findOne({ _id: id });
+    // SICUREZZA: Usa esplicitamente il filtro tenant
+    const userId = req.tenantScope.userId || req.tenantScope.tenantId;
+    const tag = await Tag.findOne({ _id: id, user: userId });
     if (!tag) {
         throw AppError.notFound('Tag non trovato');
     }
     
     // Rimuovi il tag da tutti i deck
     await Deck.updateMany(
-        { ...req.tenantScope.filter, tags: tag.name },
+        { user: userId, tags: tag.name },
         { $pull: { tags: tag.name } }
     );
     
-    await tag.remove();
+    await tag.deleteOne();
     
     res.json({ success: true, message: 'Tag eliminato' });
 });

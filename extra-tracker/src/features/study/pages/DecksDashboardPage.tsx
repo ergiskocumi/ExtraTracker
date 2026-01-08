@@ -32,6 +32,7 @@ import {
     Eye,
     Settings,
     X,
+    Folder as FolderIcon,
     Calculator,
     Code,
     FlaskConical,
@@ -227,6 +228,8 @@ interface DeckCardProps {
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
     tags?: Tag[];
+    onDragStart?: () => void;
+    onDragEnd?: () => void;
 }
 
 const DeckCard: React.FC<DeckCardProps> = ({ 
@@ -238,7 +241,9 @@ const DeckCard: React.FC<DeckCardProps> = ({
     onSplitStudy, 
     onDelete,
     onUpdate,
-    tags = [] // Passato dal parent per mostrare i colori dei tag
+    tags = [], // Passato dal parent per mostrare i colori dei tag
+    onDragStart: onDragStartProp,
+    onDragEnd: onDragEndProp,
 }) => {
     const [showMenu, setShowMenu] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -328,18 +333,63 @@ const DeckCard: React.FC<DeckCardProps> = ({
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('deckId', deck.id);
         e.dataTransfer.setData('text/plain', deck.id); // Fallback per alcuni browser
+        
+        // Crea un'immagine personalizzata per il drag
+        const dragPreview = document.createElement('div');
+        dragPreview.style.position = 'absolute';
+        dragPreview.style.top = '-1000px';
+        dragPreview.style.width = '200px';
+        dragPreview.style.padding = '12px';
+        dragPreview.style.background = 'rgba(139, 92, 246, 0.95)';
+        dragPreview.style.borderRadius = '12px';
+        dragPreview.style.border = '2px solid rgba(167, 139, 250, 0.8)';
+        dragPreview.style.boxShadow = '0 10px 40px rgba(139, 92, 246, 0.4)';
+        dragPreview.style.backdropFilter = 'blur(10px)';
+        dragPreview.style.color = 'white';
+        dragPreview.style.fontSize = '14px';
+        dragPreview.style.fontWeight = '600';
+        dragPreview.style.textAlign = 'center';
+        dragPreview.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                <span>📚</span>
+                <span>${deck.title}</span>
+            </div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">
+                Rilascia nella cartella
+            </div>
+        `;
+        document.body.appendChild(dragPreview);
+        
+        // Usa l'immagine personalizzata
+        e.dataTransfer.setDragImage(dragPreview, 100, 40);
+        
         setIsDragging(true);
+        onDragStartProp?.();
+        
+        // Rimuovi l'elemento dopo un breve delay
+        setTimeout(() => {
+            if (document.body.contains(dragPreview)) {
+                document.body.removeChild(dragPreview);
+            }
+        }, 0);
     };
 
     const handleDragEnd = () => {
         setIsDragging(false);
+        onDragEndProp?.();
     };
 
     return (
-        <div
-            draggable
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
+        <motion.div
+            animate={{
+                scale: isDragging ? 0.95 : 1,
+                opacity: isDragging ? 0.6 : 1,
+                rotateZ: isDragging ? 2 : 0,
+            }}
+            transition={{
+                duration: 0.2,
+                ease: 'easeOut',
+            }}
             className={`
                 relative rounded-xl sm:rounded-2xl md:rounded-3xl border overflow-hidden
                 transition-all duration-300 hover:shadow-xl
@@ -350,8 +400,10 @@ const DeckCard: React.FC<DeckCardProps> = ({
                     ? 'border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent shadow-lg shadow-orange-500/10' 
                     : `${theme.borderColor} bg-gradient-to-br ${theme.gradient} hover:shadow-lg`
                 }
-                ${isDragging ? 'opacity-50 scale-95' : ''}
             `}
+            draggable
+            onDragStart={handleDragStart as any}
+            onDragEnd={handleDragEnd}
         >
             {/* Badge - Due Cards */}
             {hasDueCards && (
@@ -694,7 +746,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                     )}
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 };
 
@@ -1273,11 +1325,10 @@ export const DecksDashboardPage: React.FC = () => {
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: -300, opacity: 0 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="hidden lg:flex flex-col w-64 border-r border-white/10 bg-zinc-900/50 backdrop-blur-sm"
-                    >
-                        <div className="p-4 border-b border-white/10">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-sm font-bold text-white/80 uppercase tracking-wider">
+                        className="hidden lg:flex flex-col w-72 border-r border-violet-500/20 bg-[inherit] backdrop-blur-xl"                    >
+                        <div className="p-5 border-b border-white/10 bg-[#111122]/30">
+                            <div className="flex items-center justify-between mb-1">
+                                <h2 className="text-sm font-bold text-white/90 uppercase tracking-widest">
                                     Organizza
                                 </h2>
                                 <button
@@ -1287,16 +1338,22 @@ export const DecksDashboardPage: React.FC = () => {
                                     <X className="w-4 h-4 text-white/60" />
                                 </button>
                             </div>
+                            <p className="text-[10px] text-white/40 mt-1">
+                                💡 Trascina un mazzo per organizzarlo
+                            </p>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                             {/* Cartelle */}
                             <div>
-                                <div className="flex items-center justify-between mb-3">
-                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2">
+                                        <FolderIcon className="w-3.5 h-3.5" />
                                         Cartelle
                                     </h3>
-                                    <button
+                                    <motion.button
+                                        whileHover={{ scale: 1.1, rotate: 90 }}
+                                        whileTap={{ scale: 0.9 }}
                                         onClick={async () => {
                                             const name = prompt('Nome della nuova cartella:');
                                             if (name && name.trim()) {
@@ -1309,10 +1366,10 @@ export const DecksDashboardPage: React.FC = () => {
                                                 }
                                             }
                                         }}
-                                        className="p-1 rounded hover:bg-white/10 transition-colors"
+                                        className="p-1.5 rounded-full bg-violet-500/20 hover:bg-violet-500/30 transition-colors border border-violet-500/30"
                                     >
-                                        <Plus className="w-3.5 h-3.5 text-white/60" />
-                                    </button>
+                                        <Plus className="w-3.5 h-3.5 text-violet-300" />
+                                    </motion.button>
                                 </div>
                                 {folders.length > 0 ? (
                                     <FolderTree
@@ -1323,7 +1380,31 @@ export const DecksDashboardPage: React.FC = () => {
                                         onDeckDrop={handleDeckDrop}
                                     />
                                 ) : (
-                                    <p className="text-xs text-white/40 px-3">Nessuna cartella</p>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="px-3 py-6 text-center"
+                                    >
+                                        <FolderIcon className="w-10 h-10 mx-auto mb-3 text-white/20" />
+                                        <p className="text-xs text-white/40 mb-2">Nessuna cartella ancora</p>
+                                        <button
+                                            onClick={async () => {
+                                                const name = prompt('Nome della nuova cartella:');
+                                                if (name && name.trim()) {
+                                                    try {
+                                                        await foldersService.createFolder({ name: name.trim() });
+                                                        emitToast.success('Cartella creata');
+                                                        handleRefreshOrganization();
+                                                    } catch (err: any) {
+                                                        emitToast.error(err.message || 'Errore nella creazione');
+                                                    }
+                                                }
+                                            }}
+                                            className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+                                        >
+                                            Crea la tua prima cartella →
+                                        </button>
+                                    </motion.div>
                                 )}
                             </div>
 
@@ -1335,9 +1416,6 @@ export const DecksDashboardPage: React.FC = () => {
                                     onTagToggle={handleTagToggle}
                                     onRefresh={handleRefreshOrganization}
                                 />
-                                {tags.length === 0 && (
-                                    <p className="text-xs text-white/40 px-3 mt-2">Nessun tag</p>
-                                )}
                             </div>
                         </div>
                     </motion.aside>

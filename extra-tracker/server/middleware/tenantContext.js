@@ -106,6 +106,13 @@ const tenantContext = (options = {}) => {
              * L'ID dell'utente/tenant corrente.
              */
             tenantId,
+            
+            /**
+             * Alias per compatibilità (alcuni controller usano userId)
+             */
+            get userId() {
+                return tenantId;
+            },
 
             /**
              * Restituisce un Model con scoping automatico.
