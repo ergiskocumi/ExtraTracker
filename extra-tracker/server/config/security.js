@@ -217,8 +217,13 @@ module.exports = {
                 return callback(null, true);
             }
             
-            // Permetti il dominio principale
+            // Permetti il dominio principale Vercel
             if (origin === 'https://extra-tracker.vercel.app') {
+                return callback(null, true);
+            }
+            
+            // Permetti tutti i domini Vercel (preview deployments inclusi)
+            if (origin && origin.includes('vercel.app')) {
                 return callback(null, true);
             }
             
@@ -227,12 +232,11 @@ module.exports = {
                 return callback(null, true);
             }
             
-            // In sviluppo, logga l'origin bloccato per debug
-            if (isDevelopment) {
-                console.warn(`⚠️  CORS: Origin bloccato: ${origin}`);
-                console.warn(`   Allowed origins: ${allowedOrigins.join(', ')}`);
-                console.warn(`   FRONTEND_URL: ${process.env.FRONTEND_URL || 'NON CONFIGURATO'}`);
-            }
+            // In produzione, logga l'origin bloccato per debug
+            console.warn(`⚠️  CORS: Origin bloccato: ${origin}`);
+            console.warn(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+            console.warn(`   FRONTEND_URL: ${process.env.FRONTEND_URL || 'NON CONFIGURATO'}`);
+            console.warn(`   Environment: ${process.env.NODE_ENV || 'development'}`);
             
             // Blocca altri domini
             callback(new Error('Not allowed by CORS'));
@@ -241,7 +245,7 @@ module.exports = {
         // IMPORTANTE: necessario per inviare cookies cross-origin
         credentials: true,
         
-        // Headers permessi
+        // Headers permessi (include tutti gli header necessari per preflight)
         allowedHeaders: [
             'Content-Type', 
             'Authorization', 
@@ -249,6 +253,7 @@ module.exports = {
             'X-Requested-With',
             'Accept',
             'Origin',
+            'X-Request-ID',
         ],
         
         // Metodi permessi
@@ -310,8 +315,9 @@ module.exports = {
         },
         
         // Cross-Origin-Resource-Policy: controlla chi può caricare risorse
+        // Cambiato a 'cross-origin' per permettere richieste da Vercel frontend
         crossOriginResourcePolicy: {
-            policy: 'same-origin',
+            policy: 'cross-origin',
         },
         
         // Referrer-Policy: controlla quanto del referrer viene inviato
