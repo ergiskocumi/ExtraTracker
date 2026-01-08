@@ -739,6 +739,7 @@ class StudyService extends BaseService {
         console.log('🏗️ Avvio analisi strutturale AI...');
         const blueprint = await this._analyzeDocumentStructure(normalizedExtracted);
         console.log('📋 Blueprint Generato:', JSON.stringify(blueprint, null, 2));
+        const globalContext = blueprint?.globalContext || 'Documento generico';
 
         // 2.c Ingestione vettoriale (best-effort, non blocca l'utente)
         try {
@@ -785,7 +786,8 @@ class StudyService extends BaseService {
                     deck,
                     targetCardsPerChunk,
                     index,
-                    textChunks.length
+                    textChunks.length,
+                    globalContext
                 );
                 
                 allGeneratedCards = [...allGeneratedCards, ...chunkCards];
@@ -1212,17 +1214,9 @@ class StudyService extends BaseService {
 
     /**
      * 🪄 Genera flashcard per un singolo chunk di testo
-     * 
-     * BULLETPROOF: Include retry logic e JSON sanitization per gestire risposte malformate
-     * 
-     * @param {string} chunkText - Testo del chunk da analizzare
-     * @param {Object} deck - Deck con aiSettings
-     * @param {number} targetCount - Numero target di flashcard da generare
-     * @param {number} chunkIndex - Indice del chunk (0-based)
-     * @param {number} totalChunks - Numero totale di chunk
-     * @returns {Promise<Array>} Array di flashcard generate
+     * * BULLETPROOF V2: Prompt semplificato per evitare conflitti con JSON mode
      */
-    async _generateCardsForChunk(chunkText, deck, targetCount, chunkIndex, totalChunks) {
+    async _generateCardsForChunk(chunkText, deck, targetCount, chunkIndex, totalChunks, globalContext) {
         const aiSettings = deck.aiSettings || {};
         const style = aiSettings.style || 'comprehensive';
         const difficulty = aiSettings.difficulty || 'medium';
@@ -1231,50 +1225,50 @@ class StudyService extends BaseService {
             : ['definition', 'concept', 'relationship'];
 
         const stylePrompts = {
-            comprehensive: 'Crea flashcard che coprono sia definizioni che applicazioni pratiche. Bilanciate tra teoria e pratica.',
-            conceptual: 'Focus su concetti, principi e relazioni tra idee. Le domande devono testare la comprensione profonda, non solo fatti.',
-            factual: 'Focus su fatti, date, nomi, definizioni precise. Ideale per memorizzazione di informazioni specifiche.',
-            application: 'Focus su applicazioni pratiche, esempi, casi d\'uso. Le domande devono testare come applicare le conoscenze.',
+            comprehensive: 'Bilanciate tra teoria e pratica.',
+            conceptual: 'Focus su concetti, principi e relazioni profonde.',
+            factual: 'Focus su fatti, definizioni precise e memorizzazione.',
+            application: 'Focus su scenari pratici e applicazione delle conoscenze.',
         };
 
         const difficultyPrompts = {
-            easy: 'Crea domande semplici e dirette, adatte a studenti che stanno iniziando.',
-            medium: 'Crea domande di difficoltà media, che richiedono una buona comprensione.',
-            hard: 'Crea domande complesse che richiedono analisi approfondita e collegamenti tra concetti.',
-            mixed: 'Crea un mix di difficoltà: alcune semplici, alcune medie, alcune complesse.',
+            easy: 'Semplici e dirette, per principianti.',
+            medium: 'Di media difficoltà, richiedono ragionamento.',
+            hard: 'Complesse, richiedono analisi profonda.',
+            mixed: 'Mix di difficoltà.',
         };
 
-        const questionTypePrompts = {
-            definition: 'Includi domande che chiedono definizioni precise di termini e concetti.',
-            concept: 'Includi domande che testano la comprensione di concetti astratti e principi.',
-            relationship: 'Includi domande che chiedono di spiegare relazioni, cause-effetti, e collegamenti.',
-            application: 'Includi domande che chiedono di applicare conoscenze a situazioni pratiche.',
-            comparison: 'Includi domande che chiedono di confrontare o distinguere concetti.',
-        };
+        // Prompt semplificato e diretto per evitare "Empty Response"
+        const safeGlobalContext = typeof globalContext === 'string' && globalContext.trim().length > 0
+            ? globalContext.trim()
+            : 'Contesto accademico generico';
 
-        // Prompt adattato per chunk-aware generation
-        const systemPrompt = `Sei Silvija, un esperto insegnante universitario.
-Stai analizzando la PARTE ${chunkIndex + 1} di ${totalChunks} di un documento lungo.
+        const systemPrompt = `SEI UN GENERATORE DI FLASHCARD JSON.
+CONTESTO DEL DOCUMENTO: "${safeGlobalContext}"
 
-Il tuo compito è estrarre i concetti chiave ESCLUSIVAMENTE da questa sezione di testo.
+Il tuo compito è analizzare la PARTE ${chunkIndex + 1} di ${totalChunks} del testo fornito e generare flashcard.
 
-STILE: ${stylePrompts[style] || stylePrompts.comprehensive}
-DIFFICOLTÀ: ${difficultyPrompts[difficulty] || difficultyPrompts.medium}
-TIPI DI DOMANDE: ${questionTypes.map(t => questionTypePrompts[t] || '').filter(Boolean).join(' ') || questionTypePrompts.definition}
+CONFIGURAZIONE:
+- Target: circa ${targetCount} flashcard.
+- Stile: ${stylePrompts[style] || stylePrompts.comprehensive}
+- Difficoltà: ${difficultyPrompts[difficulty] || difficultyPrompts.medium}
+- Tipi domande: ${questionTypes.join(', ')}
 
-REGOLE CRITICHE:
-- Genera circa ${targetCount} flashcard (${Math.max(5, targetCount - 2)}-${targetCount + 2} è accettabile)
-- Ignora riferimenti a "come detto prima" o "nel capitolo precedente", focalizzati sul contenuto attuale
-- Ogni flashcard deve avere "front" (domanda chiara e specifica) e "back" (risposta concisa ma completa)
-- Le domande devono testare comprensione, non solo memoria
-- Evita domande troppo generiche o troppo specifiche
-- La risposta deve essere auto-contenuta (comprensibile senza rileggere la domanda)
-- Varia i tipi di domande per mantenere l'interesse
-- Se il testo non contiene informazioni utili per flashcard, rispondi con: {"cards": []}. Non restituire stringa vuota.
+ISTRUZIONI CHIAVE:
+1. Estrai i concetti chiave, definizioni e relazioni dal testo fornito.
+2. Genera domande (front) chiare e risposte (back) concise ma complete.
+3. Se il testo è irrilevante (es. indice, bibliografia), restituisci un array vuoto "cards": [].
+4. IMPORTANTE: Non bloccarti a pensare. Genera direttamente l'output.
 
-FORMATO OUTPUT:
-Rispondi SOLO con JSON valido, senza markdown o testo aggiuntivo, in questo formato:
-{"cards":[{"front":"Domanda 1?","back":"Risposta 1"},{"front":"Domanda 2?","back":"Risposta 2"}]}`;
+FORMATO RISPOSTA OBBLIGATORIO (JSON):
+{
+  "cards": [
+    {
+      "front": "Domanda...",
+      "back": "Risposta..."
+    }
+  ]
+}`;
 
         // Retry logic: max 2 tentativi
         const MAX_RETRIES = 2;
@@ -1289,11 +1283,11 @@ Rispondi SOLO con JSON valido, senza markdown o testo aggiuntivo, in questo form
                         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
                         messages: [
                             { role: 'system', content: systemPrompt },
-                            { role: 'user', content: `Testo da analizzare:\n\n${chunkText}` }
+                            { role: 'user', content: `TESTO DA ANALIZZARE:\n\n${chunkText}` }
                         ],
-                        // Temperatura più bassa al retry per maggiore determinismo
-                        temperature: attempt === 1 ? 0.7 : 0.3,
-                        max_completion_tokens: 2000,
+                        // Temperatura media per bilanciare creatività e formato
+                        temperature: attempt === 1 ? 0.5 : 0.3,
+                        max_completion_tokens: 4000, // Aumentato per sicurezza
                         response_format: { type: 'json_object' },
                     });
 
@@ -1301,48 +1295,30 @@ Rispondi SOLO con JSON valido, senza markdown o testo aggiuntivo, in questo form
                 } catch (err) {
                     console.error(`❌ OpenAI API Error (chunk ${chunkIndex + 1}, tentativo ${attempt}):`, err.message);
                     
-                    // Errori critici che non devono essere ritentati
                     if (err.code === 'insufficient_quota') {
-                        throw AppError.internal(
-                            { message: 'Quota OpenAI esaurita. Contatta l\'amministratore.' },
-                            err,
-                            {}
-                        );
+                        throw AppError.internal({ message: 'Quota OpenAI esaurita.' }, err, {});
                     }
                     
-                    // Se è l'ultimo tentativo, lancia l'errore
-                    if (attempt === MAX_RETRIES) {
-                        throw AppError.internal(
-                            { message: `Errore nella generazione AI per chunk ${chunkIndex + 1} dopo ${MAX_RETRIES} tentativi. Riprova più tardi.` },
-                            err,
-                            {}
-                        );
-                    }
-                    
-                    // Altrimenti, salva l'errore e riprova
+                    if (attempt === MAX_RETRIES) throw err;
                     lastError = err;
                     continue;
                 }
 
-                // Controllo risposta vuota
+                // Controllo risposta vuota con log esplicito
                 if (!aiResponse || typeof aiResponse !== 'string' || aiResponse.trim().length === 0) {
-                    console.warn(`⚠️ Risposta AI vuota (chunk ${chunkIndex + 1}, tentativo ${attempt})`);
+                    console.warn(`⚠️ Risposta AI vuota (chunk ${chunkIndex + 1}, tentativo ${attempt}). Length: 0`);
                     if (attempt === MAX_RETRIES) {
-                        console.error(`❌ Risposta vuota dopo ${MAX_RETRIES} tentativi per chunk ${chunkIndex + 1}`);
-                        return []; // Ritorna array vuoto invece di crashare
+                        return []; 
                     }
                     continue;
                 }
 
-                // Sanitizza JSON: rimuovi markdown, backticks, testo extra
+                // Sanitizza JSON
                 const cleanedJSON = this._cleanJSON(aiResponse);
                 
                 if (!cleanedJSON || cleanedJSON.length === 0) {
                     console.warn(`⚠️ JSON pulito vuoto (chunk ${chunkIndex + 1}, tentativo ${attempt})`);
-                    if (attempt === MAX_RETRIES) {
-                        console.error(`❌ Impossibile estrarre JSON valido dopo ${MAX_RETRIES} tentativi per chunk ${chunkIndex + 1}`);
-                        return [];
-                    }
+                    if (attempt === MAX_RETRIES) return [];
                     continue;
                 }
 
@@ -1351,28 +1327,20 @@ Rispondi SOLO con JSON valido, senza markdown o testo aggiuntivo, in questo form
                 try {
                     parsed = JSON.parse(cleanedJSON);
                 } catch (parseErr) {
-                    console.error(`❌ JSON Parse Error (chunk ${chunkIndex + 1}, tentativo ${attempt}):`, cleanedJSON?.slice?.(0, 200));
-                    console.error(`   Original response:`, aiResponse?.slice?.(0, 200));
-                    
-                    if (attempt === MAX_RETRIES) {
-                        console.error(`❌ JSON non valido dopo ${MAX_RETRIES} tentativi per chunk ${chunkIndex + 1}. Ritorno array vuoto.`);
-                        return []; // Ritorna array vuoto invece di crashare
-                    }
-                    
+                    console.error(`❌ JSON Parse Error (chunk ${chunkIndex + 1}, tentativo ${attempt})`);
+                    if (attempt === MAX_RETRIES) return [];
                     lastError = parseErr;
-                    continue; // Riprova
+                    continue; 
                 }
 
-                // Estrai cards dal JSON parsato
+                // Estrai cards
                 let generatedCards = this._extractGeneratedCards(parsed);
 
-                if (!Array.isArray(generatedCards) || generatedCards.length === 0) {
-                    console.warn(`⚠️ Nessuna card estratta (chunk ${chunkIndex + 1}, tentativo ${attempt}):`, parsed);
-                    if (attempt === MAX_RETRIES) {
-                        console.error(`❌ Nessuna card valida dopo ${MAX_RETRIES} tentativi per chunk ${chunkIndex + 1}`);
-                        return []; // Ritorna array vuoto
-                    }
-                    continue; // Riprova
+                // Se l'array è vuoto ma il JSON è valido, potrebbe essere intenzionale (es. testo inutile)
+                // Accettiamo il risultato se è valido
+                if (!Array.isArray(generatedCards)) {
+                     if (attempt === MAX_RETRIES) return [];
+                     continue;
                 }
 
                 // Successo! Normalizza e ritorna le card
@@ -1390,26 +1358,18 @@ Rispondi SOLO con JSON valido, senza markdown o testo aggiuntivo, in questo form
                     }));
 
             } catch (err) {
-                // Errori critici (quota, etc.) vengono lanciati immediatamente
-                if (err instanceof AppError && err.statusCode >= 500) {
-                    throw err;
-                }
+                if (err instanceof AppError && err.statusCode >= 500) throw err;
                 
                 lastError = err;
-                
-                // Se è l'ultimo tentativo, ritorna array vuoto invece di crashare
                 if (attempt === MAX_RETRIES) {
-                    console.error(`❌ Errore dopo ${MAX_RETRIES} tentativi per chunk ${chunkIndex + 1}:`, err.message);
-                    return []; // Ritorna array vuoto invece di crashare
+                    console.error(`❌ Errore finale chunk ${chunkIndex + 1}:`, err.message);
+                    return [];
                 }
                 
-                // Piccola pausa prima del retry
                 await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
             }
         }
 
-        // Fallback: ritorna array vuoto se tutti i tentativi falliscono
-        console.error(`❌ Tutti i tentativi falliti per chunk ${chunkIndex + 1}. Ultimo errore:`, lastError?.message);
         return [];
     }
 
