@@ -328,29 +328,48 @@ const DeckCard: React.FC<DeckCardProps> = ({
 
                 {/* ═══ ACTION BUTTONS - SEMPRE VISIBILI ═══ */}
                 <div className="space-y-2.5">
-                    {/* Primary CTA: Study / Review */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onStudy(deck.id);
-                        }}
-                        disabled={totalCards === 0}
-                        className={`
-                            w-full flex items-center justify-center gap-2.5 
-                            px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                            font-semibold text-base transition-all
-                            active:scale-[0.98]
-                            ${hasDueCards
-                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40'
-                                : totalCards > 0
-                                    ? 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/35'
-                                    : 'bg-white/5 text-white/30 cursor-not-allowed'
-                            }
-                        `}
-                    >
-                        <Play className="w-5 h-5" />
-                        {hasDueCards ? 'Ripassa Ora' : totalCards > 0 ? 'Studia' : 'Aggiungi carte'}
-                    </button>
+                    {/* Primary CTA: Study / Review / Magic Generate */}
+                    {totalCards === 0 ? (
+                        // Deck vuoto: mostra Magic Generate
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onMagicGenerate(deck);
+                            }}
+                            className="
+                                w-full flex items-center justify-center gap-2.5 
+                                px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
+                                font-semibold text-base transition-all
+                                bg-gradient-to-r from-amber-500 to-orange-600 text-white 
+                                shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40
+                                active:scale-[0.98]
+                            "
+                        >
+                            <Sparkles className="w-5 h-5" />
+                            magic Generate
+                        </button>
+                    ) : (
+                        // Deck con carte: mostra Studia/Ripassa
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onStudy(deck.id);
+                            }}
+                            className={`
+                                w-full flex items-center justify-center gap-2.5 
+                                px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
+                                font-semibold text-base transition-all
+                                active:scale-[0.98]
+                                ${hasDueCards
+                                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40'
+                                    : 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/35'
+                                }
+                            `}
+                        >
+                            <Play className="w-5 h-5" />
+                            {hasDueCards ? 'Ripassa Ora' : 'Studia'}
+                        </button>
+                    )}
 
                     {/* Secondary CTA: Split Study (if PDF exists) */}
                     {hasPdf && (
