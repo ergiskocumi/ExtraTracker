@@ -316,13 +316,11 @@ module.exports = {
             preload: true,
         } : false, // Disabilitato in sviluppo (HTTP locale)
         
-        // Cross-Origin-Embedder-Policy: isola il contesto di esecuzione
-        crossOriginEmbedderPolicy: isProduction,
+        // Cross-Origin-Embedder-Policy: DISABILITATO per permettere CORS
+        crossOriginEmbedderPolicy: false,
         
-        // Cross-Origin-Opener-Policy: previene attacchi cross-origin
-        crossOriginOpenerPolicy: {
-            policy: 'same-origin',
-        },
+        // Cross-Origin-Opener-Policy: DISABILITATO per permettere CORS
+        crossOriginOpenerPolicy: false,
         
         // Cross-Origin-Resource-Policy: controlla chi può caricare risorse
         // Cambiato a 'cross-origin' per permettere richieste da Vercel frontend
