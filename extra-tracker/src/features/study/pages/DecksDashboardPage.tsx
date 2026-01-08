@@ -134,6 +134,7 @@ interface DeckCardProps {
     deck: Deck;
     onStudy: (deckId: string) => void;
     onMagicGenerate: (deck: Deck) => void;
+    onAddCard: (deckId: string) => void;
     onViewDetail: (deckId: string) => void;
     onSplitStudy: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
@@ -143,6 +144,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
     deck, 
     onStudy, 
     onMagicGenerate, 
+    onAddCard,
     onViewDetail, 
     onSplitStudy, 
     onDelete 
@@ -162,6 +164,8 @@ const DeckCard: React.FC<DeckCardProps> = ({
             className={`
                 relative rounded-2xl sm:rounded-3xl border overflow-hidden
                 transition-all duration-300 hover:shadow-xl
+                flex flex-col
+                min-h-[320px] sm:min-h-[340px]
                 ${hasDueCards 
                     ? 'border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent shadow-lg shadow-orange-500/10' 
                     : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]'
@@ -267,7 +271,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
 
             {/* Main Content - Clickable */}
             <div 
-                className="p-5 sm:p-6 cursor-pointer"
+                className="p-5 sm:p-6 cursor-pointer flex-1 flex flex-col"
                 onClick={() => onViewDetail(deck.id)}
             >
                 {/* Header */}
@@ -300,54 +304,72 @@ const DeckCard: React.FC<DeckCardProps> = ({
                     </div>
                 </div>
 
-                {/* Progress Bar */}
-                {totalCards > 0 && (
-                    <div className="mb-5">
-                        <div className="flex items-center justify-between mb-2 text-sm">
-                            <span className="text-white/50">Padronanza</span>
-                            <span className={`font-bold ${
-                                masteryPercent === 100 ? 'text-emerald-400' : 'text-white/70'
-                            }`}>
-                                {masteryPercent}%
-                            </span>
-                        </div>
-                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${masteryPercent}%` }}
-                                transition={{ duration: 0.8, ease: 'easeOut' }}
-                                className={`h-full rounded-full ${
-                                    masteryPercent === 100 
-                                        ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' 
-                                        : 'bg-gradient-to-r from-violet-400 to-violet-500'
-                                }`}
-                            />
-                        </div>
+                {/* Progress Bar - Sempre visibile per uniformità */}
+                <div className="mb-5">
+                    <div className="flex items-center justify-between mb-2 text-sm">
+                        <span className="text-white/50">Padronanza</span>
+                        <span className={`font-bold ${
+                            masteryPercent === 100 ? 'text-emerald-400' : 'text-white/70'
+                        }`}>
+                            {masteryPercent}%
+                        </span>
                     </div>
-                )}
+                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${masteryPercent}%` }}
+                            transition={{ duration: 0.8, ease: 'easeOut' }}
+                            className={`h-full rounded-full ${
+                                masteryPercent === 100 
+                                    ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' 
+                                    : 'bg-gradient-to-r from-violet-400 to-violet-500'
+                            }`}
+                        />
+                    </div>
+                </div>
 
                 {/* ═══ ACTION BUTTONS - SEMPRE VISIBILI ═══ */}
-                <div className="space-y-2.5">
+                <div className="space-y-2.5 mt-auto">
                     {/* Primary CTA: Study / Review / Magic Generate */}
                     {totalCards === 0 ? (
-                        // Deck vuoto: mostra Magic Generate
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onMagicGenerate(deck);
-                            }}
-                            className="
-                                w-full flex items-center justify-center gap-2.5 
-                                px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                font-semibold text-base transition-all
-                                bg-gradient-to-r from-amber-500 to-orange-600 text-white 
-                                shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40
-                                active:scale-[0.98]
-                            "
-                        >
-                            <Sparkles className="w-5 h-5" />
-                            magic Generate
-                        </button>
+                        // Deck vuoto: mostra Magic Generate e Aggiungi carta
+                        <>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMagicGenerate(deck);
+                                }}
+                                className="
+                                    w-full flex items-center justify-center gap-2.5 
+                                    px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
+                                    font-semibold text-base transition-all
+                                    bg-gradient-to-r from-amber-500 to-orange-600 text-white 
+                                    shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40
+                                    active:scale-[0.98]
+                                "
+                            >
+                                <Sparkles className="w-5 h-5" />
+                                magic Generate
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onAddCard(deck.id);
+                                }}
+                                className="
+                                    w-full flex items-center justify-center gap-2.5 
+                                    px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
+                                    font-semibold text-base transition-all
+                                    bg-gradient-to-r from-violet-500/80 to-violet-600/80 text-white 
+                                    border border-violet-500/30
+                                    hover:from-violet-500 hover:to-violet-600
+                                    active:scale-[0.98]
+                                "
+                            >
+                                <Plus className="w-5 h-5" />
+                                Aggiungi carta
+                            </button>
+                        </>
                     ) : (
                         // Deck con carte: mostra Studia/Ripassa
                         <button
@@ -389,7 +411,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                             "
                         >
                             <BookOpen className="w-5 h-5" />
-                            📖 Leggi & Studia
+                            Leggi & Studia
                         </button>
                     )}
                 </div>
@@ -925,6 +947,7 @@ export const DecksDashboardPage: React.FC = () => {
                                         deck={deck}
                                         onStudy={handleStudy}
                                         onMagicGenerate={handleMagicGenerate}
+                                        onAddCard={handleAddCard}
                                         onViewDetail={handleViewDetail}
                                         onSplitStudy={handleSplitStudy}
                                         onDelete={setDeletingDeck}
