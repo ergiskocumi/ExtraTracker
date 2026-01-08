@@ -358,18 +358,31 @@ const DeckCard: React.FC<DeckCardProps> = ({
                     </motion.button>
 
                     {hasPdf && (
-                        <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onSplitStudy(deck.id);
-                            }}
-                            className="w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-xl font-medium transition-all text-sm bg-gradient-to-r from-blue-500/80 to-violet-500/80 text-white hover:from-blue-500 hover:to-violet-500 shadow-md shadow-blue-500/15"
-                        >
-                            <FiBookOpen className="w-4 h-4" />
-                            📖 Leggi & Studia
-                        </motion.button>
+                        <>
+                            <motion.button
+                                whileTap={{ scale: 0.98 }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSplitStudy(deck.id);
+                                }}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all text-sm bg-blue-500 text-white shadow-lg shadow-blue-500/30 border border-blue-400/40 sm:hidden"
+                            >
+                                <FiBookOpen className="w-4 h-4" />
+                                📖 Leggi & Studia
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSplitStudy(deck.id);
+                                }}
+                                className="hidden w-full items-center justify-center gap-2.5 px-5 py-3.5 rounded-xl font-medium transition-all text-sm bg-gradient-to-r from-blue-500/80 to-violet-500/80 text-white hover:from-blue-500 hover:to-violet-500 shadow-md shadow-blue-500/15 sm:flex"
+                            >
+                                <FiBookOpen className="w-4 h-4" />
+                                📖 Leggi & Studia
+                            </motion.button>
+                        </>
                     )}
                 </div>
             </div>
