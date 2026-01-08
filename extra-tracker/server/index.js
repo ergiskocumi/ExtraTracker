@@ -66,6 +66,41 @@ app.set('trust proxy', 1);
 // 2. CORS CONFIGURATION
 // ==========================================
 
+// Middleware CORS manuale per preflight - PRIMA di tutto
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+    
+    // Lista di origini permesse
+    const allowedOrigins = [
+        frontendUrl,
+        'https://extra-tracker.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:5174',
+    ].filter(Boolean);
+    
+    // Permetti vercel.app in generale
+    const isAllowed = !origin || 
+        allowedOrigins.includes(origin) || 
+        (origin && origin.includes('vercel.app'));
+    
+    if (isAllowed) {
+        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Request-ID');
+        res.setHeader('Access-Control-Max-Age', '86400');
+    }
+    
+    // Rispondi subito alle richieste OPTIONS (preflight)
+    if (req.method === 'OPTIONS') {
+        return res.status(204).end();
+    }
+    
+    next();
+});
+
+// CORS middleware standard (come backup)
 app.use(cors(securityConfig.cors));
 
 // ==========================================

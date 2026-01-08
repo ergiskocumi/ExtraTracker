@@ -168,9 +168,19 @@ module.exports = {
     cors: {
         // Funzione per validare origin dinamicamente
         origin: (origin, callback) => {
+            // Normalizza FRONTEND_URL (rimuove trailing slash se presente)
+            const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+            
+            // Log per debug in produzione
+            if (isProduction && origin) {
+                console.log(`🔍 CORS check - Origin: ${origin}, FRONTEND_URL: ${frontendUrl}`);
+            }
+            
             // Lista completa di domini permessi per sviluppo
             const allowedOrigins = [
-                process.env.FRONTEND_URL,
+                frontendUrl,
+                // Anche con trailing slash per sicurezza
+                frontendUrl ? `${frontendUrl}/` : null,
                 // Vite default ports
                 'http://localhost:5173',
                 'http://localhost:5174',
