@@ -8,18 +8,17 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiEdit2, FiPlus, FiX, FiCheck } from 'react-icons/fi';
+import { FiPlus, FiX, FiCheck } from 'react-icons/fi';
 import { Layers, MessageCircle } from 'lucide-react';
-import type { Deck, Card } from '../services/studyService';
+import type { Deck } from '../services/studyService';
 import { PDFChat } from './PDFChat';
+import { FlashcardList } from './FlashcardList';
 
 interface StudySidebarProps {
     deck: Deck;
     pdfSrc: string | null;
-    editMode: boolean;
-    setEditMode: (v: boolean) => void;
     onAddCard: () => void;
-    onEditCard: (card: Card) => void;
+    onUpdateCard: (cardId: string, front: string, back: string) => Promise<void>;
     className?: string;
     /** For mobile drawer: shows only the active tab content without header */
     compactMode?: boolean;
@@ -35,10 +34,8 @@ interface StudySidebarProps {
 export const StudySidebar: React.FC<StudySidebarProps> = ({
     deck,
     pdfSrc,
-    editMode,
-    setEditMode,
     onAddCard,
-    onEditCard,
+    onUpdateCard,
     className = '',
     compactMode = false,
     activeTabOverride,
@@ -62,12 +59,10 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
         return (
             <div className={`h-full ${className}`}>
                 {currentTab === 'flashcards' ? (
-                    <FlashcardsList
+                    <FlashcardList
                         deck={deck}
-                        editMode={editMode}
-                        setEditMode={setEditMode}
                         onAddCard={onAddCard}
-                        onEditCard={onEditCard}
+                        onUpdate={onUpdateCard}
                         showHeader
                     />
                 ) : (
@@ -116,17 +111,6 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                     {currentTab === 'flashcards' && (
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => setEditMode(!editMode)}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-sm ${
-                                    editMode
-                                        ? 'bg-blue-500/15 border-blue-500/25 text-blue-200'
-                                        : 'bg-white/[0.03] border-white/[0.08] text-white/70 hover:bg-white/[0.06]'
-                                }`}
-                            >
-                                <FiEdit2 className="w-4 h-4" />
-                                {editMode ? 'Edit ON' : 'Edit'}
-                            </button>
-                            <button
                                 onClick={onAddCard}
                                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 shadow-primary-500/20"
                             >
@@ -140,7 +124,7 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                 <div className="mt-3">
                     {currentTab === 'flashcards' ? (
                         <p className="text-xs text-white/50">
-                            {deck.cards.length} carte • Clicca una domanda per vedere la risposta
+                            {deck.cards.length} carte • Modifica inline mentre leggi il PDF
                         </p>
                     ) : (
                         <p className="text-xs text-white/50">
@@ -153,12 +137,10 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
             {/* Tab Content */}
             <div className="flex-1 overflow-hidden">
                 {currentTab === 'flashcards' ? (
-                    <FlashcardsList
+                    <FlashcardList
                         deck={deck}
-                        editMode={editMode}
-                        setEditMode={setEditMode}
                         onAddCard={onAddCard}
-                        onEditCard={onEditCard}
+                        onUpdate={onUpdateCard}
                     />
                 ) : (
                     <PDFChat
@@ -167,116 +149,6 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         pendingMessage={pendingChatMessage}
                         onConsumePendingMessage={onConsumePendingChatMessage}
                     />
-                )}
-            </div>
-        </div>
-    );
-};
-
-// ─────────────────────────────────────────────────────────────
-// Internal Component: Flashcards List
-// ─────────────────────────────────────────────────────────────
-
-interface FlashcardsListProps {
-    deck: Deck;
-    editMode: boolean;
-    setEditMode: (v: boolean) => void;
-    onAddCard: () => void;
-    onEditCard: (card: Card) => void;
-    showHeader?: boolean;
-}
-
-const FlashcardsList: React.FC<FlashcardsListProps> = ({
-    deck,
-    editMode,
-    setEditMode,
-    onAddCard,
-    onEditCard,
-    showHeader = false,
-}) => {
-    return (
-        <div className="flex flex-col h-full">
-            {showHeader && (
-                <div className="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between flex-shrink-0">
-                    <p className="text-xs text-white/50">
-                        {deck.cards.length} carte
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setEditMode(!editMode)}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-sm ${
-                                editMode
-                                    ? 'bg-blue-500/15 border-blue-500/25 text-blue-200'
-                                    : 'bg-white/[0.03] border-white/[0.08] text-white/70 hover:bg-white/[0.06]'
-                            }`}
-                        >
-                            <FiEdit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={onAddCard}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 shadow-primary-500/20"
-                        >
-                            <FiPlus className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-            )}
-            
-            <div className="flex-1 p-4 overflow-auto">
-                {deck.cards.length === 0 ? (
-                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm text-white/70">
-                        Nessuna carta ancora. Puoi aggiungerne una mentre leggi il PDF.
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {deck.cards.map((card) => (
-                            <details
-                                key={card.id}
-                                className="rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] transition-all overflow-hidden"
-                            >
-                                <summary className="p-4 list-none cursor-pointer select-none">
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-xs text-white/60 flex-shrink-0">
-                                            Q
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <p className="text-sm font-semibold leading-relaxed text-white">
-                                                    {card.front}
-                                                </p>
-                                                {editMode && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            onEditCard(card);
-                                                        }}
-                                                        className="p-2 text-blue-200 transition-all border rounded-xl bg-blue-500/15 hover:bg-blue-500/25 border-blue-500/20"
-                                                        title="Modifica"
-                                                    >
-                                                        <FiEdit2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <p className="mt-1 text-xs text-white/40">
-                                                Clicca per vedere la risposta
-                                            </p>
-                                        </div>
-                                    </div>
-                                </summary>
-                                <div className="px-4 pb-4">
-                                    <div className="mt-2 pt-3 border-t border-white/[0.08] flex items-start gap-3">
-                                        <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-xs text-white/60 flex-shrink-0">
-                                            A
-                                        </div>
-                                        <p className="text-sm leading-relaxed whitespace-pre-wrap text-white/80">
-                                            {card.back}
-                                        </p>
-                                    </div>
-                                </div>
-                            </details>
-                        ))}
-                    </div>
                 )}
             </div>
         </div>

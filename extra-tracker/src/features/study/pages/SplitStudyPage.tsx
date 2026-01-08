@@ -29,7 +29,7 @@ import {
     GripVertical,
     AlertCircle
 } from 'lucide-react';
-import { studyService, type Deck, type Card } from '../services/studyService';
+import { studyService, type Deck } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { useIsDesktop } from '../../../shared/hooks/useMediaQuery';
 import { StudySidebar, CardModal } from '../components/StudySidebar';
@@ -297,8 +297,6 @@ export const SplitStudyPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     // UI state
-    const [editMode, setEditMode] = useState(false);
-    const [editingCard, setEditingCard] = useState<Card | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [addPrefill, setAddPrefill] = useState<{ front: string; back: string } | null>(null);
     const [tabRequest, setTabRequest] = useState<{ id: string; tab: 'flashcards' | 'chat' } | null>(null);
@@ -343,11 +341,21 @@ export const SplitStudyPage: React.FC = () => {
         emitToast.success('Carta aggiunta', { title: 'Ok' });
     };
 
-    const handleUpdateCard = async (front: string, back: string) => {
-        if (!deckId || !editingCard) return;
-        const updated = await studyService.updateCard(deckId, editingCard.id, { front, back });
-        setDeck(updated);
-        emitToast.success('Carta aggiornata', { title: 'Ok' });
+    const handleUpdateCard = async (cardId: string, front: string, back: string) => {
+        if (!deckId) {
+            const error = new Error('Deck non trovato');
+            emitToast.error(error.message, { title: 'Errore' });
+            throw error;
+        }
+        try {
+            const updated = await studyService.updateCard(deckId, cardId, { front, back });
+            setDeck(updated);
+            emitToast.success('Carta aggiornata', { title: 'Ok' });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Errore nella modifica della carta';
+            emitToast.error(message, { title: 'Errore' });
+            throw err;
+        }
     };
 
     const makeRequestId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -508,13 +516,11 @@ export const SplitStudyPage: React.FC = () => {
                                 <StudySidebar
                                     deck={deck}
                                     pdfSrc={pdfSrc}
-                                    editMode={editMode}
-                                    setEditMode={setEditMode}
                                     onAddCard={() => {
                                         setAddPrefill(null);
                                         setIsAddOpen(true);
                                     }}
-                                    onEditCard={setEditingCard}
+                                    onUpdateCard={handleUpdateCard}
                                     tabRequest={tabRequest}
                                     pendingChatMessage={pendingChatMessage}
                                     onConsumePendingChatMessage={handleConsumePendingChatMessage}
@@ -535,16 +541,6 @@ export const SplitStudyPage: React.FC = () => {
                             setAddPrefill(null);
                         }}
                         onConfirm={handleAddCard}
-                    />
-
-                    <CardModal
-                        isOpen={!!editingCard}
-                        title="Modifica carta"
-                        initialFront={editingCard?.front}
-                        initialBack={editingCard?.back}
-                        confirmLabel="Salva"
-                        onClose={() => setEditingCard(null)}
-                        onConfirm={handleUpdateCard}
                     />
                 </div>
             </div>
@@ -616,13 +612,11 @@ export const SplitStudyPage: React.FC = () => {
                 <StudySidebar
                     deck={deck}
                     pdfSrc={pdfSrc}
-                    editMode={editMode}
-                    setEditMode={setEditMode}
                     onAddCard={() => {
                         setAddPrefill(null);
                         setIsAddOpen(true);
                     }}
-                    onEditCard={setEditingCard}
+                    onUpdateCard={handleUpdateCard}
                     compactMode
                     activeTabOverride="flashcards"
                     tabRequest={tabRequest}
@@ -641,13 +635,11 @@ export const SplitStudyPage: React.FC = () => {
                 <StudySidebar
                     deck={deck}
                     pdfSrc={pdfSrc}
-                    editMode={editMode}
-                    setEditMode={setEditMode}
                     onAddCard={() => {
                         setAddPrefill(null);
                         setIsAddOpen(true);
                     }}
-                    onEditCard={setEditingCard}
+                    onUpdateCard={handleUpdateCard}
                     compactMode
                     activeTabOverride="chat"
                     tabRequest={tabRequest}
@@ -668,16 +660,6 @@ export const SplitStudyPage: React.FC = () => {
                     setAddPrefill(null);
                 }}
                 onConfirm={handleAddCard}
-            />
-
-            <CardModal
-                isOpen={!!editingCard}
-                title="Modifica carta"
-                initialFront={editingCard?.front}
-                initialBack={editingCard?.back}
-                confirmLabel="Salva"
-                onClose={() => setEditingCard(null)}
-                onConfirm={handleUpdateCard}
             />
         </div>
     );
