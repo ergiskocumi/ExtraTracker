@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Folder as FolderIcon, Menu } from 'lucide-react';
 import { FolderTree } from '../Organization/FolderTree';
 import { TagCloud } from '../Organization/TagCloud';
+import { CreateFolderModal } from '../Modals/CreateFolderModal';
 import type { Folder, Tag } from '../../services/foldersService';
 import { foldersService } from '../../services/foldersService';
 import { emitToast } from '../../../../shared/components/toast';
@@ -41,6 +42,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     onDeckDrop,
     onRefresh,
 }) => {
+    const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+
     // Handler per selezionare una cartella e chiudere la sidebar
     const handleFolderSelect = (folderId: string | null) => {
         onFolderSelect(folderId);
@@ -48,21 +51,31 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
         onClose();
     };
 
-    const handleCreateFolder = async () => {
-        const name = prompt('Nome della nuova cartella:');
-        if (name && name.trim()) {
-            try {
-                await foldersService.createFolder({ name: name.trim() });
-                emitToast.success('Cartella creata');
-                onRefresh();
-            } catch (err: any) {
-                emitToast.error(err.message || 'Errore nella creazione');
-            }
+    const handleCreateFolder = () => {
+        setIsCreateFolderModalOpen(true);
+    };
+
+    const handleCreateFolderSubmit = async (name: string) => {
+        try {
+            await foldersService.createFolder({ name });
+            emitToast.success('Cartella creata');
+            onRefresh();
+            setIsCreateFolderModalOpen(false);
+        } catch (err: any) {
+            emitToast.error(err.message || 'Errore nella creazione');
+            throw err; // Rilancia per gestione nel modale
         }
     };
 
     return (
         <>
+            {/* Create Folder Modal */}
+            <CreateFolderModal
+                isOpen={isCreateFolderModalOpen}
+                onClose={() => setIsCreateFolderModalOpen(false)}
+                onSubmit={handleCreateFolderSubmit}
+            />
+
             {/* Floating Action Button - Sempre visibile sopra la sidebar */}
             <motion.button
                 initial={{ scale: 0 }}

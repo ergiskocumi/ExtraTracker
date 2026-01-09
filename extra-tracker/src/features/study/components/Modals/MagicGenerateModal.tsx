@@ -1,29 +1,20 @@
 /**
- * 🪄 MAGIC GENERATE MODAL - AI-Powered PDF to Flashcards
- * * Feature "Killer" che trasforma PDF in Flashcards usando OpenAI.
- * * Features:
- * - Drag & Drop area premium
- * - Progress animation multi-step
- * - Feedback visivo coinvolgente
- * - Gestione errori graceful
+ * ✨ MAGIC GENERATE MODAL - Stile macOS
+ * 
+ * Nuovo design completamente rinnovato in stile macOS con:
+ * - Glassmorphism marcato
+ * - Tempo stimato visibile
+ * - Effetti di analisi AI coinvolgenti
+ * - Animazioni fluide e naturali
+ * - Design pulito e minimale
  */
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    FiUploadCloud, 
-    FiFile, 
-    FiX, 
-    FiCheck, 
-    FiAlertCircle,
-    FiZap,
-    FiBookOpen,
-    FiCpu
-} from 'react-icons/fi';
+import { Sparkles, X, Upload, FileText, Brain, Zap, CheckCircle2, AlertCircle, BookOpen, Lightbulb, Target, TrendingUp } from 'lucide-react';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { useSSE, type SSEPayload } from '../../../../hooks/useSSE';
-import { useIsDesktop } from '../../../../shared/hooks/useMediaQuery';
 
 interface MagicGenerateModalProps {
     isOpen: boolean;
@@ -33,47 +24,35 @@ interface MagicGenerateModalProps {
     onSuccess: (generatedCount: number) => void;
 }
 
-type DocumentBlueprint = {
-    documentType: 'textbook' | 'slide_deck' | 'research_paper' | 'exam_text' | 'notes' | 'other';
-    globalContext: string;
-    mainTopics: string[];
-    densityScore: number;
+type AnalysisStep = 'idle' | 'uploading' | 'analyzing' | 'processing' | 'generating' | 'completed' | 'error';
+
+type LogEntry = {
+    id: string;
+    timestamp: number;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'analysis';
+    icon?: React.ElementType;
 };
 
-type ProgressStep = 'idle' | 'analyzing' | 'blueprint' | 'chunking' | 'generating' | 'completed' | 'error';
-
-type ProgressStats = {
-    currentChunk: number;
-    totalChunks: number;
-    currentTopic: string;
-    generatedSoFar: number;
-};
-
-type ProgressState = {
-    step: ProgressStep;
-    blueprint?: DocumentBlueprint;
-    stats?: ProgressStats;
-};
-
-type ProgressPayload = {
-    step?: ProgressStep;
-    blueprint?: DocumentBlueprint;
-    totalChunks?: number;
+type ProgressData = {
+    step: AnalysisStep;
+    estimatedTime?: number; // in secondi
+    elapsedTime?: number; // in secondi
+    progress?: number; // 0-100
     currentChunk?: number;
-    currentTopic?: string | null;
-    generatedSoFar?: number;
-    totalCards?: number;
+    totalChunks?: number;
+    generatedCount?: number;
+    message?: string;
+    blueprint?: {
+        documentType?: string;
+        mainTopics?: string[];
+        densityScore?: number;
+    };
+    concepts?: string[];
+    currentTopic?: string;
 };
 
-const stepConfig: Record<ProgressStep, { icon: React.ElementType; label: string; labelMobile: string; color: string }> = {
-    idle: { icon: FiUploadCloud, label: 'Trascina il PDF qui', labelMobile: 'Tocca per caricare', color: 'text-zinc-400' },
-    analyzing: { icon: FiCpu, label: 'Analisi strutturale in corso...', labelMobile: 'Analisi in corso...', color: 'text-violet-400' },
-    blueprint: { icon: FiBookOpen, label: 'Blueprint pronto', labelMobile: 'Blueprint pronto', color: 'text-indigo-400' },
-    chunking: { icon: FiCpu, label: 'Suddivisione del documento...', labelMobile: 'Preparazione...', color: 'text-violet-400' },
-    generating: { icon: FiZap, label: 'Generazione flashcard...', labelMobile: 'Generazione...', color: 'text-amber-400' },
-    completed: { icon: FiCheck, label: 'Completato!', labelMobile: 'Completato!', color: 'text-amber-400' },
-    error: { icon: FiAlertCircle, label: 'Errore', labelMobile: 'Errore', color: 'text-red-400' },
-};
+let logIdCounter = 0;
 
 export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     isOpen,
@@ -82,164 +61,202 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     deckTitle,
     onSuccess,
 }) => {
-    // State
-    const [isDragging, setIsDragging] = useState(false);
     const [file, setFile] = useState<File | null>(null);
-    const [progress, setProgress] = useState<ProgressState>({ step: 'idle' });
+    const [isDragging, setIsDragging] = useState(false);
+    const [progress, setProgress] = useState<ProgressData>({ step: 'idle' });
     const [error, setError] = useState<string | null>(null);
-    const [generatedCount, setGeneratedCount] = useState(0);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [scanProgress, setScanProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const completionHandledRef = useRef(false);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const startTimeRef = useRef<number | null>(null);
+    const logsEndRef = useRef<HTMLDivElement>(null);
 
-    const progressStep = progress.step;
-    const progressStats = progress.stats;
-    const progressBlueprint = progress.blueprint;
+    // Funzione per aggiungere log
+    const addLogMemo = useCallback((message: string, type: LogEntry['type'] = 'info', icon?: React.ElementType) => {
+        setLogs(prev => [...prev, {
+            id: `log-${++logIdCounter}`,
+            timestamp: Date.now(),
+            message,
+            type,
+            icon,
+        }]);
+    }, []);
 
-    const sseListeners = useMemo(() => ([
-        {
-            event: 'pdf-progress',
-            handler: (payload: SSEPayload<ProgressPayload>) => {
-                const data = payload?.data;
-                if (!data || typeof data !== 'object') return;
+    // Auto-scroll logs
+    useEffect(() => {
+        logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [logs]);
 
-                const update = data as ProgressPayload;
-                const step = update.step;
-                if (!step) return;
-
-                switch (step) {
-                    case 'analyzing':
-                        setProgress((prev) => ({
-                            ...prev,
-                            step: 'analyzing',
-                        }));
-                        break;
-                    case 'blueprint':
-                        setProgress((prev) => ({
-                            ...prev,
-                            step: 'blueprint',
-                            blueprint: update.blueprint,
-                        }));
-                        break;
-                    case 'chunking': {
-                        const totalChunks = Number.isFinite(Number(update.totalChunks))
-                            ? Number(update.totalChunks)
-                            : 0;
-                        setProgress((prev) => ({
-                            ...prev,
-                            step: 'chunking',
-                            stats: {
-                                currentChunk: 0,
-                                totalChunks: totalChunks || prev.stats?.totalChunks || 0,
-                                currentTopic: '',
-                                generatedSoFar: prev.stats?.generatedSoFar || 0,
-                            },
-                        }));
-                        break;
-                    }
-                    case 'generating': {
-                        const currentChunk = Number.isFinite(Number(update.currentChunk))
-                            ? Number(update.currentChunk)
-                            : 0;
-                        const totalChunks = Number.isFinite(Number(update.totalChunks))
-                            ? Number(update.totalChunks)
-                            : 0;
-                        const generatedSoFar = Number.isFinite(Number(update.generatedSoFar))
-                            ? Number(update.generatedSoFar)
-                            : 0;
-                        const currentTopic = typeof update.currentTopic === 'string'
-                            ? update.currentTopic
-                            : '';
-
-                        setProgress((prev) => ({
-                            ...prev,
-                            step: 'generating',
-                            stats: {
-                                currentChunk: currentChunk || prev.stats?.currentChunk || 0,
-                                totalChunks: totalChunks || prev.stats?.totalChunks || 0,
-                                currentTopic: currentTopic || prev.stats?.currentTopic || '',
-                                generatedSoFar: generatedSoFar || prev.stats?.generatedSoFar || 0,
-                            },
-                        }));
-                        break;
-                    }
-                    case 'completed': {
-                        setProgress((prev) => {
-                            const totalCards = Number.isFinite(Number(update.totalCards))
-                                ? Number(update.totalCards)
-                                : prev.stats?.generatedSoFar || 0;
-                            setGeneratedCount(totalCards);
-                            return {
-                                ...prev,
-                                step: 'completed',
-                            };
-                        });
-                        break;
-                    }
-                    default:
-                        break;
-                }
-            },
-        },
-    ]), []);
-
-    const { error: sseError } = useSSE('/api/sse/stream', sseListeners);
-
-    // Reset state quando si chiude
-    const handleClose = useCallback(() => {
-        if (isSubmitting || ['analyzing', 'blueprint', 'chunking', 'generating'].includes(progressStep)) {
-            return; // Non permettere chiusura durante il processo
+    // Scan animation - usa progress.step direttamente
+    useEffect(() => {
+        const isProcessingStep = ['uploading', 'analyzing', 'processing', 'generating'].includes(progress.step);
+        if (isProcessingStep) {
+            const interval = setInterval(() => {
+                setScanProgress(prev => {
+                    if (prev >= 100) return 0;
+                    return prev + 0.5;
+                });
+            }, 50);
+            return () => clearInterval(interval);
+        } else {
+            setScanProgress(0);
         }
-        setFile(null);
-        setProgress({ step: 'idle' });
-        setError(null);
-        setGeneratedCount(0);
-        setIsSubmitting(false);
-        completionHandledRef.current = false;
-        onClose();
-    }, [isSubmitting, progressStep, onClose]);
+    }, [progress.step]);
 
-    useEffect(() => {
-        if (!sseError || !isSubmitting) return;
-        setError('Connessione realtime interrotta. Riprova.');
-        setProgress((prev) => ({ ...prev, step: 'error' }));
-    }, [sseError, isSubmitting]);
 
-    useEffect(() => {
-        if (progressStep !== 'completed' || completionHandledRef.current) return;
-
-        completionHandledRef.current = true;
-        emitToast.success(`✨ Generate ${generatedCount} flashcard!`, {
-            title: 'Magic Generate',
-            duration: 5000,
-        });
-
-        setTimeout(() => {
-            onSuccess(generatedCount);
-            handleClose();
-        }, 2000);
-    }, [progressStep, generatedCount, handleClose, onSuccess]);
-
-    // Blocca lo scroll del body quando il modale è aperto
+    // Reset quando si apre il modale
     useEffect(() => {
         if (isOpen) {
-            const scrollY = window.scrollY;
-            document.body.style.position = 'fixed';
-            document.body.style.top = `-${scrollY}px`;
-            document.body.style.width = '100%';
-            document.body.style.overflow = 'hidden';
-            
-            return () => {
-                document.body.style.position = '';
-                document.body.style.top = '';
-                document.body.style.width = '';
-                document.body.style.overflow = '';
-                window.scrollTo(0, scrollY);
-            };
+            setFile(null);
+            setProgress({ step: 'idle' });
+            setError(null);
+            setLogs([]);
+            setScanProgress(0);
+            startTimeRef.current = null;
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
         }
     }, [isOpen]);
 
-    // Drag handlers
+    // Timer per il tempo trascorso
+    useEffect(() => {
+        if (progress.step === 'uploading' || progress.step === 'analyzing' || progress.step === 'processing' || progress.step === 'generating') {
+            if (!startTimeRef.current) {
+                startTimeRef.current = Date.now();
+            }
+            timerRef.current = setInterval(() => {
+                if (startTimeRef.current) {
+                    const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+                    setProgress(prev => ({ ...prev, elapsedTime: elapsed }));
+                }
+            }, 1000);
+        } else {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+            }
+        }
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        };
+    }, [progress.step]);
+
+    // SSE listeners per aggiornamenti real-time
+    const sseListeners = useMemo(() => ([
+        {
+            event: 'pdf-progress',
+            handler: (payload: SSEPayload<any>) => {
+                const data = payload?.data;
+                if (!data || typeof data !== 'object') return;
+
+                if (data.step === 'analyzing' || data.step === 'blueprint') {
+                    setProgress(prev => ({
+                            ...prev,
+                            step: 'analyzing',
+                        message: data.message || 'Analisi del documento in corso...',
+                        estimatedTime: 30,
+                        blueprint: data.blueprint,
+                    }));
+                    if (data.message) {
+                        addLogMemo(data.message, 'analysis', Brain);
+                    }
+                    if (data.blueprint?.mainTopics) {
+                        addLogMemo(`Trovati ${data.blueprint.mainTopics.length} argomenti principali`, 'success', Target);
+                    }
+                } else if (data.step === 'chunking') {
+                    setProgress(prev => ({
+                            ...prev,
+                        step: 'processing',
+                        message: data.message || 'Preparazione del contenuto...',
+                        totalChunks: data.totalChunks || 0,
+                        estimatedTime: (data.totalChunks || 0) * 5 + 20,
+                    }));
+                    if (data.message) {
+                        addLogMemo(data.message, 'info', FileText);
+                    }
+                    if (data.totalChunks) {
+                        addLogMemo(`Documento diviso in ${data.totalChunks} sezioni`, 'info', BookOpen);
+                    }
+                } else if (data.step === 'concepts') {
+                    setProgress(prev => ({
+                            ...prev,
+                        concepts: data.concepts || prev.concepts,
+                    }));
+                    if (data.message) {
+                        addLogMemo(data.message, 'analysis', Lightbulb);
+                    }
+                    if (data.concepts && data.concepts.length > 0) {
+                        addLogMemo(`Estratti ${data.concepts.length} concetti chiave`, 'success', Target);
+                    }
+                } else if (data.step === 'generating') {
+                    setProgress(prev => ({
+                            ...prev,
+                            step: 'generating',
+                        message: data.message || 'Generazione delle flashcard...',
+                        currentChunk: data.currentChunk || 0,
+                        totalChunks: data.totalChunks || prev.totalChunks || 0,
+                        generatedCount: data.generatedSoFar || 0,
+                        currentTopic: data.currentTopic || prev.currentTopic,
+                        progress: data.totalChunks 
+                            ? Math.round(((data.currentChunk || 0) / data.totalChunks) * 100)
+                            : prev.progress,
+                    }));
+                    if (data.currentTopic && data.currentTopic !== progress.currentTopic) {
+                        addLogMemo(`Elaborando: ${data.currentTopic}`, 'info', TrendingUp);
+                    }
+                    if (data.generatedSoFar && data.generatedSoFar % 5 === 0) {
+                        addLogMemo(`${data.generatedSoFar} flashcard generate finora`, 'success', Zap);
+                    }
+                } else if (data.step === 'completed') {
+                    setProgress(prev => ({
+                                ...prev,
+                                step: 'completed',
+                        progress: 100,
+                        generatedCount: data.totalCards || prev.generatedCount || 0,
+                        message: 'Completato!',
+                    }));
+                    addLogMemo(`Generazione completata! ${data.totalCards || 0} flashcard create`, 'success', CheckCircle2);
+                    if (timerRef.current) {
+                        clearInterval(timerRef.current);
+                    }
+                    if (data.totalCards) {
+                        setTimeout(() => {
+                            onSuccess(data.totalCards);
+                            handleClose();
+                        }, 3000);
+                    }
+                }
+            },
+        },
+    ]), [onSuccess, addLogMemo, progress.currentTopic]);
+
+    useSSE(sseListeners);
+
+    const handleClose = useCallback(() => {
+        if (progress.step === 'uploading' || progress.step === 'analyzing' || progress.step === 'processing' || progress.step === 'generating') {
+            return; // Non chiudere durante l'elaborazione
+        }
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+        }
+        startTimeRef.current = null;
+        onClose();
+    }, [progress.step, onClose]);
+
+    const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile && selectedFile.type === 'application/pdf') {
+            setFile(selectedFile);
+            setError(null);
+        } else {
+            setError('Seleziona un file PDF valido');
+        }
+    }, []);
+
     const handleDragEnter = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -262,168 +279,152 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         e.stopPropagation();
         setIsDragging(false);
 
-        const droppedFile = e.dataTransfer.files[0];
-        if (droppedFile?.type === 'application/pdf') {
+        if (progress.step !== 'idle') return;
+
+        const droppedFile = e.dataTransfer.files?.[0];
+        if (droppedFile && droppedFile.type === 'application/pdf') {
             setFile(droppedFile);
             setError(null);
         } else {
-            setError('Solo file PDF sono accettati');
+            setError('Seleziona un file PDF valido');
         }
-    }, []);
+    }, [progress.step]);
 
-    const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile?.type === 'application/pdf') {
-            setFile(selectedFile);
-            setError(null);
-        } else if (selectedFile) {
-            setError('Solo file PDF sono accettati');
-        }
-    }, []);
-
-    // 🪄 Main generation function
-    const handleGenerate = useCallback(async () => {
-        if (!file || !deckId) return;
-
-        setError(null);
-        setGeneratedCount(0);
-        setProgress({ step: 'idle' });
-        setIsSubmitting(true);
-        completionHandledRef.current = false;
+    const handleSubmit = useCallback(async () => {
+        if (!file || progress.step !== 'idle') return;
 
         try {
-            const result = await studyService.generateFromPDF(deckId, file);
-            setGeneratedCount(result.generatedCount || 0);
-            setIsSubmitting(false);
+            setProgress({ step: 'uploading', message: 'Caricamento del file...', estimatedTime: 10 });
+            addLogMemo('Inizio caricamento PDF...', 'info', Upload);
+            startTimeRef.current = Date.now();
+
+            await studyService.generateFromPDF(deckId, file);
+            addLogMemo('File caricato con successo', 'success', CheckCircle2);
+            // Il progresso continuerà tramite SSE
         } catch (err: any) {
-            setProgress((prev) => ({ ...prev, step: 'error' }));
-            setError(err.message || 'Errore nella generazione. Riprova.');
+            setError(err.message || 'Errore durante la generazione');
+            setProgress({ step: 'error', message: err.message || 'Errore' });
+            addLogMemo(`Errore: ${err.message || 'Generazione fallita'}`, 'warning', AlertCircle);
             emitToast.error(err.message || 'Generazione fallita');
-            setIsSubmitting(false);
         }
-    }, [file, deckId, onSuccess, handleClose]);
+    }, [file, deckId]);
 
-    const currentStepConfig = stepConfig[progressStep];
-    const StepIcon = currentStepConfig.icon;
-    const isProcessing = isSubmitting || ['analyzing', 'blueprint', 'chunking', 'generating'].includes(progressStep);
-    const isDesktop = useIsDesktop();
+    const formatTime = (seconds: number) => {
+        if (seconds < 60) return `${seconds}s`;
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+    };
 
-    const documentTypeConfig = useMemo(() => ({
-        textbook: { label: 'Libro di Testo', badge: 'bg-white/8 text-zinc-200 border-white/15' },
-        slide_deck: { label: 'Slide', badge: 'bg-white/8 text-zinc-200 border-white/15' },
-        research_paper: { label: 'Paper', badge: 'bg-white/8 text-zinc-200 border-white/15' },
-        exam_text: { label: 'Testo d\'Esame', badge: 'bg-white/8 text-zinc-200 border-white/15' },
-        notes: { label: 'Appunti', badge: 'bg-white/8 text-zinc-200 border-white/15' },
-        other: { label: 'Documento', badge: 'bg-white/8 text-zinc-200 border-white/15' },
-    }), []);
+    const getStepConfig = (step: AnalysisStep) => {
+        switch (step) {
+            case 'idle':
+                return { icon: Upload, label: 'Carica PDF', color: 'text-blue-400' };
+            case 'uploading':
+                return { icon: Upload, label: 'Caricamento...', color: 'text-blue-400' };
+            case 'analyzing':
+                return { icon: Brain, label: 'Analisi AI', color: 'text-violet-400' };
+            case 'processing':
+                return { icon: FileText, label: 'Elaborazione', color: 'text-indigo-400' };
+            case 'generating':
+                return { icon: Zap, label: 'Generazione', color: 'text-amber-400' };
+            case 'completed':
+                return { icon: CheckCircle2, label: 'Completato', color: 'text-emerald-400' };
+            case 'error':
+                return { icon: AlertCircle, label: 'Errore', color: 'text-red-400' };
+        }
+    };
 
-    const blueprintConfig = progressBlueprint
-        ? documentTypeConfig[progressBlueprint.documentType] || documentTypeConfig.other
-        : documentTypeConfig.other;
+    const stepConfig = getStepConfig(progress.step);
+    const StepIcon = stepConfig.icon;
+    const isProcessing = ['uploading', 'analyzing', 'processing', 'generating'].includes(progress.step);
+    const estimatedTimeRemaining = progress.estimatedTime && progress.elapsedTime
+        ? Math.max(0, progress.estimatedTime - progress.elapsedTime)
+        : progress.estimatedTime || 0;
 
-    const densityScore = progressBlueprint?.densityScore ?? 0;
-    const densityPercent = Math.round(Math.min(Math.max(densityScore, 0), 1) * 100);
-    const progressPercent = progressStats?.totalChunks
-        ? Math.min(100, Math.round((progressStats.currentChunk / progressStats.totalChunks) * 100))
-        : 0;
+    if (!isOpen) return null;
 
     return (
         <AnimatePresence>
-            {isOpen && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                    // FIX: bg-black/60 per backdrop scuro ed elegante (evita effetto "milky" bianco)
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl md:p-4"
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4"
                     onClick={handleClose}
+                >
+                {/* Backdrop - Più scuro */}
+                    <motion.div
+                    initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                    animate={{ opacity: 1, backdropFilter: 'blur(20px)' }}
+                    exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0 bg-black/70"
+                    style={{ WebkitBackdropFilter: 'blur(20px)' }}
+                />
+
+                {/* Modal Window - Più scuro */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        transition={{ 
+                        type: 'spring',
+                        stiffness: 300,
+                        damping: 30,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="relative w-full max-w-lg bg-zinc-900/95 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
                     style={{ 
-                        WebkitBackdropFilter: 'blur(20px)',
-                        backdropFilter: 'blur(20px)'
+                        WebkitBackdropFilter: 'blur(40px)',
+                        backdropFilter: 'blur(40px)',
                     }}
                 >
-                    <motion.div
-                        initial={isDesktop ? { 
-                            opacity: 0, 
-                            scale: 0.95,
-                            y: 0
-                        } : { 
-                            opacity: 0, 
-                            y: '100%',
-                            scale: 1
-                        }}
-                        animate={isDesktop ? { 
-                            opacity: 1, 
-                            scale: 1,
-                            y: 0
-                        } : { 
-                            opacity: 1, 
-                            y: 0,
-                            scale: 1
-                        }}
-                        exit={isDesktop ? { 
-                            opacity: 0, 
-                            scale: 0.95,
-                            y: 0
-                        } : { 
-                            opacity: 0, 
-                            y: '100%',
-                            scale: 1
-                        }}
-                        transition={{ 
-                            duration: isDesktop ? 0.2 : 0.3, 
-                            ease: isDesktop ? 'easeOut' : [0.16, 1, 0.3, 1]
-                        }}
-                        // FIX: Modale alleggerito da zinc-950 a zinc-900/80 per effetto glass
-                        className={`
-                            fixed inset-0 w-full h-full bg-zinc-900/80 overflow-y-auto overscroll-contain
-                            md:relative md:inset-auto md:w-full md:max-w-2xl md:h-auto md:max-h-[90vh] md:overflow-y-auto md:rounded-3xl md:border md:border-white/10 md:shadow-2xl
-                        `}
-                        onClick={e => e.stopPropagation()}
-                        onTouchMove={(e) => {
-                            e.stopPropagation();
-                        }}
-                    >
-                        {/* Header - Alleggerito bg */}
-                        <div className="sticky top-0 z-10 px-4 py-4 md:px-6 md:py-5 border-b border-white/10 flex items-center justify-between bg-zinc-900/90 backdrop-blur-xl">
+                    {/* Header - Più scuro */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-zinc-900/50">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-xl bg-white/10 border border-white/10">
-                                    <FiZap className="w-5 h-5 text-amber-400" />
+                            <div className="p-2 rounded-xl bg-white/10 border border-white/20">
+                                <Sparkles className="w-5 h-5 text-amber-400" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-semibold text-white">Magic Generate</h2>
-                                    <p className="text-xs text-zinc-400 hidden md:block">{deckTitle}</p>
+                                <h2 className="text-lg font-semibold text-white">Silvi AI</h2>
+                                <p className="text-xs text-white/60">{deckTitle}</p>
                                 </div>
                             </div>
                             <button
                                 onClick={handleClose}
                                 disabled={isProcessing}
-                                className="p-2 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <FiX className="w-5 h-5 text-zinc-400" />
+                            <X className="w-5 h-5 text-white/60" />
                             </button>
                         </div>
 
                         {/* Content */}
-                        <div className="p-4 md:p-6 pb-6 md:pb-6">
-                            {/* Drop Zone */}
+                    <div className="p-6 space-y-6 bg-zinc-900/30">
+                        {/* Upload Area */}
+                        {progress.step === 'idle' && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="space-y-4"
+                            >
                             <div
                                 onDragEnter={handleDragEnter}
                                 onDragLeave={handleDragLeave}
                                 onDragOver={handleDragOver}
                                 onDrop={handleDrop}
-                                onClick={() => !isProcessing && fileInputRef.current?.click()}
+                                    onClick={() => !file && fileInputRef.current?.click()}
                                     className={`
-                                    relative w-full h-40 md:h-56 rounded-2xl md:rounded-3xl border border-dashed transition-all duration-300 cursor-pointer
-                                    flex flex-col items-center justify-center gap-3 md:gap-4
+                                        relative w-full h-48 rounded-2xl border-2 border-dashed transition-all duration-300
+                                        flex flex-col items-center justify-center gap-4 cursor-pointer
                                     ${isDragging 
-                                        ? 'border-violet-500/50 bg-violet-500/10' 
+                                            ? 'border-blue-400/50 bg-blue-500/10' 
                                         : file 
-                                            ? 'border-amber-400/40 bg-white/10'
-                                            : 'border-zinc-600/50 bg-white/5 hover:border-zinc-500/60 hover:bg-white/8'
+                                                ? 'border-emerald-400/50 bg-emerald-500/10'
+                                                : 'border-white/20 bg-white/5 hover:border-white/30 hover:bg-white/10'
                                     }
-                                    ${isProcessing ? 'cursor-default' : ''}
                                 `}
                             >
                                 <input
@@ -432,265 +433,581 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                     accept=".pdf,application/pdf"
                                     onChange={handleFileSelect}
                                     className="hidden"
-                                    disabled={isProcessing}
-                                />
+                                    />
 
-                                {/* Step Icon */}
-                                <motion.div
-                                    key={progressStep}
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ duration: 0.3, ease: 'easeOut' }}
-                                    className={`p-3 md:p-4 rounded-2xl bg-white/8 border border-white/10 ${
-                                        isProcessing ? 'animate-pulse' : ''
-                                    }`}
-                                >
-                                    {isProcessing ? (
-                                        <motion.div
-                                            animate={{ rotate: 360 }}
-                                            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                                        >
-                                            <StepIcon className={`w-8 h-8 md:w-10 md:h-10 ${currentStepConfig.color}`} />
-                                        </motion.div>
-                                    ) : (
-                                        <StepIcon className={`w-8 h-8 md:w-10 md:h-10 ${currentStepConfig.color}`} />
-                                    )}
-                                </motion.div>
-
-                                {/* Label */}
-                                <motion.div
-                                    key={`label-${progressStep}`}
-                                    initial={{ opacity: 0, y: 5 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3, ease: 'easeOut' }}
-                                    className="text-center px-4"
-                                >
-                                    <p className={`text-sm md:text-base font-medium ${currentStepConfig.color}`}>
-                                        {progressStep === 'completed' 
-                                            ? `✨ Generate ${generatedCount} flashcard!`
-                                            : (
-                                                <>
-                                                    <span className="md:hidden">{currentStepConfig.labelMobile}</span>
-                                                    <span className="hidden md:inline">{currentStepConfig.label}</span>
-                                                </>
-                                            )
-                                        }
-                                    </p>
-                                    
-                                    {progressStep === 'idle' && !file && (
+                                    {file ? (
                                         <>
-                                            <p className="text-xs text-zinc-400 mt-1 md:hidden">
-                                                Tocca per selezionare un file
-                                            </p>
-                                            <p className="text-xs text-zinc-400 mt-1 hidden md:block">
+                                            <FileText className="w-12 h-12 text-emerald-400" />
+                                            <div className="text-center px-4">
+                                                <p className="text-sm font-medium text-white">{file.name}</p>
+                                                <p className="text-xs text-white/60 mt-1">
+                                                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                                                </p>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Upload className="w-12 h-12 text-white/40" />
+                                            <div className="text-center px-4">
+                                                <p className="text-sm font-medium text-white/80">
+                                                    Trascina il PDF qui
+                                                </p>
+                                                <p className="text-xs text-white/50 mt-1">
                                                 oppure clicca per selezionare
                                             </p>
+                                            </div>
                                         </>
                                     )}
-                                    
-                                    {file && progressStep === 'idle' && (
-                                        <div className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg bg-white/8 border border-white/10 max-w-full">
-                                            <FiFile className="w-4 h-4 text-violet-400 shrink-0" />
-                                            <span className="text-xs text-zinc-300 truncate flex-1">
-                                                {file.name}
-                                            </span>
-                                            <span className="text-xs text-zinc-500 shrink-0">
-                                                ({(file.size / 1024 / 1024).toFixed(1)} MB)
-                                            </span>
                                         </div>
+
+                                {error && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2"
+                                    >
+                                        <AlertCircle className="w-4 h-4 text-red-400" />
+                                        <p className="text-sm text-red-400">{error}</p>
+                                    </motion.div>
+                                )}
+
+                                {file && (
+                                    <motion.button
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        onClick={handleSubmit}
+                                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all"
+                                    >
+                                        Inizia Generazione
+                                    </motion.button>
                                     )}
                                 </motion.div>
-                            </div>
+                        )}
 
-                            {/* Progress Section */}
-                            {progressStep !== 'idle' && (
+                        {/* Processing State */}
+                        {isProcessing && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3, ease: 'easeOut' }}
-                                    className="mt-4 space-y-3"
-                                >
-                                    {/* Progress Bar */}
-                                    {(progressStep === 'generating' || progressStep === 'chunking') && (
-                                        <div className="p-4 rounded-2xl md:rounded-3xl bg-white/8 border border-white/10">
-                                            <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
-                                                <span>Progresso</span>
-                                                <span>
-                                                    {progressStats?.currentChunk || 0}/{progressStats?.totalChunks || 0}
-                                                </span>
-                                            </div>
-                                            <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                                className="space-y-6"
+                            >
+                                {/* Robot Animation */}
+                                <div className="relative w-full h-48 rounded-2xl bg-zinc-800/50 border border-white/5 overflow-hidden flex items-center justify-center">
+                                    {/* Robot SVG */}
                                                 <motion.div
-                                                    initial={{ width: 0 }}
-                                                    animate={{ width: `${progressPercent}%` }}
-                                                    transition={{ duration: 0.5, ease: 'easeOut' }}
-                                                    className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
-                                                />
-                                            </div>
-                                            {progressStep === 'generating' && progressStats?.currentTopic && (
+                                        className="relative"
+                                        animate={{
+                                            rotateY: [0, 15, -15, 0],
+                                        }}
+                                        transition={{
+                                            duration: 4,
+                                            repeat: Infinity,
+                                            ease: 'easeInOut',
+                                        }}
+                                    >
+                                        <motion.svg
+                                            width="120"
+                                            height="120"
+                                            viewBox="0 0 120 120"
+                                            className="relative z-10"
+                                            animate={{
+                                                y: [0, -5, 0],
+                                            }}
+                                            transition={{
+                                                duration: 2,
+                                                repeat: Infinity,
+                                                ease: 'easeInOut',
+                                            }}
+                                        >
+                                            {/* Robot Body */}
+                                            <rect
+                                                x="30"
+                                                y="40"
+                                                width="60"
+                                                height="60"
+                                                rx="8"
+                                                fill="#3b82f6"
+                                                opacity="0.9"
+                                            />
+                                            {/* Robot Head */}
+                                            <rect
+                                                x="40"
+                                                y="20"
+                                                width="40"
+                                                height="30"
+                                                rx="6"
+                                                fill="#60a5fa"
+                                                opacity="0.95"
+                                            />
+                                            {/* Eyes */}
+                                            <motion.circle
+                                                cx="52"
+                                                cy="32"
+                                                r="4"
+                                                fill="#ffffff"
+                                                animate={{
+                                                    scale: [1, 1.2, 1],
+                                                    opacity: [0.8, 1, 0.8],
+                                                }}
+                                                transition={{
+                                                    duration: 1.5,
+                                                    repeat: Infinity,
+                                                }}
+                                            />
+                                            <motion.circle
+                                                cx="68"
+                                                cy="32"
+                                                r="4"
+                                                fill="#ffffff"
+                                                animate={{
+                                                    scale: [1, 1.2, 1],
+                                                    opacity: [0.8, 1, 0.8],
+                                                }}
+                                                transition={{
+                                                    duration: 1.5,
+                                                    repeat: Infinity,
+                                                    delay: 0.2,
+                                                }}
+                                            />
+                                            {/* Eye pupils */}
+                                            <motion.circle
+                                                cx="52"
+                                                cy="32"
+                                                r="2"
+                                                fill="#1e40af"
+                                                animate={{
+                                                    cx: ['52', '54', '50', '52'],
+                                                    cy: ['32', '30', '34', '32'],
+                                                }}
+                                                transition={{
+                                                    duration: 3,
+                                                    repeat: Infinity,
+                                                    ease: 'easeInOut',
+                                                }}
+                                            />
+                                            <motion.circle
+                                                cx="68"
+                                                cy="32"
+                                                r="2"
+                                                fill="#1e40af"
+                                                animate={{
+                                                    cx: ['68', '70', '66', '68'],
+                                                    cy: ['32', '30', '34', '32'],
+                                                }}
+                                                transition={{
+                                                    duration: 3,
+                                                    repeat: Infinity,
+                                                    ease: 'easeInOut',
+                                                    delay: 0.1,
+                                                }}
+                                            />
+                                            {/* Mouth */}
+                                            <motion.path
+                                                d="M 50 42 Q 60 48 70 42"
+                                                stroke="#ffffff"
+                                                strokeWidth="2"
+                                                fill="none"
+                                                strokeLinecap="round"
+                                                animate={{
+                                                    d: [
+                                                        'M 50 42 Q 60 48 70 42',
+                                                        'M 50 44 Q 60 46 70 44',
+                                                        'M 50 42 Q 60 48 70 42',
+                                                    ],
+                                                }}
+                                                transition={{
+                                                    duration: 2,
+                                                    repeat: Infinity,
+                                                }}
+                                            />
+                                            {/* Antenna */}
+                                            <circle cx="60" cy="15" r="3" fill="#fbbf24" />
+                                            <motion.line
+                                                x1="60"
+                                                y1="15"
+                                                x2="60"
+                                                y2="20"
+                                                stroke="#fbbf24"
+                                                strokeWidth="2"
+                                                animate={{
+                                                    opacity: [0.5, 1, 0.5],
+                                                }}
+                                                transition={{
+                                                    duration: 1,
+                                                    repeat: Infinity,
+                                                }}
+                                            />
+                                            {/* Arms */}
+                                            <motion.rect
+                                                x="15"
+                                                y="50"
+                                                width="12"
+                                                height="30"
+                                                rx="6"
+                                                fill="#2563eb"
+                                                animate={{
+                                                    rotate: [0, 20, 0, -20, 0],
+                                                }}
+                                                transition={{
+                                                    duration: 3,
+                                                    repeat: Infinity,
+                                                    ease: 'easeInOut',
+                                                }}
+                                            />
+                                            <motion.rect
+                                                x="93"
+                                                y="50"
+                                                width="12"
+                                                height="30"
+                                                rx="6"
+                                                fill="#2563eb"
+                                                animate={{
+                                                    rotate: [0, -20, 0, 20, 0],
+                                                }}
+                                                transition={{
+                                                    duration: 3,
+                                                    repeat: Infinity,
+                                                    ease: 'easeInOut',
+                                                    delay: 0.5,
+                                                }}
+                                            />
+                                            {/* Chest panel */}
+                                            <rect
+                                                x="45"
+                                                y="55"
+                                                width="30"
+                                                height="20"
+                                                rx="4"
+                                                fill="#1e40af"
+                                                opacity="0.6"
+                                            />
+                                            {/* Scanning effect on chest */}
+                                            <motion.rect
+                                                x="45"
+                                                y="55"
+                                                width="30"
+                                                height="20"
+                                                rx="4"
+                                                fill="url(#scanGradient)"
+                                                opacity="0.4"
+                                                animate={{
+                                                    opacity: [0.2, 0.6, 0.2],
+                                                }}
+                                                transition={{
+                                                    duration: 1.5,
+                                                    repeat: Infinity,
+                                                }}
+                                            />
+                                            <defs>
+                                                <linearGradient id="scanGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                    <stop offset="0%" stopColor="#60a5fa" stopOpacity="0" />
+                                                    <stop offset="50%" stopColor="#60a5fa" stopOpacity="1" />
+                                                    <stop offset="100%" stopColor="#60a5fa" stopOpacity="0" />
+                                                </linearGradient>
+                                            </defs>
+                                        </motion.svg>
+                                    </motion.div>
+
+                                    {/* Speech Bubble */}
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        className="absolute top-2 left-2 right-2"
+                                    >
+                                        <div className="relative px-4 py-3 rounded-2xl bg-zinc-800/90 border border-white/10 shadow-xl">
+                                            {/* Bubble tail */}
+                                            <div className="absolute -bottom-2 left-8 w-4 h-4 bg-zinc-800/90 border-l border-b border-white/10 transform rotate-45" />
+                                            
                                                 <motion.p
+                                                key={progress.message || progress.step}
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
-                                                    className="mt-3 text-sm text-zinc-300"
-                                                >
-                                                    Analisi in corso: {progressStats.currentTopic}...
+                                                className="text-sm font-medium text-white/90 text-center"
+                                            >
+                                                {progress.step === 'uploading' && '📤 Caricando il tuo PDF...'}
+                                                {progress.step === 'analyzing' && '🧠 Analizzando la struttura del documento...'}
+                                                {progress.step === 'processing' && '📄 Elaborando il contenuto...'}
+                                                {progress.step === 'generating' && `✨ Creando le flashcard ${progress.currentChunk || 0}/${progress.totalChunks || 0}...`}
+                                                {progress.message && progress.message}
                                                 </motion.p>
-                                            )}
-                                            {progressStep === 'generating' && (
-                                                <p className="mt-1 text-xs text-zinc-500">
-                                                    {progressStats?.generatedSoFar || 0} flashcard create
-                                                </p>
-                                            )}
                                         </div>
-                                    )}
+                                    </motion.div>
 
-                                    {/* Blueprint Grid */}
-                                    {progressBlueprint && progressStep !== 'error' && (
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                            {/* Main Blueprint Card */}
-                                            <div className="md:col-span-2 p-4 rounded-2xl md:rounded-3xl bg-white/8 border border-white/10">
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <span className={`text-xs px-2 py-1 rounded-full border ${blueprintConfig.badge}`}>
-                                                        {blueprintConfig.label}
-                                                    </span>
-                                                    <span className="text-xs text-zinc-400">
-                                                        Densità {densityPercent}%
-                                                    </span>
+                                    {/* Thinking particles */}
+                                    <div className="absolute top-4 right-4">
+                                        {[...Array(3)].map((_, i) => (
+                                            <motion.div
+                                                key={i}
+                                                className="absolute w-2 h-2 bg-blue-400 rounded-full"
+                                                style={{
+                                                    right: `${i * 8}px`,
+                                                    top: `${i * 6}px`,
+                                                }}
+                                                animate={{
+                                                    opacity: [0.3, 1, 0.3],
+                                                    scale: [0.8, 1.2, 0.8],
+                                                }}
+                                                transition={{
+                                                    duration: 1.5,
+                                                    repeat: Infinity,
+                                                    delay: i * 0.3,
+                                                }}
+                                            />
+                                        ))}
                                                 </div>
-                                                <p className="text-sm text-zinc-300 leading-relaxed">
-                                                    {progressBlueprint.globalContext}
-                                                </p>
                                             </div>
 
-                                            {/* Topics Card */}
-                                            {progressBlueprint.mainTopics?.length > 0 && (
-                                                <div className="p-4 rounded-2xl md:rounded-3xl bg-white/8 border border-white/10">
-                                                    <p className="text-xs text-zinc-400 mb-2 font-medium">Argomenti principali</p>
+                                {/* Step Icon & Animation */}
+                                <div className="flex flex-col items-center gap-4">
+                                    <motion.div
+                                        animate={{ 
+                                            scale: [1, 1.1, 1],
+                                            rotate: progress.step === 'analyzing' ? [0, 360] : 0,
+                                        }}
+                                        transition={{ 
+                                            duration: progress.step === 'analyzing' ? 3 : 2,
+                                            repeat: Infinity,
+                                            ease: 'easeInOut',
+                                        }}
+                                        className="p-4 rounded-2xl bg-zinc-800/50 border border-white/5"
+                                    >
+                                        <StepIcon className={`w-12 h-12 ${stepConfig.color}`} />
+                                    </motion.div>
+
+                                    <div className="text-center space-y-2">
+                                        <h3 className="text-lg font-semibold text-white">{stepConfig.label}</h3>
+                                        {progress.message && (
+                                            <p className="text-sm text-white/60">{progress.message}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* AI Insights - Blueprint & Concepts */}
+                                {(progress.blueprint || progress.concepts) && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                        className="space-y-3"
+                                    >
+                                        {progress.blueprint?.mainTopics && progress.blueprint.mainTopics.length > 0 && (
+                                            <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Target className="w-4 h-4 text-violet-400" />
+                                                    <p className="text-xs font-semibold text-white/80">Argomenti Principali</p>
+                                                </div>
                                                     <div className="flex flex-wrap gap-2">
-                                                        {progressBlueprint.mainTopics.map((topic) => (
-                                                            <span
-                                                                key={topic}
-                                                                className="text-xs px-2.5 py-1 rounded-full bg-white/8 text-zinc-200 border border-white/10"
+                                                    {progress.blueprint.mainTopics.slice(0, 5).map((topic, idx) => (
+                                                        <motion.span
+                                                            key={idx}
+                                                            initial={{ opacity: 0, scale: 0.8 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
+                                                            transition={{ delay: idx * 0.1 }}
+                                                            className="px-2.5 py-1 rounded-lg bg-violet-500/20 border border-violet-500/30 text-xs text-violet-300"
                                                             >
                                                                 {topic}
-                                                            </span>
+                                                        </motion.span>
                                                         ))}
                                                     </div>
                                                 </div>
                                             )}
+                                        
+                                        {progress.concepts && progress.concepts.length > 0 && (
+                                            <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Lightbulb className="w-4 h-4 text-amber-400" />
+                                                    <p className="text-xs font-semibold text-white/80">Concetti Chiave</p>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {progress.concepts.slice(0, 6).map((concept, idx) => (
+                                                        <motion.span
+                                                            key={idx}
+                                                            initial={{ opacity: 0, scale: 0.8 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
+                                                            transition={{ delay: idx * 0.1 }}
+                                                            className="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/30 text-xs text-amber-300"
+                                                        >
+                                                            {concept}
+                                                        </motion.span>
+                                                    ))}
+                                                </div>
+                                        </div>
+                                        )}
+                                    </motion.div>
+                                )}
+
+                                {/* Real-time Logs */}
+                                <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5 max-h-48 overflow-y-auto">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Brain className="w-4 h-4 text-violet-400" />
+                                        <p className="text-xs font-semibold text-white/80">Log Analisi AI</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <AnimatePresence>
+                                            {logs.map((log) => {
+                                                const LogIcon = log.icon || FileText;
+                                                return (
+                                                    <motion.div
+                                                        key={log.id}
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, x: 10 }}
+                                                        className="flex items-start gap-2 text-xs"
+                                                    >
+                                                        <LogIcon className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${
+                                                            log.type === 'success' ? 'text-emerald-400' :
+                                                            log.type === 'warning' ? 'text-amber-400' :
+                                                            log.type === 'analysis' ? 'text-violet-400' :
+                                                            'text-white/50'
+                                                        }`} />
+                                                        <p className={`flex-1 ${
+                                                            log.type === 'success' ? 'text-emerald-300' :
+                                                            log.type === 'warning' ? 'text-amber-300' :
+                                                            log.type === 'analysis' ? 'text-violet-300' :
+                                                            'text-white/60'
+                                                        }`}>
+                                                            {log.message}
+                                                        </p>
+                                                        <span className="text-white/30 text-[10px]">
+                                                            {new Date(log.timestamp).toLocaleTimeString('it-IT', { 
+                                                                hour: '2-digit', 
+                                                                minute: '2-digit',
+                                                                second: '2-digit'
+                                                            })}
+                                                        </span>
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </AnimatePresence>
+                                        <div ref={logsEndRef} />
+                                    </div>
+                                </div>
+
+                                    {/* Progress Bar */}
+                                {progress.progress !== undefined && (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between text-xs text-white/60">
+                                                <span>Progresso</span>
+                                            <span>{progress.progress}%</span>
+                                            </div>
+                                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                animate={{ width: `${progress.progress}%` }}
+                                                transition={{ duration: 0.3, ease: 'easeOut' }}
+                                                className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
+                                            />
+                                                    </div>
                                         </div>
                                     )}
 
-                                    {/* Status Messages */}
-                                    {progressStep === 'analyzing' && (
-                                        <div className="p-4 rounded-2xl md:rounded-3xl bg-white/8 border border-white/10">
-                                            <p className="text-sm text-zinc-300">
-                                                Analisi strutturale del documento in corso...
+                                {/* Stats */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    {progress.generatedCount !== undefined && (
+                                        <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
+                                            <p className="text-xs text-white/50 mb-1">Flashcard generate</p>
+                                            <p className="text-2xl font-bold text-white">{progress.generatedCount}</p>
+                                        </div>
+                                    )}
+                                    {progress.totalChunks && (
+                                        <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
+                                            <p className="text-xs text-white/50 mb-1">Sezioni elaborate</p>
+                                            <p className="text-2xl font-bold text-white">
+                                                {progress.currentChunk || 0} / {progress.totalChunks}
                                             </p>
                                         </div>
                                     )}
+                                </div>
 
-                                    {progressStep === 'chunking' && !progressStats?.currentChunk && (
-                                        <div className="p-4 rounded-2xl md:rounded-3xl bg-white/8 border border-white/10">
-                                            <p className="text-sm text-zinc-300">
-                                                Preparazione {progressStats?.totalChunks || 0} sezioni per la generazione...
+                                {/* Time Estimate */}
+                                <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="text-xs text-white/50">Tempo stimato</p>
+                                        {progress.elapsedTime !== undefined && (
+                                            <p className="text-xs text-white/50">
+                                                {formatTime(progress.elapsedTime)} trascorsi
                                             </p>
+                                        )}
+                                            </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                            {estimatedTimeRemaining > 0 && (
+                                                <motion.div
+                                                    initial={{ width: '100%' }}
+                                                    animate={{ 
+                                                        width: progress.elapsedTime && progress.estimatedTime
+                                                            ? `${((progress.estimatedTime - progress.elapsedTime) / progress.estimatedTime) * 100}%`
+                                                            : '100%'
+                                                    }}
+                                                    transition={{ duration: 1, ease: 'linear' }}
+                                                    className="h-full bg-gradient-to-r from-blue-400 to-violet-500 rounded-full"
+                                                />
+                                            )}
                                         </div>
-                                    )}
-
-                                    {progressStep === 'completed' && (
-                                        <div className="flex items-center gap-3 p-4 rounded-2xl md:rounded-3xl bg-amber-400/10 border border-amber-400/20">
-                                            <FiCheck className="w-5 h-5 text-amber-400 shrink-0" />
-                                            <div>
-                                                <p className="text-sm text-amber-300 font-medium">Completato!</p>
-                                                <p className="text-xs text-amber-300/70 mt-0.5">
-                                                    {generatedCount} flashcard create
+                                        <p className="text-sm font-medium text-white min-w-[60px] text-right">
+                                            {estimatedTimeRemaining > 0 
+                                                ? formatTime(estimatedTimeRemaining)
+                                                : 'Quasi fatto...'
+                                            }
                                                 </p>
                                             </div>
                                         </div>
-                                    )}
                                 </motion.div>
                             )}
 
-                            {/* Error Message */}
-                            {error && (
+                        {/* Completed State */}
+                        {progress.step === 'completed' && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: -5 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="mt-4 p-4 rounded-2xl md:rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center gap-3"
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex flex-col items-center gap-4 text-center"
+                            >
+                                <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                                    className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/30"
                                 >
-                                    <FiAlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-                                    <p className="text-sm text-red-400">{error}</p>
+                                    <CheckCircle2 className="w-12 h-12 text-emerald-400" />
                                 </motion.div>
-                            )}
-
-                            {/* Info */}
-                            <div className="mt-4 p-4 rounded-2xl md:rounded-3xl bg-white/8 border border-white/10">
-                                <div className="flex items-start gap-3">
-                                    <FiBookOpen className="w-5 h-5 text-violet-400 mt-0.5 shrink-0" />
-                                    <div className="text-xs text-zinc-400 space-y-1.5">
-    <p><strong className="text-zinc-200">Come funziona:</strong></p>
-    <p>1. Carica il tuo materiale (Slide, Manuali, Appunti).</p>
-    <p>2. L'AI identifica la struttura e il contesto globale.</p>
-    <p>3. Genera flashcard mirate, divise per argomenti logici.</p>
-    <p className="text-zinc-600 mt-2 flex items-center gap-1">
-        <FiCpu className="w-3 h-3" /> 
-        Motore neurale attivo • Max 10MB
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white mb-1">
+                                        Generazione completata!
+                                    </h3>
+                                    <p className="text-sm text-white/60">
+                                        {progress.generatedCount || 0} flashcard generate con successo
     </p>
 </div>
-                                </div>
-                            </div>
+                                </motion.div>
+                            )}
 
-                            {/* Actions */}
-                            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 mt-6">
+                        {/* Error State */}
+                        {progress.step === 'error' && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex flex-col items-center gap-4 text-center"
+                            >
+                                <div className="p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
+                                    <AlertCircle className="w-12 h-12 text-red-400" />
+</div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white mb-1">Errore</h3>
+                                    <p className="text-sm text-white/60">{error || 'Si è verificato un errore'}</p>
+                                </div>
                                 <button
-                                    onClick={handleClose}
-                                    disabled={isProcessing}
-                                    className="w-full md:w-auto px-4 py-3 rounded-xl bg-white/8 text-zinc-200 hover:bg-white/12 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-white/10"
+                                    onClick={() => {
+                                        setProgress({ step: 'idle' });
+                                        setError(null);
+                                    }}
+                                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
                                 >
-                                    Annulla
+                                    Riprova
                                 </button>
-                                <motion.button
-                                    whileHover={{ scale: file && !isProcessing ? 1.01 : 1 }}
-                                    whileTap={{ scale: file && !isProcessing ? 0.99 : 1 }}
-                                    onClick={handleGenerate}
-                                    disabled={!file || isProcessing || progressStep === 'completed'}
-                                    className={`
-                                        w-full md:flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all
-                                        ${file && !isProcessing && progressStep !== 'completed'
-                                            ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30'
-                                            : 'bg-white/8 text-zinc-400 cursor-not-allowed border border-white/10'
-                                        }
-                                    `}
-                                >
-                                    {isProcessing ? (
-                                        <>
-                                            <motion.div
-                                                animate={{ rotate: 360 }}
-                                                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                                            >
-                                                <FiCpu className="w-5 h-5" />
                                             </motion.div>
-                                            Elaborazione...
-                                        </>
-                                    ) : progressStep === 'completed' ? (
-                                        <>
-                                            <FiCheck className="w-5 h-5" />
-                                            Completato!
-                                        </>
-                                    ) : (
-                                        <>
-                                            <FiZap className="w-5 h-5" />
-                                            Genera Flashcard
-                                        </>
-                                    )}
-                                </motion.button>
-                            </div>
+                        )}
                         </div>
                     </motion.div>
                 </motion.div>
-            )}
         </AnimatePresence>
     );
 };
