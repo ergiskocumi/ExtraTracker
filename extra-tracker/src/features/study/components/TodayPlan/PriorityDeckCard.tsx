@@ -164,7 +164,8 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
             </div>
 
             {/* Azioni rapide */}
-            <div className="flex gap-3">
+            <div className="flex items-center gap-2">
+                {/* Pulsante principale - Ben visibile */}
                 <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -185,14 +186,19 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
                     <Play className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span>Inizia Studio</span>
                 </motion.button>
+                
+                {/* Pulsante secondario - Piccolo e semi-trasparente */}
                 <motion.button
-                    whileHover={{ scale: 1.05 }}
+                    whileHover={{ scale: 1.1, opacity: 1 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => onViewDetail(deck.id)}
-                    className="px-4 sm:px-5 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/30 transition-all touch-manipulation min-h-[48px] sm:min-h-[52px] shadow-lg"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetail(deck.id);
+                    }}
+                    className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition-all touch-manipulation opacity-60 hover:opacity-100"
                     aria-label="Visualizza dettagli"
                 >
-                    <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <Eye className="w-4 h-4 sm:w-4 sm:h-4" />
                 </motion.button>
             </div>
         </motion.div>
