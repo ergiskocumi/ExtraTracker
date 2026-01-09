@@ -18,15 +18,18 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
     mentalState,
 }) => {
     return (
-        <>
+        <div className="w-full max-w-6xl px-2 mx-auto sm:px-4 space-y-4">
             <HeroStats
                 totalDecks={totalDecks}
                 totalCards={totalCards}
                 dueCards={dueCards}
                 masteredDecks={masteredDecks}
             />
-            <MentalStateIndicator mentalState={mentalState} />
-        </>
+            {/* Mental State Card - Compact with proper spacing */}
+            <div className="mb-6 sm:mb-8">
+                <MentalStateIndicator mentalState={mentalState} />
+            </div>
+        </div>
     );
 };
 

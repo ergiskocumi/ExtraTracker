@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Folder as FolderIcon } from 'lucide-react';
+import { Plus, X, Folder as FolderIcon, Menu } from 'lucide-react';
 import { FolderTree } from '../Organization/FolderTree';
 import { TagCloud } from '../Organization/TagCloud';
 import type { Folder, Tag } from '../../services/foldersService';
@@ -10,6 +10,7 @@ import { emitToast } from '../../../../shared/components/toast';
 interface DashboardSidebarProps {
     isOpen: boolean;
     onClose: () => void;
+    onToggle?: () => void;
     folders: Folder[];
     tags: Tag[];
     selectedFolderId: string | null;
@@ -29,6 +30,7 @@ interface DashboardSidebarProps {
 export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     isOpen,
     onClose,
+    onToggle,
     folders,
     tags,
     selectedFolderId,
@@ -40,42 +42,105 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     onRefresh,
 }) => {
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <motion.aside
-                    initial={{ x: -350, opacity: 0 }}
-                    animate={{ x: -50, opacity: 1 }}
-                    exit={{ x: -350, opacity: 0 }}
-                    transition={{ 
-                        type: 'spring', 
-                        damping: 30, 
-                        stiffness: 250 
-                    }}
-                    className="hidden lg:flex flex-col w-80 
-                               border-r border-violet-500/25 
-                               relative bg-gradient-to-b from-[#111122]/85 to-[#0f172a]/55 
-                               backdrop-blur-xl 
-                               shadow-[inset_0_0_15px_rgba(139,92,246,0.1),_0_0_25px_rgba(0,0,0,0.3)]
-                               ml-[-15px]"
-                >
-                    <div className="p-5 border-b border-white/10 bg-[#111122]/30">
-                        <div className="flex items-center justify-between mb-1">
-                            <h2 className="text-sm font-bold text-white/90 uppercase tracking-widest">
-                                Organizza
-                            </h2>
-                            <button
-                                onClick={onClose}
-                                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors lg:hidden"
-                            >
-                                <X className="w-4 h-4 text-white/60" />
-                            </button>
-                        </div>
-                        <p className="text-[10px] text-white/40 mt-1">
-                            💡 Trascina un mazzo per organizzarlo
-                        </p>
-                    </div>
+        <>
+            {/* Floating Action Button */}
+            <motion.button
+                initial={{ scale: 0 }}
+                animate={{ scale: 1, rotate: isOpen ? 90 : 0 }}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                    if (onToggle) {
+                        onToggle();
+                    } else {
+                        // Fallback: se non c'è toggle, chiude se aperto
+                        if (isOpen) {
+                            onClose();
+                        }
+                    }
+                }}
+                className={`fixed bottom-6 right-6 z-40
+                           w-14 h-14 rounded-full
+                           ${isOpen 
+                               ? 'bg-gradient-to-br from-violet-600 to-purple-700' 
+                               : 'bg-gradient-to-br from-violet-500 to-purple-600'
+                           }
+                           shadow-lg shadow-violet-500/50
+                           border border-violet-400/30
+                           flex items-center justify-center
+                           hover:shadow-xl hover:shadow-violet-500/60
+                           transition-all duration-300
+                           backdrop-blur-sm`}
+                aria-label={isOpen ? "Chiudi organizzazione" : "Apri organizzazione"}
+            >
+                {isOpen ? (
+                    <X className="w-6 h-6 text-white" />
+                ) : (
+                    <Menu className="w-6 h-6 text-white" />
+                )}
+            </motion.button>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            {/* Overlay backdrop */}
+            <AnimatePresence>
+                {isOpen && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={onClose}
+                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                        />
+                        
+                        {/* Drawer/Overlay Sidebar */}
+                        <motion.aside
+                            initial={{ 
+                                x: '100%',
+                                y: 0
+                            }}
+                            animate={{ 
+                                x: 0,
+                                y: 0
+                            }}
+                            exit={{ 
+                                x: '100%',
+                                y: 0
+                            }}
+                            transition={{ 
+                                type: 'spring', 
+                                damping: 30, 
+                                stiffness: 300 
+                            }}
+                            className="fixed top-0 right-0 h-full w-full max-w-sm
+                                       sm:max-w-sm
+                                       bg-gradient-to-b from-[#111122]/95 to-[#0f172a]/95 
+                                       backdrop-blur-xl 
+                                       border-l border-violet-500/25
+                                       shadow-2xl shadow-black/50
+                                       z-50
+                                       flex flex-col"
+                        >
+                            {/* Header */}
+                            <div className="p-5 border-b border-white/10 bg-[#111122]/30 flex-shrink-0">
+                                <div className="flex items-center justify-between mb-1">
+                                    <h2 className="text-sm font-bold text-white/90 uppercase tracking-widest">
+                                        Organizza
+                                    </h2>
+                                    <button
+                                        onClick={onClose}
+                                        className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                        aria-label="Chiudi"
+                                    >
+                                        <X className="w-5 h-5 text-white/60" />
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-white/40 mt-1">
+                                    💡 Trascina un mazzo per organizzarlo
+                                </p>
+                            </div>
+
+                            {/* Scrollable content */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                         {/* Cartelle */}
                         <div>
                             <div className="flex items-center justify-between mb-4">
@@ -149,10 +214,12 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                                 onTagToggle={onTagToggle}
                                 onRefresh={onRefresh}
                             />
+                            </div>
                         </div>
-                    </div>
-                </motion.aside>
-            )}
-        </AnimatePresence>
+                        </motion.aside>
+                    </>
+                )}
+            </AnimatePresence>
+        </>
     );
 };

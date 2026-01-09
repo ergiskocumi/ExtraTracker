@@ -12,7 +12,7 @@ import {
     FiBellOff,
     FiClock,
 } from 'react-icons/fi';
-import { emitToast } from '../../../shared/components/toast';
+import { emitToast } from '../../../../shared/components/toast/toastEvents'; ;
 
 interface DeckNotificationsProps {
     deckId: string;
@@ -25,16 +25,45 @@ export const DeckNotifications: React.FC<DeckNotificationsProps> = ({
     dueCardsCount,
     deckTitle,
 }) => {
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-    const lastNotificationTimeRef = useRef<Date | null>(null);
+    // Inizializza preferenze da localStorage in modo robusto (senza setState in effect)
+    const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(() => {
+        try {
+            if (typeof window === 'undefined') return true;
 
-    // Carica preferenze notifiche dal localStorage
-    useEffect(() => {
-        const saved = localStorage.getItem(`deck-notifications-${deckId}`);
-        if (saved !== null) {
-            setNotificationsEnabled(JSON.parse(saved));
+            const toBool = (val: unknown): boolean | null => {
+                if (typeof val === 'boolean') return val;
+                if (typeof val === 'number') return val !== 0;
+                if (typeof val === 'string') {
+                    const v = val.trim().toLowerCase();
+                    if (['true', '1', 'yes', 'on'].includes(v)) return true;
+                    if (['false', '0', 'no', 'off'].includes(v)) return false;
+                }
+                return null;
+            };
+
+            const key = `deck-notifications-${deckId}`;
+            const saved = window.localStorage.getItem(key);
+            if (saved !== null) {
+                let parsed: unknown = saved;
+                try { parsed = JSON.parse(saved); } catch { /* plain string */ }
+                const value = toBool(parsed);
+                if (value !== null) return value;
+            }
+
+            const globalRaw = window.localStorage.getItem('global-deck-notifications');
+            if (globalRaw !== null) {
+                let globalParsed: unknown = globalRaw;
+                try { globalParsed = JSON.parse(globalRaw); } catch { /* plain string */ }
+                const globalVal = toBool(globalParsed);
+                if (globalVal !== null) return globalVal;
+            }
+
+            return true;
+        } catch {
+            return true;
         }
-    }, [deckId]);
+    });
+    const lastNotificationTimeRef = useRef<Date | null>(null);
 
     // Controlla se ci sono carte in scadenza e mostra notifica
     useEffect(() => {
@@ -108,15 +137,15 @@ export const DeckNotifications: React.FC<DeckNotificationsProps> = ({
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-4 mb-6"
+                    className="p-4 mb-6 border rounded-2xl border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10"
                 >
                     <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1">
-                            <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/30">
+                        <div className="flex items-start flex-1 gap-3">
+                            <div className="p-2 border rounded-xl bg-amber-500/20 border-amber-500/30">
                                 <FiClock className="w-5 h-5 text-amber-400" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="text-base font-semibold text-white mb-1">
+                                <h3 className="mb-1 text-base font-semibold text-white">
                                     Carte in Scadenza
                                 </h3>
                                 <p className="text-sm text-white/70">
@@ -128,7 +157,7 @@ export const DeckNotifications: React.FC<DeckNotificationsProps> = ({
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleToggleNotifications}
-                                className="p-2 rounded-lg hover:bg-white/10 transition-all"
+                                className="p-2 transition-all rounded-lg hover:bg-white/10"
                                 title={notificationsEnabled ? 'Disabilita notifiche' : 'Abilita notifiche'}
                             >
                                 {notificationsEnabled ? (
@@ -148,21 +177,4 @@ export const DeckNotifications: React.FC<DeckNotificationsProps> = ({
 /**
  * Hook per gestire notifiche globali per tutti i deck
  */
-export const useDeckNotifications = () => {
-    const [enabled, setEnabled] = useState(() => {
-        const saved = localStorage.getItem('global-deck-notifications');
-        return saved ? JSON.parse(saved) : true;
-    });
-
-    useEffect(() => {
-        localStorage.setItem('global-deck-notifications', JSON.stringify(enabled));
-    }, [enabled]);
-
-    const requestPermission = async () => {
-        if ('Notification' in window && Notification.permission === 'default') {
-            await Notification.requestPermission();
-        }
-    };
-
-    return { enabled, setEnabled, requestPermission };
-};
+// Nota: l'hook globale è stato spostato in useDeckNotifications.ts

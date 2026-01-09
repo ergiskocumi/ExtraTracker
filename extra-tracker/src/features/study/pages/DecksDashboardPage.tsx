@@ -1,5 +1,5 @@
 /**
- * 📚 DECKS DASHBOARD PAGE - User-Friendly Redesign
+ * DECKS DASHBOARD PAGE - User-Friendly Redesign
  * 
  * Redesign completo con focus su UX:
  * - Card grandi e leggibili
@@ -16,8 +16,6 @@ import { useDeckHandlers } from '../hooks/useDeckHandlers';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { DashboardHero } from '../components/DashboardHero';
 import { TodayPlan } from '../components/TodayPlan';
-import { StudyTimeline } from '../components/StudyTimeline';
-import { NextSteps } from '../components/NextSteps';
 import { FilterBar } from '../components/FilterBar';
 import { DashboardContent } from '../components/DashboardContent';
 import { DashboardModals } from '../components/DashboardModals';
@@ -30,7 +28,7 @@ export const DecksDashboardPage: React.FC = () => {
     // Organization state
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [filter, setFilter] = useState<FilterType>('all');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -52,9 +50,7 @@ export const DecksDashboardPage: React.FC = () => {
     const {
         folderStats,
         todayPriorityDecks,
-        weeklyStudyPlan,
         calculateMentalState,
-        nextSteps,
         filteredDecks,
         totalCards,
         masteredDecks,
@@ -100,6 +96,7 @@ export const DecksDashboardPage: React.FC = () => {
         <DashboardLayout
             isSidebarOpen={isSidebarOpen}
             onSidebarClose={() => setIsSidebarOpen(false)}
+            onSidebarToggle={() => setIsSidebarOpen(prev => !prev)} 
             folders={folders}
             tags={tags}
             selectedFolderId={selectedFolderId}
@@ -130,29 +127,6 @@ export const DecksDashboardPage: React.FC = () => {
                     onFilterChange={setFilter}
                     onStudy={handlers.handleStudy}
                     onViewDetail={handlers.handleViewDetail}
-                />
-            )}
-
-            {/* Timeline di Studio Visiva */}
-            {!isLoading && decks.length > 0 && (
-                <StudyTimeline
-                    weeklyPlan={weeklyStudyPlan}
-                    onFilterChange={setFilter}
-                />
-            )}
-
-            {/* Prossimi Passi Guidati */}
-            {!isLoading && nextSteps.length > 0 && (
-                <NextSteps
-                    steps={nextSteps}
-                    decks={decks}
-                    onStudy={handlers.handleStudy}
-                    onFilterChange={setFilter}
-                    onMagicGenerate={(deck) => {
-                        handlers.setSelectedDeck(deck);
-                        handlers.setIsMagicGenerateOpen(true);
-                    }}
-                    onCreateDeck={() => handlers.setIsCreateModalOpen(true)}
                 />
             )}
 

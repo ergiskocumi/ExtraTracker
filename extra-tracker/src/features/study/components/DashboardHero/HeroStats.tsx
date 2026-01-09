@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Layers, BookOpen, Clock, CheckCircle, TrendingUp, Target, Eye, Zap } from 'lucide-react';
+import { Layers, BookOpen, Clock, CheckCircle} from 'lucide-react';
 
 interface StatItem {
     label: string;
@@ -55,7 +55,7 @@ const StatCard: React.FC<{
             `}
         >
             {/* Animated background gradient */}
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="absolute inset-0 transition-opacity duration-300 opacity-0 group-hover:opacity-100">
                 <div className={`absolute inset-0 bg-gradient-to-br ${stat.bgClass.replace('border', '').replace('bg-', 'from-').replace('/10', '/5')} opacity-50`} />
             </div>
 
@@ -74,7 +74,7 @@ const StatCard: React.FC<{
                     {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
                 </div>
                 
-                <div className="text-xs sm:text-sm text-white/70 font-medium tracking-wide">
+                <div className="text-xs font-medium tracking-wide sm:text-sm text-white/70">
                     {stat.label}
                 </div>
             </div>
@@ -90,10 +90,6 @@ export const HeroStats: React.FC<HeroStatsProps> = ({
     totalCards, 
     dueCards, 
     masteredDecks,
-    retentionRate = 85,
-    streakDays = 12,
-    weeklyGoal = 50,
-    completedToday = 8
 }) => {
     // Enhanced stats configuration with better mobile optimization
     const baseStats: StatItem[] = [
@@ -139,80 +135,28 @@ export const HeroStats: React.FC<HeroStatsProps> = ({
         }
     ];
 
-    // Additional performance stats
-    const performanceStats: StatItem[] = [
-        {
-            label: 'Retent. Media',
-            value: `${retentionRate}%`,
-            icon: Target,
-            color: 'rose',
-            bgClass: 'bg-rose-500/10 border-rose-500/20',
-            iconClass: 'text-rose-400',
-            valueClass: 'text-rose-400',
-            description: 'Percentuale media di ricordo'
-        },
-        {
-            label: 'Serie Giorni',
-            value: streakDays,
-            icon: Fire,
-            color: 'orange',
-            bgClass: 'bg-orange-500/10 border-orange-500/20',
-            iconClass: 'text-orange-400',
-            valueClass: 'text-orange-400',
-            description: 'Giorni consecutivi di studio'
-        },
-        {
-            label: 'Oggi',
-            value: completedToday,
-            icon: Eye,
-            color: 'teal',
-            bgClass: 'bg-teal-500/10 border-teal-500/20',
-            iconClass: 'text-teal-400',
-            valueClass: 'text-teal-400',
-            description: 'Carte completate oggi'
-        },
-        {
-            label: 'Progresso Sett.',
-            value: `${Math.round((completedToday / weeklyGoal) * 100)}%`,
-            icon: TrendingUp,
-            color: 'indigo',
-            bgClass: 'bg-indigo-500/10 border-indigo-500/20',
-            iconClass: 'text-indigo-400',
-            valueClass: 'text-indigo-400',
-            description: `Obiettivo settimanale: ${weeklyGoal} carte`
-        }
-    ];
-
-    const allStats = [...baseStats, ...performanceStats];
-
+    // Render delle statistiche in html delle varie Card
     return (
-        <div className="w-full max-w-6xl mx-auto px-2 sm:px-4">
+        <div className="w-full max-w-6xl px-2 mx-auto sm:px-4">
             {/* Base Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
                 {baseStats.map((stat, index) => (
                     <StatCard key={stat.label} stat={stat} index={index} />
                 ))}
             </div>
 
-            {/* Performance Stats Grid - Hidden on mobile unless needed */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                {performanceStats.map((stat, index) => (
-                    <StatCard key={stat.label} stat={stat} index={index + baseStats.length} />
-                ))}
-            </div>
-
             {/* Mobile-friendly summary section */}
             <div className="mt-4 sm:hidden">
-                <div className="bg-gray-800/50 rounded-xl p-3 border border-gray-700/50">
+                <div className="p-3 border bg-gray-800/50 rounded-xl border-gray-700/50">
                     <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-300">Rapporto Generale</span>
-                        <span className="text-emerald-400 font-semibold">
+                        <span className="font-semibold text-emerald-400">
                             {Math.round((masteredDecks / Math.max(totalDecks, 1)) * 100)}% completato
                         </span>
                     </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+                    <div className="w-full h-2 mt-2 bg-gray-700 rounded-full">
                         <div 
-                            className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-500"
+                            className="h-2 transition-all duration-500 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
                             style={{ width: `${Math.min((masteredDecks / Math.max(totalDecks, 1)) * 100, 100)}%` }}
                         ></div>
                     </div>
@@ -221,10 +165,3 @@ export const HeroStats: React.FC<HeroStatsProps> = ({
         </div>
     );
 };
-
-// Helper component for fire icon (since it's not in lucide-react)
-const Fire = ({ className }: { className?: string }) => (
-    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 2c1.1 0 2 .9 2 2 0 .74-.4 1.39-1 1.73V7h1c1.1 0 2 .9 2 2v1h1c1.1 0 2 .9 2 2v1c0 2.21-1.79 4-4 4H12c-1.1 0-2-.9-2-2v-1c0-1.1.9-2 2-2h1v-1h-1c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2h1V4c0-.55.45-1 1-1z"/>
-    </svg>
-);

@@ -6,6 +6,7 @@ import type { Folder, Tag } from '../../services/foldersService';
 interface DashboardLayoutProps {
     isSidebarOpen: boolean;
     onSidebarClose: () => void;
+    onSidebarToggle?: () => void;
     folders: Folder[];
     tags: Tag[];
     selectedFolderId: string | null;
@@ -27,6 +28,7 @@ interface DashboardLayoutProps {
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     isSidebarOpen,
     onSidebarClose,
+    onSidebarToggle,
     folders,
     tags,
     selectedFolderId,
@@ -40,10 +42,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     children,
 }) => {
     return (
-        <div className="min-h-screen flex">
+        <div className="min-h-screen">
+            {/* Floating Sidebar */}
             <DashboardSidebar
                 isOpen={isSidebarOpen}
                 onClose={onSidebarClose}
+                onToggle={onSidebarToggle}
                 folders={folders}
                 tags={tags}
                 selectedFolderId={selectedFolderId}
@@ -55,8 +59,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 onRefresh={onRefresh}
             />
 
-            {/* Main Content */}
-            <div className="flex-1 min-h-screen px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+            {/* Main Content - Full Width */}
+            <div className="min-h-screen px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
                 <div className="max-w-6xl mx-auto">
                     {/* Header */}
                     <header className="mb-4 sm:mb-6 md:mb-8">
