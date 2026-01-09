@@ -1,7 +1,6 @@
 /**
  * 🔐 LOGIN PAGE
- * 
- * Form di login sicuro con:
+ * * Form di login sicuro con:
  * - Validazione Zod client-side
  * - Feedback errori inline
  * - Protezione contro submit multipli

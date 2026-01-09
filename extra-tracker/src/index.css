@@ -733,3 +733,74 @@ input[type="month"] {
 .animate-dropdown {
   animation: dropdown-appear 0.15s ease-out;
 }
+
+/* ====================================
+   MOBILE-SPECIFIC STYLES FOR AUTH PAGES
+   Solo per telefoni (max-width: 640px)
+   ==================================== */
+
+@media (max-width: 640px) {
+  /* Classe utility per stili mobile-specific */
+  .mobile\:bg-white\/\[0\.08\] {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+  
+  .mobile\:border-white\/\[0\.15\] {
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+  
+  .mobile\:py-4 {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+  
+  .mobile\:text-base {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  /* Input fields più grandi su mobile per migliore UX touch */
+  input[type="email"],
+  input[type="password"],
+  input[type="text"] {
+    font-size: 16px !important; /* Previene zoom su iOS */
+    -webkit-appearance: none;
+    border-radius: 0.75rem;
+  }
+
+  /* Migliora il touch target size su mobile */
+  button,
+  a {
+    min-height: 44px; /* Apple HIG recommendation */
+    min-width: 44px;
+  }
+
+  /* Form card più compatta su mobile */
+  .auth-form-card {
+    padding: 1.25rem !important;
+    border-radius: 1rem !important;
+  }
+
+  /* Logo più piccolo ma ancora visibile su mobile */
+  .auth-logo-mobile {
+    transform: scale(0.85);
+  }
+
+  /* Spaziatura ridotta tra elementi su mobile */
+  .auth-spacing-mobile {
+    margin-bottom: 1rem !important;
+  }
+
+  /* Testi più leggibili su mobile */
+  .auth-text-mobile {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  /* Pulsanti full-width su mobile per migliore accessibilità */
+  .auth-button-mobile {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+  }
+}
