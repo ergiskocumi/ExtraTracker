@@ -9,7 +9,7 @@
  * - Feedback visivo per drag & drop
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Folder, 
@@ -22,11 +22,25 @@ import {
     Trash2,
     Home,
     Check,
-    X as XIcon
+    X as XIcon,
+    Clock,
+    Zap,
+    CheckCircle,
+    Star,
+    Target,
+    Calendar,
+    Wand2
 } from 'lucide-react';
 import { foldersService, type Folder as FolderType } from '../services/foldersService';
 import { emitToast } from '../../../shared/components/toast';
 import { getFolderTheme } from '../utils/folderTheme';
+
+interface FolderStats {
+    totalCards: number;
+    dueCards: number;
+    masteryPercent: number;
+    totalDecks: number;
+}
 
 interface FolderTreeProps {
     folders: FolderType[];
@@ -34,6 +48,7 @@ interface FolderTreeProps {
     onFolderSelect: (folderId: string | null) => void;
     onRefresh: () => void;
     onDeckDrop?: (deckId: string, folderId: string | null) => void;
+    folderStats?: Map<string, FolderStats>;
 }
 
 interface FolderItemProps {
@@ -45,6 +60,7 @@ interface FolderItemProps {
     onSelect: () => void;
     onRefresh: () => void;
     onDeckDrop?: (deckId: string, folderId: string | null) => void;
+    folderStats?: FolderStats;
 }
 
 const FolderItem: React.FC<FolderItemProps> = ({
@@ -56,6 +72,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
     onSelect,
     onRefresh,
     onDeckDrop,
+    folderStats,
 }) => {
     const [showMenu, setShowMenu] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -68,6 +85,30 @@ const FolderItem: React.FC<FolderItemProps> = ({
     const hasDecks = (folder.count || 0) > 0;
     const theme = getFolderTheme(folder.name, hasDecks);
     const paddingLeft = `${level * 20 + 12}px`;
+
+    // Calcola priorità visiva (solo per colori, non testi)
+    const getPriorityColor = useMemo(() => {
+        if (!folderStats || folderStats.totalCards === 0) return 'text-white/70';
+        if (folderStats.dueCards === 0) return 'text-emerald-400';
+        const ratio = folderStats.dueCards / folderStats.totalCards;
+        return ratio > 0.5 ? 'text-amber-400' : 'text-violet-400';
+    }, [folderStats]);
+
+    // Verifica se è critico (più del 50% da ripassare)
+    const isCritical = useMemo(() => {
+        if (!folderStats || folderStats.totalCards === 0) return false;
+        return folderStats.dueCards / folderStats.totalCards > 0.5;
+    }, [folderStats]);
+
+    // Verifica se c'è una scadenza urgente (entro 24h)
+    const isUrgent = useMemo(() => {
+        if (!folder.deadline) return false;
+        const deadline = new Date(folder.deadline);
+        const now = new Date();
+        const diff = deadline.getTime() - now.getTime();
+        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        return days <= 1 && days >= 0;
+    }, [folder.deadline]);
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -185,11 +226,10 @@ const FolderItem: React.FC<FolderItemProps> = ({
                     damping: 20,
                 }}
                 className={`
-                    group relative flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer
-                    transition-all duration-200 touch-manipulation min-h-[44px]
+                    group relative pl-${level * 4} pr-3 py-1.5 rounded-lg transition-all duration-200 touch-manipulation
                     ${isSelected 
-                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30 shadow-lg shadow-violet-500/10' 
-                        : 'hover:bg-white/10 text-white/70 hover:text-white border border-transparent'
+                        ? 'bg-violet-500/20' 
+                        : 'hover:bg-white/5'
                     }
                     ${isDragOver 
                         ? 'bg-violet-500/40 border-2 border-violet-400 border-dashed shadow-2xl' 
@@ -197,7 +237,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                     }
                 `}
                 style={{ 
-                    paddingLeft,
+                    paddingLeft: `${level * 16 + 12}px`,
                     ...(isDragOver && {
                         boxShadow: `0 0 30px ${theme.glowColor}, 0 0 60px ${theme.glowColor}40`,
                     }),
@@ -207,107 +247,155 @@ const FolderItem: React.FC<FolderItemProps> = ({
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
-                {/* Chevron per espandere/collassare */}
-                {hasChildren ? (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onToggle();
-                        }}
-                        className="p-0.5 rounded hover:bg-white/10 transition-colors flex-shrink-0"
-                    >
-                        {isExpanded ? (
-                            <ChevronDown className="w-4 h-4" />
-                        ) : (
-                            <ChevronRight className="w-4 h-4" />
-                        )}
-                    </button>
-                ) : (
-                    <div className="w-5 flex-shrink-0" />
+                {/* Bordo sinistro sottile per indicare la cartella selezionata */}
+                {isSelected && (
+                    <div className="absolute left-0 top-0 h-full w-0.5 bg-violet-400" />
                 )}
 
-                {/* Icona cartella con tema */}
-                <div 
-                    className="flex-shrink-0 w-5 h-5 rounded flex items-center justify-center text-sm"
-                    style={{
-                        background: theme.gradient,
-                        boxShadow: isSelected ? `0 0 10px ${theme.glowColor}` : 'none',
-                    }}
-                >
-                    {isExpanded ? (
-                        <FolderOpen className="w-3.5 h-3.5 text-white" />
-                    ) : (
-                        <span className="text-xs">{theme.icon}</span>
-                    )}
-                </div>
+                {/* Header con nome e statistiche */}
+                <div className="flex items-center justify-between w-full">
+                    <div 
+                        className="flex items-center cursor-pointer flex-1 min-w-0"
+                        onClick={onSelect}
+                    >
+                        {hasChildren ? (
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggle();
+                                }}
+                                className="w-4 h-4 rounded-sm flex items-center justify-center mr-2 text-white/40 hover:text-white transition-colors flex-shrink-0"
+                            >
+                                {isExpanded ? (
+                                    <ChevronDown className="w-3 h-3" />
+                                ) : (
+                                    <ChevronRight className="w-3 h-3" />
+                                )}
+                            </button>
+                        ) : (
+                            <div className="w-4 mr-2 flex-shrink-0" />
+                        )}
+                        
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
+                                folderStats && folderStats.totalCards > 0
+                                    ? folderStats.dueCards === 0
+                                        ? 'bg-emerald-500/20 text-emerald-400'
+                                        : isCritical
+                                            ? 'bg-amber-500/20 text-amber-400'
+                                            : 'bg-violet-500/20 text-violet-400'
+                                    : 'bg-white/10 text-white/60'
+                            }`}>
+                                <Folder className="w-3 h-3" />
+                            </div>
+                            {isEditing ? (
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={editedName}
+                                    onChange={(e) => setEditedName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleRename();
+                                        } else if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            handleCancelRename();
+                                        }
+                                    }}
+                                    onBlur={handleRename}
+                                    className="flex-1 px-2 py-0.5 text-sm bg-white/10 border border-violet-500/50 rounded text-white placeholder-white/30 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            ) : (
+                                <span className="text-sm font-medium text-white truncate max-w-[160px]">
+                                    {folder.name}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    
+                    {/* Statistiche condensate - SOLO QUANDO RILEVANTI */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Badge con numero mazzi */}
+                        {hasDecks && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-white/60">
+                                {folderStats?.totalDecks || folder.count || 0}
+                            </span>
+                        )}
+                        
+                        {/* Badge con carte da ripassare (solo quando > 0) */}
+                        {folderStats && folderStats.dueCards > 0 && (
+                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                                isCritical
+                                    ? 'bg-amber-500/20 text-amber-400' 
+                                    : 'bg-violet-500/20 text-violet-400'
+                            }`}>
+                                {folderStats.dueCards}
+                            </span>
+                        )}
+                        
+                        {/* Solo mostrare quando la padronanza è completa */}
+                        {folderStats && folderStats.dueCards === 0 && folderStats.masteryPercent === 100 && (
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                        )}
 
-                {/* Nome cartella o input per rinomina */}
-                {isEditing ? (
-                    <div className="flex-1 flex items-center gap-1">
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={editedName}
-                            onChange={(e) => setEditedName(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleRename();
-                                } else if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    handleCancelRename();
-                                }
-                            }}
-                            onBlur={handleRename}
-                            className="flex-1 px-2 py-1 text-sm bg-white/10 border border-violet-500/50 rounded text-white placeholder-white/30 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
-                            onClick={(e) => e.stopPropagation()}
-                        />
+                        {/* Indicatore scadenza urgente (solo quando critico) */}
+                        {isUrgent && (
+                            <motion.div
+                                animate={{ scale: [1, 1.2, 1] }}
+                                transition={{ repeat: Infinity, duration: 2 }}
+                                className="w-1.5 h-1.5 rounded-full bg-amber-400"
+                            />
+                        )}
+
+                        {/* Menu opzioni */}
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleRename();
+                                setShowMenu(!showMenu);
                             }}
-                            className="p-1 rounded hover:bg-green-500/20 transition-colors"
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-all"
                         >
-                            <Check className="w-3.5 h-3.5 text-green-400" />
-                        </button>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleCancelRename();
-                            }}
-                            className="p-1 rounded hover:bg-red-500/20 transition-colors"
-                        >
-                            <XIcon className="w-3.5 h-3.5 text-red-400" />
+                            <MoreVertical className="w-3.5 h-3.5" />
                         </button>
                     </div>
-                ) : (
-                    <span className="flex-1 text-sm font-medium truncate">
-                        {folder.name}
-                    </span>
+                </div>
+                
+                {/* Progress bar - SEMPRE visibile per uniformità quando ci sono carte */}
+                {folderStats && folderStats.totalCards > 0 && (
+                    <div className="mt-1.5">
+                        <div className="flex justify-between text-[10px] text-white/50 mb-0.5">
+                            <span>{folderStats.masteryPercent}% padronanza</span>
+                            {folderStats.dueCards > 0 && (
+                                <span>{folderStats.dueCards}/{folderStats.totalCards} da ripassare</span>
+                            )}
+                        </div>
+                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${folderStats.masteryPercent}%` }}
+                                transition={{ duration: 0.5 }}
+                                className={`h-full rounded-full ${
+                                    folderStats.masteryPercent === 100 
+                                        ? 'bg-emerald-400' 
+                                        : folderStats.masteryPercent > 70 
+                                            ? 'bg-violet-400' 
+                                            : 'bg-amber-400'
+                                }`}
+                            />
+                        </div>
+                    </div>
                 )}
-
-                {/* Badge con conteggio */}
-                {hasDecks && (
-                    <motion.span
-                        initial={{ scale: 0.8 }}
-                        animate={{ scale: 1 }}
-                        className="text-xs text-white/60 px-2 py-0.5 rounded-full bg-white/10 font-medium"
-                    >
-                        {folder.count}
-                    </motion.span>
+                
+                {/* Mostra suggerimento SOLO QUANDO CRITICO */}
+                {isCritical && folderStats && (
+                    <div className="mt-1.5 p-1.5 rounded bg-amber-500/10 border border-amber-500/20">
+                        <p className="text-[10px] text-amber-400">
+                            Urgente: {Math.round(folderStats.dueCards / folderStats.totalCards * 100)}% da ripassare
+                        </p>
+                    </div>
                 )}
-
-                {/* Menu opzioni */}
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setShowMenu(!showMenu);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-all"
-                >
-                    <MoreVertical className="w-3.5 h-3.5" />
-                </button>
 
                 {/* Dropdown menu */}
                 <AnimatePresence>
@@ -360,19 +448,24 @@ const FolderItem: React.FC<FolderItemProps> = ({
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.2 }}
                     >
-                        {folder.children!.map((child) => (
-                            <FolderItem
-                                key={child.id}
-                                folder={child}
-                                level={level + 1}
-                                isExpanded={false}
-                                isSelected={false}
-                                onToggle={() => {}}
-                                onSelect={() => {}}
-                                onRefresh={onRefresh}
-                                onDeckDrop={onDeckDrop}
-                            />
-                        ))}
+                        {folder.children!.map((child) => {
+                            // Passa folderStats ai children se disponibile
+                            const childStats = folderStats?.get(child.id);
+                            return (
+                                <FolderItem
+                                    key={child.id}
+                                    folder={child}
+                                    level={level + 1}
+                                    isExpanded={false}
+                                    isSelected={false}
+                                    onToggle={() => {}}
+                                    onSelect={() => {}}
+                                    onRefresh={onRefresh}
+                                    onDeckDrop={onDeckDrop}
+                                    folderStats={childStats}
+                                />
+                            );
+                        })}
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -473,6 +566,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
     onFolderSelect,
     onRefresh,
     onDeckDrop,
+    folderStats,
 }) => {
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
@@ -491,6 +585,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
     const renderFolder = (folder: FolderType, level: number = 0) => {
         const isExpanded = expandedFolders.has(folder.id);
         const isSelected = selectedFolderId === folder.id;
+        const stats = folderStats?.get(folder.id);
 
         return (
             <FolderItem
@@ -503,6 +598,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                 onSelect={() => onFolderSelect(folder.id)}
                 onRefresh={onRefresh}
                 onDeckDrop={onDeckDrop}
+                folderStats={stats}
             />
         );
     };

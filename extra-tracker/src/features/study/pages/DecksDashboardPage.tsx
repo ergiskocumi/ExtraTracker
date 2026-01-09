@@ -9,51 +9,9 @@
  * - Visual hierarchy chiara
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-    Plus,
-    Play,
-    Layers,
-    Clock,
-    BookOpen,
-    AlertCircle,
-    Zap,
-    Trash2,
-    Search,
-    Filter,
-    CheckCircle,
-    BarChart2,
-    ChevronRight,
-    Sparkles,
-    GraduationCap,
-    MoreHorizontal,
-    Eye,
-    Settings,
-    X,
-    Folder as FolderIcon,
-    Calculator,
-    Code,
-    FlaskConical,
-    Music,
-    Palette,
-    Atom,
-    Globe,
-    Heart,
-    Brain,
-    BookMarked,
-    GraduationCap as GraduationCapIcon,
-    Languages,
-    Microscope,
-    Music2,
-    Paintbrush,
-    PenTool,
-    Rocket,
-    Target,
-    Trophy,
-    Wand2
-} from 'lucide-react';
+import { AlertCircle, Sparkles, Play, Plus, BookOpen } from 'lucide-react';
 import { studyService, type Deck, type CreateDeckPayload, type AddCardPayload } from '../services/studyService';
 import { foldersService, type Folder } from '../services/foldersService';
 import { tagsService, type Tag } from '../services/tagsService';
@@ -62,8 +20,18 @@ import { CreateDeckModal } from '../components/CreateDeckModal';
 import { MagicGenerateModal } from '../components/MagicGenerateModal';
 import { StudyModeSelector, type StudyMode } from '../components/StudyModeSelector';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
-import { FolderTree } from '../components/FolderTree';
-import { TagCloud } from '../components/TagCloud';
+// FolderTree e TagCloud sono usati in DashboardSidebar
+import { DashboardHero } from '../components/DashboardHero';
+import { TodayPlan } from '../components/TodayPlan';
+import { StudyTimeline } from '../components/StudyTimeline';
+import { NextSteps } from '../components/NextSteps';
+import { DeckGrid } from '../components/DeckGrid';
+import { DashboardEmptyState } from '../components/DashboardEmptyState';
+import { FilterBar } from '../components/FilterBar';
+import { AddCardModal } from '../components/AddCardModal';
+import { DeckSkeleton } from '../components/DeckSkeleton';
+import { DeckCard } from '../components/DeckCard';
+import { DashboardLayout } from '../components/DashboardLayout';
 
 // ============================================
 // TYPES
@@ -71,945 +39,7 @@ import { TagCloud } from '../components/TagCloud';
 
 type FilterType = 'all' | 'due' | 'mastered' | 'recent';
 
-// ============================================
-// DECK THEME GENERATOR - Genera tema unico per ogni deck
-// ============================================
-
-type DeckTheme = {
-    gradient: string;
-    icon: React.ElementType;
-    iconColor: string;
-    borderColor: string;
-};
-
-// Icone disponibili per i deck
-const DECK_ICONS = [
-    Layers, BookOpen, Calculator, Code, FlaskConical, Music, Palette, Atom,
-    Globe, Heart, Brain, BookMarked, GraduationCapIcon, Languages, Microscope,
-    Music2, Paintbrush, PenTool, Rocket, Target, Trophy, Wand2, Sparkles
-];
-
-// Gradienti disponibili
-const DECK_GRADIENTS = [
-    { from: 'from-blue-500', to: 'to-cyan-500', border: 'border-blue-500/30', icon: 'text-blue-400' },
-    { from: 'from-violet-500', to: 'to-purple-500', border: 'border-violet-500/30', icon: 'text-violet-400' },
-    { from: 'from-emerald-500', to: 'to-teal-500', border: 'border-emerald-500/30', icon: 'text-emerald-400' },
-    { from: 'from-amber-500', to: 'to-orange-500', border: 'border-amber-500/30', icon: 'text-amber-400' },
-    { from: 'from-rose-500', to: 'to-pink-500', border: 'border-rose-500/30', icon: 'text-rose-400' },
-    { from: 'from-indigo-500', to: 'to-blue-500', border: 'border-indigo-500/30', icon: 'text-indigo-400' },
-    { from: 'from-teal-500', to: 'to-cyan-500', border: 'border-teal-500/30', icon: 'text-teal-400' },
-    { from: 'from-fuchsia-500', to: 'to-pink-500', border: 'border-fuchsia-500/30', icon: 'text-fuchsia-400' },
-    { from: 'from-sky-500', to: 'to-blue-500', border: 'border-sky-500/30', icon: 'text-sky-400' },
-    { from: 'from-lime-500', to: 'to-green-500', border: 'border-lime-500/30', icon: 'text-lime-400' },
-];
-
-/**
- * Genera un hash semplice da una stringa
- */
-function simpleHash(str: string): number {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash);
-}
-
-/**
- * Genera un tema unico per un deck basato sul titolo
- */
-function getDeckTheme(deck: Deck): DeckTheme {
-    const hash = simpleHash(deck.title.toLowerCase().trim());
-    const iconIndex = hash % DECK_ICONS.length;
-    const gradientIndex = hash % DECK_GRADIENTS.length;
-    
-    const gradient = DECK_GRADIENTS[gradientIndex];
-    
-    return {
-        gradient: `bg-gradient-to-br ${gradient.from}/20 ${gradient.to}/10`,
-        icon: DECK_ICONS[iconIndex],
-        iconColor: gradient.icon,
-        borderColor: gradient.border,
-    };
-}
-
-// ============================================
-// HERO STATS - Compact & Clear
-// ============================================
-
-interface HeroStatsProps {
-    totalDecks: number;
-    totalCards: number;
-    dueCards: number;
-    masteredDecks: number;
-}
-
-const HeroStats: React.FC<HeroStatsProps> = ({ totalDecks, totalCards, dueCards, masteredDecks }) => {
-    const stats = [
-        {
-            label: 'Mazzi',
-            value: totalDecks,
-            icon: Layers,
-            color: 'violet',
-            bgClass: 'bg-violet-500/10 border-violet-500/20',
-            iconClass: 'text-violet-400',
-            valueClass: 'text-violet-400',
-        },
-        {
-            label: 'Carte',
-            value: totalCards,
-            icon: BookOpen,
-            color: 'blue',
-            bgClass: 'bg-blue-500/10 border-blue-500/20',
-            iconClass: 'text-blue-400',
-            valueClass: 'text-blue-400',
-        },
-        {
-            label: 'Da Ripassare',
-            value: dueCards,
-            icon: Clock,
-            color: 'orange',
-            bgClass: dueCards > 0 ? 'bg-orange-500/15 border-orange-500/30' : 'bg-white/5 border-white/10',
-            iconClass: dueCards > 0 ? 'text-orange-400' : 'text-white/40',
-            valueClass: dueCards > 0 ? 'text-orange-400' : 'text-white/50',
-            pulse: dueCards > 0,
-        },
-        {
-            label: 'Completati',
-            value: masteredDecks,
-            icon: CheckCircle,
-            color: 'emerald',
-            bgClass: 'bg-emerald-500/10 border-emerald-500/20',
-            iconClass: 'text-emerald-400',
-            valueClass: 'text-emerald-400',
-        },
-    ];
-
-    return (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-4 sm:mb-6">
-            {stats.map((stat, idx) => (
-                <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className={`relative p-3 sm:p-4 rounded-xl sm:rounded-2xl border ${stat.bgClass} transition-all`}
-                >
-                    {stat.pulse && (
-                        <motion.div
-                            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
-                            transition={{ repeat: Infinity, duration: 2 }}
-                            className="absolute top-2 right-2 sm:top-3 sm:right-3 w-2 h-2 rounded-full bg-orange-400"
-                        />
-                    )}
-                    <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.iconClass} mb-1.5 sm:mb-2`} />
-                    <p className={`text-xl sm:text-2xl md:text-3xl font-bold ${stat.valueClass}`}>
-                        {stat.value}
-                    </p>
-                    <p className="text-[10px] sm:text-xs text-white/50 mt-0.5">{stat.label}</p>
-                </motion.div>
-            ))}
-        </div>
-    );
-};
-
-// ============================================
-// DECK CARD - User-Friendly Design
-// ============================================
-
-interface DeckCardProps {
-    deck: Deck;
-    onStudy: (deckId: string) => void;
-    onMagicGenerate: (deck: Deck) => void;
-    onAddCard: (deckId: string) => void;
-    onViewDetail: (deckId: string) => void;
-    onSplitStudy: (deckId: string) => void;
-    onDelete: (deck: Deck) => void;
-    onUpdate: (deck: Deck) => void;
-    tags?: Tag[];
-    onDragStart?: () => void;
-    onDragEnd?: () => void;
-}
-
-const DeckCard: React.FC<DeckCardProps> = ({ 
-    deck, 
-    onStudy, 
-    onMagicGenerate, 
-    onAddCard,
-    onViewDetail, 
-    onSplitStudy, 
-    onDelete,
-    onUpdate,
-    tags = [], // Passato dal parent per mostrare i colori dei tag
-    onDragStart: onDragStartProp,
-    onDragEnd: onDragEndProp,
-}) => {
-    const [showMenu, setShowMenu] = useState(false);
-    const [isEditingTitle, setIsEditingTitle] = useState(false);
-    const [editedTitle, setEditedTitle] = useState(deck.title);
-    const titleInputRef = useRef<HTMLInputElement>(null);
-    const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    
-    const hasDueCards = (deck.dueCount ?? 0) > 0;
-    const totalCards = deck.totalCards ?? deck.cards?.length ?? 0;
-    const masteredCards = deck.cards?.filter(c => c.status === 'mastered').length ?? 0;
-    const masteryPercent = totalCards > 0 ? Math.round((masteredCards / totalCards) * 100) : 0;
-    const hasPdf = !!deck.pdfUrl;
-    
-    // Sincronizza editedTitle quando deck.title cambia (dopo update)
-    useEffect(() => {
-        if (!isEditingTitle) {
-            setEditedTitle(deck.title);
-        }
-    }, [deck.title, isEditingTitle]);
-    
-    // Genera tema unico per questo deck
-    const theme = useMemo(() => getDeckTheme(deck), [deck.title]);
-    const ThemeIcon = theme.icon;
-    
-    // Gestione doppio click per rinominare
-    const handleTitleClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (clickTimeoutRef.current) {
-            clearTimeout(clickTimeoutRef.current);
-            clickTimeoutRef.current = null;
-            // Doppio click - entra in modalità edit
-            setIsEditingTitle(true);
-            setEditedTitle(deck.title);
-            setTimeout(() => {
-                titleInputRef.current?.focus();
-                titleInputRef.current?.select();
-            }, 0);
-        } else {
-            clickTimeoutRef.current = setTimeout(() => {
-                clickTimeoutRef.current = null;
-            }, 300);
-        }
-    };
-    
-    // Salva il nuovo titolo
-    const handleTitleSave = async () => {
-        const trimmed = editedTitle.trim();
-        if (trimmed && trimmed !== deck.title && trimmed.length > 0) {
-            try {
-                const updated = await studyService.updateDeckTitle(deck.id, trimmed);
-                if (onUpdate) {
-                    onUpdate(updated);
-                }
-                emitToast.success('Titolo aggiornato');
-                setIsEditingTitle(false);
-            } catch (err: any) {
-                emitToast.error(err.message || 'Errore nell\'aggiornamento');
-                setEditedTitle(deck.title);
-                setIsEditingTitle(false);
-            }
-        } else {
-            setEditedTitle(deck.title);
-            setIsEditingTitle(false);
-        }
-    };
-    
-    // Annulla modifica
-    const handleTitleCancel = () => {
-        setEditedTitle(deck.title);
-        setIsEditingTitle(false);
-    };
-    
-    // Gestione Enter/Escape
-    const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleTitleSave();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            handleTitleCancel();
-        }
-    };
-
-    const [isDragging, setIsDragging] = useState(false);
-
-    const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('deckId', deck.id);
-        e.dataTransfer.setData('text/plain', deck.id); // Fallback per alcuni browser
-        
-        // Crea un'immagine personalizzata per il drag
-        const dragPreview = document.createElement('div');
-        dragPreview.style.position = 'absolute';
-        dragPreview.style.top = '-1000px';
-        dragPreview.style.width = '200px';
-        dragPreview.style.padding = '12px';
-        dragPreview.style.background = 'rgba(139, 92, 246, 0.95)';
-        dragPreview.style.borderRadius = '12px';
-        dragPreview.style.border = '2px solid rgba(167, 139, 250, 0.8)';
-        dragPreview.style.boxShadow = '0 10px 40px rgba(139, 92, 246, 0.4)';
-        dragPreview.style.backdropFilter = 'blur(10px)';
-        dragPreview.style.color = 'white';
-        dragPreview.style.fontSize = '14px';
-        dragPreview.style.fontWeight = '600';
-        dragPreview.style.textAlign = 'center';
-        dragPreview.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
-                <span>📚</span>
-                <span>${deck.title}</span>
-            </div>
-            <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">
-                Rilascia nella cartella
-            </div>
-        `;
-        document.body.appendChild(dragPreview);
-        
-        // Usa l'immagine personalizzata
-        e.dataTransfer.setDragImage(dragPreview, 100, 40);
-        
-        setIsDragging(true);
-        onDragStartProp?.();
-        
-        // Rimuovi l'elemento dopo un breve delay
-        setTimeout(() => {
-            if (document.body.contains(dragPreview)) {
-                document.body.removeChild(dragPreview);
-            }
-        }, 0);
-    };
-
-    const handleDragEnd = () => {
-        setIsDragging(false);
-        onDragEndProp?.();
-    };
-
-    return (
-        <motion.div
-            animate={{
-                scale: isDragging ? 0.95 : 1,
-                opacity: isDragging ? 0.6 : 1,
-                rotateZ: isDragging ? 2 : 0,
-            }}
-            transition={{
-                duration: 0.2,
-                ease: 'easeOut',
-            }}
-            className={`
-                relative rounded-xl sm:rounded-2xl md:rounded-3xl border overflow-hidden
-                transition-all duration-300 hover:shadow-xl
-                flex flex-col
-                min-h-[280px] sm:min-h-[320px] md:min-h-[340px]
-                cursor-move
-                ${hasDueCards 
-                    ? 'border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent shadow-lg shadow-orange-500/10' 
-                    : `${theme.borderColor} bg-gradient-to-br ${theme.gradient} hover:shadow-lg`
-                }
-            `}
-            draggable
-            onDragStart={handleDragStart as any}
-            onDragEnd={handleDragEnd}
-        >
-            {/* Badge - Due Cards */}
-            {hasDueCards && (
-                <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
-                    <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-orange-500 text-white text-[10px] sm:text-xs font-bold shadow-lg"
-                    >
-                        <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                        <span className="hidden xs:inline">{deck.dueCount} da ripassare</span>
-                        <span className="xs:hidden">{deck.dueCount}</span>
-                    </motion.div>
-                </div>
-            )}
-
-            {/* More Menu Button */}
-            <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setShowMenu(!showMenu);
-                    }}
-                    className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-black/20 backdrop-blur-sm text-white/60 hover:text-white hover:bg-black/40 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
-                    aria-label="Menu opzioni"
-                >
-                    <MoreHorizontal className="w-5 h-5 sm:w-5 sm:h-5" />
-                </button>
-
-                {/* Dropdown Menu */}
-                <AnimatePresence>
-                    {showMenu && (
-                        <>
-                            {/* Backdrop */}
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 z-40"
-                                onClick={() => setShowMenu(false)}
-                            />
-                            {/* Menu */}
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                                className="absolute left-0 top-full mt-2 z-50 w-52 sm:w-56 py-2 rounded-xl bg-zinc-900 border border-white/10 shadow-2xl"
-                            >
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onViewDetail(deck.id);
-                                        setShowMenu(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-white/80 hover:bg-white/10 active:bg-white/15 transition-colors touch-manipulation min-h-[44px]"
-                                >
-                                    <Eye className="w-4 h-4 flex-shrink-0" />
-                                    Visualizza Dettagli
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onMagicGenerate(deck);
-                                        setShowMenu(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-amber-400 hover:bg-amber-500/10 active:bg-amber-500/15 transition-colors touch-manipulation min-h-[44px]"
-                                >
-                                    <Sparkles className="w-4 h-4 flex-shrink-0" />
-                                    {totalCards === 0 ? 'Magic Generate' : 'Add Chapter via AI'}
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        // Analytics
-                                        onViewDetail(deck.id);
-                                        setShowMenu(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-blue-400 hover:bg-blue-500/10 active:bg-blue-500/15 transition-colors touch-manipulation min-h-[44px]"
-                                >
-                                    <BarChart2 className="w-4 h-4 flex-shrink-0" />
-                                    Statistiche
-                                </button>
-                                <div className="my-2 border-t border-white/10" />
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onDelete(deck);
-                                        setShowMenu(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-red-400 hover:bg-red-500/10 active:bg-red-500/15 transition-colors touch-manipulation min-h-[44px]"
-                                >
-                                    <Trash2 className="w-4 h-4 flex-shrink-0" />
-                                    Elimina Mazzo
-                                </button>
-                            </motion.div>
-                        </>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            {/* Main Content - Clickable */}
-            <div 
-                className="p-4 sm:p-5 md:p-6 cursor-pointer flex-1 flex flex-col touch-manipulation"
-                onClick={() => onViewDetail(deck.id)}
-            >
-                {/* Header */}
-                <div className="flex items-start gap-3 sm:gap-4 mb-3 sm:mb-4 mt-6 sm:mt-8 md:mt-6">
-                    <div className={`
-                        p-2.5 sm:p-3 md:p-4 rounded-lg sm:rounded-xl md:rounded-2xl flex-shrink-0
-                        ${hasDueCards 
-                            ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30' 
-                            : `bg-gradient-to-br ${theme.gradient} border ${theme.borderColor}`
-                        }
-                    `}>
-                        <ThemeIcon className={`w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 ${hasDueCards ? 'text-orange-400' : theme.iconColor}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        {isEditingTitle ? (
-                            <input
-                                ref={titleInputRef}
-                                type="text"
-                                value={editedTitle}
-                                onChange={(e) => setEditedTitle(e.target.value)}
-                                onBlur={handleTitleSave}
-                                onKeyDown={handleTitleKeyDown}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-full text-base sm:text-lg md:text-xl font-bold text-white bg-white/10 border border-white/20 rounded-lg px-2 py-1 mb-1 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
-                                maxLength={120}
-                            />
-                        ) : (
-                            <h3 
-                                className="text-base sm:text-lg md:text-xl font-bold text-white truncate mb-1 cursor-text hover:text-white/80 transition-colors"
-                                onClick={handleTitleClick}
-                                title="Doppio click per rinominare"
-                            >
-                                {deck.title}
-                            </h3>
-                        )}
-                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-white/50 flex-wrap">
-                            <span className="flex items-center gap-1 sm:gap-1.5">
-                                <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                {totalCards} carte
-                            </span>
-                            {hasPdf && (
-                                <span className="flex items-center gap-1 text-blue-400">
-                                    <BookOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                                    PDF
-                                </span>
-                            )}
-                            {/* Tag badges */}
-                            {deck.tags && deck.tags.length > 0 && tags && tags.length > 0 && (
-                                <div className="flex items-center gap-1 flex-wrap">
-                                    {deck.tags.slice(0, 3).map((tagName, idx) => {
-                                        const tag = tags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
-                                        return (
-                                            <span
-                                                key={idx}
-                                                className="px-1.5 py-0.5 rounded text-[10px] font-medium"
-                                                style={{
-                                                    backgroundColor: tag?.color ? `${tag.color}20` : 'rgba(255,255,255,0.1)',
-                                                    color: tag?.color || '#fff',
-                                                    border: `1px solid ${tag?.color ? `${tag.color}40` : 'rgba(255,255,255,0.2)'}`,
-                                                }}
-                                            >
-                                                {tagName}
-                                            </span>
-                                        );
-                                    })}
-                                    {deck.tags.length > 3 && (
-                                        <span className="text-[10px] text-white/40">
-                                            +{deck.tags.length - 3}
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Progress Bar - Sempre visibile per uniformità */}
-                <div className="mb-4 sm:mb-5">
-                    <div className="flex items-center justify-between mb-1.5 sm:mb-2 text-xs sm:text-sm">
-                        <span className="text-white/50">Padronanza</span>
-                        <span className={`font-bold ${
-                            masteryPercent === 100 ? 'text-emerald-400' : 'text-white/70'
-                        }`}>
-                            {masteryPercent}%
-                        </span>
-                    </div>
-                    <div className="h-1.5 sm:h-2 bg-white/10 rounded-full overflow-hidden">
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${masteryPercent}%` }}
-                            transition={{ duration: 0.8, ease: 'easeOut' }}
-                            className={`h-full rounded-full ${
-                                masteryPercent === 100 
-                                    ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' 
-                                    : 'bg-gradient-to-r from-violet-400 to-violet-500'
-                            }`}
-                        />
-                    </div>
-                </div>
-
-                {/* ═══ ACTION BUTTONS - SEMPRE VISIBILI ═══ */}
-                <div className="space-y-2 sm:space-y-2.5 mt-auto">
-                    {/* Primary CTA: Study / Review / Magic Generate */}
-                    {totalCards === 0 ? (
-                        // Deck vuoto: Magic Generate prominente + Aggiungi carta
-                        <>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onMagicGenerate(deck);
-                                }}
-                                className="
-                                    w-full flex items-center justify-center gap-2 sm:gap-2.5 
-                                    px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                    font-semibold text-sm sm:text-base transition-all
-                                    bg-gradient-to-r from-amber-500 to-orange-600 text-white 
-                                    shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40
-                                    active:scale-[0.98] touch-manipulation
-                                    min-h-[48px] sm:min-h-[52px]
-                                "
-                            >
-                                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                                <span>✨ magic Generate</span>
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onAddCard(deck.id);
-                                }}
-                                className="
-                                    w-full flex items-center justify-center gap-2 sm:gap-2.5 
-                                    px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                    font-semibold text-sm sm:text-base transition-all
-                                    bg-gradient-to-r from-violet-500/80 to-violet-600/80 text-white 
-                                    border border-violet-500/30
-                                    hover:from-violet-500 hover:to-violet-600
-                                    active:scale-[0.98] touch-manipulation
-                                    min-h-[48px] sm:min-h-[52px]
-                                "
-                            >
-                                <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                                <span>Aggiungi carta</span>
-                            </button>
-                        </>
-                    ) : (
-                        // Deck con carte: Studia/Ripassa + Add via AI sempre visibile
-                        <>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onStudy(deck.id);
-                                }}
-                                className={`
-                                    w-full flex items-center justify-center gap-2 sm:gap-2.5 
-                                    px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                    font-semibold text-sm sm:text-base transition-all
-                                    active:scale-[0.98] touch-manipulation
-                                    min-h-[48px] sm:min-h-[52px]
-                                    ${hasDueCards
-                                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40'
-                                        : 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/35'
-                                    }
-                                `}
-                            >
-                                <Play className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                                <span>{hasDueCards ? 'Ripassa Ora' : 'Studia'}</span>
-                            </button>
-                            
-                            {/* Add via AI - Sempre visibile per mazzi con carte */}
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onMagicGenerate(deck);
-                                    }}
-                                    className="
-                                        flex-1 flex items-center justify-center gap-1.5 sm:gap-2 
-                                        px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl
-                                        font-medium text-xs sm:text-sm transition-all
-                                        bg-gradient-to-r from-amber-500/80 to-orange-500/80 text-white 
-                                        border border-amber-500/30
-                                        hover:from-amber-500 hover:to-orange-500
-                                        active:scale-[0.98] touch-manipulation
-                                        min-h-[40px] sm:min-h-[44px]
-                                    "
-                                >
-                                    <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                                    <span className="hidden sm:inline">➕ Add via AI</span>
-                                    <span className="sm:hidden">➕ AI</span>
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onAddCard(deck.id);
-                                    }}
-                                    className="
-                                        flex-1 flex items-center justify-center gap-1.5 sm:gap-2 
-                                        px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl
-                                        font-medium text-xs sm:text-sm transition-all
-                                        bg-gradient-to-r from-violet-500/80 to-violet-600/80 text-white 
-                                        border border-violet-500/30
-                                        hover:from-violet-500 hover:to-violet-600
-                                        active:scale-[0.98] touch-manipulation
-                                        min-h-[40px] sm:min-h-[44px]
-                                    "
-                                >
-                                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                                    <span className="hidden sm:inline">Aggiungi carta</span>
-                                    <span className="sm:hidden">➕</span>
-                                </button>
-                            </div>
-                        </>
-                    )}
-
-                    {/* Secondary CTA: Split Study (if PDF exists) */}
-                    {hasPdf && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onSplitStudy(deck.id);
-                            }}
-                            className="
-                                w-full flex items-center justify-center gap-2 sm:gap-2.5 
-                                px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                font-semibold text-sm sm:text-base transition-all
-                                bg-gradient-to-r from-blue-500/90 to-indigo-500/90 
-                                text-white shadow-lg shadow-blue-500/20
-                                hover:from-blue-500 hover:to-indigo-500
-                                active:scale-[0.98] touch-manipulation
-                                min-h-[48px] sm:min-h-[52px]
-                            "
-                        >
-                            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                            <span className="hidden sm:inline">📖 Leggi & Studia</span>
-                            <span className="sm:hidden">Leggi & Studia</span>
-                        </button>
-                    )}
-                </div>
-            </div>
-        </motion.div>
-    );
-};
-
-// ============================================
-// SEARCH & FILTER BAR - Simplified
-// ============================================
-
-interface FilterBarProps {
-    activeFilter: FilterType;
-    onFilterChange: (filter: FilterType) => void;
-    searchQuery: string;
-    onSearchChange: (query: string) => void;
-    dueCount: number;
-}
-
-const FilterBar: React.FC<FilterBarProps> = ({
-    activeFilter,
-    onFilterChange,
-    searchQuery,
-    onSearchChange,
-    dueCount,
-}) => {
-    const filters: { key: FilterType; label: string; count?: number }[] = [
-        { key: 'all', label: 'Tutti' },
-        { key: 'due', label: 'Da Ripassare', count: dueCount },
-        { key: 'mastered', label: 'Completati' },
-        { key: 'recent', label: 'Recenti' },
-    ];
-
-    return (
-        <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
-            {/* Search */}
-            <div className="relative">
-                <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-white/30" />
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    placeholder="Cerca mazzi..."
-                    className="w-full pl-10 sm:pl-12 pr-10 sm:pr-4 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all text-sm sm:text-base touch-manipulation"
-                />
-                {searchQuery && (
-                    <button
-                        onClick={() => onSearchChange('')}
-                        className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-1 rounded-lg text-white/40 hover:text-white active:bg-white/10 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center"
-                        aria-label="Cancella ricerca"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                )}
-            </div>
-
-            {/* Filters - Horizontal Scroll on Mobile */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
-                {filters.map((filter) => (
-                    <button
-                        key={filter.key}
-                        onClick={() => onFilterChange(filter.key)}
-                        className={`
-                            flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all touch-manipulation
-                            min-h-[40px] sm:min-h-[44px]
-                            ${activeFilter === filter.key
-                                ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                                : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 border border-white/10 active:bg-white/10'
-                            }
-                        `}
-                    >
-                        <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                        {filter.label}
-                        {filter.count !== undefined && filter.count > 0 && (
-                            <span className={`
-                                px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold
-                                ${activeFilter === filter.key
-                                    ? 'bg-violet-500/30 text-violet-200'
-                                    : 'bg-orange-500/20 text-orange-400'
-                                }
-                            `}>
-                                {filter.count}
-                            </span>
-                        )}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-// ============================================
-// ADD CARD MODAL
-// ============================================
-
-interface AddCardModalProps {
-    isOpen: boolean;
-    deckId: string | null;
-    deckTitle: string;
-    onClose: () => void;
-    onSubmit: (deckId: string, data: AddCardPayload) => Promise<void>;
-}
-
-const AddCardModal: React.FC<AddCardModalProps> = ({ 
-    isOpen, 
-    deckId, 
-    deckTitle, 
-    onClose, 
-    onSubmit 
-}) => {
-    const [front, setFront] = useState('');
-    const [back, setBack] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!front.trim() || !back.trim() || !deckId) return;
-
-        setIsSubmitting(true);
-        try {
-            await onSubmit(deckId, { front: front.trim(), back: back.trim() });
-            setFront('');
-            setBack('');
-            onClose();
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    return (
-        <AnimatePresence>
-            {isOpen && deckId && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-                    onClick={onClose}
-                >
-                    <motion.div
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.95, opacity: 0 }}
-                        onClick={e => e.stopPropagation()}
-                        className="w-full max-w-lg rounded-3xl bg-zinc-900 border border-white/10 shadow-2xl overflow-hidden"
-                    >
-                        <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between">
-                            <div>
-                                <h2 className="text-lg font-bold text-white">Nuova Carta</h2>
-                                <p className="text-sm text-white/50">{deckTitle}</p>
-                            </div>
-                            <button
-                                onClick={onClose}
-                                className="p-2 rounded-xl hover:bg-white/10 transition-colors"
-                            >
-                                <X className="w-5 h-5 text-white/60" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                            <div>
-                                <label className="block text-sm font-medium text-white/70 mb-2">
-                                    Fronte (Domanda)
-                                </label>
-                                <textarea
-                                    value={front}
-                                    onChange={e => setFront(e.target.value)}
-                                    placeholder="Cosa vuoi memorizzare?"
-                                    rows={3}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all resize-none"
-                                    autoFocus
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-white/70 mb-2">
-                                    Retro (Risposta)
-                                </label>
-                                <textarea
-                                    value={back}
-                                    onChange={e => setBack(e.target.value)}
-                                    placeholder="La risposta..."
-                                    rows={3}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all resize-none"
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-3 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="flex-1 px-5 py-3.5 rounded-xl bg-white/5 text-white/70 hover:bg-white/10 transition-all font-medium"
-                                >
-                                    Annulla
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={!front.trim() || !back.trim() || isSubmitting}
-                                    className="flex-1 flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-violet-500 text-white font-semibold shadow-lg shadow-violet-500/25 disabled:opacity-40 transition-all"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                    {isSubmitting ? 'Aggiungendo...' : 'Aggiungi'}
-                                </button>
-                            </div>
-                        </form>
-                    </motion.div>
-                </motion.div>
-            )}
-        </AnimatePresence>
-    );
-};
-
-// ============================================
-// EMPTY STATE
-// ============================================
-
-const EmptyState: React.FC<{ onCreateDeck: () => void }> = ({ onCreateDeck }) => (
-    <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center py-16 sm:py-24 px-6 text-center"
-    >
-        <motion.div
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ repeat: Infinity, duration: 3 }}
-            className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-br from-violet-500/20 to-violet-600/10 border border-violet-500/30 flex items-center justify-center mb-6"
-        >
-            <GraduationCap className="w-12 h-12 sm:w-14 sm:h-14 text-violet-400" />
-        </motion.div>
-        <h3 className="text-2xl sm:text-3xl font-bold text-white mb-3">
-            Inizia a studiare
-        </h3>
-        <p className="text-white/50 max-w-md mb-8 text-base sm:text-lg">
-            Crea il tuo primo mazzo di flashcard e usa la ripetizione spaziata per ricordare tutto.
-        </p>
-        <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onCreateDeck}
-            className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-500 to-violet-600 text-white font-bold shadow-xl shadow-violet-500/30 text-lg"
-        >
-            <Plus className="w-6 h-6" />
-            Crea il Primo Mazzo
-        </motion.button>
-    </motion.div>
-);
-
-// ============================================
-// SKELETON LOADER
-// ============================================
-
-const DeckSkeleton: React.FC = () => (
-    <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-white/[0.03] p-5 sm:p-6 animate-pulse">
-        <div className="flex items-start gap-4 mb-4 mt-8">
-            <div className="w-14 h-14 rounded-xl bg-white/10" />
-            <div className="flex-1 space-y-2">
-                <div className="w-3/4 h-5 bg-white/10 rounded-lg" />
-                <div className="w-1/3 h-4 bg-white/5 rounded-lg" />
-            </div>
-        </div>
-        <div className="h-2 bg-white/5 rounded-full mb-5" />
-        <div className="space-y-2.5">
-            <div className="h-14 bg-white/5 rounded-xl" />
-            <div className="h-14 bg-white/5 rounded-xl" />
-        </div>
-    </div>
-);
+// DeckTheme e DeckCard sono stati estratti in componenti separati
 
 // ============================================
 // MAIN DASHBOARD PAGE
@@ -1049,6 +79,359 @@ export const DecksDashboardPage: React.FC = () => {
         const mastered = d.cards?.filter(c => c.status === 'mastered').length ?? 0;
         return total > 0 && mastered === total;
     }).length;
+
+    // Calcola statistiche per cartella
+    const folderStats = useMemo(() => {
+        const statsMap = new Map<string, {
+            totalCards: number;
+            dueCards: number;
+            masteryPercent: number;
+            totalDecks: number;
+        }>();
+
+        // Inizializza tutte le cartelle
+        const allFolderIds = new Set<string>();
+        folders.forEach(f => {
+            allFolderIds.add(f.id);
+            if (f.children) {
+                f.children.forEach(c => allFolderIds.add(c.id));
+            }
+        });
+
+        allFolderIds.forEach(folderId => {
+            statsMap.set(folderId, {
+                totalCards: 0,
+                dueCards: 0,
+                masteryPercent: 0,
+                totalDecks: 0,
+            });
+        });
+
+        // Calcola statistiche dai deck
+        decks.forEach(deck => {
+            if (!deck.folderId) return;
+            
+            const stats = statsMap.get(deck.folderId);
+            if (!stats) return;
+
+            const total = deck.totalCards ?? deck.cards?.length ?? 0;
+            const due = deck.dueCount ?? 0;
+            const mastered = deck.cards?.filter(c => c.status === 'mastered').length ?? 0;
+            const mastery = total > 0 ? Math.round((mastered / total) * 100) : 0;
+
+            stats.totalCards += total;
+            stats.dueCards += due;
+            stats.totalDecks += 1;
+            
+            // Mastery percent è la media ponderata
+            const oldMastery = stats.masteryPercent;
+            const oldTotal = stats.totalCards - total;
+            if (oldTotal + total > 0) {
+                stats.masteryPercent = Math.round(
+                    ((oldMastery * oldTotal) + (mastery * total)) / (oldTotal + total)
+                );
+            }
+        });
+
+        return statsMap;
+    }, [decks, folders]);
+
+    // Calcola mazzi prioritari per oggi (con carte da ripassare, ordinati per priorità)
+    const todayPriorityDecks = useMemo(() => {
+        return decks
+            .filter(deck => (deck.dueCount ?? 0) > 0)
+            .map(deck => {
+                const total = deck.totalCards ?? deck.cards?.length ?? 0;
+                const due = deck.dueCount ?? 0;
+                const ratio = total > 0 ? due / total : 0;
+                return {
+                    deck,
+                    priority: ratio > 0.5 ? 'high' as const : ratio > 0.2 ? 'medium' as const : 'low' as const,
+                    dueCount: due,
+                    totalCards: total,
+                };
+            })
+            .sort((a, b) => {
+                // Ordina per priorità (high > medium > low) e poi per numero di carte da ripassare
+                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                    return priorityOrder[b.priority] - priorityOrder[a.priority];
+                }
+                return b.dueCount - a.dueCount;
+            })
+            .slice(0, 3); // Mostra solo i top 3
+    }, [decks]);
+
+    // Calcola statistiche per ogni giorno della settimana
+    const weeklyStudyPlan = useMemo(() => {
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay()); // Domenica
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const weekDays = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        const weekData = weekDays.map((dayName, index) => {
+            const dayDate = new Date(startOfWeek);
+            dayDate.setDate(startOfWeek.getDate() + index);
+            const dayStart = new Date(dayDate);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(dayDate);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            let dueCards = 0;
+            let newCards = 0;
+            let completedCards = 0;
+
+            decks.forEach(deck => {
+                if (!deck.cards || deck.cards.length === 0) return;
+
+                deck.cards.forEach(card => {
+                    const reviewDate = card.nextReviewDate ? new Date(card.nextReviewDate) : null;
+
+                    // Carte da ripassare (con scadenza in questo giorno o prima)
+                    if (reviewDate && reviewDate >= dayStart && reviewDate <= dayEnd && card.status !== 'mastered') {
+                        dueCards++;
+                    }
+
+                    // Nuove carte (status 'new')
+                    if (card.status === 'new' && reviewDate && reviewDate >= dayStart && reviewDate <= dayEnd) {
+                        newCards++;
+                    }
+
+                    // Carte completate (mastered) con review date in questo giorno
+                    if (card.status === 'mastered' && reviewDate && reviewDate >= dayStart && reviewDate <= dayEnd) {
+                        completedCards++;
+                    }
+                });
+            });
+
+            return {
+                dayName,
+                date: dayDate,
+                dueCards,
+                newCards,
+                completedCards,
+                isToday: index === today.getDay(),
+            };
+        });
+
+        return weekData;
+    }, [decks]);
+
+    // Calcola lo stato mentale basato su vari fattori
+    const calculateMentalState = useMemo(() => {
+        // Fattori che influenzano lo stato mentale:
+        // 1. Numero di carte da ripassare (più carte = più stress)
+        // 2. Tempo trascorso dall'ultima sessione (più tempo = più recupero)
+        // 3. Percentuale di padronanza complessiva (più padronanza = meno stress)
+        // 4. Numero di mazzi attivi (più mazzi = più carico cognitivo)
+        
+        const totalCards = decks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
+        const dueCards = decks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
+        const masteredCards = decks.reduce((sum, deck) => {
+            const mastered = deck.cards?.filter(c => c.status === 'mastered').length ?? 0;
+            return sum + mastered;
+        }, 0);
+        
+        if (totalCards === 0) {
+            return {
+                percentage: 100,
+                state: 'fresco' as const,
+                message: 'Pronto per iniziare!',
+                color: 'emerald' as const,
+                suggestion: 'Crea il tuo primo mazzo e inizia a studiare',
+            };
+        }
+        
+        // Calcola stress basato su carte da ripassare
+        const dueRatio = totalCards > 0 ? dueCards / totalCards : 0;
+        const stressFromDue = Math.min(100, dueRatio * 100);
+        
+        // Calcola recupero basato su padronanza
+        const masteryRatio = totalCards > 0 ? masteredCards / totalCards : 0;
+        const recoveryFromMastery = masteryRatio * 30; // Max 30% di recupero
+        
+        // Calcola carico cognitivo basato su numero di mazzi
+        const activeDecks = decks.filter(d => (d.totalCards ?? 0) > 0).length;
+        const cognitiveLoad = Math.min(20, activeDecks * 2); // Max 20% di carico
+        
+        // Calcola stato mentale finale (100% = fresco, 0% = esaurito)
+        let mentalState = 100;
+        mentalState -= stressFromDue * 0.5; // Le carte da ripassare riducono lo stato mentale
+        mentalState += recoveryFromMastery; // La padronanza aumenta lo stato mentale
+        mentalState -= cognitiveLoad; // Più mazzi = più carico
+        
+        // Normalizza tra 0 e 100
+        mentalState = Math.max(0, Math.min(100, mentalState));
+        
+        // Determina stato e suggerimenti
+        let state: 'fresco' | 'attivo' | 'stanco' | 'esaurito';
+        let message: string;
+        let color: 'emerald' | 'blue' | 'amber' | 'rose';
+        let suggestion: string;
+        
+        if (mentalState >= 75) {
+            state = 'fresco';
+            message = 'Pronto e concentrato';
+            color = 'emerald';
+            suggestion = 'Ottimo momento per studiare!';
+        } else if (mentalState >= 50) {
+            state = 'attivo';
+            message = 'Buona forma mentale';
+            color = 'blue';
+            suggestion = 'Continua così, ma fai attenzione ai segnali di stanchezza';
+        } else if (mentalState >= 25) {
+            state = 'stanco';
+            message = 'Inizia a sentire la fatica';
+            color = 'amber';
+            suggestion = 'Considera una pausa breve (10-15 minuti)';
+        } else {
+            state = 'esaurito';
+            message = 'Hai bisogno di riposo';
+            color = 'rose';
+            suggestion = 'Fai una pausa lunga (30+ minuti) o riposa per oggi';
+        }
+        
+        return {
+            percentage: Math.round(mentalState),
+            state,
+            message,
+            color,
+            suggestion,
+        };
+    }, [decks]);
+
+    // Calcola i prossimi passi guidati basati sullo stato attuale
+    const nextSteps = useMemo(() => {
+        const steps: Array<{
+            id: string;
+            title: string;
+            description: string;
+            action: () => void;
+            estimatedTime: string;
+            priority: 'high' | 'medium' | 'low';
+            icon: React.ElementType;
+            color: string;
+            deckId?: string;
+            actionType: 'study' | 'magic-generate' | 'create-deck' | 'enrich-deck';
+        }> = [];
+
+        // Passo 1: Ripassa carte urgenti
+        const urgentDecks = decks.filter(deck => {
+            const total = deck.totalCards ?? deck.cards?.length ?? 0;
+            const due = deck.dueCount ?? 0;
+            return total > 0 && due > 0 && (due / total) > 0.5;
+        });
+
+        if (urgentDecks.length > 0) {
+            const totalUrgentCards = urgentDecks.reduce((sum, d) => sum + (d.dueCount ?? 0), 0);
+            const estimatedMinutes = Math.round((totalUrgentCards * 30) / 60);
+            steps.push({
+                id: 'review-urgent',
+                title: `Ripassa ${totalUrgentCards} carte urgenti`,
+                description: `${urgentDecks.length} ${urgentDecks.length === 1 ? 'mazzo ha' : 'mazzi hanno'} più del 50% di carte da ripassare`,
+                action: () => {
+                    // Sarà gestito nel componente UI
+                },
+                deckId: urgentDecks[0].id,
+                actionType: 'study' as const,
+                estimatedTime: estimatedMinutes > 60 ? `${Math.floor(estimatedMinutes / 60)}h ${estimatedMinutes % 60}m` : `${estimatedMinutes}m`,
+                priority: 'high',
+                icon: AlertCircle,
+                color: 'amber',
+            });
+        }
+
+        // Passo 2: Inizia nuovi mazzi vuoti
+        const emptyDecks = decks.filter(deck => (deck.totalCards ?? deck.cards?.length ?? 0) === 0);
+        if (emptyDecks.length > 0) {
+            steps.push({
+                id: 'start-empty',
+                title: `Genera carte per ${emptyDecks.length} ${emptyDecks.length === 1 ? 'mazzo vuoto' : 'mazzi vuoti'}`,
+                description: emptyDecks.length === 1 
+                    ? `"${emptyDecks[0].title}" è pronto per essere popolato`
+                    : `${emptyDecks.length} mazzi sono pronti per essere popolati`,
+                action: () => {
+                    // Sarà gestito nel componente UI
+                },
+                deckId: emptyDecks[0].id,
+                actionType: 'magic-generate' as const,
+                estimatedTime: '5-10m',
+                priority: emptyDecks.length > 2 ? 'high' : 'medium',
+                icon: Sparkles,
+                color: 'violet',
+            });
+        }
+
+        // Passo 3: Continua mazzi in corso
+        const inProgressDecks = decks.filter(deck => {
+            const total = deck.totalCards ?? deck.cards?.length ?? 0;
+            const due = deck.dueCount ?? 0;
+            return total > 0 && due > 0 && due < total * 0.5;
+        });
+
+        if (inProgressDecks.length > 0 && urgentDecks.length === 0) {
+            const totalCards = inProgressDecks.reduce((sum, d) => sum + (d.dueCount ?? 0), 0);
+            const estimatedMinutes = Math.round((totalCards * 30) / 60);
+            steps.push({
+                id: 'continue-progress',
+                title: `Continua ${inProgressDecks.length} ${inProgressDecks.length === 1 ? 'mazzo' : 'mazzi'} in corso`,
+                description: `${totalCards} carte da ripassare`,
+                action: () => {
+                    // Sarà gestito nel componente UI
+                },
+                deckId: inProgressDecks[0].id,
+                actionType: 'study' as const,
+                estimatedTime: estimatedMinutes > 60 ? `${Math.floor(estimatedMinutes / 60)}h ${estimatedMinutes % 60}m` : `${estimatedMinutes}m`,
+                priority: 'medium',
+                icon: Play,
+                color: 'blue',
+            });
+        }
+
+        // Passo 4: Crea nuovo mazzo
+        if (decks.length === 0 || (decks.length < 5 && emptyDecks.length === 0)) {
+            steps.push({
+                id: 'create-deck',
+                title: 'Crea il tuo primo mazzo',
+                description: decks.length === 0 
+                    ? 'Inizia organizzando il tuo materiale di studio'
+                    : 'Aggiungi un nuovo argomento da studiare',
+                action: () => {
+                    // Sarà gestito nel componente UI
+                },
+                actionType: 'create-deck' as const,
+                estimatedTime: '2m',
+                priority: decks.length === 0 ? 'high' : 'low',
+                icon: Plus,
+                color: 'violet',
+            });
+        }
+
+        // Passo 5: Aggiungi carte a mazzi esistenti
+        const decksWithCards = decks.filter(deck => (deck.totalCards ?? deck.cards?.length ?? 0) > 0);
+        if (decksWithCards.length > 0 && decksWithCards.length < 10) {
+            const deckToEnrich = decksWithCards.find(d => (d.totalCards ?? 0) < 20) || decksWithCards[0];
+            if (deckToEnrich) {
+                steps.push({
+                    id: 'enrich-deck',
+                    title: `Aggiungi carte a "${deckToEnrich.title}"`,
+                    description: `Espandi il mazzo con nuovo materiale`,
+                action: () => {
+                    // Sarà gestito nel componente UI
+                },
+                deckId: deckToEnrich.id,
+                actionType: 'enrich-deck' as const,
+                    estimatedTime: '5-10m',
+                    priority: 'low',
+                    icon: BookOpen,
+                    color: 'blue',
+                });
+            }
+        }
+
+        return steps.slice(0, 4); // Mostra massimo 4 passi
+    }, [decks]);
 
     // Filtered decks
     const filteredDecks = useMemo(() => {
@@ -1316,284 +699,179 @@ export const DecksDashboardPage: React.FC = () => {
     // ========== RENDER ==========
 
     return (
-        <div className="min-h-screen flex">
-            {/* Sidebar - Organizzazione */}
-            <AnimatePresence>
-                {isSidebarOpen && (
-                    <motion.aside
-                        initial={{ x: -300, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: -300, opacity: 0 }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="hidden lg:flex flex-col w-72 border-r border-violet-500/20 bg-[inherit] backdrop-blur-xl"                    >
-                        <div className="p-5 border-b border-white/10 bg-[#111122]/30">
-                            <div className="flex items-center justify-between mb-1">
-                                <h2 className="text-sm font-bold text-white/90 uppercase tracking-widest">
-                                    Organizza
-                                </h2>
-                                <button
-                                    onClick={() => setIsSidebarOpen(false)}
-                                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors lg:hidden"
-                                >
-                                    <X className="w-4 h-4 text-white/60" />
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-white/40 mt-1">
-                                💡 Trascina un mazzo per organizzarlo
-                            </p>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                            {/* Cartelle */}
-                            <div>
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2">
-                                        <FolderIcon className="w-3.5 h-3.5" />
-                                        Cartelle
-                                    </h3>
-                                    <motion.button
-                                        whileHover={{ scale: 1.1, rotate: 90 }}
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={async () => {
-                                            const name = prompt('Nome della nuova cartella:');
-                                            if (name && name.trim()) {
-                                                try {
-                                                    await foldersService.createFolder({ name: name.trim() });
-                                                    emitToast.success('Cartella creata');
-                                                    handleRefreshOrganization();
-                                                } catch (err: any) {
-                                                    emitToast.error(err.message || 'Errore nella creazione');
-                                                }
-                                            }
-                                        }}
-                                        className="p-1.5 rounded-full bg-violet-500/20 hover:bg-violet-500/30 transition-colors border border-violet-500/30"
-                                    >
-                                        <Plus className="w-3.5 h-3.5 text-violet-300" />
-                                    </motion.button>
-                                </div>
-                                {folders.length > 0 ? (
-                                    <FolderTree
-                                        folders={folders}
-                                        selectedFolderId={selectedFolderId}
-                                        onFolderSelect={handleFolderSelect}
-                                        onRefresh={handleRefreshOrganization}
-                                        onDeckDrop={handleDeckDrop}
-                                    />
-                                ) : (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="px-3 py-6 text-center"
-                                    >
-                                        <FolderIcon className="w-10 h-10 mx-auto mb-3 text-white/20" />
-                                        <p className="text-xs text-white/40 mb-2">Nessuna cartella ancora</p>
-                                        <button
-                                            onClick={async () => {
-                                                const name = prompt('Nome della nuova cartella:');
-                                                if (name && name.trim()) {
-                                                    try {
-                                                        await foldersService.createFolder({ name: name.trim() });
-                                                        emitToast.success('Cartella creata');
-                                                        handleRefreshOrganization();
-                                                    } catch (err: any) {
-                                                        emitToast.error(err.message || 'Errore nella creazione');
-                                                    }
-                                                }
-                                            }}
-                                            className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
-                                        >
-                                            Crea la tua prima cartella →
-                                        </button>
-                                    </motion.div>
-                                )}
-                            </div>
-
-                            {/* Tag */}
-                            <div>
-                                <TagCloud
-                                    tags={tags}
-                                    selectedTags={selectedTags}
-                                    onTagToggle={handleTagToggle}
-                                    onRefresh={handleRefreshOrganization}
-                                />
-                            </div>
-                        </div>
-                    </motion.aside>
-                )}
-            </AnimatePresence>
-
-            {/* Main Content */}
-            <div className="flex-1 min-h-screen px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
-                <div className="max-w-6xl mx-auto">
-                {/* ═══ HEADER ═══ */}
-                <header className="mb-4 sm:mb-6 md:mb-8">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-                        <div>
-                            <p className="text-[10px] sm:text-xs font-bold text-violet-400 uppercase tracking-widest mb-1">
-                                Learning & Study
-                            </p>
-                            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
-                                Flashcards
-                            </h1>
-                            <p className="text-white/50 mt-1 text-xs sm:text-sm md:text-base">
-                                Gestisci i tuoi mazzi e migliora la memoria
-                            </p>
-                        </div>
-                        <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-3 sm:py-3.5 md:py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-violet-500 to-violet-600 text-white font-bold shadow-xl shadow-violet-500/30 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
-                        >
-                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                            <span>Nuovo Mazzo</span>
-                        </motion.button>
-                    </div>
-
-                    {/* Hero Stats */}
-                    {!isLoading && decks.length > 0 && (
-                        <HeroStats 
-                            totalDecks={decks.length}
-                            totalCards={totalCards}
-                            dueCards={dueCardCount}
-                            masteredDecks={masteredDecks}
-                        />
-                    )}
-
-                    {/* Filter & Search */}
-                    {!isLoading && decks.length > 0 && (
-                        <FilterBar
-                            activeFilter={filter}
-                            onFilterChange={setFilter}
-                            searchQuery={searchQuery}
-                            onSearchChange={setSearchQuery}
-                            dueCount={decks.filter(d => (d.dueCount ?? 0) > 0).length}
-                        />
-                    )}
-                </header>
-
-                {/* ═══ CONTENT ═══ */}
-                {isLoading ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                        {[...Array(4)].map((_, i) => (
-                            <DeckSkeleton key={i} />
-                        ))}
-                    </div>
-                ) : error ? (
-                    <div className="flex flex-col items-center justify-center py-16">
-                        <div className="w-20 h-20 mb-6 rounded-full bg-red-500/20 flex items-center justify-center">
-                            <AlertCircle className="w-10 h-10 text-red-400" />
-                        </div>
-                        <p className="text-white/60 mb-6 text-lg">{error}</p>
-                        <button
-                            onClick={loadDecks}
-                            className="px-6 py-3 rounded-xl bg-white/10 text-white hover:bg-white/15 transition-all"
-                        >
-                            Riprova
-                        </button>
-                    </div>
-                ) : decks.length === 0 ? (
-                    <EmptyState onCreateDeck={() => setIsCreateModalOpen(true)} />
-                ) : filteredDecks.length === 0 ? (
-                    <div className="text-center py-16">
-                        <p className="text-white/50 text-lg">
-                            Nessun mazzo corrisponde ai filtri
-                        </p>
-                        <button
-                            onClick={() => {
-                                setFilter('all');
-                                setSearchQuery('');
-                            }}
-                            className="mt-4 px-4 py-2 rounded-xl bg-white/5 text-white/70 hover:bg-white/10"
-                        >
-                            Mostra tutti
-                        </button>
-                    </div>
-                ) : (
-                    /* ═══ DECK GRID - 2 colonne max per card più grandi ═══ */
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6"
-                    >
-                        <AnimatePresence mode="popLayout">
-                            {filteredDecks.map((deck, index) => (
-                                <motion.div
-                                    key={deck.id}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ delay: index * 0.05 }}
-                                >
-                                    <DeckCard
-                                        deck={deck}
-                                        onStudy={handleStudy}
-                                        onMagicGenerate={handleMagicGenerate}
-                                        onAddCard={handleAddCard}
-                                        onViewDetail={handleViewDetail}
-                                        onSplitStudy={handleSplitStudy}
-                                        onDelete={setDeletingDeck}
-                                        onUpdate={(updated) => {
-                                            setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
-                                        }}
-                                        tags={tags}
-                                    />
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
-                    </motion.div>
-                )}
-
-                {/* ═══ MODALS ═══ */}
-                <CreateDeckModal
-                    isOpen={isCreateModalOpen}
-                    onClose={() => setIsCreateModalOpen(false)}
-                    onSubmit={handleCreateDeck}
+        <DashboardLayout
+            isSidebarOpen={isSidebarOpen}
+            onSidebarClose={() => setIsSidebarOpen(false)}
+            folders={folders}
+            tags={tags}
+            selectedFolderId={selectedFolderId}
+            selectedTags={selectedTags}
+            folderStats={folderStats}
+            onFolderSelect={handleFolderSelect}
+            onTagToggle={handleTagToggle}
+            onDeckDrop={handleDeckDrop}
+            onRefresh={handleRefreshOrganization}
+            onCreateDeck={() => setIsCreateModalOpen(true)}
+        >
+            {/* Hero Stats + Stato Mentale */}
+            {!isLoading && decks.length > 0 && (
+                <DashboardHero
+                    totalDecks={decks.length}
+                    totalCards={totalCards}
+                    dueCards={dueCardCount}
+                    masteredDecks={masteredDecks}
+                    mentalState={calculateMentalState}
                 />
+            )}
 
-                <AddCardModal
-                    isOpen={isAddCardModalOpen}
-                    deckId={selectedDeck?.id ?? null}
-                    deckTitle={selectedDeck?.title ?? ''}
-                    onClose={() => {
-                        setIsAddCardModalOpen(false);
-                        setSelectedDeck(null);
+            {/* Oggi: Cosa Devo Studiare */}
+            {!isLoading && todayPriorityDecks.length > 0 && (
+                <TodayPlan
+                    priorityDecks={todayPriorityDecks}
+                    dueCardCount={dueCardCount}
+                    onFilterChange={setFilter}
+                    onStudy={handleStudy}
+                    onViewDetail={handleViewDetail}
+                />
+            )}
+
+            {/* Timeline di Studio Visiva */}
+            {!isLoading && decks.length > 0 && (
+                <StudyTimeline
+                    weeklyPlan={weeklyStudyPlan}
+                    onFilterChange={setFilter}
+                />
+            )}
+
+            {/* Prossimi Passi Guidati */}
+            {!isLoading && nextSteps.length > 0 && (
+                <NextSteps
+                    steps={nextSteps}
+                    decks={decks}
+                    onStudy={handleStudy}
+                    onFilterChange={setFilter}
+                    onMagicGenerate={(deck) => {
+                        setSelectedDeck(deck);
+                        setIsMagicGenerateOpen(true);
                     }}
-                    onSubmit={handleSubmitCard}
+                    onCreateDeck={() => setIsCreateModalOpen(true)}
                 />
+            )}
 
-                <MagicGenerateModal
-                    isOpen={isMagicGenerateOpen}
-                    deckId={selectedDeck?.id ?? ''}
-                    deckTitle={selectedDeck?.title ?? ''}
-                    onClose={() => {
-                        setIsMagicGenerateOpen(false);
-                        setSelectedDeck(null);
-                    }}
-                    onSuccess={(count) => handleMagicGenerateSuccess(count)}
+            {/* Filter & Search */}
+            {!isLoading && decks.length > 0 && (
+                <FilterBar
+                    activeFilter={filter}
+                    onFilterChange={setFilter}
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    dueCount={decks.filter(d => (d.dueCount ?? 0) > 0).length}
                 />
+            )}
 
-                <StudyModeSelector
-                    isOpen={isStudyModeOpen}
-                    deckTitle={studyDeck?.title}
-                    onClose={() => {
-                        setIsStudyModeOpen(false);
-                        setStudyDeck(null);
-                    }}
-                    onStart={handleStartSession}
-                />
-
-                <ConfirmationModal
-                    isOpen={!!deletingDeck}
-                    title="Elimina Mazzo"
-                    description={`Sei sicuro di voler eliminare "${deletingDeck?.title}"? Tutte le carte verranno eliminate.`}
-                    confirmLabel="Elimina"
-                    destructive
-                    onConfirm={handleDeleteDeck}
-                    onCancel={() => setDeletingDeck(null)}
-                />
+            {/* ═══ CONTENT ═══ */}
+            {isLoading ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                    {[...Array(4)].map((_, i) => (
+                        <DeckSkeleton key={i} />
+                    ))}
                 </div>
-            </div>
-        </div>
+            ) : error ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                    <div className="w-20 h-20 mb-6 rounded-full bg-red-500/20 flex items-center justify-center">
+                        <AlertCircle className="w-10 h-10 text-red-400" />
+                    </div>
+                    <p className="text-white/60 mb-6 text-lg">{error}</p>
+                    <button
+                        onClick={loadDecks}
+                        className="px-6 py-3 rounded-xl bg-white/10 text-white hover:bg-white/15 transition-all"
+                    >
+                        Riprova
+                    </button>
+                </div>
+            ) : decks.length === 0 ? (
+                <DashboardEmptyState onCreateDeck={() => setIsCreateModalOpen(true)} />
+            ) : filteredDecks.length === 0 ? (
+                <div className="text-center py-16">
+                    <p className="text-white/50 text-lg">
+                        Nessun mazzo corrisponde ai filtri
+                    </p>
+                    <button
+                        onClick={() => {
+                            setFilter('all');
+                            setSearchQuery('');
+                        }}
+                        className="mt-4 px-4 py-2 rounded-xl bg-white/5 text-white/70 hover:bg-white/10"
+                    >
+                        Mostra tutti
+                    </button>
+                </div>
+            ) : (
+                <DeckGrid
+                    decks={filteredDecks}
+                    tags={tags}
+                    DeckCardComponent={DeckCard}
+                    onStudy={handleStudy}
+                    onMagicGenerate={handleMagicGenerate}
+                    onAddCard={handleAddCard}
+                    onViewDetail={handleViewDetail}
+                    onSplitStudy={handleSplitStudy}
+                    onDelete={setDeletingDeck}
+                    onUpdate={(updated) => {
+                        setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
+                    }}
+                />
+            )}
+
+            {/* ═══ MODALS ═══ */}
+            <CreateDeckModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSubmit={handleCreateDeck}
+            />
+
+            <AddCardModal
+                isOpen={isAddCardModalOpen}
+                deckId={selectedDeck?.id ?? null}
+                deckTitle={selectedDeck?.title ?? ''}
+                onClose={() => {
+                    setIsAddCardModalOpen(false);
+                    setSelectedDeck(null);
+                }}
+                onSubmit={handleSubmitCard}
+            />
+
+            <MagicGenerateModal
+                isOpen={isMagicGenerateOpen}
+                deckId={selectedDeck?.id ?? ''}
+                deckTitle={selectedDeck?.title ?? ''}
+                onClose={() => {
+                    setIsMagicGenerateOpen(false);
+                    setSelectedDeck(null);
+                }}
+                onSuccess={(count) => handleMagicGenerateSuccess(count)}
+            />
+
+            <StudyModeSelector
+                isOpen={isStudyModeOpen}
+                deckTitle={studyDeck?.title}
+                onClose={() => {
+                    setIsStudyModeOpen(false);
+                    setStudyDeck(null);
+                }}
+                onStart={handleStartSession}
+            />
+
+            <ConfirmationModal
+                isOpen={!!deletingDeck}
+                title="Elimina Mazzo"
+                description={`Sei sicuro di voler eliminare "${deletingDeck?.title}"? Tutte le carte verranno eliminate.`}
+                confirmLabel="Elimina"
+                destructive
+                onConfirm={handleDeleteDeck}
+                onCancel={() => setDeletingDeck(null)}
+            />
+        </DashboardLayout>
     );
 };
 

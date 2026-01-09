@@ -28,6 +28,12 @@ export interface Folder {
     children?: Folder[]; // Per albero gerarchico
     createdAt?: string;
     updatedAt?: string;
+    // Statistiche aggiuntive
+    totalCards?: number;
+    dueCards?: number;
+    masteryPercent?: number;
+    deadline?: string;
+    targetMastery?: number;
 }
 
 export interface CreateFolderPayload {
