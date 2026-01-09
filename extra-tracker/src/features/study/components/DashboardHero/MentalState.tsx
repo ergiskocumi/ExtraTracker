@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Brain, Moon, Activity, Target, Sparkles, TrendingUp, Zap } from 'lucide-react';
+import { Brain, Moon, Activity, Target, Sparkles, TrendingUp } from 'lucide-react';
 
 export type MentalState = 'fresco' | 'attivo' | 'stanco' | 'esaurito';
 
@@ -139,41 +139,42 @@ export const MentalStateIndicator: React.FC<{ mentalState: MentalStateData }> = 
     const motivationalMessage = getMotivationalMessage();
 
     return (
-        <div className="space-y-2">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2, duration: 0.4 }}
-                className={`
-                    relative overflow-hidden
-                    p-4 rounded-xl border
-                    ${state.bgClass}
-                    transition-all duration-300
-                    w-full
-                `}
-            >
-                {/* Simple gradient overlay */}
-                <div className={`absolute inset-0 bg-gradient-to-r ${state.gradientFrom}/5 ${state.gradientTo}/5 opacity-50`} />
-                
-                <div className="relative z-10 flex items-center justify-between gap-4">
+        <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+            className={`
+                relative overflow-hidden
+                p-5 sm:p-6 rounded-xl sm:rounded-2xl border
+                ${state.bgClass}
+                transition-all duration-300
+                w-full
+            `}
+        >
+            {/* Simple gradient overlay */}
+            <div className={`absolute inset-0 bg-gradient-to-r ${state.gradientFrom}/5 ${state.gradientTo}/5 opacity-50`} />
+            
+            <div className="relative z-10 space-y-4">
+                {/* Top: Icon + State + Progress */}
+                <div className="flex items-center justify-between gap-4">
                     {/* Left: Icon + State */}
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className={`p-2.5 rounded-lg ${state.bgClass.replace('border', 'bg').replace('/10', '/15')} flex-shrink-0`}>
-                            <Icon className={`w-5 h-5 ${state.iconClass}`} />
+                        <div className={`p-2.5 sm:p-3 rounded-lg ${state.bgClass.replace('border', 'bg').replace('/10', '/15')} flex-shrink-0`}>
+                            <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${state.iconClass}`} />
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-lg">{state.emoji}</span>
-                                <div className={`text-lg font-bold ${state.iconClass} truncate`}>
+                            <div className="flex items-center gap-2 mb-1.5">
+                                <span className="text-lg sm:text-xl">{state.emoji}</span>
+                                <div className={`text-lg sm:text-xl font-bold ${state.iconClass} truncate`}>
                                     {state.label}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div className={`text-xs font-semibold ${state.iconClass}`}>
+                                <div className={`text-xs sm:text-sm font-semibold ${state.iconClass}`}>
                                     {mentalState.percentage}%
                                 </div>
-                                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
                                     <motion.div
                                         initial={{ width: 0 }}
                                         animate={{ width: `${mentalState.percentage}%` }}
@@ -197,20 +198,15 @@ export const MentalStateIndicator: React.FC<{ mentalState: MentalStateData }> = 
                         </div>
                     )}
                 </div>
-            </motion.div>
 
-            {/* Message below the card */}
-            <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.4 }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg ${state.bgClass.replace('border', 'bg').replace('/10', '/5')} border ${state.borderGlowClass}`}
-            >
-                <Sparkles className={`w-4 h-4 ${state.iconClass} flex-shrink-0`} />
-                <div className={`text-sm font-medium ${state.iconClass} leading-relaxed`}>
-                    {motivationalMessage}
+                {/* Bottom: Motivational Message */}
+                <div className={`flex items-start gap-2.5 pt-3 border-t ${state.borderGlowClass}`}>
+                    <Sparkles className={`w-4 h-4 sm:w-5 sm:h-5 ${state.iconClass} flex-shrink-0 mt-0.5`} />
+                    <div className={`text-sm sm:text-base font-medium ${state.iconClass} leading-relaxed`}>
+                        {motivationalMessage}
+                    </div>
                 </div>
-            </motion.div>
-        </div>
+            </div>
+        </motion.div>
     );
 };

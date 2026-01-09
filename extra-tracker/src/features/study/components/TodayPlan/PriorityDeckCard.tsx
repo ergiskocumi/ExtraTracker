@@ -75,94 +75,124 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
     const theme = getDeckTheme(deck);
     const ThemeIcon = theme.icon;
 
+    const progressPercent = totalCards > 0 ? ((totalCards - dueCount) / totalCards) * 100 : 0;
+
     return (
         <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.08, duration: 0.4 }}
+            whileHover={{ y: -2 }}
             className={`
-                relative p-4 sm:p-5 rounded-xl sm:rounded-2xl border
+                relative p-5 sm:p-6 rounded-2xl sm:rounded-3xl border-2
                 ${priority === 'high' 
-                    ? 'bg-amber-500/10 border-amber-500/30' 
+                    ? 'bg-gradient-to-br from-amber-500/15 to-amber-600/10 border-amber-500/40 shadow-lg shadow-amber-500/10' 
                     : priority === 'medium'
-                        ? 'bg-violet-500/10 border-violet-500/30'
-                        : 'bg-blue-500/10 border-blue-500/30'
+                        ? 'bg-gradient-to-br from-violet-500/15 to-violet-600/10 border-violet-500/40 shadow-lg shadow-violet-500/10'
+                        : 'bg-gradient-to-br from-blue-500/15 to-blue-600/10 border-blue-500/40 shadow-lg shadow-blue-500/10'
                 }
-                hover:shadow-lg transition-all
+                hover:shadow-xl hover:border-opacity-60 transition-all duration-300
+                backdrop-blur-sm
             `}
         >
             {/* Badge priorità */}
-            <div className="absolute top-3 right-3">
+            <div className="absolute top-4 right-4 z-10">
                 {priority === 'high' && (
-                    <span className="px-2 py-1 text-xs font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: index * 0.08 + 0.2 }}
+                        className="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-500/30 text-amber-200 border border-amber-400/50 shadow-lg shadow-amber-500/20"
+                    >
                         🔥 Urgente
-                    </span>
+                    </motion.span>
                 )}
                 {priority === 'medium' && (
-                    <span className="px-2 py-1 text-xs font-bold rounded-full bg-violet-500/20 text-violet-400 border border-violet-500/30">
+                    <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: index * 0.08 + 0.2 }}
+                        className="px-2.5 py-1 text-xs font-bold rounded-full bg-violet-500/30 text-violet-200 border border-violet-400/50 shadow-lg shadow-violet-500/20"
+                    >
                         ⚡ Priorità
-                    </span>
+                    </motion.span>
                 )}
             </div>
 
             {/* Icona e titolo */}
-            <div className="flex items-start gap-3 mb-3">
+            <div className="flex items-start gap-4 mb-4 pr-16">
                 <div 
-                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg"
                     style={{ background: theme.gradient }}
                 >
-                    <ThemeIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${theme.iconColor}`} />
+                    <ThemeIcon className={`w-7 h-7 sm:w-8 sm:h-8 ${theme.iconColor}`} />
                 </div>
-                <div className="flex-1 min-w-0">
-                    <h3 className="text-sm sm:text-base font-bold text-white truncate mb-1">
+                <div className="flex-1 min-w-0 pt-1">
+                    <h3 className="text-base sm:text-lg font-bold text-white mb-1.5 line-clamp-2 leading-tight">
                         {deck.title}
                     </h3>
-                    <p className="text-xs text-white/60">
+                    <p className="text-xs sm:text-sm text-white/70 font-medium">
                         {dueCount} di {totalCards} carte da ripassare
                     </p>
                 </div>
             </div>
 
             {/* Progress bar */}
-            <div className="mb-4">
-                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div 
+            <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-white/60">Progresso</span>
+                    <span className={`text-xs font-bold ${
+                        priority === 'high' ? 'text-amber-400' :
+                        priority === 'medium' ? 'text-violet-400' :
+                        'text-blue-400'
+                    }`}>
+                        {Math.round(progressPercent)}%
+                    </span>
+                </div>
+                <div className="h-2.5 bg-white/10 rounded-full overflow-hidden shadow-inner">
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progressPercent}%` }}
+                        transition={{ delay: index * 0.08 + 0.3, duration: 0.6, ease: "easeOut" }}
                         className={`h-full rounded-full ${
-                            priority === 'high' ? 'bg-amber-400' :
-                            priority === 'medium' ? 'bg-violet-400' :
-                            'bg-blue-400'
-                        }`}
-                        style={{ width: `${((totalCards - dueCount) / totalCards) * 100}%` }}
+                            priority === 'high' ? 'bg-gradient-to-r from-amber-400 to-amber-500' :
+                            priority === 'medium' ? 'bg-gradient-to-r from-violet-400 to-violet-500' :
+                            'bg-gradient-to-r from-blue-400 to-blue-500'
+                        } shadow-lg`}
                     />
                 </div>
             </div>
 
             {/* Azioni rapide */}
-            <div className="flex gap-2">
+            <div className="flex gap-3">
                 <motion.button
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => onStudy(deck.id)}
                     className={`
-                        flex-1 flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl
-                        font-medium text-sm sm:text-base
-                        transition-all touch-manipulation min-h-[44px]
+                        flex-1 flex items-center justify-center gap-2.5 px-5 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
+                        font-bold text-sm sm:text-base
+                        transition-all touch-manipulation min-h-[48px] sm:min-h-[52px]
+                        shadow-xl
                         ${priority === 'high'
-                            ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30'
+                            ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-amber-500/40'
                             : priority === 'medium'
-                                ? 'bg-violet-500 hover:bg-violet-600 text-white shadow-lg shadow-violet-500/30'
-                                : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                                ? 'bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 text-white shadow-violet-500/40'
+                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-blue-500/40'
                         }
                     `}
                 >
-                    <Play className="w-4 h-4" />
-                    Inizia Studio
+                    <Play className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Inizia Studio</span>
                 </motion.button>
                 <motion.button
+                    whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => onViewDetail(deck.id)}
-                    className="px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-white/10 hover:bg-white/15 text-white transition-all touch-manipulation min-h-[44px]"
+                    className="px-4 sm:px-5 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/30 transition-all touch-manipulation min-h-[48px] sm:min-h-[52px] shadow-lg"
+                    aria-label="Visualizza dettagli"
                 >
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                 </motion.button>
             </div>
         </motion.div>

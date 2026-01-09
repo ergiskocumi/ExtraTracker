@@ -72,6 +72,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                         <DashboardHeader 
                             onCreateDeck={onCreateDeck} 
                             selectedFolderName={selectedFolderName}
+                            onBackToAll={() => onFolderSelect(null)}
                         />
                     </header>
                     {children}

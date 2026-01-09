@@ -25,10 +25,10 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                 dueCards={dueCards}
                 masteredDecks={masteredDecks}
             />
-            {/* Mental State Card - Compact with proper spacing */}
-            <div className="mb-6 sm:mb-8">
+            {/* Mental State Card - Hidden for now */}
+            {/* <div className="mb-6 sm:mb-8">
                 <MentalStateIndicator mentalState={mentalState} />
-            </div>
+            </div> */}
         </div>
     );
 };
