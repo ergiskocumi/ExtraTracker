@@ -18,7 +18,7 @@ import {
     FiDownload,
     FiUpload,
 } from 'react-icons/fi';
-import { studyService, type DeckAnalytics as DeckAnalyticsType } from '../services/studyService';
+import { studyService, type DeckAnalytics as DeckAnalyticsType } from '../../services/studyService';
 import { PerformanceCharts } from './PerformanceCharts';
 
 interface DeckAnalyticsProps {

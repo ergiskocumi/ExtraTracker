@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import type { Card } from '../services/studyService';
+import type { Card } from '../../services/studyService';
 
 interface FlashcardProps {
     card: Card;

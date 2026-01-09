@@ -20,10 +20,10 @@ import {
     FiBookOpen,
     FiCpu
 } from 'react-icons/fi';
-import { studyService } from '../services/studyService';
-import { emitToast } from '../../../shared/components/toast';
-import { useSSE, type SSEPayload } from '../../../hooks/useSSE';
-import { useIsDesktop } from '../../../shared/hooks/useMediaQuery';
+import { studyService } from '../../services/studyService';
+import { emitToast } from '../../../../shared/components/toast';
+import { useSSE, type SSEPayload } from '../../../../hooks/useSSE';
+import { useIsDesktop } from '../../../../shared/hooks/useMediaQuery';
 
 interface MagicGenerateModalProps {
     isOpen: boolean;

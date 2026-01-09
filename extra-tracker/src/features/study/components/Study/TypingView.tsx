@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import type { Card, ReviewRating } from '../services/studyService';
+import type { Card, ReviewRating } from '../../services/studyService';
 
 interface TypingViewProps {
     card: Card;

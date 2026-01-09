@@ -1,13 +1,13 @@
 import React from 'react';
 import { HeroStats } from './HeroStats';
-import { MentalStateIndicator, type MentalState } from './MentalState';
+import { MentalStateIndicator, type MentalStateData } from './MentalState';
 
 interface DashboardHeroProps {
     totalDecks: number;
     totalCards: number;
     dueCards: number;
     masteredDecks: number;
-    mentalState: MentalState;
+    mentalState: MentalStateData;
 }
 
 export const DashboardHero: React.FC<DashboardHeroProps> = ({

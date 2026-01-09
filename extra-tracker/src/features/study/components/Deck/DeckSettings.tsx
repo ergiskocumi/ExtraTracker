@@ -13,8 +13,8 @@ import {
     FiZap,
     FiCpu,
 } from 'react-icons/fi';
-import { studyService, type Deck, type DeckSettings } from '../services/studyService';
-import { emitToast } from '../../../shared/components/toast';
+import { studyService, type Deck, type DeckSettings } from '../../services/studyService';
+import { emitToast } from '../../../../shared/components/toast';
 
 interface DeckSettingsProps {
     deck: Deck;

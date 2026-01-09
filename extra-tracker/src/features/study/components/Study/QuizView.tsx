@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import type { Card, ReviewRating } from '../services/studyService';
+import type { Card, ReviewRating } from '../../services/studyService';
 
 interface QuizViewProps {
     card: Card;

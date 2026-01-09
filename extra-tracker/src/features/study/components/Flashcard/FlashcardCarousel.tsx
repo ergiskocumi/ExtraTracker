@@ -27,7 +27,7 @@ import {
     Eye,
     EyeOff
 } from 'lucide-react';
-import type { Card, Deck } from '../services/studyService';
+import type { Card, Deck } from '../../services/studyService';
 
 // ─────────────────────────────────────────────────────────────
 // Types

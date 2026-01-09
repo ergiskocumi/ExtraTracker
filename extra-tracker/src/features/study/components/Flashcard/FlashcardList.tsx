@@ -1,7 +1,7 @@
 import React from 'react';
 import { FiPlus } from 'react-icons/fi';
 import { AnimatePresence } from 'framer-motion';
-import type { Deck, Card } from '../services/studyService';
+import type { Deck, Card } from '../../services/studyService';
 import { FlashcardItem } from './FlashcardItem';
 
 interface FlashcardListProps {

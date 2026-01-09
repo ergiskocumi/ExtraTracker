@@ -10,9 +10,9 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiX, FiCheck } from 'react-icons/fi';
 import { Layers, MessageCircle } from 'lucide-react';
-import type { Deck } from '../services/studyService';
-import { PDFChat } from './PDFChat';
-import { FlashcardList } from './FlashcardList';
+import type { Deck } from '../../services/studyService';
+import { PDFChat } from '../PDF/PDFChat';
+import { FlashcardList } from '../Flashcard/FlashcardList';
 
 interface StudySidebarProps {
     deck: Deck;

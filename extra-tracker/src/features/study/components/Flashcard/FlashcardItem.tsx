@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { FiEdit2, FiX, FiCheck } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Card } from '../services/studyService';
-import { emitToast } from '../../../shared/components/toast';
+import type { Card } from '../../services/studyService';
+import { emitToast } from '../../../../shared/components/toast';
 
 interface FlashcardItemProps {
     card: Card;

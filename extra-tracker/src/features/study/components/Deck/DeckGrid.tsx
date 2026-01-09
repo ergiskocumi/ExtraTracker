@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Deck, Tag } from '../services/studyService';
+import type { Deck, Tag } from '../../services/studyService';
 
 // Import DeckCard from the main file for now (will be extracted later if needed)
 // This is a wrapper component for the grid layout

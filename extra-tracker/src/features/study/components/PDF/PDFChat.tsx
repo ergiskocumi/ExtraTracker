@@ -9,8 +9,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiSend, FiCpu, FiAlertCircle } from 'react-icons/fi';
-import { emitToast } from '../../../shared/components/toast';
-import { studyService, type ChatMessage } from '../services/studyService';
+import { emitToast } from '../../../../shared/components/toast';
+import { studyService, type ChatMessage } from '../../services/studyService';
 
 interface PDFChatProps {
     deckId: string;

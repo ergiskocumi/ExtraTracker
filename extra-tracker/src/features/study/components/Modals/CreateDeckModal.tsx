@@ -22,9 +22,9 @@ import {
     FiTag,
     FiLayers
 } from 'react-icons/fi';
-import type { Goal } from '../../goals/types';
-import goalsService from '../../goals/services/goalsService';
-import type { CreateDeckPayload } from '../services/studyService';
+import type { Goal } from '../../../goals/types';
+import goalsService from '../../../goals/services/goalsService';
+import type { CreateDeckPayload } from '../../services/studyService';
 
 // ============================================
 // TYPES
