@@ -34,10 +34,10 @@ import {
 import { studyService, type Deck, type Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { useIsDesktop } from '../../../shared/hooks/useMediaQuery';
-import { StudySidebar, CardModal } from '../components/StudySidebar';
-import { InteractivePDFReader } from '../components/InteractivePDFReader';
-import { ContinuousPDFViewer } from '../components/ContinuousPDFViewer';
-import { FlashcardCarousel } from '../components/FlashcardCarousel';
+import { StudySidebar, CardModal } from '../components/Study/StudySidebar';
+import { InteractivePDFReader } from '../components/PDF/InteractivePDFReader';
+import { ContinuousPDFViewer } from '../components/PDF/ContinuousPDFViewer';
+import { FlashcardCarousel } from '../components/Flashcard/FlashcardCarousel';
 
 // ─────────────────────────────────────────────────────────────
 // Desktop Resize Handle Component

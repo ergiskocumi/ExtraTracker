@@ -31,9 +31,9 @@ import {
     Calendar,
     Wand2
 } from 'lucide-react';
-import { foldersService, type Folder as FolderType } from '../services/foldersService';
-import { emitToast } from '../../../shared/components/toast';
-import { getFolderTheme } from '../utils/folderTheme';
+import { foldersService, type Folder as FolderType } from '../../services/foldersService';
+import { emitToast } from '../../../../shared/components/toast';
+import { getFolderTheme } from '../../utils/folderTheme';
 
 interface FolderStats {
     totalCards: number;

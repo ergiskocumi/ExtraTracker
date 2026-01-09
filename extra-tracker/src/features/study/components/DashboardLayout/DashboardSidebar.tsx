@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Folder as FolderIcon } from 'lucide-react';
-import { FolderTree } from '../FolderTree';
-import { TagCloud } from '../TagCloud';
+import { FolderTree } from '../Organization/FolderTree';
+import { TagCloud } from '../Organization/TagCloud';
 import type { Folder, Tag } from '../../services/foldersService';
 import { foldersService } from '../../services/foldersService';
 import { emitToast } from '../../../../shared/components/toast';
