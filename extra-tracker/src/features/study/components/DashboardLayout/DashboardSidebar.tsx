@@ -41,9 +41,29 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     onDeckDrop,
     onRefresh,
 }) => {
+    // Handler per selezionare una cartella e chiudere la sidebar
+    const handleFolderSelect = (folderId: string | null) => {
+        onFolderSelect(folderId);
+        // Chiudi la sidebar dopo la selezione per mostrare il contenuto
+        onClose();
+    };
+
+    const handleCreateFolder = async () => {
+        const name = prompt('Nome della nuova cartella:');
+        if (name && name.trim()) {
+            try {
+                await foldersService.createFolder({ name: name.trim() });
+                emitToast.success('Cartella creata');
+                onRefresh();
+            } catch (err: any) {
+                emitToast.error(err.message || 'Errore nella creazione');
+            }
+        }
+    };
+
     return (
         <>
-            {/* Floating Action Button */}
+            {/* Floating Action Button - Sempre visibile sopra la sidebar */}
             <motion.button
                 initial={{ scale: 0 }}
                 animate={{ scale: 1, rotate: isOpen ? 90 : 0 }}
@@ -53,13 +73,12 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                     if (onToggle) {
                         onToggle();
                     } else {
-                        // Fallback: se non c'è toggle, chiude se aperto
                         if (isOpen) {
                             onClose();
                         }
                     }
                 }}
-                className={`fixed bottom-6 right-6 z-40
+                className={`fixed bottom-6 right-6 ${isOpen ? 'z-[60]' : 'z-40'}
                            w-14 h-14 rounded-full
                            ${isOpen 
                                ? 'bg-gradient-to-br from-violet-600 to-purple-700' 
@@ -80,144 +99,138 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                 )}
             </motion.button>
 
-            {/* Overlay backdrop */}
+            {/* macOS-style Window Sidebar - Si espande dal pulsante verso l'alto */}
             <AnimatePresence>
                 {isOpen && (
-                    <>
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={onClose}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-                        />
-                        
-                        {/* Drawer/Overlay Sidebar */}
-                        <motion.aside
-                            initial={{ 
-                                x: '100%',
-                                y: 0
-                            }}
-                            animate={{ 
-                                x: 0,
-                                y: 0
-                            }}
-                            exit={{ 
-                                x: '100%',
-                                y: 0
-                            }}
-                            transition={{ 
-                                type: 'spring', 
-                                damping: 30, 
-                                stiffness: 300 
-                            }}
-                            className="fixed top-0 right-0 h-full w-full max-w-sm
-                                       sm:max-w-sm
-                                       bg-gradient-to-b from-[#111122]/95 to-[#0f172a]/95 
-                                       backdrop-blur-xl 
-                                       border-l border-violet-500/25
-                                       shadow-2xl shadow-black/50
-                                       z-50
-                                       flex flex-col"
-                        >
-                            {/* Header */}
-                            <div className="p-5 border-b border-white/10 bg-[#111122]/30 flex-shrink-0">
-                                <div className="flex items-center justify-between mb-1">
-                                    <h2 className="text-sm font-bold text-white/90 uppercase tracking-widest">
-                                        Organizza
-                                    </h2>
-                                    <button
-                                        onClick={onClose}
-                                        className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                                        aria-label="Chiudi"
+                    <motion.aside
+                        initial={{ 
+                            opacity: 0,
+                            scaleX: 0.1,
+                            scaleY: 0.1,
+                            y: 0,
+                            filter: 'blur(10px)'
+                        }}
+                        animate={{ 
+                            opacity: 1,
+                            scaleX: 1,
+                            scaleY: 1,
+                            y: 0,
+                            filter: 'blur(0px)'
+                        }}
+                        exit={{ 
+                            opacity: 0,
+                            scaleX: 0.1,
+                            scaleY: 0.1,
+                            y: 0,
+                            filter: 'blur(10px)'
+                        }}
+                        transition={{ 
+                            type: 'spring',
+                            damping: 25,
+                            stiffness: 300,
+                            mass: 0.6
+                        }}
+                        className="fixed bottom-6 right-6
+                                   w-full max-w-sm
+                                   h-[calc(100vh-3rem)]
+                                   sm:max-w-sm
+                                   rounded-2xl
+                                   shadow-2xl shadow-black/60
+                                   z-50
+                                   flex flex-col
+                                   pointer-events-auto
+                                   overflow-hidden"
+                        style={{
+                            // Effetto vetro tipo macOS con sfondo trasparente scuro
+                            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.75) 0%, rgba(17, 24, 39, 0.65) 100%)',
+                            backdropFilter: 'blur(40px) saturate(180%)',
+                            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)',
+                            transformOrigin: 'bottom right', // Parte dal punto in basso a destra (dove c'è il pulsante)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header con stile macOS */}
+                        <div className="p-5 border-b border-white/5 flex-shrink-0">
+                            <div className="flex items-center justify-between mb-2">
+                                <h2 className="text-sm font-bold text-white/90 uppercase tracking-widest">
+                                    Organizza
+                                </h2>
+                                <button
+                                    onClick={onClose}
+                                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors group"
+                                    aria-label="Chiudi"
+                                >
+                                    <X className="w-4 h-4 text-white/60 group-hover:text-white transition-colors" />
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-white/40">
+                                💡 Trascina un mazzo per organizzarlo
+                            </p>
+                        </div>
+
+                        {/* Scrollable content */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                            {/* Cartelle */}
+                            <div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2">
+                                        <FolderIcon className="w-3.5 h-3.5" />
+                                        Cartelle
+                                    </h3>
+                                    <motion.button
+                                        whileHover={{ scale: 1.1, rotate: 90 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={handleCreateFolder}
+                                        className="p-1.5 rounded-full bg-violet-500/20 hover:bg-violet-500/30 transition-colors border border-violet-500/30"
+                                        aria-label="Crea nuova cartella"
                                     >
-                                        <X className="w-5 h-5 text-white/60" />
-                                    </button>
+                                        <Plus className="w-3.5 h-3.5 text-violet-300" />
+                                    </motion.button>
                                 </div>
-                                <p className="text-[10px] text-white/40 mt-1">
-                                    💡 Trascina un mazzo per organizzarlo
-                                </p>
-                            </div>
-
-                            {/* Scrollable content */}
-                            <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                        {/* Cartelle */}
-                        <div>
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2">
-                                    <FolderIcon className="w-3.5 h-3.5" />
-                                    Cartelle
-                                </h3>
-                                <motion.button
-                                    whileHover={{ scale: 1.1, rotate: 90 }}
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={async () => {
-                                        const name = prompt('Nome della nuova cartella:');
-                                        if (name && name.trim()) {
-                                            try {
-                                                await foldersService.createFolder({ name: name.trim() });
-                                                emitToast.success('Cartella creata');
-                                                onRefresh();
-                                            } catch (err: any) {
-                                                emitToast.error(err.message || 'Errore nella creazione');
-                                            }
-                                        }
-                                    }}
-                                    className="p-1.5 rounded-full bg-violet-500/20 hover:bg-violet-500/30 transition-colors border border-violet-500/30"
-                                >
-                                    <Plus className="w-3.5 h-3.5 text-violet-300" />
-                                </motion.button>
-                            </div>
-                            {folders.length > 0 ? (
-                                <FolderTree
-                                    folders={folders}
-                                    selectedFolderId={selectedFolderId}
-                                    onFolderSelect={onFolderSelect}
-                                    onRefresh={onRefresh}
-                                    onDeckDrop={onDeckDrop}
-                                    folderStats={folderStats}
-                                />
-                            ) : (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="px-3 py-6 text-center"
-                                >
-                                    <FolderIcon className="w-10 h-10 mx-auto mb-3 text-white/20" />
-                                    <p className="text-xs text-white/40 mb-2">Nessuna cartella ancora</p>
-                                    <button
-                                        onClick={async () => {
-                                            const name = prompt('Nome della nuova cartella:');
-                                            if (name && name.trim()) {
-                                                try {
-                                                    await foldersService.createFolder({ name: name.trim() });
-                                                    emitToast.success('Cartella creata');
-                                                    onRefresh();
-                                                } catch (err: any) {
-                                                    emitToast.error(err.message || 'Errore nella creazione');
-                                                }
-                                            }
-                                        }}
-                                        className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+                                {folders.length > 0 ? (
+                                    <FolderTree
+                                        folders={folders}
+                                        selectedFolderId={selectedFolderId}
+                                        onFolderSelect={handleFolderSelect}
+                                        onRefresh={onRefresh}
+                                        onDeckDrop={onDeckDrop}
+                                        folderStats={folderStats}
+                                    />
+                                ) : (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="px-3 py-6 text-center"
                                     >
-                                        Crea la tua prima cartella →
-                                    </button>
-                                </motion.div>
-                            )}
-                        </div>
+                                        <FolderIcon className="w-10 h-10 mx-auto mb-3 text-white/20" />
+                                        <p className="text-xs text-white/40 mb-2">Nessuna cartella ancora</p>
+                                        <button
+                                            onClick={handleCreateFolder}
+                                            className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+                                        >
+                                            Crea la tua prima cartella →
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </div>
 
-                        {/* Tag */}
-                        <div>
-                            <TagCloud
-                                tags={tags}
-                                selectedTags={selectedTags}
-                                onTagToggle={onTagToggle}
-                                onRefresh={onRefresh}
-                            />
+                            {/* Tag */}
+                            <div>
+                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                    <span>🏷️</span>
+                                    Tag
+                                </h3>
+                                <TagCloud
+                                    tags={tags}
+                                    selectedTags={selectedTags}
+                                    onTagToggle={onTagToggle}
+                                    onRefresh={onRefresh}
+                                />
                             </div>
                         </div>
-                        </motion.aside>
-                    </>
+                    </motion.aside>
                 )}
             </AnimatePresence>
         </>
