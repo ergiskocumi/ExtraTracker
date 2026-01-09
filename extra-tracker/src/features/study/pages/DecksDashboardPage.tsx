@@ -108,8 +108,8 @@ export const DecksDashboardPage: React.FC = () => {
             onRefresh={handleRefreshOrganization}
             onCreateDeck={() => handlers.setIsCreateModalOpen(true)}
         >
-            {/* Hero Stats + Stato Mentale */}
-            {!isLoading && decks.length > 0 && (
+            {/* Hero Stats + Stato Mentale - Nascosti quando una cartella è selezionata */}
+            {!isLoading && decks.length > 0 && !selectedFolderId && (
                 <DashboardHero
                     totalDecks={decks.length}
                     totalCards={totalCards}
@@ -119,8 +119,8 @@ export const DecksDashboardPage: React.FC = () => {
                 />
             )}
 
-            {/* Oggi: Cosa Devo Studiare */}
-            {!isLoading && todayPriorityDecks.length > 0 && (
+            {/* Oggi: Cosa Devo Studiare - Nascosto quando una cartella è selezionata */}
+            {!isLoading && todayPriorityDecks.length > 0 && !selectedFolderId && (
                 <TodayPlan
                     priorityDecks={todayPriorityDecks}
                     dueCardCount={dueCardCount}
@@ -165,6 +165,7 @@ export const DecksDashboardPage: React.FC = () => {
                 onUpdate={(updated) => {
                     setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
                 }}
+                isFolderSelected={!!selectedFolderId}
             />
 
             {/* ═══ MODALS ═══ */}

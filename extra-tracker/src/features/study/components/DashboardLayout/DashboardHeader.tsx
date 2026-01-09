@@ -1,23 +1,47 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Folder } from 'lucide-react';
 
 interface DashboardHeaderProps {
     onCreateDeck: () => void;
+    selectedFolderName?: string | null;
 }
 
-export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onCreateDeck }) => {
+export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onCreateDeck, selectedFolderName }) => {
     return (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div>
                 <p className="text-[10px] sm:text-xs font-bold text-violet-400 uppercase tracking-widest mb-1">
                     Learning & Study
                 </p>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
-                    Flashcards
-                </h1>
+                <AnimatePresence mode="wait">
+                    {selectedFolderName ? (
+                        <motion.h1
+                            key="folder-name"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3 }}
+                            className="text-2xl sm:text-3xl md:text-4xl font-bold text-white flex items-center gap-2 sm:gap-3"
+                        >
+                            <Folder className="w-5 h-5 sm:w-6 sm:h-6 text-violet-400" />
+                            {selectedFolderName}
+                        </motion.h1>
+                    ) : (
+                        <motion.h1
+                            key="default-title"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3 }}
+                            className="text-2xl sm:text-3xl md:text-4xl font-bold text-white"
+                        >
+                            Flashcards
+                        </motion.h1>
+                    )}
+                </AnimatePresence>
                 <p className="text-white/50 mt-1 text-xs sm:text-sm md:text-base">
-                    Gestisci i tuoi mazzi e migliora la memoria
+                    {selectedFolderName ? 'Mazzi in questa cartella' : 'Gestisci i tuoi mazzi e migliora la memoria'}
                 </p>
             </div>
             <motion.button

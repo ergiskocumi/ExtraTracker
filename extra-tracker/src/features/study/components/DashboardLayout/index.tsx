@@ -41,6 +41,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     onCreateDeck,
     children,
 }) => {
+    // Trova il nome della cartella selezionata
+    const selectedFolderName = selectedFolderId 
+        ? folders.find(f => f.id === selectedFolderId)?.name || null
+        : null;
+
     return (
         <div className="min-h-screen">
             {/* Floating Sidebar */}
@@ -64,7 +69,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <div className="max-w-6xl mx-auto">
                     {/* Header */}
                     <header className="mb-4 sm:mb-6 md:mb-8">
-                        <DashboardHeader onCreateDeck={onCreateDeck} />
+                        <DashboardHeader 
+                            onCreateDeck={onCreateDeck} 
+                            selectedFolderName={selectedFolderName}
+                        />
                     </header>
                     {children}
                 </div>

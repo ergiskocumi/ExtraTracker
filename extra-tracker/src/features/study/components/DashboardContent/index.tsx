@@ -24,6 +24,7 @@ interface DashboardContentProps {
     onSplitStudy: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
+    isFolderSelected?: boolean;
 }
 
 export const DashboardContent: React.FC<DashboardContentProps> = ({
@@ -44,6 +45,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
     onSplitStudy,
     onDelete,
     onUpdate,
+    isFolderSelected = false,
 }) => {
     if (isLoading) {
         return (
@@ -104,6 +106,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
             onSplitStudy={onSplitStudy}
             onDelete={onDelete}
             onUpdate={onUpdate}
+            isFolderSelected={isFolderSelected}
         />
     );
 };

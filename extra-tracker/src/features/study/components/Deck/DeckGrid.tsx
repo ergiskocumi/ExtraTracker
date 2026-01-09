@@ -28,6 +28,7 @@ interface DeckGridProps {
     onSplitStudy: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
+    isFolderSelected?: boolean;
 }
 
 export const DeckGrid: React.FC<DeckGridProps> = ({
@@ -41,6 +42,7 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
     onSplitStudy,
     onDelete,
     onUpdate,
+    isFolderSelected = false,
 }) => {
     if (decks.length === 0) {
         return (
@@ -62,10 +64,22 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
                 {decks.map((deck, index) => (
                     <motion.div
                         key={deck.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={{ 
+                            opacity: 0, 
+                            y: isFolderSelected ? 100 : 20,
+                            scale: isFolderSelected ? 0.9 : 1
+                        }}
+                        animate={{ 
+                            opacity: 1, 
+                            y: 0,
+                            scale: 1
+                        }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ delay: index * 0.05 }}
+                        transition={{ 
+                            delay: index * 0.05,
+                            duration: isFolderSelected ? 0.5 : 0.3,
+                            ease: isFolderSelected ? 'easeOut' : 'easeInOut'
+                        }}
                     >
                         <DeckCardComponent
                             deck={deck}
