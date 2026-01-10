@@ -70,6 +70,24 @@
     max-width: 100vw;
   }
 
+  /* Nascondere scrollbar orizzontale mantenendo quella verticale */
+  .no-horizontal-scroll {
+    overflow-x: hidden !important;
+    overflow-y: auto;
+  }
+
+  /* Nascondi scrollbar orizzontale su WebKit */
+  .no-horizontal-scroll::-webkit-scrollbar:horizontal {
+    display: none;
+    height: 0;
+  }
+
+  /* Nascondi scrollbar orizzontale su Firefox */
+  .no-horizontal-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+
   /* Scrollbar nascosta su mobile */
   @media (max-width: 640px) {
     .custom-scrollbar::-webkit-scrollbar {

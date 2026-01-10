@@ -47,7 +47,7 @@ export const BrandStory: React.FC = () => {
 
       {/* 2. THE STAGE (Container) - Full screen su mobile */}
       <div 
-        className={`relative w-full h-full sm:h-[85vh] sm:max-w-6xl md:h-[650px] bg-[#080808] border-0 sm:border border-white/10 shadow-2xl rounded-none sm:rounded-[32px] overflow-hidden flex flex-col md:flex-row transition-all duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] ${isOpen ? 'scale-100 translate-y-0' : 'scale-90 translate-y-12'}`}
+        className={`relative w-full h-full sm:h-[85vh] sm:max-w-6xl md:h-[650px] bg-[#080808] border-0 sm:border border-white/10 shadow-2xl rounded-none sm:rounded-[32px] overflow-hidden no-horizontal-scroll flex flex-col md:flex-row transition-all duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] ${isOpen ? 'scale-100 translate-y-0' : 'scale-90 translate-y-12'}`}
       >
         
         {/* Close Button - Più grande su mobile */}
@@ -59,7 +59,7 @@ export const BrandStory: React.FC = () => {
         </button>
 
         {/* --- LEFT: NAVIGATION & CHAPTERS --- */}
-        <div className="w-full md:w-80 flex-shrink-0 border-b md:border-b-0 md:border-r border-white/5 bg-white/[0.02] p-4 sm:p-6 md:p-8 flex flex-col">
+        <div className="w-full md:w-80 flex-shrink-0 border-b md:border-b-0 md:border-r border-white/5 bg-white/[0.02] p-4 sm:p-6 md:p-8 flex flex-col no-horizontal-scroll">
           <div className="mb-6 sm:mb-8 md:mb-10">
             <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2 sm:gap-3">
               <Logo size="sm" variant="icon-only" />
@@ -67,7 +67,7 @@ export const BrandStory: React.FC = () => {
             </h1>
           </div>
 
-          <nav className="flex-1 space-y-1.5 sm:space-y-2 overflow-y-auto">
+          <nav className="flex-1 space-y-1.5 sm:space-y-2 overflow-y-auto no-horizontal-scroll">
             <ChapterButton 
               active={chapter === 'intro'} 
               onClick={() => setChapter('intro')}
@@ -90,12 +90,6 @@ export const BrandStory: React.FC = () => {
               subtitle="Il tessuto digitale"
             />
           </nav>
-
-          <div className="mt-auto pt-4 sm:pt-6 border-t border-white/5">
-            <p className="text-[9px] sm:text-[10px] text-slate-600 uppercase tracking-widest font-medium">
-              Designed in Italy
-            </p>
-          </div>
         </div>
 
         {/* --- RIGHT: THE NARRATIVE CONTENT --- */}
