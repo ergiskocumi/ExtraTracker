@@ -813,6 +813,7 @@ input[type="month"] {
 .react-pdf__Page {
   min-width: 100% !important;
   width: 100% !important;
+  position: relative;
 }
 
 .react-pdf__Page__canvas {
@@ -821,7 +822,46 @@ input[type="month"] {
   display: block !important; /* Rimuove lo spazio vuoto sotto le immagini inline */
 }
 
-/* Nascondi layer testuale se dà fastidio o tienilo per la selezione */
+/* Text Layer - per selezione testo */
 .react-pdf__Page__textContent {
   transform: scale(1) !important; /* Fix bug di rendering font */
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 0.2;
+  line-height: 1;
+}
+
+.react-pdf__Page__textContent span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+/* Annotation Layer - per link e annotazioni */
+.react-pdf__Page__annotations {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.react-pdf__Page__annotations .annotationLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Migliora la selezione del testo */
+.react-pdf__Page__textContent span::selection {
+  background: rgba(139, 92, 246, 0.3);
+  color: transparent;
 }

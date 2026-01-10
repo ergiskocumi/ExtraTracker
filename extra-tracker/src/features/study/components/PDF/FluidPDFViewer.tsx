@@ -18,7 +18,6 @@ import { Document, Page, pdfjs } from 'react-pdf';
 // ============================================
 
 const PDFJS_VERSION = '3.11.174';
-const WORKER_PATH = '/pdf.worker.min.mjs';
 const DEFAULT_CONTAINER_WIDTH = 800;
 const MIN_VALID_WIDTH = 0;
 
@@ -36,14 +35,24 @@ const PDF_OPTIONS = {
 // WORKER CONFIGURATION
 // ============================================
 
+/**
+ * Configura il worker PDF.js
+ * Usa sempre CDN per evitare problemi con MIME type, CORS e percorsi relativi
+ * IMPORTANTE: Forza sempre la configurazione per evitare percorsi relativi errati
+ */
 const configurePdfWorker = (): void => {
     if (typeof window === 'undefined') return;
     
-    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-        pdfjs.GlobalWorkerOptions.workerSrc = WORKER_PATH;
-        console.log('📦 PDF.js Worker configurato (locale):', WORKER_PATH);
-        console.log('📦 PDF.js Version:', pdfjs.version);
-    }
+    // Forza SEMPRE l'uso del CDN (non controllare se già configurato)
+    // Questo evita problemi con percorsi relativi quando si naviga in route diverse
+    const workerVersion = pdfjs.version || PDFJS_VERSION;
+    const workerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${workerVersion}/build/pdf.worker.min.mjs`;
+    
+    // Imposta sempre, anche se già configurato (per evitare percorsi relativi)
+    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+    
+    console.log('📦 PDF.js Worker configurato (CDN):', workerUrl);
+    console.log('📦 PDF.js Version:', pdfjs.version);
 };
 
 // Configura il worker una sola volta all'avvio
@@ -65,19 +74,34 @@ type ErrorType = 'worker' | 'invalid-pdf' | 'network' | 'unknown';
 
 /**
  * Normalizza l'URL del PDF per assicurarsi che sia assoluto e accessibile
+ * Gestisce anche casi in cui viene passato un oggetto per errore
  */
-const normalizePdfUrl = (url: string | null | undefined): string | null => {
-    if (!url || url.trim() === '') return null;
+const normalizePdfUrl = (url: string | null | undefined | unknown): string | null => {
+    // Se è null o undefined, ritorna null
+    if (!url) return null;
     
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-        return url;
+    // Se è un oggetto, logga un errore e ritorna null
+    if (typeof url !== 'string') {
+        console.error('❌ normalizePdfUrl: ricevuto un non-stringa:', typeof url, url);
+        return null;
     }
     
-    if (url.startsWith('/')) {
-        return url;
+    // Se è una stringa vuota, ritorna null
+    const trimmedUrl = url.trim();
+    if (trimmedUrl === '') return null;
+    
+    // Se è già un URL assoluto, ritorna così com'è
+    if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+        return trimmedUrl;
     }
     
-    return `/${url}`;
+    // Se inizia con /, è un percorso assoluto dal root
+    if (trimmedUrl.startsWith('/')) {
+        return trimmedUrl;
+    }
+    
+    // Altrimenti, aggiungi / all'inizio
+    return `/${trimmedUrl}`;
 };
 
 /**
@@ -103,7 +127,7 @@ const verifyPdfAccessibility = async (url: string): Promise<boolean> => {
 const classifyError = (error: Error): ErrorType => {
     const message = error.message.toLowerCase();
     
-    if (message.includes('worker') || message.includes('failed to fetch')) {
+    if (message.includes('worker') || message.includes('failed to fetch') || message.includes('mime type')) {
         return 'worker';
     }
     if (message.includes('invalid pdf')) {
@@ -121,7 +145,7 @@ const classifyError = (error: Error): ErrorType => {
  */
 const getErrorMessage = (error: Error, errorType: ErrorType): string => {
     const errorMessages: Record<ErrorType, string> = {
-        'worker': 'Errore nel caricamento del worker PDF. Riprova o verifica la connessione.',
+        'worker': 'Errore nel caricamento del worker PDF. Il documento potrebbe non essere interattivo. Riprova o verifica la connessione.',
         'invalid-pdf': 'Il file PDF non è valido o è corrotto.',
         'network': 'Errore di connessione. Verifica la tua connessione internet.',
         'unknown': `Errore nel caricamento del PDF: ${error.message || 'Errore sconosciuto'}`,
@@ -179,17 +203,24 @@ interface ErrorStateProps {
 }
 
 const ErrorState: React.FC<ErrorStateProps> = ({ error, pdfUrl, onRetry }) => (
-    <div className="h-full w-full flex flex-col items-center justify-center text-red-400 p-8">
-        <p className="text-lg font-semibold mb-2 text-center">{error}</p>
-        <p className="text-sm text-white/40 mt-2 text-center max-w-md break-all">
-            URL: {pdfUrl || 'N/A'}
-        </p>
-        <button
-            onClick={onRetry}
-            className="mt-4 px-6 py-3 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm transition-colors font-medium"
-        >
-            Riprova
-        </button>
+    <div className="h-full w-full flex flex-col items-center justify-center p-8">
+        <div className="flex flex-col items-center gap-4 max-w-md">
+            <div className="w-16 h-16 rounded-full border-2 border-red-500/30 flex items-center justify-center bg-red-500/10">
+                <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <p className="text-lg font-semibold text-red-400 text-center">{error}</p>
+            <p className="text-sm text-white/40 text-center break-all">
+                URL: {pdfUrl || 'N/A'}
+            </p>
+            <button
+                onClick={onRetry}
+                className="mt-2 px-6 py-3 bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border border-red-500/30 rounded-xl text-sm transition-all font-medium text-red-300 hover:text-red-200 shadow-lg shadow-red-500/10"
+            >
+                Riprova
+            </button>
+        </div>
     </div>
 );
 
@@ -199,17 +230,32 @@ interface LoadingStateProps {
 
 const LoadingState: React.FC<LoadingStateProps> = ({ pdfUrl }) => (
     <div className="h-full w-full flex flex-col items-center justify-center text-white/40">
-        <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white rounded-full mb-4" />
-        <p>Caricamento PDF...</p>
-        <p className="text-xs mt-2 text-white/20 text-center max-w-md break-all">
-            {pdfUrl}
-        </p>
+        <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+                <div className="animate-spin w-12 h-12 border-[3px] border-violet-500/20 border-t-violet-400 rounded-full" />
+                <div 
+                    className="absolute inset-0 animate-spin w-12 h-12 border-[3px] border-transparent border-r-violet-600/40 rounded-full" 
+                    style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} 
+                />
+            </div>
+            <div className="flex flex-col items-center gap-2">
+                <p className="text-base font-medium text-white/60">Caricamento PDF...</p>
+                <p className="text-xs text-white/30 text-center max-w-md break-all px-4">
+                    {pdfUrl}
+                </p>
+            </div>
+        </div>
     </div>
 );
 
 const EmptyState: React.FC = () => (
-    <div className="h-full w-full flex items-center justify-center text-white/40">
-        <p>Nessun PDF disponibile</p>
+    <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-white/40">
+        <div className="w-16 h-16 rounded-full border-2 border-violet-500/20 flex items-center justify-center bg-violet-500/5">
+            <svg className="w-8 h-8 text-violet-400/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+        </div>
+        <p className="text-sm">Nessun PDF disponibile</p>
     </div>
 );
 
@@ -219,8 +265,8 @@ interface PageLoadingProps {
 
 const PageLoading: React.FC<PageLoadingProps> = ({ pageNumber }) => (
     <div className="flex items-center justify-center p-8 text-white/40">
-        <div className="animate-spin w-6 h-6 border-2 border-white/20 border-t-white rounded-full mr-3" />
-        <p>Caricamento pagina {pageNumber}...</p>
+        <div className="animate-spin w-6 h-6 border-2 border-violet-500/30 border-t-violet-400 rounded-full mr-3" />
+        <p className="text-sm">Caricamento pagina {pageNumber}...</p>
     </div>
 );
 
@@ -239,6 +285,13 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
     
     const containerWidth = useContainerWidth(containerRef);
     const normalizedPdfUrl = useMemo(() => normalizePdfUrl(pdfUrl), [pdfUrl]);
+
+    // Assicura che il worker sia sempre configurato correttamente
+    useEffect(() => {
+        // Riconfigura il worker ogni volta che il componente viene montato
+        // Questo evita problemi con percorsi relativi
+        configurePdfWorker();
+    }, []);
 
     // Verifica accessibilità PDF
     useEffect(() => {
@@ -310,17 +363,19 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
         if (!numPages || numPages <= 0) return null;
 
         return (
-            <div className="w-full">
+            <div className="w-full py-4 px-2">
                 {Array.from({ length: numPages }, (_, index) => (
-                    <Page
-                        key={`page_${index + 1}`}
-                        pageNumber={index + 1}
-                        width={containerWidth > MIN_VALID_WIDTH ? containerWidth : DEFAULT_CONTAINER_WIDTH}
-                        className="block mb-4"
-                        renderTextLayer={true}
-                        renderAnnotationLayer={true}
-                        loading={<PageLoading pageNumber={index + 1} />}
-                    />
+                    <div key={`page-wrapper-${index + 1}`} className="mb-6 last:mb-0">
+                        <Page
+                            key={`page_${index + 1}`}
+                            pageNumber={index + 1}
+                            width={containerWidth > MIN_VALID_WIDTH ? containerWidth - 16 : DEFAULT_CONTAINER_WIDTH}
+                            className="block mx-auto shadow-lg shadow-violet-500/10 rounded-sm"
+                            renderTextLayer={true}
+                            renderAnnotationLayer={true}
+                            loading={<PageLoading pageNumber={index + 1} />}
+                        />
+                    </div>
                 ))}
             </div>
         );
@@ -329,7 +384,7 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
     return (
         <div
             ref={containerRef}
-            className="h-full w-full overflow-y-auto overflow-x-hidden bg-[#1a1a1a]"
+            className="h-full w-full overflow-y-auto overflow-x-hidden bg-gradient-to-b from-zinc-950 to-zinc-900"
             style={{ width: '100%', height: '100%' }}
         >
             {error && (
