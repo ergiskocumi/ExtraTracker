@@ -10,6 +10,7 @@ const Deck = require('../models/Deck');
 const { asyncHandler } = require('../middleware/errorHandler');
 const AppError = require('../utils/AppError');
 const { serializeDocument, serializeDocuments } = require('../utils/serializeDocument');
+const logger = require('../utils/logger');
 
 // =========================================
 // GET ALL FOLDERS
@@ -18,12 +19,11 @@ const { serializeDocument, serializeDocuments } = require('../utils/serializeDoc
 const getAllFolders = asyncHandler(async (req, res) => {
     // SICUREZZA: Usa esplicitamente il filtro tenant
     const userId = req.tenantScope.userId || req.tenantScope.tenantId;
-    console.log('[FoldersController] getAllFolders: userId:', userId);
     
     const folders = await Folder.find({ user: userId })
         .sort({ order: 1, createdAt: 1 });
     
-    console.log('[FoldersController] getAllFolders: Found folders:', folders.length);
+    logger.debug('FoldersController', `getAllFolders: Found ${folders.length} folders`, { userId });
     
     const serialized = serializeDocuments(folders);
     res.json({ success: true, data: serialized });
@@ -36,12 +36,11 @@ const getAllFolders = asyncHandler(async (req, res) => {
 const getFolderTree = asyncHandler(async (req, res) => {
     // SICUREZZA: Usa esplicitamente il filtro tenant
     const userId = req.tenantScope.userId || req.tenantScope.tenantId;
-    console.log('[FoldersController] getFolderTree: userId:', userId);
     
     const folders = await Folder.find({ user: userId })
         .sort({ order: 1, createdAt: 1 });
     
-    console.log('[FoldersController] getFolderTree: Found folders:', folders.length);
+    logger.debug('FoldersController', `getFolderTree: Found ${folders.length} folders`, { userId });
     
     const serializedFolders = serializeDocuments(folders);
     
@@ -105,7 +104,6 @@ const createFolder = asyncHandler(async (req, res) => {
     
     // SICUREZZA: Usa esplicitamente il filtro tenant
     const userId = req.tenantScope.userId || req.tenantScope.tenantId;
-    console.log('[FoldersController] createFolder: userId:', userId);
     
     // Verifica parent se specificato
     if (parentId) {
@@ -123,7 +121,7 @@ const createFolder = asyncHandler(async (req, res) => {
         user: userId, // SICUREZZA: Imposta esplicitamente l'utente
     });
     
-    console.log('[FoldersController] createFolder: Created folder:', folder._id, 'for user:', userId);
+    logger.success('FoldersController', `Created folder: ${folder._id}`, { userId, folderName: folder.name });
     
     res.status(201).json({ success: true, data: serializeDocument(folder) });
 });

@@ -32,7 +32,6 @@ export const useDashboardData = () => {
             const folderTree = await foldersService.getFolderTree();
             setFolders(folderTree);
         } catch (err: any) {
-            console.error('[useDashboardData] loadFolders: Error:', err);
             emitToast.error('Errore nel caricamento delle cartelle');
         }
     }, []);
@@ -42,7 +41,6 @@ export const useDashboardData = () => {
             const allTags = await tagsService.getAllTags();
             setTags(allTags);
         } catch (err: any) {
-            console.error('[useDashboardData] loadTags: Error:', err);
             emitToast.error('Errore nel caricamento dei tag');
         }
     }, []);
@@ -56,11 +54,12 @@ export const useDashboardData = () => {
                     loadTags(),
                 ]);
             } catch (err) {
-                console.error('[useDashboardData] useEffect: Error loading data:', err);
+                // Error already handled in individual load functions
             }
         };
         loadAll();
-    }, [loadDecks, loadFolders, loadTags]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Load only once on mount
 
     const refreshAll = useCallback(async () => {
         await Promise.all([

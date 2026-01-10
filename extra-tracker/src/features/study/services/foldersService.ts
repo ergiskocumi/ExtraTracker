@@ -7,7 +7,6 @@ import { apiClient, type ApiResponse } from '../../../shared/services/apiClient'
 const unwrap = <T>(response: ApiResponse<T>, fallbackMessage: string): T => {
     if (!response.success || response.data === undefined) {
         const errorMsg = response.error?.message || response.message || fallbackMessage;
-        console.error('[FoldersService] Error:', errorMsg);
         throw new Error(errorMsg);
     }
     return response.data;
@@ -67,7 +66,6 @@ class FoldersService {
             const data = unwrap(response, 'Errore nel caricamento delle cartelle');
             return Array.isArray(data) ? data : [];
         } catch (err: any) {
-            console.error('[FoldersService] getAllFolders: Error:', err);
             throw err;
         }
     }
@@ -81,7 +79,6 @@ class FoldersService {
             const data = unwrap(response, 'Errore nel caricamento dell\'albero delle cartelle');
             return Array.isArray(data) ? data : [];
         } catch (err: any) {
-            console.error('[FoldersService] getFolderTree: Error:', err);
             throw err;
         }
     }
@@ -95,7 +92,6 @@ class FoldersService {
             const data = unwrap(response, 'Errore nella creazione della cartella');
             return data;
         } catch (err: any) {
-            console.error('[FoldersService] createFolder: Error:', err);
             throw err;
         }
     }

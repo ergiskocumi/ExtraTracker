@@ -14,7 +14,6 @@ export interface DeckCardProps {
     onMagicGenerate: (deck: Deck) => void;
     onAddCard: (deckId: string) => void;
     onViewDetail: (deckId: string) => void;
-    onSplitStudy: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
     tags?: Tag[];
@@ -28,7 +27,6 @@ export const DeckCard: React.FC<DeckCardProps> = ({
     onMagicGenerate, 
     onAddCard,
     onViewDetail, 
-    onSplitStudy, 
     onDelete,
     onUpdate,
     tags = [],
@@ -167,7 +165,6 @@ export const DeckCard: React.FC<DeckCardProps> = ({
                     onStudy={onStudy}
                     onMagicGenerate={onMagicGenerate}
                     onAddCard={onAddCard}
-                    onSplitStudy={onSplitStudy}
                 />
             </div>
         </motion.div>

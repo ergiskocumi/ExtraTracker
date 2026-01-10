@@ -36,7 +36,6 @@ const VerifyEmailPage = lazy(() => import('./features/auth/pages/VerifyEmailPage
 const DecksDashboardPage = lazy(() => import('./features/study/pages/DecksDashboardPage').then(m => ({ default: m.DecksDashboardPage })));
 const StudySessionPage = lazy(() => import('./features/study/pages/StudySessionPage').then(m => ({ default: m.StudySessionPage })));
 const DeckDetailPage = lazy(() => import('./features/study/pages/DeckDetailPage').then(m => ({ default: m.DeckDetailPage })));
-const SplitStudyPage = lazy(() => import('./features/study/pages/SplitStudyPage').then(m => ({ default: m.SplitStudyPage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -104,7 +103,6 @@ function App() {
                     {/* Study / Flashcards */}
                     <Route path="/study" element={<DecksDashboardPage />} />
                     <Route path="/study/deck/:id" element={<DeckDetailPage />} />
-                    <Route path="/study/:deckId/split" element={<SplitStudyPage />} />
                     <Route path="/study/:deckId" element={<StudySessionPage />} />
                     <Route path="/study/:deckId/session" element={<StudySessionPage />} />
                 </Route>

@@ -10,6 +10,7 @@ const Deck = require('../models/Deck');
 const { asyncHandler } = require('../middleware/errorHandler');
 const AppError = require('../utils/AppError');
 const { serializeDocument, serializeDocuments } = require('../utils/serializeDocument');
+const logger = require('../utils/logger');
 
 // =========================================
 // GET ALL TAGS
@@ -18,12 +19,11 @@ const { serializeDocument, serializeDocuments } = require('../utils/serializeDoc
 const getAllTags = asyncHandler(async (req, res) => {
     // SICUREZZA: Usa esplicitamente il filtro tenant
     const userId = req.tenantScope.userId || req.tenantScope.tenantId;
-    console.log('[TagsController] getAllTags: userId:', userId);
     
     const tags = await Tag.find({ user: userId })
         .sort({ order: 1, createdAt: 1 });
     
-    console.log('[TagsController] getAllTags: Found tags:', tags.length);
+    logger.debug('TagsController', `getAllTags: Found ${tags.length} tags`, { userId });
     
     const serializedTags = serializeDocuments(tags);
     
@@ -62,7 +62,6 @@ const createTag = asyncHandler(async (req, res) => {
     
     // SICUREZZA: Usa esplicitamente il filtro tenant
     const userId = req.tenantScope.userId || req.tenantScope.tenantId;
-    console.log('[TagsController] createTag: userId:', userId);
     
     // Verifica se esiste già (case-insensitive)
     const existing = await Tag.findOne({
@@ -81,7 +80,7 @@ const createTag = asyncHandler(async (req, res) => {
         user: userId, // SICUREZZA: Imposta esplicitamente l'utente
     });
     
-    console.log('[TagsController] createTag: Created tag:', tag._id, 'for user:', userId);
+    logger.success('TagsController', `Created tag: ${tag._id}`, { userId, tagName: tag.name });
     
     res.status(201).json({ success: true, data: serializeDocument(tag) });
 });

@@ -7,7 +7,6 @@ import { apiClient, type ApiResponse } from '../../../shared/services/apiClient'
 const unwrap = <T>(response: ApiResponse<T>, fallbackMessage: string): T => {
     if (!response.success || response.data === undefined) {
         const errorMsg = response.error?.message || response.message || fallbackMessage;
-        console.error('[TagsService] Error:', errorMsg);
         throw new Error(errorMsg);
     }
     return response.data;
@@ -57,7 +56,6 @@ class TagsService {
             const data = unwrap(response, 'Errore nel caricamento dei tag');
             return Array.isArray(data) ? data : [];
         } catch (err: any) {
-            console.error('[TagsService] getAllTags: Error:', err);
             throw err;
         }
     }
@@ -71,7 +69,6 @@ class TagsService {
             const data = unwrap(response, 'Errore nella creazione del tag');
             return data;
         } catch (err: any) {
-            console.error('[TagsService] createTag: Error:', err);
             throw err;
         }
     }

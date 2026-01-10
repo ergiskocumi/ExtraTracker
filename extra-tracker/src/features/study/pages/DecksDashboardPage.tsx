@@ -160,7 +160,6 @@ export const DecksDashboardPage: React.FC = () => {
                 onMagicGenerate={handlers.handleMagicGenerate}
                 onAddCard={handlers.handleAddCard}
                 onViewDetail={handlers.handleViewDetail}
-                onSplitStudy={handlers.handleSplitStudy}
                 onDelete={handlers.setDeletingDeck}
                 onUpdate={(updated) => {
                     setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));

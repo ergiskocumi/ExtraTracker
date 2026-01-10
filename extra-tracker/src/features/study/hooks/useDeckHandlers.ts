@@ -39,10 +39,6 @@ export const useDeckHandlers = ({
         navigate(`/study/deck/${deckId}`);
     }, [navigate]);
 
-    const handleSplitStudy = useCallback((deckId: string) => {
-        navigate(`/study/${deckId}/split`);
-    }, [navigate]);
-
     const handleAddCard = useCallback((deckId: string) => {
         const deck = decks.find(d => d.id === deckId);
         if (deck) {
@@ -147,7 +143,6 @@ export const useDeckHandlers = ({
         // Handlers
         handleStudy,
         handleViewDetail,
-        handleSplitStudy,
         handleAddCard,
         handleMagicGenerate,
         handleMagicGenerateSuccess,

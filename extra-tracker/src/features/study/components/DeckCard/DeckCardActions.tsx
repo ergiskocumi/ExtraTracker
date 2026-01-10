@@ -11,7 +11,6 @@ interface DeckCardActionsProps {
     onStudy: (deckId: string) => void;
     onMagicGenerate: (deck: Deck) => void;
     onAddCard: (deckId: string) => void;
-    onSplitStudy: (deckId: string) => void;
 }
 
 export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
@@ -22,7 +21,6 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
     onStudy,
     onMagicGenerate,
     onAddCard,
-    onSplitStudy,
 }) => {
     return (
         <div className="space-y-2 sm:space-y-2.5 mt-auto">
@@ -178,94 +176,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
             ) : (
                 // Deck con carte
                 <>
-                    {/* Se ha PDF: "Leggi & Studia" è il pulsante principale */}
-                    {hasPdf ? (
-                        <>
-                            {/* Pulsante principale - Leggi & Studia */}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSplitStudy(deck.id);
-                                }}
-                                className="
-                                    w-full flex items-center justify-center gap-2 sm:gap-2.5 
-                                    px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                    font-semibold text-sm sm:text-base transition-all
-                                    bg-gradient-to-r from-blue-500 to-indigo-600 text-white 
-                                    shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40
-                                    active:scale-[0.98] touch-manipulation
-                                    min-h-[48px] sm:min-h-[52px]
-                                "
-                            >
-                                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                                <span>📖 Leggi & Studia</span>
-                            </button>
-                            
-                            {/* Pulsanti secondari - Piccoli e semi-trasparenti */}
-                            <div className="flex items-center gap-1.5 sm:gap-2">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onStudy(deck.id);
-                                    }}
-                                    className={`
-                                        flex-1 flex items-center justify-center gap-1 sm:gap-1.5 
-                                        px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg
-                                        font-medium text-[10px] sm:text-xs transition-all
-                                        bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80
-                                        border border-white/10 hover:border-white/20
-                                        active:scale-[0.95] touch-manipulation
-                                        min-h-[36px] sm:min-h-[40px]
-                                        opacity-60 hover:opacity-100
-                                    `}
-                                    title={hasDueCards ? 'Ripassa Ora' : 'Studia'}
-                                >
-                                    <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                                    <span className="hidden sm:inline text-xs">{hasDueCards ? 'Ripassa' : 'Studia'}</span>
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onMagicGenerate(deck);
-                                    }}
-                                    className="
-                                        flex-1 flex items-center justify-center 
-                                        px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg
-                                        font-medium text-[9px] sm:text-[10px] transition-all
-                                        bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80
-                                        border border-white/10 hover:border-white/20
-                                        active:scale-[0.95] touch-manipulation
-                                        min-h-[36px] sm:min-h-[40px]
-                                        opacity-60 hover:opacity-100
-                                        text-center leading-tight
-                                    "
-                                    title="Generare le card con Silvi AI"
-                                >
-                                    <span className="text-[9px] sm:text-[10px] leading-tight">Generare le card con Silvi AI</span>
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onAddCard(deck.id);
-                                    }}
-                                    className="
-                                        flex-1 flex items-center justify-center gap-1 sm:gap-1.5 
-                                        px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg
-                                        font-medium text-[10px] sm:text-xs transition-all
-                                        bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80
-                                        border border-white/10 hover:border-white/20
-                                        active:scale-[0.95] touch-manipulation
-                                        min-h-[36px] sm:min-h-[40px]
-                                        opacity-60 hover:opacity-100
-                                    "
-                                    title="Aggiungi carta"
-                                >
-                                    <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                                    <span className="hidden sm:inline text-xs">Aggiungi</span>
-                                </button>
-                            </div>
-                        </>
-                    ) : (
+                    {/* Pulsante principale - "Ripassa Ora"/"Studia" */}
                         <>
                             {/* Se non ha PDF: "Ripassa Ora"/"Studia" è il pulsante principale */}
                             <button
@@ -332,8 +243,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                                     <span className="hidden sm:inline text-xs">Aggiungi</span>
                                 </button>
                             </div>
-                        </>
-                    )}
+                        </>     
                 </>
             )}
         </div>

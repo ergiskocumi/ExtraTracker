@@ -11,7 +11,6 @@ interface DeckCardProps {
     onMagicGenerate: (deck: Deck) => void;
     onAddCard: (deckId: string) => void;
     onViewDetail: (deckId: string) => void;
-    onSplitStudy: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
     tags?: Tag[];
@@ -25,7 +24,6 @@ interface DeckGridProps {
     onMagicGenerate: (deck: Deck) => void;
     onAddCard: (deckId: string) => void;
     onViewDetail: (deckId: string) => void;
-    onSplitStudy: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
     isFolderSelected?: boolean;
@@ -39,7 +37,6 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
     onMagicGenerate,
     onAddCard,
     onViewDetail,
-    onSplitStudy,
     onDelete,
     onUpdate,
     isFolderSelected = false,
@@ -87,7 +84,6 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
                             onMagicGenerate={onMagicGenerate}
                             onAddCard={onAddCard}
                             onViewDetail={onViewDetail}
-                            onSplitStudy={onSplitStudy}
                             onDelete={onDelete}
                             onUpdate={onUpdate}
                             tags={tags}
