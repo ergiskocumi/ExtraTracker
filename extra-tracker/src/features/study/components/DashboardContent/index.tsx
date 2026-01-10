@@ -18,6 +18,7 @@ interface DashboardContentProps {
     onCreateDeck: () => void;
     onFilterReset: () => void;
     onStudy: (deckId: string) => void;
+    onRead?: (deckId: string) => void;
     onMagicGenerate: (deck: Deck) => void;
     onAddCard: (deckId: string) => void;
     onViewDetail: (deckId: string) => void;
@@ -38,6 +39,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
     onCreateDeck,
     onFilterReset,
     onStudy,
+    onRead,
     onMagicGenerate,
     onAddCard,
     onViewDetail,
@@ -98,6 +100,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
             tags={tags}
             DeckCardComponent={DeckCard}
             onStudy={onStudy}
+            onRead={onRead}
             onMagicGenerate={onMagicGenerate}
             onAddCard={onAddCard}
             onViewDetail={onViewDetail}

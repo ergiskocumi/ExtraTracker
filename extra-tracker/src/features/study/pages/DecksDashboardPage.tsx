@@ -157,6 +157,7 @@ export const DecksDashboardPage: React.FC = () => {
                     setSearchQuery('');
                 }}
                 onStudy={handlers.handleStudy}
+                onRead={handlers.handleRead}
                 onMagicGenerate={handlers.handleMagicGenerate}
                 onAddCard={handlers.handleAddCard}
                 onViewDetail={handlers.handleViewDetail}

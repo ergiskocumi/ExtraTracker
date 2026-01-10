@@ -8,6 +8,7 @@ import type { Deck, Tag } from '../../services/studyService';
 interface DeckCardProps {
     deck: Deck;
     onStudy: (deckId: string) => void;
+    onRead?: (deckId: string) => void;
     onMagicGenerate: (deck: Deck) => void;
     onAddCard: (deckId: string) => void;
     onViewDetail: (deckId: string) => void;
@@ -21,6 +22,7 @@ interface DeckGridProps {
     tags?: Tag[];
     DeckCardComponent: React.ComponentType<DeckCardProps>;
     onStudy: (deckId: string) => void;
+    onRead?: (deckId: string) => void;
     onMagicGenerate: (deck: Deck) => void;
     onAddCard: (deckId: string) => void;
     onViewDetail: (deckId: string) => void;
@@ -34,6 +36,7 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
     tags = [],
     DeckCardComponent,
     onStudy,
+    onRead,
     onMagicGenerate,
     onAddCard,
     onViewDetail,
@@ -81,6 +84,7 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
                         <DeckCardComponent
                             deck={deck}
                             onStudy={onStudy}
+                            onRead={onRead}
                             onMagicGenerate={onMagicGenerate}
                             onAddCard={onAddCard}
                             onViewDetail={onViewDetail}

@@ -804,3 +804,24 @@ input[type="month"] {
     font-size: 1rem;
   }
 }
+
+/* ====================================
+   FORZATURA CINEMA MODE - react-pdf
+   ==================================== */
+
+/* Forza il PDF a obbedire alle dimensioni del contenitore */
+.react-pdf__Page {
+  min-width: 100% !important;
+  width: 100% !important;
+}
+
+.react-pdf__Page__canvas {
+  width: 100% !important;
+  height: auto !important;
+  display: block !important; /* Rimuove lo spazio vuoto sotto le immagini inline */
+}
+
+/* Nascondi layer testuale se dà fastidio o tienilo per la selezione */
+.react-pdf__Page__textContent {
+  transform: scale(1) !important; /* Fix bug di rendering font */
+}

@@ -11,6 +11,7 @@ import { DeckCardActions } from './DeckCardActions';
 export interface DeckCardProps {
     deck: Deck;
     onStudy: (deckId: string) => void;
+    onRead?: (deckId: string) => void;
     onMagicGenerate: (deck: Deck) => void;
     onAddCard: (deckId: string) => void;
     onViewDetail: (deckId: string) => void;
@@ -24,6 +25,7 @@ export interface DeckCardProps {
 export const DeckCard: React.FC<DeckCardProps> = ({ 
     deck, 
     onStudy, 
+    onRead,
     onMagicGenerate, 
     onAddCard,
     onViewDetail, 
@@ -163,6 +165,7 @@ export const DeckCard: React.FC<DeckCardProps> = ({
                     hasDueCards={hasDueCards}
                     hasPdf={hasPdf}
                     onStudy={onStudy}
+                    onRead={onRead}
                     onMagicGenerate={onMagicGenerate}
                     onAddCard={onAddCard}
                 />

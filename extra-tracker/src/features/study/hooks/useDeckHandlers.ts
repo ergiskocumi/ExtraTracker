@@ -39,6 +39,10 @@ export const useDeckHandlers = ({
         navigate(`/study/deck/${deckId}`);
     }, [navigate]);
 
+    const handleRead = useCallback((deckId: string) => {
+        navigate(`/study/deck/${deckId}/cinema`);
+    }, [navigate]);
+
     const handleAddCard = useCallback((deckId: string) => {
         const deck = decks.find(d => d.id === deckId);
         if (deck) {
@@ -143,6 +147,7 @@ export const useDeckHandlers = ({
         // Handlers
         handleStudy,
         handleViewDetail,
+        handleRead,
         handleAddCard,
         handleMagicGenerate,
         handleMagicGenerateSuccess,
