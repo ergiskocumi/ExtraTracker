@@ -93,15 +93,33 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
 
     const status = useMemo(() => statusConfig[card.status] || statusConfig.new, [card.status, statusConfig]);
 
-    // 📏 Calcola la dimensione del font
+    // 📱 Rileva se siamo su mobile
+    const isMobile = useMemo(() => {
+        if (typeof window === 'undefined') return false;
+        return window.innerWidth < 640;
+    }, []);
+
+    // 📏 Calcola la dimensione del font - STILI SEPARATI MOBILE/DESKTOP
     const getFontSize = useCallback((text: string, isBack: boolean = false) => {
         const len = text.length;
-        if (len < 50) return isBack ? 'text-lg sm:text-xl md:text-2xl' : 'text-xl sm:text-2xl md:text-3xl';
-        if (len < 100) return isBack ? 'text-base sm:text-lg md:text-xl' : 'text-lg sm:text-xl md:text-2xl';
-        if (len < 200) return isBack ? 'text-sm sm:text-base md:text-lg' : 'text-base sm:text-lg md:text-xl';
-        if (len < 400) return 'text-sm sm:text-base md:text-lg';
-        return 'text-xs sm:text-sm md:text-base';
-    }, []);
+        
+        if (isMobile) {
+            // MOBILE: Font size ottimizzati per leggibilità
+            if (len < 25) return isBack ? 'text-[15px]' : 'text-[17px]';
+            if (len < 50) return isBack ? 'text-[14px]' : 'text-[16px]';
+            if (len < 80) return isBack ? 'text-[13px]' : 'text-[15px]';
+            if (len < 120) return 'text-[13px]';
+            if (len < 200) return 'text-[12px]';
+            return 'text-[11px]';
+        }
+        
+        // DESKTOP: Dimensioni normali
+        if (len < 50) return isBack ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
+        if (len < 100) return isBack ? 'text-lg md:text-xl' : 'text-xl md:text-2xl';
+        if (len < 200) return isBack ? 'text-base md:text-lg' : 'text-lg md:text-xl';
+        if (len < 400) return 'text-sm md:text-base';
+        return 'text-xs md:text-sm';
+    }, [isMobile]);
 
     const frontFontSize = useMemo(() => getFontSize(card.front), [card.front, getFontSize]);
     const backFontSize = useMemo(() => getFontSize(card.back, true), [card.back, getFontSize]);
@@ -109,9 +127,9 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
     // Determina se il testo necessita scroll
     const needsScroll = useCallback((text: string) => {
         if (typeof window === 'undefined') return text.length > 300;
-        const isMobile = window.innerWidth < 640;
-        return isMobile ? text.length > 100 : text.length > 300;
-    }, []);
+        // Su mobile: scroll più frequente
+        return isMobile ? text.length > 60 : text.length > 250;
+    }, [isMobile]);
 
     const frontNeedsScroll = useMemo(() => needsScroll(card.front), [card.front, needsScroll]);
     const backNeedsScroll = useMemo(() => needsScroll(card.back), [card.back, needsScroll]);
@@ -123,103 +141,128 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
             initial="enter"
             animate="center"
             exit={getExitVariant()}
-            className="w-full max-w-lg mx-auto px-4"
+            className={`w-full mx-auto ${isMobile ? 'max-w-[92%] px-2' : 'max-w-lg px-4'}`}
             style={{ perspective: '1200px' }}
         >
             <motion.div
                 onClick={!isFlipped ? onFlip : undefined}
-                animate={{ rotateY: isFlipped ? 180 : 0 }}
+                animate={{ 
+                    rotateY: isFlipped ? 180 : 0,
+                    y: 0, // Forza posizione Y fissa
+                    x: 0  // Forza posizione X fissa
+                }}
                 transition={{ 
-                    duration: 0.6, 
+                    duration: 1.2, // Più lento come richiesto
                     type: 'spring', 
-                    stiffness: 100,
-                    damping: 18
+                    stiffness: 80,
+                    damping: 20
                 }}
                 style={{ 
                     transformStyle: 'preserve-3d',
-                    cursor: !isFlipped ? 'pointer' : 'default'
+                    cursor: !isFlipped ? 'pointer' : 'default',
+                    transformOrigin: 'center center' // Assicura che la rotazione avvenga dal centro
                 }}
-                className="relative w-full min-h-[300px] sm:min-h-[360px] md:min-h-[400px]"
+                className={`relative w-full ${isMobile ? 'min-h-[280px] max-h-[calc(100vh-320px)]' : 'min-h-[360px] sm:min-h-[400px] md:min-h-[450px]'} flex flex-col`}
             >
                 {/* ═══════════════════════════════════════════
-                    FRONTE DELLA CARTA
+                    FRONTE DELLA CARTA - 3D Flip
                     ═══════════════════════════════════════════ */}
                 <div
-                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.15] shadow-2xl flex flex-col p-4 sm:p-6 md:p-8"
+                    className={`absolute inset-0 w-full h-full ${isMobile ? 'rounded-xl p-4' : 'rounded-3xl p-6 md:p-8'} backdrop-blur-xl border border-white/[0.15] shadow-2xl flex flex-col`}
                     style={{ 
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
                         background: 'linear-gradient(145deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 100%)',
-                        boxShadow: '0 20px 60px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 0 rgba(0, 0, 0, 0.1)'
+                        boxShadow: isMobile 
+                            ? '0 10px 30px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.12)'
+                            : '0 20px 60px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 0 rgba(0, 0, 0, 0.1)'
                     }}
                 >
                     {/* Status Badge */}
-                    <div className="flex justify-end mb-3 flex-shrink-0">
-                        <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${status.bg} ${status.text} border ${status.border} shadow-sm`}>
+                    <div className={`flex justify-end ${isMobile ? 'mb-2' : 'mb-3'} flex-shrink-0`}>
+                        <span className={`${isMobile ? 'px-2 py-1 text-[9px]' : 'px-3 py-1.5 text-[10px]'} rounded-full font-bold uppercase tracking-wider ${status.bg} ${status.text} border ${status.border} shadow-sm`}>
                             {status.label}
                         </span>
                     </div>
 
-                    {/* Contenuto Fronte */}
+                    {/* Contenuto Fronte - STILI SEPARATI MOBILE/DESKTOP */}
                     <div 
                         className={`flex-1 flex items-center justify-center w-full min-w-0 ${frontNeedsScroll ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}
-                        style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.2) transparent' }}
+                        style={{ 
+                            scrollbarWidth: 'thin', 
+                            scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+                            ...(isMobile && {
+                                paddingTop: '8px',
+                                paddingBottom: '8px'
+                            })
+                        }}
                     >
-                        <div className="w-full max-w-full px-2">
-                            <p className={`${frontFontSize} font-bold text-white text-center leading-relaxed sm:leading-relaxed md:leading-relaxed whitespace-pre-wrap break-words max-w-full drop-shadow-sm`}>
+                        <div className={`w-full max-w-full ${isMobile ? 'px-1' : 'px-2'}`}>
+                            <p className={`${frontFontSize} ${isMobile ? 'font-semibold leading-tight' : 'font-bold leading-relaxed'} text-white text-center whitespace-pre-wrap break-words max-w-full drop-shadow-sm`}>
                                 {card.front}
                             </p>
                         </div>
                     </div>
 
-                    {/* Hint per flip */}
-                    <motion.div 
-                        className="flex items-center justify-center gap-2 text-white/40 mt-4 pt-4 border-t border-white/[0.08] flex-shrink-0"
-                        animate={{ opacity: [0.4, 0.7, 0.4] }}
-                        transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
-                    >
-                        <span className="text-xs font-semibold">Tocca per girare</span>
-                        <span className="hidden sm:inline text-xs">•</span>
-                        <kbd className="hidden sm:inline px-2 py-1 bg-white/[0.12] text-white/50 rounded-lg text-[10px] font-mono border border-white/[0.1] shadow-sm">
-                            Spazio
-                        </kbd>
-                    </motion.div>
+                    {/* Hint per flip - NASCOSTO SU MOBILE */}
+                    {!isMobile && (
+                        <motion.div 
+                            className="flex items-center justify-center gap-2 text-white/40 mt-4 pt-4 border-t border-white/[0.08] flex-shrink-0"
+                            animate={{ opacity: [0.4, 0.7, 0.4] }}
+                            transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
+                        >
+                            <span className="text-xs font-semibold">Tocca per girare</span>
+                            <span className="hidden sm:inline text-xs">•</span>
+                            <kbd className="hidden sm:inline px-2 py-1 bg-white/[0.12] text-white/50 rounded-lg text-[10px] font-mono border border-white/[0.1] shadow-sm">
+                                Spazio
+                            </kbd>
+                        </motion.div>
+                    )}
                 </div>
 
                 {/* ═══════════════════════════════════════════
-                    RETRO DELLA CARTA
+                    RETRO DELLA CARTA - 3D Flip
                     ═══════════════════════════════════════════ */}
                 <div
-                    className="absolute inset-0 w-full h-full rounded-3xl backdrop-blur-xl border border-white/[0.15] shadow-2xl flex flex-col p-4 sm:p-6 md:p-8"
+                    className={`absolute inset-0 w-full h-full ${isMobile ? 'rounded-xl p-4' : 'rounded-3xl p-6 md:p-8'} backdrop-blur-xl border border-white/[0.15] shadow-2xl flex flex-col`}
                     style={{ 
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
                         transform: 'rotateY(180deg)',
                         background: 'linear-gradient(145deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.08) 50%, rgba(139, 92, 246, 0.05) 100%)',
-                        boxShadow: '0 20px 60px -12px rgba(139, 92, 246, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 0 rgba(0, 0, 0, 0.1)'
+                        boxShadow: isMobile
+                            ? '0 10px 30px -8px rgba(139, 92, 246, 0.25), 0 0 0 1px rgba(139, 92, 246, 0.2)'
+                            : '0 20px 60px -12px rgba(139, 92, 246, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 0 rgba(0, 0, 0, 0.1)'
                     }}
                 >
-                    {/* Label Risposta */}
-                    <div className="flex justify-start mb-3 flex-shrink-0">
-                        <span className="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm">
+                    {/* Label Risposta - BEN SEPARATO SU MOBILE */}
+                    <div className={`flex justify-start ${isMobile ? 'mb-3 pb-2 border-b border-emerald-500/20' : 'mb-3'} flex-shrink-0`}>
+                        <span className={`${isMobile ? 'px-2.5 py-1 text-[9px]' : 'px-3 py-1.5 text-[10px]'} rounded-full font-bold uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm`}>
                             Risposta
                         </span>
                     </div>
 
-                    {/* Contenuto Retro */}
+                    {/* Contenuto Retro - STILI SEPARATI MOBILE/DESKTOP */}
                     <div 
                         className={`flex-1 flex items-center justify-center w-full min-w-0 ${backNeedsScroll ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}
-                        style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.2) transparent' }}
+                        style={{ 
+                            scrollbarWidth: 'thin', 
+                            scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+                            ...(isMobile && {
+                                paddingTop: '12px',
+                                paddingBottom: '12px'
+                            })
+                        }}
                     >
-                        <div className="w-full max-w-full px-2">
-                            <p className={`${backFontSize} font-semibold text-white/95 text-center leading-relaxed sm:leading-relaxed md:leading-relaxed whitespace-pre-wrap break-words max-w-full drop-shadow-sm`}>
+                        <div className={`w-full max-w-full ${isMobile ? 'px-1' : 'px-2'}`}>
+                            <p className={`${backFontSize} ${isMobile ? 'font-medium leading-tight' : 'font-semibold leading-relaxed'} text-white/95 text-center whitespace-pre-wrap break-words max-w-full drop-shadow-sm`}>
                                 {card.back}
                             </p>
                         </div>
                     </div>
 
-                    {/* Spacer */}
-                    <div className="h-8 mt-3 flex-shrink-0" />
+                    {/* Spacer - PIÙ GRANDE SU MOBILE PER SEPARAZIONE */}
+                    <div className={`${isMobile ? 'h-4' : 'h-8'} mt-3 flex-shrink-0`} />
                 </div>
             </motion.div>
         </motion.div>
