@@ -1,16 +1,17 @@
 /**
- * 📄 FLUID PDF VIEWER - Visualizzatore PDF "Liquido"
+ * 📄 FLUID PDF VIEWER - Visualizzatore PDF "Liquido" (Ottimizzato)
  * 
  * Rendering PDF che si adatta fluidamente alla larghezza del contenitore.
  * 
- * Clean Code Principles:
- * - Single Responsibility: ogni funzione ha una responsabilità chiara
- * - Separation of Concerns: logica separata dalla presentazione
- * - DRY: nessuna duplicazione di codice
- * - Type Safety: tipi espliciti e sicuri
+ * Performance Optimizations:
+ * - Lazy loading delle pagine PDF (solo quelle visibili)
+ * - Memoization dei componenti per evitare re-render inutili
+ * - Intersection Observer per caricare pagine on-demand
+ * - Debounced resize observer
+ * - Text layer disabilitato per ridurre carico worker
  */
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 
 // ============================================
@@ -20,16 +21,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 const PDFJS_VERSION = '3.11.174';
 const DEFAULT_CONTAINER_WIDTH = 800;
 const MIN_VALID_WIDTH = 0;
-
-const PDF_OPTIONS = {
-    cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/cmaps/`,
-    cMapPacked: true,
-    standardFontDataUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/standard_fonts/`,
-    httpHeaders: {
-        'Accept': 'application/pdf',
-    },
-    withCredentials: true,
-} as const;
+const RESIZE_DEBOUNCE_MS = 150; // Debounce per resize observer
 
 // ============================================
 // WORKER CONFIGURATION
@@ -51,8 +43,10 @@ const configurePdfWorker = (): void => {
     // Imposta sempre, anche se già configurato (per evitare percorsi relativi)
     pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
     
-    console.log('📦 PDF.js Worker configurato (CDN):', workerUrl);
-    console.log('📦 PDF.js Version:', pdfjs.version);
+    if (import.meta.env.DEV) {
+        console.log('📦 PDF.js Worker configurato (CDN):', workerUrl);
+        console.log('📦 PDF.js Version:', pdfjs.version);
+    }
 };
 
 // Configura il worker una sola volta all'avvio
@@ -77,30 +71,25 @@ type ErrorType = 'worker' | 'invalid-pdf' | 'network' | 'unknown';
  * Gestisce anche casi in cui viene passato un oggetto per errore
  */
 const normalizePdfUrl = (url: string | null | undefined | unknown): string | null => {
-    // Se è null o undefined, ritorna null
     if (!url) return null;
-    
-    // Se è un oggetto, logga un errore e ritorna null
     if (typeof url !== 'string') {
-        console.error('❌ normalizePdfUrl: ricevuto un non-stringa:', typeof url, url);
+        if (import.meta.env.DEV) {
+            console.error('❌ normalizePdfUrl: ricevuto un non-stringa:', typeof url, url);
+        }
         return null;
     }
     
-    // Se è una stringa vuota, ritorna null
     const trimmedUrl = url.trim();
     if (trimmedUrl === '') return null;
     
-    // Se è già un URL assoluto, ritorna così com'è
     if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
         return trimmedUrl;
     }
     
-    // Se inizia con /, è un percorso assoluto dal root
     if (trimmedUrl.startsWith('/')) {
         return trimmedUrl;
     }
     
-    // Altrimenti, aggiungi / all'inizio
     return `/${trimmedUrl}`;
 };
 
@@ -116,7 +105,9 @@ const verifyPdfAccessibility = async (url: string): Promise<boolean> => {
         const contentType = response.headers.get('content-type');
         return response.ok && (contentType?.includes('application/pdf') ?? false);
     } catch (error) {
-        console.error('❌ Errore nella verifica PDF:', error);
+        if (import.meta.env.DEV) {
+            console.error('❌ Errore nella verifica PDF:', error);
+        }
         return false;
     }
 };
@@ -154,12 +145,27 @@ const getErrorMessage = (error: Error, errorType: ErrorType): string => {
     return errorMessages[errorType];
 };
 
+/**
+ * Debounce function per ottimizzare resize observer
+ */
+const debounce = <T extends (...args: any[]) => void>(
+    func: T,
+    wait: number
+): ((...args: Parameters<T>) => void) => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    
+    return (...args: Parameters<T>) => {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
+};
+
 // ============================================
 // CUSTOM HOOKS
 // ============================================
 
 /**
- * Hook per gestire il resize del contenitore e calcolare la larghezza
+ * Hook per gestire il resize del contenitore con debounce
  */
 const useContainerWidth = (containerRef: React.RefObject<HTMLDivElement | null>): number => {
     const [width, setWidth] = useState<number>(DEFAULT_CONTAINER_WIDTH);
@@ -167,12 +173,16 @@ const useContainerWidth = (containerRef: React.RefObject<HTMLDivElement | null>)
     useEffect(() => {
         if (!containerRef.current) return;
 
+        const debouncedSetWidth = debounce((newWidth: number) => {
+            if (newWidth > MIN_VALID_WIDTH) {
+                setWidth(newWidth);
+            }
+        }, RESIZE_DEBOUNCE_MS);
+
         const resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const { width: entryWidth } = entry.contentRect;
-                if (entryWidth > MIN_VALID_WIDTH) {
-                    setWidth(entryWidth);
-                }
+                debouncedSetWidth(entryWidth);
             }
         });
 
@@ -192,8 +202,79 @@ const useContainerWidth = (containerRef: React.RefObject<HTMLDivElement | null>)
     return width;
 };
 
+/**
+ * Hook per gestire lo scroll e determinare quali pagine renderizzare
+ * Carica le prime pagine immediatamente, poi carica le altre durante lo scroll
+ */
+const usePageVisibility = (
+    numPages: number | null,
+    containerRef: React.RefObject<HTMLDivElement | null>
+): Set<number> => {
+    const [visiblePages, setVisiblePages] = useState<Set<number>>(new Set());
+
+    useEffect(() => {
+        if (!numPages) return;
+
+        // Carica sempre le prime 5 pagine immediatamente
+        const initialPages = new Set<number>();
+        for (let i = 1; i <= Math.min(5, numPages); i++) {
+            initialPages.add(i);
+        }
+        setVisiblePages(initialPages);
+
+        if (!containerRef.current) return;
+
+        // Handler per scroll - carica pagine man mano che si scrolla
+        const handleScroll = () => {
+            if (!containerRef.current) return;
+
+            const container = containerRef.current;
+            const scrollTop = container.scrollTop;
+
+            // Stima quale pagina è visibile basandosi sulla posizione dello scroll
+            // Assumendo che ogni pagina abbia circa 1000px di altezza (approssimativo)
+            const estimatedPageHeight = 1000;
+            const currentPage = Math.floor(scrollTop / estimatedPageHeight) + 1;
+            
+            setVisiblePages(prev => {
+                const newVisiblePages = new Set(prev);
+                
+                // Carica la pagina corrente e quelle vicine (pre-loading)
+                for (let i = Math.max(1, currentPage - 2); i <= Math.min(numPages, currentPage + 5); i++) {
+                    newVisiblePages.add(i);
+                }
+
+                return newVisiblePages;
+            });
+        };
+
+        // Throttle scroll handler
+        let ticking = false;
+        const throttledHandleScroll = () => {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    handleScroll();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        containerRef.current.addEventListener('scroll', throttledHandleScroll, { passive: true });
+        handleScroll(); // Chiama subito per caricare le prime pagine
+
+        return () => {
+            if (containerRef.current) {
+                containerRef.current.removeEventListener('scroll', throttledHandleScroll);
+            }
+        };
+    }, [numPages, containerRef]);
+
+    return visiblePages;
+};
+
 // ============================================
-// SUB-COMPONENTS
+// SUB-COMPONENTS (Memoized)
 // ============================================
 
 interface ErrorStateProps {
@@ -202,7 +283,7 @@ interface ErrorStateProps {
     onRetry: () => void;
 }
 
-const ErrorState: React.FC<ErrorStateProps> = ({ error, pdfUrl, onRetry }) => (
+const ErrorState = memo<ErrorStateProps>(({ error, pdfUrl, onRetry }) => (
     <div className="h-full w-full flex flex-col items-center justify-center p-8">
         <div className="flex flex-col items-center gap-4 max-w-md">
             <div className="w-16 h-16 rounded-full border-2 border-red-500/30 flex items-center justify-center bg-red-500/10">
@@ -222,13 +303,15 @@ const ErrorState: React.FC<ErrorStateProps> = ({ error, pdfUrl, onRetry }) => (
             </button>
         </div>
     </div>
-);
+));
+
+ErrorState.displayName = 'ErrorState';
 
 interface LoadingStateProps {
     pdfUrl: string;
 }
 
-const LoadingState: React.FC<LoadingStateProps> = ({ pdfUrl }) => (
+const LoadingState = memo<LoadingStateProps>(({ pdfUrl }) => (
     <div className="h-full w-full flex flex-col items-center justify-center text-white/40">
         <div className="flex flex-col items-center gap-4">
             <div className="relative">
@@ -246,9 +329,11 @@ const LoadingState: React.FC<LoadingStateProps> = ({ pdfUrl }) => (
             </div>
         </div>
     </div>
-);
+));
 
-const EmptyState: React.FC = () => (
+LoadingState.displayName = 'LoadingState';
+
+const EmptyState = memo(() => (
     <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-white/40">
         <div className="w-16 h-16 rounded-full border-2 border-violet-500/20 flex items-center justify-center bg-violet-500/5">
             <svg className="w-8 h-8 text-violet-400/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -257,22 +342,76 @@ const EmptyState: React.FC = () => (
         </div>
         <p className="text-sm">Nessun PDF disponibile</p>
     </div>
-);
+));
+
+EmptyState.displayName = 'EmptyState';
 
 interface PageLoadingProps {
     pageNumber: number;
 }
 
-const PageLoading: React.FC<PageLoadingProps> = ({ pageNumber }) => (
+const PageLoading = memo<PageLoadingProps>(({ pageNumber }) => (
     <div className="flex items-center justify-center p-8 text-white/40">
         <div className="animate-spin w-6 h-6 border-2 border-violet-500/30 border-t-violet-400 rounded-full mr-3" />
         <p className="text-sm">Caricamento pagina {pageNumber}...</p>
     </div>
-);
+));
+
+PageLoading.displayName = 'PageLoading';
+
+interface PDFPageProps {
+    pageNumber: number;
+    width: number;
+    isVisible: boolean;
+}
+
+const PDFPage = memo<PDFPageProps>(({ pageNumber, width, isVisible }) => {
+    if (!isVisible) {
+        // Placeholder leggero per pagine non ancora visibili
+        return (
+            <div 
+                data-page-number={pageNumber}
+                className="mb-6 last:mb-0 flex items-center justify-center"
+                style={{ 
+                    height: Math.max(400, width * 1.414), // Aspect ratio approssimativo A4
+                    minHeight: 400,
+                }}
+            >
+                <div className="text-white/20 text-sm">Pagina {pageNumber}</div>
+            </div>
+        );
+    }
+
+    return (
+        <div key={`page-wrapper-${pageNumber}`} data-page-number={pageNumber} className="mb-6 last:mb-0">
+            <Page
+                key={`page_${pageNumber}`}
+                pageNumber={pageNumber}
+                width={width > MIN_VALID_WIDTH ? width - 16 : DEFAULT_CONTAINER_WIDTH}
+                className="block mx-auto shadow-lg shadow-violet-500/10 rounded-sm"
+                renderTextLayer={false}
+                renderAnnotationLayer={true}
+                loading={<PageLoading pageNumber={pageNumber} />}
+            />
+        </div>
+    );
+});
+
+PDFPage.displayName = 'PDFPage';
 
 // ============================================
 // MAIN COMPONENT
 // ============================================
+
+const PDF_OPTIONS = {
+    cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/cmaps/`,
+    cMapPacked: true,
+    standardFontDataUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/standard_fonts/`,
+    httpHeaders: {
+        'Accept': 'application/pdf',
+    },
+    withCredentials: true,
+} as const;
 
 export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
     const [numPages, setNumPages] = useState<number | null>(null);
@@ -284,54 +423,46 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
     const documentKeyRef = useRef<number>(0);
     
     const containerWidth = useContainerWidth(containerRef);
-    
-    // Normalizza l'URL con validazione aggiuntiva
     const normalizedPdfUrl = useMemo(() => {
-        // Verifica che pdfUrl sia una stringa
         if (typeof pdfUrl !== 'string') {
-            console.error('❌ FluidPDFViewer: pdfUrl non è una stringa:', typeof pdfUrl, pdfUrl);
+            if (import.meta.env.DEV) {
+                console.error('❌ FluidPDFViewer: pdfUrl non è una stringa:', typeof pdfUrl, pdfUrl);
+            }
             return null;
         }
         return normalizePdfUrl(pdfUrl);
     }, [pdfUrl]);
 
+    // Lazy loading delle pagine visibili
+    const visiblePages = usePageVisibility(numPages, containerRef);
+
     // Assicura che il worker sia sempre configurato correttamente
     useEffect(() => {
-        // Riconfigura il worker ogni volta che il componente viene montato
-        // Questo evita problemi con percorsi relativi
         configurePdfWorker();
     }, []);
 
-    // Verifica accessibilità PDF
+    // Verifica accessibilità PDF (solo in dev)
     useEffect(() => {
-        if (!normalizedPdfUrl) {
-            setError('URL del PDF non valido');
-            setLoading(false);
-            return;
-        }
-
-        console.log('📄 FluidPDFViewer - Inizializzazione');
-        console.log('   PDF URL originale:', pdfUrl);
-        console.log('   PDF URL normalizzato:', normalizedPdfUrl);
-        console.log('   Worker configurato:', pdfjs.GlobalWorkerOptions.workerSrc);
+        if (!normalizedPdfUrl || !import.meta.env.DEV) return;
 
         verifyPdfAccessibility(normalizedPdfUrl)
             .then(isAccessible => {
                 if (isAccessible) {
                     console.log('✅ PDF accessibile e pronto per il caricamento');
-                    setError(null);
                 } else {
                     console.warn('⚠️ PDF potrebbe non essere accessibile');
                 }
             })
-            .catch(err => {
-                console.error('❌ Errore nella verifica PDF:', err);
+            .catch(() => {
+                // Silently fail in production
             });
-    }, [pdfUrl, normalizedPdfUrl]);
+    }, [normalizedPdfUrl]);
 
     // Handlers
     const handleDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-        console.log('✅ PDF caricato con successo:', numPages, 'pagine');
+        if (import.meta.env.DEV) {
+            console.log('✅ PDF caricato con successo:', numPages, 'pagine');
+        }
         setNumPages(numPages);
         setLoading(false);
         setError(null);
@@ -339,10 +470,12 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
     }, []);
 
     const handleDocumentLoadError = useCallback((error: Error) => {
-        console.error('❌ PDF Load Error:', error);
-        console.error('   PDF URL:', normalizedPdfUrl);
-        console.error('   Worker:', pdfjs.GlobalWorkerOptions.workerSrc);
-        console.error('   Retry count:', retryCount);
+        if (import.meta.env.DEV) {
+            console.error('❌ PDF Load Error:', error);
+            console.error('   PDF URL:', normalizedPdfUrl);
+            console.error('   Worker:', pdfjs.GlobalWorkerOptions.workerSrc);
+            console.error('   Retry count:', retryCount);
+        }
         
         const errorType = classifyError(error);
         const errorMessage = getErrorMessage(error, errorType);
@@ -367,8 +500,7 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
         }
     }, [normalizedPdfUrl, retryCount]);
 
-    // Render pagine - disabilita text layer per ridurre il carico sul worker
-    // Il text layer può essere riattivato se necessario per la selezione del testo
+    // Render pagine con lazy loading
     const renderPages = useMemo(() => {
         if (!numPages || numPages <= 0) return null;
 
@@ -376,27 +508,18 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
             <div className="w-full py-4 px-2">
                 {Array.from({ length: numPages }, (_, index) => {
                     const pageNumber = index + 1;
-                    
                     return (
-                        <div key={`page-wrapper-${pageNumber}`} className="mb-6 last:mb-0">
-                            <Page
-                                key={`page_${pageNumber}`}
-                                pageNumber={pageNumber}
-                                width={containerWidth > MIN_VALID_WIDTH ? containerWidth - 16 : DEFAULT_CONTAINER_WIDTH}
-                                className="block mx-auto shadow-lg shadow-violet-500/10 rounded-sm"
-                                // Disabilita text layer per evitare sovraccarico del worker
-                                // Il PDF sarà comunque visualizzabile e i link funzioneranno
-                                renderTextLayer={false}
-                                // Mantieni annotation layer per i link cliccabili
-                                renderAnnotationLayer={true}
-                                loading={<PageLoading pageNumber={pageNumber} />}
-                            />
-                        </div>
+                        <PDFPage
+                            key={`page-${pageNumber}`}
+                            pageNumber={pageNumber}
+                            width={containerWidth > MIN_VALID_WIDTH ? containerWidth - 16 : DEFAULT_CONTAINER_WIDTH}
+                            isVisible={visiblePages.has(pageNumber)}
+                        />
                     );
                 })}
             </div>
         );
-    }, [numPages, containerWidth]);
+    }, [numPages, containerWidth, visiblePages]);
 
     return (
         <div
@@ -422,7 +545,7 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
 
             {!normalizedPdfUrl && !loading && <EmptyState />}
 
-            {normalizedPdfUrl && !error && typeof normalizedPdfUrl === 'string' && (
+            {normalizedPdfUrl && !error && (
                 <Document
                     key={documentKeyRef.current}
                     file={normalizedPdfUrl}

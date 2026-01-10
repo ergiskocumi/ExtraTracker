@@ -1,16 +1,16 @@
 /**
- * 🎬 CINEMA LAYOUT - Split View "No-Box" Architecture
+ * 🎬 CINEMA LAYOUT - Split View "No-Box" Architecture (Ottimizzato)
  * 
  * Layout strutturale per vista cinema con PDF e tools side-by-side.
  * Stile moderno ispirato a BrandStory con gradienti radiali e backdrop blur.
  * 
- * Clean Code Principles:
- * - Single Responsibility: gestisce solo il layout strutturale
- * - Separation of Concerns: layout separato dalla logica di business
- * - DRY: costanti riutilizzabili per stili comuni
+ * Performance Optimizations:
+ * - React.memo per evitare re-render inutili
+ * - Memoization dei componenti sub-componenti
+ * - Callback memoizzati
  */
 
-import React from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { FluidPDFViewer } from '../components/PDF/FluidPDFViewer';
 import { StudySidebar } from '../components/Study/StudySidebar';
@@ -39,14 +39,14 @@ interface CinemaLayoutProps {
 }
 
 // ============================================
-// SUB-COMPONENTS
+// SUB-COMPONENTS (Memoized)
 // ============================================
 
 interface PDFPanelProps {
     pdfSrc: string | null;
 }
 
-const PDFPanel: React.FC<PDFPanelProps> = ({ pdfSrc }) => {
+const PDFPanel = memo<PDFPanelProps>(({ pdfSrc }) => {
     // Verifica che pdfSrc sia una stringa valida
     if (!pdfSrc || typeof pdfSrc !== 'string') {
         return (
@@ -72,18 +72,32 @@ const PDFPanel: React.FC<PDFPanelProps> = ({ pdfSrc }) => {
             </div>
         </div>
     );
-};
+});
+
+PDFPanel.displayName = 'PDFPanel';
 
 // ============================================
 // MAIN COMPONENT
 // ============================================
 
-export const CinemaLayout: React.FC<CinemaLayoutProps> = ({
+export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
     deck,
     pdfSrc,
     onAddCard,
     onUpdateCard,
 }) => {
+    // Memoize deck title per evitare re-render inutili
+    const deckTitle = useMemo(() => deck.title, [deck.title]);
+
+    // Memoize callbacks per evitare re-render dei componenti figli
+    const handleAddCard = useCallback(() => {
+        onAddCard();
+    }, [onAddCard]);
+
+    const handleUpdateCard = useCallback(async (cardId: string, front: string, back: string) => {
+        await onUpdateCard(cardId, front, back);
+    }, [onUpdateCard]);
+
     return (
         <div className="fixed inset-0 h-screen w-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-[#050505] to-black text-white overflow-hidden flex flex-col">
             {/* Header - Stile moderno con backdrop blur */}
@@ -98,7 +112,7 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = ({
                 <h1 className="text-sm font-semibold text-white relative z-10 flex items-center gap-2.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgb(139,92,246,0.5)] animate-pulse" />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">
-                        {deck.title}
+                        {deckTitle}
                     </span>
                 </h1>
             </header>
@@ -156,8 +170,8 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = ({
                             <StudySidebar
                                 deck={deck}
                                 pdfSrc={pdfSrc}
-                                onAddCard={onAddCard}
-                                onUpdateCard={onUpdateCard}
+                                onAddCard={handleAddCard}
+                                onUpdateCard={handleUpdateCard}
                                 compactMode={true}
                             />
                         </Panel>
@@ -166,4 +180,6 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = ({
             </div>
         </div>
     );
-};
+});
+
+CinemaLayout.displayName = 'CinemaLayout';

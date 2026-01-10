@@ -9,7 +9,7 @@
  * - Error Handling: gestione errori centralizzata e user-friendly
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiAlertCircle, FiArrowLeft } from 'react-icons/fi';
 import { studyService, type Deck } from '../services/studyService';
@@ -84,16 +84,20 @@ export const CinemaPage: React.FC = () => {
             
             const deckData = await studyService.getDeckById(deckId);
             
-            console.log('📚 Deck caricato:', {
-                id: deckData.id,
-                title: deckData.title,
-                pdfUrl: deckData.pdfUrl,
-                hasPdf: !!deckData.pdfUrl,
-            });
+            if (import.meta.env.DEV) {
+                console.log('📚 Deck caricato:', {
+                    id: deckData.id,
+                    title: deckData.title,
+                    pdfUrl: deckData.pdfUrl,
+                    hasPdf: !!deckData.pdfUrl,
+                });
+            }
             
             setDeck(deckData);
         } catch (err: any) {
-            console.error('❌ Errore nel caricamento del deck:', err);
+            if (import.meta.env.DEV) {
+                console.error('❌ Errore nel caricamento del deck:', err);
+            }
             setError(err.message || 'Errore nel caricamento del mazzo');
         } finally {
             setIsLoading(false);
@@ -104,9 +108,9 @@ export const CinemaPage: React.FC = () => {
         loadDeck();
     }, [loadDeck]);
 
-    // Log PDF availability
+    // Log PDF availability (solo in dev)
     useEffect(() => {
-        if (!deck) return;
+        if (!deck || !import.meta.env.DEV) return;
 
         if (deck.pdfUrl) {
             console.log('🎬 CinemaPage - PDF Source:', deck.pdfUrl);
@@ -115,7 +119,7 @@ export const CinemaPage: React.FC = () => {
         }
     }, [deck?.pdfUrl, deck?.title]);
 
-    // Handlers
+    // Handlers - Memoizzati per evitare re-render
     const handleAddCard = useCallback(async () => {
         if (!deckId || !deck) return;
 
@@ -156,6 +160,9 @@ export const CinemaPage: React.FC = () => {
         }
     }, [deckId]);
 
+    // Memoize pdfSrc per evitare re-render inutili
+    const pdfSrc = useMemo(() => deck?.pdfUrl || null, [deck?.pdfUrl]);
+
     const handleNavigateBack = useCallback(() => {
         navigate('/study');
     }, [navigate]);
@@ -178,7 +185,7 @@ export const CinemaPage: React.FC = () => {
     return (
         <CinemaLayout
             deck={deck}
-            pdfSrc={deck.pdfUrl || null}
+            pdfSrc={pdfSrc}
             onAddCard={handleAddCard}
             onUpdateCard={handleUpdateCard}
         />

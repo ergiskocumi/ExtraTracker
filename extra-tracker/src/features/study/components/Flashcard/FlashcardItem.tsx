@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { FiEdit2, FiX, FiCheck } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Card } from '../../services/studyService';
@@ -7,10 +7,10 @@ import { emitToast } from '../../../../shared/components/toast';
 interface FlashcardItemProps {
     card: Card;
     onUpdate: (cardId: string, front: string, back: string) => Promise<void>;
-    onClick?: () => void;
+    onClick?: (card: Card) => void;
 }
 
-export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, onClick }) => {
+export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdate, onClick }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [tempFront, setTempFront] = useState(card.front);
     const [tempBack, setTempBack] = useState(card.back);
@@ -28,19 +28,19 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
     const isDirty = trimmedFront !== card.front || trimmedBack !== card.back;
     const canSave = !saving && trimmedFront.length > 0 && trimmedBack.length > 0 && isDirty;
 
-    const handleStartEdit = () => {
+    const handleStartEdit = useCallback(() => {
         setTempFront(card.front);
         setTempBack(card.back);
         setIsEditing(true);
-    };
+    }, [card.front, card.back]);
 
-    const handleCancel = () => {
+    const handleCancel = useCallback(() => {
         setTempFront(card.front);
         setTempBack(card.back);
         setIsEditing(false);
-    };
+    }, [card.front, card.back]);
 
-    const handleSave = async () => {
+    const handleSave = useCallback(async () => {
         if (!trimmedFront || !trimmedBack || saving) return;
         setSaving(true);
         try {
@@ -58,7 +58,13 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
         } finally {
             setSaving(false);
         }
-    };
+    }, [card.id, trimmedFront, trimmedBack, saving, onUpdate]);
+
+    const handleCardClick = useCallback((e: React.MouseEvent) => {
+        if (!isEditing && onClick && !(e.target as HTMLElement).closest('button')) {
+            onClick(card);
+        }
+    }, [isEditing, onClick, card]);
 
     return (
         <motion.div
@@ -72,12 +78,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
             style={{
                 background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
             }}
-            onClick={(e) => {
-                // Solo se non è in editing e non si è cliccato sul bottone Edit
-                if (!isEditing && onClick && !(e.target as HTMLElement).closest('button')) {
-                    onClick();
-                }
-            }}
+            onClick={handleCardClick}
         >
             <AnimatePresence mode="wait">
                 {!isEditing ? (
@@ -195,6 +196,8 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
             </AnimatePresence>
         </motion.div>
     );
-};
+});
+
+FlashcardItem.displayName = 'FlashcardItem';
 
 export default FlashcardItem;

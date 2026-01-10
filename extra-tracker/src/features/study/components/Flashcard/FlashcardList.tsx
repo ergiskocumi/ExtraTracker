@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FiPlus } from 'react-icons/fi';
 import { AnimatePresence } from 'framer-motion';
 import type { Deck, Card } from '../../services/studyService';
@@ -19,12 +19,22 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     onCardClick,
     showHeader = false,
 }) => {
+    // Memoize cards array per evitare re-render inutili
+    const cards = useMemo(() => deck.cards || [], [deck.cards]);
+    const cardCount = cards.length;
+
+    // Memoize callback per evitare re-render delle card
+    const handleCardClick = useMemo(() => {
+        if (!onCardClick) return undefined;
+        return (card: Card) => onCardClick(card);
+    }, [onCardClick]);
+
     return (
         <div className="flex flex-col h-full">
             {showHeader && (
                 <div className="px-4 py-3 border-b border-white/[0.08] backdrop-blur-sm flex items-center justify-between flex-shrink-0">
                     <span className="inline-block px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-medium">
-                        {deck.cards.length} carte
+                        {cardCount} carte
                     </span>
                     <button
                         onClick={onAddCard}
@@ -38,7 +48,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
             )}
 
             <div className="flex-1 p-3 md:p-4 overflow-y-auto overscroll-contain">
-                {deck.cards.length === 0 ? (
+                {cardCount === 0 ? (
                     <div className="rounded-2xl md:rounded-3xl border border-white/[0.08] backdrop-blur-xl p-6 text-center shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
                         style={{
                             background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
@@ -51,12 +61,12 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                 ) : (
                     <div className="space-y-3 md:space-y-4">
                         <AnimatePresence mode="popLayout">
-                            {deck.cards.map((card) => (
+                            {cards.map((card) => (
                                 <FlashcardItem 
                                     key={card.id} 
                                     card={card} 
                                     onUpdate={onUpdate}
-                                    onClick={() => onCardClick?.(card)}
+                                    onClick={handleCardClick}
                                 />
                             ))}
                         </AnimatePresence>
