@@ -204,20 +204,22 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                         </div>
                     </div>
 
-                    {/* Hint per flip - NASCOSTO SU MOBILE */}
-                    {!isMobile && (
-                        <motion.div 
-                            className="flex items-center justify-center gap-2 text-white/40 mt-4 pt-4 border-t border-white/[0.08] flex-shrink-0"
-                            animate={{ opacity: [0.4, 0.7, 0.4] }}
-                            transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
-                        >
-                            <span className="text-xs font-semibold">Tocca per girare</span>
-                            <span className="hidden sm:inline text-xs">•</span>
-                            <kbd className="hidden sm:inline px-2 py-1 bg-white/[0.12] text-white/50 rounded-lg text-[10px] font-mono border border-white/[0.1] shadow-sm">
-                                Spazio
-                            </kbd>
-                        </motion.div>
-                    )}
+                    {/* Hint per flip - LEGGERO E CENTRATO */}
+                    <motion.div 
+                        className="flex items-center justify-center gap-2 text-white/30 mt-3 pt-3 border-t border-white/[0.05] flex-shrink-0"
+                        animate={{ opacity: [0.3, 0.5, 0.3] }}
+                        transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
+                    >
+                        <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium`}>Tocca per girare</span>
+                        {!isMobile && (
+                            <>
+                                <span className="text-xs">•</span>
+                                <kbd className="px-1.5 py-0.5 bg-white/[0.08] text-white/40 rounded text-[10px] font-mono border border-white/[0.08]">
+                                    Spazio
+                                </kbd>
+                            </>
+                        )}
+                    </motion.div>
                 </div>
 
                 {/* ═══════════════════════════════════════════
