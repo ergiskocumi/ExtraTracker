@@ -51,7 +51,8 @@ interface PDFPanelProps {
 }
 
 const PDFPanel: React.FC<PDFPanelProps> = ({ pdfSrc }) => {
-    if (!pdfSrc) {
+    // Verifica che pdfSrc sia una stringa valida
+    if (!pdfSrc || typeof pdfSrc !== 'string') {
         return (
             <div className="h-full w-full flex flex-col items-center justify-center text-white/40 gap-3">
                 <div className="w-16 h-16 rounded-full border-2 border-violet-500/30 flex items-center justify-center">

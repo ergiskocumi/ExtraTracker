@@ -284,7 +284,16 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
     const documentKeyRef = useRef<number>(0);
     
     const containerWidth = useContainerWidth(containerRef);
-    const normalizedPdfUrl = useMemo(() => normalizePdfUrl(pdfUrl), [pdfUrl]);
+    
+    // Normalizza l'URL con validazione aggiuntiva
+    const normalizedPdfUrl = useMemo(() => {
+        // Verifica che pdfUrl sia una stringa
+        if (typeof pdfUrl !== 'string') {
+            console.error('❌ FluidPDFViewer: pdfUrl non è una stringa:', typeof pdfUrl, pdfUrl);
+            return null;
+        }
+        return normalizePdfUrl(pdfUrl);
+    }, [pdfUrl]);
 
     // Assicura che il worker sia sempre configurato correttamente
     useEffect(() => {
@@ -358,25 +367,33 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
         }
     }, [normalizedPdfUrl, retryCount]);
 
-    // Render pagine
+    // Render pagine - disabilita text layer per ridurre il carico sul worker
+    // Il text layer può essere riattivato se necessario per la selezione del testo
     const renderPages = useMemo(() => {
         if (!numPages || numPages <= 0) return null;
 
         return (
             <div className="w-full py-4 px-2">
-                {Array.from({ length: numPages }, (_, index) => (
-                    <div key={`page-wrapper-${index + 1}`} className="mb-6 last:mb-0">
-                        <Page
-                            key={`page_${index + 1}`}
-                            pageNumber={index + 1}
-                            width={containerWidth > MIN_VALID_WIDTH ? containerWidth - 16 : DEFAULT_CONTAINER_WIDTH}
-                            className="block mx-auto shadow-lg shadow-violet-500/10 rounded-sm"
-                            renderTextLayer={true}
-                            renderAnnotationLayer={true}
-                            loading={<PageLoading pageNumber={index + 1} />}
-                        />
-                    </div>
-                ))}
+                {Array.from({ length: numPages }, (_, index) => {
+                    const pageNumber = index + 1;
+                    
+                    return (
+                        <div key={`page-wrapper-${pageNumber}`} className="mb-6 last:mb-0">
+                            <Page
+                                key={`page_${pageNumber}`}
+                                pageNumber={pageNumber}
+                                width={containerWidth > MIN_VALID_WIDTH ? containerWidth - 16 : DEFAULT_CONTAINER_WIDTH}
+                                className="block mx-auto shadow-lg shadow-violet-500/10 rounded-sm"
+                                // Disabilita text layer per evitare sovraccarico del worker
+                                // Il PDF sarà comunque visualizzabile e i link funzioneranno
+                                renderTextLayer={false}
+                                // Mantieni annotation layer per i link cliccabili
+                                renderAnnotationLayer={true}
+                                loading={<PageLoading pageNumber={pageNumber} />}
+                            />
+                        </div>
+                    );
+                })}
             </div>
         );
     }, [numPages, containerWidth]);
@@ -401,7 +418,7 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
 
             {!normalizedPdfUrl && !loading && <EmptyState />}
 
-            {normalizedPdfUrl && !error && (
+            {normalizedPdfUrl && !error && typeof normalizedPdfUrl === 'string' && (
                 <Document
                     key={documentKeyRef.current}
                     file={normalizedPdfUrl}
