@@ -524,7 +524,7 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
     return (
         <div
             ref={containerRef}
-            className="h-full w-full overflow-y-auto overflow-x-hidden"
+            className="h-full w-full overflow-y-auto overflow-x-hidden scrollbar-pdf"
             style={{ 
                 width: '100%', 
                 height: '100%',

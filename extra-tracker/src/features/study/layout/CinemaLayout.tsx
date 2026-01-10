@@ -63,7 +63,7 @@ const PDFPanel = memo<PDFPanelProps>(({ pdfSrc }) => {
 
     return (
         <div className="h-full w-full overflow-hidden p-4">
-            <div className="h-full w-full rounded-3xl overflow-hidden border border-white/[0.08] backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative"
+            <div className="h-full w-full rounded-3xl overflow-hidden border border-white/[0.08] backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative scrollbar-macos"
                 style={{
                     background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
                 }}

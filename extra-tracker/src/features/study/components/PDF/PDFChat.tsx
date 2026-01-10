@@ -117,7 +117,7 @@ export const PDFChat: React.FC<PDFChatProps> = ({
     return (
         <div className="h-full flex flex-col">
             {/* Messages */}
-            <div className="flex-1 overflow-auto p-4 space-y-3">
+            <div className="flex-1 overflow-auto p-4 space-y-3 scrollbar-macos">
                 {messages.map((m, idx) => {
                     const isUser = m.role === 'user';
                     return (
