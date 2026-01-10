@@ -401,8 +401,12 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
     return (
         <div
             ref={containerRef}
-            className="h-full w-full overflow-y-auto overflow-x-hidden bg-gradient-to-b from-zinc-950 to-zinc-900"
-            style={{ width: '100%', height: '100%' }}
+            className="h-full w-full overflow-y-auto overflow-x-hidden"
+            style={{ 
+                width: '100%', 
+                height: '100%',
+                background: 'radial-gradient(ellipse at center, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%)',
+            }}
         >
             {error && (
                 <ErrorState 

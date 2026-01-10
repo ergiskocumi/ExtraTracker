@@ -22,13 +22,13 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     return (
         <div className="flex flex-col h-full">
             {showHeader && (
-                <div className="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between flex-shrink-0">
-                    <p className="text-xs text-white/50">
+                <div className="px-4 py-3 border-b border-white/[0.08] backdrop-blur-sm flex items-center justify-between flex-shrink-0">
+                    <span className="inline-block px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-medium">
                         {deck.cards.length} carte
-                    </p>
+                    </span>
                     <button
                         onClick={onAddCard}
-                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 shadow-primary-500/20 hover:from-primary-400 hover:to-primary-500 transition-all active:scale-95"
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
                         aria-label="Aggiungi carta"
                         title="Aggiungi carta"
                     >
@@ -39,8 +39,12 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
 
             <div className="flex-1 p-3 md:p-4 overflow-y-auto overscroll-contain">
                 {deck.cards.length === 0 ? (
-                    <div className="rounded-2xl md:rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 text-center">
-                        <p className="text-sm md:text-base text-white/70">
+                    <div className="rounded-2xl md:rounded-3xl border border-white/[0.08] backdrop-blur-xl p-6 text-center shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
+                        style={{
+                            background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
+                        }}
+                    >
+                        <p className="text-sm md:text-base text-slate-400">
                             Nessuna carta ancora. Puoi aggiungerne una mentre leggi il PDF.
                         </p>
                     </div>

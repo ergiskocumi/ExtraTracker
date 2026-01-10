@@ -66,9 +66,12 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className={`group relative rounded-2xl md:rounded-3xl border border-white/5 bg-zinc-900/50 p-4 md:p-5 transition-all hover:bg-zinc-900/60 hover:border-white/10 ${
+            className={`group relative rounded-2xl md:rounded-3xl border border-white/[0.08] backdrop-blur-xl p-4 md:p-5 transition-all duration-300 hover:border-white/[0.15] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] ${
                 onClick && !isEditing ? 'cursor-pointer' : ''
             }`}
+            style={{
+                background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
+            }}
             onClick={(e) => {
                 // Solo se non è in editing e non si è cliccato sul bottone Edit
                 if (!isEditing && onClick && !(e.target as HTMLElement).closest('button')) {
@@ -88,7 +91,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
                         {/* Fronte */}
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex items-start gap-3 flex-1 min-w-0">
-                                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-xs font-semibold text-white/60 flex-shrink-0">
+                                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 backdrop-blur-sm flex items-center justify-center text-xs font-semibold text-violet-400 flex-shrink-0 shadow-[0_0_10px_rgb(139,92,246,0.2)]">
                                     Q
                                 </div>
                                 <p className="text-sm md:text-base font-semibold leading-relaxed text-white whitespace-pre-wrap break-words">
@@ -98,7 +101,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
                             <button
                                 type="button"
                                 onClick={handleStartEdit}
-                                className="shrink-0 p-2 rounded-xl border border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-95 md:opacity-0 md:group-hover:opacity-100"
+                                className="shrink-0 p-2 rounded-xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-sm text-white/60 hover:text-white hover:bg-white/[0.10] transition-all duration-300 active:scale-95 md:opacity-0 md:group-hover:opacity-100"
                                 aria-label="Modifica"
                                 title="Modifica"
                             >
@@ -107,8 +110,8 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
                         </div>
 
                         {/* Retro */}
-                        <div className="flex items-start gap-3 pt-3 border-t border-white/5">
-                            <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-xs font-semibold text-white/60 flex-shrink-0">
+                        <div className="flex items-start gap-3 pt-3 border-t border-white/[0.08]">
+                            <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 backdrop-blur-sm flex items-center justify-center text-xs font-semibold text-amber-400 flex-shrink-0 shadow-[0_0_10px_rgb(245,158,11,0.2)]">
                                 A
                             </div>
                             <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap text-white/80 break-words">
@@ -126,7 +129,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
                     >
                         {/* Fronte Input */}
                         <div>
-                            <label className="block mb-2 text-xs font-medium text-white/70">
+                            <label className="block mb-2 text-xs font-medium text-slate-300">
                                 Fronte (Domanda)
                             </label>
                             <textarea
@@ -134,32 +137,32 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
                                 onChange={(e) => setTempFront(e.target.value)}
                                 rows={3}
                                 autoFocus
-                                className="w-full resize-y min-h-[80px] p-3 rounded-lg text-sm md:text-base bg-zinc-950 border border-zinc-700 text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60 transition-all"
+                                className="w-full resize-y min-h-[80px] p-3 rounded-xl text-sm md:text-base bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60 transition-all duration-300"
                                 placeholder="Inserisci la domanda..."
                             />
                         </div>
 
                         {/* Retro Input */}
                         <div>
-                            <label className="block mb-2 text-xs font-medium text-white/70">
+                            <label className="block mb-2 text-xs font-medium text-slate-300">
                                 Retro (Risposta)
                             </label>
                             <textarea
                                 value={tempBack}
                                 onChange={(e) => setTempBack(e.target.value)}
                                 rows={4}
-                                className="w-full resize-y min-h-[80px] p-3 rounded-lg text-sm md:text-base bg-zinc-950 border border-zinc-700 text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60 transition-all"
+                                className="w-full resize-y min-h-[80px] p-3 rounded-xl text-sm md:text-base bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60 transition-all duration-300"
                                 placeholder="Inserisci la risposta..."
                             />
                         </div>
 
                         {/* Action Bar */}
-                        <div className="flex items-center gap-3 pt-3 border-t border-white/5">
+                        <div className="flex items-center gap-3 pt-3 border-t border-white/[0.08]">
                             <button
                                 type="button"
                                 onClick={handleCancel}
                                 disabled={saving}
-                                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 text-sm font-medium text-zinc-300 hover:bg-white/10 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-sm text-sm font-medium text-slate-300 hover:bg-white/[0.10] hover:text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                             >
                                 <FiX className="w-4 h-4" />
                                 <span className="hidden sm:inline">Annulla</span>
@@ -168,7 +171,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = ({ card, onUpdate, on
                                 type="button"
                                 onClick={handleSave}
                                 disabled={!canSave}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-400 hover:to-fuchsia-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 shadow-lg shadow-violet-500/20"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 shadow-lg shadow-violet-500/20"
                             >
                                 {saving ? (
                                     <>

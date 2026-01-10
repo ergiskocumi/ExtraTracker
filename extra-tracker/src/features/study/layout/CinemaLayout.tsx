@@ -2,16 +2,12 @@
  * 🎬 CINEMA LAYOUT - Split View "No-Box" Architecture
  * 
  * Layout strutturale per vista cinema con PDF e tools side-by-side.
+ * Stile moderno ispirato a BrandStory con gradienti radiali e backdrop blur.
  * 
  * Clean Code Principles:
  * - Single Responsibility: gestisce solo il layout strutturale
  * - Separation of Concerns: layout separato dalla logica di business
  * - DRY: costanti riutilizzabili per stili comuni
- * 
- * Filosofia "No-Box":
- * - Nessun wrapper inutile
- * - Width/Height sempre espliciti (100vw, 100vh, 100%)
- * - Overflow rigoroso: solo il pannello scrolla, mai la pagina
  */
 
 import React from 'react';
@@ -55,19 +51,23 @@ const PDFPanel: React.FC<PDFPanelProps> = ({ pdfSrc }) => {
     if (!pdfSrc || typeof pdfSrc !== 'string') {
         return (
             <div className="h-full w-full flex flex-col items-center justify-center text-white/40 gap-3">
-                <div className="w-16 h-16 rounded-full border-2 border-violet-500/30 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full border-2 border-violet-500/20 bg-violet-500/5 backdrop-blur-xl flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
                     <svg className="w-8 h-8 text-violet-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                 </div>
-                <p className="text-sm">Nessun PDF disponibile</p>
+                <p className="text-sm text-slate-400">Nessun PDF disponibile</p>
             </div>
         );
     }
 
     return (
         <div className="h-full w-full overflow-hidden p-4">
-            <div className="h-full w-full rounded-2xl overflow-hidden border border-violet-500/20 bg-zinc-950/50 shadow-inner">
+            <div className="h-full w-full rounded-3xl overflow-hidden border border-white/[0.08] backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative"
+                style={{
+                    background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
+                }}
+            >
                 <FluidPDFViewer pdfUrl={pdfSrc} />
             </div>
         </div>
@@ -85,53 +85,55 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = ({
     onUpdateCard,
 }) => {
     return (
-        <div className="fixed inset-0 h-screen w-screen bg-zinc-950 text-white overflow-hidden flex flex-col">
-            {/* Header - Altezza fissa con stile viola */}
+        <div className="fixed inset-0 h-screen w-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-[#050505] to-black text-white overflow-hidden flex flex-col">
+            {/* Header - Stile moderno con backdrop blur */}
             <header className="
                 h-14 
-                border-b border-violet-500/30 
+                border-b border-white/[0.08] 
                 flex-none flex items-center px-6 
-                bg-gradient-to-r from-zinc-950 via-zinc-950 to-zinc-950
-                backdrop-blur-sm
+                backdrop-blur-2xl
                 relative
-                before:absolute before:inset-0 before:bg-gradient-to-r before:from-violet-500/5 before:via-transparent before:to-transparent before:pointer-events-none
+                bg-gradient-to-r from-slate-900/80 via-[#050505]/80 to-black/80
             ">
-                <h1 className="text-sm font-semibold text-white/90 relative z-10 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-                    {deck.title}
+                <h1 className="text-sm font-semibold text-white relative z-10 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgb(139,92,246,0.5)] animate-pulse" />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">
+                        {deck.title}
+                    </span>
                 </h1>
             </header>
 
-            {/* Main Body - Container principale con padding per "stacco" visivo */}
+            {/* Main Body - Container principale con stile moderno */}
             <div className="flex-1 w-full h-full p-4 md:p-6 lg:p-8 overflow-hidden">
-                {/* Wrapper dell'Area di Lavoro - Container viola elegante */}
+                {/* Wrapper dell'Area di Lavoro - Container moderno con gradiente radiale */}
                 <div className="
                     h-full w-full 
                     rounded-3xl 
-                    border-2 border-violet-500/60 
-                    bg-gradient-to-br from-zinc-900/95 via-zinc-950/98 to-zinc-900/95
-                    shadow-2xl shadow-violet-500/20
+                    border border-white/[0.08]
+                    backdrop-blur-2xl
                     overflow-hidden 
-                    ring-2 ring-violet-500/30
-                    backdrop-blur-sm
+                    shadow-[0_8px_30px_rgb(0,0,0,0.12)]
                     relative
-                    before:absolute before:inset-0 before:rounded-3xl before:bg-gradient-to-br before:from-violet-500/5 before:via-transparent before:to-violet-500/5 before:pointer-events-none
-                ">
+                "
+                style={{
+                    background: 'radial-gradient(ellipse at top right, rgba(139, 92, 246, 0.1) 0%, rgba(0, 0, 0, 0.3) 50%, rgba(0, 0, 0, 0.5) 100%)',
+                }}
+                >
                     <Group orientation="horizontal" className="h-full w-full">
                         {/* Pannello Sinistro - PDF Viewer */}
                         <Panel 
                             defaultSize={PANEL_SIZES.LEFT_DEFAULT} 
                             minSize={PANEL_SIZES.LEFT_MIN} 
-                            className="h-full w-full overflow-hidden bg-zinc-900/30"
+                            className="h-full w-full overflow-hidden"
                         >
                             <PDFPanel pdfSrc={pdfSrc} />
                         </Panel>
 
-                        {/* Resize Handle - Stile viola elegante */}
+                        {/* Resize Handle - Stile moderno discreto */}
                         <Separator className="
                             w-3 
                             opacity-0 hover:opacity-100 
-                            bg-transparent hover:bg-violet-500/10 
+                            bg-transparent hover:bg-white/[0.05] 
                             transition-all duration-300 
                             cursor-col-resize 
                             group relative
@@ -139,9 +141,9 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = ({
                             <div className="
                                 absolute inset-y-0 left-1/2 -translate-x-1/2 
                                 w-0.5 
-                                bg-violet-400/0 group-hover:bg-violet-400/60 
+                                bg-violet-400/0 group-hover:bg-violet-400/40 
                                 transition-all duration-300
-                                shadow-lg shadow-violet-400/50
+                                shadow-lg shadow-violet-400/30
                             " />
                         </Separator>
 
@@ -149,7 +151,7 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = ({
                         <Panel 
                             defaultSize={PANEL_SIZES.RIGHT_DEFAULT} 
                             minSize={PANEL_SIZES.RIGHT_MIN} 
-                            className="h-full overflow-hidden border-l border-violet-500/20 bg-zinc-900/20"
+                            className="h-full overflow-hidden border-l border-white/[0.08]"
                         >
                             <StudySidebar
                                 deck={deck}
