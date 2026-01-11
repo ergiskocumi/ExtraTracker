@@ -17,6 +17,7 @@ import {
     Shield
 } from 'lucide-react';
 import type { FormStatus } from './types';
+import { SettingsInput, SettingsPasswordInput } from './fields';
 
 interface AccountSettingsProps {
     accountEmail?: string;
@@ -156,85 +157,46 @@ export const AccountSettings = ({ accountEmail, onExport, onDelete, status }: Ac
                         </div>
 
                         {/* Password Field */}
-                        <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
-                                <Shield className="w-4 h-4 text-white/50" />
-                                Password account
-                            </label>
-                <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (deleteErrors.password) {
-                            setDeleteErrors(prev => {
-                                const newErrors = { ...prev };
-                                delete newErrors.password;
-                                return newErrors;
-                            });
-                        }
-                    }}
-                    className={`w-full input ${
-                        deleteErrors.password 
-                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
-                            : ''
-                    }`}
-                    placeholder="Inserisci la tua password"
-                    autoComplete="current-password"
-                />
-                            {deleteErrors.password && (
-                                <motion.p
-                                    initial={{ opacity: 0, y: -5 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="text-xs text-red-400 flex items-center gap-1"
-                                >
-                                    <AlertCircle className="w-3 h-3" />
-                                    {deleteErrors.password}
-                                </motion.p>
-                            )}
-                        </div>
+                        <SettingsPasswordInput
+                            label="Password account"
+                            name="password"
+                            value={password}
+                            onChange={(e) => {
+                                setPassword(e.target.value);
+                                if (deleteErrors.password) {
+                                    setDeleteErrors(prev => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors.password;
+                                        return newErrors;
+                                    });
+                                }
+                            }}
+                            error={deleteErrors.password}
+                            icon={Shield}
+                            autoComplete="current-password"
+                        />
 
                         {/* Confirmation Field */}
-                        <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
-                                <AlertTriangle className="w-4 h-4 text-white/50" />
-                                Conferma eliminazione
-                            </label>
-                <input
-                    type="text"
-                    value={confirmation}
-                    onChange={(e) => {
-                        setConfirmation(e.target.value);
-                        if (deleteErrors.confirmation) {
-                            setDeleteErrors(prev => {
-                                const newErrors = { ...prev };
-                                delete newErrors.confirmation;
-                                return newErrors;
-                            });
-                        }
-                    }}
-                    className={`w-full input ${
-                        deleteErrors.confirmation 
-                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
-                            : ''
-                    }`}
-                    placeholder="Scrivi DELETE per confermare"
-                    autoComplete="off"
-                />
-                            <p className="text-xs text-white/50">
-                                Digita <span className="font-mono text-red-400">DELETE</span> per confermare l'eliminazione
-                            </p>
-                            {deleteErrors.confirmation && (
-                                <motion.p
-                                    initial={{ opacity: 0, y: -5 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="text-xs text-red-400 flex items-center gap-1"
-                                >
-                                    <AlertCircle className="w-3 h-3" />
-                                    {deleteErrors.confirmation}
-                                </motion.p>
-                            )}
-                        </div>
+                        <SettingsInput
+                            label="Conferma eliminazione"
+                            name="confirmation"
+                            value={confirmation}
+                            onChange={(e) => {
+                                setConfirmation(e.target.value);
+                                if (deleteErrors.confirmation) {
+                                    setDeleteErrors(prev => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors.confirmation;
+                                        return newErrors;
+                                    });
+                                }
+                            }}
+                            error={deleteErrors.confirmation}
+                            icon={AlertTriangle}
+                            placeholder="Scrivi DELETE per confermare"
+                            autoComplete="off"
+                            hint="Digita DELETE per confermare l'eliminazione"
+                        />
 
                         {/* Status Messages */}
                         <AnimatePresence>

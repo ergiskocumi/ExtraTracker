@@ -7,23 +7,20 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Key, 
-    Lock, 
-    Eye, 
-    EyeOff, 
     CheckCircle2, 
     AlertCircle,
     Shield,
     AlertTriangle
 } from 'lucide-react';
 import type { FormStatus } from './types';
+import { SettingsPasswordInput } from './fields';
 
 interface SecuritySettingsProps {
     onChangePassword: (data: { currentPassword: string; newPassword: string; confirmPassword: string }) => Promise<boolean>;
     status: FormStatus;
 }
 
-// Password Strength Indicator
+// Password Strength Indicator (per i requisiti)
 const getPasswordStrength = (password: string): { strength: number; label: string; color: string } => {
     if (!password) return { strength: 0, label: '', color: '' };
 
@@ -47,102 +44,6 @@ const getPasswordStrength = (password: string): { strength: number; label: strin
         label: levels[Math.min(strength - 1, 4)]?.label || '',
         color: levels[Math.min(strength - 1, 4)]?.color || '',
     };
-};
-
-// Password Field Component
-const PasswordField = ({ 
-    label, 
-    name, 
-    value, 
-    onChange, 
-    showStrength = false,
-    error 
-}: { 
-    label: string;
-    name: string;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    showStrength?: boolean;
-    error?: string;
-}) => {
-    const [showPassword, setShowPassword] = useState(false);
-    const strength = showStrength ? getPasswordStrength(value) : null;
-
-    return (
-        <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
-                <Lock className="w-4 h-4 text-white/50" />
-                {label}
-            </label>
-            <div className="relative">
-                <input
-                    type={showPassword ? 'text' : 'password'}
-                    name={name}
-                    value={value}
-                    onChange={onChange}
-                    className={`w-full input pr-12 ${
-                        error 
-                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
-                            : value && !error
-                            ? 'border-emerald-500/30 focus:border-emerald-500/50'
-                            : ''
-                    }`}
-                    placeholder={`Inserisci ${label.toLowerCase()}`}
-                    autoComplete={name === 'currentPassword' ? 'current-password' : name === 'newPassword' ? 'new-password' : 'new-password'}
-                />
-                <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors p-2 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                    aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
-                >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-            </div>
-            
-            {/* Password Strength Indicator */}
-            {showStrength && value && (
-                <div className="space-y-2">
-                    <div className="flex gap-1 h-1.5">
-                        {[1, 2, 3, 4, 5].map((level) => (
-                            <motion.div
-                                key={level}
-                                initial={{ scaleX: 0 }}
-                                animate={{ 
-                                    scaleX: level <= (strength?.strength || 0) ? 1 : 0,
-                                    backgroundColor: level <= (strength?.strength || 0) 
-                                        ? strength?.color.replace('bg-', '') 
-                                        : 'rgba(255, 255, 255, 0.1)'
-                                }}
-                                transition={{ duration: 0.3 }}
-                                className="flex-1 rounded-full"
-                            />
-                        ))}
-                    </div>
-                    {strength && strength.strength > 0 && (
-                        <p className={`text-xs font-medium ${
-                            strength.strength <= 2 ? 'text-red-400' :
-                            strength.strength === 3 ? 'text-yellow-400' :
-                            'text-emerald-400'
-                        }`}>
-                            Forza: {strength.label}
-                        </p>
-                    )}
-                </div>
-            )}
-
-            {error && (
-                <motion.p
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-xs text-red-400 flex items-center gap-1"
-                >
-                    <AlertCircle className="w-3 h-3" />
-                    {error}
-                </motion.p>
-            )}
-        </div>
-    );
 };
 
 export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsProps) => {
@@ -234,29 +135,32 @@ export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsP
 
             {/* Password Fields */}
             <div className="space-y-4 md:space-y-5">
-                <PasswordField
+                <SettingsPasswordInput
                     label="Password attuale"
                     name="currentPassword"
                     value={formData.currentPassword}
                     onChange={handleChange}
                     error={errors.currentPassword}
+                    autoComplete="current-password"
                 />
 
-                <PasswordField
+                <SettingsPasswordInput
                     label="Nuova password"
                     name="newPassword"
                     value={formData.newPassword}
                     onChange={handleChange}
                     showStrength={true}
                     error={errors.newPassword}
+                    autoComplete="new-password"
                 />
 
-                <PasswordField
+                <SettingsPasswordInput
                     label="Conferma nuova password"
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     error={errors.confirmPassword}
+                    autoComplete="new-password"
                 />
             </div>
 

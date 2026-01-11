@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User, Mail, Phone, Building, Briefcase, MapPin, Globe, FileText, CheckCircle2, AlertCircle, RotateCcw } from 'lucide-react';
 import type { UserProfile } from '../services/settingsService';
 import type { FormStatus } from './types';
-import { SettingsTooltip } from './SettingsTooltip';
+import { SettingsInput, SettingsTextarea } from './fields';
 
 interface ProfileSettingsProps {
     profile: UserProfile;
@@ -115,99 +115,52 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
             {/* Form Fields Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                 {fields.map((field) => {
-                    const Icon = field.icon;
                     const value = formData[field.name as keyof UserProfile] as string || '';
                     const error = fieldErrors[field.name];
-                    const hasValue = value.length > 0;
+                    const inputType = field.name === 'phone' ? 'tel' : field.name === 'website' ? 'url' : 'text';
 
                     return (
                         <motion.div
                             key={field.name}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="space-y-2.5 md:space-y-2"
                         >
-                            <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
-                                <Icon className="w-4 h-4 text-white/50" />
-                                {field.label}
-                                {field.required && <span className="text-red-400">*</span>}
-                                {field.name === 'website' && (
-                                    <SettingsTooltip
-                                        title="Formato URL"
-                                        content="Inserisci un URL completo che inizi con http:// o https://"
-                                    />
-                                )}
-                                {field.name === 'phone' && (
-                                    <SettingsTooltip
-                                        title="Formato telefono"
-                                        content="Puoi includere spazi, trattini, parentesi e il prefisso internazionale (+39)"
-                                    />
-                                )}
-                            </label>
-                            <div className="relative">
-                                <input
-                                    id={`setting-${field.name}`}
-                                    name={field.name}
-                                    value={value}
-                                    onChange={handleChange}
-                                    type={field.name === 'phone' ? 'tel' : field.name === 'website' ? 'url' : 'text'}
-                                    className={`w-full input ${
-                                        error 
-                                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
-                                            : hasValue && !error
-                                            ? 'border-emerald-500/30 focus:border-emerald-500/50'
-                                            : ''
-                                    }`}
-                                    placeholder={`Inserisci ${field.label.toLowerCase()}`}
-                                    autoComplete={field.name === 'phone' ? 'tel' : field.name === 'website' ? 'url' : 'off'}
-                                />
-                                <AnimatePresence>
-                                    {hasValue && !error && (
-                                        <motion.div
-                                            initial={{ scale: 0, opacity: 0 }}
-                                            animate={{ scale: 1, opacity: 1 }}
-                                            exit={{ scale: 0, opacity: 0 }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2"
-                                        >
-                                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                            {error && (
-                                <motion.p
-                                    initial={{ opacity: 0, y: -5 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="text-xs text-red-400 flex items-center gap-1"
-                                >
-                                    <AlertCircle className="w-3 h-3" />
-                                    {error}
-                                </motion.p>
-                            )}
+                            <SettingsInput
+                                label={field.label}
+                                name={field.name}
+                                value={value}
+                                onChange={handleChange}
+                                type={inputType}
+                                icon={field.icon}
+                                required={field.required}
+                                error={error}
+                                tooltipTitle={
+                                    field.name === 'website' ? 'Formato URL' :
+                                    field.name === 'phone' ? 'Formato telefono' :
+                                    undefined
+                                }
+                                tooltipContent={
+                                    field.name === 'website' ? 'Inserisci un URL completo che inizi con http:// o https://' :
+                                    field.name === 'phone' ? 'Puoi includere spazi, trattini, parentesi e il prefisso internazionale (+39)' :
+                                    undefined
+                                }
+                            />
                         </motion.div>
                     );
                 })}
             </div>
 
             {/* Bio Textarea */}
-            <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
-                    <FileText className="w-4 h-4 text-white/50" />
-                    Bio
-                </label>
-                <textarea
-                    name="bio"
-                    value={formData.bio || ''}
-                    onChange={handleChange}
-                    rows={4}
-                    maxLength={500}
-                    className="w-full input resize-none min-h-[120px] md:min-h-[100px]"
-                    placeholder="Raccontaci qualcosa di te..."
-                />
-                <p className="text-xs text-white/40">
-                    {(formData.bio || '').length} / 500 caratteri
-                </p>
-            </div>
+            <SettingsTextarea
+                label="Bio"
+                name="bio"
+                value={formData.bio || ''}
+                onChange={handleChange}
+                rows={4}
+                maxLength={500}
+                placeholder="Raccontaci qualcosa di te..."
+                icon={FileText}
+            />
 
             {/* Status Messages */}
             <AnimatePresence>
