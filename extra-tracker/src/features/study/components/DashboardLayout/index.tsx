@@ -22,6 +22,8 @@ interface DashboardLayoutProps {
     onDeckDrop: (deckId: string, folderId: string | null) => void;
     onRefresh: () => void;
     onCreateDeck: () => void;
+    selectedExamName?: string | null; // Nome dell'esame selezionato
+    onBackToExams?: () => void; // Callback per tornare agli esami
     children: React.ReactNode;
 }
 
@@ -39,6 +41,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     onDeckDrop,
     onRefresh,
     onCreateDeck,
+    selectedExamName,
+    onBackToExams,
     children,
 }) => {
     // Trova il nome della cartella selezionata
@@ -73,6 +77,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                             onCreateDeck={onCreateDeck} 
                             selectedFolderName={selectedFolderName}
                             onBackToAll={() => onFolderSelect(null)}
+                            selectedExamName={selectedExamName}
+                            onBackToExams={onBackToExams}
                         />
                     </header>
                     {children}

@@ -126,9 +126,14 @@ export const DecksDashboardPage: React.FC = () => {
             onDeckDrop={handlers.handleDeckDrop}
             onRefresh={handleRefreshOrganization}
             onCreateDeck={() => handlers.setIsCreateModalOpen(true)}
+            selectedExamName={selectedExam?.title || null}
+            onBackToExams={() => {
+                setSelectedExamId(null);
+                setSelectedExam(null);
+            }}
         >
-            {/* Hero Stats + Stato Mentale - Nascosti quando una cartella è selezionata */}
-            {!isLoading && decks.length > 0 && !selectedFolderId && (
+            {/* Hero Stats + Stato Mentale - Nascosti quando una cartella o un esame è selezionato */}
+            {!isLoading && decks.length > 0 && !selectedFolderId && !selectedExamId && (
                 <>
                     <DashboardHero
                         totalDecks={decks.length}

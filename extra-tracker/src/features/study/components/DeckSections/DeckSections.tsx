@@ -13,6 +13,7 @@ interface DeckSectionsProps {
     organizedDecks: OrganizedDecks;
     tags: Tag[];
     viewMode?: DeckSectionLayout;
+    forceGridLayout?: boolean; // Forza sempre il layout 'grid' per card grandi
     onStudy: (deckId: string) => void;
     onRead?: (deckId: string) => void;
     onMagicGenerate: (deck: Deck) => void;
@@ -32,6 +33,7 @@ export const DeckSections: React.FC<DeckSectionsProps> = ({
     organizedDecks,
     tags,
     viewMode = 'grid',
+    forceGridLayout = false,
     onStudy,
     onRead,
     onMagicGenerate,
@@ -55,6 +57,10 @@ export const DeckSections: React.FC<DeckSectionsProps> = ({
 
     // Determina il layout in base al viewMode
     const getLayout = (defaultLayout: DeckSectionLayout): DeckSectionLayout => {
+        // Se forceGridLayout è true, forza sempre 'grid' per card grandi
+        if (forceGridLayout) return 'grid';
+        // Se viewMode è 'grid', usa sempre il layout di default (che è 'grid' per le card grandi)
+        if (viewMode === 'grid') return defaultLayout;
         if (viewMode === 'compact') return 'compact';
         if (viewMode === 'list') return 'list';
         return defaultLayout;
