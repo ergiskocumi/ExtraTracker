@@ -35,7 +35,8 @@ export const SettingsBottomNav: React.FC<SettingsBottomNavProps> = ({
                 <motion.button
                     onClick={onMenuClick}
                     whileTap={{ scale: 0.9 }}
-                    className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors text-white/70 hover:text-white hover:bg-white/[0.08] min-w-[60px]"
+                    className="touch-target flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors text-white/70 hover:text-white hover:bg-white/[0.08] min-w-[60px]"
+                    aria-label="Apri menu categorie"
                 >
                     <div className="p-2 rounded-lg bg-white/[0.08]">
                         <Menu className="w-5 h-5" />
@@ -53,11 +54,13 @@ export const SettingsBottomNav: React.FC<SettingsBottomNavProps> = ({
                             key={tab.id}
                             onClick={() => onTabChange(tab.id)}
                             whileTap={{ scale: 0.9 }}
-                            className={`relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[60px] ${
+                            className={`touch-target relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[60px] ${
                                 isActive
                                     ? 'text-white'
                                     : 'text-white/70 hover:text-white'
                             }`}
+                            aria-label={`Vai a ${tab.label}`}
+                            aria-current={isActive ? 'page' : undefined}
                         >
                             <div className={`p-2 rounded-lg transition-colors ${
                                 isActive

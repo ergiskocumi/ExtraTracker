@@ -71,11 +71,13 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                                         key={tab.id}
                                         onClick={() => handleTabClick(tab.id)}
                                         whileTap={{ scale: 0.98 }}
-                                        className={`w-full flex items-center gap-3 px-4 py-4 rounded-xl transition-all text-left ${
+                                        className={`touch-target w-full flex items-center gap-3 px-4 py-4 rounded-xl transition-all text-left ${
                                             isActive
                                                 ? `bg-gradient-to-r ${tab.color} text-white shadow-lg`
                                                 : 'text-white/70 hover:text-white hover:bg-white/[0.08]'
                                         }`}
+                                        aria-label={`Vai a ${tab.label}`}
+                                        aria-current={isActive ? 'page' : undefined}
                                     >
                                         <div className={`p-2 rounded-lg ${
                                             isActive

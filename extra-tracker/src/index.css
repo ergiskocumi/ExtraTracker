@@ -166,6 +166,40 @@
                 inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
   }
 
+  /* Touch Target Utilities - Apple HIG Compliance */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .touch-target-large {
+    min-width: 48px;
+    min-height: 48px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile Spacing Utilities */
+  @media (max-width: 768px) {
+    .mobile-spacing {
+      @apply space-y-4;
+    }
+
+    .mobile-gap {
+      @apply gap-4;
+    }
+
+    .mobile-padding {
+      @apply p-4;
+    }
+
+    .mobile-text-lg {
+      @apply text-base;
+    }
+  }
+
   /* Button Styles - Premium */
   .btn {
     @apply inline-flex items-center justify-center gap-2 px-5 py-3 
@@ -178,6 +212,21 @@
     /* Touch-friendly: min-height 44px per Apple HIG */
     min-height: 44px;
     min-width: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile Button Sizes */
+  @media (max-width: 768px) {
+    .btn {
+      @apply px-6 py-3.5 text-base;
+      min-height: 48px;
+    }
+
+    .btn-sm {
+      @apply px-4 py-2.5 text-sm;
+      min-height: 44px;
+    }
   }
 
   .btn-primary {
