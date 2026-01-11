@@ -18,7 +18,7 @@ import { useSettingsPage } from '../hooks/useSettings';
 import { ProfileSettings } from '../components/ProfileSettings';
 import { PreferencesSettings } from '../components/PreferencesSettings';
 import { SecuritySettings } from '../components/SecuritySettings';
-import { AccountSettings } from '../components/AccountSettings';
+import { AccountSettings } from '../components/AccountSettings/index';
 import { SettingsSearch } from '../components/SettingsSearch';
 import { SettingsLayout, type SettingsTab, type TabId } from '../components/layout/SettingsLayout';
 import { SettingsDrawer } from '../components/layout/SettingsDrawer';
