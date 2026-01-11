@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreHorizontal, Eye, Sparkles, BarChart2, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Eye, Sparkles, BarChart2, Trash2, Star } from 'lucide-react';
 import type { Deck } from '../../services/studyService';
 
 interface DeckCardMenuProps {
@@ -11,6 +11,7 @@ interface DeckCardMenuProps {
     onViewDetail: (deckId: string) => void;
     onMagicGenerate: (deck: Deck) => void;
     onDelete: (deck: Deck) => void;
+    onTogglePin?: (deck: Deck) => void;
 }
 
 export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
@@ -21,7 +22,9 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
     onViewDetail,
     onMagicGenerate,
     onDelete,
+    onTogglePin,
 }) => {
+    const isPinned = deck.pinned === true;
     return (
         <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
             <button
@@ -87,6 +90,19 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                 <BarChart2 className="w-4 h-4 flex-shrink-0" />
                                 Statistiche
                             </button>
+                            {onTogglePin && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onTogglePin(deck);
+                                        onToggleMenu();
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-amber-400 hover:bg-amber-500/10 active:bg-amber-500/15 transition-colors touch-manipulation min-h-[44px]"
+                                >
+                                    <Star className={`w-4 h-4 flex-shrink-0 ${isPinned ? 'fill-current' : ''}`} />
+                                    {isPinned ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+                                </button>
+                            )}
                             <div className="my-2 border-t border-white/10" />
                             <button
                                 onClick={(e) => {

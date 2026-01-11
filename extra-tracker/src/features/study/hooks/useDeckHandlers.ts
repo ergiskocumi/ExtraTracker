@@ -128,6 +128,29 @@ export const useDeckHandlers = ({
         }
     }, [decks, setDecks, loadDecks, loadFolders]);
 
+    const handleTogglePin = useCallback(async (deck: Deck) => {
+        try {
+            const newPinnedState = !deck.pinned;
+            // TODO: Quando il backend supporterà pinned, usare:
+            // await studyService.updateDeck(deck.id, { pinned: newPinnedState });
+            
+            // Per ora aggiorniamo solo il frontend
+            setDecks(prev => prev.map(d => 
+                d.id === deck.id 
+                    ? { ...d, pinned: newPinnedState }
+                    : d
+            ));
+            
+            emitToast.success(
+                newPinnedState 
+                    ? 'Aggiunto ai preferiti' 
+                    : 'Rimosso dai preferiti'
+            );
+        } catch (err: any) {
+            emitToast.error(err.message || 'Errore nell\'aggiornamento');
+        }
+    }, [setDecks]);
+
     return {
         // Modal state
         isCreateModalOpen,
@@ -156,5 +179,6 @@ export const useDeckHandlers = ({
         handleCreateDeck,
         handleSubmitCard,
         handleDeckDrop,
+        handleTogglePin,
     };
 };

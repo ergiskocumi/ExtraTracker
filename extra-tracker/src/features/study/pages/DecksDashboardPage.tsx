@@ -13,12 +13,22 @@ import { useState } from 'react';
 import { useDashboardCalculations, type FilterType } from '../hooks/useDashboardCalculations';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useDeckHandlers } from '../hooks/useDeckHandlers';
+import { useOrganizedDecks } from '../hooks/useOrganizedDecks';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { DashboardHero } from '../components/DashboardHero';
 import { TodayPlan } from '../components/TodayPlan';
 import { FilterBar } from '../components/FilterBar';
 import { DashboardContent } from '../components/DashboardContent';
+import { DeckSections } from '../components/DeckSections/DeckSections';
+import { DragDropZone } from '../components/DeckSections/DragDropZone';
+import { ExamsView } from '../components/Exams/ExamsView';
+import { ExamDetailView } from '../components/Exams/ExamDetailView';
+import { ExamDeckToggle, type ViewType } from '../components/ViewToggle/ExamDeckToggle';
 import { DashboardModals } from '../components/DashboardModals';
+import { HybridGoalWizard } from '../../goals/components/HybridGoalWizard';
+import type { ViewMode } from '../components/ViewToggle/ViewToggle';
+import type { Goal } from '../../goals/types';
+import goalsService from '../../goals/services/goalsService';
 
 // ============================================
 // MAIN DASHBOARD PAGE
@@ -31,6 +41,11 @@ export const DecksDashboardPage: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [filter, setFilter] = useState<FilterType>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [viewMode, setViewMode] = useState<'grid' | 'list' | 'compact'>('grid');
+    const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+    const [viewType, setViewType] = useState<ViewType>('exams'); // Mostra esami per default
+    const [showCreateExamModal, setShowCreateExamModal] = useState(false);
+    const [selectedExam, setSelectedExam] = useState<Goal | null>(null);
 
     // Data loading
     const {
@@ -62,6 +77,9 @@ export const DecksDashboardPage: React.FC = () => {
         selectedFolderId,
         selectedTags,
     });
+
+    // Organized Decks (per sezioni)
+    const organizedDecks = useOrganizedDecks(decks, folders);
 
     // Handlers
     const handlers = useDeckHandlers({
@@ -130,43 +148,152 @@ export const DecksDashboardPage: React.FC = () => {
                 />
             )}
 
-            {/* Filter & Search */}
-            {!isLoading && decks.length > 0 && (
+            {/* View Toggle & Filter Bar */}
+            {!isLoading && !selectedFolderId && filter === 'all' && searchQuery === '' && selectedTags.length === 0 && (
+                <div className="flex items-center justify-between mb-6">
+                    <ExamDeckToggle
+                        currentView={viewType}
+                        onViewChange={setViewType}
+                    />
+                    {viewType === 'decks' && (
+                        <div className="hidden sm:block">
+                            <FilterBar
+                                activeFilter={filter}
+                                onFilterChange={setFilter}
+                                searchQuery={searchQuery}
+                                onSearchChange={setSearchQuery}
+                                dueCount={decks.filter(d => (d.dueCount ?? 0) > 0).length}
+                                viewMode={viewMode}
+                                onViewModeChange={(view) => setViewMode(view as ViewMode)}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Filter & Search - Solo per vista Mazzi quando ci sono filtri */}
+            {!isLoading && decks.length > 0 && viewType === 'decks' && (selectedFolderId || filter !== 'all' || searchQuery !== '' || selectedTags.length > 0) && (
                 <FilterBar
                     activeFilter={filter}
                     onFilterChange={setFilter}
                     searchQuery={searchQuery}
                     onSearchChange={setSearchQuery}
                     dueCount={decks.filter(d => (d.dueCount ?? 0) > 0).length}
+                    viewMode={viewMode}
+                    onViewModeChange={(view) => setViewMode(view as ViewMode)}
                 />
             )}
 
             {/* ═══ CONTENT ═══ */}
-            <DashboardContent
-                isLoading={isLoading}
-                error={error}
-                decks={decks}
-                filteredDecks={filteredDecks}
-                tags={tags}
-                filter={filter}
-                searchQuery={searchQuery}
-                onRetry={loadDecks}
-                onCreateDeck={() => handlers.setIsCreateModalOpen(true)}
-                onFilterReset={() => {
-                    setFilter('all');
-                    setSearchQuery('');
-                }}
-                onStudy={handlers.handleStudy}
-                onRead={handlers.handleRead}
-                onMagicGenerate={handlers.handleMagicGenerate}
-                onAddCard={handlers.handleAddCard}
-                onViewDetail={handlers.handleViewDetail}
-                onDelete={handlers.setDeletingDeck}
-                onUpdate={(updated) => {
-                    setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
-                }}
-                isFolderSelected={!!selectedFolderId}
-            />
+            {/* Vista Esami o Dettaglio Esame */}
+            {!isLoading && viewType === 'exams' && !selectedFolderId && filter === 'all' && searchQuery === '' && selectedTags.length === 0 ? (
+                selectedExamId && selectedExam ? (
+                    <ExamDetailView
+                        exam={selectedExam}
+                        decks={decks}
+                        folders={folders}
+                        tags={tags}
+                        onBack={() => {
+                            setSelectedExamId(null);
+                            setSelectedExam(null);
+                        }}
+                        onStudy={handlers.handleStudy}
+                        onRead={handlers.handleRead}
+                        onMagicGenerate={handlers.handleMagicGenerate}
+                        onAddCard={handlers.handleAddCard}
+                        onViewDetail={handlers.handleViewDetail}
+                        onDelete={handlers.setDeletingDeck}
+                        onUpdate={(updated) => {
+                            setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
+                        }}
+                        onViewFolder={handleFolderSelect}
+                        onTogglePin={handlers.handleTogglePin}
+                        viewMode={viewMode === 'list' ? 'grid' : viewMode === 'compact' ? 'compact' : 'grid'}
+                    />
+                ) : (
+                    <ExamsView
+                        decks={decks}
+                        onCreateExam={() => setShowCreateExamModal(true)}
+                        onExamClick={async (examId) => {
+                            try {
+                                const allGoals = await goalsService.getAll();
+                                const exam = allGoals.find(g => g.id === examId);
+                                if (exam) {
+                                    setSelectedExam(exam);
+                                    setSelectedExamId(examId);
+                                }
+                            } catch (err) {
+                                console.error('Errore nel caricamento dell\'esame:', err);
+                            }
+                        }}
+                    />
+                )
+            ) : !isLoading && viewType === 'decks' && !selectedFolderId && filter === 'all' && searchQuery === '' && selectedTags.length === 0 ? (
+                <DeckSections
+                    organizedDecks={organizedDecks}
+                    tags={tags}
+                    viewMode={viewMode === 'list' ? 'grid' : viewMode === 'compact' ? 'compact' : 'grid'}
+                    onStudy={handlers.handleStudy}
+                    onRead={handlers.handleRead}
+                    onMagicGenerate={handlers.handleMagicGenerate}
+                    onAddCard={handlers.handleAddCard}
+                    onViewDetail={handlers.handleViewDetail}
+                    onDelete={handlers.setDeletingDeck}
+                    onUpdate={(updated) => {
+                        setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
+                    }}
+                    onViewFolder={handleFolderSelect}
+                    onTogglePin={handlers.handleTogglePin}
+                />
+            ) : (
+                <DashboardContent
+                    isLoading={isLoading}
+                    error={error}
+                    decks={decks}
+                    filteredDecks={filteredDecks}
+                    tags={tags}
+                    filter={filter}
+                    searchQuery={searchQuery}
+                    onRetry={loadDecks}
+                    onCreateDeck={() => handlers.setIsCreateModalOpen(true)}
+                    onFilterReset={() => {
+                        setFilter('all');
+                        setSearchQuery('');
+                    }}
+                    onStudy={handlers.handleStudy}
+                    onRead={handlers.handleRead}
+                    onMagicGenerate={handlers.handleMagicGenerate}
+                    onAddCard={handlers.handleAddCard}
+                    onViewDetail={handlers.handleViewDetail}
+                    onDelete={handlers.setDeletingDeck}
+                    onUpdate={(updated) => {
+                        setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
+                    }}
+                    isFolderSelected={!!selectedFolderId}
+                    onTogglePin={handlers.handleTogglePin}
+                />
+            )}
+
+            {/* ═══ DRAG & DROP ZONE ═══ */}
+            {!isLoading && decks.length > 0 && (
+                <DragDropZone
+                    folders={folders}
+                    onDrop={handlers.handleDeckDrop}
+                />
+            )}
+
+            {/* ═══ CREATE EXAM MODAL ═══ */}
+            {showCreateExamModal && (
+                <HybridGoalWizard
+                    onClose={() => {
+                        setShowCreateExamModal(false);
+                        // Ricarica gli esami dopo la creazione
+                        if (decks.length > 0) {
+                            // Trigger refresh
+                        }
+                    }}
+                />
+            )}
 
             {/* ═══ MODALS ═══ */}
             <DashboardModals

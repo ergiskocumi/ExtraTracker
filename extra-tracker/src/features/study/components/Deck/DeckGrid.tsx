@@ -15,6 +15,7 @@ interface DeckCardProps {
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
     tags?: Tag[];
+    onTogglePin?: (deck: Deck) => void;
 }
 
 interface DeckGridProps {
@@ -29,6 +30,7 @@ interface DeckGridProps {
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
     isFolderSelected?: boolean;
+    onTogglePin?: (deck: Deck) => void;
 }
 
 export const DeckGrid: React.FC<DeckGridProps> = ({
@@ -43,6 +45,7 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
     onDelete,
     onUpdate,
     isFolderSelected = false,
+    onTogglePin,
 }) => {
     if (decks.length === 0) {
         return (
@@ -91,6 +94,7 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
                             onDelete={onDelete}
                             onUpdate={onUpdate}
                             tags={tags}
+                            onTogglePin={onTogglePin}
                         />
                     </motion.div>
                 ))}

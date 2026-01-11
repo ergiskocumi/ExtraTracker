@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, Filter, X } from 'lucide-react';
+import { ViewToggle, type ViewMode } from '../ViewToggle/ViewToggle';
 
 type FilterType = 'all' | 'due' | 'mastered' | 'recent';
 
@@ -9,6 +10,8 @@ interface FilterBarProps {
     searchQuery: string;
     onSearchChange: (query: string) => void;
     dueCount: number;
+    viewMode?: ViewMode;
+    onViewModeChange?: (view: ViewMode) => void;
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
@@ -17,6 +20,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     searchQuery,
     onSearchChange,
     dueCount,
+    viewMode,
+    onViewModeChange,
 }) => {
     const filters: { key: FilterType; label: string; count?: number }[] = [
         { key: 'all', label: 'Tutti' },
@@ -48,36 +53,48 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 )}
             </div>
 
-            {/* Filters - Horizontal Scroll on Mobile */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
-                {filters.map((filter) => (
-                    <button
-                        key={filter.key}
-                        onClick={() => onFilterChange(filter.key)}
-                        className={`
-                            flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all touch-manipulation
-                            min-h-[40px] sm:min-h-[44px]
-                            ${activeFilter === filter.key
-                                ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                                : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 border border-white/10 active:bg-white/10'
-                            }
-                        `}
-                    >
-                        <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                        {filter.label}
-                        {filter.count !== undefined && filter.count > 0 && (
-                            <span className={`
-                                px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold
+            {/* Filters + View Toggle */}
+            <div className="flex items-center justify-between gap-4">
+                {/* Filters - Horizontal Scroll on Mobile */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none flex-1">
+                    {filters.map((filter) => (
+                        <button
+                            key={filter.key}
+                            onClick={() => onFilterChange(filter.key)}
+                            className={`
+                                flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all touch-manipulation
+                                min-h-[40px] sm:min-h-[44px]
                                 ${activeFilter === filter.key
-                                    ? 'bg-violet-500/30 text-violet-200'
-                                    : 'bg-orange-500/20 text-orange-400'
+                                    ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                                    : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 border border-white/10 active:bg-white/10'
                                 }
-                            `}>
-                                {filter.count}
-                            </span>
-                        )}
-                    </button>
-                ))}
+                            `}
+                        >
+                            <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                            {filter.label}
+                            {filter.count !== undefined && filter.count > 0 && (
+                                <span className={`
+                                    px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold
+                                    ${activeFilter === filter.key
+                                        ? 'bg-violet-500/30 text-violet-200'
+                                        : 'bg-orange-500/20 text-orange-400'
+                                    }
+                                `}>
+                                    {filter.count}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+
+                {/* View Toggle */}
+                {viewMode && onViewModeChange && (
+                    <ViewToggle
+                        view={viewMode}
+                        onChange={onViewModeChange}
+                        className="hidden sm:flex flex-shrink-0"
+                    />
+                )}
             </div>
         </div>
     );

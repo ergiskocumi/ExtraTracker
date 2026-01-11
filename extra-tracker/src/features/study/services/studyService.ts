@@ -34,6 +34,7 @@ export interface Deck {
     dueCount: number;
     createdAt?: string;
     updatedAt?: string;
+    pinned?: boolean; // Preferiti - da implementare nel backend
 }
 
 export interface ChatMessage {

@@ -38,6 +38,7 @@ interface CreateDeckModalProps {
 
 interface QuickGoalForm {
     title: string;
+    deadline: string; // Data di scadenza in formato YYYY-MM-DD
 }
 
 // ============================================
@@ -57,7 +58,15 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
 
     // Quick goal creation
     const [showQuickGoalForm, setShowQuickGoalForm] = useState(false);
-    const [quickGoal, setQuickGoal] = useState<QuickGoalForm>({ title: '' });
+    const [quickGoal, setQuickGoal] = useState<QuickGoalForm>({ 
+        title: '',
+        deadline: (() => {
+            // Default: 1 mese da oggi
+            const date = new Date();
+            date.setMonth(date.getMonth() + 1);
+            return date.toISOString().split('T')[0];
+        })()
+    });
     const [isCreatingGoal, setIsCreatingGoal] = useState(false);
 
     // Deck form state
@@ -96,29 +105,46 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
     const handleCreateQuickGoal = async () => {
         if (!quickGoal.title.trim()) return;
 
+        // Validazione data
+        const deadlineDate = new Date(quickGoal.deadline);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (deadlineDate < today) {
+            setError('La data di scadenza deve essere futura');
+            return;
+        }
+
         setIsCreatingGoal(true);
         setError(null);
 
         try {
-            // Create a learning goal with deadline +1 month
-            const deadline = new Date();
-            deadline.setMonth(deadline.getMonth() + 1);
+            // Create a learning goal (exam) with user-selected deadline
+            const deadline = new Date(quickGoal.deadline);
+            deadline.setHours(23, 59, 59, 999); // Fine della giornata
 
             const newGoal = await goalsService.create({
                 title: quickGoal.title.trim(),
                 category: 'learning',
                 type: 'milestone',
                 deadline: deadline.toISOString(),
-                description: 'Obiettivo creato per studio con Flashcards',
+                description: 'Esame creato per studio con Flashcards',
             });
 
             // Add to list and select it
             setGoals(prev => [...prev, newGoal]);
             setSelectedGoalId(newGoal.id);
             setShowQuickGoalForm(false);
-            setQuickGoal({ title: '' });
+            setQuickGoal({ 
+                title: '',
+                deadline: (() => {
+                    const date = new Date();
+                    date.setMonth(date.getMonth() + 1);
+                    return date.toISOString().split('T')[0];
+                })()
+            });
         } catch (err: any) {
-            setError(err.message || 'Errore nella creazione dell\'obiettivo');
+            setError(err.message || 'Errore nella creazione dell\'esame');
         } finally {
             setIsCreatingGoal(false);
         }
@@ -155,7 +181,14 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
         setTags('');
         setSelectedGoalId('');
         setShowQuickGoalForm(false);
-        setQuickGoal({ title: '' });
+        setQuickGoal({ 
+            title: '',
+            deadline: (() => {
+                const date = new Date();
+                date.setMonth(date.getMonth() + 1);
+                return date.toISOString().split('T')[0];
+            })()
+        });
         setError(null);
     };
 
@@ -244,7 +277,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-sm font-medium text-white/70">
                                     <FiTarget className="w-4 h-4" />
-                                    Obiettivo associato
+                                    Esame associato
                                     <span className="text-red-400">*</span>
                                 </label>
 
@@ -266,7 +299,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                             `}
                                         >
                                             <span className="truncate">
-                                                {selectedGoal ? selectedGoal.title : 'Seleziona un obiettivo...'}
+                                                {selectedGoal ? selectedGoal.title : 'Seleziona un esame...'}
                                             </span>
                                             <FiChevronDown className={`w-5 h-5 transition-transform ${isGoalDropdownOpen ? 'rotate-180' : ''}`} />
                                         </button>
@@ -329,7 +362,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                             className="w-full px-4 py-3 rounded-lg flex items-center gap-3 text-primary-400 hover:bg-primary-500/10 transition-colors text-sm font-medium"
                                                         >
                                                             <FiPlus className="w-4 h-4" />
-                                                            Crea nuovo Obiettivo di Studio
+                                                            Crea nuovo Esame
                                                         </button>
                                                     </div>
                                                 </motion.div>
@@ -347,24 +380,58 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                             exit={{ opacity: 0, height: 0 }}
                                             className="overflow-hidden"
                                         >
-                                            <div className="mt-3 p-4 rounded-xl bg-primary-500/5 border border-primary-500/20 space-y-3">
+                                            <div className="mt-3 p-4 rounded-xl bg-primary-500/5 border border-primary-500/20 space-y-4">
                                                 <p className="text-xs font-medium text-primary-400 uppercase tracking-wider">
-                                                    Nuovo Obiettivo Rapido
+                                                    Nuovo Esame
                                                 </p>
-                                                <div className="flex gap-2">
+                                                
+                                                {/* Nome Esame */}
+                                                <div className="space-y-2">
+                                                    <label className="text-xs text-white/60 font-medium">
+                                                        Nome Esame
+                                                    </label>
                                                     <input
                                                         type="text"
                                                         value={quickGoal.title}
-                                                        onChange={e => setQuickGoal({ title: e.target.value })}
-                                                        placeholder="es. Imparare JavaScript"
-                                                        className="flex-1 px-3 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/30 text-sm focus:border-primary-500/50 focus:outline-none"
+                                                        onChange={e => setQuickGoal({ ...quickGoal, title: e.target.value })}
+                                                        placeholder="es. Analisi Matematica I"
+                                                        className="w-full px-3 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/30 text-sm focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
                                                         autoFocus
                                                     />
+                                                </div>
+
+                                                {/* Data di Scadenza */}
+                                                <div className="space-y-2">
+                                                    <label className="text-xs text-white/60 font-medium">
+                                                        Data Esame <span className="text-red-400">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="date"
+                                                        value={quickGoal.deadline}
+                                                        onChange={e => setQuickGoal({ ...quickGoal, deadline: e.target.value })}
+                                                        min={new Date().toISOString().split('T')[0]}
+                                                        className="w-full px-3 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white text-sm focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all
+                                                                   [color-scheme:dark]"
+                                                    />
+                                                    <p className="text-xs text-white/40">
+                                                        Seleziona la data del tuo esame
+                                                    </p>
+                                                </div>
+
+                                                {/* Error Message */}
+                                                {error && error.includes('scadenza') && (
+                                                    <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/30">
+                                                        <p className="text-xs text-red-400">{error}</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Actions */}
+                                                <div className="flex items-center gap-2 pt-2">
                                                     <button
                                                         type="button"
                                                         onClick={handleCreateQuickGoal}
-                                                        disabled={!quickGoal.title.trim() || isCreatingGoal}
-                                                        className="px-4 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                        disabled={!quickGoal.title.trim() || !quickGoal.deadline || isCreatingGoal}
+                                                        className="flex-1 px-4 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors"
                                                     >
                                                         {isCreatingGoal ? (
                                                             <motion.div
@@ -375,19 +442,27 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                         ) : (
                                                             <FiCheck className="w-4 h-4" />
                                                         )}
-                                                        Crea
+                                                        Crea Esame
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setShowQuickGoalForm(false);
+                                                            setError(null);
+                                                            setQuickGoal({ 
+                                                                title: '',
+                                                                deadline: (() => {
+                                                                    const date = new Date();
+                                                                    date.setMonth(date.getMonth() + 1);
+                                                                    return date.toISOString().split('T')[0];
+                                                                })()
+                                                            });
+                                                        }}
+                                                        className="px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors"
+                                                    >
+                                                        Annulla
                                                     </button>
                                                 </div>
-                                                <p className="text-xs text-white/40">
-                                                    Verrà creato con deadline tra 1 mese
-                                                </p>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowQuickGoalForm(false)}
-                                                    className="text-xs text-white/40 hover:text-white/60 transition-colors"
-                                                >
-                                                    Annulla
-                                                </button>
                                             </div>
                                         </motion.div>
                                     )}

@@ -20,6 +20,7 @@ export interface DeckCardProps {
     tags?: Tag[];
     onDragStart?: () => void;
     onDragEnd?: () => void;
+    onTogglePin?: (deck: Deck) => void;
 }
 
 export const DeckCard: React.FC<DeckCardProps> = ({ 
@@ -34,6 +35,7 @@ export const DeckCard: React.FC<DeckCardProps> = ({
     tags = [],
     onDragStart: onDragStartProp,
     onDragEnd: onDragEndProp,
+    onTogglePin,
 }) => {
     const [showMenu, setShowMenu] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -116,9 +118,18 @@ export const DeckCard: React.FC<DeckCardProps> = ({
             onDragStart={handleDragStart as any}
             onDragEnd={handleDragEnd}
         >
-            {/* Badge - Due Cards */}
-            {hasDueCards && (
-                <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
+            {/* Badges - Pinned & Due Cards */}
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10 flex items-center gap-2">
+                {deck.pinned && (
+                    <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[10px] sm:text-xs font-bold shadow-lg"
+                    >
+                        ⭐
+                    </motion.div>
+                )}
+                {hasDueCards && (
                     <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
@@ -128,8 +139,8 @@ export const DeckCard: React.FC<DeckCardProps> = ({
                         <span className="hidden xs:inline">{deck.dueCount} da ripassare</span>
                         <span className="xs:hidden">{deck.dueCount}</span>
                     </motion.div>
-                </div>
-            )}
+                )}
+            </div>
 
             {/* More Menu Button */}
             <DeckCardMenu
@@ -140,6 +151,7 @@ export const DeckCard: React.FC<DeckCardProps> = ({
                 onViewDetail={onViewDetail}
                 onMagicGenerate={onMagicGenerate}
                 onDelete={onDelete}
+                onTogglePin={onTogglePin}
             />
 
             {/* Main Content - Clickable */}
