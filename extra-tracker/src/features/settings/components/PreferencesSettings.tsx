@@ -13,13 +13,12 @@ import {
     Clock, 
     Layout, 
     CheckCircle2,
-    AlertCircle,
     RotateCcw
 } from 'lucide-react';
 import type { UserPreferences } from '../services/settingsService';
 import type { FormStatus } from './types';
-import { SettingsTooltip } from './SettingsTooltip';
 import { SettingsSelect } from './fields';
+import { SettingsError, SettingsSuccess } from './feedback';
 
 interface PreferencesSettingsProps {
     preferences: UserPreferences;
@@ -207,26 +206,16 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
             {/* Status Messages */}
             <AnimatePresence>
                 {status.error && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 flex items-center gap-3"
-                    >
-                        <AlertCircle className="w-5 h-5 text-red-400" />
-                        <p className="text-sm text-red-300">{status.error}</p>
-                    </motion.div>
+                    <SettingsError
+                        message={status.error}
+                        title="Errore nel salvataggio"
+                    />
                 )}
                 {status.success && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-center gap-3"
-                    >
-                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                        <p className="text-sm text-emerald-300">Preferenze aggiornate con successo!</p>
-                    </motion.div>
+                    <SettingsSuccess
+                        message="Preferenze aggiornate con successo!"
+                        title="Preferenze salvate"
+                    />
                 )}
             </AnimatePresence>
 
