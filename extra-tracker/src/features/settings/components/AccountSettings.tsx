@@ -164,23 +164,24 @@ export const AccountSettings = ({ accountEmail, onExport, onDelete, status }: Ac
                 <input
                     type="password"
                     value={password}
-                                onChange={(e) => {
-                                    setPassword(e.target.value);
-                                    if (deleteErrors.password) {
-                                        setDeleteErrors(prev => {
-                                            const newErrors = { ...prev };
-                                            delete newErrors.password;
-                                            return newErrors;
-                                        });
-                                    }
-                                }}
-                                className={`w-full input ${
-                                    deleteErrors.password 
-                                        ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
-                                        : ''
-                                }`}
-                                placeholder="Inserisci la tua password"
-                            />
+                    onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (deleteErrors.password) {
+                            setDeleteErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors.password;
+                                return newErrors;
+                            });
+                        }
+                    }}
+                    className={`w-full input ${
+                        deleteErrors.password 
+                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
+                            : ''
+                    }`}
+                    placeholder="Inserisci la tua password"
+                    autoComplete="current-password"
+                />
                             {deleteErrors.password && (
                                 <motion.p
                                     initial={{ opacity: 0, y: -5 }}
@@ -202,23 +203,24 @@ export const AccountSettings = ({ accountEmail, onExport, onDelete, status }: Ac
                 <input
                     type="text"
                     value={confirmation}
-                                onChange={(e) => {
-                                    setConfirmation(e.target.value);
-                                    if (deleteErrors.confirmation) {
-                                        setDeleteErrors(prev => {
-                                            const newErrors = { ...prev };
-                                            delete newErrors.confirmation;
-                                            return newErrors;
-                                        });
-                                    }
-                                }}
-                                className={`w-full input ${
-                                    deleteErrors.confirmation 
-                                        ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
-                                        : ''
-                                }`}
-                                placeholder="Scrivi DELETE per confermare"
-                            />
+                    onChange={(e) => {
+                        setConfirmation(e.target.value);
+                        if (deleteErrors.confirmation) {
+                            setDeleteErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors.confirmation;
+                                return newErrors;
+                            });
+                        }
+                    }}
+                    className={`w-full input ${
+                        deleteErrors.confirmation 
+                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
+                            : ''
+                    }`}
+                    placeholder="Scrivi DELETE per confermare"
+                    autoComplete="off"
+                />
                             <p className="text-xs text-white/50">
                                 Digita <span className="font-mono text-red-400">DELETE</span> per confermare l'eliminazione
                             </p>

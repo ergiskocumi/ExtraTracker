@@ -27,7 +27,7 @@ interface PreferencesSettingsProps {
 }
 
 
-// Select Component Premium
+// Select Component Premium - Touch-optimized
 const SelectField = ({ 
     label, 
     name, 
@@ -53,6 +53,7 @@ const SelectField = ({
             value={value}
             onChange={onChange}
             className="w-full select"
+            aria-label={label}
         >
             {options.map(opt => (
                 <option key={opt.value} value={opt.value} className="bg-dark-300 text-white">
@@ -124,7 +125,7 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                     <Globe className="w-5 h-5 text-primary-400" />
                     Localizzazione e Visualizzazione
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
                             <SelectField
@@ -201,7 +202,7 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                     <Layout className="w-5 h-5 text-primary-400" />
                     Formattazione
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                     <SelectField
                         label="Valuta"
                         name="currency"

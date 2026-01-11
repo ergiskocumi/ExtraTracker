@@ -88,11 +88,13 @@ const PasswordField = ({
                             : ''
                     }`}
                     placeholder={`Inserisci ${label.toLowerCase()}`}
+                    autoComplete={name === 'currentPassword' ? 'current-password' : name === 'newPassword' ? 'new-password' : 'new-password'}
                 />
                 <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors p-2 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
                 >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -231,7 +233,7 @@ export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsP
             </div>
 
             {/* Password Fields */}
-            <div className="space-y-5">
+            <div className="space-y-4 md:space-y-5">
                 <PasswordField
                     label="Password attuale"
                     name="currentPassword"

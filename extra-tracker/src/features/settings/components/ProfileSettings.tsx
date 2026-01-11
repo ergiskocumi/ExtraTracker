@@ -113,7 +113,7 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
             )}
 
             {/* Form Fields Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                 {fields.map((field) => {
                     const Icon = field.icon;
                     const value = formData[field.name as keyof UserProfile] as string || '';
@@ -125,7 +125,7 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
                             key={field.name}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="space-y-2"
+                            className="space-y-2.5 md:space-y-2"
                         >
                             <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
                                 <Icon className="w-4 h-4 text-white/50" />
@@ -150,6 +150,7 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
                                     name={field.name}
                                     value={value}
                                     onChange={handleChange}
+                                    type={field.name === 'phone' ? 'tel' : field.name === 'website' ? 'url' : 'text'}
                                     className={`w-full input ${
                                         error 
                                             ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
@@ -158,6 +159,7 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
                                             : ''
                                     }`}
                                     placeholder={`Inserisci ${field.label.toLowerCase()}`}
+                                    autoComplete={field.name === 'phone' ? 'tel' : field.name === 'website' ? 'url' : 'off'}
                                 />
                                 <AnimatePresence>
                                     {hasValue && !error && (
@@ -198,7 +200,8 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
                     value={formData.bio || ''}
                     onChange={handleChange}
                     rows={4}
-                    className="w-full input resize-none"
+                    maxLength={500}
+                    className="w-full input resize-none min-h-[120px] md:min-h-[100px]"
                     placeholder="Raccontaci qualcosa di te..."
                 />
                 <p className="text-xs text-white/40">
