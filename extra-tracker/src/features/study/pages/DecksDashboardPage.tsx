@@ -128,17 +128,22 @@ export const DecksDashboardPage: React.FC = () => {
         >
             {/* Hero Stats + Stato Mentale - Nascosti quando una cartella è selezionata */}
             {!isLoading && decks.length > 0 && !selectedFolderId && (
-                <DashboardHero
-                    totalDecks={decks.length}
-                    totalCards={totalCards}
-                    dueCards={dueCardCount}
-                    masteredDecks={masteredDecks}
-                    mentalState={calculateMentalState}
-                />
+                <>
+                    <DashboardHero
+                        totalDecks={decks.length}
+                        totalCards={totalCards}
+                        dueCards={dueCardCount}
+                        masteredDecks={masteredDecks}
+                        mentalState={calculateMentalState}
+                    />
+                    {/* Separatore */}
+                    <div className="my-8 border-t border-white/10"></div>
+                </>
             )}
 
             {/* Oggi: Cosa Devo Studiare - Nascosto quando una cartella è selezionata */}
-            {!isLoading && todayPriorityDecks.length > 0 && !selectedFolderId && (
+            {/* TEMPORANEAMENTE NASCOSTO PER TEST */}
+            {false && !isLoading && todayPriorityDecks.length > 0 && !selectedFolderId && (
                 <TodayPlan
                     priorityDecks={todayPriorityDecks}
                     dueCardCount={dueCardCount}
@@ -149,7 +154,8 @@ export const DecksDashboardPage: React.FC = () => {
             )}
 
             {/* View Toggle & Filter Bar */}
-            {!isLoading && !selectedFolderId && filter === 'all' && searchQuery === '' && selectedTags.length === 0 && (
+            {/* TEMPORANEAMENTE NASCOSTO PER TEST */}
+            {false && !isLoading && !selectedFolderId && filter === 'all' && searchQuery === '' && selectedTags.length === 0 && (
                 <div className="flex items-center justify-between mb-6">
                     <ExamDeckToggle
                         currentView={viewType}
