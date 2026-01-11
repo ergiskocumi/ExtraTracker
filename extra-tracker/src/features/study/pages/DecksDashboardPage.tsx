@@ -9,7 +9,7 @@
  * - Visual hierarchy chiara
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDashboardCalculations, type FilterType } from '../hooks/useDashboardCalculations';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useDeckHandlers } from '../hooks/useDeckHandlers';
@@ -47,6 +47,7 @@ export const DecksDashboardPage: React.FC = () => {
     const [showCreateExamModal, setShowCreateExamModal] = useState(false);
     const [selectedExam, setSelectedExam] = useState<Goal | null>(null);
     const [examsRefreshKey, setExamsRefreshKey] = useState(0); // Key per forzare refresh ExamsView
+    const [exams, setExams] = useState<Goal[]>([]); // Esami caricati
 
     // Data loading
     const {
@@ -61,6 +62,24 @@ export const DecksDashboardPage: React.FC = () => {
         loadFolders,
         refreshAll,
     } = useDashboardData();
+
+    // Carica esami (goals con category='learning' e status='active')
+    const loadExams = useCallback(async () => {
+        try {
+            const allGoals = await goalsService.getAll();
+            const learningGoals = allGoals.filter(
+                g => g.category === 'learning' && g.status === 'active'
+            );
+            setExams(learningGoals);
+        } catch (err) {
+            console.error('Errore nel caricamento degli esami:', err);
+        }
+    }, []);
+
+    // Carica esami al mount e quando cambia examsRefreshKey
+    useEffect(() => {
+        loadExams();
+    }, [loadExams, examsRefreshKey]);
 
     // Calculations
     const {
@@ -93,6 +112,34 @@ export const DecksDashboardPage: React.FC = () => {
     // Organization handlers
     const handleFolderSelect = (folderId: string | null) => {
         setSelectedFolderId(folderId);
+        // Reset selezione esame quando si seleziona una cartella
+        if (folderId !== null) {
+            setSelectedExamId(null);
+            setSelectedExam(null);
+        }
+    };
+
+    // Handler per selezionare un esame dalla sidebar
+    const handleExamSelect = async (examId: string | null) => {
+        if (examId === null) {
+            setSelectedExamId(null);
+            setSelectedExam(null);
+            setSelectedFolderId(null); // Reset cartella quando si deseleziona esame
+            return;
+        }
+
+        try {
+            // Carica l'esame completo
+            const allGoals = await goalsService.getAll();
+            const exam = allGoals.find((g: Goal) => g.id === examId);
+            if (exam) {
+                setSelectedExam(exam);
+                setSelectedExamId(examId);
+                setSelectedFolderId(null); // Reset cartella quando si seleziona un esame
+            }
+        } catch (err) {
+            console.error('Errore nel caricamento dell\'esame:', err);
+        }
     };
 
     const handleTagToggle = (tagName: string) => {
@@ -107,6 +154,8 @@ export const DecksDashboardPage: React.FC = () => {
 
     const handleRefreshOrganization = async () => {
         await refreshAll();
+        // Ricarica anche gli esami
+        await loadExams();
     };
 
     // ========== RENDER ==========
@@ -118,14 +167,20 @@ export const DecksDashboardPage: React.FC = () => {
             onSidebarToggle={() => setIsSidebarOpen(prev => !prev)} 
             folders={folders}
             tags={tags}
+            exams={exams}
+            decks={decks}
             selectedFolderId={selectedFolderId}
+            selectedExamId={selectedExamId}
             selectedTags={selectedTags}
             folderStats={folderStats}
             onFolderSelect={handleFolderSelect}
+            onExamSelect={handleExamSelect}
+            onDeckClick={handlers.handleViewDetail}
             onTagToggle={handleTagToggle}
             onDeckDrop={handlers.handleDeckDrop}
             onRefresh={handleRefreshOrganization}
             onCreateDeck={() => handlers.setIsCreateModalOpen(true)}
+            onCreateExam={() => setShowCreateExamModal(true)}
             selectedExamName={selectedExam?.title || null}
             onBackToExams={() => {
                 setSelectedExamId(null);
@@ -197,56 +252,54 @@ export const DecksDashboardPage: React.FC = () => {
             )}
 
             {/* ═══ CONTENT ═══ */}
-            {/* Vista Esami o Dettaglio Esame */}
-            {!isLoading && viewType === 'exams' && !selectedFolderId && filter === 'all' && searchQuery === '' && selectedTags.length === 0 ? (
-                selectedExamId && selectedExam ? (
-                    <ExamDetailView
-                        exam={selectedExam}
-                        decks={decks}
-                        folders={folders}
-                        tags={tags}
-                        onBack={() => {
-                            setSelectedExamId(null);
-                            setSelectedExam(null);
-                        }}
-                        onStudy={handlers.handleStudy}
-                        onRead={handlers.handleRead}
-                        onMagicGenerate={handlers.handleMagicGenerate}
-                        onAddCard={handlers.handleAddCard}
-                        onViewDetail={handlers.handleViewDetail}
-                        onDelete={handlers.setDeletingDeck}
-                        onUpdate={(updated) => {
-                            setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
-                        }}
-                        onViewFolder={handleFolderSelect}
-                        onTogglePin={handlers.handleTogglePin}
-                        viewMode={viewMode === 'list' ? 'grid' : viewMode === 'compact' ? 'compact' : 'grid'}
-                    />
-                ) : (
-                    <ExamsView
-                        key={examsRefreshKey} // Force re-render quando cambia
-                        decks={decks}
-                        onCreateExam={() => setShowCreateExamModal(true)}
-                        onExamClick={async (examId) => {
-                            try {
-                                const allGoals = await goalsService.getAll();
-                                const exam = allGoals.find((g: Goal) => g.id === examId);
-                                if (exam) {
-                                    setSelectedExam(exam);
-                                    setSelectedExamId(examId);
-                                }
-                            } catch (err) {
-                                console.error('Errore nel caricamento dell\'esame:', err);
+            {/* Dettaglio Esame - Mostra sempre quando un esame è selezionato */}
+            {!isLoading && selectedExamId && selectedExam ? (
+                <ExamDetailView
+                    exam={selectedExam}
+                    decks={decks}
+                    folders={folders}
+                    tags={tags}
+                    onBack={() => {
+                        setSelectedExamId(null);
+                        setSelectedExam(null);
+                    }}
+                    onStudy={handlers.handleStudy}
+                    onRead={handlers.handleRead}
+                    onMagicGenerate={handlers.handleMagicGenerate}
+                    onAddCard={handlers.handleAddCard}
+                    onViewDetail={handlers.handleViewDetail}
+                    onDelete={handlers.setDeletingDeck}
+                    onUpdate={(updated) => {
+                        setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
+                    }}
+                    onViewFolder={handleFolderSelect}
+                    onTogglePin={handlers.handleTogglePin}
+                    viewMode={viewMode === 'list' ? 'grid' : viewMode === 'compact' ? 'compact' : 'grid'}
+                />
+            ) : !isLoading && viewType === 'exams' && !selectedFolderId && filter === 'all' && searchQuery === '' && selectedTags.length === 0 ? (
+                <ExamsView
+                    key={examsRefreshKey} // Force re-render quando cambia
+                    decks={decks}
+                    onCreateExam={() => setShowCreateExamModal(true)}
+                    onExamClick={async (examId) => {
+                        try {
+                            const allGoals = await goalsService.getAll();
+                            const exam = allGoals.find((g: Goal) => g.id === examId);
+                            if (exam) {
+                                setSelectedExam(exam);
+                                setSelectedExamId(examId);
                             }
-                        }}
-                        onRefresh={() => {
-                            // Trigger refresh chiamando la funzione esposta
-                            if ((window as any).__refreshExams) {
-                                (window as any).__refreshExams();
-                            }
-                        }}
-                    />
-                )
+                        } catch (err) {
+                            console.error('Errore nel caricamento dell\'esame:', err);
+                        }
+                    }}
+                    onRefresh={() => {
+                        // Trigger refresh chiamando la funzione esposta
+                        if ((window as any).__refreshExams) {
+                            (window as any).__refreshExams();
+                        }
+                    }}
+                />
             ) : !isLoading && viewType === 'decks' && !selectedFolderId && filter === 'all' && searchQuery === '' && selectedTags.length === 0 ? (
                 <DeckSections
                     organizedDecks={organizedDecks}
@@ -322,6 +375,7 @@ export const DecksDashboardPage: React.FC = () => {
                 onExamCreated={() => {
                     // Refresh automatico degli esami dopo la creazione
                     setExamsRefreshKey(prev => prev + 1);
+                    loadExams(); // Ricarica esami
                     // Chiama anche la funzione di refresh se disponibile
                     setTimeout(() => {
                         if ((window as any).__refreshExams) {

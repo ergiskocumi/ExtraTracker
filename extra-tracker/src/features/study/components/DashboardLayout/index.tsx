@@ -2,6 +2,8 @@ import React from 'react';
 import { DashboardSidebar } from './DashboardSidebar';
 import { DashboardHeader } from './DashboardHeader';
 import type { Folder, Tag } from '../../services/foldersService';
+import type { Goal } from '../../../goals/types';
+import type { Deck } from '../../services/studyService';
 
 interface DashboardLayoutProps {
     isSidebarOpen: boolean;
@@ -9,7 +11,10 @@ interface DashboardLayoutProps {
     onSidebarToggle?: () => void;
     folders: Folder[];
     tags: Tag[];
+    exams?: Goal[]; // Esami (goals con category='learning')
+    decks?: Deck[]; // Mazzi per calcolare statistiche
     selectedFolderId: string | null;
+    selectedExamId?: string | null;
     selectedTags: string[];
     folderStats: Map<string, {
         totalCards: number;
@@ -18,10 +23,13 @@ interface DashboardLayoutProps {
         totalDecks: number;
     }>;
     onFolderSelect: (folderId: string | null) => void;
+    onExamSelect?: (examId: string | null) => void;
+    onDeckClick?: (deckId: string) => void;
     onTagToggle: (tagName: string) => void;
     onDeckDrop: (deckId: string, folderId: string | null) => void;
     onRefresh: () => void;
     onCreateDeck: () => void;
+    onCreateExam?: () => void;
     selectedExamName?: string | null; // Nome dell'esame selezionato
     onBackToExams?: () => void; // Callback per tornare agli esami
     children: React.ReactNode;
@@ -33,14 +41,20 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     onSidebarToggle,
     folders,
     tags,
+    exams = [],
+    decks = [],
     selectedFolderId,
+    selectedExamId = null,
     selectedTags,
     folderStats,
     onFolderSelect,
+    onExamSelect,
+    onDeckClick,
     onTagToggle,
     onDeckDrop,
     onRefresh,
     onCreateDeck,
+    onCreateExam,
     selectedExamName,
     onBackToExams,
     children,
@@ -59,13 +73,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 onToggle={onSidebarToggle}
                 folders={folders}
                 tags={tags}
+                exams={exams}
+                decks={decks}
                 selectedFolderId={selectedFolderId}
+                selectedExamId={selectedExamId}
                 selectedTags={selectedTags}
                 folderStats={folderStats}
                 onFolderSelect={onFolderSelect}
+                onExamSelect={onExamSelect}
+                onDeckClick={onDeckClick}
                 onTagToggle={onTagToggle}
                 onDeckDrop={onDeckDrop}
                 onRefresh={onRefresh}
+                onCreateExam={onCreateExam}
             />
 
             {/* Main Content - Full Width */}
