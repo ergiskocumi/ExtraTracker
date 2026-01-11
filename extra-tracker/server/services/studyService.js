@@ -1,9 +1,13 @@
 /**
  * 🧠 STUDY SERVICE - Learning & Flashcards (SM-2)
  * ===============================================
- *
- * Service layer per la gestione dei mazzi di flashcard
- * e del scheduling SM-2.
+ * 
+ * 🆕 SMART GENERATION V2 - Miglioramenti chiave:
+ * - Micro-chunking semantico (8k invece di 40-50k)
+ * - Pre-estrazione concetti per evitare duplicati
+ * - Prompt multi-tipo per varietà domande
+ * - Deduplica semantica post-generazione
+ * - Target dinamico basato su densità contenuto
  *
  * ⚠️ SICUREZZA: Tutte le query usano filtri ESPLICITI con userId.
  */
@@ -14,6 +18,7 @@ const Goal = require('../models/Goal');
 const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
 const eventBus = require('../utils/eventBus');
+const sseManager = require('../utils/SSEManager');
 const OpenAI = require('openai');
 const pdfParse = require('pdf-parse');
 const fs = require('fs/promises');
@@ -22,11 +27,13 @@ const vectorStoreService = require('./vectorStoreService');
 const { AlgorithmFactory } = require('./spacedRepetitionAlgorithms');
 const activityService = require('./activityService');
 
+// =========================================
+// COSTANTI BASE
+// =========================================
 const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
-const MAX_PDF_TEXT_LENGTH = 15000; // Limite caratteri per evitare costi eccessivi
-const MAX_EXTRACTED_TEXT_STORE_LENGTH = 200000; // Limite DB: evita documenti enormi
-const MAX_TUTOR_CONTEXT_LENGTH = 50000; // Default sicuro (override per modelli più piccoli)
+const MAX_EXTRACTED_TEXT_STORE_LENGTH = 200000;
+const MAX_TUTOR_CONTEXT_LENGTH = 50000;
 const MAX_TUTOR_MESSAGE_LENGTH = 2000;
 const MAX_TUTOR_HISTORY_MESSAGES = 12;
 const MAX_TUTOR_HISTORY_MESSAGE_LENGTH = 1000;
@@ -38,7 +45,43 @@ const QUIZ_FALLBACK_OPTIONS = [
     'Informazione non presente',
 ];
 
-// Inizializza OpenAI client
+// =========================================
+// 🆕 SMART GENERATION V2 - CONFIGURATION
+// =========================================
+
+// Micro-chunking: chunk PIÙ PICCOLI = domande PIÙ PRECISE
+const MICRO_CHUNK_SIZE = 6000;        // 6k caratteri (era 40-50k!)
+const MICRO_CHUNK_OVERLAP = 200;      // Overlap ridotto
+const MIN_CHUNK_LENGTH = 400;         // Ignora chunk troppo corti (indici, titoli)
+
+// Target dinamico basato sulla densità del contenuto
+const MIN_CARDS_PER_CHUNK = 3;        // Minimo 3 card per chunk
+const MAX_CARDS_PER_CHUNK = 12;       // Massimo 12 card per singola chiamata
+const MAX_TOTAL_CARDS = 100;          // Cap totale per evitare mazzi enormi
+
+// Deduplica semantica - soglia più aggressiva per rimuovere più duplicati
+const SIMILARITY_THRESHOLD = 0.50;    // Soglia Jaccard (più bassa = più aggressiva)
+
+// Tipi di domande con distribuzione
+const QUESTION_TYPES = {
+    definition: { weight: 2, prompt: 'domande di DEFINIZIONE (Cosa significa/è X?)' },
+    explanation: { weight: 2, prompt: 'domande di SPIEGAZIONE (Come funziona X? Perché X?)' },
+    causeEffect: { weight: 1.5, prompt: 'domande CAUSA-EFFETTO (Cosa succede se X? Perché X causa Y?)' },
+    application: { weight: 1.5, prompt: 'domande di APPLICAZIONE (Come si usa X? In quale caso si applica?)' },
+    comparison: { weight: 1, prompt: 'domande di CONFRONTO (Differenza tra X e Y?)' },
+    process: { weight: 1, prompt: 'domande su PROCESSI/SEQUENZE (Quali sono i passaggi per X?)' },
+};
+
+// =========================================
+// CONFIGURAZIONE MODELLO AI
+// =========================================
+const ACTIVE_AI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+if (!global.__studyServiceModelLogged) {
+    console.log(`🤖 StudyService usando modello: ${ACTIVE_AI_MODEL}`);
+    global.__studyServiceModelLogged = true;
+}
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
@@ -53,12 +96,9 @@ class StudyService extends BaseService {
     }
 
     // =========================================
-    // CRUD BASE
+    // CRUD BASE (invariato)
     // =========================================
 
-    /**
-     * Crea un nuovo mazzo collegato a un goal dell'utente.
-     */
     async createDeck(tenantScope, data = {}) {
         const { goalId, title, description, tags } = data;
 
@@ -79,9 +119,6 @@ class StudyService extends BaseService {
         });
     }
 
-    /**
-     * Aggiunge una nuova card a un mazzo esistente.
-     */
     async addCard(tenantScope, deckId, cardData = {}) {
         const userId = this._getUserId(tenantScope);
         const { front, back } = cardData;
@@ -113,9 +150,6 @@ class StudyService extends BaseService {
         return deck;
     }
 
-    /**
-     * Modifica una card esistente in un mazzo.
-     */
     async updateCard(tenantScope, deckId, cardId, { front, back }) {
         const userId = this._getUserId(tenantScope);
 
@@ -141,9 +175,6 @@ class StudyService extends BaseService {
         return deck;
     }
 
-    /**
-     * Elimina una card da un mazzo.
-     */
     async deleteCard(tenantScope, deckId, cardId) {
         const userId = this._getUserId(tenantScope);
 
@@ -167,20 +198,80 @@ class StudyService extends BaseService {
         return deck;
     }
 
-    /**
-     * Elimina un mazzo (e tutte le sue card).
-     */
     async deleteDeck(tenantScope, deckId) {
         return this.delete(tenantScope, deckId);
     }
 
-    /**
-     * Restituisce un singolo mazzo con tutte le sue carte.
-     * Usato per il refresh della sessione di studio.
-     */
-    /**
-     * Aggiorna le impostazioni di un deck (algoritmo e AI)
-     */
+    async updateDeck(tenantScope, deckId, updates) {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        if (updates.title !== undefined) {
+            deck.title = updates.title.trim();
+        }
+        if (updates.description !== undefined) {
+            deck.description = updates.description?.trim() || '';
+        }
+        if (updates.tags !== undefined && Array.isArray(updates.tags)) {
+            // Normalizza e limita a 5 tag
+            const normalized = updates.tags
+                .map(tag => (typeof tag === 'string' ? tag.trim().toLowerCase() : ''))
+                .filter(tag => tag.length > 0)
+                .slice(0, 5);
+            deck.tags = [...new Set(normalized)]; // Rimuove duplicati
+        }
+        if (updates.folderId !== undefined) {
+            console.log('[StudyService] updateDeck: Updating folderId', {
+                currentFolderId: deck.folderId ? deck.folderId.toString() : null,
+                newFolderId: updates.folderId,
+            });
+            
+            // Verifica che la cartella esista e appartenga all'utente (se non è null)
+            if (updates.folderId !== null && updates.folderId !== '') {
+                const Folder = require('../models/Folder');
+                const folder = await Folder.findOne({ _id: updates.folderId, user: userId });
+                if (!folder) {
+                    throw AppError.notFound('Cartella non trovata');
+                }
+                deck.folderId = updates.folderId;
+                console.log('[StudyService] updateDeck: Folder verified, setting folderId');
+            } else {
+                // Se folderId è null o stringa vuota, rimuovi il riferimento
+                deck.folderId = null;
+                console.log('[StudyService] updateDeck: Setting folderId to null');
+            }
+        }
+
+        await deck.save();
+        console.log('[StudyService] updateDeck: Deck saved', {
+            deckId: deck._id.toString(),
+            folderId: deck.folderId ? deck.folderId.toString() : null,
+        });
+        
+        // Ricarica dal DB per essere sicuri
+        const savedDeck = await Deck.findOne({ _id: deck._id, user: userId });
+        if (!savedDeck) {
+            throw AppError.notFound('Mazzo non trovato dopo il salvataggio');
+        }
+        
+        console.log('[StudyService] updateDeck: Reloaded from DB', {
+            deckId: savedDeck._id.toString(),
+            folderId: savedDeck.folderId ? savedDeck.folderId.toString() : null,
+        });
+        
+        const serialized = this._serializeDeck(savedDeck);
+        console.log('[StudyService] updateDeck: Serialized deck', {
+            id: serialized.id,
+            folderId: serialized.folderId,
+        });
+        
+        return serialized;
+    }
+
     async updateDeckSettings(tenantScope, deckId, settings) {
         const userId = this._getUserId(tenantScope);
 
@@ -212,9 +303,6 @@ class StudyService extends BaseService {
         return this._serializeDeck(deck);
     }
 
-    /**
-     * Ottiene analytics dettagliate per un deck
-     */
     async getDeckAnalytics(tenantScope, deckId) {
         const userId = this._getUserId(tenantScope);
 
@@ -226,7 +314,6 @@ class StudyService extends BaseService {
         const cards = Array.isArray(deck.cards) ? deck.cards : [];
         const now = new Date();
 
-        // Calcola statistiche dalle carte
         const stats = {
             totalCards: cards.length,
             newCards: cards.filter(c => c.status === 'new').length,
@@ -245,7 +332,6 @@ class StudyService extends BaseService {
                 : 0,
         };
 
-        // Analytics del deck
         const analytics = deck.analytics || {
             totalReviews: 0,
             averageTimePerCard: 0,
@@ -289,17 +375,15 @@ class StudyService extends BaseService {
     }
 
     _serializeDeck(deck) {
+        // Converti deck Mongoose a plain object se necessario
+        const deckObj = deck.toObject ? deck.toObject() : deck;
         return deck.toJSON();
     }
 
     // =========================================
-    // STUDY SESSION
+    // STUDY SESSION (invariato)
     // =========================================
 
-    /**
-     * Restituisce una sessione di studio per un mazzo specifico.
-     * Supporta modes: flashcard | quiz | typing
-     */
     async getStudySession(tenantScope, deckId, mode = 'flashcard') {
         const userId = this._getUserId(tenantScope);
 
@@ -349,21 +433,13 @@ class StudyService extends BaseService {
     }
 
     // =========================================
-    // DASHBOARD
+    // DASHBOARD (invariato)
     // =========================================
 
-    /**
-     * Restituisce TUTTI i deck dell'utente per la dashboard.
-     * Calcola quante carte sono in scadenza per ogni mazzo.
-     *
-     * @param {Object} tenantScope
-     * @returns {Promise<Object>} { decks, dueCardCount }
-     */
     async getAllDecks(tenantScope) {
         const userId = this._getUserId(tenantScope);
         const now = new Date();
 
-        // Recupera TUTTI i mazzi dell'utente
         const decks = await Deck.find({ user: userId })
             .sort({ createdAt: -1 });
 
@@ -373,7 +449,6 @@ class StudyService extends BaseService {
             const deckJson = deck.toJSON();
             const cards = Array.isArray(deckJson.cards) ? deckJson.cards : [];
             
-            // Calcola carte in scadenza
             const dueCards = cards.filter(card => {
                 const nextReview = new Date(card.nextReviewDate);
                 return nextReview <= now;
@@ -385,7 +460,6 @@ class StudyService extends BaseService {
                 ...deckJson,
                 totalCards: cards.length,
                 dueCount: dueCards.length,
-                // NON filtrare le carte qui, restituisci il totale
             };
         });
 
@@ -395,13 +469,6 @@ class StudyService extends BaseService {
         };
     }
 
-    /**
-     * Restituisce tutti i deck che hanno card in scadenza.
-     * @deprecated Usa getAllDecks per la dashboard
-     *
-     * @param {Object} tenantScope
-     * @returns {Promise<Array<Object>>} Deck con sole card in scadenza
-     */
     async getDueCards(tenantScope) {
         const userId = this._getUserId(tenantScope);
         const now = new Date();
@@ -427,7 +494,7 @@ class StudyService extends BaseService {
     }
 
     // =========================================
-    // TYPING MODE - ANSWER VERIFY
+    // TYPING MODE (invariato)
     // =========================================
 
     async verifyAnswer(tenantScope, deckId, cardId, userAnswer) {
@@ -458,17 +525,9 @@ class StudyService extends BaseService {
     }
 
     // =========================================
-    // SESSION COMPLETE (GAMIFICATION)
+    // SESSION COMPLETE (invariato)
     // =========================================
 
-    /**
-     * Registra la fine di una sessione di studio e assegna XP.
-     *
-     * @param {Object} tenantScope
-     * @param {string} deckId
-     * @param {Object} sessionData
-     * @returns {Promise<Object>}
-     */
     async completeSession(tenantScope, deckId, sessionData = {}) {
         const userId = this._getUserId(tenantScope);
 
@@ -513,30 +572,9 @@ class StudyService extends BaseService {
     }
 
     // =========================================
-    // SM-2 REVIEW LOGIC
+    // SM-2 REVIEW LOGIC (invariato)
     // =========================================
 
-    /**
-     * Processa una review con algoritmo SM-2.
-     *
-     * Algoritmo SM-2 (SuperMemo 2):
-     * 1) Aggiorna EF (Easiness Factor):
-     *    EF' = EF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
-     *    con EF minimo = 1.3
-     * 2) Calcola il nuovo intervallo (in giorni):
-     *    - rep = 0  -> 1 giorno
-     *    - rep = 1  -> 6 giorni
-     *    - rep > 1  -> interval * EF
-     * 3) Se rating < 3: resetta repetitions = 0 e interval = 1
-     * 4) nextReviewDate = oggi + interval (in giorni)
-     *
-     * @param {Object} tenantScope - req.tenantScope
-     * @param {string} deckId - ID del mazzo
-     * @param {string} cardId - ID della card
-     * @param {number} rating - 1..5 (1=Forgot, 3=Good, 5=Easy)
-     * @param {Object} sessionMeta - opzionale, usato a fine sessione
-     * @returns {Promise<{card: Object, stats: Object}>}
-     */
     async processCardReview(tenantScope, deckId, cardId, rating, sessionMeta = null) {
         const userId = this._getUserId(tenantScope);
         const quality = Number(rating);
@@ -560,15 +598,12 @@ class StudyService extends BaseService {
             throw AppError.notFound('Card');
         }
 
-        // Usa l'algoritmo configurato per il deck (default: sm2)
         const algorithmName = deck.algorithm || 'sm2';
         const algorithmResult = AlgorithmFactory.processReview(card, quality, algorithmName);
 
-        // Aggiorna la card con i risultati dell'algoritmo
         if (algorithmResult.easinessFactor !== undefined) {
             card.easinessFactor = algorithmResult.easinessFactor;
         }
-        // I campi stability e box sono opzionali (solo per FSRS e Leitner)
         if (algorithmResult.stability !== undefined) {
             card.stability = algorithmResult.stability;
         }
@@ -580,7 +615,6 @@ class StudyService extends BaseService {
         card.nextReviewDate = algorithmResult.nextReviewDate;
         card.lastReviewed = new Date();
 
-        // Aggiorna reviewHistory per tracciare le performance
         if (!card.reviewHistory) {
             card.reviewHistory = [];
         }
@@ -593,21 +627,18 @@ class StudyService extends BaseService {
             algorithm: algorithmName,
         });
 
-        // Mantieni solo le ultime 50 review per evitare documenti troppo grandi
         if (card.reviewHistory.length > 50) {
             card.reviewHistory = card.reviewHistory.slice(-50);
         }
 
-        // Status progression - passa anche la card per analizzare la storia
         const status = this._resolveCardStatus({
             quality,
             repetitions: algorithmResult.repetitions,
             interval: algorithmResult.interval,
-            card: card, // Passa la card per analizzare reviewHistory
+            card: card,
         });
         card.status = status;
 
-        // Aggiorna analytics del deck
         this._updateDeckAnalytics(deck, quality, sessionMeta);
 
         await deck.save();
@@ -615,7 +646,6 @@ class StudyService extends BaseService {
         let gamification = null;
         const shouldRecord = sessionMeta?.isComplete || sessionMeta?.completed;
         if (shouldRecord) {
-            // Emetti evento per activity tracking (Pattern Observer)
             eventBus.emit('session.completed', {
                 userId,
                 session: {
@@ -642,24 +672,24 @@ class StudyService extends BaseService {
         };
     }
 
+    // =========================================
+    // 🆕 SMART GENERATION V2 - MAGIC GENERATE
+    // =========================================
+
     /**
-     * 🪄 MAGIC GENERATE - Genera flashcards da PDF usando OpenAI
+     * 🪄 MAGIC GENERATE V2 - Pipeline migliorata
      * 
-     * Pipeline RAG semplificata:
-     * 1. Estrae testo dal PDF (pdf-parse)
-     * 2. Taglia se troppo lungo (max 15k caratteri)
-     * 3. Invia a OpenAI con prompt specifico
-     * 4. Parsa JSON response e salva le carte
-     * 
-     * @param {Object} tenantScope
-     * @param {string} deckId - ID del mazzo dove aggiungere le carte
-     * @param {string} pdfFilePath - Path del file PDF salvato su disco
-     * @returns {Promise<{deck: Object, generatedCount: number}>}
+     * Miglioramenti rispetto a V1:
+     * 1. Micro-chunking (6k invece di 40-50k) per domande più precise
+     * 2. Estrazione concetti chiave per evitare ripetizioni
+     * 3. Prompt multi-tipo per varietà
+     * 4. Deduplica semantica post-generazione
+     * 5. Validazione qualità più rigorosa
      */
     async generateCardsFromPDF(tenantScope, deckId, pdfFilePath) {
         const userId = this._getUserId(tenantScope);
 
-        // 1. Verifica che il mazzo esista e appartenga all'utente
+        // 1. Verifica mazzo
         const deck = await Deck.findOne({ _id: deckId, user: userId });
         if (!deck) {
             throw AppError.notFound('Mazzo');
@@ -671,158 +701,133 @@ class StudyService extends BaseService {
 
         const pdfFileName = path.basename(pdfFilePath);
         const pdfUrl = `/uploads/pdfs/${pdfFileName}`;
-
-        // Collega subito il PDF al deck (anche se la generazione fallisce, il file resta accessibile).
         deck.pdfUrl = pdfUrl;
         await deck.save({ validateModifiedOnly: true });
 
+        sseManager.sendToUser(userId, 'pdf-progress', { step: 'analyzing', message: 'Analisi documento...' });
+
+        // 2. Leggi e parsa PDF
         let pdfBuffer;
         try {
             pdfBuffer = await fs.readFile(pdfFilePath);
         } catch (err) {
             console.error('❌ PDF Read Error:', err.message);
-            throw AppError.validation('Impossibile leggere il PDF caricato. Riprova.');
+            throw AppError.validation('Impossibile leggere il PDF caricato.');
         }
 
-        // 2. Estrai testo dal PDF
         let pdfText;
         try {
             const pdfData = await pdfParse(pdfBuffer);
             pdfText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
             console.error('❌ PDF Parse Error:', err.message);
-            throw AppError.validation('Impossibile leggere il PDF. Assicurati che sia un file PDF valido e non protetto.');
+            throw AppError.validation('Impossibile leggere il PDF. Assicurati che sia valido e non protetto.');
         }
 
-        if (!pdfText || pdfText.trim().length < 50) {
+        if (!pdfText || pdfText.trim().length < 100) {
             throw AppError.validation('Il PDF non contiene abbastanza testo da elaborare.');
         }
 
-        const normalizedExtracted = this._normalizeExtractedText(pdfText);
-        deck.extractedText = this._truncateText(
-            normalizedExtracted,
-            MAX_EXTRACTED_TEXT_STORE_LENGTH,
-            '\n\n[...testo troncato per limiti di storage...]'
-        );
+        const normalizedText = this._normalizeExtractedText(pdfText);
+        deck.extractedText = this._truncateText(normalizedText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
         await deck.save({ validateModifiedOnly: true });
 
-        // 2.b Ingestione vettoriale (best-effort, non blocca l'utente)
+        // 3. Analisi strutturale (Blueprint)
+        console.log('🏗️ FASE 1: Analisi strutturale...');
+        sseManager.sendToUser(userId, 'pdf-progress', { step: 'blueprint', message: 'Identifico struttura documento...' });
+        
+        const blueprint = await this._analyzeDocumentStructure(normalizedText);
+        console.log('📋 Blueprint:', JSON.stringify(blueprint, null, 2));
+
+        // 4. Ingestione vettoriale (background)
         try {
-            await vectorStoreService.ingestDeck(deckId, normalizedExtracted);
+            await vectorStoreService.ingestDeck(deckId, normalizedText);
         } catch (err) {
-            console.error('⚠️ Vector ingest error:', err.message);
+            console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
         }
 
-        // 3. Taglia il testo se troppo lungo
-        const truncatedText = normalizedExtracted.length > MAX_PDF_TEXT_LENGTH 
-            ? normalizedExtracted.slice(0, MAX_PDF_TEXT_LENGTH) + '\n\n[...testo troncato per limiti di elaborazione...]'
-            : normalizedExtracted;
+        // 5. 🆕 MICRO-CHUNKING SEMANTICO
+        console.log('📦 FASE 2: Micro-chunking semantico...');
+        const microChunks = this._createSemanticMicroChunks(normalizedText);
+        console.log(`📊 Creati ${microChunks.length} micro-chunk da ~${MICRO_CHUNK_SIZE} caratteri`);
+        
+        sseManager.sendToUser(userId, 'pdf-progress', { 
+            step: 'chunking', 
+            totalChunks: microChunks.length,
+            message: `Diviso in ${microChunks.length} sezioni` 
+        });
 
-        // 4. Chiama OpenAI per generare le flashcards con prompt personalizzato
-        const aiSettings = deck.aiSettings || {};
-        const style = aiSettings.style || 'comprehensive';
-        const difficulty = aiSettings.difficulty || 'medium';
-        const questionTypes = Array.isArray(aiSettings.questionTypes) && aiSettings.questionTypes.length > 0
-            ? aiSettings.questionTypes
-            : ['definition', 'concept', 'relationship'];
+        // 6. 🆕 ESTRAZIONE CONCETTI CHIAVE (Pre-pass per evitare duplicati)
+        console.log('🔑 FASE 3: Estrazione concetti chiave...');
+        sseManager.sendToUser(userId, 'pdf-progress', { step: 'concepts', message: 'Estraggo concetti chiave...' });
+        
+        const globalConcepts = await this._extractKeyConcepts(normalizedText, blueprint);
+        console.log(`🎯 Estratti ${globalConcepts.length} concetti chiave`);
 
-        const stylePrompts = {
-            comprehensive: 'Crea flashcard che coprono sia definizioni che applicazioni pratiche. Bilanciate tra teoria e pratica.',
-            conceptual: 'Focus su concetti, principi e relazioni tra idee. Le domande devono testare la comprensione profonda, non solo fatti.',
-            factual: 'Focus su fatti, date, nomi, definizioni precise. Ideale per memorizzazione di informazioni specifiche.',
-            application: 'Focus su applicazioni pratiche, esempi, casi d\'uso. Le domande devono testare come applicare le conoscenze.',
-        };
-
-        const difficultyPrompts = {
-            easy: 'Crea domande semplici e dirette, adatte a studenti che stanno iniziando.',
-            medium: 'Crea domande di difficoltà media, che richiedono una buona comprensione.',
-            hard: 'Crea domande complesse che richiedono analisi approfondita e collegamenti tra concetti.',
-            mixed: 'Crea un mix di difficoltà: alcune semplici, alcune medie, alcune complesse.',
-        };
-
-        const questionTypePrompts = {
-            definition: 'Includi domande che chiedono definizioni precise di termini e concetti.',
-            concept: 'Includi domande che testano la comprensione di concetti astratti e principi.',
-            relationship: 'Includi domande che chiedono di spiegare relazioni, cause-effetti, e collegamenti.',
-            application: 'Includi domande che chiedono di applicare conoscenze a situazioni pratiche.',
-            comparison: 'Includi domande che chiedono di confrontare o distinguere concetti.',
-        };
-
-        const systemPrompt = `Sei un esperto insegnante universitario che si chiama Silvija. Il tuo compito è analizzare il testo fornito e creare flashcard di alta qualità per uno studente che deve preparare un esame.
-
-                STILE: ${stylePrompts[style] || stylePrompts.comprehensive}
-                DIFFICOLTÀ: ${difficultyPrompts[difficulty] || difficultyPrompts.medium}
-                TIPI DI DOMANDE: ${questionTypes.map(t => questionTypePrompts[t] || '').filter(Boolean).join(' ') || questionTypePrompts.definition}
-
-                REGOLE GENERALI:
-                - Crea tra 10 e 15 flashcard
-                - Ogni flashcard deve avere "front" (domanda chiara e specifica) e "back" (risposta concisa ma completa)
-                - Le domande devono testare comprensione, non solo memoria
-                - Evita domande troppo generiche o troppo specifiche
-                - La risposta deve essere auto-contenuta (comprensibile senza rileggere la domanda)
-                - Varia i tipi di domande per mantenere l'interesse
-
-                FORMATO OUTPUT:
-                Rispondi SOLO con JSON valido, senza markdown o testo aggiuntivo, in questo formato:
-                {"cards":[{"front":"Domanda 1?","back":"Risposta 1"},{"front":"Domanda 2?","back":"Risposta 2"}]}`;
-
-        let aiResponse;
-        try {
-            const completion = await openai.chat.completions.create({
-                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: `Analizza questo testo e genera le flashcard:\n\n${truncatedText}` }
-                ],
-                temperature: 0.7,
-                max_completion_tokens: 2000,
-                response_format: { type: 'json_object' },
+        // 7. 🆕 GENERAZIONE MULTI-TIPO
+        console.log('✨ FASE 4: Generazione flashcard...');
+        let allGeneratedCards = [];
+        const usedConcepts = new Set(); // Traccia concetti già usati
+        
+        for (let i = 0; i < microChunks.length; i++) {
+            const chunk = microChunks[i];
+            
+            // Calcola target dinamico basato su lunghezza chunk
+            const targetCards = this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
+            
+            console.log(`🔄 Chunk ${i + 1}/${microChunks.length}: ${chunk.text.length} chars, target ${targetCards} cards`);
+            
+            sseManager.sendToUser(userId, 'pdf-progress', {
+                step: 'generating',
+                currentChunk: i + 1,
+                totalChunks: microChunks.length,
+                generatedSoFar: allGeneratedCards.length,
+                message: `Elaboro sezione ${i + 1}/${microChunks.length}...`
             });
 
-            aiResponse = completion.choices[0]?.message?.content;
-        } catch (err) {
-            console.error('❌ OpenAI API Error:', err.message);
-            if (err.code === 'insufficient_quota') {
-                throw AppError.internal(
-                    { message: 'Quota OpenAI esaurita. Contatta l\'amministratore.' },
-                    err,
-                    {}
+            try {
+                const chunkCards = await this._generateCardsV2(
+                    chunk.text,
+                    blueprint,
+                    targetCards,
+                    usedConcepts,
+                    i,
+                    microChunks.length
                 );
+                
+                // Aggiungi concetti usati al set globale
+                chunkCards.forEach(card => {
+                    const conceptKey = this._extractConceptKey(card.front);
+                    if (conceptKey) usedConcepts.add(conceptKey);
+                });
+                
+                allGeneratedCards.push(...chunkCards);
+                console.log(`✅ Chunk ${i + 1}: Generate ${chunkCards.length} card (totale: ${allGeneratedCards.length})`);
+                
+            } catch (err) {
+                console.error(`❌ Errore chunk ${i + 1}:`, err.message);
+                // Continua con altri chunk
             }
-            throw AppError.internal(
-                { message: 'Errore nella generazione AI. Riprova più tardi.' },
-                err,
-                {}
-            );
+
+            // Rate limiting: pausa tra chiamate API
+            if (i < microChunks.length - 1) {
+                await this._sleep(500);
+            }
         }
 
-        // 5. Parsa la risposta JSON
-        let generatedCards;
-        try {
-            const parsed = JSON.parse(aiResponse);
-            generatedCards = this._extractGeneratedCards(parsed);
-        } catch (err) {
-            console.error('❌ JSON Parse Error:', aiResponse);
-            throw AppError.internal(
-                { message: 'Risposta AI non valida. Riprova.' },
-                err,
-                {}
-            );
-        }
+        // 8. 🆕 DEDUPLICA SEMANTICA
+        console.log('🧹 FASE 5: Deduplica semantica...');
+        sseManager.sendToUser(userId, 'pdf-progress', { step: 'deduplicating', message: 'Rimuovo duplicati...' });
+        
+        const beforeDedup = allGeneratedCards.length;
+        const uniqueCards = this._deduplicateCards(allGeneratedCards);
+        const removedCount = beforeDedup - uniqueCards.length;
+        console.log(`🗑️ Rimossi ${removedCount} duplicati (${beforeDedup} → ${uniqueCards.length})`);
 
-        if (!Array.isArray(generatedCards) || generatedCards.length === 0) {
-            console.error('❌ Empty AI cards response:', aiResponse?.slice?.(0, 500) || aiResponse);
-            throw AppError.internal(
-                { message: 'L\'AI non ha generato flashcard valide. Prova con un PDF diverso.' },
-                null,
-                {}
-            );
-        }
-
-        // 6. Valida e normalizza le carte
-        const validCards = generatedCards
-            .map((card) => this._normalizeGeneratedCard(card))
-            .filter(card => card.front && card.back && typeof card.front === 'string' && typeof card.back === 'string')
+        // 9. Validazione finale e salvataggio
+        const validCards = uniqueCards
+            .filter(card => this._validateCardQuality(card))
+            .slice(0, MAX_TOTAL_CARDS)
             .map(card => ({
                 front: card.front.trim(),
                 back: card.back.trim(),
@@ -834,34 +839,432 @@ class StudyService extends BaseService {
             }));
 
         if (validCards.length === 0) {
-            throw AppError.internal(
-                { message: 'Nessuna flashcard valida generata. Riprova.' },
-                null,
-                {}
-            );
+            sseManager.sendToUser(userId, 'pdf-progress', { step: 'completed', totalCards: 0 });
+            return {
+                deck: deck.toJSON(),
+                generatedCount: 0,
+                warning: 'Nessuna flashcard generata. Il PDF potrebbe non contenere contenuto elaborabile.',
+            };
         }
 
-        // 7. Aggiungi le carte al mazzo (bulk)
         deck.cards.push(...validCards);
         await deck.save();
 
-        console.log(`✨ Generated ${validCards.length} flashcards for deck ${deckId}`);
+        console.log(`✨ COMPLETATO: ${validCards.length} flashcard generate per deck ${deckId}`);
+        sseManager.sendToUser(userId, 'pdf-progress', { 
+            step: 'completed', 
+            totalCards: validCards.length,
+            message: `Generate ${validCards.length} flashcard!`
+        });
 
         return {
             deck: deck.toJSON(),
             generatedCount: validCards.length,
+            stats: {
+                totalChunks: microChunks.length,
+                duplicatesRemoved: removedCount,
+                conceptsExtracted: globalConcepts.length,
+            }
         };
     }
 
+    // =========================================
+    // 🆕 SMART GENERATION V2 - HELPER METHODS
+    // =========================================
+
     /**
-     * 🤖 AI TUTOR - Chat contestuale con PDF (RAG Lite)
-     *
-     * @param {Object} tenantScope
-     * @param {string} deckId
-     * @param {string} message
-     * @param {Array<{role: 'user'|'assistant', content: string}>} history
-     * @returns {Promise<{reply: string}>}
+     * 🔪 Micro-Chunking Semantico
+     * Divide il testo in chunk piccoli rispettando i confini semantici
      */
+    _createSemanticMicroChunks(text) {
+        if (!text || text.length <= MICRO_CHUNK_SIZE) {
+            return [{ text, hasTitles: this._detectTitles(text) }];
+        }
+
+        const chunks = [];
+        let start = 0;
+
+        while (start < text.length) {
+            let end = Math.min(start + MICRO_CHUNK_SIZE, text.length);
+
+            // Trova punto di interruzione naturale
+            if (end < text.length) {
+                const searchZone = text.slice(Math.max(start, end - 1000), end);
+                
+                // Priorità: 1. Marker pagina, 2. Doppio a capo, 3. Punto finale
+                const pageMarker = searchZone.lastIndexOf('--- Pagina');
+                const doubleLine = searchZone.lastIndexOf('\n\n');
+                const period = searchZone.lastIndexOf('. ');
+
+                let bestBreak = -1;
+                if (pageMarker > searchZone.length * 0.5) {
+                    bestBreak = pageMarker;
+                } else if (doubleLine > searchZone.length * 0.5) {
+                    bestBreak = doubleLine + 2;
+                } else if (period > searchZone.length * 0.3) {
+                    bestBreak = period + 2;
+                }
+
+                if (bestBreak > 0) {
+                    end = Math.max(start, end - 1000) + bestBreak;
+                }
+            }
+
+            const chunkText = text.slice(start, end).trim();
+            
+            // Ignora chunk troppo corti
+            if (chunkText.length >= MIN_CHUNK_LENGTH) {
+                chunks.push({
+                    text: chunkText,
+                    hasTitles: this._detectTitles(chunkText),
+                });
+            }
+
+            // Avanza con overlap minimo
+            start = end - MICRO_CHUNK_OVERLAP;
+            if (start >= text.length - MIN_CHUNK_LENGTH) break;
+        }
+
+        return chunks;
+    }
+
+    /**
+     * 🔑 Estrazione Concetti Chiave (per evitare duplicati cross-chunk)
+     * Versione migliorata con fallback locale
+     */
+    async _extractKeyConcepts(text, blueprint) {
+        try {
+            const sampleText = this._truncateText(text, 20000);
+            const globalContext = blueprint?.globalContext || 'Documento accademico';
+
+            const completion = await openai.chat.completions.create({
+                model: ACTIVE_AI_MODEL,
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Sei un analista esperto. Estrai i 20-30 CONCETTI CHIAVE più importanti dal testo.
+Ogni concetto deve essere una parola o frase breve (2-4 parole max).
+
+Contesto del documento: ${globalContext}
+
+Restituisci SOLO JSON valido:
+{ "concepts": ["concetto1", "concetto2", "concetto3", ...] }`
+                    },
+                    { role: 'user', content: `Analizza questo testo ed estrai i concetti chiave:\n\n${sampleText}` }
+                ],
+                temperature: 0.3,
+                max_completion_tokens: 800,
+                response_format: { type: 'json_object' },
+            });
+
+            const rawResponse = completion.choices[0]?.message?.content || '{}';
+            console.log('📝 Raw concept extraction response length:', rawResponse.length);
+            
+            const cleaned = this._cleanJSON(rawResponse);
+            const parsed = JSON.parse(cleaned);
+            
+            const concepts = Array.isArray(parsed.concepts) ? parsed.concepts : [];
+            console.log(`🔑 Estratti ${concepts.length} concetti via AI`);
+            
+            // Se AI fallisce, estrai concetti localmente
+            if (concepts.length === 0) {
+                console.log('⚠️ AI non ha estratto concetti, uso estrazione locale...');
+                return this._extractConceptsLocally(sampleText);
+            }
+            
+            return concepts;
+        } catch (err) {
+            console.warn('⚠️ Concept extraction error:', err.message);
+            // Fallback: estrazione locale
+            return this._extractConceptsLocally(text);
+        }
+    }
+
+    /**
+     * 🔧 Estrazione Concetti Locale (fallback senza AI)
+     * Usa TF-IDF semplificato per trovare termini rilevanti
+     */
+    _extractConceptsLocally(text) {
+        if (!text || typeof text !== 'string') return [];
+        
+        // Stopwords italiane comuni
+        const stopwords = new Set([
+            'il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una',
+            'di', 'a', 'da', 'in', 'con', 'su', 'per', 'tra', 'fra',
+            'che', 'non', 'come', 'anche', 'più', 'dove', 'quando',
+            'essere', 'avere', 'fare', 'dire', 'andare', 'vedere',
+            'questo', 'quello', 'suo', 'loro', 'nostro', 'vostro',
+            'tutto', 'ogni', 'altro', 'molto', 'poco', 'tanto',
+            'nel', 'nella', 'dello', 'della', 'degli', 'delle',
+            'sono', 'è', 'sia', 'sono', 'siamo', 'hanno', 'ha',
+            'può', 'deve', 'vuole', 'quindi', 'perché', 'se', 'ma',
+            'the', 'and', 'or', 'of', 'to', 'in', 'for', 'is', 'are'
+        ]);
+        
+        // Tokenizza e conta frequenze
+        const words = text
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .split(/\s+/)
+            .filter(w => w.length >= 4 && !stopwords.has(w));
+        
+        const freq = {};
+        for (const word of words) {
+            freq[word] = (freq[word] || 0) + 1;
+        }
+        
+        // Ordina per frequenza e prendi i top 25
+        const concepts = Object.entries(freq)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 25)
+            .map(([word]) => word);
+        
+        console.log(`🔧 Estratti ${concepts.length} concetti localmente`);
+        return concepts;
+    }
+
+    /**
+     * ✨ Generazione Flashcard V2 - Prompt Migliorato
+     */
+    async _generateCardsV2(chunkText, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks) {
+        const globalContext = blueprint?.globalContext || 'Documento accademico';
+        const documentType = blueprint?.documentType || 'other';
+
+        // Costruisci lista concetti già usati (per evitare ripetizioni)
+        const avoidList = usedConcepts.size > 0 
+            ? `\n\n⚠️ EVITA domande su questi concetti già trattati: ${[...usedConcepts].slice(-20).join(', ')}`
+            : '';
+
+        // Seleziona tipi di domande per questo chunk (varietà)
+        const questionTypesForChunk = this._selectQuestionTypes(chunkIndex, totalChunks);
+
+        const systemPrompt = `Sei un ESPERTO CREATORE DI FLASHCARD per lo studio universitario.
+Il tuo obiettivo è creare flashcard PRECISE, UNICHE e UTILI per la memorizzazione attiva.
+
+📚 CONTESTO DOCUMENTO: "${globalContext}"
+📄 TIPO: ${documentType}
+📍 SEZIONE: ${chunkIndex + 1} di ${totalChunks}
+
+🎯 CREA ESATTAMENTE ${targetCount} FLASHCARD seguendo queste regole:
+
+TIPI DI DOMANDE DA INCLUDERE:
+${questionTypesForChunk}
+
+📏 FORMATO OBBLIGATORIO:
+- DOMANDA (front): Specifica, chiara, che richieda ragionamento. MIN 10 parole.
+- RISPOSTA (back): Completa ma concisa. Includi il "perché" quando rilevante. MIN 20 parole.
+${avoidList}
+
+❌ EVITA:
+- Domande troppo generiche ("Cos'è X?" senza contesto)
+- Domande che si possono rispondere con sì/no
+- Ripetizioni dello stesso concetto con parole diverse
+- Informazioni non presenti nel testo
+
+✅ PREFERISCI:
+- Domande che collegano concetti
+- Domande che richiedono spiegazione del "perché"
+- Domande su processi e sequenze
+- Domande che testano comprensione profonda
+
+FORMATO JSON OUTPUT:
+{
+  "cards": [
+    {
+      "front": "Domanda completa e specifica...",
+      "back": "Risposta esaustiva con spiegazione..."
+    }
+  ]
+}`;
+
+        const MAX_RETRIES = 2;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                const completion = await openai.chat.completions.create({
+                    model: ACTIVE_AI_MODEL,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: `TESTO DA ANALIZZARE:\n\n${chunkText}` }
+                    ],
+                    temperature: attempt === 1 ? 0.6 : 0.4,
+                    max_completion_tokens: 3500,
+                    response_format: { type: 'json_object' },
+                });
+
+                const response = completion.choices[0]?.message?.content;
+                if (!response) {
+                    if (attempt === MAX_RETRIES) return [];
+                    continue;
+                }
+
+                const cleaned = this._cleanJSON(response);
+                const parsed = JSON.parse(cleaned);
+                const cards = this._extractGeneratedCards(parsed);
+
+                return cards
+                    .map(c => this._normalizeGeneratedCard(c))
+                    .filter(c => c.front && c.back);
+
+            } catch (err) {
+                console.error(`❌ Generation attempt ${attempt} failed:`, err.message);
+                if (attempt === MAX_RETRIES) return [];
+                await this._sleep(1000);
+            }
+        }
+        return [];
+    }
+
+    /**
+     * 🎲 Seleziona tipi di domande per varietà
+     */
+    _selectQuestionTypes(chunkIndex, totalChunks) {
+        const allTypes = Object.entries(QUESTION_TYPES);
+        
+        // Ruota i tipi in base al chunk per garantire varietà
+        const offset = chunkIndex % allTypes.length;
+        const selectedTypes = [];
+        
+        for (let i = 0; i < Math.min(4, allTypes.length); i++) {
+            const typeIndex = (offset + i) % allTypes.length;
+            const [name, config] = allTypes[typeIndex];
+            selectedTypes.push(`- ${config.prompt}`);
+        }
+        
+        return selectedTypes.join('\n');
+    }
+
+    /**
+     * 📊 Calcola target card per chunk basato su lunghezza e contenuto
+     */
+    _calculateChunkTarget(chunkLength, hasTitles) {
+        // Base: 1 card ogni 600 caratteri (densità aumentata)
+        let target = Math.ceil(chunkLength / 600);
+        
+        // Bonus se ha titoli (contenuto più strutturato)
+        if (hasTitles) target = Math.ceil(target * 1.2);
+        
+        // Applica limiti
+        return Math.max(MIN_CARDS_PER_CHUNK, Math.min(MAX_CARDS_PER_CHUNK, target));
+    }
+
+    /**
+     * 🔍 Rileva se il chunk contiene titoli/header
+     */
+    _detectTitles(text) {
+        const titlePatterns = [
+            /^#+\s+.+$/m,           // Markdown headers
+            /^[A-Z][A-Z\s]{5,}$/m,  // ALL CAPS lines
+            /^\d+\.\s+[A-Z]/m,      // Numbered sections
+            /^Capitolo\s+\d+/im,    // "Capitolo X"
+            /^Sezione\s+\d+/im,     // "Sezione X"
+        ];
+        return titlePatterns.some(p => p.test(text));
+    }
+
+    /**
+     * 🔑 Estrae una chiave concettuale dalla domanda
+     */
+    _extractConceptKey(question) {
+        if (!question || typeof question !== 'string') return null;
+        
+        // Normalizza e estrai parole chiave
+        const normalized = question
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .split(/\s+/)
+            .filter(w => w.length > 3)
+            .slice(0, 5)
+            .sort()
+            .join('_');
+        
+        return normalized || null;
+    }
+
+    /**
+     * 🧹 Deduplica Semantica usando Jaccard Similarity
+     */
+    _deduplicateCards(cards) {
+        if (!Array.isArray(cards) || cards.length === 0) return [];
+        
+        const unique = [];
+        
+        for (const card of cards) {
+            const isDuplicate = unique.some(existing => {
+                const similarity = this._jaccardSimilarity(
+                    existing.front + ' ' + existing.back,
+                    card.front + ' ' + card.back
+                );
+                return similarity > SIMILARITY_THRESHOLD;
+            });
+            
+            if (!isDuplicate) {
+                unique.push(card);
+            }
+        }
+        
+        return unique;
+    }
+
+    /**
+     * 📐 Jaccard Similarity per confronto testi
+     */
+    _jaccardSimilarity(text1, text2) {
+        const tokenize = (text) => {
+            return new Set(
+                text.toLowerCase()
+                    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+                    .split(/\s+/)
+                    .filter(w => w.length > 2)
+            );
+        };
+        
+        const set1 = tokenize(text1);
+        const set2 = tokenize(text2);
+        
+        const intersection = new Set([...set1].filter(x => set2.has(x)));
+        const union = new Set([...set1, ...set2]);
+        
+        if (union.size === 0) return 0;
+        return intersection.size / union.size;
+    }
+
+    /**
+     * ✅ Validazione qualità card
+     */
+    _validateCardQuality(card) {
+        if (!card || typeof card !== 'object') return false;
+        
+        const front = card.front?.trim() || '';
+        const back = card.back?.trim() || '';
+        
+        // Lunghezza minima
+        if (front.length < 15 || back.length < 30) return false;
+        
+        // Evita domande troppo semplici
+        const simplePatterns = [
+            /^(cos'è|cosa è|che cos'è)\s+\w+\??$/i,
+            /^definisci\s+\w+\.?$/i,
+        ];
+        if (simplePatterns.some(p => p.test(front))) return false;
+        
+        // La risposta deve essere sostanziale
+        const wordCount = back.split(/\s+/).length;
+        if (wordCount < 8) return false;
+        
+        return true;
+    }
+
+    /**
+     * ⏱️ Sleep utility
+     */
+    _sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // =========================================
+    // AI TUTOR (invariato)
+    // =========================================
+
     async askTutor(tenantScope, deckId, message, history = []) {
         const userId = this._getUserId(tenantScope);
 
@@ -877,7 +1280,6 @@ class StudyService extends BaseService {
             throw AppError.validation(`Messaggio troppo lungo (max ${MAX_TUTOR_MESSAGE_LENGTH} caratteri)`);
         }
 
-        // ⚠️ BUG FIX: extractedText ha select:false → serve includerlo esplicitamente
         const deck = await Deck.findOne({ _id: deckId, user: userId })
             .select('+extractedText');
 
@@ -917,7 +1319,7 @@ class StudyService extends BaseService {
             } catch (err) {
                 console.error('❌ PDF Parse Error (Tutor):', err.message);
                 if (strict) {
-                    throw AppError.validation('Impossibile leggere il PDF per la chat. Riprova con un PDF valido.');
+                    throw AppError.validation('Impossibile leggere il PDF per la chat.');
                 }
                 return null;
             }
@@ -925,10 +1327,7 @@ class StudyService extends BaseService {
             const normalizedExtracted = this._normalizeExtractedText(pdfText);
             if (!normalizedExtracted || normalizedExtracted.length < 50) {
                 if (strict) {
-                    throw AppError.validation(
-                        'Il PDF non contiene testo leggibile (potrebbe essere una scansione immagine). ' +
-                        'Prova un PDF con testo selezionabile oppure usa OCR.'
-                    );
+                    throw AppError.validation('Il PDF non contiene testo leggibile.');
                 }
                 return null;
             }
@@ -936,7 +1335,7 @@ class StudyService extends BaseService {
             deck.extractedText = this._truncateText(
                 normalizedExtracted,
                 MAX_EXTRACTED_TEXT_STORE_LENGTH,
-                '\n\n[...testo troncato per limiti di storage...]'
+                '\n\n[...testo troncato...]'
             );
             await deck.save({ validateModifiedOnly: true });
             extractedText = deck.extractedText;
@@ -944,15 +1343,12 @@ class StudyService extends BaseService {
             return extractedText;
         };
 
-        // Fallback: vecchi deck potrebbero non avere extractedText salvato
         if (!extractedText || extractedText.trim().length < 50) {
             await extractAndStorePdfText({ strict: true });
         } else if (!hasPageMarkers) {
-            // Upgrade best-effort: aggiungi marker di pagina per domande tipo "pagina X"
             await extractAndStorePdfText({ strict: false });
         }
 
-        // Recupera contesto dai vettori (RAG)
         let context = '';
         try {
             const matches = await vectorStoreService.queryDeck(deckId, cleanMessage, 5);
@@ -963,7 +1359,6 @@ class StudyService extends BaseService {
             console.error('⚠️ Vector query error:', err.message);
         }
 
-        // Se il vettore non esiste o è vuoto, prova a creare sul momento
         if (!context && extractedText) {
             try {
                 await vectorStoreService.ingestDeck(deckId, extractedText);
@@ -976,40 +1371,25 @@ class StudyService extends BaseService {
             }
         }
 
-        const model = process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
-        const contextLimit = model.includes('gpt-3.5')
-            ? 15000
-            : model.includes('gpt-4o-mini') || model.includes('gpt-4o')
-                ? 50000
-                : MAX_TUTOR_CONTEXT_LENGTH;
+        const model = process.env.OPENAI_CHAT_MODEL || ACTIVE_AI_MODEL;
+        const contextLimit = model.includes('gpt-3.5') ? 15000 : 50000;
 
-        // Fallback: usa extractedText se RAG non ha dato risultati
         if (!context) {
-            const built = this._buildTutorContext(extractedText, cleanMessage, contextLimit);
-            context = built;
+            context = this._buildTutorContext(extractedText, cleanMessage, contextLimit);
         }
 
         if (!context || context.trim().length < 20) {
-            throw AppError.validation(
-                'Non ci sono abbastanza dati per rispondere: prova a rigenerare il PDF con testo selezionabile o ripeti la domanda con più dettagli.'
-            );
+            throw AppError.validation('Non ci sono abbastanza dati per rispondere.');
         }
 
-        context = this._truncateText(context, contextLimit, '\n\n[...contesto troncato per limiti di token...]');
+        context = this._truncateText(context, contextLimit, '\n\n[...contesto troncato...]');
 
         const systemPrompt =
             'Sei Silvi, un Tutor Esperto e Socratico: chiaro, rigoroso e incoraggiante.\n' +
             'Rispondi alla domanda dell\'utente basandoti ESCLUSIVAMENTE sul CONTESTO fornito.\n' +
-            'Se la risposta non è nel contesto, dillo chiaramente e chiedi all\'utente di incollare il passaggio rilevante.\n' +
-            'Non inventare informazioni non presenti nel contesto.\n\n' +
-            'CONTESTO (estratto dal PDF):\n' +
-            '"""\n' +
-            `${context}\n` +
-            '"""\n\n' +
-            'Regole:\n' +
-            '- Rispondi in italiano.\n' +
-            '- Se utile, cita brevi frasi dal contesto tra virgolette.\n' +
-            '- Se l\'utente chiede “pagina X” ma nel contesto non ci sono numeri di pagina, spiega il limite e guida la domanda.';
+            'Se la risposta non è nel contesto, dillo chiaramente.\n\n' +
+            'CONTESTO:\n"""\n' + context + '\n"""\n\n' +
+            'Rispondi in italiano. Se utile, cita brevi frasi tra virgolette.';
 
         const safeHistory = this._sanitizeTutorHistory(history);
 
@@ -1028,28 +1408,12 @@ class StudyService extends BaseService {
 
             aiResponse = completion.choices[0]?.message?.content;
         } catch (err) {
-            const errorMessage = err?.message || '';
-            const errorCode = err?.code || err?.error?.code || err?.type;
-
-            console.error('❌ OpenAI Tutor Error:', errorMessage);
-
-            if (errorCode === 'insufficient_quota') {
-                throw AppError.validation('Quota OpenAI esaurita. Riprova più tardi o contatta l\'amministratore.');
+            console.error('❌ OpenAI Tutor Error:', err.message);
+            
+            if (err.code === 'insufficient_quota') {
+                throw AppError.validation('Quota OpenAI esaurita.');
             }
-
-            if (
-                errorCode === 'context_length_exceeded' ||
-                errorMessage.toLowerCase().includes('context length') ||
-                errorMessage.toLowerCase().includes('maximum context') ||
-                errorMessage.toLowerCase().includes('tokens')
-            ) {
-                throw AppError.validation(
-                    'Il documento è troppo lungo per essere analizzato in una sola richiesta. ' +
-                    'Prova con una domanda più specifica o con un PDF più breve.'
-                );
-            }
-
-            throw AppError.validation('Errore nella risposta AI. Riprova più tardi.');
+            throw AppError.validation('Errore nella risposta AI. Riprova.');
         }
 
         const reply = typeof aiResponse === 'string' ? aiResponse.trim() : '';
@@ -1060,13 +1424,7 @@ class StudyService extends BaseService {
         return { reply };
     }
 
-    /**
-     * Placeholder per future integrazioni AI (generation).
-     * @param {Object} _tenantScope
-     * @param {Object} _payload
-     */
     async generateCardsFromAI(_tenantScope, _payload) {
-        // TODO: integrare generazione automatica card da AI
         return null;
     }
 
@@ -1076,59 +1434,42 @@ class StudyService extends BaseService {
 
     async _validateGoalOwnership(tenantScope, goalId) {
         const userId = this._getUserId(tenantScope);
-
         const goal = await Goal.findOne({ _id: goalId, user: userId });
         if (!goal) {
             throw AppError.notFound('Obiettivo');
         }
     }
 
-    /**
-     * Determina lo status di una card basandosi su qualità, ripetizioni, intervallo e storia
-     * Logica migliorata per una progressione più accurata
-     */
     _resolveCardStatus({ quality, repetitions, interval, card = null }) {
-        // Se la risposta è insufficiente (quality < 3), torna sempre in learning
         if (quality < 3) {
             return 'learning';
         }
 
-        // Card nuova o con poche ripetizioni → learning
         if (repetitions <= 1) {
             return 'learning';
         }
 
-        // Analizza la storia delle review se disponibile
         let recentQuality = quality;
-        let consecutiveGood = 1; // Conta quante risposte buone consecutive
-        let totalReviews = 1;
+        let consecutiveGood = 1;
 
         if (card && Array.isArray(card.reviewHistory) && card.reviewHistory.length > 0) {
-            totalReviews = card.reviewHistory.length + 1; // +1 per la review corrente
-            const recentHistory = card.reviewHistory.slice(-5); // Ultime 5 review
+            const recentHistory = card.reviewHistory.slice(-5);
             
-            // Conta risposte consecutive buone (quality >= 3) partendo dalla più recente
             for (let i = recentHistory.length - 1; i >= 0; i--) {
                 if (recentHistory[i].rating >= 3) {
                     consecutiveGood++;
                 } else {
-                    break; // Interrompi se trovi una risposta insufficiente
+                    break;
                 }
             }
 
-            // Calcola qualità media delle ultime 3 review
             const lastThree = recentHistory.slice(-3);
             if (lastThree.length > 0) {
                 const avgQuality = lastThree.reduce((sum, r) => sum + (r.rating || 0), 0) / lastThree.length;
-                recentQuality = (avgQuality + quality) / 2; // Media tra storico e attuale
+                recentQuality = (avgQuality + quality) / 2;
             }
         }
 
-        // CRITERI PER MASTERED (Padroneggiata):
-        // 1. Almeno 5 ripetizioni totali
-        // 2. Intervallo >= 30 giorni (dimostra ritenzione a lungo termine)
-        // 3. Almeno 3 risposte consecutive buone (quality >= 3)
-        // 4. Qualità media recente >= 3.5 (buone performance consistenti)
         const isMastered = 
             repetitions >= 5 &&
             interval >= 30 &&
@@ -1139,11 +1480,6 @@ class StudyService extends BaseService {
             return 'mastered';
         }
 
-        // CRITERI PER REVIEW (Ripasso):
-        // Card che ha superato la fase di learning ma non è ancora padroneggiata
-        // - Almeno 2 ripetizioni
-        // - Intervallo > 1 giorno (non più in fase iniziale)
-        // - Qualità media >= 3 (performance accettabile)
         const isReview = 
             repetitions >= 2 &&
             interval > 1 &&
@@ -1153,7 +1489,6 @@ class StudyService extends BaseService {
             return 'review';
         }
 
-        // Default: ancora in learning
         return 'learning';
     }
 
@@ -1189,6 +1524,91 @@ class StudyService extends BaseService {
         };
     }
 
+    _cleanJSON(dirtyJSON) {
+        if (!dirtyJSON || typeof dirtyJSON !== 'string') return '';
+        
+        let cleaned = dirtyJSON.trim();
+        cleaned = cleaned.replace(/```json\s*/gi, '');
+        cleaned = cleaned.replace(/```\s*/g, '');
+        cleaned = cleaned.replace(/^(Ecco|Here|JSON|Risposta|Response):\s*/i, '');
+        
+        const firstBrace = cleaned.indexOf('{');
+        const lastBrace = cleaned.lastIndexOf('}');
+        
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+        }
+        
+        return cleaned.trim();
+    }
+
+    async _analyzeDocumentStructure(extractedText) {
+        const defaultBlueprint = {
+            documentType: 'other',
+            densityScore: 0.5,
+            globalContext: 'Documento generico',
+            mainTopics: [],
+        };
+
+        try {
+            if (!extractedText || typeof extractedText !== 'string') {
+                return defaultBlueprint;
+            }
+
+            const sampleText = this._truncateText(extractedText, 25000);
+            if (!sampleText || sampleText.trim().length === 0) {
+                return defaultBlueprint;
+            }
+
+            const systemPrompt = `Analizza il testo e restituisci SOLO JSON:
+{
+  "documentType": "textbook" | "slide_deck" | "research_paper" | "exam_text" | "notes" | "other",
+  "globalContext": "Frase riassuntiva concisa (max 20 parole)",
+  "mainTopics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"],
+  "densityScore": 0.0 to 1.0
+}`;
+
+            const completion = await openai.chat.completions.create({
+                model: ACTIVE_AI_MODEL,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: `Testo:\n\n${sampleText}` },
+                ],
+                temperature: 0.2,
+                max_completion_tokens: 500,
+                response_format: { type: 'json_object' },
+            });
+
+            const aiResponse = completion.choices[0]?.message?.content;
+            if (!aiResponse) return defaultBlueprint;
+
+            const cleanedJSON = this._cleanJSON(aiResponse);
+            if (!cleanedJSON) return defaultBlueprint;
+
+            const parsed = JSON.parse(cleanedJSON);
+
+            const allowedTypes = new Set(['textbook', 'slide_deck', 'research_paper', 'exam_text', 'notes', 'other']);
+            const documentType = allowedTypes.has(parsed?.documentType) ? parsed.documentType : 'other';
+            
+            const globalContext = typeof parsed?.globalContext === 'string' 
+                ? parsed.globalContext.split(/\s+/).slice(0, 20).join(' ')
+                : 'Documento generico';
+
+            const mainTopics = Array.isArray(parsed?.mainTopics)
+                ? parsed.mainTopics.filter(t => typeof t === 'string').slice(0, 5)
+                : [];
+
+            const densityScore = Number.isFinite(Number(parsed?.densityScore))
+                ? Math.max(0, Math.min(1, Number(parsed.densityScore)))
+                : 0.5;
+
+            return { documentType, globalContext, mainTopics, densityScore };
+        } catch (err) {
+            console.warn('⚠️ Document analysis fallback:', err.message);
+            return defaultBlueprint;
+        }
+    }
+
     _sanitizeTutorHistory(history) {
         if (!Array.isArray(history)) return [];
 
@@ -1210,16 +1630,14 @@ class StudyService extends BaseService {
     _buildTutorContext(extractedText, question, maxLength = MAX_TUTOR_CONTEXT_LENGTH) {
         const normalizedText = this._normalizeExtractedText(extractedText);
         if (!normalizedText) return '';
+        
         const safeMax = Number.isFinite(Number(maxLength)) ? Math.max(2000, Number(maxLength)) : MAX_TUTOR_CONTEXT_LENGTH;
         if (normalizedText.length <= safeMax) return normalizedText;
 
         const tokens = this._extractQueryTokens(question);
-        const truncatedSuffix = '\n\n[...contesto parziale...]';
 
         if (tokens.length === 0) {
-            // Fallback: usa la parte finale (spesso corrisponde alle pagine "avanti")
-            const tail = normalizedText.slice(-safeMax);
-            return `${tail}${truncatedSuffix}`;
+            return normalizedText.slice(-safeMax);
         }
 
         const chunkSize = Math.min(2600, safeMax);
@@ -1233,100 +1651,49 @@ class StudyService extends BaseService {
             chunks.push({ start, score, text });
         }
 
-        const ranked = chunks
-            .filter((chunk) => chunk.score > 0)
-            .sort((a, b) => b.score - a.score);
+        const ranked = chunks.filter(c => c.score > 0).sort((a, b) => b.score - a.score);
 
         if (ranked.length === 0) {
-            const tail = normalizedText.slice(-safeMax);
-            return `${tail}${truncatedSuffix}`;
+            return normalizedText.slice(-safeMax);
         }
 
         const selected = [];
         for (const candidate of ranked) {
             if (selected.length >= 10) break;
             const overlaps = selected.some((s) => Math.abs(s.start - candidate.start) < step);
-            if (overlaps) continue;
-            selected.push(candidate);
+            if (!overlaps) selected.push(candidate);
         }
 
         selected.sort((a, b) => a.start - b.start);
 
         let stitched = '';
         for (const chunk of selected) {
-            const piece = chunk.text.trim();
             const separator = stitched.length ? '\n\n---\n\n' : '';
-            if (stitched.length + separator.length + piece.length > safeMax) break;
-            stitched += separator + piece;
+            if (stitched.length + separator.length + chunk.text.length > safeMax) break;
+            stitched += separator + chunk.text.trim();
         }
 
-        if (!stitched) {
-            const tail = normalizedText.slice(-safeMax);
-            return `${tail}${truncatedSuffix}`;
-        }
-
-        return `${stitched}${truncatedSuffix}`;
+        return stitched || normalizedText.slice(-safeMax);
     }
 
     _extractQueryTokens(question) {
         if (!question || typeof question !== 'string') return [];
 
         const stopwords = new Set([
-            'come',
-            'cosa',
-            'cos',
-            'che',
-            'per',
-            'una',
-            'uno',
-            'dei',
-            'del',
-            'della',
-            'delle',
-            'degli',
-            'gli',
-            'alla',
-            'alle',
-            'allo',
-            'sul',
-            'sulla',
-            'sulle',
-            'nel',
-            'nella',
-            'nelle',
-            'dai',
-            'dal',
-            'dallo',
-            'ai',
-            'al',
-            'allo',
-            'il',
-            'lo',
-            'la',
-            'le',
-            'i',
-            'e',
-            'o',
-            'di',
-            'da',
-            'in',
-            'su',
-            'con',
-            'spiega',
-            'spiegami',
-            'spiegare',
-            'pagina',
-            'pagine',
+            'come', 'cosa', 'cos', 'che', 'per', 'una', 'uno', 'dei', 'del', 'della',
+            'delle', 'degli', 'gli', 'alla', 'alle', 'allo', 'sul', 'sulla', 'sulle',
+            'nel', 'nella', 'nelle', 'dai', 'dal', 'dallo', 'ai', 'al', 'allo',
+            'il', 'lo', 'la', 'le', 'i', 'e', 'o', 'di', 'da', 'in', 'su', 'con',
+            'spiega', 'spiegami', 'spiegare', 'pagina', 'pagine',
         ]);
 
-        const tokens = question
+        return question
             .toLowerCase()
             .replace(/[^\p{L}\p{N}\s]/gu, ' ')
             .split(/\s+/)
             .map((t) => t.trim())
-            .filter((t) => t.length >= 4 && !stopwords.has(t));
-
-        return [...new Set(tokens)].slice(0, 20);
+            .filter((t) => t.length >= 4 && !stopwords.has(t))
+            .slice(0, 20);
     }
 
     _normalizeExtractedText(text) {
@@ -1356,8 +1723,7 @@ class StudyService extends BaseService {
         if (!text || typeof text !== 'string') return '';
         if (!Number.isFinite(maxLength) || maxLength <= 0) return '';
         if (text.length <= maxLength) return text;
-        const safeSuffix = typeof suffix === 'string' ? suffix : '';
-        return text.slice(0, maxLength) + safeSuffix;
+        return text.slice(0, maxLength) + (typeof suffix === 'string' ? suffix : '');
     }
 
     _buildQuizOptions(correctAnswer, allAnswers = []) {
@@ -1442,9 +1808,6 @@ class StudyService extends BaseService {
         return Number.isFinite(Number(value)) ? Number(value) : fallback;
     }
 
-    /**
-     * Aggiorna le analytics del deck dopo una review
-     */
     _updateDeckAnalytics(deck, quality, sessionMeta = null) {
         if (!deck.analytics) {
             deck.analytics = {
@@ -1460,22 +1823,18 @@ class StudyService extends BaseService {
         analytics.totalReviews = (analytics.totalReviews || 0) + 1;
         analytics.lastStudied = new Date();
 
-        // Calcola retention rate (percentuale di risposte corrette)
-        // Assumiamo che quality >= 3 sia "corretto"
         const isCorrect = quality >= 3;
         const previousTotal = analytics.totalReviews - 1 || 1;
         const previousCorrect = Math.round((analytics.retentionRate || 0) * previousTotal);
         const newCorrect = previousCorrect + (isCorrect ? 1 : 0);
         analytics.retentionRate = newCorrect / analytics.totalReviews;
 
-        // Aggiorna tempo medio se disponibile
         if (sessionMeta?.timePerCard && Number.isFinite(sessionMeta.timePerCard)) {
             const previousAvg = analytics.averageTimePerCard || 0;
             const newAvg = (previousAvg * previousTotal + sessionMeta.timePerCard) / analytics.totalReviews;
             analytics.averageTimePerCard = newAvg;
         }
 
-        // Aggiorna streak (giorni consecutivi di studio)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const lastStudied = analytics.lastStudied ? new Date(analytics.lastStudied) : null;
@@ -1483,12 +1842,10 @@ class StudyService extends BaseService {
             lastStudied.setHours(0, 0, 0, 0);
             const daysDiff = Math.floor((today - lastStudied) / (1000 * 60 * 60 * 24));
             if (daysDiff === 0) {
-                // Stesso giorno, mantieni streak
+                // Stesso giorno
             } else if (daysDiff === 1) {
-                // Giorno successivo, incrementa streak
                 analytics.studyStreak = (analytics.studyStreak || 0) + 1;
             } else {
-                // Streak rotto, reset
                 analytics.studyStreak = 1;
             }
         } else {

@@ -121,6 +121,18 @@ const deckSchema = new mongoose.Schema({
         type: [String],
         default: [],
         set: normalizeTags,
+        validate: {
+            validator: function(tags) {
+                return tags.length <= 5;
+            },
+            message: 'Un mazzo può avere massimo 5 tag',
+        },
+    },
+    folderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Folder',
+        default: null,
+        index: true,
     },
     cards: {
         type: [cardSchema],
@@ -167,6 +179,8 @@ const deckSchema = new mongoose.Schema({
 // =========================================
 
 deckSchema.index({ user: 1, goalId: 1 });
+deckSchema.index({ user: 1, folderId: 1 });
+deckSchema.index({ user: 1, tags: 1 });
 deckSchema.index({ user: 1, 'cards.nextReviewDate': 1 });
 
 // =========================================
@@ -190,6 +204,13 @@ deckSchema.set('toJSON', {
         delete ret._id;
         delete ret.user;
         delete ret.extractedText;
+
+        // Converti folderId se presente (anche null deve essere incluso)
+        if (ret.folderId !== undefined && ret.folderId !== null) {
+            ret.folderId = ret.folderId.toString();
+        } else {
+            ret.folderId = null; // Esplicito per chiarezza
+        }
 
         if (Array.isArray(ret.cards)) {
             ret.cards = ret.cards.map(card => ({

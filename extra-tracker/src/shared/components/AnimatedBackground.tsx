@@ -1,201 +1,120 @@
-/**
- * 🎨 ANIMATED BACKGROUND - Background premium animato
- * 
- * Background sofisticato con:
- * - Particelle fluttuanti animate
- * - Onde gradient animate
- * - Mesh gradient dinamico
- * - Effetti di profondità e movimento
- */
+import React, { useMemo } from 'react';
 
-import { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+// Configuriamo i colori del brand direttamente qui per coerenza con il logo
+const COLORS = {
+  grid: 'rgba(120, 120, 120, 0.02)', // Griglia poco visibile
+  amber: '#F59E0B', // Amber-500 (User Intent)
+  violet: '#7C3AED', // Violet-600 (AI Logic)
+};
 
-interface Particle {
-  x: number;
-  y: number;
-  size: number;
-  speedX: number;
-  speedY: number;
-  opacity: number;
+interface BeamProps {
+  color: string;
+  duration: number;
+  delay: number;
+  direction: 'horizontal' | 'vertical';
+  position: number; // Top % o Left %
+  length: number; // Lunghezza della scia
 }
 
-export const AnimatedBackground = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<Particle[]>([]);
-  const animationFrameRef = useRef<number | undefined>(undefined);
+const CircuitBeam: React.FC<BeamProps> = ({ color, duration, delay, direction, position, length }) => {
+  // ARCHITETTURA VISIVA:
+  // Usiamo gradienti lineari per creare l'effetto "cometa" (testa luminosa, coda che svanisce).
+  const style: React.CSSProperties = {
+    position: 'absolute',
+    background: direction === 'horizontal'
+      ? `linear-gradient(90deg, transparent, ${color}, transparent)`
+      : `linear-gradient(180deg, transparent, ${color}, transparent)`,
+    opacity: 0.6,
+    boxShadow: `0 0 8px ${color}`, // Effetto "Glow"
+    borderRadius: '999px',
+    
+    // Dimensioni dinamiche in base alla direzione
+    width: direction === 'horizontal' ? `${length}px` : '2px',
+    height: direction === 'horizontal' ? '2px' : `${length}px`,
+    
+    // Posizionamento
+    top: direction === 'horizontal' ? `${position}%` : '-100px', // Start off-screen
+    left: direction === 'vertical' ? `${position}%` : '-100px',   // Start off-screen
+    
+    // Animazione (definisce il tempo e il ritardo infinito)
+    animation: `travel-${direction} ${duration}s linear infinite`,
+    animationDelay: `${delay}s`,
+  };
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  return <div style={style} className="pointer-events-none" />;
+};
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+export const AnimatedBackground: React.FC = () => {
+  // MEMOIZATION:
+  // Generiamo le posizioni dei raggi una sola volta all'avvio dell'app.
+  // Non vogliamo che la griglia cambi layout ad ogni re-render di React.
+  const beams = useMemo(() => {
+    const items: BeamProps[] = [];
+    const count = 12; // Numero totale di impulsi simultanei (non troppi per non distrarre)
 
-    // Imposta dimensioni canvas
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    // Crea particelle
-    const particleCount = 50;
-    particlesRef.current = Array.from({ length: particleCount }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      size: Math.random() * 3 + 1,
-      speedX: (Math.random() - 0.5) * 0.5,
-      speedY: (Math.random() - 0.5) * 0.5,
-      opacity: Math.random() * 0.5 + 0.2,
-    }));
-
-    // Funzione di animazione
-    const animate = () => {
-      // Pausa animazione quando la pagina non è visibile
-      if (document.hidden) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-        return;
-      }
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Aggiorna e disegna particelle
-      particlesRef.current.forEach((particle, i) => {
-        particle.x += particle.speedX;
-        particle.y += particle.speedY;
-
-        // Wrap around edges
-        if (particle.x < 0) particle.x = canvas.width;
-        if (particle.x > canvas.width) particle.x = 0;
-        if (particle.y < 0) particle.y = canvas.height;
-        if (particle.y > canvas.height) particle.y = 0;
-
-        // Disegna particella
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(124, 58, 237, ${particle.opacity})`;
-        ctx.fill();
-
-        // Connessioni tra particelle vicine - OTTIMIZZATO: evita controlli duplicati
-        for (let j = i + 1; j < particlesRef.current.length; j++) {
-          const other = particlesRef.current[j];
-          const dx = particle.x - other.x;
-          const dy = particle.y - other.y;
-          const distanceSquared = dx * dx + dy * dy; // Evita sqrt fino a quando necessario
-
-          if (distanceSquared < 22500) { // 150^2 = 22500
-            const distance = Math.sqrt(distanceSquared);
-            ctx.beginPath();
-            ctx.moveTo(particle.x, particle.y);
-            ctx.lineTo(other.x, other.y);
-            ctx.strokeStyle = `rgba(124, 58, 237, ${0.1 * (1 - distance / 150)})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        }
+    for (let i = 0; i < count; i++) {
+      items.push({
+        // Alterniamo tra azioni umane (Amber) e AI (Viola)
+        color: Math.random() > 0.5 ? COLORS.amber : COLORS.violet,
+        // Durata casuale per evitare l'effetto "robotico" sincronizzato
+        duration: 3 + Math.random() * 5, // Tra 3s e 8s
+        delay: Math.random() * 5, // Ritardo iniziale
+        direction: Math.random() > 0.5 ? 'horizontal' : 'vertical',
+        // Posizioniamo su una griglia immaginaria (es. ogni 5%) per allinearci visivamente
+        position: Math.floor(Math.random() * 20) * 5, 
+        length: 100 + Math.random() * 150, // Lunghezza scia variabile
       });
-
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      window.removeEventListener('resize', resizeCanvas);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
+    }
+    return items;
   }, []);
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Canvas per particelle */}
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0"
-        style={{ mixBlendMode: 'screen' }}
-      />
-
-      {/* Gradient mesh animato - OTTIMIZZATO: Usa opacity invece di background per evitare repaint */}
-      <div className="absolute inset-0">
-        <motion.div
-          animate={{
-            opacity: [0.25, 0.35, 0.25],
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse at 20% 0%, rgba(124, 58, 237, 0.25) 0%, transparent 50%)',
-            willChange: 'opacity',
-          }}
-        />
-        <motion.div
-          animate={{
-            opacity: [0.2, 0.3, 0.2],
-          }}
-          transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.2) 0%, transparent 50%)',
-            willChange: 'opacity',
-          }}
-        />
-        <motion.div
-          animate={{
-            opacity: [0.15, 0.25, 0.15],
-          }}
-          transition={{ duration: 30, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse at 50% 50%, rgba(167, 139, 250, 0.15) 0%, transparent 60%)',
-            willChange: 'opacity',
-          }}
-        />
-      </div>
-
-      {/* Onde animate - OTTIMIZZATO: Usa transform per animazioni composite */}
-      <div className="absolute inset-0 overflow-hidden">
-        <motion.div
-          animate={{
-            transform: ['translate(-50%, -50%) scale(1)', 'translate(0%, 0%) scale(1.2)', 'translate(-50%, -50%) scale(1)'],
-          }}
-          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] rounded-full blur-3xl"
-          style={{
-            background: 'radial-gradient(circle, rgba(124, 58, 237, 0.1) 0%, rgba(124, 58, 237, 0.05) 50%, transparent 100%)',
-            willChange: 'transform',
-          }}
-        />
-        <motion.div
-          animate={{
-            transform: ['translate(0%, 0%) scale(1.2)', 'translate(-50%, -50%) scale(1)', 'translate(0%, 0%) scale(1.2)'],
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -bottom-1/2 -right-1/2 w-[200%] h-[200%] rounded-full blur-3xl"
-          style={{
-            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 50%, transparent 100%)',
-            willChange: 'transform',
-          }}
-        />
-      </div>
-
-      {/* Pattern griglia sottile migliorato */}
-      <div
-        className="absolute inset-0 opacity-30"
+    <div className="fixed inset-0 -z-10 overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
+      
+      {/* 1. LAYER GRIGLIA STATICA (CSS PURE) 
+          Usiamo due gradienti lineari ripetuti per disegnare i quadretti.
+          È molto più leggero di un SVG con 1000 linee <line>.
+      */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(124, 58, 237, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(124, 58, 237, 0.1) 1px, transparent 1px)
+            linear-gradient(to right, ${COLORS.grid} 1px, transparent 1px),
+            linear-gradient(to bottom, ${COLORS.grid} 1px, transparent 1px)
           `,
-          backgroundSize: '60px 60px',
+          backgroundSize: '50px 50px', // Dimensione cella griglia
+          // Maschera radiale per sfumare i bordi - griglia poco visibile
+          maskImage: 'radial-gradient(circle at center, black 30%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(circle at center, black 30%, transparent 100%)',
+          opacity: 0.4, // Opacità aggiuntiva per renderla poco visibile
         }}
       />
 
-      {/* Overlay per profondità */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-dark-500/50" />
+      {/* 2. LAYER IMPULSI (BEAMS) */}
+      <div className="absolute inset-0">
+        {beams.map((beam, idx) => (
+          <CircuitBeam key={idx} {...beam} />
+        ))}
+      </div>
+
+      {/* 3. STILI CSS INIETTATI (Per le animazioni keyframe) 
+          In un progetto grande, questi andrebbero in index.css o tailwind.config.js,
+          ma qui li teniamo incapsulati per facilità di "Learning by Doing".
+      */}
+      <style>{`
+        @keyframes travel-horizontal {
+          0% { transform: translateX(-200px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(100vw); opacity: 0; }
+        }
+        @keyframes travel-vertical {
+          0% { transform: translateY(-200px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateY(100vh); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 };

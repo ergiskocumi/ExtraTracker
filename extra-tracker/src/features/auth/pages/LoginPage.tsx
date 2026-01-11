@@ -1,7 +1,6 @@
 /**
  * 🔐 LOGIN PAGE
- * 
- * Form di login sicuro con:
+ * * Form di login sicuro con:
  * - Validazione Zod client-side
  * - Feedback errori inline
  * - Protezione contro submit multipli
@@ -15,6 +14,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn, FiAlertCircle, FiLoader } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { loginSchema, type LoginFormData } from '../validators/authValidators';
+import { Logo } from '../../../shared/components/Brand/Logo';
 
 export const LoginPage = () => {
     const navigate = useNavigate();
@@ -81,30 +81,22 @@ export const LoginPage = () => {
             transition={{ duration: 0.5, ease: 'easeOut' }}
             className="w-full max-w-md"
         >
-            {/* Icona e Titolo */}
+            {/* Logo SilviAI */}
             <motion.div 
-                className="text-center mb-8"
+                className="text-center mb-10"
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
             >
-                <motion.div 
-                    className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 flex items-center justify-center shadow-glow mb-6 relative overflow-hidden"
-                    whileHover={{ scale: 1.05, rotate: 5 }}
+                <motion.div
+                    whileHover={{ scale: 1.02 }}
                     transition={{ type: 'spring', stiffness: 300 }}
+                    className="flex justify-center mb-6"
                 >
-                    {/* Glow effect interno */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50" />
-                    <FiLogIn className="text-white relative z-10" size={32} />
-                    {/* Pulse effect */}
-                    <motion.div
-                        className="absolute inset-0 rounded-2xl bg-primary-400/30"
-                        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                    />
+                    <Logo size="2xl" variant="full" className="text-white" />
                 </motion.div>
                 <motion.h1 
-                    className="text-3xl font-bold bg-gradient-to-r from-white via-white to-white/80 bg-clip-text text-transparent mb-2"
+                    className="text-3xl font-bold bg-gradient-to-r from-white via-white to-white/80 bg-clip-text text-transparent mb-3"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2 }}
@@ -112,7 +104,7 @@ export const LoginPage = () => {
                     Bentornato!
                 </motion.h1>
                 <motion.p 
-                    className="text-white/60 text-sm"
+                    className="text-white/60 text-base"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
@@ -123,20 +115,23 @@ export const LoginPage = () => {
 
                 {/* Form Card */}
                 <motion.div 
-                    className="relative rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] p-8 shadow-2xl overflow-hidden"
+                    className="relative rounded-3xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.12] p-8 shadow-2xl overflow-hidden"
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.5, delay: 0.2 }}
-                    whileHover={{ borderColor: 'rgba(124, 58, 237, 0.3)' }}
+                    whileHover={{ borderColor: 'rgba(124, 58, 237, 0.4)', boxShadow: '0 20px 60px rgba(124, 58, 237, 0.15)' }}
                 >
                     {/* Glow effect sul bordo */}
-                    <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-primary-500/0 via-primary-500/10 to-primary-500/0 opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-primary-500/0 via-primary-500/15 to-primary-500/0 opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                     
-                    {/* Pattern decorativo sottile */}
-                    <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
-                        backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)`,
-                        backgroundSize: '24px 24px',
+                    {/* Pattern decorativo sottile migliorato */}
+                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
+                        backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.3) 1px, transparent 0)`,
+                        backgroundSize: '32px 32px',
                     }} />
+                    
+                    {/* Gradiente di sfondo sottile */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 via-transparent to-violet-500/5 pointer-events-none" />
                     {/* Error Banner */}
                     {error && (
                         <motion.div
@@ -158,12 +153,12 @@ export const LoginPage = () => {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.3 }}
                         >
-                            <label className="block mb-2.5 text-sm font-semibold text-white/80">
+                            <label className="block mb-2.5 text-sm font-semibold text-white/90">
                                 Email
                             </label>
                             <div className="relative group">
                                 <motion.div
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-primary-400 transition-colors"
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 group-focus-within:text-primary-400 transition-colors z-10"
                                     whileHover={{ scale: 1.1 }}
                                 >
                                     <FiMail size={20} />
@@ -174,11 +169,11 @@ export const LoginPage = () => {
                                     value={formData.email}
                                     onChange={handleChange}
                                     placeholder="nome@esempio.it"
-                                    className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-white/[0.06] border backdrop-blur-sm ${
+                                    className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-white/[0.08] border backdrop-blur-sm ${
                                         fieldErrors.email 
                                             ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
-                                            : 'border-white/[0.1] focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/30'
-                                    } text-white placeholder-white/30 focus:outline-none focus:bg-white/[0.08] transition-all duration-200`}
+                                            : 'border-white/[0.15] focus:border-primary-500/70 focus:ring-2 focus:ring-primary-500/40'
+                                    } text-white placeholder-white/40 focus:outline-none focus:bg-white/[0.12] transition-all duration-200`}
                                     autoComplete="email"
                                 />
                             </div>
@@ -200,12 +195,12 @@ export const LoginPage = () => {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.4 }}
                         >
-                            <label className="block mb-2.5 text-sm font-semibold text-white/80">
+                            <label className="block mb-2.5 text-sm font-semibold text-white/90">
                                 Password
                             </label>
                             <div className="relative group">
                                 <motion.div
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-primary-400 transition-colors"
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 group-focus-within:text-primary-400 transition-colors z-10"
                                     whileHover={{ scale: 1.1 }}
                                 >
                                     <FiLock size={20} />
@@ -216,11 +211,11 @@ export const LoginPage = () => {
                                     value={formData.password}
                                     onChange={handleChange}
                                     placeholder="••••••••"
-                                    className={`w-full pl-12 pr-12 py-3.5 rounded-xl bg-white/[0.06] border backdrop-blur-sm ${
+                                    className={`w-full pl-12 pr-12 py-3.5 rounded-xl bg-white/[0.08] border backdrop-blur-sm ${
                                         fieldErrors.password 
                                             ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
-                                            : 'border-white/[0.1] focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/30'
-                                    } text-white placeholder-white/30 focus:outline-none focus:bg-white/[0.08] transition-all duration-200`}
+                                            : 'border-white/[0.15] focus:border-primary-500/70 focus:ring-2 focus:ring-primary-500/40'
+                                    } text-white placeholder-white/40 focus:outline-none focus:bg-white/[0.12] transition-all duration-200`}
                                     autoComplete="current-password"
                                 />
                                 <motion.button
@@ -275,17 +270,17 @@ export const LoginPage = () => {
                             className={`relative w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-semibold text-base transition-all overflow-hidden group ${
                                 isLoading
                                     ? 'bg-primary-500/50 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 hover:from-primary-600 hover:via-primary-700 hover:to-primary-800 shadow-glow hover:shadow-glow-lg'
+                                    : 'bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 hover:from-primary-600 hover:via-primary-700 hover:to-primary-800 shadow-lg shadow-primary-500/25 hover:shadow-xl hover:shadow-primary-500/40'
                             } text-white`}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.6 }}
                         >
-                            {/* Shimmer effect */}
+                            {/* Shimmer effect migliorato */}
                             {!isLoading && (
                                 <motion.div
-                                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full"
-                                    transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 2 }}
+                                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full"
+                                    transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 2.5 }}
                                 />
                             )}
                             {isLoading ? (

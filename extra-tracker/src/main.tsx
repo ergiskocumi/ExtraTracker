@@ -6,6 +6,8 @@ import "./index.css";
 import { AuthProvider } from "./features/auth/context/AuthContext.tsx";
 import { ToastProvider } from "./shared/components/toast";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+// Silenzia tutti i log nel browser - i log devono essere gestiti solo dal backend
+import "./shared/utils/logger";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,10 +55,4 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </React.StrictMode>
 );
 
-// OTTIMIZZATO: Performance monitoring (solo in dev)
-if (import.meta.env.DEV) {
-  window.addEventListener('load', () => {
-    const loadTime = performance.now() - appStartTime;
-    console.log(`[Performance] App loaded in ${Math.round(loadTime)}ms`);
-  });
-}
+// Performance monitoring rimosso - i log devono essere gestiti solo dal backend

@@ -19,9 +19,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiArrowLeft, FiX } from 'react-icons/fi';
-import { Flashcard, FlashcardSkeleton } from '../components/Flashcard';
-import { QuizView } from '../components/QuizView';
-import { TypingView } from '../components/TypingView';
+import { Flashcard, FlashcardSkeleton } from '../components/Flashcard/Flashcard';
+import { QuizView } from '../components/Study/QuizView';
+import { TypingView } from '../components/Study/TypingView';
 import { studyService, type StudySession, type ReviewRating, type StudyMode, type Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { SessionSummaryModal, type SessionSummary } from '../../gamification/SessionSummaryModal';
@@ -508,21 +508,28 @@ export const StudySessionPage: React.FC = () => {
         navigate('/study');
     }, [navigate]);
 
-    // Varianti semplificate - le animazioni di exit sono gestite dal Flashcard stesso
+    // Varianti per animazione card - su desktop parte invisibile e si centra
     const viewVariants = {
         enter: { 
             opacity: 0,
+            scale: 0.9,
+            y: 20,
         },
         center: {
             opacity: 1,
+            scale: 1,
+            y: 0,
             transition: { 
-                duration: 0.2,
+                duration: 0.3,
+                ease: [0.4, 0, 0.2, 1]
             },
         },
         exit: { 
             opacity: 0,
+            scale: 0.9,
+            y: -20,
             transition: { 
-                duration: 0.15,
+                duration: 0.2,
             } 
         },
     };
@@ -597,8 +604,8 @@ export const StudySessionPage: React.FC = () => {
                 </button>
             </div>
 
-            {/* Main Content */}
-            <div className="pt-24 pb-32 sm:pb-40 h-full overflow-y-auto overflow-x-hidden">
+            {/* Main Content - Centrato su desktop, full-width su mobile */}
+            <div className="pt-20 sm:pt-24 pb-32 sm:pb-40 md:pb-32 h-full overflow-y-auto overflow-x-hidden">
                 <AnimatePresence mode="wait" initial={false}>
                     {currentCard && isFlashcardMode && displayCard && (
                         <motion.div
@@ -607,13 +614,16 @@ export const StudySessionPage: React.FC = () => {
                             initial="enter"
                             animate="center"
                             exit="exit"
+                            className="w-full h-full flex items-center justify-center px-2 sm:px-4"
                         >
-                            <Flashcard
-                                card={displayCard}
-                                isFlipped={isFlipped}
-                                onFlip={handleFlip}
-                                exitDirection={exitDirection}
-                            />
+                            <div className="w-full max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
+                                <Flashcard
+                                    card={displayCard}
+                                    isFlipped={isFlipped}
+                                    onFlip={handleFlip}
+                                    exitDirection={exitDirection}
+                                />
+                            </div>
                         </motion.div>
                     )}
                     {currentCard && isQuizMode && (
@@ -657,7 +667,7 @@ export const StudySessionPage: React.FC = () => {
                 </AnimatePresence>
             </div>
 
-            {/* Rating Buttons */}
+            {/* Rating Buttons - Posizionati per evitare sovrapposizioni */}
             <AnimatePresence>
                 {isFlashcardMode && isFlipped && !isSessionCompleteRef.current && (
                     <motion.div
@@ -665,7 +675,11 @@ export const StudySessionPage: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 60 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                        className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 py-6 sm:py-8 border-t border-white/[0.06] bg-slate-950/80 backdrop-blur-xl"
+                        className="fixed md:absolute bottom-0 left-0 right-0 px-4 sm:px-6 py-4 sm:py-6 md:py-8 border-t border-white/[0.06] bg-slate-950/95 md:bg-slate-950/80 backdrop-blur-xl z-20"
+                        style={{
+                            // Su desktop: assicura che non sovrapponga la card centrata
+                            marginTop: 'auto'
+                        }}
                     >
                         <p className="text-center text-white/40 text-xs sm:text-sm mb-4">
                             Com'e andata?

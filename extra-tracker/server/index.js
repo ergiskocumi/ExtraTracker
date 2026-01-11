@@ -25,6 +25,8 @@ const securityConfig = require('./config/security');
 const { initRedis, closeRedis } = require('./config/redis');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const { errorHandler } = require('./middleware/errorHandler');
+const requestLogger = require('./middleware/requestLogger');
+const logger = require('./utils/logger');
 
 // Subscribers (Pattern Observer)
 const { initializeSubscribers } = require('./subscribers/activitySubscriber');
@@ -41,6 +43,7 @@ const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
 const analyticsRoutes = require('./routes/analytics');
 const dashboardRoutes = require('./routes/dashboard');
+const sseRoutes = require('./routes/sse');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -53,7 +56,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 // Handler CORS come primissima cosa - gestisce OPTIONS immediatamente
 app.options('*', (req, res) => {
     const origin = req.headers.origin;
-    console.log(`🔍 OPTIONS Preflight from: ${origin}`);
+    logger.debug('CORS', `OPTIONS Preflight from: ${origin}`);
     
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -108,6 +111,12 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
+// 3.5. REQUEST LOGGER (dopo request ID, prima delle routes)
+// ==========================================
+
+app.use(requestLogger);
+
+// ==========================================
 // 4. BODY PARSING
 // ==========================================
 
@@ -144,6 +153,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/sse', sseRoutes);
 app.use('/api', apiRoutes);
 app.use('/api', goalsRoutes);
 app.use('/api/study', studyRoutes);
@@ -188,9 +198,9 @@ const connectDB = async () => {
             maxPoolSize: 10,
             serverSelectionTimeoutMS: 5000,
         });
-        console.log('✅ Connesso al database MongoDB');
+        logger.success('Server', 'Connesso al database MongoDB');
     } catch (err) {
-        console.error('❌ Errore connessione database:', err.message);
+        logger.error('Server', 'Errore connessione database', err);
         if (isProduction) process.exit(1);
     }
 };
@@ -200,7 +210,7 @@ const connectDB = async () => {
 // ==========================================
 
 const gracefulShutdown = async (signal) => {
-    console.log(`\n🛑 Ricevuto ${signal}. Chiusura graceful...`);
+    logger.warn('Server', `Ricevuto ${signal}. Chiusura graceful...`);
     try {
         // Chiudi queue gracefulmente
         await closeQueue();
@@ -210,11 +220,11 @@ const gracefulShutdown = async (signal) => {
         
         // Chiudi MongoDB
         await mongoose.connection.close();
-        console.log('✅ Connessione MongoDB chiusa');
+        logger.success('Server', 'Connessione MongoDB chiusa');
         
         process.exit(0);
     } catch (err) {
-        console.error('❌ Errore shutdown:', err);
+        logger.error('Server', 'Errore shutdown', err);
         process.exit(1);
     }
 };
@@ -245,19 +255,17 @@ const startServer = async () => {
     if (process.env.NODE_ENV !== 'production') {
         setInterval(() => {
             const summary = eventMetrics.getSummary();
-            console.log('📊 Event Metrics:', JSON.stringify(summary, null, 2));
+            logger.debug('EventMetrics', 'Summary', summary);
         }, 5 * 60 * 1000);
     }
     
     app.listen(PORT, () => {
-        console.log(`
-🚀 Server in ascolto sulla porta ${PORT}
-📍 Environment: ${process.env.NODE_ENV || 'development'}
-🔒 Security: Helmet, CORS, Rate Limiting attivi
-📡 Event Bus: Pattern Observer attivo
-🔄 Activity Queue: Retry automatico attivo
-📊 Event Metrics: Monitoring attivo
-        `);
+        logger.success('Server', `Server in ascolto sulla porta ${PORT}`);
+        logger.info('Server', `Environment: ${process.env.NODE_ENV || 'development'}`);
+        logger.info('Server', 'Security: Helmet, CORS, Rate Limiting attivi');
+        logger.info('Server', 'Event Bus: Pattern Observer attivo');
+        logger.info('Server', 'Activity Queue: Retry automatico attivo');
+        logger.info('Server', 'Event Metrics: Monitoring attivo');
     });
 };
 
