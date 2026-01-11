@@ -308,7 +308,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                     onClick={(e) => e.stopPropagation()}
                                 />
                             ) : (
-                                <span className="text-sm font-medium text-white truncate max-w-[160px]">
+                                <span className="text-sm font-medium text-white truncate max-w-[200px] sm:max-w-[280px]">
                                     {folder.name}
                                 </span>
                             )}

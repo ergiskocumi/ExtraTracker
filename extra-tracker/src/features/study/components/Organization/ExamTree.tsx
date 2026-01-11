@@ -128,7 +128,7 @@ const ExamItem: React.FC<ExamItemProps> = ({
                             </div>
                             
                             {/* Nome esame */}
-                            <span className="text-sm font-medium text-white truncate max-w-[160px]">
+                            <span className="text-sm font-medium text-white truncate max-w-[200px] sm:max-w-[280px]">
                                 {exam.title}
                             </span>
                         </div>
@@ -243,7 +243,7 @@ const ExamItem: React.FC<ExamItemProps> = ({
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     whileHover={{ x: 4, backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
-                                    className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/15 hover:border-white/20 transition-all cursor-pointer group"
+                                    className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/15 hover:border-white/20 transition-all cursor-pointer group"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         if (onDeckClick) {
@@ -254,7 +254,7 @@ const ExamItem: React.FC<ExamItemProps> = ({
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                             <Layers className="w-3 h-3 text-white/60 group-hover:text-white/80 transition-colors flex-shrink-0" />
-                                            <span className="text-xs text-white/80 group-hover:text-white transition-colors truncate">
+                                            <span className="text-xs sm:text-sm text-white/80 group-hover:text-white transition-colors truncate">
                                                 {deck.title}
                                             </span>
                                         </div>

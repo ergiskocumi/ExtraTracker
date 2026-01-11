@@ -176,7 +176,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                         className="fixed bottom-6 right-6
                                    w-full max-w-sm
                                    h-[calc(100vh-3rem)]
-                                   sm:max-w-sm
+                                   sm:max-w-lg
+                                   md:max-w-xl
                                    rounded-2xl
                                    shadow-2xl shadow-black/60
                                    z-50
@@ -195,7 +196,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header con stile macOS */}
-                        <div className="p-5 border-b border-white/5 flex-shrink-0">
+                        <div className="p-6 border-b border-white/5 flex-shrink-0">
                             <div className="flex items-center justify-between mb-2">
                                 <h2 className="text-sm font-bold text-white/90 uppercase tracking-widest">
                                     Organizza
@@ -214,7 +215,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                         </div>
 
                         {/* Scrollable content */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                             {/* Esami - Prima delle cartelle per priorità */}
                             {exams && exams.length > 0 && (
                                 <div>
