@@ -120,8 +120,16 @@ app.use(requestLogger);
 // 4. BODY PARSING
 // ==========================================
 
+// IMPORTANTE: Limite aumentato per route di import (50MB)
+// DEVE essere applicato PRIMA del body parser standard
+// perché Express applica i middleware in ordine e il primo che matcha viene usato
+app.use('/api/settings/import', express.json({ limit: '50mb' }));
+app.use('/api/settings/import/check', express.json({ limit: '50mb' }));
+
+// Limite standard per la maggior parte delle richieste
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
 app.use(cookieParser());
 
 // ==========================================

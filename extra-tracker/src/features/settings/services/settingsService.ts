@@ -188,10 +188,182 @@ class SettingsService {
     // ==========================================
 
     /**
-     * Esporta tutti i dati utente (GDPR)
+     * Esporta tutti i dati "lavoro" utente (GDPR)
+     * Scarica automaticamente il file JSON
      */
-    async exportData(): Promise<ApiResponse<unknown>> {
-        return apiClient.get(`${this.baseUrl}/export`);
+    async exportData(): Promise<unknown | null> {
+        try {
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+            const token = localStorage.getItem('token');
+            
+            const response = await fetch(`${API_BASE_URL}${this.baseUrl}/export`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include', // Per i cookie HttpOnly
+            });
+
+            if (!response.ok) {
+                throw new Error('Errore durante l\'esportazione');
+            }
+
+            const data = await response.json();
+            
+            // Crea e scarica il file JSON
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `extra-tracker-export-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            return data;
+        } catch (error) {
+            console.error('Export error:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Verifica i dati da importare senza importarli
+     * Restituisce confronto con dati esistenti
+     */
+    async checkImportData(file: File): Promise<ApiResponse<{
+        isIdentical: boolean;
+        hasLessData: boolean;
+        existing: {
+            goals: number;
+            projects: number;
+            workLogs: number;
+            decks: number;
+            folders: number;
+            tags: number;
+            checkIns: number;
+            workTodos: number;
+        };
+        importing: {
+            goals: number;
+            projects: number;
+            workLogs: number;
+            decks: number;
+            folders: number;
+            tags: number;
+            checkIns: number;
+            workTodos: number;
+        };
+        differences: {
+            goals: number;
+            projects: number;
+            workLogs: number;
+            decks: number;
+            folders: number;
+            tags: number;
+            checkIns: number;
+            workTodos: number;
+        };
+    }>> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                try {
+                    const jsonData = JSON.parse(e.target?.result as string);
+                    const response = await apiClient.post<{
+                        isIdentical: boolean;
+                        hasLessData: boolean;
+                        existing: Record<string, number>;
+                        importing: Record<string, number>;
+                        differences: Record<string, number>;
+                    }>(`${this.baseUrl}/import/check`, jsonData);
+                    resolve(response);
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            
+            reader.onerror = () => {
+                reject(new Error('Errore nella lettura del file'));
+            };
+            
+            reader.readAsText(file);
+        });
+    }
+
+    /**
+     * Importa dati utente da file JSON
+     * @param file File JSON da importare
+     * @param force Se true, ignora warning e forza l'import
+     */
+    async importData(file: File, force = false): Promise<ApiResponse<{
+        success: boolean;
+        imported: {
+            goals: number;
+            projects: number;
+            workLogs: number;
+            decks: number;
+            folders: number;
+            tags: number;
+            checkIns: number;
+            workTodos: number;
+        };
+    }>> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                try {
+                    const jsonData = JSON.parse(e.target?.result as string);
+                    
+                    // Verifica dimensione JSON stringificato (approssimativa)
+                    const jsonString = JSON.stringify(jsonData);
+                    const sizeMB = new Blob([jsonString]).size / 1024 / 1024;
+                    
+                    if (sizeMB > 50) {
+                        reject(new Error(`Il file è troppo grande (${sizeMB.toFixed(2)}MB). Il limite massimo è 50MB.`));
+                        return;
+                    }
+                    
+                    const response = await apiClient.post<{
+                        success: boolean;
+                        imported: {
+                            goals: number;
+                            projects: number;
+                            workLogs: number;
+                            decks: number;
+                            folders: number;
+                            tags: number;
+                            checkIns: number;
+                            workTodos: number;
+                        };
+                    }>(`${this.baseUrl}/import`, {
+                        data: jsonData,
+                        force: force,
+                    });
+                    resolve(response);
+                } catch (error: any) {
+                    // Se è un errore di dimensione, migliora il messaggio
+                    if (error?.response?.data?.error?.code === 'FILE_TOO_LARGE' || 
+                        error?.response?.data?.error?.code === 'PAYLOAD_TOO_LARGE') {
+                        const errorMessage = error.response.data.error.message || 
+                            'Il file è troppo grande. Il limite massimo è 50MB.';
+                        reject(new Error(errorMessage));
+                    } else {
+                        reject(error);
+                    }
+                }
+            };
+            
+            reader.onerror = () => {
+                reject(new Error('Errore nella lettura del file'));
+            };
+            
+            reader.readAsText(file);
+        });
     }
 
     /**

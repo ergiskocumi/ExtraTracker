@@ -82,6 +82,8 @@ export const SettingsPage = () => {
         savePreferences,
         changePassword,
         exportData,
+        checkImportData,
+        importData,
         deleteAccount,
     } = useSettingsPage();
 
@@ -348,6 +350,35 @@ export const SettingsPage = () => {
                                     <AccountSettings
                                         accountEmail={account?.email}
                                         onExport={handleExportData}
+                                        onCheckImport={async (file) => {
+                                            const result = await checkImportData(file);
+                                            return result;
+                                        }}
+                                        onImport={async (file, force = false) => {
+                                            try {
+                                                const result = await importData(file, force);
+                                                if (result) {
+                                                    emitToast.success('Dati importati con successo!', { title: 'Import completato' });
+                                                    // Ricarica le impostazioni per vedere i nuovi dati
+                                                    setTimeout(() => {
+                                                        window.location.reload();
+                                                    }, 2000);
+                                                } else {
+                                                    emitToast.error('Errore nell\'importazione dei dati');
+                                                }
+                                                return result;
+                                            } catch (error: any) {
+                                                // Mostra messaggio di errore dettagliato
+                                                const errorMessage = error?.message || 
+                                                    error?.response?.data?.error?.message || 
+                                                    'Errore nell\'importazione dei dati';
+                                                emitToast.error(errorMessage, { 
+                                                    title: 'Errore importazione',
+                                                    duration: 6000,
+                                                });
+                                                return null;
+                                            }
+                                        }}
                                         onDelete={handleDeleteAccount}
                                         status={statuses.accountStatus}
                                     />

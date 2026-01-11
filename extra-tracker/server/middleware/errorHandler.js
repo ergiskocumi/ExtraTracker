@@ -16,6 +16,7 @@ const AppError = require('../utils/AppError');
 const crypto = require('crypto');
 
 const isProduction = process.env.NODE_ENV === 'production';
+const ERROR_CATEGORIES = AppError.CATEGORIES;
 
 /**
  * Genera Request ID se non presente
@@ -244,6 +245,20 @@ const logError = (err, req) => {
  * e cosa urlare in cucina (console/terminal)
  */
 const errorHandler = (err, req, res, next) => {
+    // Gestisci errore "request entity too large" (file troppo grande)
+    if (err.type === 'entity.too.large' || 
+        err.message?.includes('request entity too large') || 
+        err.message?.includes('PayloadTooLargeError') ||
+        err.status === 413 ||
+        err.statusCode === 413) {
+        err = AppError.payloadTooLarge(
+            'Il file da importare è troppo grande. Il limite massimo è 50MB. Prova a esportare solo i dati necessari o contatta il supporto.',
+            '50MB',
+            { category: ERROR_CATEGORIES.VALIDATION }
+        );
+        err.isOperational = true;
+    }
+
     // Se l'errore non è un'istanza di AppError, convertilo
     if (!(err instanceof AppError)) {
         // Se è un errore di validazione Mongoose, convertilo
