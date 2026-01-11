@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, X, Upload, FileText, Brain, Zap, CheckCircle2, AlertCircle, BookOpen, Lightbulb, Target, TrendingUp } from 'lucide-react';
+import { Sparkles, X, Upload, FileText, Brain, Zap, CheckCircle2, AlertCircle, BookOpen, Lightbulb, Target, TrendingUp, Trash2 } from 'lucide-react';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { useSSE, type SSEPayload } from '../../../../hooks/useSSE';
@@ -237,6 +237,24 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         } else {
             setError('Seleziona un file PDF valido');
         }
+        // Reset input per permettere di selezionare lo stesso file di nuovo
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }, []);
+
+    const handleRemoveFile = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        setFile(null);
+        setError(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }, []);
+
+    const handleChangeFile = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        fileInputRef.current?.click();
     }, []);
 
     const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -454,19 +472,19 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                 className="space-y-4"
                             >
                             <div
-                                onDragEnter={handleDragEnter}
-                                onDragLeave={handleDragLeave}
-                                onDragOver={handleDragOver}
-                                onDrop={handleDrop}
+                                onDragEnter={!file ? handleDragEnter : undefined}
+                                onDragLeave={!file ? handleDragLeave : undefined}
+                                onDragOver={!file ? handleDragOver : undefined}
+                                onDrop={!file ? handleDrop : undefined}
                                     onClick={() => !file && fileInputRef.current?.click()}
                                     className={`
                                         relative w-full h-48 rounded-2xl border-2 border-dashed transition-all duration-300
-                                        flex flex-col items-center justify-center gap-4 cursor-pointer
-                                    ${isDragging 
-                                            ? 'border-blue-400/40 bg-blue-500/10 backdrop-blur-sm' 
-                                        : file 
-                                                ? 'border-emerald-400/40 bg-emerald-500/10 backdrop-blur-sm'
-                                                : 'border-white/10 bg-zinc-900/40 hover:border-white/20 hover:bg-zinc-900/60 backdrop-blur-sm'
+                                        flex flex-col items-center justify-center gap-4
+                                    ${file 
+                                        ? 'border-emerald-400/40 bg-emerald-500/10 backdrop-blur-sm cursor-default'
+                                        : isDragging 
+                                            ? 'border-blue-400/40 bg-blue-500/10 backdrop-blur-sm cursor-pointer'
+                                            : 'border-white/10 bg-zinc-900/40 hover:border-white/20 hover:bg-zinc-900/60 backdrop-blur-sm cursor-pointer'
                                     }
                                 `}
                             >
@@ -487,6 +505,27 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                                     {(file.size / 1024 / 1024).toFixed(2)} MB
                                                 </p>
                                             </div>
+                                            {/* Pulsanti per rimuovere/cambiare file - Solo quando idle */}
+                                            {progress.step === 'idle' && (
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <button
+                                                        onClick={handleChangeFile}
+                                                        className="px-3 py-1.5 rounded-lg bg-zinc-800/60 hover:bg-zinc-800/80 border border-white/10 text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+                                                        type="button"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5" />
+                                                        Cambia
+                                                    </button>
+                                                    <button
+                                                        onClick={handleRemoveFile}
+                                                        className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs font-medium transition-colors flex items-center gap-1.5"
+                                                        type="button"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                        Rimuovi
+                                                    </button>
+                                                </div>
+                                            )}
                                         </>
                                     ) : (
                                         <>
