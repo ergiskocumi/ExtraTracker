@@ -66,9 +66,8 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     const [progress, setProgress] = useState<ProgressData>({ step: 'idle' });
     const [error, setError] = useState<string | null>(null);
     const [logs, setLogs] = useState<LogEntry[]>([]);
-    const [scanProgress, setScanProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const startTimeRef = useRef<number | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -88,22 +87,6 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
-    // Scan animation - usa progress.step direttamente
-    useEffect(() => {
-        const isProcessingStep = ['uploading', 'analyzing', 'processing', 'generating'].includes(progress.step);
-        if (isProcessingStep) {
-            const interval = setInterval(() => {
-                setScanProgress(prev => {
-                    if (prev >= 100) return 0;
-                    return prev + 0.5;
-                });
-            }, 50);
-            return () => clearInterval(interval);
-        } else {
-            setScanProgress(0);
-        }
-    }, [progress.step]);
-
 
     // Reset quando si apre il modale
     useEffect(() => {
@@ -112,7 +95,6 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
             setProgress({ step: 'idle' });
             setError(null);
             setLogs([]);
-            setScanProgress(0);
             startTimeRef.current = null;
             if (timerRef.current) {
                 clearInterval(timerRef.current);
@@ -234,7 +216,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         },
     ]), [onSuccess, addLogMemo, progress.currentTopic]);
 
-    useSSE(sseListeners);
+    useSSE('/api/sse/stream', sseListeners);
 
     const handleClose = useCallback(() => {
         if (progress.step === 'uploading' || progress.step === 'analyzing' || progress.step === 'processing' || progress.step === 'generating') {
@@ -354,17 +336,17 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                 className="fixed inset-0 z-50 flex items-center justify-center p-4"
                     onClick={handleClose}
                 >
-                {/* Backdrop - Più scuro */}
+                {/* Backdrop - Dark mode macOS/iOS style */}
                     <motion.div
                     initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-                    animate={{ opacity: 1, backdropFilter: 'blur(20px)' }}
+                    animate={{ opacity: 1, backdropFilter: 'blur(30px)' }}
                     exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
                     transition={{ duration: 0.3 }}
-                    className="absolute inset-0 bg-black/70"
-                    style={{ WebkitBackdropFilter: 'blur(20px)' }}
+                    className="absolute inset-0 bg-black/85"
+                    style={{ WebkitBackdropFilter: 'blur(30px)' }}
                 />
 
-                {/* Modal Window - Più scuro */}
+                {/* Modal Window - Dark macOS/iOS style */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -375,21 +357,21 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                         damping: 30,
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="relative w-full max-w-lg bg-zinc-900/95 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
+                    className="relative w-full max-w-lg bg-zinc-950/98 backdrop-blur-3xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden"
                     style={{ 
-                        WebkitBackdropFilter: 'blur(40px)',
-                        backdropFilter: 'blur(40px)',
+                        WebkitBackdropFilter: 'blur(50px)',
+                        backdropFilter: 'blur(50px)',
                     }}
                 >
-                    {/* Header - Più scuro */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-zinc-900/50">
+                    {/* Header - Dark macOS/iOS style */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-zinc-950/80">
                             <div className="flex items-center gap-3">
                             <div className="p-2 rounded-xl bg-white/10 border border-white/20">
                                 <Sparkles className="w-5 h-5 text-amber-400" />
                                 </div>
                                 <div>
                                 <h2 className="text-lg font-semibold text-white">Silvi AI</h2>
-                                <p className="text-xs text-white/60">{deckTitle}</p>
+                                <p className="text-xs text-white/60">Mazzo: {deckTitle}</p>
                                 </div>
                             </div>
                             <button
@@ -402,7 +384,68 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                         </div>
 
                         {/* Content */}
-                    <div className="p-6 space-y-6 bg-zinc-900/30">
+                    <div className="p-6 space-y-6 bg-zinc-950/40">
+                        {/* AI Algorithm Explanation - Solo quando idle */}
+                        {progress.step === 'idle' && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-5 rounded-2xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl"
+                            >
+                                <div className="flex items-start gap-3 mb-4">
+                                    <div className="p-2 rounded-xl bg-violet-500/20 border border-violet-500/30">
+                                        <Brain className="w-5 h-5 text-violet-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-sm font-semibold text-white mb-1">Cosa fa Silvi AI?</h3>
+                                        <p className="text-xs text-white/60 mb-3">
+                                            Analizza il tuo PDF e genera domande intelligenti in vari passaggi:
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="space-y-2.5">
+                                    <div className="flex items-start gap-3 text-xs">
+                                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center mt-0.5">
+                                            <span className="text-violet-400 font-semibold text-[10px]">1</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-white/90 font-medium mb-0.5">Analisi Strutturale</p>
+                                            <p className="text-white/50 leading-relaxed">
+                                                Identifica la struttura del documento e i principali argomenti per creare un contesto per l'analisi.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 text-xs">
+                                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mt-0.5">
+                                            <span className="text-amber-400 font-semibold text-[10px]">2</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-white/90 font-medium mb-0.5">Estrazione Concetti Chiave</p>
+                                            <p className="text-white/50 leading-relaxed">
+                                                Estraggo i concetti dai vari argomenti per evitare duplicati e garantire varietà nelle domande.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 text-xs">
+                                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center mt-0.5">
+                                            <span className="text-blue-400 font-semibold text-[10px]">3</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-white/90 font-medium mb-0.5">Controllo Qualità</p>
+                                            <p className="text-white/50 leading-relaxed">
+                                                Rimuovo automaticamente le domande duplicate o troppo simili per garantire qualità e accuratezza.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-white/5">
+                                    <p className="text-[10px] text-white/40 leading-relaxed">
+                                        💡 <span className="text-white/60 font-medium">Risultato:</span> Riceverai flashcard di alta qualità, uniche e ottimizzate per lo studio efficace con il sistema di ripetizione spaziata.
+                                    </p>
+                                </div>
+                            </motion.div>
+                        )}
+
                         {/* Upload Area */}
                         {progress.step === 'idle' && (
                             <motion.div
@@ -420,10 +463,10 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                         relative w-full h-48 rounded-2xl border-2 border-dashed transition-all duration-300
                                         flex flex-col items-center justify-center gap-4 cursor-pointer
                                     ${isDragging 
-                                            ? 'border-blue-400/50 bg-blue-500/10' 
+                                            ? 'border-blue-400/40 bg-blue-500/10 backdrop-blur-sm' 
                                         : file 
-                                                ? 'border-emerald-400/50 bg-emerald-500/10'
-                                                : 'border-white/20 bg-white/5 hover:border-white/30 hover:bg-white/10'
+                                                ? 'border-emerald-400/40 bg-emerald-500/10 backdrop-blur-sm'
+                                                : 'border-white/10 bg-zinc-900/40 hover:border-white/20 hover:bg-zinc-900/60 backdrop-blur-sm'
                                     }
                                 `}
                             >
@@ -464,7 +507,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                     <motion.div
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2"
+                                        className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm flex items-center gap-2"
                                     >
                                         <AlertCircle className="w-4 h-4 text-red-400" />
                                         <p className="text-sm text-red-400">{error}</p>
@@ -492,7 +535,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                 className="space-y-6"
                             >
                                 {/* Robot Animation */}
-                                <div className="relative w-full h-48 rounded-2xl bg-zinc-800/50 border border-white/5 overflow-hidden flex items-center justify-center">
+                                <div className="relative w-full h-48 rounded-2xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl overflow-hidden flex items-center justify-center">
                                     {/* Robot SVG */}
                                                 <motion.div
                                         className="relative"
@@ -714,9 +757,9 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                         animate={{ opacity: 1, scale: 1, y: 0 }}
                                         className="absolute top-2 left-2 right-2"
                                     >
-                                        <div className="relative px-4 py-3 rounded-2xl bg-zinc-800/90 border border-white/10 shadow-xl">
+                                        <div className="relative px-4 py-3 rounded-2xl bg-zinc-900/95 border border-white/10 shadow-xl backdrop-blur-xl">
                                             {/* Bubble tail */}
-                                            <div className="absolute -bottom-2 left-8 w-4 h-4 bg-zinc-800/90 border-l border-b border-white/10 transform rotate-45" />
+                                            <div className="absolute -bottom-2 left-8 w-4 h-4 bg-zinc-900/95 border-l border-b border-white/10 transform rotate-45" />
                                             
                                                 <motion.p
                                                 key={progress.message || progress.step}
@@ -769,7 +812,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                             repeat: Infinity,
                                             ease: 'easeInOut',
                                         }}
-                                        className="p-4 rounded-2xl bg-zinc-800/50 border border-white/5"
+                                        className="p-4 rounded-2xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl"
                                     >
                                         <StepIcon className={`w-12 h-12 ${stepConfig.color}`} />
                                     </motion.div>
@@ -790,7 +833,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                         className="space-y-3"
                                     >
                                         {progress.blueprint?.mainTopics && progress.blueprint.mainTopics.length > 0 && (
-                                            <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
+                                            <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl">
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <Target className="w-4 h-4 text-violet-400" />
                                                     <p className="text-xs font-semibold text-white/80">Argomenti Principali</p>
@@ -812,7 +855,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                             )}
                                         
                                         {progress.concepts && progress.concepts.length > 0 && (
-                                            <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
+                                            <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl">
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <Lightbulb className="w-4 h-4 text-amber-400" />
                                                     <p className="text-xs font-semibold text-white/80">Concetti Chiave</p>
@@ -836,7 +879,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                 )}
 
                                 {/* Real-time Logs */}
-                                <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5 max-h-48 overflow-y-auto">
+                                <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl max-h-48 overflow-y-auto">
                                     <div className="flex items-center gap-2 mb-3">
                                         <Brain className="w-4 h-4 text-violet-400" />
                                         <p className="text-xs font-semibold text-white/80">Log Analisi AI</p>
@@ -889,7 +932,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                                 <span>Progresso</span>
                                             <span>{progress.progress}%</span>
                                             </div>
-                                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                                        <div className="h-2 bg-white/5 rounded-full overflow-hidden backdrop-blur-sm">
                                                 <motion.div
                                                     initial={{ width: 0 }}
                                                 animate={{ width: `${progress.progress}%` }}
@@ -903,13 +946,13 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                 {/* Stats */}
                                 <div className="grid grid-cols-2 gap-4">
                                     {progress.generatedCount !== undefined && (
-                                        <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
+                                        <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl">
                                             <p className="text-xs text-white/50 mb-1">Flashcard generate</p>
                                             <p className="text-2xl font-bold text-white">{progress.generatedCount}</p>
                                         </div>
                                     )}
                                     {progress.totalChunks && (
-                                        <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
+                                        <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl">
                                             <p className="text-xs text-white/50 mb-1">Sezioni elaborate</p>
                                             <p className="text-2xl font-bold text-white">
                                                 {progress.currentChunk || 0} / {progress.totalChunks}
@@ -919,7 +962,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                 </div>
 
                                 {/* Time Estimate */}
-                                <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
+                                <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl">
                                     <div className="flex items-center justify-between mb-2">
                                         <p className="text-xs text-white/50">Tempo stimato</p>
                                         {progress.elapsedTime !== undefined && (
@@ -929,7 +972,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                         )}
                                             </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                        <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden backdrop-blur-sm">
                                             {estimatedTimeRemaining > 0 && (
                                                 <motion.div
                                                     initial={{ width: '100%' }}
@@ -965,7 +1008,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                                    className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/30"
+                                    className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-xl"
                                 >
                                     <CheckCircle2 className="w-12 h-12 text-emerald-400" />
                                 </motion.div>
@@ -987,7 +1030,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 className="flex flex-col items-center gap-4 text-center"
                             >
-                                <div className="p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
+                                <div className="p-4 rounded-2xl bg-red-500/20 border border-red-500/30 backdrop-blur-xl">
                                     <AlertCircle className="w-12 h-12 text-red-400" />
 </div>
                                 <div>
@@ -999,7 +1042,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                         setProgress({ step: 'idle' });
                                         setError(null);
                                     }}
-                                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
+                                    className="px-4 py-2 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white text-sm font-medium transition-colors backdrop-blur-sm"
                                 >
                                     Riprova
                                 </button>
