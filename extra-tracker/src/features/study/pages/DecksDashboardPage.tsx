@@ -280,6 +280,7 @@ export const DecksDashboardPage: React.FC = () => {
                 <ExamsView
                     key={examsRefreshKey} // Force re-render quando cambia
                     decks={decks}
+                    tags={tags}
                     onCreateExam={() => setShowCreateExamModal(true)}
                     onExamClick={async (examId) => {
                         try {
@@ -299,6 +300,16 @@ export const DecksDashboardPage: React.FC = () => {
                             (window as any).__refreshExams();
                         }
                     }}
+                    onDeckUpdate={(updated) => {
+                        setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
+                    }}
+                    onViewDetail={handlers.handleViewDetail}
+                    onStudy={handlers.handleStudy}
+                    onRead={handlers.handleRead}
+                    onMagicGenerate={handlers.handleMagicGenerate}
+                    onAddCard={handlers.handleAddCard}
+                    onDelete={handlers.setDeletingDeck}
+                    onTogglePin={handlers.handleTogglePin}
                 />
             ) : !isLoading && viewType === 'decks' && !selectedFolderId && filter === 'all' && searchQuery === '' && selectedTags.length === 0 ? (
                 <DeckSections

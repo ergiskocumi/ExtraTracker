@@ -73,7 +73,7 @@ export const ExamsFilters: React.FC<ExamsFiltersProps> = ({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
-                    placeholder="Cerca esami..."
+                    placeholder="Cerca esami e mazzi..."
                     className="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all text-base"
                 />
                 {searchQuery && (

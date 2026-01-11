@@ -5,7 +5,10 @@ import type { Goal } from '../../../goals/types';
 import type { Deck } from '../../services/studyService';
 import { ExamCard } from './ExamCard';
 import { ExamsFilters, type ExamSortOption, type ExamFilterOption } from './ExamsFilters';
+import { UnassignedDecksSection } from './UnassignedDecksSection';
+import { SearchResults } from './SearchResults';
 import goalsService from '../../../goals/services/goalsService';
+import type { Tag } from '../../services/tagsService';
 
 // ============================================
 // TYPES
@@ -24,9 +27,18 @@ interface ExamsViewProps {
 
 export const ExamsView: React.FC<ExamsViewProps> = ({
     decks,
+    tags,
     onCreateExam,
     onExamClick,
     onRefresh,
+    onDeckUpdate,
+    onViewDetail,
+    onStudy,
+    onRead,
+    onMagicGenerate,
+    onAddCard,
+    onDelete,
+    onTogglePin,
 }) => {
     const [exams, setExams] = useState<Goal[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -81,6 +93,20 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             masteryPercent,
         };
     };
+
+    // Filtra i mazzi in base alla ricerca
+    const filteredDecks = useMemo(() => {
+        if (!searchQuery.trim()) {
+            return [];
+        }
+        
+        const query = searchQuery.toLowerCase();
+        return decks.filter(deck =>
+            deck.title.toLowerCase().includes(query) ||
+            deck.description?.toLowerCase().includes(query) ||
+            deck.tags?.some(tag => tag.toLowerCase().includes(query))
+        );
+    }, [decks, searchQuery]);
 
     // Filtra e ordina gli esami
     const filteredAndSortedExams = useMemo(() => {
@@ -200,6 +226,23 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
 
     return (
         <div className="space-y-6">
+            {/* Sezione Mazzi senza esame associato - Mostra sempre in cima */}
+            {onDeckUpdate && onViewDetail && onStudy && (
+                <UnassignedDecksSection
+                    decks={decks}
+                    exams={exams}
+                    tags={tags}
+                    onDeckUpdate={onDeckUpdate}
+                    onViewDetail={onViewDetail}
+                    onStudy={onStudy}
+                    onRead={onRead}
+                    onMagicGenerate={onMagicGenerate}
+                    onAddCard={onAddCard}
+                    onDelete={onDelete}
+                    onTogglePin={onTogglePin}
+                />
+            )}
+
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -233,8 +276,25 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                 exams={exams}
             />
 
-            {/* Exams Grid */}
-            {filteredAndSortedExams.length === 0 ? (
+            {/* Search Results - Mostra quando c'è una ricerca attiva */}
+            {searchQuery.trim() ? (
+                <SearchResults
+                    exams={filteredAndSortedExams}
+                    decks={filteredDecks}
+                    tags={tags}
+                    searchQuery={searchQuery}
+                    onExamClick={onExamClick}
+                    onDeckUpdate={onDeckUpdate}
+                    onViewDetail={onViewDetail}
+                    onStudy={onStudy}
+                    onRead={onRead}
+                    onMagicGenerate={onMagicGenerate}
+                    onAddCard={onAddCard}
+                    onDelete={onDelete}
+                    onTogglePin={onTogglePin}
+                    getExamStats={getExamStats}
+                />
+            ) : filteredAndSortedExams.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                     <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
                         <BookOpen className="w-10 h-10 text-white/40" />
