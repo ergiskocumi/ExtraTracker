@@ -188,51 +188,98 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
     };
 
     return (
-        <div className="space-y-6">
-            {/* Export Data Section */}
+        <div className="space-y-8">
+            {/* Export Data Section - Balanced Style */}
             <motion.div
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-sm p-6 card"
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                className="group relative overflow-hidden rounded-3xl border border-white/[0.1] 
+                           bg-gradient-to-br from-gray-800/50 via-gray-800/40 to-gray-900/50
+                           backdrop-blur-2xl backdrop-saturate-150
+                           shadow-[0_8px_32px_0_rgba(0,0,0,0.25),inset_0_1px_0_0_rgba(255,255,255,0.08)]
+                           p-8 transition-all duration-500
+                           hover:border-white/[0.15] hover:shadow-[0_12px_48px_0_rgba(0,0,0,0.3),inset_0_1px_0_0_rgba(255,255,255,0.12)]"
             >
-                <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-xl bg-blue-500/20">
-                        <Database className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white mb-1">Esporta dati</h3>
-                        <p className="text-sm text-white/60 mb-4">
+                {/* Subtle gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.03] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                
+                <div className="relative flex items-start gap-6">
+                    {/* Icon Container - Simplified */}
+                    <motion.div
+                        whileHover={{ scale: 1.05, rotate: 5 }}
+                        className="flex-shrink-0 p-4 rounded-2xl 
+                                   bg-blue-500/15
+                                   border border-blue-500/20
+                                   backdrop-blur-sm"
+                    >
+                        <Database className="w-7 h-7 text-blue-400" strokeWidth={2} />
+                    </motion.div>
+                    
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">
+                            Esporta dati
+                        </h3>
+                        <p className="text-[15px] text-white/65 leading-relaxed mb-6 max-w-2xl">
                             Scarica una copia completa dei tuoi dati in formato JSON. Include tutti i tuoi obiettivi, 
                             progetti, flashcard e attività registrate.
                         </p>
                         <motion.button
                             onClick={handleExport}
                             disabled={status.loading}
-                            whileHover={{ scale: 1.02 }}
+                            whileHover={{ scale: 1.02, y: -1 }}
                             whileTap={{ scale: 0.98 }}
-                            className="btn-outline flex items-center gap-2"
+                            className="group/btn relative px-6 py-3.5 rounded-xl
+                                       bg-blue-500/20
+                                       border border-blue-500/30
+                                       text-blue-300 font-semibold text-[15px]
+                                       backdrop-blur-sm
+                                       hover:bg-blue-500/25
+                                       hover:border-blue-400/40
+                                       hover:text-blue-200
+                                       disabled:opacity-50 disabled:cursor-not-allowed
+                                       transition-all duration-300
+                                       flex items-center gap-2.5"
                         >
-                            <Download className="w-4 h-4" />
-                            {status.loading ? 'Esportazione...' : 'Esporta dati'}
+                            <Download className="w-5 h-5 group-hover/btn:translate-y-[-2px] transition-transform duration-300" strokeWidth={2.5} />
+                            <span>{status.loading ? 'Esportazione...' : 'Esporta dati'}</span>
                         </motion.button>
                     </div>
                 </div>
             </motion.div>
 
-            {/* Import Data Section */}
+            {/* Import Data Section - Balanced Style */}
             <motion.div
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
-                className="rounded-2xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-sm p-6 card"
+                transition={{ duration: 0.4, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                className="group relative overflow-hidden rounded-3xl border border-white/[0.1] 
+                           bg-gradient-to-br from-gray-800/50 via-gray-800/40 to-gray-900/50
+                           backdrop-blur-2xl backdrop-saturate-150
+                           shadow-[0_8px_32px_0_rgba(0,0,0,0.25),inset_0_1px_0_0_rgba(255,255,255,0.08)]
+                           p-8 transition-all duration-500
+                           hover:border-white/[0.15] hover:shadow-[0_12px_48px_0_rgba(0,0,0,0.3),inset_0_1px_0_0_rgba(255,255,255,0.12)]"
             >
-                <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-xl bg-emerald-500/20">
-                        <Upload className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white mb-1">Importa dati</h3>
-                        <p className="text-sm text-white/60 mb-4">
+                {/* Subtle gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.03] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                
+                <div className="relative flex items-start gap-6">
+                    {/* Icon Container - Simplified */}
+                    <motion.div
+                        whileHover={{ scale: 1.05, rotate: -5 }}
+                        className="flex-shrink-0 p-4 rounded-2xl 
+                                   bg-emerald-500/15
+                                   border border-emerald-500/20
+                                   backdrop-blur-sm"
+                    >
+                        <Upload className="w-7 h-7 text-emerald-400" strokeWidth={2} />
+                    </motion.div>
+                    
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">
+                            Importa dati
+                        </h3>
+                        <p className="text-[15px] text-white/65 leading-relaxed mb-6 max-w-2xl">
                             Carica un file JSON precedentemente esportato per ripristinare i tuoi dati. 
                             I dati verranno aggiunti al tuo account esistente.
                         </p>
@@ -245,19 +292,30 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                             className="hidden"
                         />
 
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             {selectedFile ? (
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
-                                    <FileJson className="w-5 h-5 text-emerald-400" />
-                                    <span className="text-sm text-white/80 flex-1 truncate">{selectedFile.name}</span>
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="flex items-center gap-4 p-4 rounded-2xl 
+                                               bg-gray-800/40
+                                               border border-white/[0.1]
+                                               backdrop-blur-sm"
+                                >
+                                    <div className="flex-shrink-0 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/25">
+                                        <FileJson className="w-5 h-5 text-emerald-400" strokeWidth={2} />
+                                    </div>
+                                    <span className="text-[15px] font-medium text-white/85 flex-1 truncate">
+                                        {selectedFile.name}
+                                    </span>
                                     {isChecking ? (
                                         <motion.div
                                             animate={{ rotate: 360 }}
                                             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                                            className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full"
+                                            className="w-5 h-5 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full flex-shrink-0"
                                         />
                                     ) : (
-                                        <button
+                                        <motion.button
                                             onClick={() => {
                                                 setSelectedFile(null);
                                                 setComparison(null);
@@ -266,38 +324,56 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                                                     fileInputRef.current.value = '';
                                                 }
                                             }}
-                                            className="text-white/40 hover:text-white transition-colors"
+                                            whileHover={{ scale: 1.1, rotate: 90 }}
+                                            whileTap={{ scale: 0.9 }}
+                                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 
+                                                       border border-white/10 hover:border-white/20
+                                                       flex items-center justify-center
+                                                       text-white/50 hover:text-white
+                                                       transition-all duration-200 flex-shrink-0"
                                         >
-                                            ×
-                                        </button>
+                                            <span className="text-lg leading-none">×</span>
+                                        </motion.button>
                                     )}
-                                </div>
+                                </motion.div>
                             ) : (
                                 <motion.button
                                     onClick={() => fileInputRef.current?.click()}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    className="btn-outline flex items-center gap-2 w-full"
+                                    whileHover={{ scale: 1.01, y: -1 }}
+                                    whileTap={{ scale: 0.99 }}
+                                    className="group/btn w-full px-6 py-4 rounded-2xl
+                                               bg-gray-800/40
+                                               border border-white/[0.1]
+                                               backdrop-blur-sm
+                                               hover:border-white/[0.15]
+                                               transition-all duration-300
+                                               flex items-center justify-center gap-3"
                                 >
-                                    <Upload className="w-4 h-4" />
-                                    Seleziona file JSON
+                                    <Upload className="w-5 h-5 text-emerald-400 group-hover/btn:translate-y-[-2px] transition-transform duration-300" strokeWidth={2.5} />
+                                    <span className="text-[15px] font-semibold text-white/85">Seleziona file JSON</span>
                                 </motion.button>
                             )}
 
-                            {/* Warning: Dati identici */}
+                            {/* Warning: Dati identici - Simplified */}
                             {comparison && comparison.isIdentical && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30"
+                                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                    className="p-5 rounded-2xl 
+                                               bg-amber-500/15
+                                               border border-amber-500/25
+                                               backdrop-blur-sm"
                                 >
-                                    <div className="flex items-start gap-3">
-                                        <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                                        <div className="flex-1">
-                                            <p className="text-sm font-semibold text-amber-300 mb-1">
+                                    <div className="flex items-start gap-4">
+                                        <div className="flex-shrink-0 p-2 rounded-xl bg-amber-500/20 border border-amber-500/30">
+                                            <AlertTriangle className="w-5 h-5 text-amber-400" strokeWidth={2.5} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-base font-bold text-amber-300 mb-2 tracking-tight">
                                                 Dati identici
                                             </p>
-                                            <p className="text-xs text-white/70">
+                                            <p className="text-[14px] text-white/70 leading-relaxed">
                                                 I dati da importare sono identici a quelli già presenti nel tuo account. 
                                                 Non è necessario importarli.
                                             </p>
@@ -306,24 +382,30 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                                 </motion.div>
                             )}
 
-                            {/* Warning: Dati minori */}
+                            {/* Warning: Dati minori - Simplified */}
                             {comparison && comparison.hasLessData && showLessDataWarning && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/30"
+                                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                    className="p-6 rounded-2xl 
+                                               bg-orange-500/15
+                                               border border-orange-500/25
+                                               backdrop-blur-sm"
                                 >
-                                    <div className="flex items-start gap-3 mb-3">
-                                        <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
-                                        <div className="flex-1">
-                                            <p className="text-sm font-semibold text-orange-300 mb-1">
+                                    <div className="flex items-start gap-4 mb-5">
+                                        <div className="flex-shrink-0 p-2 rounded-xl bg-orange-500/20 border border-orange-500/30">
+                                            <AlertTriangle className="w-5 h-5 text-orange-400" strokeWidth={2.5} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-base font-bold text-orange-300 mb-2 tracking-tight">
                                                 Attenzione: Dati minori
                                             </p>
-                                            <p className="text-xs text-white/70 mb-3">
+                                            <p className="text-[14px] text-white/70 leading-relaxed mb-4">
                                                 I dati da importare contengono meno elementi di quelli attualmente presenti. 
                                                 Sei sicuro di voler continuare?
                                             </p>
-                                            <div className="grid grid-cols-2 gap-2 text-xs text-white/60 mb-3">
+                                            <div className="grid grid-cols-2 gap-3 mb-5 p-4 rounded-xl bg-gray-800/30 border border-white/5">
                                                 {Object.entries(comparison.differences).map(([key, diff]) => {
                                                     if (diff < 0) {
                                                         const label = {
@@ -337,10 +419,11 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                                                             workTodos: 'Todo',
                                                         }[key] || key;
                                                         return (
-                                                            <div key={key} className="flex items-center justify-between">
-                                                                <span>{label}:</span>
-                                                                <span className="text-orange-400 font-semibold">
-                                                                    {comparison.existing[key]} → {comparison.importing[key]} ({diff})
+                                                            <div key={key} className="flex items-center justify-between py-1.5">
+                                                                <span className="text-[13px] text-white/70 font-medium">{label}</span>
+                                                                <span className="text-[13px] text-orange-400 font-bold">
+                                                                    {comparison.existing[key]} → {comparison.importing[key]} 
+                                                                    <span className="ml-1.5 text-orange-500">({diff})</span>
                                                                 </span>
                                                             </div>
                                                         );
@@ -348,7 +431,7 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                                                     return null;
                                                 })}
                                             </div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-3">
                                                 <motion.button
                                                     onClick={() => {
                                                         setShowLessDataWarning(false);
@@ -358,18 +441,30 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                                                             fileInputRef.current.value = '';
                                                         }
                                                     }}
-                                                    whileHover={{ scale: 1.02 }}
+                                                    whileHover={{ scale: 1.02, y: -1 }}
                                                     whileTap={{ scale: 0.98 }}
-                                                    className="flex-1 btn-ghost text-xs py-2"
+                                                    className="flex-1 px-5 py-3 rounded-xl
+                                                               bg-gray-800/40 border border-white/10
+                                                               text-white/80 font-semibold text-[14px]
+                                                               hover:bg-gray-700/50 hover:border-white/15 hover:text-white
+                                                               transition-all duration-300"
                                                 >
                                                     Annulla
                                                 </motion.button>
                                                 <motion.button
                                                     onClick={() => handleImport(true)}
                                                     disabled={status.loading}
-                                                    whileHover={{ scale: 1.02 }}
+                                                    whileHover={{ scale: 1.02, y: -1 }}
                                                     whileTap={{ scale: 0.98 }}
-                                                    className="flex-1 btn-primary text-xs py-2"
+                                                    className="flex-1 px-5 py-3 rounded-xl
+                                                               bg-orange-500/25
+                                                               border border-orange-500/35
+                                                               text-orange-200 font-bold text-[14px]
+                                                               hover:bg-orange-500/30
+                                                               hover:border-orange-400/45
+                                                               hover:text-orange-100
+                                                               disabled:opacity-50 disabled:cursor-not-allowed
+                                                               transition-all duration-300"
                                                 >
                                                     {status.loading ? 'Importazione...' : 'Sì, importa comunque'}
                                                 </motion.button>
@@ -379,41 +474,82 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                                 </motion.div>
                             )}
 
-                            {/* Pulsante import normale (solo se non ci sono warning) */}
+                            {/* Pulsante import normale (solo se non ci sono warning) - Simplified */}
                             {selectedFile && !comparison?.isIdentical && !showLessDataWarning && (
                                 <motion.button
                                     onClick={() => handleImport(false)}
                                     disabled={status.loading || isChecking}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    className="btn-primary flex items-center gap-2 w-full"
+                                    whileHover={{ scale: 1.01, y: -1 }}
+                                    whileTap={{ scale: 0.99 }}
+                                    className="group/btn w-full px-6 py-4 rounded-2xl
+                                               bg-emerald-500/20
+                                               border border-emerald-500/30
+                                               text-emerald-100 font-bold text-[15px]
+                                               backdrop-blur-sm
+                                               hover:bg-emerald-500/25
+                                               hover:border-emerald-400/40
+                                               hover:text-white
+                                               disabled:opacity-50 disabled:cursor-not-allowed
+                                               transition-all duration-300
+                                               flex items-center justify-center gap-3"
                                 >
-                                    <Upload className="w-4 h-4" />
-                                    {status.loading ? 'Importazione...' : isChecking ? 'Verifica...' : 'Importa dati'}
+                                    <Upload className="w-5 h-5 group-hover/btn:translate-y-[-2px] transition-transform duration-300" strokeWidth={2.5} />
+                                    <span>{status.loading ? 'Importazione...' : isChecking ? 'Verifica...' : 'Importa dati'}</span>
                                 </motion.button>
                             )}
 
+                            {/* Success Result - Simplified */}
                             {importResult && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30"
+                                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                    className="p-6 rounded-2xl 
+                                               bg-emerald-500/15
+                                               border border-emerald-500/25
+                                               backdrop-blur-sm"
                                 >
-                                    <div className="flex items-start gap-3">
-                                        <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                                        <div className="flex-1">
-                                            <p className="text-sm font-semibold text-emerald-300 mb-2">
+                                    <div className="flex items-start gap-4">
+                                        <div className="flex-shrink-0 p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
+                                            <CheckCircle className="w-5 h-5 text-emerald-400" strokeWidth={2.5} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-base font-bold text-emerald-300 mb-4 tracking-tight">
                                                 Import completato con successo!
                                             </p>
-                                            <div className="grid grid-cols-2 gap-2 text-xs text-white/70">
-                                                <div>Obiettivi: {importResult.imported.goals}</div>
-                                                <div>Progetti: {importResult.imported.projects}</div>
-                                                <div>Work Logs: {importResult.imported.workLogs}</div>
-                                                <div>Mazzi: {importResult.imported.decks}</div>
-                                                <div>Cartelle: {importResult.imported.folders}</div>
-                                                <div>Tag: {importResult.imported.tags}</div>
-                                                <div>Check-in: {importResult.imported.checkIns}</div>
-                                                <div>Todo: {importResult.imported.workTodos}</div>
+                                            <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-gray-800/30 border border-white/5">
+                                                <div className="flex items-center justify-between py-1.5">
+                                                    <span className="text-[13px] text-white/70 font-medium">Obiettivi</span>
+                                                    <span className="text-[13px] text-emerald-300 font-bold">{importResult.imported.goals}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between py-1.5">
+                                                    <span className="text-[13px] text-white/70 font-medium">Progetti</span>
+                                                    <span className="text-[13px] text-emerald-300 font-bold">{importResult.imported.projects}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between py-1.5">
+                                                    <span className="text-[13px] text-white/70 font-medium">Work Logs</span>
+                                                    <span className="text-[13px] text-emerald-300 font-bold">{importResult.imported.workLogs}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between py-1.5">
+                                                    <span className="text-[13px] text-white/70 font-medium">Mazzi</span>
+                                                    <span className="text-[13px] text-emerald-300 font-bold">{importResult.imported.decks}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between py-1.5">
+                                                    <span className="text-[13px] text-white/70 font-medium">Cartelle</span>
+                                                    <span className="text-[13px] text-emerald-300 font-bold">{importResult.imported.folders}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between py-1.5">
+                                                    <span className="text-[13px] text-white/70 font-medium">Tag</span>
+                                                    <span className="text-[13px] text-emerald-300 font-bold">{importResult.imported.tags}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between py-1.5">
+                                                    <span className="text-[13px] text-white/70 font-medium">Check-in</span>
+                                                    <span className="text-[13px] text-emerald-300 font-bold">{importResult.imported.checkIns}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between py-1.5">
+                                                    <span className="text-[13px] text-white/70 font-medium">Todo</span>
+                                                    <span className="text-[13px] text-emerald-300 font-bold">{importResult.imported.workTodos}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -424,33 +560,60 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                 </div>
             </motion.div>
 
-            {/* Account Info */}
+            {/* Account Info - Simplified */}
             {accountEmail && (
-                <div className="rounded-2xl border border-white/[0.1] bg-white/[0.03] p-4 flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary-500/20">
-                        <Mail className="w-5 h-5 text-primary-400" />
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    className="rounded-3xl border border-white/[0.1] 
+                               bg-gradient-to-br from-gray-800/50 via-gray-800/40 to-gray-900/50
+                               backdrop-blur-2xl backdrop-saturate-150
+                               shadow-[0_8px_32px_0_rgba(0,0,0,0.25),inset_0_1px_0_0_rgba(255,255,255,0.08)]
+                               p-6 flex items-center gap-4"
+                >
+                    <div className="flex-shrink-0 p-3 rounded-xl 
+                                    bg-violet-500/15
+                                    border border-violet-500/20
+                                    backdrop-blur-sm">
+                        <Mail className="w-5 h-5 text-violet-400" strokeWidth={2.5} />
                     </div>
-                    <div className="flex-1">
-                        <p className="text-sm font-medium text-white/60">Email account</p>
-                        <p className="text-white font-semibold">{accountEmail}</p>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium text-white/55 mb-1 uppercase tracking-wider">Email account</p>
+                        <p className="text-[16px] font-bold text-white truncate">{accountEmail}</p>
                 </div>
-            </div>
+                </motion.div>
             )}
 
-            {/* Delete Account Section */}
+            {/* Delete Account Section - Simplified */}
             <motion.div
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="rounded-2xl border-2 border-red-500/30 bg-gradient-to-br from-red-500/10 to-red-500/5 p-6 card"
+                transition={{ duration: 0.4, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="group relative overflow-hidden rounded-3xl 
+                           border-2 border-red-500/30 
+                           bg-red-500/10
+                           backdrop-blur-2xl backdrop-saturate-150
+                           shadow-[0_8px_32px_0_rgba(239,68,68,0.2),inset_0_1px_0_0_rgba(255,255,255,0.08)]
+                           p-8 transition-all duration-500
+                           hover:border-red-500/40 hover:shadow-[0_12px_48px_0_rgba(239,68,68,0.25),inset_0_1px_0_0_rgba(255,255,255,0.12)]"
             >
-                <div className="flex items-start gap-4 mb-6">
-                    <div className="p-3 rounded-xl bg-red-500/20">
-                        <AlertTriangle className="w-6 h-6 text-red-400" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-red-300 mb-1">Zona pericolosa</h3>
-                        <p className="text-sm text-white/70">
+                {/* Subtle red gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-red-500/[0.05] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                
+                <div className="relative flex items-start gap-6 mb-8">
+                    <motion.div
+                        whileHover={{ scale: 1.05, rotate: -5 }}
+                        className="flex-shrink-0 p-4 rounded-2xl 
+                                   bg-red-500/20
+                                   border border-red-500/30
+                                   backdrop-blur-sm"
+                    >
+                        <AlertTriangle className="w-7 h-7 text-red-400" strokeWidth={2.5} />
+                    </motion.div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-2xl font-bold text-red-300 mb-2 tracking-tight">Zona pericolosa</h3>
+                        <p className="text-[15px] text-white/70 leading-relaxed">
                             Eliminare il tuo account è un'azione permanente e irreversibile. Tutti i tuoi dati, 
                             obiettivi, progetti e attività verranno eliminati definitivamente.
                         </p>
@@ -460,32 +623,53 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                 {!showDeleteConfirm ? (
                     <motion.button
                         onClick={() => setShowDeleteConfirm(true)}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="btn-danger w-full flex items-center justify-center gap-2"
+                        whileHover={{ scale: 1.01, y: -1 }}
+                        whileTap={{ scale: 0.99 }}
+                        className="w-full px-6 py-4 rounded-2xl
+                                   bg-red-500/25
+                                   border border-red-500/35
+                                   text-red-100 font-bold text-[15px]
+                                   backdrop-blur-sm
+                                   hover:bg-red-500/30
+                                   hover:border-red-400/45
+                                   hover:text-white
+                                   transition-all duration-300
+                                   flex items-center justify-center gap-3"
                     >
-                        <Trash2 className="w-4 h-4" />
-                        Elimina account
+                        <Trash2 className="w-5 h-5" strokeWidth={2.5} />
+                        <span>Elimina account</span>
                     </motion.button>
                 ) : (
                     <motion.form
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                         onSubmit={handleDelete}
-                        className="space-y-4"
+                        className="space-y-5"
                     >
-                        {/* Warning Box */}
-                        <div className="rounded-xl border border-red-500/40 bg-red-500/15 p-4 flex items-start gap-3">
-                            <Shield className="w-5 h-5 text-red-400 mt-0.5" />
-                            <div>
-                                <p className="text-sm font-semibold text-red-300 mb-1">Attenzione!</p>
-                                <p className="text-xs text-white/70">
+                        {/* Warning Box - Simplified */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.98 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="p-5 rounded-2xl 
+                                       bg-red-500/15
+                                       border border-red-500/25
+                                       backdrop-blur-sm"
+                        >
+                            <div className="flex items-start gap-4">
+                                <div className="flex-shrink-0 p-2 rounded-xl bg-red-500/20 border border-red-500/30">
+                                    <Shield className="w-5 h-5 text-red-400" strokeWidth={2.5} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-base font-bold text-red-300 mb-2 tracking-tight">Attenzione!</p>
+                                    <p className="text-[14px] text-white/70 leading-relaxed">
                                     Questa azione non può essere annullata. Assicurati di aver esportato i tuoi dati 
                                     prima di procedere.
                                 </p>
                             </div>
                         </div>
+                        </motion.div>
 
                         {/* Password Field */}
                         <SettingsPasswordInput
@@ -545,7 +729,7 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                             )}
                         </AnimatePresence>
 
-                        {/* Action Buttons */}
+                        {/* Action Buttons - Simplified */}
                         <div className="flex items-center gap-3 pt-2">
                             <motion.button
                                 type="button"
@@ -555,36 +739,46 @@ export const AccountSettings = ({ accountEmail, onExport, onCheckImport, onImpor
                                     setConfirmation('');
                                     setDeleteErrors({});
                                 }}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                className="flex-1 btn-ghost"
+                                whileHover={{ scale: 1.01, y: -1 }}
+                                whileTap={{ scale: 0.99 }}
+                                className="flex-1 px-5 py-3.5 rounded-xl
+                                           bg-gray-800/40 border border-white/10
+                                           text-white/80 font-semibold text-[14px]
+                                           hover:bg-gray-700/50 hover:border-white/15 hover:text-white
+                                           transition-all duration-300"
                             >
                                 Annulla
                             </motion.button>
                             <motion.button
                                 type="submit"
                                 disabled={status.loading || confirmation !== 'DELETE' || !password}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                className={`flex-1 btn-danger ${
-                                    confirmation !== 'DELETE' || !password
-                                        ? 'opacity-50 cursor-not-allowed'
-                                        : ''
-                                }`}
+                                whileHover={confirmation === 'DELETE' && password ? { scale: 1.01, y: -1 } : {}}
+                                whileTap={confirmation === 'DELETE' && password ? { scale: 0.99 } : {}}
+                                className={`flex-1 px-5 py-3.5 rounded-xl
+                                           bg-red-500/30
+                                           border border-red-500/40
+                                           text-red-100 font-bold text-[14px]
+                                           backdrop-blur-sm
+                                           hover:bg-red-500/35
+                                           hover:border-red-400/50
+                                           hover:text-white
+                                           disabled:opacity-40 disabled:cursor-not-allowed
+                                           transition-all duration-300
+                                           flex items-center justify-center gap-2.5`}
                             >
                                 {status.loading ? (
-                                    <span className="flex items-center justify-center gap-2">
+                                    <span className="flex items-center justify-center gap-2.5">
                                         <motion.div
                                             animate={{ rotate: 360 }}
                                             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                                             className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
                                         />
-                                        Eliminazione...
+                                        <span>Eliminazione...</span>
                                     </span>
                                 ) : (
                                     <>
-                                        <Trash2 className="w-4 h-4" />
-                                        Elimina definitivamente
+                                        <Trash2 className="w-4 h-4" strokeWidth={2.5} />
+                                        <span>Elimina definitivamente</span>
                                     </>
                                 )}
                             </motion.button>
