@@ -456,9 +456,9 @@ class StudyService {
     }
 
     /**
-     * Aggiorna folderId e/o tags di un deck
+     * Aggiorna folderId, goalId e/o tags di un deck
      */
-    async updateDeckOrganization(deckId: string, updates: { folderId?: string | null; tags?: string[] }): Promise<Deck> {
+    async updateDeckOrganization(deckId: string, updates: { folderId?: string | null; goalId?: string | null; tags?: string[] }): Promise<Deck> {
         const response = await apiClient.patch<any>(`${this.baseUrl}/${deckId}`, updates);
         const raw = unwrap(response, 'Errore nell\'aggiornamento');
         return normalizeDeck(raw);
