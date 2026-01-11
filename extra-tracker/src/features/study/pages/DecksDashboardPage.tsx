@@ -46,6 +46,7 @@ export const DecksDashboardPage: React.FC = () => {
     const [viewType, setViewType] = useState<ViewType>('exams'); // Mostra esami per default
     const [showCreateExamModal, setShowCreateExamModal] = useState(false);
     const [selectedExam, setSelectedExam] = useState<Goal | null>(null);
+    const [examsRefreshKey, setExamsRefreshKey] = useState(0); // Key per forzare refresh ExamsView
 
     // Data loading
     const {
@@ -218,18 +219,25 @@ export const DecksDashboardPage: React.FC = () => {
                     />
                 ) : (
                     <ExamsView
+                        key={examsRefreshKey} // Force re-render quando cambia
                         decks={decks}
                         onCreateExam={() => setShowCreateExamModal(true)}
                         onExamClick={async (examId) => {
                             try {
                                 const allGoals = await goalsService.getAll();
-                                const exam = allGoals.find(g => g.id === examId);
+                                const exam = allGoals.find((g: Goal) => g.id === examId);
                                 if (exam) {
                                     setSelectedExam(exam);
                                     setSelectedExamId(examId);
                                 }
                             } catch (err) {
                                 console.error('Errore nel caricamento dell\'esame:', err);
+                            }
+                        }}
+                        onRefresh={() => {
+                            // Trigger refresh chiamando la funzione esposta
+                            if ((window as any).__refreshExams) {
+                                (window as any).__refreshExams();
                             }
                         }}
                     />
@@ -306,6 +314,16 @@ export const DecksDashboardPage: React.FC = () => {
                 isCreateModalOpen={handlers.isCreateModalOpen}
                 onCreateModalClose={() => handlers.setIsCreateModalOpen(false)}
                 onCreateDeck={handlers.handleCreateDeck}
+                onExamCreated={() => {
+                    // Refresh automatico degli esami dopo la creazione
+                    setExamsRefreshKey(prev => prev + 1);
+                    // Chiama anche la funzione di refresh se disponibile
+                    setTimeout(() => {
+                        if ((window as any).__refreshExams) {
+                            (window as any).__refreshExams();
+                        }
+                    }, 500); // Piccolo delay per assicurarsi che il backend abbia salvato
+                }}
                 isAddCardModalOpen={handlers.isAddCardModalOpen}
                 selectedDeck={handlers.selectedDeck}
                 onAddCardModalClose={() => {

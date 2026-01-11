@@ -1,13 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Filter, Calendar, TrendingUp, Search, X } from 'lucide-react';
+import { Filter, Calendar, TrendingUp, Search, X, Clock } from 'lucide-react';
 import type { Goal } from '../../../goals/types';
 
 // ============================================
 // TYPES
 // ============================================
 
-export type ExamSortOption = 'deadline' | 'mastery' | 'name' | 'cards';
+export type ExamSortOption = 'recent' | 'deadline' | 'mastery' | 'name' | 'cards';
 export type ExamFilterOption = 'all' | 'urgent' | 'upcoming' | 'completed';
 
 interface ExamsFiltersProps {
@@ -57,6 +57,7 @@ export const ExamsFilters: React.FC<ExamsFiltersProps> = ({
     ];
 
     const sortOptions: { key: ExamSortOption; label: string; icon: React.ElementType }[] = [
+        { key: 'recent', label: 'Recente', icon: Clock },
         { key: 'deadline', label: 'Scadenza', icon: Calendar },
         { key: 'mastery', label: 'Padronanza', icon: TrendingUp },
         { key: 'name', label: 'Nome', icon: Search },

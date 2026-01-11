@@ -130,7 +130,12 @@ export const useOrganizedDecks = (
             .filter(f => foldersMap.has(f.id))
             .map(folder => ({
                 folder,
-                decks: foldersMap.get(folder.id)!,
+                decks: foldersMap.get(folder.id)!.sort((a, b) => {
+                    // Ordina i deck nella cartella dal più recente al più vecchio
+                    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return bTime - aTime;
+                }),
                 stats: calculateFolderStats(foldersMap.get(folder.id)!),
             }))
             .sort((a, b) => {
@@ -138,12 +143,19 @@ export const useOrganizedDecks = (
                 return a.folder.name.localeCompare(b.folder.name);
             });
 
+        // Ordina anche i deck non categorizzati dal più recente al più vecchio
+        const sortedUncategorized = uncategorized.sort((a, b) => {
+            const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return bTime - aTime;
+        });
+
         return {
             recentSessions,
             priorityDecks,
             pinnedDecks,
             folders: folderSections,
-            uncategorized,
+            uncategorized: sortedUncategorized,
         };
     }, [decks, folders]);
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Plus, Loader2 } from 'lucide-react';
 import type { Goal } from '../../../goals/types';
@@ -15,6 +15,7 @@ interface ExamsViewProps {
     decks: Deck[];
     onCreateExam: () => void;
     onExamClick: (examId: string) => void;
+    onRefresh?: () => void; // Callback per refresh esami
 }
 
 // ============================================
@@ -25,19 +26,16 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
     decks,
     onCreateExam,
     onExamClick,
+    onRefresh,
 }) => {
     const [exams, setExams] = useState<Goal[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortBy, setSortBy] = useState<ExamSortOption>('deadline');
+    const [sortBy, setSortBy] = useState<ExamSortOption>('recent'); // Default: Recente
     const [filter, setFilter] = useState<ExamFilterOption>('all');
 
-    useEffect(() => {
-        loadExams();
-    }, []);
-
-    const loadExams = async () => {
+    const loadExams = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -50,7 +48,19 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        loadExams();
+    }, [loadExams]);
+
+    // Espone la funzione loadExams tramite window per refresh esterno
+    useEffect(() => {
+        (window as any).__refreshExams = loadExams;
+        return () => {
+            delete (window as any).__refreshExams;
+        };
+    }, [loadExams]);
 
     // Calcola statistiche per ogni esame
     const getExamStats = (examId: string) => {
@@ -106,6 +116,11 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
         // Ordina
         filtered.sort((a, b) => {
             switch (sortBy) {
+                case 'recent':
+                    // Ordina per data di creazione (più recente prima)
+                    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return bTime - aTime;
                 case 'deadline':
                     return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
                 case 'name':

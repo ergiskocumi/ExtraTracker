@@ -34,6 +34,7 @@ interface CreateDeckModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (data: CreateDeckPayload) => Promise<void>;
+    onExamCreated?: () => void; // Callback quando viene creato un nuovo esame
 }
 
 interface QuickGoalForm {
@@ -48,7 +49,8 @@ interface QuickGoalForm {
 export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
     isOpen,
     onClose,
-    onSubmit
+    onSubmit,
+    onExamCreated,
 }) => {
     // Goal state
     const [goals, setGoals] = useState<Goal[]>([]);
@@ -143,6 +145,11 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                     return date.toISOString().split('T')[0];
                 })()
             });
+
+            // Notifica che è stato creato un nuovo esame per refresh automatico
+            if (onExamCreated) {
+                onExamCreated();
+            }
         } catch (err: any) {
             setError(err.message || 'Errore nella creazione dell\'esame');
         } finally {
