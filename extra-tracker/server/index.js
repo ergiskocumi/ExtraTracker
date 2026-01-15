@@ -50,19 +50,18 @@ const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // ==========================================
-// 0. CORS - PRIMA DI TUTTO (anche prima di express parsing)
-// ==========================================
-
-// Usa configurazione centralizzata (include allowlist, credentials, preflight)
-app.use(cors(securityConfig.cors));
-app.options('*', cors(securityConfig.cors));
-
-// ==========================================
 // 1. SECURITY MIDDLEWARE
 // ==========================================
 
 // Helmet: imposta headers di sicurezza HTTP
 app.use(helmet(securityConfig.helmet));
+
+// ==========================================
+// 2. CORS
+// ==========================================
+
+app.use(cors(securityConfig.cors));
+app.options('*', cors(securityConfig.cors));
 
 // HPP: previene HTTP Parameter Pollution
 app.use(hpp());
