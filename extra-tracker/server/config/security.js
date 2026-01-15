@@ -166,114 +166,52 @@ module.exports = {
     // CORS Configuration
     // ==========================================
     cors: {
-        // Funzione per validare origin dinamicamente
         origin: (origin, callback) => {
-            // Normalizza FRONTEND_URL (rimuove trailing slash se presente)
-            const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
-            
-            // Log per debug in produzione
-            if (isProduction && origin) {
-                console.log(`🔍 CORS check - Origin: ${origin}, FRONTEND_URL: ${frontendUrl}`);
-            }
-            
-            // Lista completa di domini permessi per sviluppo
-            const allowedOrigins = [
-                frontendUrl,
-                // Anche con trailing slash per sicurezza
-                frontendUrl ? `${frontendUrl}/` : null,
-                // Vite default ports
-                'http://localhost:5173',
-                'http://localhost:5174',
-                'http://127.0.0.1:5173',
-                'http://127.0.0.1:5174',
-                // React/Next.js default ports
-                'http://localhost:3000',
-                'http://127.0.0.1:3000',
-                // Altri porti comuni
-                'http://localhost:8080',
-                'http://127.0.0.1:8080',
-            ].filter(Boolean); // Rimuove undefined/null
-            
-            // In sviluppo, permetti anche qualsiasi localhost (per flessibilità)
-            const isDevelopment = !isProduction;
-            
-            // Permetti richieste senza origin (Postman, curl, mobile apps, same-origin requests)
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/config/security.js:172',message:'cors.origin.entry',data:{hasOrigin:!!origin,nodeEnv:process.env.NODE_ENV},timestamp:Date.now(),sessionId:'debug-session',runId:'cors-setup',hypothesisId:'H1'})}).catch(()=>{});
+            // #endregion
+            // 1. Permetti richieste senza 'origin' (es. app mobile, curl, postman)
             if (!origin) {
+                // #region agent log
+                fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/config/security.js:176',message:'cors.origin.no_origin_allowed',data:{allowed:true},timestamp:Date.now(),sessionId:'debug-session',runId:'cors-setup',hypothesisId:'H1'})}).catch(()=>{});
+                // #endregion
                 return callback(null, true);
             }
-            
-            // In sviluppo: permetti qualsiasi localhost/127.0.0.1 per facilitare debugging
-            if (isDevelopment) {
-                try {
-                    const url = new URL(origin);
-                    const isLocalhost = 
-                        url.hostname === 'localhost' || 
-                        url.hostname === '127.0.0.1' ||
-                        url.hostname === '::1' ||
-                        url.hostname.startsWith('192.168.') || // Rete locale
-                        url.hostname.startsWith('10.') || // Rete locale
-                        url.hostname.startsWith('172.16.'); // Rete locale
-                    
-                    if (isLocalhost) {
-                        return callback(null, true);
-                    }
-                } catch (e) {
-                    // Se l'URL non è valido, continua con i controlli normali
-                }
-            }
-            
-            // Permetti tutti i preview deployments di Vercel del tuo progetto
-            if (origin.includes('ergiskocumis-projects.vercel.app')) {
+
+            // 2. In sviluppo (localhost) permetti tutto
+            const isProduction = process.env.NODE_ENV === 'production';
+            if (!isProduction) {
+                // #region agent log
+                fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/config/security.js:183',message:'cors.origin.dev_allow_all',data:{origin},timestamp:Date.now(),sessionId:'debug-session',runId:'cors-setup',hypothesisId:'H2'})}).catch(()=>{});
+                // #endregion
                 return callback(null, true);
             }
-            
-            // Permetti il dominio principale Vercel
-            if (origin === 'https://extra-tracker.vercel.app') {
+
+            // 3. Pulisci l'origin (rimuovi slash finale)
+            const requestOrigin = origin.replace(/\/$/, '');
+            const envFrontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+
+            // 4. WHITELIST DINAMICA
+            const isAllowed = 
+                requestOrigin === envFrontendUrl ||               // Variabile su Railway
+                requestOrigin === 'https://silvios.netlify.app' || // Sito Netlify Ufficiale
+                requestOrigin.endsWith('.netlify.app') ||         // Tutte le preview di Netlify
+                requestOrigin.endsWith('.vercel.app');            // Tutte le preview di Vercel
+
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/config/security.js:203',message:'cors.origin.decision',data:{requestOrigin,envFrontendUrl,isAllowed},timestamp:Date.now(),sessionId:'debug-session',runId:'cors-setup',hypothesisId:'H3'})}).catch(()=>{});
+            // #endregion
+
+            if (isAllowed) {
                 return callback(null, true);
             }
-            
-            // Permetti tutti i domini Vercel (preview deployments inclusi)
-            if (origin && origin.includes('vercel.app')) {
-                return callback(null, true);
-            }
-            
-            // Controlla la lista esplicita
-            if (allowedOrigins.includes(origin)) {
-                return callback(null, true);
-            }
-            
-            // In produzione, logga l'origin bloccato per debug
-            console.warn(`⚠️  CORS: Origin bloccato: ${origin}`);
-            console.warn(`   Allowed origins: ${allowedOrigins.join(', ')}`);
-            console.warn(`   FRONTEND_URL: ${process.env.FRONTEND_URL || 'NON CONFIGURATO'}`);
-            console.warn(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-            
-            // Blocca altri domini
-            callback(new Error('Not allowed by CORS'));
+
+            console.warn(`🛑 CORS BLOCCATO: ${requestOrigin}`);
+            callback(new Error('Bloccato dalla policy CORS'));
         },
-        
-        // IMPORTANTE: necessario per inviare cookies cross-origin
         credentials: true,
-        
-        // Headers permessi (include tutti gli header necessari per preflight)
-        allowedHeaders: [
-            'Content-Type', 
-            'Authorization', 
-            'X-CSRF-Token',
-            'X-Requested-With',
-            'Accept',
-            'Origin',
-            'X-Request-ID',
-        ],
-        
-        // Metodi permessi
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-        
-        // Headers esposti al frontend
-        exposedHeaders: ['Content-Range', 'X-Content-Range'],
-        
-        // Max age per preflight requests (in secondi)
-        maxAge: 86400, // 24 ore
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With', 'Accept', 'Origin', 'X-Request-ID'],
     },
 
     // ==========================================
