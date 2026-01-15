@@ -1,0 +1,1019 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tcolorbox}
+\usepackage{float}
+\usepackage{caption}
+
+\geometry{margin=2.5cm}
+
+% Configurazione codice
+\lstset{
+    language=JavaScript,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{green!60!black},
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    numbersep=5pt,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=2,
+    escapeinside={(*@}{@*)}
+}
+
+% Box per evidenziare sezioni importanti
+\newtcolorbox{importantbox}[1]{
+    colback=red!5!white,
+    colframe=red!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{warningbox}[1]{
+    colback=orange!5!white,
+    colframe=orange!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{tipbox}[1]{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{codebox}[1]{
+    colback=gray!5!white,
+    colframe=gray!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\title{\textbf{Sistema di Studio con Flashcard:\\
+Generazione Automatica da PDF}\\
+\large Documentazione Tecnica Completa}
+\author{Documentazione Sistema ExtraTracker}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Panoramica del Sistema}
+
+\begin{importantbox}{Sistema Critico}
+Il sistema di generazione automatica di flashcard da PDF è una \textbf{feature "killer"} che distingue ExtraTracker dalla concorrenza. Utilizza OpenAI GPT per analizzare documenti PDF e generare automaticamente 10-15 flashcard di alta qualità per lo studio.
+\end{importantbox}
+
+\subsection{Architettura Generale}
+
+Il sistema è composto da tre layer principali:
+
+\begin{enumerate}
+    \item \textbf{Frontend Layer} (React + TypeScript): Componente \texttt{MagicGenerateModal} per l'upload e feedback UX
+    \item \textbf{Backend API Layer} (Express.js): Route \texttt{POST /api/study/:id/generate-pdf} con middleware Multer
+    \item \textbf{Service Layer} (Node.js): \texttt{StudyService.generateCardsFromPDF()} che orchestrazione estrazione testo, chiamata OpenAI e salvataggio
+\end{enumerate}
+
+\subsection{Stack Tecnologico}
+
+\begin{itemize}
+    \item \textbf{PDF Parsing}: \texttt{pdf-parse} (npm) per estrazione testo
+    \item \textbf{File Upload}: \texttt{multer} per gestione multipart/form-data
+    \item \textbf{AI Generation}: OpenAI GPT-4o-mini (configurabile via \texttt{OPENAI\_MODEL})
+    \item \textbf{Vector Store}: Pinecone per RAG (Retrieval-Augmented Generation) - opzionale
+    \item \textbf{Storage}: MongoDB per persistenza deck e flashcard
+    \item \textbf{Frontend PDF Viewer}: \texttt{react-pdf} per visualizzazione interattiva
+\end{itemize}
+
+\section{Limitazioni e Vincoli Attuali}
+
+\begin{warningbox}{Limitazioni Attuali}
+Il sistema ha attualmente le seguenti limitazioni che devono essere documentate e potenzialmente rimosse in futuro:
+\end{warningbox}
+
+\subsection{Limitazione Numero Flashcard}
+
+\textbf{Problema}: Il sistema genera attualmente \textbf{10-15 flashcard} per PDF, indipendentemente dalla lunghezza del documento.
+
+\textbf{Ubicazione nel Codice}:
+\begin{lstlisting}[caption=Prompt OpenAI - Limitazione Flashcard]
+// server/services/studyService.js:758
+const systemPrompt = `...
+    REGOLE GENERALI:
+    - Crea tra 10 e 15 flashcard
+    ...
+`;
+\end{lstlisting}
+
+\textbf{Motivazione}: 
+\begin{itemize}
+    \item Controllo costi OpenAI (ogni flashcard generata consuma token)
+    \item Qualità vs Quantità: 10-15 flashcard ben fatte sono più utili di 50 flashcard superficiali
+    \item Limitazione contesto: \texttt{MAX\_PDF\_TEXT\_LENGTH = 15000} caratteri limita la quantità di contenuto analizzabile
+\end{itemize}
+
+\textbf{Impatto}: 
+\begin{itemize}
+    \item PDF lunghi (100+ pagine) generano solo 10-15 flashcard, coprendo una frazione minima del contenuto
+    \item Utenti devono caricare lo stesso PDF più volte o dividere manualmente il documento
+\end{itemize}
+
+\subsection{Limitazione Lunghezza Testo}
+
+\textbf{Problema}: Il testo estratto dal PDF viene troncato a \textbf{15.000 caratteri} prima dell'invio a OpenAI.
+
+\textbf{Ubicazione nel Codice}:
+\begin{lstlisting}[caption=Costante e Troncamento Testo]
+// server/services/studyService.js:27
+const MAX_PDF_TEXT_LENGTH = 15000; // Limite caratteri per evitare costi eccessivi
+
+// server/services/studyService.js:717-719
+const truncatedText = normalizedExtracted.length > MAX_PDF_TEXT_LENGTH 
+    ? normalizedExtracted.slice(0, MAX_PDF_TEXT_LENGTH) + '\n\n[...testo troncato...]'
+    : normalizedExtracted;
+\end{lstlisting}
+
+\textbf{Motivazione}:
+\begin{itemize}
+    \item Controllo costi: più testo = più token = più costi OpenAI
+    \item Limiti modello: GPT-4o-mini ha context window di 128k token, ma 15k caratteri è un limite conservativo
+    \item Performance: testi più lunghi richiedono più tempo di elaborazione
+\end{itemize}
+
+\textbf{Impatto}:
+\begin{itemize}
+    \item PDF con più di ~10-15 pagine (dipende dalla densità di testo) vengono troncati
+    \item Le flashcard generate coprono solo le prime pagine del documento
+    \item Informazioni nelle pagine successive vengono ignorate
+\end{itemize}
+
+\subsection{Limitazione Dimensione File}
+
+\textbf{Problema}: Il sistema accetta PDF fino a \textbf{10MB}.
+
+\textbf{Ubicazione nel Codice}:
+\begin{lstlisting}[caption=Validazione Dimensione File - Frontend]
+// src/features/study/services/studyService.ts:368-370
+if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Il file supera il limite di 10MB');
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Validazione Dimensione File - Backend]
+// server/routes/study.js:46-48
+const upload = multer({
+    storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB max
+    },
+    ...
+});
+\end{lstlisting}
+
+\textbf{Motivazione}:
+\begin{itemize}
+    \item Storage: limitare lo spazio disco utilizzato
+    \item Performance: file più grandi richiedono più tempo per parsing e upload
+    \item Network: upload di file grandi può fallire su connessioni lente
+\end{itemize}
+
+\section{Flusso Completo: Upload PDF → Flashcard}
+
+\subsection{Diagramma di Flusso}
+
+Il processo completo può essere visualizzato come segue:
+
+\begin{enumerate}
+    \item \textbf{Upload Frontend} → Utente seleziona/droppa PDF in \texttt{MagicGenerateModal}
+    \item \textbf{Validazione Client-Side} → Verifica tipo file (PDF), dimensione (≤10MB)
+    \item \textbf{FormData Upload} → \texttt{POST /api/study/:id/generate-pdf} con \texttt{multipart/form-data}
+    \item \textbf{Middleware Multer} → Salvataggio file su disco in \texttt{server/uploads/pdfs/}
+    \item \textbf{Controller Validation} → Verifica file ricevuto, tipo MIME, dimensione
+    \item \textbf{Service Processing} → \texttt{generateCardsFromPDF()} esegue:
+        \begin{itemize}
+            \item Lettura file PDF da disco
+            \item Estrazione testo con \texttt{pdf-parse}
+            \item Normalizzazione e formattazione testo (con marker pagine)
+            \item Troncamento a 15k caratteri se necessario
+            \item Chiamata OpenAI con prompt personalizzato
+            \item Parsing risposta JSON
+            \item Validazione e normalizzazione flashcard
+            \item Salvataggio bulk nel deck MongoDB
+        \end{itemize}
+    \item \textbf{Response} → Ritorna deck aggiornato con conteggio flashcard generate
+    \item \textbf{Frontend Update} → UI aggiornata con nuove flashcard
+\end{enumerate}
+
+\subsection{Componente Frontend: MagicGenerateModal}
+
+\subsubsection{Responsabilità}
+
+Il componente \texttt{MagicGenerateModal.tsx} gestisce:
+\begin{itemize}
+    \item \textbf{UI/UX}: Drag \& drop area, progress indicator multi-step, feedback visivo
+    \item \textbf{Validazione Client-Side}: Tipo file, dimensione
+    \item \textbf{State Management}: File selezionato, step corrente (idle → uploading → reading → analyzing → generating → success)
+    \item \textbf{Error Handling}: Gestione errori con toast e messaggi user-friendly
+\end{itemize}
+
+\subsubsection{Stati del Processo}
+
+\begin{lstlisting}[caption=Stati Generazione - Frontend]
+type GenerationStep = 
+    | 'idle'           // Nessun file selezionato
+    | 'uploading'      // Upload in corso
+    | 'reading'        // Lettura PDF sul server
+    | 'analyzing'      // Analisi contenuti
+    | 'generating'     // Generazione flashcard con AI
+    | 'success'        // Completato con successo
+    | 'error';         // Errore durante il processo
+\end{lstlisting}
+
+\subsubsection{Simulazione Progress}
+
+\begin{importantbox}{Nota Implementazione}
+Il frontend \textbf{simula} i passaggi di progress per migliorare l'UX, ma i tempi reali dipendono dal backend. La simulazione avviene in parallelo con la chiamata API reale.
+\end{importantbox}
+
+\begin{lstlisting}[caption=Simulazione Progress Steps]
+// src/features/study/components/MagicGenerateModal.tsx:125-136
+const simulateSteps = async () => {
+    setStep('uploading');
+    await new Promise(r => setTimeout(r, 800));
+    
+    setStep('reading');
+    await new Promise(r => setTimeout(r, 1200));
+    
+    setStep('analyzing');
+    await new Promise(r => setTimeout(r, 1500));
+    
+    setStep('generating');
+};
+\end{lstlisting}
+
+\subsubsection{Chiamata API}
+
+\begin{lstlisting}[caption=Upload PDF - Frontend Service]
+// src/features/study/services/studyService.ts:360-410
+async generateFromPDF(deckId: string, file: File) {
+    // Validazione client-side
+    if (file.type !== 'application/pdf') {
+        throw new Error('Solo file PDF sono supportati');
+    }
+    if (file.size > 10 * 1024 * 1024) {
+        throw new Error('Il file supera il limite di 10MB');
+    }
+
+    // Costruisci FormData
+    const formData = new FormData();
+    formData.append('pdf', file);
+
+    // Chiamata API con credentials per cookies HttpOnly
+    const response = await fetch(`/api/study/${deckId}/generate-pdf`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include', // Include cookies per auth
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || 'Generazione fallita');
+    }
+
+    const result = await response.json();
+    return {
+        generatedCount: result.data?.generatedCount || 0,
+        deck: normalizeDeck(result.data?.deck || {}),
+    };
+}
+\end{lstlisting}
+
+\subsection{Backend Route: Upload Handler}
+
+\subsubsection{Multer Configuration}
+
+\begin{lstlisting}[caption=Configurazione Multer per PDF Upload]
+// server/routes/study.js:25-56
+const PDF_UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'pdfs');
+fs.mkdirSync(PDF_UPLOAD_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+    destination: (req, _file, cb) => {
+        fs.mkdirSync(PDF_UPLOAD_DIR, { recursive: true });
+        cb(null, PDF_UPLOAD_DIR);
+    },
+    filename: (req, _file, cb) => {
+        const deckId = req.params?.id || 'deck';
+        const timestamp = Date.now();
+        cb(null, `${deckId}-${timestamp}.pdf`);
+    },
+});
+
+const upload = multer({
+    storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB max
+    },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Solo file PDF sono accettati'), false);
+        }
+    },
+});
+\end{lstlisting}
+
+\begin{tipbox}{Naming Convention File}
+I file PDF vengono salvati con il pattern: \texttt{\{deckId\}-\{timestamp\}.pdf}
+Esempio: \texttt{507f1f77bcf86cd799439011-1767551908605.pdf}
+
+Questo garantisce:
+\begin{itemize}
+    \item Unicità: timestamp evita collisioni
+    \item Tracciabilità: deckId permette di associare file a deck
+    \item Persistenza: file rimangono sul server anche se la generazione fallisce
+\end{itemize}
+\end{tipbox}
+
+\subsubsection{Route Handler}
+
+\begin{lstlisting}[caption=Route Handler con Multer Middleware]
+// server/routes/study.js:84-97
+router.post('/:id/generate-pdf', (req, res, next) => {
+    upload.single('pdf')(req, res, (err) => {
+        if (err) {
+            console.error('Multer error:', err.message);
+            return res.status(400).json({
+                success: false,
+                error: { message: err.message || 'Errore nel caricamento del file' }
+            });
+        }
+        console.log('📄 File ricevuto:', req.file ? req.file.originalname : 'NESSUN FILE');
+        next();
+    });
+}, studyController.uploadAndGenerate);
+\end{lstlisting}
+
+\subsubsection{Controller Validation}
+
+\begin{lstlisting}[caption=Controller - Validazione e Chiamata Service]
+// server/controllers/studyController.js:189-232
+const uploadAndGenerate = asyncHandler(async (req, res) => {
+    // Verifica che il file sia stato caricato
+    if (!req.file) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Nessun file caricato. Carica un file PDF.' },
+        });
+    }
+
+    // Verifica che sia un PDF
+    if (req.file.mimetype !== 'application/pdf') {
+        return res.status(400).json({
+            success: false,
+            error: 'Il file deve essere un PDF.',
+        });
+    }
+
+    // Limite dimensione file (10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (req.file.size > maxSize) {
+        return res.status(400).json({
+            success: false,
+            error: 'Il file è troppo grande. Massimo 10MB.',
+        });
+    }
+
+    // Chiamata service per generazione
+    const result = await studyService.generateCardsFromPDF(
+        req.tenantScope,
+        req.params.id,
+        req.file.path
+    );
+
+    res.json({
+        success: true,
+        data: result,
+        message: `✨ Generate ${result.generatedCount} flashcard con successo!`,
+    });
+});
+\end{lstlisting}
+
+\section{Service Layer: Estrazione e Generazione}
+
+\subsection{Metodo Principale: generateCardsFromPDF}
+
+\begin{lstlisting}[caption=Metodo Principale - generateCardsFromPDF]
+// server/services/studyService.js:659-854
+async generateCardsFromPDF(tenantScope, deckId, pdfFilePath) {
+    const userId = this._getUserId(tenantScope);
+
+    // 1. Verifica ownership deck
+    const deck = await Deck.findOne({ _id: deckId, user: userId });
+    if (!deck) {
+        throw AppError.notFound('Mazzo');
+    }
+
+    // 2. Leggi file PDF da disco
+    let pdfBuffer;
+    try {
+        pdfBuffer = await fs.readFile(pdfFilePath);
+    } catch (err) {
+        throw AppError.validation('Impossibile leggere il PDF caricato.');
+    }
+
+    // 3. Estrai testo dal PDF
+    let pdfText;
+    try {
+        const pdfData = await pdfParse(pdfBuffer);
+        pdfText = this._formatPdfTextWithPages(pdfData);
+    } catch (err) {
+        throw AppError.validation('Impossibile leggere il PDF. Assicurati che sia valido e non protetto.');
+    }
+
+    if (!pdfText || pdfText.trim().length < 50) {
+        throw AppError.validation('Il PDF non contiene abbastanza testo da elaborare.');
+    }
+
+    // 4. Normalizza e salva testo estratto
+    const normalizedExtracted = this._normalizeExtractedText(pdfText);
+    deck.extractedText = this._truncateText(
+        normalizedExtracted,
+        MAX_EXTRACTED_TEXT_STORE_LENGTH, // 200k caratteri
+        '\n\n[...testo troncato per limiti di storage...]'
+    );
+    await deck.save({ validateModifiedOnly: true });
+
+    // 5. Ingestione vettoriale (best-effort, non blocca)
+    try {
+        await vectorStoreService.ingestDeck(deckId, normalizedExtracted);
+    } catch (err) {
+        console.error('⚠️ Vector ingest error:', err.message);
+    }
+
+    // 6. Tronca testo per OpenAI (limite 15k caratteri)
+    const truncatedText = normalizedExtracted.length > MAX_PDF_TEXT_LENGTH 
+        ? normalizedExtracted.slice(0, MAX_PDF_TEXT_LENGTH) + '\n\n[...testo troncato...]'
+        : normalizedExtracted;
+
+    // 7. Genera flashcard con OpenAI
+    const aiResponse = await this._callOpenAIForCards(truncatedText, deck);
+
+    // 8. Parsa e valida flashcard
+    const validCards = this._parseAndValidateCards(aiResponse);
+
+    // 9. Salva flashcard nel deck
+    deck.cards.push(...validCards);
+    await deck.save();
+
+    return {
+        deck: deck.toJSON(),
+        generatedCount: validCards.length,
+    };
+}
+\end{lstlisting}
+
+\subsection{Estrazione Testo PDF}
+
+\subsubsection{Libreria pdf-parse}
+
+Il sistema utilizza \texttt{pdf-parse} per estrarre testo da PDF. Questa libreria:
+\begin{itemize}
+    \item Supporta PDF con testo selezionabile (non funziona con PDF scansionati/immagini)
+    \item Estrae testo pagina per pagina
+    \item Mantiene struttura base (paragrafi, linee)
+    \item Non preserva formattazione complessa (tabelle, colonne multiple)
+\end{itemize}
+
+\subsubsection{Formattazione con Marker Pagine}
+
+\begin{lstlisting}[caption=Formattazione Testo con Marker Pagine]
+// server/services/studyService.js:1340-1353
+_formatPdfTextWithPages(pdfTextResult) {
+    const pages = Array.isArray(pdfTextResult?.pages) ? pdfTextResult.pages : [];
+    const fallback = typeof pdfTextResult?.text === 'string' ? pdfTextResult.text : '';
+
+    if (pages.length === 0) return fallback;
+
+    return pages
+        .map((page, index) => {
+            const pageNumber = Number.isFinite(Number(page?.num)) 
+                ? Number(page.num) 
+                : index + 1;
+            const text = typeof page?.text === 'string' ? page.text : '';
+            return `\n--- Pagina ${pageNumber} ---\n${text}`;
+        })
+        .join('\n');
+}
+\end{lstlisting}
+
+\begin{tipbox}{Marker Pagine per RAG}
+I marker di pagina (\texttt{--- Pagina X ---}) sono cruciali per:
+\begin{itemize}
+    \item \textbf{AI Tutor}: Permette all'AI di rispondere a domande tipo "spiegami pagina 5"
+    \item \textbf{Tracciabilità}: Utente può sapere da quale pagina proviene una flashcard
+    \item \textbf{Debug}: Facilita identificazione problemi di estrazione
+\end{itemize}
+\end{tipbox}
+
+\subsubsection{Normalizzazione Testo}
+
+\begin{lstlisting}[caption=Normalizzazione Testo Estratto]
+// server/services/studyService.js:1332-1338
+_normalizeExtractedText(text) {
+    if (!text || typeof text !== 'string') return '';
+    return text
+        .replace(/\r\n/g, '\n')           // Normalizza line breaks
+        .replace(/\n{3,}/g, '\n\n')       // Rimuove spazi multipli
+        .trim();
+}
+\end{lstlisting}
+
+\subsection{Chiamata OpenAI per Generazione}
+
+\subsubsection{Prompt Engineering}
+
+Il sistema utilizza un prompt strutturato che include:
+\begin{itemize}
+    \item \textbf{System Prompt}: Definisce il ruolo dell'AI (esperto insegnante universitario "Silvija")
+    \item \textbf{Style Prompts}: Configurazione stile (comprehensive, conceptual, factual, application)
+    \item \textbf{Difficulty Prompts}: Configurazione difficoltà (easy, medium, hard, mixed)
+    \item \textbf{Question Type Prompts}: Tipi di domande da generare (definition, concept, relationship, etc.)
+    \item \textbf{Regole Generali}: Istruzioni per qualità flashcard
+    \item \textbf{Formato Output}: JSON strutturato con array di cards
+\end{itemize}
+
+\begin{lstlisting}[caption=Costruzione System Prompt]
+// server/services/studyService.js:751-767
+const systemPrompt = `Sei un esperto insegnante universitario che si chiama Silvija. 
+Il tuo compito è analizzare il testo fornito e creare flashcard di alta qualità.
+
+STILE: ${stylePrompts[style] || stylePrompts.comprehensive}
+DIFFICOLTÀ: ${difficultyPrompts[difficulty] || difficultyPrompts.medium}
+TIPI DI DOMANDE: ${questionTypes.map(t => questionTypePrompts[t]).join(' ')}
+
+REGOLE GENERALI:
+- Crea tra 10 e 15 flashcard
+- Ogni flashcard deve avere "front" (domanda) e "back" (risposta)
+- Le domande devono testare comprensione, non solo memoria
+- Evita domande troppo generiche o troppo specifiche
+- La risposta deve essere auto-contenuta
+
+FORMATO OUTPUT:
+Rispondi SOLO con JSON valido, senza markdown:
+{"cards":[{"front":"Domanda 1?","back":"Risposta 1"},...]}`;
+\end{lstlisting}
+
+\subsubsection{Chiamata API OpenAI}
+
+\begin{lstlisting}[caption=Chiamata OpenAI Chat Completions]
+// server/services/studyService.js:769-797
+const completion = await openai.chat.completions.create({
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Analizza questo testo e genera le flashcard:\n\n${truncatedText}` }
+    ],
+    temperature: 0.7,                    // Bilanciamento creatività/precisione
+    max_completion_tokens: 2000,         // Limite token risposta
+    response_format: { type: 'json_object' }, // Forza output JSON
+});
+\end{lstlisting}
+
+\begin{importantbox}{Configurazione Modello}
+Il modello OpenAI è configurabile via variabile ambiente \texttt{OPENAI\_MODEL}. Default: \texttt{gpt-4o-mini}
+
+Modelli supportati:
+\begin{itemize}
+    \item \texttt{gpt-4o-mini}: Economico, veloce, buona qualità (consigliato)
+    \item \texttt{gpt-4o}: Più costoso, migliore qualità, più lento
+    \item \texttt{gpt-3.5-turbo}: Legacy, non consigliato
+\end{itemize}
+\end{importantbox}
+
+\subsubsection{Parsing e Validazione Risposta}
+
+\begin{lstlisting}[caption=Parsing Risposta OpenAI]
+// server/services/studyService.js:799-842
+// 1. Parsa JSON
+let generatedCards;
+try {
+    const parsed = JSON.parse(aiResponse);
+    generatedCards = this._extractGeneratedCards(parsed);
+} catch (err) {
+    throw AppError.internal('Risposta AI non valida. Riprova.');
+}
+
+// 2. Estrai cards da vari formati possibili
+_extractGeneratedCards(parsed) {
+    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed.cards)) return parsed.cards;
+    if (Array.isArray(parsed.flashcards)) return parsed.flashcards;
+    if (Array.isArray(parsed.items)) return parsed.items;
+    if (parsed.front && parsed.back) return [parsed];
+    // ... altri fallback
+}
+
+// 3. Normalizza formato card
+_normalizeGeneratedCard(card) {
+    return {
+        front: card.front ?? card.question ?? card.q,
+        back: card.back ?? card.answer ?? card.a,
+    };
+}
+
+// 4. Valida e filtra cards valide
+const validCards = generatedCards
+    .map((card) => this._normalizeGeneratedCard(card))
+    .filter(card => card.front && card.back && 
+                    typeof card.front === 'string' && 
+                    typeof card.back === 'string')
+    .map(card => ({
+        front: card.front.trim(),
+        back: card.back.trim(),
+        status: 'new',
+        nextReviewDate: new Date(),
+        easinessFactor: DEFAULT_EASINESS_FACTOR, // 2.5
+        interval: 0,
+        repetitions: 0,
+    }));
+\end{lstlisting}
+
+\section{Vector Store Integration (RAG)}
+
+\subsection{Ingestione Vettoriale}
+
+Dopo l'estrazione del testo, il sistema tenta (best-effort) di ingerire il testo in Pinecone per abilitare RAG:
+
+\begin{lstlisting}[caption=Ingestione Vettoriale]
+// server/services/studyService.js:709-714
+try {
+    await vectorStoreService.ingestDeck(deckId, normalizedExtracted);
+} catch (err) {
+    console.error('⚠️ Vector ingest error:', err.message);
+    // Non blocca il processo se fallisce
+}
+\end{lstlisting}
+
+\begin{tipbox}{Best-Effort Pattern}
+L'ingestione vettoriale è \textbf{best-effort}: se fallisce, il processo continua normalmente. Questo perché:
+\begin{itemize}
+    \item RAG è opzionale (usato solo per AI Tutor)
+    \item Pinecone potrebbe non essere configurato
+    \item Errori di rete non devono bloccare la generazione flashcard
+\end{itemize}
+\end{tipbox}
+
+\subsection{Configurazione Vector Store}
+
+\begin{lstlisting}[caption=Configurazione Pinecone]
+// server/services/vectorStoreService.js:13-14
+const DEFAULT_EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small';
+const DEFAULT_TOP_K = 5;
+
+// Chunking: RecursiveCharacterTextSplitter
+// - Chunk size: 1000 caratteri
+// - Overlap: 200 caratteri
+// - Embedding: OpenAI text-embedding-3-small
+// - Vector DB: Pinecone (filtrato per deckId)
+\end{lstlisting}
+
+\section{Modello Dati: Deck e Cards}
+
+\subsection{Schema Deck}
+
+\begin{lstlisting}[caption=Schema Deck - Campi Rilevanti PDF]
+// server/models/Deck.js:110-119
+const deckSchema = new mongoose.Schema({
+    // ...
+    pdfUrl: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+    extractedText: {
+        type: String,
+        default: '',
+        select: false,  // Non incluso di default nelle query
+    },
+    // ...
+});
+\end{lstlisting}
+
+\begin{importantbox}{Campo extractedText}
+Il campo \texttt{extractedText} è marcato con \texttt{select: false} per:
+\begin{itemize}
+    \item \textbf{Performance}: Testi estratti possono essere molto grandi (fino a 200k caratteri)
+    \item \textbf{Bandwidth}: Evita di inviare dati non necessari al frontend
+    \item \textbf{Privacy}: Testi completi non vengono esposti nelle API standard
+\end{itemize}
+
+Per accedere al testo estratto, usa query esplicita: \texttt{Deck.findById(id).select('+extractedText')}
+\end{importantbox}
+
+\subsection{Schema Card}
+
+\begin{lstlisting}[caption=Schema Card - Flashcard Generata]
+// server/models/Deck.js:19-81
+const cardSchema = new mongoose.Schema({
+    front: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: [2000, 'Il fronte non può superare 2000 caratteri'],
+    },
+    back: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: [4000, 'Il retro non può superare 4000 caratteri'],
+    },
+    // SM-2 parameters (per spaced repetition)
+    easinessFactor: { type: Number, default: 2.5, min: 1.3 },
+    interval: { type: Number, default: 0, min: 0 },
+    repetitions: { type: Number, default: 0, min: 0 },
+    nextReviewDate: { type: Date, default: Date.now },
+    status: {
+        type: String,
+        enum: ['new', 'learning', 'review', 'mastered'],
+        default: 'new',
+    },
+    // ...
+});
+\end{lstlisting}
+
+\section{Error Handling e Edge Cases}
+
+\subsection{Errori Comuni}
+
+\begin{enumerate}
+    \item \textbf{PDF Protetto/Password}: \texttt{pdf-parse} fallisce → Errore validazione
+    \item \textbf{PDF Scansionato (Solo Immagini)}: Nessun testo estratto → Errore "non contiene abbastanza testo"
+    \item \textbf{PDF Vuoto}: Testo < 50 caratteri → Errore validazione
+    \item \textbf{OpenAI Quota Esaurita}: \texttt{insufficient\_quota} → Errore interno con messaggio user-friendly
+    \item \textbf{OpenAI Context Length}: Testo troppo lungo → Errore (raro, testo già troncato a 15k)
+    \item \textbf{JSON Parsing Error}: Risposta AI non valida → Errore interno
+    \item \textbf{File Upload Timeout}: Upload > 60s → Errore network
+\end{enumerate}
+
+\subsection{Gestione Errori nel Frontend}
+
+\begin{lstlisting}[caption=Error Handling - Frontend]
+// src/features/study/components/MagicGenerateModal.tsx:158-162
+catch (err: any) {
+    setStep('error');
+    setError(err.message || 'Errore nella generazione. Riprova.');
+    emitToast.error(err.message || 'Generazione fallita');
+}
+\end{lstlisting}
+
+\subsection{Gestione Errori nel Backend}
+
+\begin{lstlisting}[caption=Error Handling - Backend]
+// Tutti gli errori vengono wrappati in AppError
+// server/utils/AppError.js gestisce formattazione consistente
+
+// Esempi:
+throw AppError.validation('Il PDF non contiene abbastanza testo.');
+throw AppError.internal('Errore nella generazione AI.', err, {});
+throw AppError.notFound('Mazzo');
+\end{lstlisting}
+
+\section{Configurazione AI Settings}
+
+\subsection{Impostazioni Personalizzabili}
+
+Il sistema permette di configurare la generazione tramite \texttt{deck.aiSettings}:
+
+\begin{lstlisting}[caption=AI Settings Schema]
+// server/models/Deck.js:137-152
+aiSettings: {
+    style: {
+        type: String,
+        enum: ['comprehensive', 'conceptual', 'factual', 'application'],
+        default: 'comprehensive',
+    },
+    difficulty: {
+        type: String,
+        enum: ['easy', 'medium', 'hard', 'mixed'],
+        default: 'medium',
+    },
+    questionTypes: {
+        type: [String],
+        default: ['definition', 'concept', 'relationship'],
+    },
+}
+\end{lstlisting}
+
+\subsection{Style Prompts}
+
+\begin{itemize}
+    \item \textbf{comprehensive}: Bilanciato tra teoria e pratica
+    \item \textbf{conceptual}: Focus su concetti e principi
+    \item \textbf{factual}: Focus su fatti, date, definizioni
+    \item \textbf{application}: Focus su applicazioni pratiche
+\end{itemize}
+
+\subsection{Difficulty Prompts}
+
+\begin{itemize}
+    \item \textbf{easy}: Domande semplici per principianti
+    \item \textbf{medium}: Difficoltà media (default)
+    \item \textbf{hard}: Domande complesse che richiedono analisi
+    \item \textbf{mixed}: Mix di difficoltà
+\end{itemize}
+
+\subsection{Question Types}
+
+\begin{itemize}
+    \item \textbf{definition}: Definizioni precise
+    \item \textbf{concept}: Comprensione concetti astratti
+    \item \textbf{relationship}: Relazioni, cause-effetti
+    \item \textbf{application}: Applicazioni pratiche
+    \item \textbf{comparison}: Confronti e distinzioni
+\end{itemize}
+
+\section{Performance e Ottimizzazioni}
+
+\subsection{Tempi Stimati}
+
+\begin{itemize}
+    \item \textbf{Upload File}: 1-5s (dipende da dimensione e connessione)
+    \item \textbf{Parsing PDF}: 0.5-2s (dipende da numero pagine)
+    \item \textbf{Estrazione Testo}: 0.1-1s
+    \item \textbf{Chiamata OpenAI}: 3-10s (dipende da modello e lunghezza testo)
+    \item \textbf{Salvataggio DB}: 0.1-0.5s
+    \item \textbf{Totale}: 5-20s tipicamente
+\end{itemize}
+
+\subsection{Bottlenecks Potenziali}
+
+\begin{enumerate}
+    \item \textbf{OpenAI API}: Rate limiting e latenza possono rallentare
+    \item \textbf{Parsing PDF Grandi}: PDF con 100+ pagine richiedono più tempo
+    \item \textbf{Vector Ingest}: Pinecone può essere lento per testi lunghi
+    \item \textbf{DB Write}: Salvataggio bulk di molte flashcard può essere lento
+\end{enumerate}
+
+\subsection{Ottimizzazioni Implementate}
+
+\begin{itemize}
+    \item \textbf{Troncamento Testo}: Limite 15k caratteri riduce costi e latenza OpenAI
+    \item \textbf{Bulk Insert}: Flashcard salvate in un'unica operazione
+    \item \textbf{Best-Effort Vector}: Ingestione vettoriale non blocca il processo
+    \item \textbf{Async Processing}: Frontend non blocca durante generazione
+\end{itemize}
+
+\section{Possibili Miglioramenti Futuri}
+
+\subsection{Rimozione Limitazione 10-15 Flashcard}
+
+\textbf{Problema Attuale}: Solo 10-15 flashcard generate indipendentemente dalla lunghezza PDF.
+
+\textbf{Soluzione Proposta}:
+\begin{enumerate}
+    \item \textbf{Calcolo Dinamico}: Numero flashcard basato su lunghezza testo
+        \begin{itemize}
+            \item 1 flashcard ogni 500-1000 caratteri
+            \item Minimo 10, massimo 50-100
+        \end{itemize}
+    \item \textbf{Chunking Intelligente}: Dividere PDF in sezioni e generare flashcard per sezione
+    \item \textbf{Multi-Pass Generation}: 
+        \begin{itemize}
+            \item Pass 1: Analisi struttura documento
+            \item Pass 2: Generazione flashcard per ogni sezione importante
+        \end{itemize}
+    \item \textbf{User Control}: Permettere all'utente di specificare numero desiderato
+\end{enumerate}
+
+\subsection{Rimozione Limitazione 15k Caratteri}
+
+\textbf{Problema Attuale}: Solo primi 15k caratteri analizzati.
+
+\textbf{Soluzione Proposta}:
+\begin{enumerate}
+    \item \textbf{Chunking Strategico}: 
+        \begin{itemize}
+            \item Dividere PDF in chunk di 10-15k caratteri
+            \item Generare flashcard per ogni chunk
+            \item Unire risultati
+        \end{itemize}
+    \item \textbf{Selezione Intelligente}:
+        \begin{itemize}
+            \item Analisi preliminare per identificare sezioni più importanti
+            \item Generare flashcard solo per sezioni rilevanti
+        \end{itemize}
+    \item \textbf{Summary + Details}:
+        \begin{itemize}
+            \item Generare flashcard di riepilogo per tutto il documento
+            \item Generare flashcard dettagliate per sezioni specifiche
+        \end{itemize}
+\end{enumerate}
+
+\subsection{Supporto PDF Scansionati (OCR)}
+
+\textbf{Problema Attuale}: PDF scansionati (immagini) non funzionano.
+
+\textbf{Soluzione Proposta}:
+\begin{enumerate}
+    \item \textbf{Integrazione OCR}: Usare Tesseract.js o servizio cloud (Google Vision, AWS Textract)
+    \item \textbf{Pre-Processing}: Rilevare se PDF contiene solo immagini
+    \item \textbf{Fallback Automatico}: Se estrazione testo fallisce, tentare OCR
+\end{enumerate}
+
+\subsection{Progress Tracking Reale}
+
+\textbf{Problema Attuale}: Frontend simula progress, non riflette stato reale backend.
+
+\textbf{Soluzione Proposta}:
+\begin{enumerate}
+    \item \textbf{WebSocket/SSE}: Comunicazione real-time backend → frontend
+    \item \textbf{Progress Events}: Eventi per ogni step (parsing, extraction, generation)
+    \item \textbf{Percentuale Reale}: Calcolo percentuale basato su operazioni completate
+\end{enumerate}
+
+\subsection{Preview Flashcard Prima di Salvare}
+
+\textbf{Problema Attuale}: Utente non può vedere flashcard prima di salvarle.
+
+\textbf{Soluzione Proposta}:
+\begin{enumerate}
+    \item \textbf{Modal Preview}: Mostrare flashcard generate in modal
+    \item \textbf{Edit Before Save}: Permettere modifica/eliminazione flashcard
+    \item \textbf{Selective Save}: Salvare solo flashcard selezionate
+\end{enumerate}
+
+\section{Testing e Debug}
+
+\subsection{Logging}
+
+Il sistema include logging estensivo per debug:
+
+\begin{lstlisting}[caption=Logging Points]
+// Upload
+console.log('📤 Uploading PDF:', file.name, file.size, 'bytes');
+console.log('📥 Response status:', response.status);
+
+// Backend
+console.log('🪄 uploadAndGenerate called');
+console.log('📄 File ricevuto:', req.file?.originalname);
+console.log('✨ Generated ${validCards.length} flashcards');
+
+// Errori
+console.error('❌ PDF Parse Error:', err.message);
+console.error('❌ OpenAI API Error:', err.message);
+console.error('⚠️ Vector ingest error:', err.message);
+\end{lstlisting}
+
+\subsection{Test Manuali}
+
+Per testare il sistema:
+
+\begin{enumerate}
+    \item \textbf{PDF Valido}: Caricare PDF con testo selezionabile (10-20 pagine)
+    \item \textbf{PDF Protetto}: Tentare caricamento PDF con password → Verificare errore
+    \item \textbf{PDF Grande}: Caricare PDF > 10MB → Verificare errore
+    \item \textbf{PDF Scansionato}: Caricare PDF solo immagini → Verificare errore "non contiene testo"
+    \item \textbf{PDF Vuoto}: Caricare PDF vuoto → Verificare errore
+\end{enumerate}
+
+\section{Conclusioni}
+
+Il sistema di generazione automatica di flashcard da PDF è un componente complesso che integra:
+\begin{itemize}
+    \item Upload e storage file
+    \item Estrazione testo da PDF
+    \item Chiamate API OpenAI
+    \item Parsing e validazione risposte
+    \item Persistenza dati MongoDB
+    \item Integrazione vettoriale (RAG)
+\end{itemize}
+
+Le limitazioni attuali (10-15 flashcard, 15k caratteri) sono progettate per bilanciare:
+\begin{itemize}
+    \item \textbf{Costi}: Controllo spese OpenAI
+    \item \textbf{Performance}: Tempi di risposta accettabili
+    \item \textbf{Qualità}: Flashcard ben fatte vs quantità
+\end{itemize}
+
+Future iterazioni possono rimuovere queste limitazioni implementando chunking intelligente, multi-pass generation, e controlli utente più granulari.
+
+\end{document}

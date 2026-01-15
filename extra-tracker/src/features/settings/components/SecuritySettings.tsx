@@ -6,24 +6,19 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    Key, 
-    Lock, 
-    Eye, 
-    EyeOff, 
-    CheckCircle2, 
-    AlertCircle,
-    Shield,
-    AlertTriangle
-} from 'lucide-react';
+import { Shield, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { FormStatus } from './types';
+import { SettingsPasswordInput } from './fields';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { commonRules, validationSchemas } from '../utils/validation';
+import { SettingsError, SettingsSuccess } from './feedback';
 
 interface SecuritySettingsProps {
     onChangePassword: (data: { currentPassword: string; newPassword: string; confirmPassword: string }) => Promise<boolean>;
     status: FormStatus;
 }
 
-// Password Strength Indicator
+// Password Strength Indicator (per i requisiti)
 const getPasswordStrength = (password: string): { strength: number; label: string; color: string } => {
     if (!password) return { strength: 0, label: '', color: '' };
 
@@ -49,169 +44,85 @@ const getPasswordStrength = (password: string): { strength: number; label: strin
     };
 };
 
-// Password Field Component
-const PasswordField = ({ 
-    label, 
-    name, 
-    value, 
-    onChange, 
-    showStrength = false,
-    error 
-}: { 
-    label: string;
-    name: string;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    showStrength?: boolean;
-    error?: string;
-}) => {
-    const [showPassword, setShowPassword] = useState(false);
-    const strength = showStrength ? getPasswordStrength(value) : null;
-
-    return (
-        <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
-                <Lock className="w-4 h-4 text-white/50" />
-                {label}
-            </label>
-            <div className="relative">
-                <input
-                    type={showPassword ? 'text' : 'password'}
-                    name={name}
-                    value={value}
-                    onChange={onChange}
-                    className={`w-full input pr-12 ${
-                        error 
-                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
-                            : value && !error
-                            ? 'border-emerald-500/30 focus:border-emerald-500/50'
-                            : ''
-                    }`}
-                    placeholder={`Inserisci ${label.toLowerCase()}`}
-                />
-                <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
-                >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-            </div>
-            
-            {/* Password Strength Indicator */}
-            {showStrength && value && (
-                <div className="space-y-2">
-                    <div className="flex gap-1 h-1.5">
-                        {[1, 2, 3, 4, 5].map((level) => (
-                            <motion.div
-                                key={level}
-                                initial={{ scaleX: 0 }}
-                                animate={{ 
-                                    scaleX: level <= (strength?.strength || 0) ? 1 : 0,
-                                    backgroundColor: level <= (strength?.strength || 0) 
-                                        ? strength?.color.replace('bg-', '') 
-                                        : 'rgba(255, 255, 255, 0.1)'
-                                }}
-                                transition={{ duration: 0.3 }}
-                                className="flex-1 rounded-full"
-                            />
-                        ))}
-                    </div>
-                    {strength && strength.strength > 0 && (
-                        <p className={`text-xs font-medium ${
-                            strength.strength <= 2 ? 'text-red-400' :
-                            strength.strength === 3 ? 'text-yellow-400' :
-                            'text-emerald-400'
-                        }`}>
-                            Forza: {strength.label}
-                        </p>
-                    )}
-                </div>
-            )}
-
-            {error && (
-                <motion.p
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-xs text-red-400 flex items-center gap-1"
-                >
-                    <AlertCircle className="w-3 h-3" />
-                    {error}
-                </motion.p>
-            )}
-        </div>
-    );
-};
-
 export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsProps) => {
     const [formData, setFormData] = useState({ 
         currentPassword: '', 
         newPassword: '', 
         confirmPassword: '' 
     });
-    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Sistema di validazione standardizzato
+    const validation = useFormValidation<typeof formData>({
+        validationRules: {
+            currentPassword: [commonRules.required('Password attuale')],
+            newPassword: validationSchemas.requiredPassword,
+            confirmPassword: [
+                commonRules.required('Conferma password'),
+                commonRules.passwordMatch(formData.newPassword),
+            ],
+        },
+        validateOnChange: true,
+    });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        const newFormData = { ...formData, [name]: value };
+        setFormData(newFormData);
         
-        // Clear error for this field
-        if (errors[name]) {
-            setErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[name];
-                return newErrors;
-            });
-        }
-
-        // Validate confirm password in real-time
-        if (name === 'confirmPassword' && value && value !== formData.newPassword) {
-            setErrors(prev => ({ ...prev, confirmPassword: 'Le password non corrispondono' }));
-        } else if (name === 'confirmPassword' && value === formData.newPassword) {
-            setErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors.confirmPassword;
-                return newErrors;
-            });
-        }
-
-        // Validate new password when confirm changes
-        if (name === 'newPassword' && formData.confirmPassword && value !== formData.confirmPassword) {
-            setErrors(prev => ({ ...prev, confirmPassword: 'Le password non corrispondono' }));
+        // Validazione in tempo reale
+        if (name === 'newPassword') {
+            // Valida la nuova password
+            const error = validation.validateField(name, value);
+            validation.setError(name, error);
+            
+            // Valida anche la conferma se esiste (con la nuova password)
+            if (newFormData.confirmPassword) {
+                const confirmError = commonRules.passwordMatch(value)(newFormData.confirmPassword);
+                validation.setError('confirmPassword', confirmError);
+            }
+        } else if (name === 'confirmPassword') {
+            // Valida la conferma con la password corrente
+            const confirmError = commonRules.passwordMatch(formData.newPassword)(value);
+            validation.setError('confirmPassword', confirmError);
+        } else {
+            const error = validation.validateField(name as keyof typeof formData, value);
+            validation.setError(name as keyof typeof formData, error);
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Validation
-        const newErrors: Record<string, string> = {};
+        // Validazione finale - aggiorna le regole per confirmPassword con la password corrente
+        const finalErrors: Record<string, string> = {};
         
-        if (!formData.currentPassword) {
-            newErrors.currentPassword = 'Password attuale richiesta';
+        // Valida currentPassword
+        const currentError = commonRules.required('Password attuale')(formData.currentPassword);
+        if (currentError) finalErrors.currentPassword = currentError;
+        
+        // Valida newPassword
+        const newError = validation.validateField('newPassword', formData.newPassword);
+        if (newError) finalErrors.newPassword = newError;
+        
+        // Valida confirmPassword con la password corrente
+        const confirmError = commonRules.passwordMatch(formData.newPassword)(formData.confirmPassword);
+        if (confirmError) finalErrors.confirmPassword = confirmError;
+        else {
+            const requiredError = commonRules.required('Conferma password')(formData.confirmPassword);
+            if (requiredError) finalErrors.confirmPassword = requiredError;
         }
         
-        if (!formData.newPassword) {
-            newErrors.newPassword = 'Nuova password richiesta';
-        } else if (formData.newPassword.length < 8) {
-            newErrors.newPassword = 'La password deve essere di almeno 8 caratteri';
-        }
-        
-        if (!formData.confirmPassword) {
-            newErrors.confirmPassword = 'Conferma password richiesta';
-        } else if (formData.newPassword !== formData.confirmPassword) {
-            newErrors.confirmPassword = 'Le password non corrispondono';
-        }
-
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
+        if (Object.keys(finalErrors).length > 0) {
+            Object.entries(finalErrors).forEach(([key, value]) => {
+                validation.setError(key as keyof typeof formData, value);
+            });
             return;
         }
 
         const success = await onChangePassword(formData);
         if (success) {
             setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-            setErrors({});
+            validation.clearAllErrors();
         }
     };
 
@@ -231,30 +142,33 @@ export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsP
             </div>
 
             {/* Password Fields */}
-            <div className="space-y-5">
-                <PasswordField
+            <div className="space-y-4 md:space-y-5">
+                <SettingsPasswordInput
                     label="Password attuale"
                     name="currentPassword"
                     value={formData.currentPassword}
                     onChange={handleChange}
-                    error={errors.currentPassword}
+                    error={validation.errors.currentPassword}
+                    autoComplete="current-password"
                 />
 
-                <PasswordField
+                <SettingsPasswordInput
                     label="Nuova password"
                     name="newPassword"
                     value={formData.newPassword}
                     onChange={handleChange}
                     showStrength={true}
-                    error={errors.newPassword}
+                    error={validation.errors.newPassword}
+                    autoComplete="new-password"
                 />
 
-                <PasswordField
+                <SettingsPasswordInput
                     label="Conferma nuova password"
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    error={errors.confirmPassword}
+                    error={validation.errors.confirmPassword}
+                    autoComplete="new-password"
                 />
             </div>
 
@@ -289,43 +203,33 @@ export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsP
             {/* Status Messages */}
             <AnimatePresence>
                 {status.error && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 flex items-center gap-3"
-                    >
-                        <AlertCircle className="w-5 h-5 text-red-400" />
-                        <p className="text-sm text-red-300">{status.error}</p>
-                    </motion.div>
+                    <SettingsError
+                        message={status.error}
+                        title="Errore nel cambio password"
+                    />
                 )}
                 {status.success && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-center gap-3"
-                    >
-                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                        <p className="text-sm text-emerald-300">Password aggiornata con successo!</p>
-                    </motion.div>
+                    <SettingsSuccess
+                        message="Password aggiornata con successo!"
+                        title="Password aggiornata"
+                    />
                 )}
             </AnimatePresence>
 
             {/* Submit Button */}
             <div className="flex items-center justify-between pt-4 border-t border-white/[0.08]">
                 <p className="text-sm text-white/50">
-                    {formData.newPassword && formData.confirmPassword && !errors.confirmPassword
+                    {formData.newPassword && formData.confirmPassword && !validation.errors.confirmPassword
                         ? 'Pronto per aggiornare'
                         : 'Compila tutti i campi'}
                 </p>
                 <motion.button
                 type="submit"
-                    disabled={status.loading || Object.keys(errors).length > 0 || !formData.newPassword}
+                    disabled={status.loading || validation.hasErrors || !formData.newPassword}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className={`btn-primary px-6 py-3 ${
-                        Object.keys(errors).length > 0 || !formData.newPassword
+                        validation.hasErrors || !formData.newPassword
                             ? 'opacity-50 cursor-not-allowed'
                             : ''
                     }`}

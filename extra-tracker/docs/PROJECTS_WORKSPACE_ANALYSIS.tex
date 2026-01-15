@@ -1,0 +1,1177 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+\geometry{margin=2.5cm}
+
+% Configurazione colori per codice
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstset{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    language=JavaScript
+}
+
+% Header e footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{PROJECTS \& WORKSPACE - Analisi Tecnica}
+\fancyfoot[C]{\thepage}
+
+\title{\textbf{Analisi Tecnica: Componenti PROJECTS e WORKSPACE}}
+\author{ExtraTracker - Documentazione Interna}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduzione}
+
+Questo documento fornisce un'analisi tecnica dettagliata dei componenti \textbf{PROJECTS} e \textbf{WORKSPACE} dell'applicazione ExtraTracker. L'obiettivo è documentare l'architettura attuale, i flussi di dati, le API, e le interazioni tra i vari layer prima di procedere con una riprogettazione completa.
+
+\subsection{Scopo del Documento}
+
+\begin{itemize}
+    \item Documentare l'architettura attuale di PROJECTS e WORKSPACE
+    \item Descrivere i modelli di dati e le relazioni
+    \item Analizzare i flussi di comunicazione frontend-backend
+    \item Identificare le dipendenze e le integrazioni
+    \item Fornire una base solida per la riprogettazione
+\end{itemize}
+
+\subsection{Struttura del Documento}
+
+Il documento è organizzato in sezioni che coprono:
+\begin{enumerate}
+    \item \textbf{Architettura Generale}: Panoramica del sistema
+    \item \textbf{Componente PROJECTS}: Analisi dettagliata
+    \item \textbf{Componente WORKSPACE}: Analisi dettagliata
+    \item \textbf{Modelli di Dati}: Schema database e relazioni
+    \item \textbf{API e Endpoints}: Contratti di comunicazione
+    \item \textbf{Flussi di Dati}: Come i dati fluiscono nel sistema
+    \item \textbf{Integrazioni}: Dipendenze tra componenti
+\end{enumerate}
+
+\newpage
+
+\section{Architettura Generale}
+
+\subsection{Panoramica del Sistema}
+
+Il sistema ExtraTracker utilizza un'architettura \textbf{full-stack} con separazione tra:
+\begin{itemize}
+    \item \textbf{Frontend}: React + TypeScript (Vite)
+    \item \textbf{Backend}: Node.js + Express + MongoDB
+    \item \textbf{Pattern}: Multi-tenancy con isolamento per utente
+\end{itemize}
+
+\subsection{Unificazione dei Modelli}
+
+\textbf{IMPORTANTE}: Il sistema ha subito una \textbf{unificazione} dei modelli:
+\begin{itemize}
+    \item \texttt{WorkProject} (legacy) è stato unificato in \texttt{Project}
+    \item \texttt{WorkEntry} (legacy) è stato unificato in \texttt{WorkLog}
+    \item Entrambi i componenti (PROJECTS e WORKSPACE) ora condividono lo stesso modello \texttt{Project}
+\end{itemize}
+
+\subsection{Separazione delle Responsabilità}
+
+\begin{description}
+    \item[\textbf{PROJECTS}] Focus su \textbf{monitoraggio salute progetti}:
+    \begin{itemize}
+        \item Health monitoring (velocity, projected hours, budget usage)
+        \item Metriche e statistiche aggregate
+        \item Dashboard di controllo progetti
+    \end{itemize}
+    
+    \item[\textbf{WORKSPACE}] Focus su \textbf{work journal e tracking}:
+    \begin{itemize}
+        \item Timeline di entries (WorkLog)
+        \item Gestione TODO per progetto
+        \item Vista cronologica del lavoro
+        \item Templates per entries
+    \end{itemize}
+\end{description}
+
+\newpage
+
+\section{Componente PROJECTS}
+
+\subsection{Panoramica}
+
+Il componente PROJECTS è dedicato al \textbf{monitoraggio della salute dei progetti} con focus su:
+\begin{itemize}
+    \item Calcolo di metriche avanzate (velocity, projected hours)
+    \item Health status (healthy/warning/critical/unknown)
+    \item Budget tracking e burn rate
+    \item Proiezioni basate su progresso dichiarato
+\end{itemize}
+
+\subsection{Struttura Frontend}
+
+\subsubsection{Directory Structure}
+
+\begin{lstlisting}[language=bash]
+src/features/projects/
+├── components/
+│   ├── ProjectFormModal.tsx      # Modal creazione/modifica progetto
+│   └── ProjectHealthCard.tsx      # Card con metriche salute
+├── context/
+│   └── ProjectsContext.tsx       # Context React per stato globale
+├── pages/
+│   └── ProjectsPage.tsx           # Pagina principale
+├── ProjectForm.tsx                # Form progetto (legacy)
+└── type.ts                        # TypeScript types
+\end{lstlisting}
+
+\subsubsection{Context: ProjectsContext}
+
+Il \texttt{ProjectsContext} gestisce lo stato globale dei progetti:
+
+\begin{lstlisting}
+interface ProjectsContextType {
+  projects: Project[];              // Lista progetti con metriche
+  addProject: (params) => void;    // Crea nuovo progetto
+  loading: boolean;                 // Stato caricamento
+  refreshProjects: () => void;      // Ricarica progetti
+}
+\end{lstlisting}
+
+\textbf{Caratteristiche}:
+\begin{itemize}
+    \item Carica progetti con metriche di salute (\texttt{/api/projects-stats})
+    \item Memoizzazione con \texttt{useMemo} e \texttt{useCallback} per performance
+    \item Gestione errori con toast notifications
+    \item Auto-refresh all'autenticazione
+\end{itemize}
+
+\subsubsection{Page: ProjectsPage}
+
+La pagina principale mostra:
+\begin{enumerate}
+    \item \textbf{Header} con statistiche aggregate:
+    \begin{itemize}
+        \item Ore totali loggate
+        \item Valore generato (earnings)
+        \item Progetti critici
+        \item Progetti senza stima
+    \end{itemize}
+    
+    \item \textbf{Grid progetti} ordinati per priorità:
+    \begin{itemize}
+        \item Priorità: critical $\rightarrow$ warning $\rightarrow$ healthy $\rightarrow$ unknown
+        \item Ogni progetto mostra \texttt{ProjectHealthCard}
+    \end{itemize}
+    
+    \item \textbf{Modal} per creazione nuovo progetto
+\end{enumerate}
+
+\subsubsection{Component: ProjectHealthCard}
+
+Card che visualizza le metriche di salute di un progetto:
+
+\textbf{Informazioni mostrate}:
+\begin{itemize}
+    \item Nome, codice, tipo (CLIENT/PERSONAL)
+    \item Health status badge (healthy/warning/critical/unknown)
+    \item Barra progresso consumo ore vs progresso dichiarato
+    \item Metriche: ore loggate, stima totale, proiezione finale, guadagno
+    \item Velocity message (messaggio dinamico basato su calcoli)
+    \item Ultimo log
+\end{itemize}
+
+\textbf{Calcolo Health Status}:
+\begin{lstlisting}
+// Per progetti CLIENT con stima:
+if (usagePercent < 75) → 'healthy'
+if (usagePercent >= 75 && <= 90) → 'warning'
+if (usagePercent > 90) → 'critical'
+
+// Se supera budget → sempre 'critical'
+// Se manca stima → 'unknown'
+\end{lstlisting}
+
+\subsection{Backend: ProjectService}
+
+\subsubsection{Classe BaseService}
+
+\texttt{ProjectService} estende \texttt{BaseService} che fornisce:
+\begin{itemize}
+    \item CRUD operations base (find, findById, create, update, delete)
+    \item Multi-tenancy automatico (filtro per \texttt{user})
+    \item Ricerca testuale
+    \item Validazioni e error handling
+\end{itemize}
+
+\subsubsection{Metodi Custom}
+
+\begin{description}
+    \item[\texttt{findActive(tenantScope, options)}] 
+    Trova solo progetti con \texttt{status: 'active'}.
+    
+    \item[\texttt{findWithEntryCount(tenantScope, options)}]
+    \textbf{Cruciale per WORKSPACE}: Aggrega progetti con statistiche:
+    \begin{itemize}
+        \item \texttt{entriesCount}: Numero di WorkLog associati
+        \item \texttt{lastEntryDate}: Data ultimo log
+        \item \texttt{totalDuration}: Durata totale in minuti
+        \item \texttt{streak}: Giorni consecutivi con entries
+    \end{itemize}
+    Usa \texttt{\$lookup} MongoDB per aggregare da \texttt{worklogs}.
+    
+    \item[\texttt{findWithHealth(tenantScope)}]
+    Ritorna progetti arricchiti con \texttt{ProjectMetrics}:
+    \begin{itemize}
+        \item Calcola metriche chiamando \texttt{\_mergeProjectsWithStats()}
+        \item Aggiunge campo \texttt{metrics} a ogni progetto
+    \end{itemize}
+    
+    \item[\texttt{getProjectStats(tenantScope)}]
+    Statistiche aggregate per dashboard/widget.
+\end{description}
+
+\subsubsection{Calcolo Metriche di Salute}
+
+Il metodo \texttt{\_buildHealthSnapshot()} calcola:
+
+\textbf{Input}:
+\begin{itemize}
+    \item \texttt{project}: Progetto con \texttt{estimatedHours}, \texttt{progress}, \texttt{rate}
+    \item \texttt{stats}: Statistiche da WorkLog (ore totali, log count, ultimo log)
+\end{itemize}
+
+\textbf{Calcoli}:
+\begin{enumerate}
+    \item \textbf{Velocity}: Se \texttt{progress > 0} e \texttt{totalHours > 0}:
+    \begin{lstlisting}
+    velocity = totalHours / (progress / 100)
+    // Esempio: 10h per 20% → velocity = 50h per 100%
+    projectedHours = velocity * 100
+    \end{lstlisting}
+    
+    \item \textbf{Budget Usage}:
+    \begin{lstlisting}
+    budgetUsagePercent = (totalHours / estimatedHours) * 100
+    \end{lstlisting}
+    
+    \item \textbf{Health Status}:
+    \begin{lstlisting}
+    if (projectedHours <= estimatedHours) → 'healthy'
+    if (projectedHours <= estimatedHours * 1.2) → 'warning'
+    if (projectedHours > estimatedHours * 1.2) → 'critical'
+    \end{lstlisting}
+    
+    \item \textbf{Velocity Message}: Messaggio dinamico basato su calcoli
+\end{enumerate}
+
+\subsubsection{Validazioni e Sicurezza}
+
+\begin{itemize}
+    \item \textbf{Pre-create}: Verifica unicità codice per utente
+    \item \textbf{Pre-delete}: Blocca eliminazione se ci sono WorkLog associati
+    \item \textbf{Multi-tenancy}: Tutte le query filtrano per \texttt{user}
+    \item \textbf{Rate validation}: Required per CLIENT, opzionale per PERSONAL
+\end{itemize}
+
+\subsection{API Endpoints}
+
+\subsubsection{GET /api/projects}
+
+Lista tutti i progetti dell'utente (senza metriche).
+
+\textbf{Response}:
+\begin{lstlisting}
+{
+  success: true,
+  data: Project[]
+}
+\end{lstlisting}
+
+\subsubsection{GET /api/projects-stats}
+
+Lista progetti con metriche di salute (usato da PROJECTS page).
+
+\textbf{Response}:
+\begin{lstlisting}
+{
+  success: true,
+  data: (Project & { metrics: ProjectMetrics })[]
+}
+\end{lstlisting}
+
+\subsubsection{POST /api/projects}
+
+Crea nuovo progetto.
+
+\textbf{Body}:
+\begin{lstlisting}
+{
+  name: string;              // Required
+  code: string;              // Required, unique per user
+  type: 'CLIENT' | 'PERSONAL'; // Default: 'CLIENT'
+  rate?: number;             // Required se CLIENT
+  budget?: number;           // Opzionale
+  description?: string;
+  estimatedHours?: number;
+  progress?: number;         // 0-100
+  color?: string;            // Default: '#6366f1'
+  icon?: string;             // Default: '📂'
+  status?: 'active' | 'completed' | 'archived';
+}
+\end{lstlisting}
+
+\subsubsection{PUT /api/projects/:id}
+
+Aggiorna progetto esistente.
+
+\subsubsection{DELETE /api/projects/:id}
+
+Elimina progetto (solo se non ha WorkLog associati).
+
+\newpage
+
+\section{Componente WORKSPACE}
+
+\subsection{Panoramica}
+
+Il componente WORKSPACE è dedicato al \textbf{Work Journal} con focus su:
+\begin{itemize}
+    \item Timeline cronologica di entries (WorkLog)
+    \item Gestione TODO per progetto
+    \item Templates per entries (development, documentation, ticket, etc.)
+    \item Vista progetti con statistiche (entries count, streak)
+\end{itemize}
+
+\subsection{Struttura Frontend}
+
+\subsubsection{Directory Structure}
+
+\begin{lstlisting}[language=bash]
+src/features/workspace/
+├── components/
+│   ├── EntryCard.tsx              # Card singola entry
+│   ├── EntryDetailModal.tsx      # Modal dettaglio entry
+│   ├── EntryForm.tsx              # Form creazione/modifica entry
+│   ├── EntryTimeline.tsx          # Timeline cronologica
+│   ├── ProjectCard.tsx            # Card progetto (con stats)
+│   ├── ProjectForm.tsx           # Form progetto
+│   ├── ProjectList.tsx           # Lista progetti sidebar
+│   ├── TodoForm.tsx               # Form TODO
+│   ├── TodoItem.tsx              # Item TODO
+│   ├── TodoList.tsx              # Lista TODO
+│   ├── TodosWidget.tsx           # Widget TODO
+│   └── templates/                # Templates per entries
+│       ├── DevelopmentTemplate.tsx
+│       ├── DocumentationTemplate.tsx
+│       ├── FreeformTemplate.tsx
+│       ├── TicketTemplate.tsx
+│       └── TemplateSelector.tsx
+├── context/
+│   └── WorkspaceContext.tsx       # Context React globale
+├── pages/
+│   ├── WorkspacePage.tsx          # Pagina principale
+│   └── ProjectDetailPage.tsx      # Dettaglio progetto
+├── services/
+│   └── workspaceService.ts        # Service layer API
+└── types.ts                        # TypeScript types
+\end{lstlisting}
+
+\subsubsection{Context: WorkspaceContext}
+
+Il \texttt{WorkspaceContext} gestisce:
+\begin{itemize}
+    \item \textbf{Progetti}: Lista con statistiche (entriesCount, streak, etc.)
+    \item \textbf{Entries}: Lista WorkLog (timeline)
+    \item \textbf{Todos}: Gestione TODO per progetto
+\end{itemize}
+
+\textbf{Interface}:
+\begin{lstlisting}
+interface WorkspaceContextType {
+  // Projects
+  projects: WorkProject[];
+  projectsLoading: boolean;
+  projectsError: string | null;
+  refreshProjects: () => Promise<void>;
+  addProject: (data: CreateWorkProjectDTO) => Promise<void>;
+  updateProject: (id: string, data: UpdateWorkProjectDTO) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  
+  // Entries (WorkLog)
+  entries: WorkLog[];
+  entriesLoading: boolean;
+  entriesError: string | null;
+  refreshEntries: () => Promise<void>;
+  addEntry: (data: CreateWorkLogDTO) => Promise<void>;
+  updateEntry: (id: string, data: UpdateWorkLogDTO) => Promise<void>;
+  deleteEntry: (id: string) => Promise<void>;
+  
+  // Todos
+  getTodosByProject: (projectId: string) => Promise<WorkTodo[]>;
+}
+\end{lstlisting}
+
+\textbf{Caratteristiche}:
+\begin{itemize}
+    \item Carica progetti con \texttt{includeStats=true} (usa \texttt{findWithEntryCount})
+    \item Carica entries tramite \texttt{/api/worklogs/feed}
+    \item Gestione ottimizzata con \texttt{useCallback} e \texttt{useMemo}
+    \item Auto-refresh all'autenticazione
+\end{itemize}
+
+\subsubsection{Page: WorkspacePage}
+
+La pagina principale mostra:
+
+\begin{enumerate}
+    \item \textbf{Header} con:
+    \begin{itemize}
+        \item Titolo "Workspace"
+        \item Bottoni: Aggiorna, Nuova Entry, Nuovo Progetto
+    \end{itemize}
+    
+    \item \textbf{Filtri}:
+    \begin{itemize}
+        \item Ricerca full-text (titolo, descrizione, tag)
+        \item Filtro per progetto (dropdown)
+        \item Sincronizzazione con URL (\texttt{?projectId=xxx})
+    \end{itemize}
+    
+    \item \textbf{Layout a 2 colonne}:
+    \begin{itemize}
+        \item \textbf{Sinistra}: \texttt{ProjectList} + \texttt{TodosWidget}
+        \item \textbf{Destra}: \texttt{EntryTimeline}
+    \end{itemize}
+    
+    \item \textbf{Modals}:
+    \begin{itemize}
+        \item \texttt{EntryDetailModal}: Dettaglio entry
+        \item \texttt{EntryForm}: Creazione/modifica entry
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Flusso dati}:
+\begin{lstlisting}
+1. Carica progetti (con stats) → setProjects()
+2. Carica entries (WorkLog feed) → setEntries()
+3. Filtra entries in base a:
+   - selectedProject (da URL o dropdown)
+   - searchQuery (ricerca testuale)
+4. Ordina per data (più recente prima)
+\end{lstlisting}
+
+\subsubsection{Component: EntryTimeline}
+
+Mostra entries raggruppate per data in ordine cronologico inverso.
+
+\textbf{Caratteristiche}:
+\begin{itemize}
+    \item Raggruppa per \texttt{date} (YYYY-MM-DD)
+    \item Mostra totale minuti per giorno
+    \item Ogni entry è un \texttt{EntryCard} cliccabile
+    \item Click apre \texttt{EntryDetailModal}
+\end{itemize}
+
+\subsubsection{Component: ProjectList}
+
+Lista progetti nella sidebar con:
+\begin{itemize}
+    \item Nome, icona, colore
+    \item Statistiche: entriesCount, streak, lastEntryDate
+    \item Selezione progetto (highlight)
+    \item Form creazione nuovo progetto
+\end{itemize}
+
+\subsubsection{Component: TodosWidget}
+
+Widget TODO che mostra:
+\begin{itemize}
+    \item TODO del progetto selezionato (o tutti se nessuno selezionato)
+    \item Filtri per status (pending, in-progress, completed)
+    \item Form creazione TODO
+    \item Drag \& drop per riordinare (futuro)
+\end{itemize}
+
+\subsection{Backend: WorkspaceService}
+
+\subsubsection{Struttura}
+
+\texttt{workspaceService.js} è un \textbf{wrapper} che espone:
+\begin{lstlisting}
+module.exports = {
+    projects: projectService,  // Usa ProjectService
+    todos: workTodoService,    // Usa WorkTodoService
+};
+\end{lstlisting}
+
+\textbf{NOTA}: Non gestisce direttamente entries perché usa \texttt{workLogService} tramite endpoint unificati.
+
+\subsubsection{WorkLogService}
+
+Il service per WorkLog gestisce:
+\begin{itemize}
+    \item \textbf{Feed}: Lista cronologica di log (\texttt{getWorkspaceFeed})
+    \item \textbf{By Month}: Log di un mese specifico
+    \item \textbf{By Project}: Log di un progetto
+    \item \textbf{Totals}: Statistiche aggregate per periodo
+\end{itemize}
+
+\textbf{Caratteristiche}:
+\begin{itemize}
+    \item Supporta sia log con orari (Timer) che note senza orari (Journal)
+    \item Calcolo automatico \texttt{durationMinutes} se \texttt{startTime/endTime} presenti
+    \item Validazione sicurezza: verifica che \texttt{projectId} appartenga allo stesso utente
+\end{itemize}
+
+\subsection{API Endpoints}
+
+\subsubsection{GET /api/workspace/projects}
+
+Lista progetti con statistiche (per Workspace).
+
+\textbf{Query params}:
+\begin{itemize}
+    \item \texttt{includeStats=true}: Include entriesCount, streak, etc.
+\end{itemize}
+
+\textbf{Response}:
+\begin{lstlisting}
+{
+  success: true,
+  data: (Project & {
+    entriesCount: number;
+    lastEntryDate: string | null;
+    totalDuration: number;
+    streak: number;
+  })[]
+}
+\end{lstlisting}
+
+\subsubsection{POST /api/workspace/projects}
+
+Crea progetto (con auto-generazione codice se non fornito).
+
+\subsubsection{GET /api/worklogs/feed}
+
+Feed cronologico di WorkLog (usato da Workspace).
+
+\textbf{Query params}:
+\begin{itemize}
+    \item \texttt{projectId}: Filtra per progetto
+    \item \texttt{date}: Filtra per data specifica
+    \item \texttt{startDate/endDate}: Range date
+    \item \texttt{tags}: Filtra per tag
+    \item \texttt{limit}: Limite risultati
+\end{itemize}
+
+\subsubsection{POST /api/worklogs}
+
+Crea nuovo WorkLog (entry).
+
+\textbf{Body}:
+\begin{lstlisting}
+{
+  projectId: string;          // Required
+  date: string;               // YYYY-MM-DD, required
+  title: string;              // Required
+  description?: string;
+  tags?: string[];
+  mood?: 'high' | 'neutral' | 'low';
+  isBillable?: boolean;      // Default: true
+  startTime?: string;         // HH:mm (opzionale)
+  endTime?: string;          // HH:mm (opzionale)
+}
+\end{lstlisting}
+
+\textbf{NOTA}: Se \texttt{startTime/endTime} mancano, crea una "nota" (Journal) senza durata.
+
+\subsubsection{GET /api/workspace/todos}
+
+Lista TODO con filtri.
+
+\textbf{Query params}:
+\begin{itemize}
+    \item \texttt{project}: Filtra per progetto
+    \item \texttt{status}: Filtra per status
+    \item \texttt{priority}: Filtra per priorità
+\end{itemize}
+
+\subsubsection{POST /api/workspace/todos}
+
+Crea nuovo TODO.
+
+\textbf{Body}:
+\begin{lstlisting}
+{
+  project: string;            // Project ID, required
+  title: string;              // Required
+  description?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  status?: 'pending' | 'in-progress' | 'completed' | 'cancelled';
+  dueDate?: string;           // YYYY-MM-DD
+  order?: number;            // Per drag & drop
+}
+\end{lstlisting}
+
+\newpage
+
+\section{Modelli di Dati}
+
+\subsection{Model: Project}
+
+\textbf{Schema MongoDB}:
+
+\begin{lstlisting}
+{
+  // Identificazione
+  name: String,              // Required, max 100 chars
+  code: String,              // Required, unique per user, uppercase
+  description: String,       // Opzionale, max 500 chars
+  
+  // Tipo e tariffa
+  type: 'CLIENT' | 'PERSONAL', // Default: 'CLIENT'
+  rate: Number,               // Required se CLIENT, min 0
+  budget: Number,             // Opzionale, min 0
+  
+  // UI
+  icon: String,               // Default: '📂', max 10 chars
+  color: String,              // Hex color, default: '#6366f1'
+  
+  // Tracking
+  estimatedHours: Number,     // Opzionale, min 0
+  progress: Number,           // 0-100, default 0
+  status: 'active' | 'completed' | 'archived', // Default: 'active'
+  
+  // Multi-tenancy (aggiunto da plugin)
+  user: ObjectId,             // Required, immutable
+  
+  // Timestamps
+  createdAt: Date,
+  updatedAt: Date
+}
+\end{lstlisting}
+
+\textbf{Indici}:
+\begin{itemize}
+    \item \texttt{\{user: 1, code: 1\}} (unique): Unicità codice per utente
+    \item \texttt{\{name: 'text', description: 'text'\}}: Ricerca testuale
+\end{itemize}
+
+\textbf{Validazioni}:
+\begin{itemize}
+    \item Pre-save: Normalizza \texttt{code} in uppercase
+    \item Pre-save: Valida \texttt{rate} per CLIENT (required)
+    \item Pre-create: Verifica unicità \texttt{code} per utente
+\end{itemize}
+
+\subsection{Model: WorkLog}
+
+\textbf{Schema MongoDB}:
+
+\begin{lstlisting}
+{
+  // Relazioni
+  projectId: ObjectId,       // Ref: Project, required
+  user: ObjectId,             // Multi-tenancy, required
+  
+  // Dati base
+  date: String,               // YYYY-MM-DD, required
+  title: String,             // Required, max 200 chars
+  description: String,       // Opzionale, max 5000 chars
+  tags: [String],            // Array di tag, max 50 chars each
+  
+  // Tracking
+  mood: 'high' | 'neutral' | 'low',
+  isBillable: Boolean,       // Default: true
+  
+  // Orari (opzionali - per Timer mode)
+  startTime: String,         // HH:mm, opzionale
+  endTime: String,           // HH:mm, opzionale
+  
+  // Durata
+  durationMinutes: Number,    // Calcolata o manuale, default 0
+  isManualDuration: Boolean,  // Flag durata manuale, default false
+  
+  // Timestamps
+  createdAt: Date,
+  updatedAt: Date
+}
+\end{lstlisting}
+
+\textbf{Indici}:
+\begin{itemize}
+    \item \texttt{\{user: 1, date: -1\}}: Query per mese/periodo
+    \item \texttt{\{user: 1, projectId: 1, date: -1\}}: Query per progetto
+    \item \texttt{\{title: 'text', description: 'text'\}}: Ricerca testuale
+    \item \texttt{\{tags: 1\}}: Ricerca per tag
+\end{itemize}
+
+\textbf{Logica Durata}:
+\begin{lstlisting}
+// Pre-save hook:
+if (isManualDuration) {
+    // Rispetta valore manuale, non ricalcolare
+    return;
+}
+
+if (startTime && endTime) {
+    // Calcola durationMinutes da orari
+    durationMinutes = calculateFromTimes(startTime, endTime);
+} else {
+    // Se orari mancano, durationMinutes = 0 (nota/journal)
+    if (!isModified('durationMinutes')) {
+        durationMinutes = 0;
+    }
+}
+\end{lstlisting}
+
+\subsection{Model: WorkTodo}
+
+\textbf{Schema MongoDB}:
+
+\begin{lstlisting}
+{
+  // Relazioni
+  project: ObjectId,          // Ref: Project, required
+  user: ObjectId,             // Multi-tenancy, required
+  
+  // Dati
+  title: String,              // Required, max 200 chars
+  description: String,        // Opzionale, max 1000 chars
+  priority: 'low' | 'medium' | 'high' | 'urgent', // Default: 'medium'
+  status: 'pending' | 'in-progress' | 'completed' | 'cancelled', // Default: 'pending'
+  
+  // Date
+  dueDate: String,           // YYYY-MM-DD, opzionale
+  completedAt: Date,          // Auto-popolato quando status = 'completed'
+  
+  // UI
+  order: Number,              // Per drag & drop, default 0
+  
+  // Timestamps
+  createdAt: Date,
+  updatedAt: Date
+}
+\end{lstlisting}
+
+\textbf{Indici}:
+\begin{itemize}
+    \item \texttt{\{user: 1, project: 1, status: 1\}}: Query per progetto e status
+    \item \texttt{\{user: 1, dueDate: 1\}}: Query TODO in scadenza
+    \item \texttt{\{user: 1, priority: 1, createdAt: -1\}}: Ordinamento per priorità
+\end{itemize}
+
+\textbf{Logica}:
+\begin{itemize}
+    \item Pre-save: Auto-popola \texttt{completedAt} quando \texttt{status = 'completed'}
+    \item Pre-save: Rimuove \texttt{completedAt} se status cambia da 'completed'
+\end{itemize}
+
+\subsection{Relazioni tra Modelli}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Modello} & \textbf{Relazione} & \textbf{Tipo} \\
+\hline
+Project & user & Many-to-One (Multi-tenancy) \\
+WorkLog & user & Many-to-One (Multi-tenancy) \\
+WorkLog & projectId $\rightarrow$ Project & Many-to-One \\
+WorkTodo & user & Many-to-One (Multi-tenancy) \\
+WorkTodo & project $\rightarrow$ Project & Many-to-One \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Integrità Referenziale}:
+\begin{itemize}
+    \item \texttt{WorkLog.projectId} deve riferirsi a un \texttt{Project} dello stesso utente
+    \item \texttt{WorkTodo.project} deve riferirsi a un \texttt{Project} dello stesso utente
+    \item Validazione implementata nel service layer (non a livello DB)
+    \item Eliminazione \texttt{Project} bloccata se ci sono \texttt{WorkLog} associati
+\end{itemize}
+
+\newpage
+
+\section{Flussi di Dati}
+
+\subsection{Flusso: Caricamento Progetti in PROJECTS}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: \texttt{ProjectsContext.refreshProjects()}
+    \item \textbf{API Call}: \texttt{GET /api/projects-stats}
+    \item \textbf{Controller}: \texttt{api.js} → \texttt{projectService.getProjectStats()}
+    \item \textbf{Service}: \texttt{ProjectService.getProjectStats()}
+    \begin{itemize}
+        \item Chiama \texttt{\_mergeProjectsWithStats()}
+        \item Carica progetti: \texttt{projectService.find()}
+        \item Aggrega WorkLog: \texttt{\_aggregateWorklogsByProject()}
+        \item Calcola metriche: \texttt{\_buildHealthSnapshot()} per ogni progetto
+    \end{itemize}
+    \item \textbf{Response}: Array di progetti con campo \texttt{metrics}
+    \item \textbf{Frontend}: \texttt{setProjects(data)} → Re-render \texttt{ProjectsPage}
+\end{enumerate}
+
+\subsection{Flusso: Creazione Progetto}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: \texttt{ProjectsContext.addProject(params)}
+    \item \textbf{API Call}: \texttt{POST /api/projects}
+    \item \textbf{Controller}: Valida body, chiama \texttt{projectService.create()}
+    \item \textbf{Service}: \texttt{ProjectService.create()}
+    \begin{itemize}
+        \item Validazione pre-create: \texttt{beforeCreate()} (verifica codice unico)
+        \item Crea documento MongoDB
+        \item Registra activity: \texttt{PROJECT\_CREATED}
+    \end{itemize}
+    \item \textbf{Response}: Progetto creato
+    \item \textbf{Frontend}: \texttt{refreshProjects()} → Toast successo
+\end{enumerate}
+
+\subsection{Flusso: Caricamento Workspace}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: \texttt{WorkspaceContext} mount
+    \item \textbf{Parallelo}:
+    \begin{itemize}
+        \item \textbf{Progetti}: \texttt{GET /api/workspace/projects?includeStats=true}
+        \begin{itemize}
+            \item Controller: \texttt{workspaceController.getProjects()}
+            \item Service: \texttt{projectService.findWithEntryCount()}
+            \item Aggregazione MongoDB con \texttt{\$lookup} su \texttt{worklogs}
+            \item Calcolo \texttt{streak} per ogni progetto
+        \end{itemize}
+        \item \textbf{Entries}: \texttt{GET /api/worklogs/feed}
+        \begin{itemize}
+            \item Controller: \texttt{api.js} → \texttt{workLogService.getWorkspaceFeed()}
+            \item Service: Query WorkLog ordinati per data
+        \end{itemize}
+    \end{itemize}
+    \item \textbf{Frontend}: \texttt{setProjects()} + \texttt{setEntries()}
+    \item \textbf{Page}: Filtra e mostra entries in timeline
+\end{enumerate}
+
+\subsection{Flusso: Creazione Entry (WorkLog)}
+
+\begin{enumerate}
+    \item \textbf{Frontend}: \texttt{WorkspaceContext.addEntry(data)}
+    \item \textbf{API Call}: \texttt{POST /api/worklogs}
+    \item \textbf{Controller}: Valida body, chiama \texttt{workLogService.create()}
+    \item \textbf{Service}: \texttt{WorkLogService.create()}
+    \begin{itemize}
+        \item Validazione sicurezza: verifica \texttt{projectId} appartiene allo stesso utente
+        \item Pre-save hook: Calcola \texttt{durationMinutes} se orari presenti
+        \item Crea documento MongoDB
+        \item Emit event: \texttt{WORKLOG\_CREATED} (per SSE/notifiche)
+    \end{itemize}
+    \item \textbf{Response}: WorkLog creato
+    \item \textbf{Frontend}: \texttt{setEntries([...prev, created])} → Toast successo
+\end{enumerate}
+
+\subsection{Flusso: Calcolo Metriche Salute}
+
+\begin{enumerate}
+    \item \textbf{Trigger}: Chiamata a \texttt{getProjectStats()} o \texttt{findWithHealth()}
+    \item \textbf{Aggregazione}: \texttt{\_aggregateWorklogsByProject()}
+    \begin{itemize}
+        \item Raggruppa WorkLog per \texttt{projectId}
+        \item Calcola: \texttt{totalMinutes}, \texttt{logCount}, \texttt{lastLog}
+    \end{itemize}
+    \item \textbf{Merge}: \texttt{\_mergeProjectsWithStats()}
+    \begin{itemize}
+        \item Combina progetti con statistiche aggregate
+        \item Crea mappa \texttt{statsMap} per lookup veloce
+    \end{itemize}
+    \item \textbf{Calcolo Metriche}: \texttt{\_buildHealthSnapshot()} per ogni progetto
+    \begin{itemize}
+        \item Calcola \texttt{velocity} e \texttt{projectedHours}
+        \item Determina \texttt{healthStatus}
+        \item Genera \texttt{velocityMessage}
+    \end{itemize}
+    \item \textbf{Return}: Array progetti con campo \texttt{metrics}
+\end{enumerate}
+
+\newpage
+
+\section{Integrazioni e Dipendenze}
+
+\subsection{Dipendenze Frontend}
+
+\begin{description}
+    \item[\textbf{React Router}] Navigazione tra pagine
+    \begin{itemize}
+        \item \texttt{/projects} → \texttt{ProjectsPage}
+        \item \texttt{/workspace} → \texttt{WorkspacePage}
+        \item URL params: \texttt{?projectId=xxx} per filtro
+    \end{itemize}
+    
+    \item[\textbf{Shared Services}]
+    \begin{itemize}
+        \item \texttt{apiClient}: HTTP client congestione errori
+        \item \texttt{toast}: Notifiche utente
+        \item \texttt{useFormat}: Formattazione (money, hours, date)
+    \end{itemize}
+    
+    \item[\textbf{Auth Context}] Verifica autenticazione per caricamento dati
+\end{description}
+
+\subsection{Dipendenze Backend}
+
+\begin{description}
+    \item[\textbf{BaseService}] Classe base per CRUD operations
+    \begin{itemize}
+        \item Multi-tenancy automatico
+        \item Ricerca testuale
+        \item Error handling standardizzato
+    \end{itemize}
+    
+    \item[\textbf{Multi-Tenancy Plugin}] Isolamento dati per utente
+    \begin{itemize}
+        \item Aggiunge campo \texttt{user} a tutti i modelli
+        \item Filtra automaticamente query per \texttt{user}
+    \end{itemize}
+    
+    \item[\textbf{Activity Service}] Logging attività utente
+    \begin{itemize}
+        \item \texttt{PROJECT\_CREATED}
+        \item \texttt{PROJECT\_COMPLETED}
+    \end{itemize}
+    
+    \item[\textbf{Event Bus}] Eventi per SSE/notifiche real-time
+    \begin{itemize}
+        \item \texttt{WORKLOG\_CREATED}
+        \item Aggiornamenti progetti
+    \end{itemize}
+\end{description}
+
+\subsection{Comunicazione Frontend-Backend}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Feature} & \textbf{Endpoint} & \textbf{Service} \\
+\hline
+PROJECTS - Lista & \texttt{GET /api/projects-stats} & \texttt{projectService.getProjectStats()} \\
+PROJECTS - Crea & \texttt{POST /api/projects} & \texttt{projectService.create()} \\
+WORKSPACE - Progetti & \texttt{GET /api/workspace/projects?includeStats=true} & \texttt{projectService.findWithEntryCount()} \\
+WORKSPACE - Entries & \texttt{GET /api/worklogs/feed} & \texttt{workLogService.getWorkspaceFeed()} \\
+WORKSPACE - Crea Entry & \texttt{POST /api/worklogs} & \texttt{workLogService.create()} \\
+WORKSPACE - Todos & \texttt{GET /api/workspace/todos} & \texttt{workTodoService.find()} \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Overlap e Ridondanze}
+
+\textbf{Problemi identificati}:
+\begin{enumerate}
+    \item \textbf{Doppio endpoint progetti}:
+    \begin{itemize}
+        \item \texttt{/api/projects} (generico)
+        \item \texttt{/api/workspace/projects} (specifico workspace)
+    \end{itemize}
+    Entrambi usano \texttt{ProjectService}, ma con logiche diverse.
+    
+    \item \textbf{Doppio context}:
+    \begin{itemize}
+        \item \texttt{ProjectsContext}: Solo per PROJECTS page
+        \item \texttt{WorkspaceContext}: Include anche progetti (per workspace)
+    \end{itemize}
+    Possibile conflitto se entrambi montati.
+    
+    \item \textbf{Tipi duplicati}:
+    \begin{itemize}
+        \item \texttt{Project} (projects/type.ts)
+        \item \texttt{WorkProject} (workspace/types.ts) - DEPRECATO ma ancora usato
+    \end{itemize}
+    
+    \item \textbf{Normalizzazione dati}:
+    \begin{itemize}
+        \item Frontend normalizza \texttt{\_id} → \texttt{id}
+        \item Logica duplicata in più service
+    \end{itemize}
+\end{enumerate}
+
+\newpage
+
+\section{Problemi e Limitazioni Attuali}
+
+\subsection{Architetturali}
+
+\begin{enumerate}
+    \item \textbf{Separazione non chiara}:
+    \begin{itemize}
+        \item PROJECTS e WORKSPACE condividono lo stesso modello \texttt{Project}
+        \item Ma hanno logiche di business diverse
+        \item Endpoint duplicati creano confusione
+    \end{itemize}
+    
+    \item \textbf{Context duplicati}:
+    \begin{itemize}
+        \item Due context separati per gestire progetti
+        \item Possibile inconsistenza se entrambi montati
+        \item Nessuna sincronizzazione tra i due
+    \end{itemize}
+    
+    \item \textbf{Service layer inconsistente}:
+    \begin{itemize}
+        \item \texttt{workspaceService} è solo un wrapper
+        \item Logica reale in \texttt{projectService} e \texttt{workLogService}
+        \item Difficile capire dove cercare la logica
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Performance}
+
+\begin{enumerate}
+    \item \textbf{Aggregazioni pesanti}:
+    \begin{itemize}
+        \item \texttt{findWithEntryCount()} fa \texttt{\$lookup} su tutti i worklogs
+        \item Calcolo \texttt{streak} richiede query aggiuntive
+        \item Nessuna cache o ottimizzazione
+    \end{itemize}
+    
+    \item \textbf{Query ripetute}:
+    \begin{itemize}
+        \item Metriche ricalcolate ogni volta
+        \item Nessun caching lato server
+        \item Frontend ricarica tutto anche per piccoli aggiornamenti
+    \end{itemize}
+\end{enumerate}
+
+\subsection{UX/UI}
+
+\begin{enumerate}
+    \item \textbf{Navigazione confusa}:
+    \begin{itemize}
+        \item Due pagine separate per progetti
+        \item Link da PROJECTS a WORKSPACE ma non viceversa
+        \item URL params non sempre sincronizzati
+    \end{itemize}
+    
+    \item \textbf{Form duplicati}:
+    \begin{itemize}
+        \item \texttt{ProjectForm} in projects/
+        \item \texttt{ProjectForm} in workspace/components/
+        \item Logica simile ma non condivisa
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Type Safety}
+
+\begin{enumerate}
+    \item \textbf{Tipi legacy}:
+    \begin{itemize}
+        \item \texttt{WorkProject} marcato DEPRECATO ma ancora usato
+        \item \texttt{WorkEntry} marcato DEPRECATO ma ancora referenziato
+        \item Migrazione incompleta
+    \end{itemize}
+    
+    \item \textbf{Normalizzazione inconsistente}:
+    \begin{itemize}
+        \item Alcuni service normalizzano \texttt{\_id} → \texttt{id}
+        \item Altri no, causando errori runtime
+    \end{itemize}
+\end{enumerate}
+
+\newpage
+
+\section{Conclusioni e Raccomandazioni}
+
+\subsection{Stato Attuale}
+
+Il sistema attuale funziona ma presenta:
+\begin{itemize}
+    \item \textbf{Architettura ibrida}: Unificazione parziale dei modelli
+    \item \textbf{Logica duplicata}: Endpoint e context separati
+    \item \textbf{Performance non ottimale}: Aggregazioni pesanti senza cache
+    \item \textbf{Type safety incompleta}: Tipi legacy ancora presenti
+\end{itemize}
+
+\subsection{Raccomandazioni per Riprogettazione}
+
+\begin{enumerate}
+    \item \textbf{Unificare completamente}:
+    \begin{itemize}
+        \item Un solo context per progetti (condiviso)
+        \item Un solo set di endpoint (con query params per varianti)
+        \item Rimuovere tipi legacy
+    \end{itemize}
+    
+    \item \textbf{Separare responsabilità}:
+    \begin{itemize}
+        \item PROJECTS: Solo visualizzazione metriche/health
+        \item WORKSPACE: Solo journal/timeline/todos
+        \item Service layer chiaro e dedicato
+    \end{itemize}
+    
+    \item \textbf{Ottimizzare performance}:
+    \begin{itemize}
+        \item Cache metriche calcolate
+        \item Lazy loading per liste lunghe
+        \item Aggregazioni ottimizzate con indici
+    \end{itemize}
+    
+    \item \textbf{Migliorare UX}:
+    \begin{itemize}
+        \item Navigazione unificata
+        \item Form condivisi
+        \item Sincronizzazione stato tra pagine
+    \end{itemize}
+    
+    \item \textbf{Type safety completa}:
+    \begin{itemize}
+        \item Rimuovere tutti i tipi DEPRECATED
+        \item Normalizzazione consistente
+        \item Validazione runtime con Zod o simile
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Prossimi Passi}
+
+\begin{enumerate}
+    \item \textbf{Analisi requisiti}: Definire esattamente cosa deve fare ogni componente
+    \item \textbf{Progettazione architettura}: Definire struttura pulita e scalabile
+    \item \textbf{Prototipo}: Implementare versione semplificata
+    \item \textbf{Migrazione graduale}: Spostare funzionalità senza breaking changes
+    \item \textbf{Testing}: Verificare che tutto funzioni correttamente
+\end{enumerate}
+
+\vspace{2cm}
+
+\begin{center}
+\textit{Documento creato per supportare la riprogettazione dei componenti PROJECTS e WORKSPACE.}
+\end{center}
+
+\end{document}

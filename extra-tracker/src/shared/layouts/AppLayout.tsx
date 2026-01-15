@@ -22,7 +22,7 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '../../features/auth/context/AuthContext';
 import { useSettings } from '../../features/settings/context/SettingsContext';
-import { LogoIcon } from '../components/icons';
+import { Logo } from '../components/Brand/Logo';
 import { UserLevelWidget } from '../../features/gamification/UserLevelWidget';
 
 export const AppLayout = () => {
@@ -118,17 +118,10 @@ export const AppLayout = () => {
                             className="flex items-center gap-3 group"
                             title={`${APP_NAME}${appVersion ? ` v${appVersion}` : ''}`}
                         >
-                            <div className="flex items-center justify-center w-10 h-10 transition-shadow shadow-lg rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-primary-500/25 group-hover:shadow-primary-500/40">
-                                <LogoIcon className="text-white" size={22} />
-                            </div>
-                            <div className="hidden sm:block">
-                                <h1 className="text-xl font-bold leading-tight gradient-text">
-                                    {APP_NAME}
-                                </h1>
-                                {appVersion && (
-                                    <span className="text-[10px] text-white/30 font-medium">v{appVersion}</span>
-                                )}
-                            </div>
+                            <Logo size="md" variant="full" className="text-white" />
+                            {appVersion && (
+                                <span className="hidden sm:block text-[10px] text-white/30 font-medium">v{appVersion}</span>
+                            )}
                         </Link>
 
                         {/* DESTRA: Avatar + Menu + Logout */}
@@ -303,7 +296,7 @@ export const AppLayout = () => {
 
             {/* FOOTER */}
             <footer className="py-6 text-sm text-center text-white/30">
-                <p>© 2024 Silvi • Gestisci il tuo tempo con stile</p>
+                <p>© 2026 Silvi AI • Gestisci il tuo tempo con stile</p>
             </footer>
         </div>
     );

@@ -11,6 +11,7 @@
 const User = require('../models/User');
 const { asyncHandler } = require('../middleware/errorHandler');
 const AppError = require('../utils/AppError');
+const { exportUserData, importUserData } = require('../services/dataExportImportService');
 
 // ==========================================
 // PROFILO UTENTE
@@ -298,7 +299,8 @@ const getAllSettings = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/settings/export
- * Esporta tutti i dati utente (GDPR compliance)
+ * Esporta tutti i dati "lavoro" dell'utente (GDPR compliance)
+ * NON include: email, password, level, XP, tokens (solo dati lavoro)
  */
 const exportData = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user.id);
@@ -307,40 +309,97 @@ const exportData = asyncHandler(async (req, res) => {
         throw new AppError('Utente non trovato', 404, 'USER_NOT_FOUND');
     }
 
-    // Raccogli tutti i dati dell'utente
-    const WorkLog = require('../models/WorkLog');
-    const Project = require('../models/Project');
-    const Goal = require('../models/Goal');
-    const CheckIn = require('../models/CheckIn');
+    // Usa il service per esportare solo dati "lavoro"
+    const exportData = await exportUserData(req.user.id);
 
-    const [workLogs, projects, goals, checkIns] = await Promise.all([
-        WorkLog.find({ user: req.user.id }),
-        Project.find({ user: req.user.id }),
-        Goal.find({ user: req.user.id }),
-        CheckIn.find({ user: req.user.id }),
-    ]);
+    // Imposta header per download file JSON
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="extra-tracker-export-${new Date().toISOString().split('T')[0]}.json"`);
 
-    const exportData = {
-        exportDate: new Date().toISOString(),
-        user: {
-            email: user.email,
-            profile: user.profile,
-            preferences: user.preferences,
-            notifications: user.notifications,
-            consent: user.consent,
-            createdAt: user.createdAt,
-        },
-        workLogs,
-        projects,
-        goals,
-        checkIns,
-    };
+    res.status(200).json(exportData);
+});
+
+/**
+ * POST /api/settings/import/check
+ * Verifica i dati da importare senza importarli
+ * Restituisce confronto con dati esistenti
+ */
+const checkImportData = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+        throw new AppError('Utente non trovato', 404, 'USER_NOT_FOUND');
+    }
+
+    const importData = req.body;
+
+    if (!importData) {
+        throw new AppError('Dati di import non forniti', 400, 'MISSING_DATA');
+    }
+
+    const { compareImportData } = require('../services/dataExportImportService');
+    const comparison = await compareImportData(req.user.id, importData);
 
     res.status(200).json({
         success: true,
-        message: 'Dati esportati con successo',
-        data: exportData,
+        data: comparison,
     });
+});
+
+/**
+ * POST /api/settings/import
+ * Importa dati utente da file JSON
+ * Valida e importa in modo sicuro (non permette modifiche a dati sensibili)
+ */
+const importData = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+        throw new AppError('Utente non trovato', 404, 'USER_NOT_FOUND');
+    }
+
+    const importData = req.body.data || req.body;
+    const force = req.body.force || false; // Se true, ignora warning
+
+    if (!importData) {
+        throw new AppError('Dati di import non forniti', 400, 'MISSING_DATA');
+    }
+
+    try {
+        // Importa i dati usando il service
+        const result = await importUserData(req.user.id, importData, {
+            merge: req.body.merge || false,
+            force: force,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Dati importati con successo',
+            data: result,
+        });
+    } catch (error) {
+        // Se è un errore di dati identici o minori, restituisci info dettagliate
+        if (error.code === 'IDENTICAL_DATA' || error.code === 'LESS_DATA_WARNING') {
+            const { compareImportData } = require('../services/dataExportImportService');
+            const comparison = await compareImportData(req.user.id, importData);
+            
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: error.message,
+                    code: error.code,
+                },
+                data: {
+                    comparison,
+                    requiresConfirmation: error.code === 'LESS_DATA_WARNING',
+                },
+            });
+            return;
+        }
+        
+        // Rilancia altri errori
+        throw error;
+    }
 });
 
 /**
@@ -377,12 +436,20 @@ const deleteAccount = asyncHandler(async (req, res) => {
     const Project = require('../models/Project');
     const Goal = require('../models/Goal');
     const CheckIn = require('../models/CheckIn');
+    const Deck = require('../models/Deck');
+    const Folder = require('../models/Folder');
+    const Tag = require('../models/Tag');
+    const WorkTodo = require('../models/WorkTodo');
 
     await Promise.all([
         WorkLog.deleteMany({ user: req.user.id }),
         Project.deleteMany({ user: req.user.id }),
         Goal.deleteMany({ user: req.user.id }),
         CheckIn.deleteMany({ user: req.user.id }),
+        Deck.deleteMany({ user: req.user.id }),
+        Folder.deleteMany({ user: req.user.id }),
+        Tag.deleteMany({ user: req.user.id }),
+        WorkTodo.deleteMany({ user: req.user.id }),
         User.findByIdAndDelete(req.user.id),
     ]);
 
@@ -401,5 +468,7 @@ module.exports = {
     updateNotifications,
     getAllSettings,
     exportData,
+    checkImportData,
+    importData,
     deleteAccount,
 };

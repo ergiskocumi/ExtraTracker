@@ -33,9 +33,9 @@ import {
 import { studyService, type Deck, type Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
-import { DeckAnalytics } from '../components/DeckAnalytics';
-import { DeckSettings } from '../components/DeckSettings';
-import { DeckNotifications } from '../components/DeckNotifications';
+import { DeckAnalytics } from '../components/Deck/DeckAnalytics';
+import { DeckSettings } from '../components/Deck/DeckSettings';
+import { DeckNotifications } from '../components/Deck/DeckNotifications';
 
 // ============================================
 // CARD ITEM COMPONENT - Editable Card View

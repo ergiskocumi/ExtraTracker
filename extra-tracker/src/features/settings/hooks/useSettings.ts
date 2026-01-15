@@ -61,6 +61,18 @@ export const useSettingsPage = () => {
         return data;
     };
 
+    const checkImportData = async (file: File) => {
+        const result = await settings.checkImportData(file);
+        return result;
+    };
+
+    const importData = async (file: File, force = false) => {
+        setAccountStatus({ loading: true, success: false, error: null });
+        const result = await settings.importData(file, force);
+        setAccountStatus({ loading: false, success: !!result, error: result ? null : 'Import fallito' });
+        return result;
+    };
+
     const deleteAccount = async (password: string, confirmation: string) => {
         setAccountStatus({ loading: true, success: false, error: null });
         const ok = await settings.deleteAccount(password, confirmation);
@@ -80,6 +92,8 @@ export const useSettingsPage = () => {
         savePreferences,
         changePassword,
         exportData,
+        checkImportData,
+        importData,
         deleteAccount,
     };
 };

@@ -292,25 +292,6 @@ export const FileTextIcon = ({ className = "", size = 20 }: IconProps) => (
   </svg>
 );
 
-// Logo Icon for Silvi
-export const LogoIcon = ({ className = "", size = 24 }: IconProps) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
-    className={className}
-  >
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
-    <path d="M12 2a10 10 0 0 1 10 10" strokeDasharray="4 2" />
-  </svg>
-);
-
 // Play Icon (for start time)
 export const PlayIcon = ({ className = "", size = 20 }: IconProps) => (
   <svg 

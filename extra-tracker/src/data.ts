@@ -13,6 +13,7 @@ export const MOCK_PROJECTS: Project[] = [
         name: "Cliente A",
         code: "COM001",
         description: "Implementazione piattaforma web",
+        type: "CLIENT",
         rate: 25,
     },
     {
@@ -20,6 +21,7 @@ export const MOCK_PROJECTS: Project[] = [
         name: "Cliente B",
         code: "COM002",
         description: "Migrazione infrastruttura cloud",
+        type: "CLIENT",
         rate: 25,
     },
     {
@@ -27,6 +29,7 @@ export const MOCK_PROJECTS: Project[] = [
         name: "Martesana",
         code: "3474",
         description: "Supporto sistemistico continuativo",
+        type: "CLIENT",
         rate: 25,
     }
 ]
@@ -37,24 +40,33 @@ export const MOCK_WORKLOGS: WorkLog[] = [
         id: "1",
         projectId: "c1",
         date: "2023-10-01",
+        title: "Sessione mattutina",
         startTime: "09:00",
         endTime: "11:00",
-        description: "Lavoro sul progetto A"
+        description: "Lavoro sul progetto A",
+        createdAt: "2023-10-01T11:00:00.000Z",
+        updatedAt: "2023-10-01T11:00:00.000Z"
     },
     {
         id: "2",
         projectId: "c2",
         date: "2023-10-01",
+        title: "Migrazione cloud",
         startTime: "11:30",
         endTime: "13:30",
-        description: "Lavoro sul progetto B"
+        description: "Lavoro sul progetto B",
+        createdAt: "2023-10-01T13:30:00.000Z",
+        updatedAt: "2023-10-01T13:30:00.000Z"
     },
      {
         id: "3",
         projectId: "c3",
         date: "2023-10-01",
+        title: "Script AD",
         startTime: "11:30",
         endTime: "13:30",
-        description: "Script AD per Martesana"
+        description: "Script AD per Martesana",
+        createdAt: "2023-10-01T13:30:00.000Z",
+        updatedAt: "2023-10-01T13:30:00.000Z"
     }
 ];

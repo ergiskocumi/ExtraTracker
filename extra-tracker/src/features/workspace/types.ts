@@ -30,6 +30,11 @@ export interface WorkProject {
     status: WorkProjectStatus;
     createdAt: string;
     updatedAt: string;
+    // Campi Project unificato (se presenti)
+    code?: string;
+    type?: 'CLIENT' | 'PERSONAL';
+    rate?: number;
+    budget?: number;
     // Opzionali (popolati via aggregate)
     entriesCount?: number;
     lastEntryDate?: string;
