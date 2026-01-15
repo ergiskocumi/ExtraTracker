@@ -45,6 +45,26 @@ interface SettingsContextValue extends SettingsState {
     updatePreferences: (data: Partial<UserPreferences>) => Promise<boolean>;
     updateNotifications: (data: Partial<UserNotifications>) => Promise<boolean>;
     exportData: () => Promise<unknown | null>;
+    checkImportData: (file: File) => Promise<{
+        isIdentical: boolean;
+        hasLessData: boolean;
+        existing: Record<string, number>;
+        importing: Record<string, number>;
+        differences: Record<string, number>;
+    } | null>;
+    importData: (file: File, force?: boolean) => Promise<{
+        success: boolean;
+        imported: {
+            goals: number;
+            projects: number;
+            workLogs: number;
+            decks: number;
+            folders: number;
+            tags: number;
+            checkIns: number;
+            workTodos: number;
+        };
+    } | null>;
     deleteAccount: (password: string, confirmation: string) => Promise<boolean>;
     clearError: () => void;
 }
@@ -282,8 +302,53 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
      */
     const exportData = useCallback(async (): Promise<unknown | null> => {
         try {
-            const response = await settingsService.exportData();
-            if (response.success) {
+            const data = await settingsService.exportData();
+            return data;
+        } catch {
+            return null;
+        }
+    }, []);
+
+    /**
+     * Verifica i dati da importare
+     */
+    const checkImportData = useCallback(async (file: File): Promise<{
+        isIdentical: boolean;
+        hasLessData: boolean;
+        existing: Record<string, number>;
+        importing: Record<string, number>;
+        differences: Record<string, number>;
+    } | null> => {
+        try {
+            const response = await settingsService.checkImportData(file);
+            if (response.success && response.data) {
+                return response.data;
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    }, []);
+
+    /**
+     * Importa dati utente da file JSON
+     */
+    const importData = useCallback(async (file: File, force = false): Promise<{
+        success: boolean;
+        imported: {
+            goals: number;
+            projects: number;
+            workLogs: number;
+            decks: number;
+            folders: number;
+            tags: number;
+            checkIns: number;
+            workTodos: number;
+        };
+    } | null> => {
+        try {
+            const response = await settingsService.importData(file, force);
+            if (response.success && response.data) {
                 return response.data;
             }
             return null;
@@ -360,6 +425,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         updatePreferences,
         updateNotifications,
         exportData,
+        checkImportData,
+        importData,
         deleteAccount,
         clearError,
     };

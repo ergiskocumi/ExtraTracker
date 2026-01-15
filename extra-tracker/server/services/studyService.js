@@ -245,6 +245,33 @@ class StudyService extends BaseService {
                 console.log('[StudyService] updateDeck: Setting folderId to null');
             }
         }
+        
+        // Gestione del cambio di esame (goalId)
+        if (updates.goalId !== undefined) {
+            console.log('[StudyService] updateDeck: Updating goalId', {
+                currentGoalId: deck.goalId ? deck.goalId.toString() : null,
+                newGoalId: updates.goalId,
+            });
+            
+            // Verifica che l'esame (goal) esista e appartenga all'utente (se non è null)
+            if (updates.goalId !== null && updates.goalId !== '') {
+                const Goal = require('../models/Goal');
+                const goal = await Goal.findOne({ _id: updates.goalId, user: userId });
+                if (!goal) {
+                    throw AppError.notFound('Esame non trovato');
+                }
+                // Verifica che sia un esame (category === 'learning')
+                if (goal.category !== 'learning') {
+                    throw AppError.badRequest('Il goal selezionato non è un esame (category deve essere "learning")');
+                }
+                deck.goalId = updates.goalId;
+                console.log('[StudyService] updateDeck: Goal verified, setting goalId');
+            } else {
+                // Se goalId è null o stringa vuota, non possiamo rimuoverlo perché è required
+                // Ma possiamo permettere di cambiarlo con un altro esame
+                throw AppError.badRequest('Un mazzo deve essere associato a un esame. Seleziona un esame valido.');
+            }
+        }
 
         await deck.save();
         console.log('[StudyService] updateDeck: Deck saved', {

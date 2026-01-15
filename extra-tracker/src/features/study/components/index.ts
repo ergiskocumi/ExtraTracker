@@ -19,8 +19,6 @@ export { QuizView } from './Study/QuizView';
 export { TypingView } from './Study/TypingView';
 
 // PDF components
-export { InteractivePDFReader } from './PDF/InteractivePDFReader';
-export { ContinuousPDFViewer } from './PDF/ContinuousPDFViewer';
 export { PDFChat } from './PDF/PDFChat';
 
 // Deck components

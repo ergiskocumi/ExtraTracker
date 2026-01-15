@@ -79,8 +79,17 @@ export const useDashboard = () => {
         const startHour = Math.max(9, now.getHours() - hours);
         const startTime = `${String(startHour).padStart(2, '0')}:00`;
         const endTime = `${String(startHour + hours).padStart(2, '0')}:00`;
+        const timestamp = now.toISOString();
 
-        addWorkLog({ projectId, date: today, startTime, endTime });
+        addWorkLog({
+            projectId,
+            date: today,
+            title: 'Quick log',
+            startTime,
+            endTime,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+        });
     };
 
     const totalHours = useMemo(

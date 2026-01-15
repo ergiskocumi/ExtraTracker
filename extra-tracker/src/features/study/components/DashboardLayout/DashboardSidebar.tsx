@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Folder as FolderIcon, Menu } from 'lucide-react';
+import { Plus, X, Folder as FolderIcon, Menu, BookOpen } from 'lucide-react';
 import { FolderTree } from '../Organization/FolderTree';
+import { ExamTree } from '../Organization/ExamTree';
 import { TagCloud } from '../Organization/TagCloud';
 import { CreateFolderModal } from '../Modals/CreateFolderModal';
 import type { Folder, Tag } from '../../services/foldersService';
+import type { Goal } from '../../../goals/types';
+import type { Deck } from '../../services/studyService';
 import { foldersService } from '../../services/foldersService';
 import { emitToast } from '../../../../shared/components/toast';
 
@@ -14,7 +17,10 @@ interface DashboardSidebarProps {
     onToggle?: () => void;
     folders: Folder[];
     tags: Tag[];
+    exams?: Goal[]; // Esami (goals con category='learning')
+    decks?: Deck[]; // Mazzi per calcolare statistiche
     selectedFolderId: string | null;
+    selectedExamId?: string | null;
     selectedTags: string[];
     folderStats: Map<string, {
         totalCards: number;
@@ -23,9 +29,12 @@ interface DashboardSidebarProps {
         totalDecks: number;
     }>;
     onFolderSelect: (folderId: string | null) => void;
+    onExamSelect?: (examId: string | null) => void;
+    onDeckClick?: (deckId: string) => void;
     onTagToggle: (tagName: string) => void;
     onDeckDrop: (deckId: string, folderId: string | null) => void;
     onRefresh: () => void;
+    onCreateExam?: () => void;
 }
 
 export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
@@ -34,19 +43,40 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     onToggle,
     folders,
     tags,
+    exams = [],
+    decks = [],
     selectedFolderId,
+    selectedExamId = null,
     selectedTags,
     folderStats,
     onFolderSelect,
+    onExamSelect,
+    onDeckClick,
     onTagToggle,
     onDeckDrop,
     onRefresh,
+    onCreateExam,
 }) => {
     const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
 
     // Handler per selezionare una cartella e chiudere la sidebar
     const handleFolderSelect = (folderId: string | null) => {
         onFolderSelect(folderId);
+        // Reset selezione esame quando si seleziona una cartella
+        if (onExamSelect) {
+            onExamSelect(null);
+        }
+        // Chiudi la sidebar dopo la selezione per mostrare il contenuto
+        onClose();
+    };
+
+    // Handler per selezionare un esame e chiudere la sidebar
+    const handleExamSelect = (examId: string | null) => {
+        if (onExamSelect) {
+            onExamSelect(examId);
+        }
+        // Reset selezione cartella quando si seleziona un esame
+        onFolderSelect(null);
         // Chiudi la sidebar dopo la selezione per mostrare il contenuto
         onClose();
     };
@@ -146,7 +176,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                         className="fixed bottom-6 right-6
                                    w-full max-w-sm
                                    h-[calc(100vh-3rem)]
-                                   sm:max-w-sm
+                                   sm:max-w-lg
+                                   md:max-w-xl
                                    rounded-2xl
                                    shadow-2xl shadow-black/60
                                    z-50
@@ -165,7 +196,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header con stile macOS */}
-                        <div className="p-5 border-b border-white/5 flex-shrink-0">
+                        <div className="p-6 border-b border-white/5 flex-shrink-0">
                             <div className="flex items-center justify-between mb-2">
                                 <h2 className="text-sm font-bold text-white/90 uppercase tracking-widest">
                                     Organizza
@@ -184,7 +215,44 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                         </div>
 
                         {/* Scrollable content */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                            {/* Esami - Prima delle cartelle per priorità */}
+                            {exams && exams.length > 0 && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2">
+                                            <BookOpen className="w-3.5 h-3.5" />
+                                            Esami
+                                        </h3>
+                                        {onCreateExam && (
+                                            <motion.button
+                                                whileHover={{ scale: 1.1, rotate: 90 }}
+                                                whileTap={{ scale: 0.9 }}
+                                                onClick={onCreateExam}
+                                                className="p-1.5 rounded-full bg-violet-500/20 hover:bg-violet-500/30 transition-colors border border-violet-500/30"
+                                                aria-label="Crea nuovo esame"
+                                            >
+                                                <Plus className="w-3.5 h-3.5 text-violet-300" />
+                                            </motion.button>
+                                        )}
+                                    </div>
+                                    <ExamTree
+                                        exams={exams}
+                                        decks={decks}
+                                        selectedExamId={selectedExamId}
+                                        onExamSelect={handleExamSelect}
+                                        onDeckClick={(deckId) => {
+                                            if (onDeckClick) {
+                                                onDeckClick(deckId);
+                                                // Chiudi la sidebar dopo il click
+                                                onClose();
+                                            }
+                                        }}
+                                        onRefresh={onRefresh}
+                                    />
+                                </div>
+                            )}
+
                             {/* Cartelle */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">

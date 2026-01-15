@@ -1,0 +1,791 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, fit, backgrounds}
+
+\geometry{margin=2.5cm}
+
+% Configurazione colori
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{primary}{HTML}{6366F1}
+\definecolor{secondary}{HTML}{8B5CF6}
+\definecolor{accent}{HTML}{F59E0B}
+\definecolor{success}{HTML}{10B981}
+\definecolor{warning}{HTML}{F59E0B}
+\definecolor{danger}{HTML}{EF4444}
+
+\lstset{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+% Header e footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{WorkJournal - Design Document v0.1}
+\fancyfoot[C]{\thepage}
+
+\title{\textbf{WorkJournal} \\ \Large Design Document \\ \vspace{0.5cm} \normalsize Riprogettazione Componente Gestione Lavoro}
+\author{ExtraTracker - Documentazione Architetturale}
+\date{Versione 0.1 - \today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Questo documento descrive la progettazione del componente \textbf{WorkJournal}, 
+un sistema unificato per la gestione della vita lavorativa quotidiana che combina 
+journaling, tracking attività, gestione progetti e supporto AI per prevenire 
+stress e burnout. Il documento evolverà incrementalmente durante la fase di design.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%% ============================================================================
+%% SEZIONE 1: VISION E OBIETTIVI
+%% ============================================================================
+\section{Vision e Obiettivi}
+
+\subsection{Mission Statement}
+\begin{quote}
+\textit{"Rendere la gestione del lavoro quotidiano semplice, chiara e senza stress. 
+L'utente deve poter vedere la propria vita lavorativa in pochi sguardi e sapere 
+sempre cosa fare, quando farlo, e sentirsi supportato nel processo."}
+\end{quote}
+
+\subsection{Obiettivi Primari}
+
+\begin{enumerate}
+    \item \textbf{Semplicità d'uso}: Poche azioni con alta resa
+    \item \textbf{Chiarezza visiva}: Dashboard che mostra tutto in pochi sguardi
+    \item \textbf{Supporto proattivo}: AI che guida e previene burnout
+    \item \textbf{Flessibilità}: Adattabile a diversi stili di lavoro
+    \item \textbf{Motivazione}: Gamification integrata per engagement
+\end{enumerate}
+
+\subsection{Anti-Goals (Cosa NON fare)}
+
+\begin{enumerate}
+    \item NON integrare funzionalità di Studio (componente separato esistente)
+    \item NON creare interfacce complesse con troppe opzioni
+    \item NON richiedere troppi input manuali all'utente
+    \item NON duplicare logica tra componenti
+\end{enumerate}
+
+\subsection{Principi di Design}
+
+\begin{description}
+    \item[Progressive Disclosure] Mostrare prima l'essenziale, dettagli on-demand
+    \item[Minimal Input, Maximum Output] L'utente scrive poco, il sistema deduce molto
+    \item[AI-First] L'AI non è un add-on, è parte integrante del flusso
+    \item[Glanceable] Tutto comprensibile in 3 secondi
+\end{description}
+
+\newpage
+
+%% ============================================================================
+%% SEZIONE 2: ARCHITETTURA AD ALTO LIVELLO
+%% ============================================================================
+% --- INIZIO BLOCCO DA COPIARE ---
+
+% Definizioni colori (Rimuovi se già presenti nel tuo preambolo)
+\definecolor{primary}{RGB}{70, 130, 180}
+\definecolor{secondary}{RGB}{176, 196, 222}
+\definecolor{accent}{RGB}{255, 165, 0}
+\definecolor{success}{RGB}{60, 179, 113}
+\definecolor{warning}{RGB}{255, 99, 71}
+
+\section{Architettura ad Alto Livello}
+
+\subsection{Component Hierarchy}
+
+\begin{figure}[h]
+    \centering
+    % 'resizebox' forza il contenuto ad adattarsi alla larghezza del testo.
+    % È il principio del Responsive Design applicato a LaTeX.
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        node distance=1.2cm,
+        box/.style={
+            rectangle, 
+            draw=gray!60, 
+            thick,
+            rounded corners, 
+            minimum width=3.5cm, 
+            minimum height=1cm, 
+            align=center, 
+            fill=white,
+            font=\sffamily
+        },
+        arrow/.style={->, thick, >=stealth, color=gray!70}
+    ]
+
+    % Main Container
+    \node[box, fill=primary!20, minimum width=12cm, font=\bfseries] (main) {WorkJournalPage};
+
+    % Level 1 - Main Sections (Posizionamento relativo stabile)
+    \node[box, fill=secondary!10, below=1.5cm of main] (journal) {JournalSection};
+    \node[box, fill=secondary!10, left=1cm of journal] (dashboard) {DailyDashboard};
+    \node[box, fill=secondary!10, right=1cm of journal] (projects) {ProjectsOverview};
+
+    % Level 2 - Dashboard children
+    \node[box, fill=accent!20, below=1cm of dashboard, font=\small] (insights) {AIInsights};
+    \node[box, fill=accent!20, below=0.5cm of insights, font=\small] (alerts) {ProjectAlerts};
+    \node[box, fill=accent!20, below=0.5cm of alerts, font=\small] (summary) {YesterdaySummary};
+
+    % Level 2 - Journal children
+    \node[box, fill=success!20, below=1cm of journal, font=\small] (quickinput) {QuickInput};
+    \node[box, fill=success!20, below=0.5cm of quickinput, font=\small] (timeline) {DayTimeline};
+    \node[box, fill=success!20, below=0.5cm of timeline, font=\small] (tasks) {TaskList};
+
+    % Level 2 - Projects children
+    \node[box, fill=warning!20, below=1cm of projects, font=\small] (active) {ActiveProjects};
+    \node[box, fill=warning!20, below=0.5cm of active, font=\small] (urgent) {UrgentItems};
+    \node[box, fill=warning!20, below=0.5cm of urgent, font=\small] (stalled) {StalledProjects};
+
+    % Arrows (Linee ortogonali - Manhattan Style per pulizia visiva)
+    \draw[arrow] (main.south) -- ++(0,-0.8) -| (dashboard.north);
+    \draw[arrow] (main.south) -- (journal.north);
+    \draw[arrow] (main.south) -- ++(0,-0.8) -| (projects.north);
+
+    \draw[arrow] (dashboard) -- (insights);
+    \draw[arrow] (insights) -- (alerts);
+    \draw[arrow] (alerts) -- (summary);
+
+    \draw[arrow] (journal) -- (quickinput);
+    \draw[arrow] (quickinput) -- (timeline);
+    \draw[arrow] (timeline) -- (tasks);
+
+    \draw[arrow] (projects) -- (active);
+    \draw[arrow] (active) -- (urgent);
+    \draw[arrow] (urgent) -- (stalled);
+
+    \end{tikzpicture}
+    }
+\end{figure}
+
+\subsection{Descrizione Componenti Principali}
+
+\begin{description}
+    \item[\texttt{WorkJournalPage}] Container principale, gestisce routing e layout.
+    \item[\texttt{DailyDashboard}] Vista ``at-a-glance'' della giornata.
+    \item[\texttt{JournalSection}] Area per input giornaliero e timeline.
+    \item[\texttt{ProjectsOverview}] Stato progetti e priorità.
+\end{description}
+
+\subsubsection{DailyDashboard - Sottocomponenti}
+\begin{description}
+    \item[\texttt{AIInsights}] Suggerimenti e predizioni dell'AI.
+    \item[\texttt{ProjectAlerts}] Progetti in scadenza o che richiedono attenzione.
+    \item[\texttt{YesterdaySummary}] Riepilogo automatico di ieri.
+\end{description}
+
+\subsubsection{JournalSection - Sottocomponenti}
+\begin{description}
+    \item[\texttt{QuickInput}] Input rapido per aggiungere entry.
+    \item[\texttt{DayTimeline}] Timeline visuale della giornata.
+    \item[\texttt{TaskList}] Task/TODO atomici.
+\end{description}
+
+\subsubsection{ProjectsOverview - Sottocomponenti}
+\begin{description}
+    \item[\texttt{ActiveProjects}] Progetti attivi con progresso.
+    \item[\texttt{UrgentItems}] Cose urgenti/in scadenza.
+    \item[\texttt{StalledProjects}] Progetti fermi da troppo tempo.
+\end{description}
+
+\newpage
+% ============================================================================
+%% SEZIONE 3: DATA MODELS
+%% ============================================================================
+\section{Data Models (Schema)}
+
+\subsection{Entità Principali}
+
+\subsubsection{Project (Progetto)}
+
+\begin{lstlisting}[language=Java, caption=Project Schema - Pseudocodice]
+Project {
+    // Identificazione
+    id: ObjectId
+    name: String                    // "Script AD Martesana"
+    code: String                    // "MART-AD-001" (auto o manuale)
+    
+    // Classificazione
+    type: Enum['CLIENT', 'PERSONAL']
+    client?: String                 // Nome cliente (se CLIENT)
+    category?: String               // Categoria libera
+    tags: String[]                  // Tag per ricerca
+    
+    // Visual
+    icon: String                    // Emoji o icona
+    color: String                   // Colore hex
+    
+    // Tracking
+    status: Enum['active', 'paused', 'completed', 'archived']
+    priority: Enum['low', 'medium', 'high', 'urgent']
+    
+    // Stime e Budget (opzionali)
+    estimatedHours?: Number
+    deadline?: Date
+    rate?: Number                   // Tariffa oraria (se CLIENT)
+    budget?: Number
+    
+    // Progress
+    progress: Number                // 0-100, auto o manuale
+    
+    // Multi-tenancy
+    user: ObjectId
+    
+    // Timestamps
+    createdAt: Date
+    updatedAt: Date
+}
+\end{lstlisting}
+
+\subsubsection{WorkEntry (Entry Giornaliera)}
+
+\begin{lstlisting}[language=Java, caption=WorkEntry Schema - Pseudocodice]
+WorkEntry {
+    // Identificazione
+    id: ObjectId
+    project: ObjectId               // Ref -> Project
+    
+    // Temporalità
+    date: Date                      // YYYY-MM-DD
+    
+    // Tipo di entry
+    entryType: Enum[
+        'work_block',               // Blocco lavoro con orari
+        'note',                     // Nota/riflessione senza orari
+        'task_completed',           // Task completato
+        'milestone'                 // Milestone raggiunto
+    ]
+    
+    // Contenuto
+    title: String                   // Titolo breve
+    description?: String            // Descrizione estesa (markdown?)
+    
+    // Orari (solo per work_block)
+    startTime?: String              // "09:00"
+    endTime?: String                // "12:30"
+    durationMinutes?: Number        // Calcolato o manuale
+    
+    // Metadata
+    tags: String[]
+    mood?: Enum['great', 'good', 'neutral', 'tired', 'stressed']
+    
+    // Gamification
+    xpEarned?: Number               // Punti guadagnati
+    
+    // Multi-tenancy
+    user: ObjectId
+    
+    // Timestamps
+    createdAt: Date
+    updatedAt: Date
+}
+\end{lstlisting}
+
+\subsubsection{Task (TODO Atomico)}
+
+\begin{lstlisting}[language=Java, caption=Task Schema - Pseudocodice]
+Task {
+    // Identificazione
+    id: ObjectId
+    project?: ObjectId              // Opzionale, può essere generico
+    
+    // Contenuto
+    title: String
+    description?: String
+    
+    // Stato
+    status: Enum['pending', 'in_progress', 'completed', 'cancelled']
+    priority: Enum['low', 'medium', 'high', 'urgent']
+    
+    // Scheduling
+    dueDate?: Date
+    scheduledFor?: Date             // Quando pianificato
+    
+    // Completamento
+    completedAt?: Date
+    
+    // Gamification
+    xpReward: Number                // XP per completamento
+    
+    // Multi-tenancy
+    user: ObjectId
+    
+    // Timestamps
+    createdAt: Date
+    updatedAt: Date
+}
+\end{lstlisting}
+
+\subsection{Relazioni tra Entità}
+
+\begin{center}
+\begin{tikzpicture}[
+    entity/.style={rectangle, draw, fill=primary!10, minimum width=2.5cm, minimum height=1cm, align=center},
+    relation/.style={->, thick, >=stealth}
+]
+
+\node[entity] (user) at (0,0) {User};
+\node[entity] (project) at (4,0) {Project};
+\node[entity] (entry) at (8,0) {WorkEntry};
+\node[entity] (task) at (4,-2.5) {Task};
+
+\draw[relation] (user) -- node[above, font=\small] {1:N} (project);
+\draw[relation] (project) -- node[above, font=\small] {1:N} (entry);
+\draw[relation] (user) -- node[left, font=\small] {1:N} (task);
+\draw[relation, dashed] (project) -- node[right, font=\small] {1:N (opt)} (task);
+
+\end{tikzpicture}
+\end{center}
+
+\newpage
+
+%% ============================================================================
+%% SEZIONE 4: USER FLOWS
+%% ============================================================================
+\section{User Flows}
+
+\subsection{Flow 1: Apertura Mattutina}
+
+\textbf{Scenario}: L'utente apre WorkJournal la mattina per iniziare la giornata.
+
+\begin{enumerate}
+    \item Utente apre \texttt{/workjournal}
+    \item Sistema carica:
+    \begin{itemize}
+        \item Riepilogo AI di ieri
+        \item Progetti con alert (scadenze, stalli)
+        \item Task pianificati per oggi
+    \end{itemize}
+    \item Utente vede dashboard "at-a-glance"
+    \item AI mostra messaggio tipo: \textit{"Ieri hai lavorato 5h su MART-AD. Oggi potresti completare la fase 2?"}
+    \item Utente decide cosa fare e inizia
+\end{enumerate}
+
+% TODO: Aggiungere sequence diagram
+
+\subsection{Flow 2: Logging Lavoro Rapido}
+
+\textbf{Scenario}: L'utente vuole registrare un blocco di lavoro appena completato.
+
+\begin{enumerate}
+    \item Utente clicca su QuickInput
+    \item Scrive: "2h su MART-AD - completato script login"
+    \item Sistema:
+    \begin{itemize}
+        \item Parsa automaticamente durata (2h)
+        \item Riconosce progetto (MART-AD)
+        \item Estrae descrizione
+    \end{itemize}
+    \item Conferma con un click
+    \item Entry creata + XP assegnati
+\end{enumerate}
+
+% TODO: Aggiungere sequence diagram
+
+\subsection{Flow 3: Revisione Fine Giornata}
+
+\textbf{Scenario}: L'utente vuole vedere cosa ha fatto oggi prima di chiudere.
+
+% TODO: Definire questo flow
+
+\subsection{Flow 4: Gestione Progetto}
+
+\textbf{Scenario}: L'utente vuole creare/modificare un progetto.
+
+% TODO: Definire questo flow
+
+\newpage
+
+%% ============================================================================
+%% SEZIONE 5: AI INTEGRATION
+%% ============================================================================
+\section{AI Integration}
+
+\subsection{Ruoli dell'AI}
+
+\begin{enumerate}
+    \item \textbf{Analista}: Analizza pattern di lavoro
+    \item \textbf{Predittore}: Stima completamento progetti
+    \item \textbf{Coach}: Suggerisce bilanciamento e pause
+    \item \textbf{Motivatore}: Messaggi di incoraggiamento
+\end{enumerate}
+
+\subsection{Dati per l'AI}
+
+L'AI avrà accesso a:
+
+\begin{itemize}
+    \item \texttt{WorkEntry[]} - Storico entries
+    \item \texttt{Project[]} - Progetti con metriche
+    \item \texttt{Task[]} - Task e completamenti
+    \item \texttt{UserActivity[]} - Azioni utente (già esistente)
+    \item Pattern temporali (ore lavoro per giorno/settimana)
+    \item Mood tracking
+\end{itemize}
+
+\subsection{Output dell'AI}
+
+% TODO: Definire tipi di output AI
+
+\begin{lstlisting}[language=Java, caption=AIInsight Schema - Pseudocodice]
+AIInsight {
+    id: ObjectId
+    type: Enum[
+        'daily_summary',        // Riepilogo giornata
+        'prediction',           // Predizione completamento
+        'suggestion',           // Suggerimento azione
+        'alert',                // Alert burnout/stress
+        'motivation'            // Messaggio motivazionale
+    ]
+    
+    content: String             // Testo del messaggio
+    
+    // Metadata
+    relatedProject?: ObjectId
+    confidence?: Number         // 0-1, quanto è sicura l'AI
+    priority: Enum['low', 'medium', 'high']
+    
+    // Stato
+    dismissed: Boolean
+    actedUpon?: Boolean
+    
+    // Timestamps
+    generatedAt: Date
+    expiresAt?: Date
+}
+\end{lstlisting}
+
+\subsection{Trigger AI}
+
+% TODO: Definire quando l'AI genera insights
+
+\newpage
+
+%% ============================================================================
+%% SEZIONE 6: GAMIFICATION
+%% ============================================================================
+\section{Gamification Integration}
+
+\subsection{Punti XP per Azione}
+
+\begin{center}
+\begin{tabular}{|l|c|l|}
+\hline
+\textbf{Azione} & \textbf{XP} & \textbf{Note} \\
+\hline
+Completare task & 10-50 & Basato su priorità \\
+Logging work block & 5 & Base \\
+Logging con orari precisi & +5 & Bonus \\
+Completare giornata & 20 & Se >= 3 entries \\
+Streak giornaliera & 10 * days & Moltiplicatore \\
+Raggiungere milestone & 100 & Per progetto \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Achievements Possibili}
+
+% TODO: Definire achievements specifici per WorkJournal
+
+\newpage
+
+%% ============================================================================
+%% SEZIONE 7: UI/UX WIREFRAMES
+%% ============================================================================
+\section{UI/UX Wireframes}
+
+\subsection{Layout Principale}
+
+% TODO: Aggiungere wireframe ASCII o descrizione dettagliata
+
+\begin{lstlisting}[caption=Layout WorkJournal - ASCII Wireframe]
++------------------------------------------------------------------+
+|  WORKJOURNAL                              [+ Quick Add]  [Today] |
++------------------------------------------------------------------+
+|                                                                   |
+|  +------------------------+  +----------------------------------+ |
+|  |   DAILY DASHBOARD      |  |      JOURNAL / TIMELINE          | |
+|  |                        |  |                                  | |
+|  |  [AI Insight Box]      |  |  [Quick Input Field]             | |
+|  |  "Ieri hai..."         |  |  ________________________________ | |
+|  |                        |  |                                  | |
+|  |  [Project Alerts]      |  |  TODAY - Mon 12 Jan              | |
+|  |  ! MART-AD scade fra   |  |  +-----------------------------+ | |
+|  |    3 giorni            |  |  | 09:00-11:30 | MART-AD       | | |
+|  |                        |  |  | Script login completato     | | |
+|  |  [Stalled Projects]    |  |  +-----------------------------+ | |
+|  |  ~ Progetto X          |  |  | 14:00-?     | CLIENT-Y      | | |
+|  |    fermo da 5gg        |  |  | In corso...                 | | |
+|  |                        |  |  +-----------------------------+ | |
+|  +------------------------+  |                                  | |
+|                              |  [Tasks for Today]               | |
+|  +------------------------+  |  [ ] Chiamare cliente           | |
+|  |   PROJECTS OVERVIEW    |  |  [x] Review PR #123             | |
+|  |                        |  |  [ ] Documentazione             | |
+|  |  [Active Projects]     |  |                                  | |
+|  |  - MART-AD    [====  ] |  +----------------------------------+ |
+|  |  - CLIENT-Y   [==    ] |                                      |
+|  |                        |                                      |
+|  +------------------------+                                      |
++------------------------------------------------------------------+
+\end{lstlisting}
+
+\subsection{Responsive Design}
+
+% TODO: Definire comportamento mobile
+
+\newpage
+
+%% ============================================================================
+%% SEZIONE 8: API ENDPOINTS
+%% ============================================================================
+\section{API Endpoints}
+
+\subsection{Endpoints Previsti}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Method} & \textbf{Endpoint} & \textbf{Descrizione} \\
+\hline
+GET & /api/workjournal/dashboard & Dashboard data \\
+GET & /api/workjournal/entries & Lista entries (filtri) \\
+POST & /api/workjournal/entries & Crea entry \\
+PUT & /api/workjournal/entries/:id & Modifica entry \\
+DELETE & /api/workjournal/entries/:id & Elimina entry \\
+\hline
+GET & /api/workjournal/projects & Lista progetti \\
+POST & /api/workjournal/projects & Crea progetto \\
+PUT & /api/workjournal/projects/:id & Modifica progetto \\
+\hline
+GET & /api/workjournal/tasks & Lista tasks \\
+POST & /api/workjournal/tasks & Crea task \\
+PATCH & /api/workjournal/tasks/:id/status & Cambia status \\
+\hline
+GET & /api/workjournal/ai/insights & Insights AI \\
+POST & /api/workjournal/ai/generate-summary & Genera summary \\
+\hline
+\end{tabular}
+\end{center}
+
+% TODO: Definire request/response per ogni endpoint
+
+\newpage
+
+%% ============================================================================
+%% SEZIONE 9: STATE MANAGEMENT
+%% ============================================================================
+\section{State Management}
+
+\subsection{Context Structure}
+
+\begin{lstlisting}[language=Java, caption=WorkJournalContext - Pseudocodice]
+WorkJournalContext {
+    // Data
+    projects: Project[]
+    entries: WorkEntry[]
+    tasks: Task[]
+    aiInsights: AIInsight[]
+    
+    // UI State
+    selectedDate: Date
+    selectedProject?: string
+    viewMode: 'dashboard' | 'timeline' | 'projects'
+    
+    // Loading States
+    loading: {
+        projects: boolean
+        entries: boolean
+        tasks: boolean
+        ai: boolean
+    }
+    
+    // Actions
+    refreshDashboard(): void
+    addEntry(data): Promise<void>
+    updateEntry(id, data): Promise<void>
+    deleteEntry(id): Promise<void>
+    
+    addProject(data): Promise<void>
+    updateProject(id, data): Promise<void>
+    
+    addTask(data): Promise<void>
+    toggleTaskStatus(id): Promise<void>
+    
+    dismissInsight(id): void
+}
+\end{lstlisting}
+
+\newpage
+
+%% ============================================================================
+%% SEZIONE 10: SEQUENCE DIAGRAMS
+%% ============================================================================
+\section{Sequence Diagrams}
+
+% TODO: Aggiungere sequence diagrams per i flow principali
+
+\subsection{Sequence: Caricamento Dashboard}
+
+\begin{lstlisting}[caption=Sequence Diagram - Pseudocodice]
+User -> WorkJournalPage: open /workjournal
+WorkJournalPage -> WorkJournalContext: mount
+WorkJournalContext -> API: GET /api/workjournal/dashboard
+API -> ProjectService: getActiveProjects()
+API -> WorkEntryService: getRecentEntries()
+API -> TaskService: getTodayTasks()
+API -> AIService: generateDailyInsights()
+API -> WorkJournalContext: { projects, entries, tasks, insights }
+WorkJournalContext -> WorkJournalPage: setState()
+WorkJournalPage -> User: render dashboard
+\end{lstlisting}
+
+\subsection{Sequence: Quick Add Entry}
+
+% TODO: Definire
+
+\subsection{Sequence: AI Insight Generation}
+
+% TODO: Definire
+
+\newpage
+
+%% ============================================================================
+%% SEZIONE 11: MIGRATION PLAN
+%% ============================================================================
+\section{Migration Plan}
+
+\subsection{Fase 1: Preparazione}
+
+\begin{itemize}
+    \item [ ] Backup dati esistenti
+    \item [ ] Creare nuovi modelli (WorkEntry, Task aggiornati)
+    \item [ ] Script migrazione dati da WorkLog -> WorkEntry
+\end{itemize}
+
+\subsection{Fase 2: Backend}
+
+\begin{itemize}
+    \item [ ] Implementare nuovi service
+    \item [ ] Implementare nuovi endpoint
+    \item [ ] Implementare AI service base
+\end{itemize}
+
+\subsection{Fase 3: Frontend}
+
+\begin{itemize}
+    \item [ ] Creare WorkJournalContext
+    \item [ ] Implementare componenti base
+    \item [ ] Implementare dashboard
+    \item [ ] Implementare timeline
+\end{itemize}
+
+\subsection{Fase 4: AI Integration}
+
+\begin{itemize}
+    \item [ ] Definire algoritmi analisi
+    \item [ ] Implementare generazione insights
+    \item [ ] Testing e tuning
+\end{itemize}
+
+\subsection{Fase 5: Cleanup}
+
+\begin{itemize}
+    \item [ ] Rimuovere vecchi componenti PROJECTS
+    \item [ ] Rimuovere vecchi componenti WORKSPACE
+    \item [ ] Aggiornare routing
+    \item [ ] Testing finale
+\end{itemize}
+
+\newpage
+
+%% ============================================================================
+%% SEZIONE 12: OPEN QUESTIONS
+%% ============================================================================
+\section{Open Questions}
+
+Domande da risolvere durante la progettazione:
+
+\begin{enumerate}
+    \item \textbf{Quick Input Parsing}: Quanto "smart" deve essere? 
+    \begin{itemize}
+        \item Semplice regex?
+        \item NLP con AI?
+        \item Template predefiniti?
+    \end{itemize}
+    
+    \item \textbf{Timeline vs Calendar}: Meglio vista timeline verticale o calendario?
+    
+    \item \textbf{Progetti senza scadenza}: Come gestire progetti senza deadline?
+    
+    \item \textbf{Multi-device sync}: Real-time sync necessario?
+    
+    \item \textbf{Offline support}: Necessario?
+    
+    \item \textbf{Export dati}: Report settimanali/mensili?
+    
+    % Aggiungi altre domande qui
+\end{enumerate}
+
+\newpage
+
+%% ============================================================================
+%% APPENDICE: CHANGELOG
+%% ============================================================================
+\appendix
+\section{Changelog}
+
+\begin{description}
+    \item[v0.1 - \today] Creazione documento iniziale
+    \begin{itemize}
+        \item Struttura base documento
+        \item Vision e obiettivi
+        \item Component hierarchy
+        \item Data models base
+        \item User flows skeleton
+    \end{itemize}
+\end{description}
+
+\vspace{2cm}
+
+\begin{center}
+\textit{Documento in evoluzione - Versione 0.1}
+\end{center}
+
+\end{document}

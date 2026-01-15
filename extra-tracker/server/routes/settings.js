@@ -21,6 +21,7 @@ const settingsController = require('../controllers/settingsController');
 
 // Middleware
 const { requireAuth } = require('../middleware/auth');
+const { largeBodyParser } = require('../middleware/largeBodyParser');
 
 // Tutte le route richiedono autenticazione
 router.use(requireAuth);
@@ -96,10 +97,24 @@ router.put('/notifications', settingsController.updateNotifications);
 
 /**
  * @route   GET /api/settings/export
- * @desc    Esporta tutti i dati utente (GDPR)
+ * @desc    Esporta tutti i dati "lavoro" utente (GDPR)
  * @access  Private
  */
 router.get('/export', settingsController.exportData);
+
+/**
+ * @route   POST /api/settings/import/check
+ * @desc    Verifica dati da importare senza importarli (confronto)
+ * @access  Private
+ */
+router.post('/import/check', largeBodyParser('50mb'), settingsController.checkImportData);
+
+/**
+ * @route   POST /api/settings/import
+ * @desc    Importa dati utente da file JSON (validato e sicuro)
+ * @access  Private
+ */
+router.post('/import', largeBodyParser('50mb'), settingsController.importData);
 
 /**
  * @route   DELETE /api/settings/account

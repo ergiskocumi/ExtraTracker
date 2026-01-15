@@ -18,19 +18,14 @@ import { useSettingsPage } from '../hooks/useSettings';
 import { ProfileSettings } from '../components/ProfileSettings';
 import { PreferencesSettings } from '../components/PreferencesSettings';
 import { SecuritySettings } from '../components/SecuritySettings';
-import { AccountSettings } from '../components/AccountSettings';
+import { AccountSettings } from '../components/AccountSettings/index';
 import { SettingsSearch } from '../components/SettingsSearch';
+import { SettingsLayout, type SettingsTab, type TabId } from '../components/layout/SettingsLayout';
+import { SettingsDrawer } from '../components/layout/SettingsDrawer';
+import { SettingsBottomNav } from '../components/layout/SettingsBottomNav';
 import { emitToast } from '../../../shared/components/toast';
 
-type TabId = 'profile' | 'preferences' | 'security' | 'account';
-
-interface SettingsTab {
-    id: TabId;
-    label: string;
-    icon: typeof User;
-    description: string;
-    color: string;
-}
+// Types sono ora importati da SettingsLayout
 
 const tabs: SettingsTab[] = [
     { 
@@ -66,6 +61,18 @@ const tabs: SettingsTab[] = [
 export const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState<TabId>('profile');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+    // Rileva dimensione schermo per mobile
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
     const {
         profile,
         preferences,
@@ -75,6 +82,8 @@ export const SettingsPage = () => {
         savePreferences,
         changePassword,
         exportData,
+        checkImportData,
+        importData,
         deleteAccount,
     } = useSettingsPage();
 
@@ -173,19 +182,33 @@ export const SettingsPage = () => {
 
     const activeTabData = tabs.find(t => t.id === activeTab)!;
 
+    // Chiudi drawer quando cambia tab su mobile
+    useEffect(() => {
+        if (isMobile && isDrawerOpen) {
+            setIsDrawerOpen(false);
+        }
+    }, [activeTab, isMobile, isDrawerOpen]);
+
+    const handleTabChange = (tab: TabId) => {
+        setActiveTab(tab);
+        if (isMobile) {
+            setIsDrawerOpen(false);
+        }
+    };
+
     return (
-        <div className="min-h-screen">
+        <div className="min-h-screen pb-20 md:pb-0">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
-                className="space-y-8"
+                className="space-y-6 md:space-y-8"
             >
                 {/* Header */}
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-4xl font-bold text-white mb-2">Impostazioni</h1>
-                        <p className="text-white/60 text-lg">Gestisci il tuo account e personalizza l'esperienza</p>
+                        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Impostazioni</h1>
+                        <p className="text-white/60 text-base sm:text-lg">Gestisci il tuo account e personalizza l'esperienza</p>
                     </div>
                     
                     {/* Search Button */}
@@ -193,10 +216,10 @@ export const SettingsPage = () => {
                         onClick={() => setIsSearchOpen(true)}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] transition-colors text-white/70 hover:text-white"
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] transition-colors text-white/70 hover:text-white w-full sm:w-auto justify-center sm:justify-start"
                     >
                         <Search className="w-4 h-4" />
-                        <span className="hidden sm:inline text-sm font-medium">Cerca</span>
+                        <span className="text-sm font-medium">Cerca</span>
                         <div className="hidden sm:flex items-center gap-1 text-xs text-white/40">
                             <kbd className="px-1.5 py-0.5 rounded bg-white/[0.1] border border-white/[0.1]">
                                 {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}
@@ -206,67 +229,69 @@ export const SettingsPage = () => {
                     </motion.button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Sidebar - Categorie */}
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="lg:col-span-3"
-                    >
-                        <div className="rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-4 space-y-2 card">
-                            {tabs.map((tab) => {
-                                const Icon = tab.icon;
-                                const isActive = activeTab === tab.id;
-                                
-                                return (
-                                    <motion.button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id)}
-                                        whileHover={{ x: 4 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-left group ${
-                                            isActive
-                                                ? `bg-gradient-to-r ${tab.color} text-white shadow-lg`
-                                                : 'text-white/70 hover:text-white hover:bg-white/[0.08]'
-                                        }`}
-                                    >
-                                        <div className={`p-2 rounded-lg ${
-                                            isActive 
-                                                ? 'bg-white/20' 
-                                                : 'bg-white/[0.08] group-hover:bg-white/[0.12]'
-                                        }`}>
-                                            <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-white/70'}`} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`font-semibold ${isActive ? 'text-white' : 'text-white/90'}`}>
-                                                {tab.label}
-                                            </p>
-                                            <p className={`text-xs mt-0.5 ${
-                                                isActive ? 'text-white/80' : 'text-white/50'
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+                    {/* Sidebar - Solo Desktop/Tablet (nascosta su mobile) */}
+                    {!isMobile && (
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="lg:col-span-3"
+                        >
+                            <div className="rounded-2xl md:rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-3 md:p-4 space-y-2 card sticky top-4">
+                                {tabs.map((tab) => {
+                                    const Icon = tab.icon;
+                                    const isActive = activeTab === tab.id;
+                                    
+                                    return (
+                                        <motion.button
+                                            key={tab.id}
+                                            onClick={() => handleTabChange(tab.id)}
+                                            whileHover={{ x: 4 }}
+                                            whileTap={{ scale: 0.98 }}
+                                            className={`w-full flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 md:py-3.5 rounded-xl transition-all text-left group ${
+                                                isActive
+                                                    ? `bg-gradient-to-r ${tab.color} text-white shadow-lg`
+                                                    : 'text-white/70 hover:text-white hover:bg-white/[0.08]'
+                                            }`}
+                                        >
+                                            <div className={`p-1.5 md:p-2 rounded-lg flex-shrink-0 ${
+                                                isActive 
+                                                    ? 'bg-white/20' 
+                                                    : 'bg-white/[0.08] group-hover:bg-white/[0.12]'
                                             }`}>
-                                                {tab.description}
-                                            </p>
-                                        </div>
-                                        {isActive && (
-                                            <motion.div
-                                                initial={{ scale: 0 }}
-                                                animate={{ scale: 1 }}
-                                                className="w-2 h-2 rounded-full bg-white"
-                                            />
-                                        )}
-                                    </motion.button>
-                                );
-                            })}
-                        </div>
-                    </motion.div>
+                                                <Icon className={`w-4 h-4 md:w-5 md:h-5 ${isActive ? 'text-white' : 'text-white/70'}`} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`font-semibold text-sm md:text-base ${isActive ? 'text-white' : 'text-white/90'}`}>
+                                                    {tab.label}
+                                                </p>
+                                                <p className={`text-xs mt-0.5 hidden md:block ${
+                                                    isActive ? 'text-white/80' : 'text-white/50'
+                                                }`}>
+                                                    {tab.description}
+                                                </p>
+                                            </div>
+                                            {isActive && (
+                                                <motion.div
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    className="w-2 h-2 rounded-full bg-white flex-shrink-0"
+                                                />
+                                            )}
+                                        </motion.button>
+                                    );
+                                })}
+                            </div>
+                        </motion.div>
+                    )}
 
                     {/* Content Area */}
                     <motion.div
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="lg:col-span-9"
+                        className={isMobile ? 'col-span-1' : 'lg:col-span-9'}
                     >
                         <AnimatePresence mode="wait">
                             <motion.div
@@ -275,17 +300,17 @@ export const SettingsPage = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -20 }}
                                 transition={{ duration: 0.3 }}
-                                className="rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-8 card"
+                                className="rounded-2xl md:rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-4 md:p-6 lg:p-8 card"
                             >
                                 {/* Section Header */}
-                                <div className="flex items-center justify-between mb-8 pb-6 border-b border-white/[0.08]">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`p-3 rounded-xl bg-gradient-to-br ${activeTabData.color} shadow-lg`}>
-                                            <activeTabData.icon className="w-6 h-6 text-white" />
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 md:mb-8 pb-4 md:pb-6 border-b border-white/[0.08] gap-4">
+                                    <div className="flex items-center gap-3 md:gap-4">
+                                        <div className={`p-2.5 md:p-3 rounded-xl bg-gradient-to-br ${activeTabData.color} shadow-lg`}>
+                                            <activeTabData.icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
                                         </div>
                                         <div>
-                                            <h2 className="text-2xl font-bold text-white">{activeTabData.label}</h2>
-                                            <p className="text-white/60 text-sm mt-1">{activeTabData.description}</p>
+                                            <h2 className="text-xl md:text-2xl font-bold text-white">{activeTabData.label}</h2>
+                                            <p className="text-white/60 text-xs md:text-sm mt-1">{activeTabData.description}</p>
                                         </div>
                                     </div>
                                     {/* Breadcrumb */}
@@ -325,6 +350,35 @@ export const SettingsPage = () => {
                                     <AccountSettings
                                         accountEmail={account?.email}
                                         onExport={handleExportData}
+                                        onCheckImport={async (file) => {
+                                            const result = await checkImportData(file);
+                                            return result;
+                                        }}
+                                        onImport={async (file, force = false) => {
+                                            try {
+                                                const result = await importData(file, force);
+                                                if (result) {
+                                                    emitToast.success('Dati importati con successo!', { title: 'Import completato' });
+                                                    // Ricarica le impostazioni per vedere i nuovi dati
+                                                    setTimeout(() => {
+                                                        window.location.reload();
+                                                    }, 2000);
+                                                } else {
+                                                    emitToast.error('Errore nell\'importazione dei dati');
+                                                }
+                                                return result;
+                                            } catch (error: any) {
+                                                // Mostra messaggio di errore dettagliato
+                                                const errorMessage = error?.message || 
+                                                    error?.response?.data?.error?.message || 
+                                                    'Errore nell\'importazione dei dati';
+                                                emitToast.error(errorMessage, { 
+                                                    title: 'Errore importazione',
+                                                    duration: 6000,
+                                                });
+                                                return null;
+                                            }
+                                        }}
                                         onDelete={handleDeleteAccount}
                                         status={statuses.accountStatus}
                                     />
@@ -334,6 +388,27 @@ export const SettingsPage = () => {
                     </motion.div>
                 </div>
             </motion.div>
+
+            {/* Mobile Drawer */}
+            {isMobile && (
+                <SettingsDrawer
+                    isOpen={isDrawerOpen}
+                    onClose={() => setIsDrawerOpen(false)}
+                    tabs={tabs}
+                    activeTab={activeTab}
+                    onTabChange={handleTabChange}
+                />
+            )}
+
+            {/* Mobile Bottom Navigation */}
+            {isMobile && (
+                <SettingsBottomNav
+                    tabs={tabs}
+                    activeTab={activeTab}
+                    onTabChange={handleTabChange}
+                    onMenuClick={() => setIsDrawerOpen(true)}
+                />
+            )}
 
             {/* Search Modal */}
             <SettingsSearch

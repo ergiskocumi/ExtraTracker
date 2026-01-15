@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, X, Upload, FileText, Brain, Zap, CheckCircle2, AlertCircle, BookOpen, Lightbulb, Target, TrendingUp } from 'lucide-react';
+import { Sparkles, X, Upload, FileText, Brain, Zap, CheckCircle2, AlertCircle, BookOpen, Lightbulb, Target, TrendingUp, Trash2 } from 'lucide-react';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { useSSE, type SSEPayload } from '../../../../hooks/useSSE';
@@ -66,9 +66,8 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     const [progress, setProgress] = useState<ProgressData>({ step: 'idle' });
     const [error, setError] = useState<string | null>(null);
     const [logs, setLogs] = useState<LogEntry[]>([]);
-    const [scanProgress, setScanProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const startTimeRef = useRef<number | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -88,22 +87,6 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
-    // Scan animation - usa progress.step direttamente
-    useEffect(() => {
-        const isProcessingStep = ['uploading', 'analyzing', 'processing', 'generating'].includes(progress.step);
-        if (isProcessingStep) {
-            const interval = setInterval(() => {
-                setScanProgress(prev => {
-                    if (prev >= 100) return 0;
-                    return prev + 0.5;
-                });
-            }, 50);
-            return () => clearInterval(interval);
-        } else {
-            setScanProgress(0);
-        }
-    }, [progress.step]);
-
 
     // Reset quando si apre il modale
     useEffect(() => {
@@ -112,7 +95,6 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
             setProgress({ step: 'idle' });
             setError(null);
             setLogs([]);
-            setScanProgress(0);
             startTimeRef.current = null;
             if (timerRef.current) {
                 clearInterval(timerRef.current);
@@ -234,7 +216,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         },
     ]), [onSuccess, addLogMemo, progress.currentTopic]);
 
-    useSSE(sseListeners);
+    useSSE('/api/sse/stream', sseListeners);
 
     const handleClose = useCallback(() => {
         if (progress.step === 'uploading' || progress.step === 'analyzing' || progress.step === 'processing' || progress.step === 'generating') {
@@ -255,6 +237,24 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         } else {
             setError('Seleziona un file PDF valido');
         }
+        // Reset input per permettere di selezionare lo stesso file di nuovo
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }, []);
+
+    const handleRemoveFile = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        setFile(null);
+        setError(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }, []);
+
+    const handleChangeFile = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        fileInputRef.current?.click();
     }, []);
 
     const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -336,11 +336,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     };
 
     const stepConfig = getStepConfig(progress.step);
-    const StepIcon = stepConfig.icon;
     const isProcessing = ['uploading', 'analyzing', 'processing', 'generating'].includes(progress.step);
-    const estimatedTimeRemaining = progress.estimatedTime && progress.elapsedTime
-        ? Math.max(0, progress.estimatedTime - progress.elapsedTime)
-        : progress.estimatedTime || 0;
 
     if (!isOpen) return null;
 
@@ -354,17 +350,17 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                 className="fixed inset-0 z-50 flex items-center justify-center p-4"
                     onClick={handleClose}
                 >
-                {/* Backdrop - Più scuro */}
+                {/* Backdrop - Dark mode macOS/iOS style */}
                     <motion.div
                     initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-                    animate={{ opacity: 1, backdropFilter: 'blur(20px)' }}
+                    animate={{ opacity: 1, backdropFilter: 'blur(30px)' }}
                     exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
                     transition={{ duration: 0.3 }}
-                    className="absolute inset-0 bg-black/70"
-                    style={{ WebkitBackdropFilter: 'blur(20px)' }}
+                    className="absolute inset-0 bg-black/85"
+                    style={{ WebkitBackdropFilter: 'blur(30px)' }}
                 />
 
-                {/* Modal Window - Più scuro */}
+                {/* Modal Window - Dark macOS/iOS style */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -375,21 +371,21 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                         damping: 30,
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="relative w-full max-w-lg bg-zinc-900/95 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
+                    className="relative w-full max-w-lg bg-zinc-950/98 backdrop-blur-3xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden"
                     style={{ 
-                        WebkitBackdropFilter: 'blur(40px)',
-                        backdropFilter: 'blur(40px)',
+                        WebkitBackdropFilter: 'blur(50px)',
+                        backdropFilter: 'blur(50px)',
                     }}
                 >
-                    {/* Header - Più scuro */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-zinc-900/50">
+                    {/* Header - Dark macOS/iOS style */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-zinc-950/80">
                             <div className="flex items-center gap-3">
                             <div className="p-2 rounded-xl bg-white/10 border border-white/20">
                                 <Sparkles className="w-5 h-5 text-amber-400" />
                                 </div>
                                 <div>
                                 <h2 className="text-lg font-semibold text-white">Silvi AI</h2>
-                                <p className="text-xs text-white/60">{deckTitle}</p>
+                                <p className="text-xs text-white/60">Mazzo: {deckTitle}</p>
                                 </div>
                             </div>
                             <button
@@ -402,7 +398,68 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                         </div>
 
                         {/* Content */}
-                    <div className="p-6 space-y-6 bg-zinc-900/30">
+                    <div className="p-6 space-y-6 bg-zinc-950/40">
+                        {/* AI Algorithm Explanation - Solo quando idle */}
+                        {progress.step === 'idle' && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-5 rounded-2xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl"
+                            >
+                                <div className="flex items-start gap-3 mb-4">
+                                    <div className="p-2 rounded-xl bg-violet-500/20 border border-violet-500/30">
+                                        <Brain className="w-5 h-5 text-violet-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-sm font-semibold text-white mb-1">Cosa fa Silvi AI?</h3>
+                                        <p className="text-xs text-white/60 mb-3">
+                                            Analizza il tuo PDF e genera domande intelligenti in vari passaggi:
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="space-y-2.5">
+                                    <div className="flex items-start gap-3 text-xs">
+                                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center mt-0.5">
+                                            <span className="text-violet-400 font-semibold text-[10px]">1</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-white/90 font-medium mb-0.5">Analisi Strutturale</p>
+                                            <p className="text-white/50 leading-relaxed">
+                                                Identifica la struttura del documento e i principali argomenti per creare un contesto per l'analisi.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 text-xs">
+                                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mt-0.5">
+                                            <span className="text-amber-400 font-semibold text-[10px]">2</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-white/90 font-medium mb-0.5">Estrazione Concetti Chiave</p>
+                                            <p className="text-white/50 leading-relaxed">
+                                                Estraggo i concetti dai vari argomenti per evitare duplicati e garantire varietà nelle domande.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 text-xs">
+                                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center mt-0.5">
+                                            <span className="text-blue-400 font-semibold text-[10px]">3</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-white/90 font-medium mb-0.5">Controllo Qualità</p>
+                                            <p className="text-white/50 leading-relaxed">
+                                                Rimuovo automaticamente le domande duplicate o troppo simili per garantire qualità e accuratezza.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-white/5">
+                                    <p className="text-[10px] text-white/40 leading-relaxed">
+                                        💡 <span className="text-white/60 font-medium">Risultato:</span> Riceverai flashcard di alta qualità, uniche e ottimizzate per lo studio efficace con il sistema di ripetizione spaziata.
+                                    </p>
+                                </div>
+                            </motion.div>
+                        )}
+
                         {/* Upload Area */}
                         {progress.step === 'idle' && (
                             <motion.div
@@ -411,19 +468,19 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                 className="space-y-4"
                             >
                             <div
-                                onDragEnter={handleDragEnter}
-                                onDragLeave={handleDragLeave}
-                                onDragOver={handleDragOver}
-                                onDrop={handleDrop}
+                                onDragEnter={!file ? handleDragEnter : undefined}
+                                onDragLeave={!file ? handleDragLeave : undefined}
+                                onDragOver={!file ? handleDragOver : undefined}
+                                onDrop={!file ? handleDrop : undefined}
                                     onClick={() => !file && fileInputRef.current?.click()}
                                     className={`
                                         relative w-full h-48 rounded-2xl border-2 border-dashed transition-all duration-300
-                                        flex flex-col items-center justify-center gap-4 cursor-pointer
-                                    ${isDragging 
-                                            ? 'border-blue-400/50 bg-blue-500/10' 
-                                        : file 
-                                                ? 'border-emerald-400/50 bg-emerald-500/10'
-                                                : 'border-white/20 bg-white/5 hover:border-white/30 hover:bg-white/10'
+                                        flex flex-col items-center justify-center gap-4
+                                    ${file 
+                                        ? 'border-emerald-400/40 bg-emerald-500/10 backdrop-blur-sm cursor-default'
+                                        : isDragging 
+                                            ? 'border-blue-400/40 bg-blue-500/10 backdrop-blur-sm cursor-pointer'
+                                            : 'border-white/10 bg-zinc-900/40 hover:border-white/20 hover:bg-zinc-900/60 backdrop-blur-sm cursor-pointer'
                                     }
                                 `}
                             >
@@ -444,6 +501,27 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                                     {(file.size / 1024 / 1024).toFixed(2)} MB
                                                 </p>
                                             </div>
+                                            {/* Pulsanti per rimuovere/cambiare file - Solo quando idle */}
+                                            {progress.step === 'idle' && (
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <button
+                                                        onClick={handleChangeFile}
+                                                        className="px-3 py-1.5 rounded-lg bg-zinc-800/60 hover:bg-zinc-800/80 border border-white/10 text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+                                                        type="button"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5" />
+                                                        Cambia
+                                                    </button>
+                                                    <button
+                                                        onClick={handleRemoveFile}
+                                                        className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs font-medium transition-colors flex items-center gap-1.5"
+                                                        type="button"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                        Rimuovi
+                                                    </button>
+                                                </div>
+                                            )}
                                         </>
                                     ) : (
                                         <>
@@ -464,7 +542,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                     <motion.div
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2"
+                                        className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm flex items-center gap-2"
                                     >
                                         <AlertCircle className="w-4 h-4 text-red-400" />
                                         <p className="text-sm text-red-400">{error}</p>
@@ -484,361 +562,287 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                 </motion.div>
                         )}
 
-                        {/* Processing State */}
+                        {/* Processing State - Design Professionale */}
                         {isProcessing && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                 className="space-y-6"
                             >
-                                {/* Robot Animation */}
-                                <div className="relative w-full h-48 rounded-2xl bg-zinc-800/50 border border-white/5 overflow-hidden flex items-center justify-center">
-                                    {/* Robot SVG */}
+                                {/* Header con Tempo Trascorso */}
+                                <div className="flex items-center justify-between pb-4 border-b border-white/5">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-white mb-1">{stepConfig.label}</h3>
+                                        {progress.message && (
+                                            <p className="text-sm text-white/50">{progress.message}</p>
+                                        )}
+                                    </div>
+                                    {progress.elapsedTime !== undefined && (
+                                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500/10 border border-primary-500/20 backdrop-blur-sm">
                                                 <motion.div
-                                        className="relative"
-                                        animate={{
-                                            rotateY: [0, 15, -15, 0],
-                                        }}
-                                        transition={{
-                                            duration: 4,
-                                            repeat: Infinity,
-                                            ease: 'easeInOut',
-                                        }}
-                                    >
-                                        <motion.svg
-                                            width="120"
-                                            height="120"
-                                            viewBox="0 0 120 120"
-                                            className="relative z-10"
-                                            animate={{
-                                                y: [0, -5, 0],
-                                            }}
-                                            transition={{
-                                                duration: 2,
-                                                repeat: Infinity,
-                                                ease: 'easeInOut',
-                                            }}
-                                        >
-                                            {/* Robot Body */}
-                                            <rect
-                                                x="30"
-                                                y="40"
-                                                width="60"
-                                                height="60"
-                                                rx="8"
-                                                fill="#3b82f6"
-                                                opacity="0.9"
+                                                animate={{ opacity: [0.5, 1, 0.5] }}
+                                                transition={{ duration: 1.5, repeat: Infinity }}
+                                                className="w-2 h-2 rounded-full bg-primary-400"
                                             />
-                                            {/* Robot Head */}
-                                            <rect
-                                                x="40"
-                                                y="20"
-                                                width="40"
-                                                height="30"
-                                                rx="6"
-                                                fill="#60a5fa"
-                                                opacity="0.95"
-                                            />
-                                            {/* Eyes */}
-                                            <motion.circle
-                                                cx="52"
-                                                cy="32"
-                                                r="4"
-                                                fill="#ffffff"
-                                                animate={{
-                                                    scale: [1, 1.2, 1],
-                                                    opacity: [0.8, 1, 0.8],
-                                                }}
-                                                transition={{
-                                                    duration: 1.5,
-                                                    repeat: Infinity,
-                                                }}
-                                            />
-                                            <motion.circle
-                                                cx="68"
-                                                cy="32"
-                                                r="4"
-                                                fill="#ffffff"
-                                                animate={{
-                                                    scale: [1, 1.2, 1],
-                                                    opacity: [0.8, 1, 0.8],
-                                                }}
-                                                transition={{
-                                                    duration: 1.5,
-                                                    repeat: Infinity,
-                                                    delay: 0.2,
-                                                }}
-                                            />
-                                            {/* Eye pupils */}
-                                            <motion.circle
-                                                cx="52"
-                                                cy="32"
-                                                r="2"
-                                                fill="#1e40af"
-                                                animate={{
-                                                    cx: ['52', '54', '50', '52'],
-                                                    cy: ['32', '30', '34', '32'],
-                                                }}
-                                                transition={{
-                                                    duration: 3,
-                                                    repeat: Infinity,
-                                                    ease: 'easeInOut',
-                                                }}
-                                            />
-                                            <motion.circle
-                                                cx="68"
-                                                cy="32"
-                                                r="2"
-                                                fill="#1e40af"
-                                                animate={{
-                                                    cx: ['68', '70', '66', '68'],
-                                                    cy: ['32', '30', '34', '32'],
-                                                }}
-                                                transition={{
-                                                    duration: 3,
-                                                    repeat: Infinity,
-                                                    ease: 'easeInOut',
-                                                    delay: 0.1,
-                                                }}
-                                            />
-                                            {/* Mouth */}
-                                            <motion.path
-                                                d="M 50 42 Q 60 48 70 42"
-                                                stroke="#ffffff"
-                                                strokeWidth="2"
-                                                fill="none"
-                                                strokeLinecap="round"
-                                                animate={{
-                                                    d: [
-                                                        'M 50 42 Q 60 48 70 42',
-                                                        'M 50 44 Q 60 46 70 44',
-                                                        'M 50 42 Q 60 48 70 42',
-                                                    ],
-                                                }}
-                                                transition={{
-                                                    duration: 2,
-                                                    repeat: Infinity,
-                                                }}
-                                            />
-                                            {/* Antenna */}
-                                            <circle cx="60" cy="15" r="3" fill="#fbbf24" />
-                                            <motion.line
-                                                x1="60"
-                                                y1="15"
-                                                x2="60"
-                                                y2="20"
-                                                stroke="#fbbf24"
-                                                strokeWidth="2"
-                                                animate={{
-                                                    opacity: [0.5, 1, 0.5],
-                                                }}
-                                                transition={{
-                                                    duration: 1,
-                                                    repeat: Infinity,
-                                                }}
-                                            />
-                                            {/* Arms */}
-                                            <motion.rect
-                                                x="15"
-                                                y="50"
-                                                width="12"
-                                                height="30"
-                                                rx="6"
-                                                fill="#2563eb"
-                                                animate={{
-                                                    rotate: [0, 20, 0, -20, 0],
-                                                }}
-                                                transition={{
-                                                    duration: 3,
-                                                    repeat: Infinity,
-                                                    ease: 'easeInOut',
-                                                }}
-                                            />
-                                            <motion.rect
-                                                x="93"
-                                                y="50"
-                                                width="12"
-                                                height="30"
-                                                rx="6"
-                                                fill="#2563eb"
-                                                animate={{
-                                                    rotate: [0, -20, 0, 20, 0],
-                                                }}
-                                                transition={{
-                                                    duration: 3,
-                                                    repeat: Infinity,
-                                                    ease: 'easeInOut',
-                                                    delay: 0.5,
-                                                }}
-                                            />
-                                            {/* Chest panel */}
-                                            <rect
-                                                x="45"
-                                                y="55"
-                                                width="30"
-                                                height="20"
-                                                rx="4"
-                                                fill="#1e40af"
-                                                opacity="0.6"
-                                            />
-                                            {/* Scanning effect on chest */}
-                                            <motion.rect
-                                                x="45"
-                                                y="55"
-                                                width="30"
-                                                height="20"
-                                                rx="4"
-                                                fill="url(#scanGradient)"
-                                                opacity="0.4"
-                                                animate={{
-                                                    opacity: [0.2, 0.6, 0.2],
-                                                }}
-                                                transition={{
-                                                    duration: 1.5,
-                                                    repeat: Infinity,
-                                                }}
-                                            />
-                                            <defs>
-                                                <linearGradient id="scanGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                                    <stop offset="0%" stopColor="#60a5fa" stopOpacity="0" />
-                                                    <stop offset="50%" stopColor="#60a5fa" stopOpacity="1" />
-                                                    <stop offset="100%" stopColor="#60a5fa" stopOpacity="0" />
-                                                </linearGradient>
-                                            </defs>
-                                        </motion.svg>
-                                    </motion.div>
-
-                                    {/* Speech Bubble */}
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                                        className="absolute top-2 left-2 right-2"
-                                    >
-                                        <div className="relative px-4 py-3 rounded-2xl bg-zinc-800/90 border border-white/10 shadow-xl">
-                                            {/* Bubble tail */}
-                                            <div className="absolute -bottom-2 left-8 w-4 h-4 bg-zinc-800/90 border-l border-b border-white/10 transform rotate-45" />
-                                            
-                                                <motion.p
-                                                key={progress.message || progress.step}
-                                                    initial={{ opacity: 0 }}
-                                                    animate={{ opacity: 1 }}
-                                                className="text-sm font-medium text-white/90 text-center"
-                                            >
-                                                {progress.step === 'uploading' && '📤 Caricando il tuo PDF...'}
-                                                {progress.step === 'analyzing' && '🧠 Analizzando la struttura del documento...'}
-                                                {progress.step === 'processing' && '📄 Elaborando il contenuto...'}
-                                                {progress.step === 'generating' && `✨ Creando le flashcard ${progress.currentChunk || 0}/${progress.totalChunks || 0}...`}
-                                                {progress.message && progress.message}
-                                                </motion.p>
+                                            <span className="text-sm font-medium text-primary-300">
+                                                {formatTime(progress.elapsedTime)}
+                                            </span>
                                         </div>
-                                    </motion.div>
+                                    )}
+                                </div>
 
-                                    {/* Thinking particles */}
-                                    <div className="absolute top-4 right-4">
-                                        {[...Array(3)].map((_, i) => (
+                                {/* Timeline delle Fasi */}
+                                <div className="space-y-6">
+                                    {/* Fase 1: Uploading */}
+                                    <div className="relative">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex-shrink-0 relative">
+                                                <div className={`
+                                                    w-10 h-10 rounded-xl flex items-center justify-center transition-all
+                                                    ${progress.step === 'uploading' 
+                                                        ? 'bg-primary-500/20 border-2 border-primary-400 shadow-lg shadow-primary-500/20' 
+                                                        : ['analyzing', 'processing', 'generating', 'completed'].includes(progress.step)
+                                                        ? 'bg-primary-500/10 border border-primary-500/30'
+                                                        : 'bg-zinc-800/50 border border-white/10'
+                                                    }
+                                                `}>
+                                                    {progress.step === 'uploading' ? (
+                                    <motion.div
+                                                            animate={{ rotate: 360 }}
+                                                            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                                                        >
+                                                            <Upload className="w-5 h-5 text-primary-400" />
+                                    </motion.div>
+                                                    ) : ['analyzing', 'processing', 'generating', 'completed'].includes(progress.step) ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-primary-400" />
+                                                    ) : (
+                                                        <Upload className="w-5 h-5 text-white/30" />
+                                                    )}
+                                                </div>
+                                                {!['idle', 'uploading'].includes(progress.step) && (
+                                                    <div className="absolute left-5 top-10 w-0.5 h-full bg-primary-500/30" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 pt-1">
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <p className="text-sm font-medium text-white">Caricamento PDF</p>
+                                                    {progress.step === 'uploading' && (
+                                                        <span className="text-xs text-primary-400 font-medium">In corso...</span>
+                                                    )}
+                                                    {['analyzing', 'processing', 'generating', 'completed'].includes(progress.step) && (
+                                                        <span className="text-xs text-primary-400 font-medium">Completato</span>
+                                                    )}
+                                                </div>
+                                                {progress.step === 'uploading' && (
+                                                    <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
                                             <motion.div
-                                                key={i}
-                                                className="absolute w-2 h-2 bg-blue-400 rounded-full"
-                                                style={{
-                                                    right: `${i * 8}px`,
-                                                    top: `${i * 6}px`,
-                                                }}
-                                                animate={{
-                                                    opacity: [0.3, 1, 0.3],
-                                                    scale: [0.8, 1.2, 0.8],
-                                                }}
-                                                transition={{
-                                                    duration: 1.5,
-                                                    repeat: Infinity,
-                                                    delay: i * 0.3,
-                                                }}
-                                            />
-                                        ))}
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: '100%' }}
+                                                            transition={{ duration: 1, repeat: Infinity, ease: 'easeInOut' }}
+                                                            className="h-full bg-gradient-to-r from-primary-500 to-primary-600"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                                 </div>
                                             </div>
 
-                                {/* Step Icon & Animation */}
-                                <div className="flex flex-col items-center gap-4">
+                                    {/* Fase 2: Analyzing */}
+                                    <div className="relative">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex-shrink-0 relative">
+                                                <div className={`
+                                                    w-10 h-10 rounded-xl flex items-center justify-center transition-all
+                                                    ${progress.step === 'analyzing' 
+                                                        ? 'bg-primary-500/20 border-2 border-primary-400 shadow-lg shadow-primary-500/20' 
+                                                        : ['processing', 'generating', 'completed'].includes(progress.step)
+                                                        ? 'bg-primary-500/10 border border-primary-500/30'
+                                                        : 'bg-zinc-800/50 border border-white/10'
+                                                    }
+                                                `}>
+                                                    {progress.step === 'analyzing' ? (
                                     <motion.div
-                                        animate={{ 
-                                            scale: [1, 1.1, 1],
-                                            rotate: progress.step === 'analyzing' ? [0, 360] : 0,
-                                        }}
-                                        transition={{ 
-                                            duration: progress.step === 'analyzing' ? 3 : 2,
-                                            repeat: Infinity,
-                                            ease: 'easeInOut',
-                                        }}
-                                        className="p-4 rounded-2xl bg-zinc-800/50 border border-white/5"
-                                    >
-                                        <StepIcon className={`w-12 h-12 ${stepConfig.color}`} />
+                                                            animate={{ rotate: 360 }}
+                                                            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                                                        >
+                                                            <Brain className="w-5 h-5 text-primary-400" />
                                     </motion.div>
-
-                                    <div className="text-center space-y-2">
-                                        <h3 className="text-lg font-semibold text-white">{stepConfig.label}</h3>
-                                        {progress.message && (
-                                            <p className="text-sm text-white/60">{progress.message}</p>
+                                                    ) : ['processing', 'generating', 'completed'].includes(progress.step) ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-primary-400" />
+                                                    ) : (
+                                                        <Brain className="w-5 h-5 text-white/30" />
                                         )}
+                                    </div>
+                                                {!['idle', 'uploading', 'analyzing'].includes(progress.step) && (
+                                                    <div className="absolute left-5 top-10 w-0.5 h-full bg-primary-500/30" />
+                                                )}
+                                </div>
+                                            <div className="flex-1 pt-1">
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <p className="text-sm font-medium text-white">Analisi Strutturale</p>
+                                                    {progress.step === 'analyzing' && (
+                                                        <span className="text-xs text-primary-400 font-medium">In corso...</span>
+                                                    )}
+                                                    {['processing', 'generating', 'completed'].includes(progress.step) && (
+                                                        <span className="text-xs text-primary-400 font-medium">Completato</span>
+                                                    )}
+                                                </div>
+                                                {progress.blueprint?.mainTopics && progress.blueprint.mainTopics.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                                        {progress.blueprint.mainTopics.slice(0, 3).map((topic, idx) => (
+                                                            <span
+                                                            key={idx}
+                                                                className="px-2 py-0.5 rounded-md bg-primary-500/10 border border-primary-500/20 text-xs text-primary-300"
+                                                            >
+                                                                {topic}
+                                                            </span>
+                                                        ))}
+                                                        {progress.blueprint.mainTopics.length > 3 && (
+                                                            <span className="px-2 py-0.5 rounded-md bg-zinc-800/50 text-xs text-white/40">
+                                                                +{progress.blueprint.mainTopics.length - 3}
+                                                            </span>
+                                                        )}
+                                                </div>
+                                            )}
+                                                </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Fase 3: Processing */}
+                                    <div className="relative">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex-shrink-0 relative">
+                                                <div className={`
+                                                    w-10 h-10 rounded-xl flex items-center justify-center transition-all
+                                                    ${progress.step === 'processing' 
+                                                        ? 'bg-primary-500/20 border-2 border-primary-400 shadow-lg shadow-primary-500/20' 
+                                                        : ['generating', 'completed'].includes(progress.step)
+                                                        ? 'bg-primary-500/10 border border-primary-500/30'
+                                                        : 'bg-zinc-800/50 border border-white/10'
+                                                    }
+                                                `}>
+                                                    {progress.step === 'processing' ? (
+                                                        <motion.div
+                                                            animate={{ rotate: 360 }}
+                                                            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                                                        >
+                                                            <FileText className="w-5 h-5 text-primary-400" />
+                                                        </motion.div>
+                                                    ) : ['generating', 'completed'].includes(progress.step) ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-primary-400" />
+                                                    ) : (
+                                                        <FileText className="w-5 h-5 text-white/30" />
+                                                    )}
+                                                </div>
+                                                {!['idle', 'uploading', 'analyzing', 'processing'].includes(progress.step) && (
+                                                    <div className="absolute left-5 top-10 w-0.5 h-full bg-primary-500/30" />
+                                                )}
+                                        </div>
+                                            <div className="flex-1 pt-1">
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <p className="text-sm font-medium text-white">Elaborazione Contenuto</p>
+                                                    {progress.step === 'processing' && (
+                                                        <span className="text-xs text-primary-400 font-medium">In corso...</span>
+                                                    )}
+                                                    {['generating', 'completed'].includes(progress.step) && (
+                                                        <span className="text-xs text-primary-400 font-medium">Completato</span>
+                                                    )}
+                                                </div>
+                                                {progress.totalChunks && (
+                                                    <p className="text-xs text-white/50 mt-1">
+                                                        {progress.currentChunk || 0} / {progress.totalChunks} sezioni elaborate
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Fase 4: Generating */}
+                                    <div className="relative">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex-shrink-0">
+                                                <div className={`
+                                                    w-10 h-10 rounded-xl flex items-center justify-center transition-all
+                                                    ${progress.step === 'generating' 
+                                                        ? 'bg-primary-500/20 border-2 border-primary-400 shadow-lg shadow-primary-500/20' 
+                                                        : progress.step === 'completed'
+                                                        ? 'bg-primary-500/10 border border-primary-500/30'
+                                                        : 'bg-zinc-800/50 border border-white/10'
+                                                    }
+                                                `}>
+                                                    {progress.step === 'generating' ? (
+                                                        <motion.div
+                                                            animate={{ rotate: 360 }}
+                                                            transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                                                        >
+                                                            <Zap className="w-5 h-5 text-primary-400" />
+                                    </motion.div>
+                                                    ) : progress.step === 'completed' ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-primary-400" />
+                                                    ) : (
+                                                        <Zap className="w-5 h-5 text-white/30" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 pt-1">
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <p className="text-sm font-medium text-white">Generazione Flashcard</p>
+                                                    {progress.step === 'generating' && (
+                                                        <span className="text-xs text-primary-400 font-medium">In corso...</span>
+                                                    )}
+                                                    {progress.step === 'completed' && (
+                                                        <span className="text-xs text-primary-400 font-medium">Completato</span>
+                                                    )}
+                                                </div>
+                                                {progress.progress !== undefined && (
+                                                    <div className="space-y-1.5 mt-2">
+                                                        <div className="flex items-center justify-between text-xs">
+                                                            <span className="text-white/60">Progresso</span>
+                                                            <span className="text-primary-300 font-medium">{progress.progress}%</span>
+                                                        </div>
+                                                        <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                                            <motion.div
+                                                                initial={{ width: 0 }}
+                                                                animate={{ width: `${progress.progress}%` }}
+                                                                transition={{ duration: 0.3, ease: 'easeOut' }}
+                                                                className="h-full bg-gradient-to-r from-primary-500 to-primary-600 rounded-full"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {progress.generatedCount !== undefined && (
+                                                    <p className="text-xs text-white/50 mt-2">
+                                                        {progress.generatedCount} flashcard generate
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* AI Insights - Blueprint & Concepts */}
-                                {(progress.blueprint || progress.concepts) && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                        className="space-y-3"
-                                    >
-                                        {progress.blueprint?.mainTopics && progress.blueprint.mainTopics.length > 0 && (
-                                            <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Target className="w-4 h-4 text-violet-400" />
-                                                    <p className="text-xs font-semibold text-white/80">Argomenti Principali</p>
-                                                </div>
-                                                    <div className="flex flex-wrap gap-2">
-                                                    {progress.blueprint.mainTopics.slice(0, 5).map((topic, idx) => (
-                                                        <motion.span
-                                                            key={idx}
-                                                            initial={{ opacity: 0, scale: 0.8 }}
-                                                            animate={{ opacity: 1, scale: 1 }}
-                                                            transition={{ delay: idx * 0.1 }}
-                                                            className="px-2.5 py-1 rounded-lg bg-violet-500/20 border border-violet-500/30 text-xs text-violet-300"
-                                                            >
-                                                                {topic}
-                                                        </motion.span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        
-                                        {progress.concepts && progress.concepts.length > 0 && (
-                                            <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Lightbulb className="w-4 h-4 text-amber-400" />
-                                                    <p className="text-xs font-semibold text-white/80">Concetti Chiave</p>
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {progress.concepts.slice(0, 6).map((concept, idx) => (
-                                                        <motion.span
-                                                            key={idx}
-                                                            initial={{ opacity: 0, scale: 0.8 }}
-                                                            animate={{ opacity: 1, scale: 1 }}
-                                                            transition={{ delay: idx * 0.1 }}
-                                                            className="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/30 text-xs text-amber-300"
-                                                        >
-                                                            {concept}
-                                                        </motion.span>
-                                                    ))}
-                                                </div>
+                                {/* Stats Grid */}
+                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                                    {progress.generatedCount !== undefined && (
+                                        <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl">
+                                            <p className="text-xs text-white/50 mb-1">Flashcard generate</p>
+                                            <p className="text-2xl font-bold text-primary-300">{progress.generatedCount}</p>
                                         </div>
-                                        )}
-                                    </motion.div>
-                                )}
+                                    )}
+                                    {progress.totalChunks && (
+                                        <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl">
+                                            <p className="text-xs text-white/50 mb-1">Sezioni elaborate</p>
+                                            <p className="text-2xl font-bold text-primary-300">
+                                                {progress.currentChunk || 0} / {progress.totalChunks}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
 
                                 {/* Real-time Logs */}
-                                <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5 max-h-48 overflow-y-auto">
+                                {logs.length > 0 && (
+                                    <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5 backdrop-blur-xl max-h-48 overflow-y-auto custom-scrollbar">
                                     <div className="flex items-center gap-2 mb-3">
-                                        <Brain className="w-4 h-4 text-violet-400" />
+                                            <Brain className="w-4 h-4 text-primary-400" />
                                         <p className="text-xs font-semibold text-white/80">Log Analisi AI</p>
                                     </div>
                                     <div className="space-y-2">
@@ -856,13 +860,13 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                                         <LogIcon className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${
                                                             log.type === 'success' ? 'text-emerald-400' :
                                                             log.type === 'warning' ? 'text-amber-400' :
-                                                            log.type === 'analysis' ? 'text-violet-400' :
+                                                                log.type === 'analysis' ? 'text-primary-400' :
                                                             'text-white/50'
                                                         }`} />
                                                         <p className={`flex-1 ${
                                                             log.type === 'success' ? 'text-emerald-300' :
                                                             log.type === 'warning' ? 'text-amber-300' :
-                                                            log.type === 'analysis' ? 'text-violet-300' :
+                                                                log.type === 'analysis' ? 'text-primary-300' :
                                                             'text-white/60'
                                                         }`}>
                                                             {log.message}
@@ -879,78 +883,9 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                             })}
                                         </AnimatePresence>
                                         <div ref={logsEndRef} />
-                                    </div>
-                                </div>
-
-                                    {/* Progress Bar */}
-                                {progress.progress !== undefined && (
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between text-xs text-white/60">
-                                                <span>Progresso</span>
-                                            <span>{progress.progress}%</span>
-                                            </div>
-                                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                                <motion.div
-                                                    initial={{ width: 0 }}
-                                                animate={{ width: `${progress.progress}%` }}
-                                                transition={{ duration: 0.3, ease: 'easeOut' }}
-                                                className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
-                                            />
                                                     </div>
                                         </div>
                                     )}
-
-                                {/* Stats */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    {progress.generatedCount !== undefined && (
-                                        <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
-                                            <p className="text-xs text-white/50 mb-1">Flashcard generate</p>
-                                            <p className="text-2xl font-bold text-white">{progress.generatedCount}</p>
-                                        </div>
-                                    )}
-                                    {progress.totalChunks && (
-                                        <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
-                                            <p className="text-xs text-white/50 mb-1">Sezioni elaborate</p>
-                                            <p className="text-2xl font-bold text-white">
-                                                {progress.currentChunk || 0} / {progress.totalChunks}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Time Estimate */}
-                                <div className="p-4 rounded-xl bg-zinc-800/50 border border-white/5">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="text-xs text-white/50">Tempo stimato</p>
-                                        {progress.elapsedTime !== undefined && (
-                                            <p className="text-xs text-white/50">
-                                                {formatTime(progress.elapsedTime)} trascorsi
-                                            </p>
-                                        )}
-                                            </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                            {estimatedTimeRemaining > 0 && (
-                                                <motion.div
-                                                    initial={{ width: '100%' }}
-                                                    animate={{ 
-                                                        width: progress.elapsedTime && progress.estimatedTime
-                                                            ? `${((progress.estimatedTime - progress.elapsedTime) / progress.estimatedTime) * 100}%`
-                                                            : '100%'
-                                                    }}
-                                                    transition={{ duration: 1, ease: 'linear' }}
-                                                    className="h-full bg-gradient-to-r from-blue-400 to-violet-500 rounded-full"
-                                                />
-                                            )}
-                                        </div>
-                                        <p className="text-sm font-medium text-white min-w-[60px] text-right">
-                                            {estimatedTimeRemaining > 0 
-                                                ? formatTime(estimatedTimeRemaining)
-                                                : 'Quasi fatto...'
-                                            }
-                                                </p>
-                                            </div>
-                                        </div>
                                 </motion.div>
                             )}
 
@@ -965,7 +900,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                                    className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/30"
+                                    className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-xl"
                                 >
                                     <CheckCircle2 className="w-12 h-12 text-emerald-400" />
                                 </motion.div>
@@ -987,7 +922,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 className="flex flex-col items-center gap-4 text-center"
                             >
-                                <div className="p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
+                                <div className="p-4 rounded-2xl bg-red-500/20 border border-red-500/30 backdrop-blur-xl">
                                     <AlertCircle className="w-12 h-12 text-red-400" />
 </div>
                                 <div>
@@ -999,7 +934,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                         setProgress({ step: 'idle' });
                                         setError(null);
                                     }}
-                                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
+                                    className="px-4 py-2 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white text-sm font-medium transition-colors backdrop-blur-sm"
                                 >
                                     Riprova
                                 </button>

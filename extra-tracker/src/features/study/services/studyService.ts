@@ -1,4 +1,5 @@
 import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
+export type { Tag } from './tagsService';
 
 // ============================================
 // TYPES
@@ -34,6 +35,7 @@ export interface Deck {
     dueCount: number;
     createdAt?: string;
     updatedAt?: string;
+    pinned?: boolean; // Preferiti - da implementare nel backend
 }
 
 export interface ChatMessage {
@@ -363,7 +365,10 @@ class StudyService {
      * Carica un file PDF e usa OpenAI per generare automaticamente
      * 10-15 flashcard di qualità basate sul contenuto.
      */
-    async generateFromPDF(deckId: string, file: File): Promise<{ generatedCount: number; deck: Deck }> {
+    async generateFromPDF(
+        deckId: string,
+        file: File
+    ): Promise<{ generatedCount: number; deck: Deck; totalChunks?: number; totalTextLength?: number }> {
         // Validazione client-side
         if (!file) {
             throw new Error('Nessun file selezionato');
@@ -455,9 +460,9 @@ class StudyService {
     }
 
     /**
-     * Aggiorna folderId e/o tags di un deck
+     * Aggiorna folderId, goalId e/o tags di un deck
      */
-    async updateDeckOrganization(deckId: string, updates: { folderId?: string | null; tags?: string[] }): Promise<Deck> {
+    async updateDeckOrganization(deckId: string, updates: { folderId?: string | null; goalId?: string | null; tags?: string[] }): Promise<Deck> {
         const response = await apiClient.patch<any>(`${this.baseUrl}/${deckId}`, updates);
         const raw = unwrap(response, 'Errore nell\'aggiornamento');
         return normalizeDeck(raw);

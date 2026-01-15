@@ -13,12 +13,12 @@ import {
     Clock, 
     Layout, 
     CheckCircle2,
-    AlertCircle,
     RotateCcw
 } from 'lucide-react';
 import type { UserPreferences } from '../services/settingsService';
 import type { FormStatus } from './types';
-import { SettingsTooltip } from './SettingsTooltip';
+import { SettingsSelect } from './fields';
+import { SettingsError, SettingsSuccess } from './feedback';
 
 interface PreferencesSettingsProps {
     preferences: UserPreferences;
@@ -26,42 +26,6 @@ interface PreferencesSettingsProps {
     status: FormStatus;
 }
 
-
-// Select Component Premium
-const SelectField = ({ 
-    label, 
-    name, 
-    value, 
-    onChange, 
-    options, 
-    icon: Icon 
-}: { 
-    label: string;
-    name: keyof UserPreferences;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-    options: { value: string; label: string }[];
-    icon: typeof Globe;
-}) => (
-    <div className="space-y-2">
-        <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
-            <Icon className="w-4 h-4 text-white/50" />
-            {label}
-        </label>
-        <select
-            name={name}
-            value={value}
-            onChange={onChange}
-            className="w-full select"
-        >
-            {options.map(opt => (
-                <option key={opt.value} value={opt.value} className="bg-dark-300 text-white">
-                    {opt.label}
-                </option>
-            ))}
-        </select>
-    </div>
-);
 
 export const PreferencesSettings = ({ preferences, onSave, status }: PreferencesSettingsProps) => {
     const [formData, setFormData] = useState<UserPreferences>(preferences);
@@ -124,49 +88,38 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                     <Globe className="w-5 h-5 text-primary-400" />
                     Localizzazione e Visualizzazione
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <SelectField
-                                label="Lingua"
-                                name="language"
-                                value={formData.language}
-                                onChange={handleChange}
-                                icon={Globe}
-                                options={[
-                                    { value: 'it', label: '🇮🇹 Italiano' },
-                                    { value: 'en', label: '🇬🇧 English' },
-                                    { value: 'es', label: '🇪🇸 Español' },
-                                    { value: 'de', label: '🇩🇪 Deutsch' },
-                                    { value: 'fr', label: '🇫🇷 Français' },
-                                ]}
-                            />
-                            <SettingsTooltip
-                                title="Lingua interfaccia"
-                                content="La lingua selezionata verrà applicata immediatamente a tutta l'interfaccia"
-                            />
-                        </div>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                    <SettingsSelect
+                        label="Lingua"
+                        name="language"
+                        value={formData.language}
+                        onChange={handleChange}
+                        icon={Globe}
+                        options={[
+                            { value: 'it', label: '🇮🇹 Italiano' },
+                            { value: 'en', label: '🇬🇧 English' },
+                            { value: 'es', label: '🇪🇸 Español' },
+                            { value: 'de', label: '🇩🇪 Deutsch' },
+                            { value: 'fr', label: '🇫🇷 Français' },
+                        ]}
+                        tooltipTitle="Lingua interfaccia"
+                        tooltipContent="La lingua selezionata verrà applicata immediatamente a tutta l'interfaccia"
+                    />
 
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <SelectField
-                                label="Tema"
-                                name="theme"
-                                value={formData.theme}
-                                onChange={handleChange}
-                                icon={Palette}
-                                options={[
-                                    { value: 'dark', label: '🌙 Dark' },
-                                    { value: 'light', label: '☀️ Light' },
-                                    { value: 'system', label: '💻 System' },
-                                ]}
-                            />
-                            <SettingsTooltip
-                                title="Tema applicazione"
-                                content="Il tema viene applicato immediatamente. 'System' segue le preferenze del tuo sistema operativo"
-                            />
-                        </div>
+                    <SettingsSelect
+                        label="Tema"
+                        name="theme"
+                        value={formData.theme}
+                        onChange={handleChange}
+                        icon={Palette}
+                        options={[
+                            { value: 'dark', label: '🌙 Dark' },
+                            { value: 'light', label: '☀️ Light' },
+                            { value: 'system', label: '💻 System' },
+                        ]}
+                        tooltipTitle="Tema applicazione"
+                        tooltipContent="Il tema viene applicato immediatamente. 'System' segue le preferenze del tuo sistema operativo"
+                    />
                         {/* Theme Preview */}
                         {formData.theme && (
                             <motion.div
@@ -191,7 +144,6 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                                 </div>
                             </motion.div>
                         )}
-                    </div>
                 </div>
             </div>
 
@@ -201,8 +153,8 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                     <Layout className="w-5 h-5 text-primary-400" />
                     Formattazione
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <SelectField
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                    <SettingsSelect
                         label="Valuta"
                         name="currency"
                         value={formData.currency}
@@ -216,7 +168,7 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                         ]}
                     />
 
-                    <SelectField
+                    <SettingsSelect
                         label="Formato ora"
                         name="timeFormat"
                         value={formData.timeFormat}
@@ -236,7 +188,7 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                     <Layout className="w-5 h-5 text-primary-400" />
                     Vista Predefinita
                 </h3>
-                <SelectField
+                <SettingsSelect
                     label="Pagina iniziale"
                     name="defaultView"
                     value={formData.defaultView || 'dashboard'}
@@ -254,26 +206,16 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
             {/* Status Messages */}
             <AnimatePresence>
                 {status.error && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 flex items-center gap-3"
-                    >
-                        <AlertCircle className="w-5 h-5 text-red-400" />
-                        <p className="text-sm text-red-300">{status.error}</p>
-                    </motion.div>
+                    <SettingsError
+                        message={status.error}
+                        title="Errore nel salvataggio"
+                    />
                 )}
                 {status.success && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-center gap-3"
-                    >
-                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                        <p className="text-sm text-emerald-300">Preferenze aggiornate con successo!</p>
-                    </motion.div>
+                    <SettingsSuccess
+                        message="Preferenze aggiornate con successo!"
+                        title="Preferenze salvate"
+                    />
                 )}
             </AnimatePresence>
 

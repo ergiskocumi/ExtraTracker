@@ -436,19 +436,44 @@ export const useDashboardCalculations = ({
 
         switch (filter) {
             case 'due':
-                result = result.filter(d => (d.dueCount ?? 0) > 0);
+                result = result
+                    .filter(d => (d.dueCount ?? 0) > 0)
+                    .sort((a, b) => {
+                        // Ordina per numero di carte da ripassare (decrescente), poi per data creazione (più recente prima)
+                        const dueDiff = (b.dueCount ?? 0) - (a.dueCount ?? 0);
+                        if (dueDiff !== 0) return dueDiff;
+                        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                        return bTime - aTime;
+                    });
                 break;
             case 'mastered':
-                result = result.filter(d => {
-                    const total = d.totalCards ?? d.cards?.length ?? 0;
-                    const mastered = d.cards?.filter(c => c.status === 'mastered').length ?? 0;
-                    return total > 0 && mastered === total;
-                });
+                result = result
+                    .filter(d => {
+                        const total = d.totalCards ?? d.cards?.length ?? 0;
+                        const mastered = d.cards?.filter(c => c.status === 'mastered').length ?? 0;
+                        return total > 0 && mastered === total;
+                    })
+                    .sort((a, b) => {
+                        // Ordina per data creazione (più recente prima)
+                        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                        return bTime - aTime;
+                    });
                 break;
             case 'recent':
                 result = result
                     .filter(d => d.createdAt && new Date(d.createdAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000)
                     .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+                break;
+            case 'all':
+            default:
+                // Ordina per data creazione (più recente prima) - DEFAULT
+                result.sort((a, b) => {
+                    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return bTime - aTime;
+                });
                 break;
         }
 
@@ -459,6 +484,12 @@ export const useDashboardCalculations = ({
                 d.description?.toLowerCase().includes(query) ||
                 d.tags?.some(tag => tag.toLowerCase().includes(query))
             );
+            // Mantieni l'ordinamento anche dopo la ricerca
+            result.sort((a, b) => {
+                const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return bTime - aTime;
+            });
         }
 
         return result;

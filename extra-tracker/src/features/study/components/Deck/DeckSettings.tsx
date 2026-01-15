@@ -3,18 +3,22 @@
  * 
  * Permette all'utente di configurare l'algoritmo di spaced repetition
  * e le preferenze per la generazione AI delle flashcard.
+ * Inoltre permette di cambiare l'esame associato al mazzo.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
     FiSave,
     FiInfo,
     FiZap,
     FiCpu,
+    FiBookOpen,
 } from 'react-icons/fi';
-import { studyService, type Deck, type DeckSettings } from '../../services/studyService';
+import { studyService, type Deck, type DeckSettings as DeckSettingsConfig } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
+import goalsService from '../../../goals/services/goalsService';
+import type { Goal } from '../../../goals/types';
 
 interface DeckSettingsProps {
     deck: Deck;
@@ -22,7 +26,7 @@ interface DeckSettingsProps {
 }
 
 export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) => {
-    const [settings, setSettings] = useState<DeckSettings>({
+    const [settings, setSettings] = useState<DeckSettingsConfig>({
         algorithm: 'sm2',
         aiSettings: {
             style: 'comprehensive',
@@ -31,6 +35,30 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
         },
     });
     const [saving, setSaving] = useState(false);
+    
+    // Stato per la gestione dell'esame associato
+    const [exams, setExams] = useState<Goal[]>([]);
+    const [selectedExamId, setSelectedExamId] = useState<string | null>(deck.goalId || null);
+    const [loadingExams, setLoadingExams] = useState(false);
+    const [savingExam, setSavingExam] = useState(false);
+
+    // Carica gli esami disponibili
+    const loadExams = useCallback(async () => {
+        try {
+            setLoadingExams(true);
+            const allGoals = await goalsService.getAll();
+            // Filtra solo gli esami (goals con category='learning' e status='active')
+            const learningGoals = allGoals.filter(
+                g => g.category === 'learning' && g.status === 'active'
+            );
+            setExams(learningGoals);
+        } catch (err: any) {
+            console.error('Errore nel caricamento degli esami:', err);
+            emitToast.error('Errore nel caricamento degli esami');
+        } finally {
+            setLoadingExams(false);
+        }
+    }, []);
 
     useEffect(() => {
         // Carica impostazioni esistenti se disponibili
@@ -51,7 +79,13 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
         ) {
             setSettings(currentSettings);
         }
-    }, [deck.id]); // Ricarica solo se cambia il deck ID
+        
+        // Aggiorna l'esame selezionato quando cambia il deck
+        setSelectedExamId(deck.goalId || null);
+        
+        // Carica gli esami disponibili
+        loadExams();
+    }, [deck.id, deck.goalId, loadExams]); // Ricarica solo se cambia il deck ID o goalId
 
     const handleSave = async () => {
         try {
@@ -63,6 +97,42 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
             emitToast.error(err.message || 'Errore nel salvataggio');
         } finally {
             setSaving(false);
+        }
+    };
+
+    /**
+     * Gestisce il cambio di esame associato al mazzo
+     * 
+     * Quando l'utente cambia l'esame, il mazzo viene spostato
+     * dal vecchio esame al nuovo, aggiornando il goalId.
+     */
+    const handleExamChange = async () => {
+        if (!selectedExamId || selectedExamId.trim() === '') {
+            emitToast.error('Seleziona un esame valido');
+            return;
+        }
+
+        // Se l'esame selezionato è lo stesso di quello corrente, non fare nulla
+        if (selectedExamId === deck.goalId) {
+            emitToast.info('L\'esame selezionato è già quello corrente');
+            return;
+        }
+
+        try {
+            setSavingExam(true);
+            const updated = await studyService.updateDeckOrganization(deck.id, {
+                goalId: selectedExamId,
+            });
+            onUpdate(updated);
+            emitToast.success('Esame associato aggiornato', { 
+                title: 'Il mazzo è stato spostato al nuovo esame' 
+            });
+        } catch (err: any) {
+            emitToast.error(err.message || 'Errore nell\'aggiornamento dell\'esame');
+            // Ripristina il valore precedente in caso di errore
+            setSelectedExamId(deck.goalId || null);
+        } finally {
+            setSavingExam(false);
         }
     };
 
@@ -80,8 +150,82 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
         application: 'Focus su applicazioni pratiche. Perfetto per materie pratiche.',
     };
 
+    // Trova l'esame corrente per mostrarlo
+    const currentExam = exams.find(e => e.id === deck.goalId);
+
     return (
         <div className="space-y-6">
+            {/* Sezione Esame Associato */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <FiBookOpen className="w-5 h-5" />
+                    Esame Associato
+                </h3>
+                <p className="text-sm text-white/60 mb-4">
+                    Cambia l'esame a cui è associato questo mazzo. Il mazzo verrà spostato dal vecchio esame al nuovo.
+                </p>
+                
+                {loadingExams ? (
+                    <div className="flex items-center justify-center py-4">
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-white/80 mb-2">
+                                Seleziona Esame
+                            </label>
+                            <select
+                                value={selectedExamId || ''}
+                                onChange={(e) => setSelectedExamId(e.target.value)}
+                                disabled={savingExam}
+                                className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {exams.length === 0 ? (
+                                    <option value="">Nessun esame disponibile</option>
+                                ) : (
+                                    exams.map((exam) => (
+                                        <option key={exam.id} value={exam.id}>
+                                            {exam.title}
+                                        </option>
+                                    ))
+                                )}
+                            </select>
+                        </div>
+                        
+                        {currentExam && (
+                            <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3">
+                                <p className="text-sm text-blue-300">
+                                    <span className="font-semibold">Esame corrente:</span> {currentExam.title}
+                                </p>
+                            </div>
+                        )}
+                        
+                        {selectedExamId && selectedExamId !== deck.goalId && (
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={handleExamChange}
+                                disabled={savingExam || !selectedExamId}
+                                className="w-full px-4 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                {savingExam ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <span>Aggiornamento...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiSave className="w-4 h-4" />
+                                        <span>Cambia Esame</span>
+                                    </>
+                                )}
+                            </motion.button>
+                        )}
+                    </div>
+                )}
+            </div>
+
             {/* Algoritmo */}
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">

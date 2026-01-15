@@ -37,6 +37,7 @@ const updateDeck = asyncHandler(async (req, res) => {
         description: req.body.description,
         tags: req.body.tags,
         folderId: req.body.folderId,
+        goalId: req.body.goalId,
     });
     res.json({ success: true, data: deck });
 });

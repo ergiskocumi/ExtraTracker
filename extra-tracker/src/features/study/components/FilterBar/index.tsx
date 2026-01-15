@@ -1,5 +1,7 @@
-import React from 'react';
-import { Search, Filter, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Filter, X, Info } from 'lucide-react';
+import { ViewToggle, type ViewMode } from '../ViewToggle/ViewToggle';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type FilterType = 'all' | 'due' | 'mastered' | 'recent';
 
@@ -9,6 +11,15 @@ interface FilterBarProps {
     searchQuery: string;
     onSearchChange: (query: string) => void;
     dueCount: number;
+    viewMode?: ViewMode;
+    onViewModeChange?: (view: ViewMode) => void;
+}
+
+interface FilterInfo {
+    key: FilterType;
+    label: string;
+    description: string;
+    count?: number;
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
@@ -17,12 +28,33 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     searchQuery,
     onSearchChange,
     dueCount,
+    viewMode,
+    onViewModeChange,
 }) => {
-    const filters: { key: FilterType; label: string; count?: number }[] = [
-        { key: 'all', label: 'Tutti' },
-        { key: 'due', label: 'Da Ripassare', count: dueCount },
-        { key: 'mastered', label: 'Completati' },
-        { key: 'recent', label: 'Recenti' },
+    const [hoveredFilter, setHoveredFilter] = useState<FilterType | null>(null);
+
+    const filters: FilterInfo[] = [
+        { 
+            key: 'all', 
+            label: 'Tutti',
+            description: 'Mostra tutti i mazzi, ordinati dal più recente al più vecchio'
+        },
+        { 
+            key: 'due', 
+            label: 'Da Ripassare', 
+            count: dueCount,
+            description: 'Mostra solo i mazzi con carte da ripassare, ordinati per priorità (più carte da ripassare = più in alto)'
+        },
+        { 
+            key: 'mastered', 
+            label: 'Completati',
+            description: 'Mostra i mazzi completamente padroneggiati (tutte le carte sono state completate)'
+        },
+        { 
+            key: 'recent', 
+            label: 'Recenti',
+            description: 'Mostra i mazzi creati negli ultimi 7 giorni, ordinati dal più recente'
+        },
     ];
 
     return (
@@ -48,36 +80,74 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 )}
             </div>
 
-            {/* Filters - Horizontal Scroll on Mobile */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
-                {filters.map((filter) => (
-                    <button
-                        key={filter.key}
-                        onClick={() => onFilterChange(filter.key)}
-                        className={`
-                            flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all touch-manipulation
-                            min-h-[40px] sm:min-h-[44px]
-                            ${activeFilter === filter.key
-                                ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                                : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 border border-white/10 active:bg-white/10'
-                            }
-                        `}
-                    >
-                        <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                        {filter.label}
-                        {filter.count !== undefined && filter.count > 0 && (
-                            <span className={`
-                                px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold
-                                ${activeFilter === filter.key
-                                    ? 'bg-violet-500/30 text-violet-200'
-                                    : 'bg-orange-500/20 text-orange-400'
-                                }
-                            `}>
-                                {filter.count}
-                            </span>
-                        )}
-                    </button>
-                ))}
+            {/* Filters + View Toggle */}
+            <div className="flex items-center justify-between gap-4">
+                {/* Filters - Horizontal Scroll on Mobile */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none flex-1">
+                    {filters.map((filter) => (
+                        <div
+                            key={filter.key}
+                            className="relative"
+                            onMouseEnter={() => setHoveredFilter(filter.key)}
+                            onMouseLeave={() => setHoveredFilter(null)}
+                        >
+                            <button
+                                onClick={() => onFilterChange(filter.key)}
+                                className={`
+                                    flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all touch-manipulation
+                                    min-h-[40px] sm:min-h-[44px]
+                                    ${activeFilter === filter.key
+                                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                                        : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 border border-white/10 active:bg-white/10'
+                                    }
+                                `}
+                            >
+                                <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                {filter.label}
+                                {filter.count !== undefined && filter.count > 0 && (
+                                    <span className={`
+                                        px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold
+                                        ${activeFilter === filter.key
+                                            ? 'bg-violet-500/30 text-violet-200'
+                                            : 'bg-orange-500/20 text-orange-400'
+                                        }
+                                    `}>
+                                        {filter.count}
+                                    </span>
+                                )}
+                                <Info className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1 opacity-50" />
+                            </button>
+
+                            {/* Tooltip con spiegazione */}
+                            <AnimatePresence>
+                                {hoveredFilter === filter.key && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-64 p-3 rounded-xl bg-zinc-900/95 border border-white/10 backdrop-blur-xl shadow-2xl"
+                                    >
+                                        <p className="text-xs text-white/80 leading-relaxed">
+                                            {filter.description}
+                                        </p>
+                                        {/* Freccia */}
+                                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 border-l border-t border-white/10 rotate-45" />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    ))}
+                </div>
+
+                {/* View Toggle */}
+                {viewMode && onViewModeChange && (
+                    <ViewToggle
+                        view={viewMode}
+                        onChange={onViewModeChange}
+                        className="hidden sm:flex flex-shrink-0"
+                    />
+                )}
             </div>
         </div>
     );

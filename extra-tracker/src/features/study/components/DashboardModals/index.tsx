@@ -11,6 +11,7 @@ interface DashboardModalsProps {
     isCreateModalOpen: boolean;
     onCreateModalClose: () => void;
     onCreateDeck: (data: CreateDeckPayload) => Promise<void>;
+    onExamCreated?: () => void; // Callback quando viene creato un nuovo esame
 
     // Add Card Modal
     isAddCardModalOpen: boolean;
@@ -39,6 +40,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = ({
     isCreateModalOpen,
     onCreateModalClose,
     onCreateDeck,
+    onExamCreated,
     isAddCardModalOpen,
     selectedDeck,
     onAddCardModalClose,
@@ -60,6 +62,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = ({
                 isOpen={isCreateModalOpen}
                 onClose={onCreateModalClose}
                 onSubmit={onCreateDeck}
+                onExamCreated={onExamCreated}
             />
 
             <AddCardModal
