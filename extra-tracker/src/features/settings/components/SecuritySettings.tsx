@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield } from 'lucide-react';
+import { Shield, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { FormStatus } from './types';
 import { SettingsPasswordInput } from './fields';
 import { useFormValidation } from '../hooks/useFormValidation';

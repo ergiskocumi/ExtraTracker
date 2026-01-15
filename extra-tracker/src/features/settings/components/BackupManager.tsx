@@ -69,6 +69,18 @@ export const BackupManager = () => {
     const [newBackupName, setNewBackupName] = useState('');
     const [newBackupDesc, setNewBackupDesc] = useState('');
 
+    const normalizeBackupList = (
+        data: Backup[] | { items: Backup[]; pagination?: { pages?: number } }
+    ) => {
+        if (Array.isArray(data)) {
+            return { items: data, pages: 0 };
+        }
+        return {
+            items: data.items,
+            pages: data.pagination?.pages ?? 0,
+        };
+    };
+
     // Carica backup e statistiche
     useEffect(() => {
         loadBackups();
@@ -78,16 +90,16 @@ export const BackupManager = () => {
     const loadBackups = async () => {
         try {
             setLoading(true);
-            const response = await apiClient.get(`/backup/list?page=${page}&limit=10`);
-            if (response.success) {
-                setBackups(response.data);
-                setTotalPages(response.pagination.pages);
+            const response = await apiClient.get<
+                Backup[] | { items: Backup[]; pagination?: { pages?: number } }
+            >(`/backup/list?page=${page}&limit=10`);
+            if (response.success && response.data) {
+                const normalized = normalizeBackupList(response.data);
+                setBackups(normalized.items);
+                setTotalPages(normalized.pages);
             }
         } catch (error) {
-            emitToast({
-                message: `Errore caricamento backup: ${error}`,
-                type: 'error',
-            });
+            emitToast.error(`Errore caricamento backup: ${error}`);
         } finally {
             setLoading(false);
         }
@@ -95,8 +107,8 @@ export const BackupManager = () => {
 
     const loadStats = async () => {
         try {
-            const response = await apiClient.get('/backup/stats');
-            if (response.success) {
+            const response = await apiClient.get<BackupStats>('/backup/stats');
+            if (response.success && response.data) {
                 setStats(response.data);
             }
         } catch (error) {
@@ -106,35 +118,26 @@ export const BackupManager = () => {
 
     const createBackup = async () => {
         if (!newBackupName.trim()) {
-            emitToast({
-                message: 'Inserisci un nome per il backup',
-                type: 'warning',
-            });
+            emitToast.warning('Inserisci un nome per il backup');
             return;
         }
 
         try {
             setIsCreating(true);
-            const response = await apiClient.post('/backup/create', {
+            const response = await apiClient.post<Backup>('/backup/create', {
                 name: newBackupName,
                 description: newBackupDesc,
             });
 
             if (response.success) {
-                emitToast({
-                    message: '✅ Backup creato con successo',
-                    type: 'success',
-                });
+                emitToast.success('✅ Backup creato con successo');
                 setNewBackupName('');
                 setNewBackupDesc('');
                 loadBackups();
                 loadStats();
             }
         } catch (error) {
-            emitToast({
-                message: `Errore creazione backup: ${error}`,
-                type: 'error',
-            });
+            emitToast.error(`Errore creazione backup: ${error}`);
         } finally {
             setIsCreating(false);
         }
@@ -146,32 +149,23 @@ export const BackupManager = () => {
         );
 
         if (confirmation !== 'RIPRISTINA BACKUP') {
-            emitToast({
-                message: 'Ripristino annullato',
-                type: 'info',
-            });
+            emitToast.info('Ripristino annullato');
             return;
         }
 
         try {
-            const response = await apiClient.post(`/backup/${backupId}/restore`, {
+            const response = await apiClient.post<Backup>(`/backup/${backupId}/restore`, {
                 strategy: 'merge',
                 confirmation: 'RIPRISTINA BACKUP',
             });
 
             if (response.success) {
-                emitToast({
-                    message: '✅ Dati ripristinati con successo',
-                    type: 'success',
-                });
+                emitToast.success('✅ Dati ripristinati con successo');
                 // Ricarica la pagina dopo 2 secondi per mostrare i dati
                 setTimeout(() => window.location.reload(), 2000);
             }
         } catch (error) {
-            emitToast({
-                message: `Errore ripristino: ${error}`,
-                type: 'error',
-            });
+            emitToast.error(`Errore ripristino: ${error}`);
         }
     };
 
@@ -183,18 +177,12 @@ export const BackupManager = () => {
         try {
             const response = await apiClient.delete(`/backup/${backupId}`);
             if (response.success) {
-                emitToast({
-                    message: '✅ Backup eliminato',
-                    type: 'success',
-                });
+                emitToast.success('✅ Backup eliminato');
                 loadBackups();
                 loadStats();
             }
         } catch (error) {
-            emitToast({
-                message: `Errore eliminazione: ${error}`,
-                type: 'error',
-            });
+            emitToast.error(`Errore eliminazione: ${error}`);
         }
     };
 
@@ -204,64 +192,52 @@ export const BackupManager = () => {
                 reason: 'Bloccato per evitare eliminazione accidentale',
             });
             if (response.success) {
-                emitToast({
-                    message: '🔒 Backup bloccato',
-                    type: 'success',
-                });
+                emitToast.success('🔒 Backup bloccato');
                 loadBackups();
             }
         } catch (error) {
-            emitToast({
-                message: `Errore blocco: ${error}`,
-                type: 'error',
-            });
+            emitToast.error(`Errore blocco: ${error}`);
         }
     };
 
     const unlockBackup = async (backupId: string) => {
         try {
-            const response = await apiClient.post(`/backup/${backupId}/unlock`);
+            const response = await apiClient.post(`/backup/${backupId}/unlock`, {});
             if (response.success) {
-                emitToast({
-                    message: '🔓 Backup sbloccato',
-                    type: 'success',
-                });
+                emitToast.success('🔓 Backup sbloccato');
                 loadBackups();
             }
         } catch (error) {
-            emitToast({
-                message: `Errore sblocco: ${error}`,
-                type: 'error',
-            });
+            emitToast.error(`Errore sblocco: ${error}`);
         }
     };
 
     const validateBackup = async (backupId: string) => {
         try {
-            const response = await apiClient.post(`/backup/${backupId}/validate`);
+            const response = await apiClient.post<{ isValid: boolean }>(
+                `/backup/${backupId}/validate`,
+                {}
+            );
             if (response.success) {
-                const isValid = response.data.isValid;
-                emitToast({
-                    message: isValid
-                        ? '✅ Backup valido e integro'
-                        : '❌ Backup danneggiato',
-                    type: isValid ? 'success' : 'error',
-                });
+                const isValid = response.data?.isValid ?? false;
+                if (isValid) {
+                    emitToast.success('✅ Backup valido e integro');
+                } else {
+                    emitToast.error('❌ Backup danneggiato');
+                }
                 loadBackups();
             }
         } catch (error) {
-            emitToast({
-                message: `Errore validazione: ${error}`,
-                type: 'error',
-            });
+            emitToast.error(`Errore validazione: ${error}`);
         }
     };
 
     const exportJSON = async () => {
         try {
-            const response = await apiClient.get('/backup/export/json');
+            const response = await apiClient.get<Record<string, unknown>>('/backup/export/json');
+            const exportData = response.data ?? {};
             const element = document.createElement('a');
-            const file = new Blob([JSON.stringify(response, null, 2)], {
+            const file = new Blob([JSON.stringify(exportData, null, 2)], {
                 type: 'application/json',
             });
             element.href = URL.createObjectURL(file);
@@ -269,15 +245,9 @@ export const BackupManager = () => {
             document.body.appendChild(element);
             element.click();
             document.body.removeChild(element);
-            emitToast({
-                message: '✅ Dati esportati con successo',
-                type: 'success',
-            });
+            emitToast.success('✅ Dati esportati con successo');
         } catch (error) {
-            emitToast({
-                message: `Errore esportazione: ${error}`,
-                type: 'error',
-            });
+            emitToast.error(`Errore esportazione: ${error}`);
         }
     };
 

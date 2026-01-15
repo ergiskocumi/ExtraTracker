@@ -15,6 +15,8 @@ import type {
     UpdateWorkProjectDTO,
     CreateWorkEntryDTO,
     UpdateWorkEntryDTO,
+    CreateWorkLogDTO,
+    UpdateWorkLogDTO,
     WorkTodo,
     WorkTodoStats,
     CreateWorkTodoDTO,

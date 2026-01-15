@@ -1,4 +1,5 @@
 import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
+export type { Tag } from './tagsService';
 
 // ============================================
 // HELPERS

@@ -7,6 +7,7 @@ import {
 
 export type DeckTheme = {
     gradient: string;
+    bgColor: string;
     icon: React.ElementType;
     iconColor: string;
     borderColor: string;
@@ -49,6 +50,7 @@ export function getDeckTheme(deck: Deck): DeckTheme {
     
     return {
         gradient: `bg-gradient-to-br ${gradient.from}/20 ${gradient.to}/10`,
+        bgColor: `${gradient.from.replace('from-', 'bg-')}/20`,
         icon: DECK_ICONS[iconIndex],
         iconColor: gradient.icon,
         borderColor: gradient.border,

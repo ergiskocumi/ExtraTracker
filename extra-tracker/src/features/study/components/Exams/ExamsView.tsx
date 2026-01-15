@@ -16,9 +16,18 @@ import type { Tag } from '../../services/tagsService';
 
 interface ExamsViewProps {
     decks: Deck[];
+    tags: Tag[];
     onCreateExam: () => void;
     onExamClick: (examId: string) => void;
     onRefresh?: () => void; // Callback per refresh esami
+    onDeckUpdate: (deck: Deck) => void;
+    onViewDetail: (deckId: string) => void;
+    onStudy: (deckId: string) => void;
+    onRead?: (deckId: string) => void;
+    onMagicGenerate: (deck: Deck) => void;
+    onAddCard: (deckId: string) => void;
+    onDelete: (deck: Deck) => void;
+    onTogglePin?: (deck: Deck) => void;
 }
 
 // ============================================

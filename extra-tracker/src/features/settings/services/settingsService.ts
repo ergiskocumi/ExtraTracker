@@ -236,36 +236,9 @@ class SettingsService {
     async checkImportData(file: File): Promise<ApiResponse<{
         isIdentical: boolean;
         hasLessData: boolean;
-        existing: {
-            goals: number;
-            projects: number;
-            workLogs: number;
-            decks: number;
-            folders: number;
-            tags: number;
-            checkIns: number;
-            workTodos: number;
-        };
-        importing: {
-            goals: number;
-            projects: number;
-            workLogs: number;
-            decks: number;
-            folders: number;
-            tags: number;
-            checkIns: number;
-            workTodos: number;
-        };
-        differences: {
-            goals: number;
-            projects: number;
-            workLogs: number;
-            decks: number;
-            folders: number;
-            tags: number;
-            checkIns: number;
-            workTodos: number;
-        };
+        existing: Record<string, number>;
+        importing: Record<string, number>;
+        differences: Record<string, number>;
     }>> {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();

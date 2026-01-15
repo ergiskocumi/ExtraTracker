@@ -53,34 +53,9 @@ const isProduction = process.env.NODE_ENV === 'production';
 // 0. CORS - PRIMA DI TUTTO (anche prima di express parsing)
 // ==========================================
 
-// Handler CORS come primissima cosa - gestisce OPTIONS immediatamente
-app.options('*', (req, res) => {
-    const origin = req.headers.origin;
-    logger.debug('CORS', `OPTIONS Preflight from: ${origin}`);
-    
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Request-ID, Cookie');
-    res.setHeader('Access-Control-Max-Age', '86400');
-    
-    return res.status(200).end();
-});
-
-// Middleware CORS per tutte le altre richieste
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    
-    if (origin) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Request-ID, Cookie');
-        res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
-    }
-    
-    next();
-});
+// Usa configurazione centralizzata (include allowlist, credentials, preflight)
+app.use(cors(securityConfig.cors));
+app.options('*', cors(securityConfig.cors));
 
 // ==========================================
 // 1. SECURITY MIDDLEWARE

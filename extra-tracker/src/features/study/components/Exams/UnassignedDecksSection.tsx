@@ -253,10 +253,9 @@ export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
                             <DeckGrid
                                 decks={unassignedDecks}
                                 tags={tags}
-                                DeckCardComponent={({ deck, totalCards, ...props }) => (
+                                DeckCardComponent={({ deck, ...props }) => (
                                     <DeckCard
                                         deck={deck}
-                                        totalCards={totalCards}
                                         {...props}
                                         onUpdate={(updatedDeck) => {
                                             // Permetti l'aggiornamento del mazzo

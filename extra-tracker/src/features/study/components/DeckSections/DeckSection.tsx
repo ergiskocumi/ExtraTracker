@@ -13,7 +13,7 @@ import type { FolderSection } from '../../hooks/useOrganizedDecks';
 // TYPES
 // ============================================
 
-export type DeckSectionLayout = 'horizontal' | 'grid' | 'compact';
+export type DeckSectionLayout = 'horizontal' | 'grid' | 'compact' | 'list';
 
 interface DeckSectionProps {
     title: string;

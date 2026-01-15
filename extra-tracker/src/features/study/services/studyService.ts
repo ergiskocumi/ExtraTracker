@@ -1,4 +1,5 @@
 import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
+export type { Tag } from './tagsService';
 
 // ============================================
 // TYPES
@@ -364,7 +365,10 @@ class StudyService {
      * Carica un file PDF e usa OpenAI per generare automaticamente
      * 10-15 flashcard di qualità basate sul contenuto.
      */
-    async generateFromPDF(deckId: string, file: File): Promise<{ generatedCount: number; deck: Deck }> {
+    async generateFromPDF(
+        deckId: string,
+        file: File
+    ): Promise<{ generatedCount: number; deck: Deck; totalChunks?: number; totalTextLength?: number }> {
         // Validazione client-side
         if (!file) {
             throw new Error('Nessun file selezionato');

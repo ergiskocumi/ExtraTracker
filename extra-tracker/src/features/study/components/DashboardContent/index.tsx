@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
 import { DeckSkeleton } from '../DeckSkeleton';
 import { DashboardEmptyState } from '../Dashboard/DashboardEmptyState';
@@ -80,7 +81,6 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
         return (
             <DashboardEmptyState 
                 onCreateDeck={onCreateDeck}
-                onMagicGenerate={onMagicGenerate}
             />
         );
     }

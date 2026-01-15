@@ -11,6 +11,7 @@ import {
     Star
 } from 'lucide-react';
 import type { Deck } from '../../services/studyService';
+import type { Tag } from '../../services/tagsService';
 import { getDeckTheme } from './utils/deckTheme';
 
 // ============================================
@@ -26,6 +27,7 @@ export interface DeckCardCompactProps {
     onViewDetail: (deckId: string) => void;
     onDelete?: (deck: Deck) => void;
     onUpdate?: (deck: Deck) => void;
+    tags?: Tag[];
     onTogglePin?: (deck: Deck) => void;
 }
 

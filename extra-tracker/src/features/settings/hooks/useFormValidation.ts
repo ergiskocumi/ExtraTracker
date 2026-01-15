@@ -14,7 +14,7 @@ interface UseFormValidationOptions {
     validateOnBlur?: boolean;
 }
 
-interface UseFormValidationReturn<T extends Record<string, string>> {
+interface UseFormValidationReturn<T extends Record<string, any>> {
     errors: Record<string, string>;
     validateField: (fieldName: keyof T, value: string) => string | null;
     validateForm: (formData: T) => Record<string, string>;
@@ -25,7 +25,7 @@ interface UseFormValidationReturn<T extends Record<string, string>> {
     isValid: (formData: T) => boolean;
 }
 
-export const useFormValidation = <T extends Record<string, string>>(
+export const useFormValidation = <T extends Record<string, any>>(
     options: UseFormValidationOptions
 ): UseFormValidationReturn<T> => {
     const { validationRules, validateOnChange = true, validateOnBlur = true } = options;

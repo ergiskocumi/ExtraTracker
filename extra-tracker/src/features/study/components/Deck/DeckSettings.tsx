@@ -15,7 +15,7 @@ import {
     FiCpu,
     FiBookOpen,
 } from 'react-icons/fi';
-import { studyService, type Deck, type DeckSettings } from '../../services/studyService';
+import { studyService, type Deck, type DeckSettings as DeckSettingsConfig } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import goalsService from '../../../goals/services/goalsService';
 import type { Goal } from '../../../goals/types';
@@ -26,7 +26,7 @@ interface DeckSettingsProps {
 }
 
 export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) => {
-    const [settings, setSettings] = useState<DeckSettings>({
+    const [settings, setSettings] = useState<DeckSettingsConfig>({
         algorithm: 'sm2',
         aiSettings: {
             style: 'comprehensive',

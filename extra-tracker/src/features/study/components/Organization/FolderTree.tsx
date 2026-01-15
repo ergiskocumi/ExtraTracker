@@ -61,6 +61,7 @@ interface FolderItemProps {
     onRefresh: () => void;
     onDeckDrop?: (deckId: string, folderId: string | null) => void;
     folderStats?: FolderStats;
+    folderStatsMap?: Map<string, FolderStats>;
 }
 
 const FolderItem: React.FC<FolderItemProps> = ({
@@ -73,6 +74,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
     onRefresh,
     onDeckDrop,
     folderStats,
+    folderStatsMap,
 }) => {
     const [showMenu, setShowMenu] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -450,7 +452,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                     >
                         {folder.children!.map((child) => {
                             // Passa folderStats ai children se disponibile
-                            const childStats = folderStats?.get(child.id);
+                            const childStats = folderStatsMap?.get(child.id);
                             return (
                                 <FolderItem
                                     key={child.id}
@@ -463,6 +465,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                     onRefresh={onRefresh}
                                     onDeckDrop={onDeckDrop}
                                     folderStats={childStats}
+                                    folderStatsMap={folderStatsMap}
                                 />
                             );
                         })}
@@ -599,6 +602,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                 onRefresh={onRefresh}
                 onDeckDrop={onDeckDrop}
                 folderStats={stats}
+                folderStatsMap={folderStats}
             />
         );
     };

@@ -186,7 +186,7 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
                             onClick={() => {
                                 setFormData(profile);
                                 setHasChanges(false);
-                                setFieldErrors({});
+                                validation.clearAllErrors();
                             }}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
