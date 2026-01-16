@@ -16,12 +16,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiArrowLeft,
-    FiPlus,
-    FiEdit2,
-    FiTrash2,
-    FiCopy,
-    FiCheck,
-    FiX,
     FiPlay,
     FiZap,
     FiBookOpen,
@@ -36,308 +30,7 @@ import { ConfirmationModal } from '../../../shared/components/ConfirmationModal'
 import { DeckAnalytics } from '../components/Deck/DeckAnalytics';
 import { DeckSettings } from '../components/Deck/DeckSettings';
 import { DeckNotifications } from '../components/Deck/DeckNotifications';
-
-// ============================================
-// CARD ITEM COMPONENT - Editable Card View
-// ============================================
-
-interface CardItemProps {
-    card: Card;
-    onEdit: (card: Card) => void;
-    onDelete: (cardId: string) => void;
-    onDuplicate: (card: Card) => void;
-}
-
-const CardItem: React.FC<CardItemProps> = ({ card, onEdit, onDelete, onDuplicate }) => {
-    const [isHovered, setIsHovered] = useState(false);
-
-    const statusConfig = {
-        new: { label: 'Nuova', bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30' },
-        learning: { label: 'Studio', bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30' },
-        review: { label: 'Ripasso', bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' },
-        mastered: { label: 'Padroneggiata', bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30' },
-    };
-
-    const status = statusConfig[card.status] || statusConfig.new;
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className="relative rounded-3xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.15] transition-all duration-200 overflow-hidden min-h-[200px] sm:min-h-[240px]"
-        >
-            {/* Action Buttons - Hover */}
-            <AnimatePresence>
-                {isHovered && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute top-3 right-3 flex items-center gap-1.5 z-10"
-                    >
-                        <button
-                            onClick={() => onDuplicate(card)}
-                            className="p-2 rounded-xl bg-white/[0.1] hover:bg-white/[0.2] text-white/60 hover:text-white transition-all shadow-sm"
-                            title="Duplica"
-                        >
-                            <FiCopy className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => onEdit(card)}
-                            className="p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all shadow-sm"
-                            title="Modifica"
-                        >
-                            <FiEdit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => onDelete(card.id)}
-                            className="p-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-all shadow-sm"
-                            title="Elimina"
-                        >
-                            <FiTrash2 className="w-4 h-4" />
-                        </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Status Badge */}
-            <div className="absolute top-4 left-4">
-                <span className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider ${status.bg} ${status.text} border ${status.border}`}>
-                    {status.label}
-                </span>
-            </div>
-
-            {/* Card Content */}
-            <div className="p-6 pt-16">
-                {/* Front - Question */}
-                <div className="mb-6">
-                    <p className="text-base font-semibold text-white leading-relaxed min-h-[2.5rem]">
-                        {card.front}
-                    </p>
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-white/[0.08] my-4" />
-
-                {/* Back - Answer */}
-                <div>
-                    <p className="text-base text-white/70 leading-relaxed min-h-[2.5rem]">
-                        {card.back}
-                    </p>
-                </div>
-            </div>
-        </motion.div>
-    );
-};
-
-// ============================================
-// EDIT CARD MODAL
-// ============================================
-
-interface EditCardModalProps {
-    isOpen: boolean;
-    card: Card | null;
-    onClose: () => void;
-    onSave: (cardId: string, front: string, back: string) => Promise<void>;
-}
-
-const EditCardModal: React.FC<EditCardModalProps> = ({ isOpen, card, onClose, onSave }) => {
-    const [front, setFront] = useState('');
-    const [back, setBack] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-
-    useEffect(() => {
-        if (card) {
-            setFront(card.front);
-            setBack(card.back);
-        }
-    }, [card]);
-
-    const handleSave = async () => {
-        if (!card || !front.trim() || !back.trim()) return;
-        setIsSaving(true);
-        try {
-            await onSave(card.id, front.trim(), back.trim());
-            onClose();
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    return (
-        <AnimatePresence>
-            {isOpen && card && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-                    onClick={onClose}
-                >
-                    <motion.div
-                        initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                        onClick={e => e.stopPropagation()}
-                        className="w-full max-w-lg rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden"
-                        style={{ background: 'linear-gradient(145deg, rgba(30, 27, 45, 0.98) 0%, rgba(20, 18, 35, 0.98) 100%)' }}
-                    >
-                        {/* Header */}
-                        <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-xl bg-blue-500/15 border border-blue-500/20">
-                                    <FiEdit2 className="w-5 h-5 text-blue-400" />
-                                </div>
-                                <h2 className="text-lg font-semibold text-white">Modifica Carta</h2>
-                            </div>
-                            <button
-                                onClick={onClose}
-                                className="p-2 rounded-lg hover:bg-white/[0.1] transition-colors"
-                            >
-                                <FiX className="w-5 h-5 text-white/60" />
-                            </button>
-                        </div>
-
-                        {/* Form */}
-                        <div className="p-6 space-y-5">
-                            <div>
-                                <label className="block text-sm font-medium text-white/70 mb-2">
-                                    Fronte (Domanda)
-                                </label>
-                                <textarea
-                                    value={front}
-                                    onChange={e => setFront(e.target.value)}
-                                    rows={3}
-                                    className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white placeholder-white/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
-                                    autoFocus
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-white/70 mb-2">
-                                    Retro (Risposta)
-                                </label>
-                                <textarea
-                                    value={back}
-                                    onChange={e => setBack(e.target.value)}
-                                    rows={4}
-                                    className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white placeholder-white/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-3 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="px-4 py-3 rounded-xl bg-white/[0.05] text-white/70 hover:bg-white/[0.1] transition-all"
-                                >
-                                    Annulla
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={!front.trim() || !back.trim() || isSaving}
-                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                >
-                                    <FiCheck className="w-4 h-4" />
-                                    {isSaving ? 'Salvando...' : 'Salva Modifiche'}
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                </motion.div>
-            )}
-        </AnimatePresence>
-    );
-};
-
-// ============================================
-// ADD CARD INLINE
-// ============================================
-
-interface AddCardInlineProps {
-    onAdd: (front: string, back: string) => Promise<void>;
-}
-
-const AddCardInline: React.FC<AddCardInlineProps> = ({ onAdd }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [front, setFront] = useState('');
-    const [back, setBack] = useState('');
-    const [isAdding, setIsAdding] = useState(false);
-
-    const handleAdd = async () => {
-        if (!front.trim() || !back.trim()) return;
-        setIsAdding(true);
-        try {
-            await onAdd(front.trim(), back.trim());
-            setFront('');
-            setBack('');
-            setIsExpanded(false);
-        } finally {
-            setIsAdding(false);
-        }
-    };
-
-    if (!isExpanded) {
-        return (
-            <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setIsExpanded(true)}
-                className="w-full h-full min-h-[200px] sm:min-h-[240px] rounded-3xl border-2 border-dashed border-white/[0.15] hover:border-primary-500/40 bg-white/[0.02] hover:bg-primary-500/5 flex flex-col items-center justify-center gap-4 transition-all"
-            >
-                <div className="p-4 rounded-2xl bg-primary-500/15 border border-primary-500/20">
-                    <FiPlus className="w-8 h-8 text-primary-400" />
-                </div>
-                <span className="text-base font-medium text-white/50">Aggiungi Carta</span>
-            </motion.button>
-        );
-    }
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="rounded-3xl border border-primary-500/30 bg-primary-500/5 p-6"
-        >
-            <div className="space-y-4">
-                <textarea
-                    value={front}
-                    onChange={e => setFront(e.target.value)}
-                    placeholder="Domanda..."
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white text-base placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all resize-none"
-                    autoFocus
-                />
-                <textarea
-                    value={back}
-                    onChange={e => setBack(e.target.value)}
-                    placeholder="Risposta..."
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white text-base placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all resize-none"
-                />
-                <div className="flex items-center gap-3 pt-2">
-                    <button
-                        onClick={() => setIsExpanded(false)}
-                        className="px-4 py-3 rounded-xl text-sm text-white/60 hover:bg-white/[0.1] transition-all"
-                    >
-                        Annulla
-                    </button>
-                    <button
-                        onClick={handleAdd}
-                        disabled={!front.trim() || !back.trim() || isAdding}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary-500 text-white text-sm font-medium disabled:opacity-40 transition-all"
-                    >
-                        <FiPlus className="w-5 h-5" />
-                        {isAdding ? 'Aggiungendo...' : 'Aggiungi'}
-                    </button>
-                </div>
-            </div>
-        </motion.div>
-    );
-};
+import { FlashcardList } from '../components/Flashcard/FlashcardList';
 
 // ============================================
 // FILTER TABS
@@ -401,7 +94,6 @@ export const DeckDetailPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'cards' | 'analytics' | 'settings'>('cards');
 
     // Modal state
-    const [editingCard, setEditingCard] = useState<Card | null>(null);
     const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
 
     // Load deck
@@ -480,9 +172,6 @@ export const DeckDetailPage: React.FC = () => {
         }
     };
 
-    const handleDuplicateCard = async (card: Card) => {
-        await handleAddCard(card.front + ' (copia)', card.back);
-    };
 
     // ========== RENDER ==========
 
@@ -619,32 +308,25 @@ export const DeckDetailPage: React.FC = () => {
 
                 {/* Tab Content */}
                 {activeTab === 'cards' && (
-                    <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-                            {/* Add Card Button - Always First */}
-                            <AddCardInline onAdd={handleAddCard} />
-
-                            {/* Cards */}
-                            <AnimatePresence mode="popLayout">
-                                {filteredCards.map(card => (
-                                    <CardItem
-                                        key={card.id}
-                                        card={card}
-                                        onEdit={setEditingCard}
+                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden min-h-[600px]">
+                        <FlashcardList
+                            deck={deck}
+                            filteredCards={filteredCards.length > 0 || searchQuery ? filteredCards : undefined}
+                            viewMode="grid"
+                            onAddCard={async () => {
+                                const front = window.prompt('Domanda:');
+                                if (!front?.trim()) return;
+                                const back = window.prompt('Risposta:');
+                                if (!back?.trim()) return;
+                                await handleAddCard(front.trim(), back.trim());
+                            }}
+                            onUpdate={handleEditCard}
                                         onDelete={setDeletingCardId}
-                                        onDuplicate={handleDuplicateCard}
-                                    />
-                                ))}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* Empty State */}
-                        {filteredCards.length === 0 && deck.cards.length > 0 && (
-                            <div className="text-center py-12">
-                                <p className="text-white/50">Nessuna carta corrisponde ai filtri</p>
+                            onDeckUpdate={(updatedDeck) => {
+                                setDeck(updatedDeck);
+                            }}
+                        />
                             </div>
-                        )}
-                    </>
                 )}
 
                 {activeTab === 'analytics' && id && (
@@ -668,13 +350,6 @@ export const DeckDetailPage: React.FC = () => {
                 )}
 
                 {/* Modals */}
-                <EditCardModal
-                    isOpen={!!editingCard}
-                    card={editingCard}
-                    onClose={() => setEditingCard(null)}
-                    onSave={handleEditCard}
-                />
-
                 <ConfirmationModal
                     isOpen={!!deletingCardId}
                     title="Elimina Carta"

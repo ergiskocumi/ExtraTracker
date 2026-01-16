@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
-import { FiEdit2, FiX, FiCheck } from 'react-icons/fi';
+import { FiEdit2, FiX, FiCheck, FiTrash2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Card } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
@@ -8,9 +8,11 @@ interface FlashcardItemProps {
     card: Card;
     onUpdate: (cardId: string, front: string, back: string) => Promise<void>;
     onClick?: (card: Card) => void;
+    /** Callback per eliminare la card (opzionale) */
+    onDelete?: (cardId: string) => void;
 }
 
-export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdate, onClick }) => {
+export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdate, onClick, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [tempFront, setTempFront] = useState(card.front);
     const [tempBack, setTempBack] = useState(card.back);
@@ -68,7 +70,6 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdat
 
     return (
         <motion.div
-            layout
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -99,15 +100,33 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdat
                                     {card.front}
                                 </p>
                             </div>
-                            <button
-                                type="button"
-                                onClick={handleStartEdit}
-                                className="shrink-0 p-2 rounded-xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-sm text-white/60 hover:text-white hover:bg-white/[0.10] transition-all duration-300 active:scale-95 md:opacity-0 md:group-hover:opacity-100"
-                                aria-label="Modifica"
-                                title="Modifica"
-                            >
-                                <FiEdit2 className="w-4 h-4 md:w-5 md:h-5" />
-                            </button>
+                            <div className="flex items-center gap-2 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                                <button
+                                    type="button"
+                                    onClick={handleStartEdit}
+                                    className="p-2 rounded-xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-sm text-white/60 hover:text-white hover:bg-white/[0.10] transition-all duration-300 active:scale-95"
+                                    aria-label="Modifica"
+                                    title="Modifica"
+                                >
+                                    <FiEdit2 className="w-4 h-4 md:w-5 md:h-5" />
+                                </button>
+                                {onDelete && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (window.confirm('Sei sicuro di voler eliminare questa carta?')) {
+                                                onDelete(card.id);
+                                            }
+                                        }}
+                                        className="p-2 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm text-red-400 hover:text-red-300 hover:bg-red-500/20 transition-all duration-300 active:scale-95"
+                                        aria-label="Elimina"
+                                        title="Elimina"
+                                    >
+                                        <FiTrash2 className="w-4 h-4 md:w-5 md:h-5" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Retro */}

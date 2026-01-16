@@ -31,6 +31,8 @@ interface StudySidebarProps {
     onConsumePendingChatMessage?: (id: string) => void;
     /** Callback per navigazione indietro (opzionale) */
     onNavigateBack?: () => void;
+    /** Callback quando il deck viene aggiornato (riordinamento, inserimento card) */
+    onDeckUpdate?: (updatedDeck: Deck) => void;
 }
 
 export const StudySidebar: React.FC<StudySidebarProps> = ({
@@ -45,6 +47,7 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
     pendingChatMessage,
     onConsumePendingChatMessage,
     onNavigateBack,
+    onDeckUpdate,
 }) => {
     const [activeTab, setActiveTab] = useState<'flashcards' | 'chat'>('flashcards');
     const currentTab = activeTabOverride ?? activeTab;
@@ -68,6 +71,7 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         onUpdate={onUpdateCard}
                         showHeader
                         onNavigateBack={onNavigateBack}
+                        onDeckUpdate={onDeckUpdate}
                     />
                 ) : (
                     <PDFChat
@@ -157,6 +161,7 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         deck={deck}
                         onAddCard={onAddCard}
                         onUpdate={onUpdateCard}
+                        onDeckUpdate={onDeckUpdate}
                     />
                 ) : (
                     <PDFChat

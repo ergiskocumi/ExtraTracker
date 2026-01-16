@@ -43,6 +43,10 @@ interface CinemaLayoutProps {
      * Se non fornito, usa la navigazione di default al dettaglio del mazzo.
      */
     onNavigateBack?: () => void;
+    /**
+     * Callback quando il deck viene aggiornato (riordinamento, inserimento card)
+     */
+    onDeckUpdate?: (updatedDeck: Deck) => void;
 }
 
 // ============================================
@@ -93,6 +97,7 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
     onAddCard,
     onUpdateCard,
     onNavigateBack,
+    onDeckUpdate,
 }) => {
     const navigate = useNavigate();
     const { deckId } = useParams<{ deckId: string }>();
@@ -246,6 +251,7 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                                 onUpdateCard={handleUpdateCard}
                                 compactMode={true}
                                 onNavigateBack={handleNavigateBack}
+                                onDeckUpdate={onDeckUpdate}
                             />
                         </Panel>
                     </Group>

@@ -160,6 +160,13 @@ export const CinemaPage: React.FC = () => {
         }
     }, [deckId]);
 
+    /**
+     * Handler per aggiornare il deck quando viene modificato (riordinamento, inserimento)
+     */
+    const handleDeckUpdate = useCallback((updatedDeck: Deck) => {
+        setDeck(updatedDeck);
+    }, []);
+
     // Memoize pdfSrc per evitare re-render inutili
     const pdfSrc = useMemo(() => deck?.pdfUrl || null, [deck?.pdfUrl]);
 
@@ -203,6 +210,7 @@ export const CinemaPage: React.FC = () => {
             onAddCard={handleAddCard}
             onUpdateCard={handleUpdateCard}
             onNavigateBack={handleNavigateBack}
+            onDeckUpdate={handleDeckUpdate}
         />
     );
 };

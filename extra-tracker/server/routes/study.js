@@ -74,6 +74,8 @@ router.get('/:id', studyController.getDeckById);
 router.post('/', studyController.createDeck);
 router.patch('/:id', studyController.updateDeck);
 router.post('/:id/cards', studyController.addCard);
+router.post('/:id/cards/insert', studyController.addCardAtPosition); // Inserimento in posizione specifica
+router.put('/:id/cards/reorder', studyController.reorderCards); // Riordinamento card
 router.put('/:id/cards/:cardId', studyController.updateCard);
 router.put('/:id/settings', studyController.updateDeckSettings);
 router.delete('/:id/cards/:cardId', studyController.deleteCard);

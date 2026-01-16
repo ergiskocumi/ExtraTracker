@@ -128,6 +128,47 @@ const deleteCard = asyncHandler(async (req, res) => {
     res.json({ success: true, data: deck });
 });
 
+/**
+ * PUT /api/study/:id/cards/reorder
+ * Riordina le card di un mazzo
+ * Body: { cardIds: string[] } - Array di card IDs nell'ordine desiderato
+ */
+const reorderCards = asyncHandler(async (req, res) => {
+    const { cardIds } = req.body;
+
+    if (!Array.isArray(cardIds)) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'cardIds deve essere un array' }
+        });
+    }
+
+    const deck = await studyService.reorderCards(
+        req.tenantScope,
+        req.params.id,
+        cardIds
+    );
+
+    res.json({ success: true, data: deck });
+});
+
+/**
+ * POST /api/study/:id/cards/insert
+ * Aggiunge una card in una posizione specifica
+ * Body: { front: string, back: string, position?: number }
+ */
+const addCardAtPosition = asyncHandler(async (req, res) => {
+    const { front, back, position } = req.body;
+
+    const deck = await studyService.addCardAtPosition(
+        req.tenantScope,
+        req.params.id,
+        { front, back, position }
+    );
+
+    res.status(201).json({ success: true, data: deck });
+});
+
 // =========================================
 // DASHBOARD
 // =========================================
@@ -295,8 +336,10 @@ module.exports = {
     getDeckById,
     getSession,
     addCard,
+    addCardAtPosition,
     updateCard,
     deleteCard,
+    reorderCards,
     getDashboard,
     completeSession,
     submitReview,

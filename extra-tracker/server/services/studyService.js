@@ -198,6 +198,100 @@ class StudyService extends BaseService {
         return deck;
     }
 
+    /**
+     * Riordina le card di un mazzo
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} deckId - ID del mazzo
+     * @param {string[]} cardIds - Array di card IDs nell'ordine desiderato
+     * @returns {Promise<object>} - Deck aggiornato
+     */
+    async reorderCards(tenantScope, deckId, cardIds) {
+        const userId = this._getUserId(tenantScope);
+
+        if (!Array.isArray(cardIds) || cardIds.length === 0) {
+            throw AppError.validation('Devi fornire un array di card IDs valido');
+        }
+
+        // Recupera il deck corrente
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        // Verifica che tutti i cardIds esistano nel deck
+        const existingCardIds = deck.cards.map(card => card._id.toString());
+        const invalidIds = cardIds.filter(id => !existingCardIds.includes(id));
+        if (invalidIds.length > 0) {
+            throw AppError.validation(`Card IDs non validi: ${invalidIds.join(', ')}`);
+        }
+
+        // Verifica che tutti i cardIds del deck siano presenti nell'array fornito
+        if (cardIds.length !== existingCardIds.length) {
+            throw AppError.validation('Devi fornire tutti i card IDs del mazzo');
+        }
+
+        // Crea una mappa per accesso rapido alle card
+        const cardMap = new Map();
+        deck.cards.forEach(card => {
+            cardMap.set(card._id.toString(), card.toObject());
+        });
+
+        // Riordina le card secondo l'ordine fornito
+        const reorderedCards = cardIds.map(id => cardMap.get(id));
+
+        // Aggiorna il deck con le card riordinate
+        deck.cards = reorderedCards;
+        await deck.save();
+
+        return deck;
+    }
+
+    /**
+     * Aggiunge una card in una posizione specifica
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} deckId - ID del mazzo
+     * @param {object} cardData - Dati della card (front, back, position)
+     * @param {string} cardData.front - Fronte della card
+     * @param {string} cardData.back - Retro della card
+     * @param {number} cardData.position - Posizione dove inserire (0-based, opzionale, default: fine)
+     * @returns {Promise<object>} - Deck aggiornato
+     */
+    async addCardAtPosition(tenantScope, deckId, cardData = {}) {
+        const userId = this._getUserId(tenantScope);
+        const { front, back, position } = cardData;
+
+        if (!front || typeof front !== 'string') {
+            throw AppError.validation('Il fronte della card è obbligatorio');
+        }
+        if (!back || typeof back !== 'string') {
+            throw AppError.validation('Il retro della card è obbligatorio');
+        }
+
+        // Recupera il deck corrente
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        // Crea la nuova card
+        const newCard = {
+            front: front.trim(),
+            back: back.trim(),
+        };
+
+        // Se position è specificato, inserisci in quella posizione
+        if (typeof position === 'number' && position >= 0 && position <= deck.cards.length) {
+            deck.cards.splice(position, 0, newCard);
+        } else {
+            // Altrimenti aggiungi alla fine
+            deck.cards.push(newCard);
+        }
+
+        await deck.save();
+
+        return deck;
+    }
+
     async deleteDeck(tenantScope, deckId) {
         return this.delete(tenantScope, deckId);
     }

@@ -310,6 +310,33 @@ class StudyService {
     }
 
     /**
+     * Riordina le card di un mazzo
+     * @param deckId - ID del mazzo
+     * @param cardIds - Array di card IDs nell'ordine desiderato
+     * @returns Deck aggiornato
+     */
+    async reorderCards(deckId: string, cardIds: string[]): Promise<Deck> {
+        const response = await apiClient.put<any>(`${this.baseUrl}/${deckId}/cards/reorder`, { cardIds });
+        const raw = unwrap(response, 'Errore nel riordinamento delle card');
+        return normalizeDeck(raw);
+    }
+
+    /**
+     * Aggiunge una card in una posizione specifica
+     * @param deckId - ID del mazzo
+     * @param payload - Dati della card e posizione
+     * @param payload.front - Fronte della card
+     * @param payload.back - Retro della card
+     * @param payload.position - Posizione dove inserire (0-based, opzionale)
+     * @returns Deck aggiornato
+     */
+    async addCardAtPosition(deckId: string, payload: AddCardPayload & { position?: number }): Promise<Deck> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/cards/insert`, payload);
+        const raw = unwrap(response, 'Errore nell\'aggiunta della carta');
+        return normalizeDeck(raw);
+    }
+
+    /**
      * Carica una sessione di studio per un mazzo specifico
      * Recupera i dati freschi dal backend (risolve il problema del refresh)
      */
