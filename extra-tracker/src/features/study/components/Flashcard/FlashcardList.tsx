@@ -44,6 +44,8 @@ import {
 import type { Deck, Card } from '../../services/studyService';
 import { SortableItem } from './SortableItem';
 import { FlashcardItem } from './FlashcardItem';
+import { AddCardModal } from './AddCardModal';
+import { DeleteCardModal } from './DeleteCardModal';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 
@@ -187,6 +189,15 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     // Track which card is being dragged (for DragOverlay)
     const [activeId, setActiveId] = useState<string | null>(null);
 
+    // Modal state for adding new cards
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null);
+
+    // Modal state for deleting cards
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [cardToDelete, setCardToDelete] = useState<Card | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     // Sync local state when deck or filteredCards change (but not during drag)
     useEffect(() => {
         const newCards = filteredCards || deck.cards || [];
@@ -292,16 +303,26 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     }, [items, deck.id, deck.cards, filteredCards, onDeckUpdate]);
 
     /**
-     * Handler per inserire una card in una posizione specifica
+     * Handler per aprire il modal di aggiunta card
+     * @param position - The index position where the card should be inserted (0-based)
      */
-    const handleInsertCard = useCallback(async (position: number) => {
-        try {
-            // Chiedi all'utente i dati della card
-            const front = window.prompt('Domanda:');
-            if (!front?.trim()) return;
+    const handleInsertCard = useCallback((position: number) => {
+        setPendingInsertIndex(position);
+        setIsAddModalOpen(true);
+    }, []);
 
-            const back = window.prompt('Risposta:');
-            if (!back?.trim()) return;
+    /**
+     * Handler per confermare l'aggiunta della card dal modal
+     * @param front - Il testo della domanda
+     * @param back - Il testo della risposta
+     */
+    const handleConfirmAdd = useCallback(async (front: string, back: string) => {
+        if (pendingInsertIndex === null) {
+            return;
+        }
+
+        try {
+            const position = pendingInsertIndex;
 
             // Se ci sono card filtrate, mappa la posizione al deck completo
             let insertPosition = position;
@@ -337,8 +358,84 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
         } catch (err: any) {
             console.error('Errore nell\'inserimento:', err);
             emitToast.error(err.message || 'Errore nell\'aggiunta della card');
+            throw err; // Re-throw to let modal handle loading state
         }
-    }, [deck.id, deck.cards, filteredCards, onDeckUpdate]);
+    }, [pendingInsertIndex, deck.id, deck.cards, filteredCards, onDeckUpdate]);
+
+    /**
+     * Handler per chiudere il modal di aggiunta
+     */
+    const handleCloseModal = useCallback(() => {
+        setIsAddModalOpen(false);
+        setPendingInsertIndex(null);
+    }, []);
+
+    /**
+     * Handler per aprire il modal di eliminazione
+     * @param cardId - ID della card da eliminare
+     */
+    const handleDeleteClick = useCallback((cardId: string) => {
+        const card = items.find(c => c.id === cardId);
+        if (card) {
+            setCardToDelete(card);
+            setIsDeleteModalOpen(true);
+        }
+    }, [items]);
+
+    /**
+     * Handler per confermare l'eliminazione della card
+     */
+    const handleConfirmDelete = useCallback(async () => {
+        if (!cardToDelete) return;
+
+        setIsDeleting(true);
+        try {
+            // Se onDelete è passato come prop, usalo (il parent gestisce l'eliminazione)
+            if (onDelete) {
+                await onDelete(cardToDelete.id);
+            } else {
+                // Altrimenti, gestisci l'eliminazione direttamente
+                const updatedDeck = await studyService.deleteCard(deck.id, cardToDelete.id);
+
+                if (onDeckUpdate) {
+                    onDeckUpdate(updatedDeck);
+                }
+
+                emitToast.success('Card eliminata con successo');
+            }
+
+            setIsDeleteModalOpen(false);
+            setCardToDelete(null);
+        } catch (err: any) {
+            console.error('Errore nell\'eliminazione:', err);
+            emitToast.error(err.message || 'Errore nell\'eliminazione della card');
+        } finally {
+            setIsDeleting(false);
+        }
+    }, [cardToDelete, deck.id, onDelete, onDeckUpdate]);
+
+    /**
+     * Handler per chiudere il modal di eliminazione
+     */
+    const handleCloseDeleteModal = useCallback(() => {
+        if (!isDeleting) {
+            setIsDeleteModalOpen(false);
+            setCardToDelete(null);
+        }
+    }, [isDeleting]);
+
+    /**
+     * Handler per il pulsante "+" nell'header - aggiunge card alla fine
+     */
+    const handleHeaderAddCard = useCallback(() => {
+        // Se onAddCard è fornito, usalo (per compatibilità)
+        // Altrimenti apri il modal per aggiungere alla fine
+        if (onAddCard) {
+            onAddCard();
+        } else {
+            handleInsertCard(items.length);
+        }
+    }, [onAddCard, handleInsertCard, items.length]);
 
     // State for insert button visibility (list view only)
     const [hoveredInsertPosition, setHoveredInsertPosition] = useState<number | null>(null);
@@ -366,15 +463,17 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                 <span className="hidden sm:inline">Indietro</span>
                             </button>
                         )}
-                        {/* Fixed "Add Card" button */}
-                        <button
-                            onClick={onAddCard}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
-                            aria-label="Aggiungi carta"
-                            title="Aggiungi carta"
-                        >
-                            <FiPlus className="w-4 h-4" />
-                        </button>
+                        {/* Fixed "Add Card" button - Nascosto in cinema mode (grid view) */}
+                        {viewMode !== 'grid' && (
+                            <button
+                                onClick={handleHeaderAddCard}
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
+                                aria-label="Aggiungi carta"
+                                title="Aggiungi carta"
+                            >
+                                <FiPlus className="w-4 h-4" />
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -407,13 +506,13 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                                     {items.map((card, index) => (
                                         <SortableItem
-                                            key={card.id}
-                                            card={card}
+                                            key={card.id} 
+                                            card={card} 
                                             index={index}
                                             totalCards={cardCount}
                                             onUpdate={onUpdate}
                                             onClick={handleCardClick}
-                                            onDelete={onDelete}
+                                            onDelete={onDelete || handleDeleteClick}
                                             viewMode="grid"
                                         />
                                     ))}
@@ -448,7 +547,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                                 totalCards={cardCount}
                                                 onUpdate={onUpdate}
                                                 onClick={handleCardClick}
-                                                onDelete={onDelete}
+                                                onDelete={onDelete || handleDeleteClick}
                                                 viewMode="list"
                                             />
 
@@ -534,6 +633,23 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                         </DragOverlay>
                     </DndContext>
                 )}
+
+                {/* Add Card Modal */}
+                <AddCardModal
+                    isOpen={isAddModalOpen}
+                    onClose={handleCloseModal}
+                    onConfirm={handleConfirmAdd}
+                    position={pendingInsertIndex ?? undefined}
+                />
+
+                {/* Delete Card Modal */}
+                <DeleteCardModal
+                    isOpen={isDeleteModalOpen}
+                    onClose={handleCloseDeleteModal}
+                    onConfirm={handleConfirmDelete}
+                    card={cardToDelete}
+                    isDeleting={isDeleting}
+                />
             </div>
         </div>
     );

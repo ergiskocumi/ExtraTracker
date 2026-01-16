@@ -185,7 +185,7 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                     truncate
                 ">
                     <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgb(139,92,246,0.5)] animate-pulse flex-shrink-0" />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600 truncate">
+                    <span className="text-white/90 bg-clip-text bg-gradient-to-r from-violet-300 to-violet-500 truncate">
                         {deckTitle}
                     </span>
                 </h1>

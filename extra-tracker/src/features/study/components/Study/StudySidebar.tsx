@@ -130,13 +130,6 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                                     <span className="hidden sm:inline">Indietro</span>
                                 </button>
                             )}
-                            <button
-                                onClick={onAddCard}
-                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
-                            >
-                                <FiPlus className="w-4 h-4" />
-                                Add
-                            </button>
                         </div>
                     )}
                 </div>

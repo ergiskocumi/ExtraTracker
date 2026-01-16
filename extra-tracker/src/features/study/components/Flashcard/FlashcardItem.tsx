@@ -115,9 +115,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdat
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (window.confirm('Sei sicuro di voler eliminare questa carta?')) {
-                                                onDelete(card.id);
-                                            }
+                                            onDelete(card.id);
                                         }}
                                         className="p-2 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm text-red-400 hover:text-red-300 hover:bg-red-500/20 transition-all duration-300 active:scale-95"
                                         aria-label="Elimina"
