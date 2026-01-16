@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FiPlus } from 'react-icons/fi';
+import { FiPlus, FiArrowLeft } from 'react-icons/fi';
 import { AnimatePresence } from 'framer-motion';
 import type { Deck, Card } from '../../services/studyService';
 import { FlashcardItem } from './FlashcardItem';
@@ -10,6 +10,8 @@ interface FlashcardListProps {
     onUpdate: (cardId: string, front: string, back: string) => Promise<void>;
     onCardClick?: (card: Card) => void;
     showHeader?: boolean;
+    /** Callback per navigazione indietro (opzionale) */
+    onNavigateBack?: () => void;
 }
 
 export const FlashcardList: React.FC<FlashcardListProps> = ({
@@ -18,6 +20,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     onUpdate,
     onCardClick,
     showHeader = false,
+    onNavigateBack,
 }) => {
     // Memoize cards array per evitare re-render inutili
     const cards = useMemo(() => deck.cards || [], [deck.cards]);
@@ -32,18 +35,32 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     return (
         <div className="flex flex-col h-full">
             {showHeader && (
-                <div className="px-4 py-3 border-b border-white/[0.08] backdrop-blur-sm flex items-center justify-between flex-shrink-0">
+                <div className="px-4 py-3 border-b border-white/[0.08] backdrop-blur-sm flex items-center justify-between flex-shrink-0 gap-2">
                     <span className="inline-block px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-medium">
                         {cardCount} carte
                     </span>
-                    <button
-                        onClick={onAddCard}
-                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
-                        aria-label="Aggiungi carta"
-                        title="Aggiungi carta"
-                    >
-                        <FiPlus className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {/* Pulsante Indietro - Visibile solo se onNavigateBack è fornito */}
+                        {onNavigateBack && (
+                            <button
+                                onClick={onNavigateBack}
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white/80 hover:text-white shadow-lg rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 transition-all duration-300 active:scale-95"
+                                aria-label="Torna al mazzo"
+                                title="Torna al dettaglio del mazzo"
+                            >
+                                <FiArrowLeft className="w-4 h-4" />
+                                <span className="hidden sm:inline">Indietro</span>
+                            </button>
+                        )}
+                        <button
+                            onClick={onAddCard}
+                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
+                            aria-label="Aggiungi carta"
+                            title="Aggiungi carta"
+                        >
+                            <FiPlus className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
             )}
 

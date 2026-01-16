@@ -11,6 +11,8 @@
  */
 
 import React, { memo, useMemo, useCallback } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { FiArrowLeft } from 'react-icons/fi';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { FluidPDFViewer } from '../components/PDF/FluidPDFViewer';
 import { StudySidebar } from '../components/Study/StudySidebar';
@@ -36,6 +38,11 @@ interface CinemaLayoutProps {
     pdfSrc: string | null;
     onAddCard: () => void;
     onUpdateCard: (cardId: string, front: string, back: string) => Promise<void>;
+    /**
+     * Callback opzionale per la navigazione indietro.
+     * Se non fornito, usa la navigazione di default al dettaglio del mazzo.
+     */
+    onNavigateBack?: () => void;
 }
 
 // ============================================
@@ -85,9 +92,34 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
     pdfSrc,
     onAddCard,
     onUpdateCard,
+    onNavigateBack,
 }) => {
+    const navigate = useNavigate();
+    const { deckId } = useParams<{ deckId: string }>();
+
     // Memoize deck title per evitare re-render inutili
     const deckTitle = useMemo(() => deck.title, [deck.title]);
+
+    /**
+     * Handler per tornare al dettaglio del mazzo corrente
+     * 
+     * Naviga al dettaglio del mazzo che si sta visualizzando in Cinema Mode invece della dashboard principale.
+     * Se onNavigateBack è fornito come prop, usa quello, altrimenti usa la navigazione di default.
+     * 
+     * @returns {void}
+     */
+    const handleNavigateBack = useCallback(() => {
+        if (onNavigateBack) {
+            // Usa il callback fornito se disponibile
+            onNavigateBack();
+        } else if (deckId) {
+            // Naviga al dettaglio del mazzo corrente
+            navigate(`/study/deck/${deckId}`);
+        } else {
+            // Fallback alla dashboard se deckId non è disponibile
+            navigate('/study');
+        }
+    }, [onNavigateBack, navigate, deckId]);
 
     // Memoize callbacks per evitare re-render dei componenti figli
     const handleAddCard = useCallback(() => {
@@ -101,20 +133,60 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
     return (
         <div className="fixed inset-0 h-screen w-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-[#050505] to-black text-white overflow-hidden flex flex-col">
             {/* Header - Stile moderno con backdrop blur */}
+            {/* 
+                sticky top-0: mantiene l'header sempre visibile in cima durante lo scroll
+                z-[100]: z-index molto alto per assicurarsi che l'header sia sempre sopra il contenuto
+                Questo previene che il pulsante indietro venga nascosto da altri elementi (PDF viewer, modali, etc.)
+            */}
             <header className="
+                sticky top-0
                 h-14 
                 border-b border-white/[0.08] 
-                flex-none flex items-center px-6 
+                flex-none flex items-center justify-between px-4 sm:px-6 
                 backdrop-blur-2xl
-                relative
-                bg-gradient-to-r from-slate-900/80 via-[#050505]/80 to-black/80
+                z-[100]
+                bg-gradient-to-r from-slate-900/95 via-[#050505]/95 to-black/95
+                shadow-lg shadow-black/20
             ">
-                <h1 className="text-sm font-semibold text-white relative z-10 flex items-center gap-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgb(139,92,246,0.5)] animate-pulse" />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">
+                {/* Pulsante Indietro - Sempre visibile con contrasto migliorato */}
+                <button
+                    onClick={handleNavigateBack}
+                    className="
+                        flex items-center justify-center gap-2 
+                        text-white hover:text-white 
+                        transition-all duration-200 
+                        px-3 py-2 rounded-lg 
+                        bg-white/10 hover:bg-white/20 active:bg-white/25
+                        border border-white/20 hover:border-white/30
+                        shadow-md hover:shadow-lg
+                        min-w-[44px] min-h-[44px]
+                        flex-shrink-0
+                        group
+                    "
+                    aria-label="Torna al mazzo"
+                    title="Torna al dettaglio del mazzo"
+                >
+                    <FiArrowLeft className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                    <span className="hidden sm:inline text-sm font-semibold">Torna al mazzo</span>
+                </button>
+
+                {/* Titolo del mazzo - Centrato */}
+                <h1 className="
+                    text-sm font-semibold text-white 
+                    relative z-10 
+                    flex items-center gap-2.5
+                    flex-1 justify-center
+                    px-4
+                    truncate
+                ">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgb(139,92,246,0.5)] animate-pulse flex-shrink-0" />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600 truncate">
                         {deckTitle}
                     </span>
                 </h1>
+
+                {/* Spacer per bilanciare il layout - Stessa larghezza del pulsante */}
+                <div className="w-[44px] sm:w-[180px] flex-shrink-0" />
             </header>
 
             {/* Main Body - Container principale con stile moderno */}
@@ -173,6 +245,7 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                                 onAddCard={handleAddCard}
                                 onUpdateCard={handleUpdateCard}
                                 compactMode={true}
+                                onNavigateBack={handleNavigateBack}
                             />
                         </Panel>
                     </Group>

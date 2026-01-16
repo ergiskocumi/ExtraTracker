@@ -8,7 +8,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiX, FiCheck } from 'react-icons/fi';
+import { FiPlus, FiX, FiCheck, FiArrowLeft } from 'react-icons/fi';
 import { Layers, MessageCircle } from 'lucide-react';
 import type { Deck } from '../../services/studyService';
 import { PDFChat } from '../PDF/PDFChat';
@@ -29,6 +29,8 @@ interface StudySidebarProps {
     /** Programmatic message send in AI Tutor */
     pendingChatMessage?: { id: string; content: string } | null;
     onConsumePendingChatMessage?: (id: string) => void;
+    /** Callback per navigazione indietro (opzionale) */
+    onNavigateBack?: () => void;
 }
 
 export const StudySidebar: React.FC<StudySidebarProps> = ({
@@ -42,6 +44,7 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
     tabRequest,
     pendingChatMessage,
     onConsumePendingChatMessage,
+    onNavigateBack,
 }) => {
     const [activeTab, setActiveTab] = useState<'flashcards' | 'chat'>('flashcards');
     const currentTab = activeTabOverride ?? activeTab;
@@ -64,6 +67,7 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         onAddCard={onAddCard}
                         onUpdate={onUpdateCard}
                         showHeader
+                        onNavigateBack={onNavigateBack}
                     />
                 ) : (
                     <PDFChat
@@ -110,6 +114,18 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
 
                     {currentTab === 'flashcards' && (
                         <div className="flex items-center gap-2">
+                            {/* Pulsante Indietro - Visibile solo se onNavigateBack è fornito */}
+                            {onNavigateBack && (
+                                <button
+                                    onClick={onNavigateBack}
+                                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white/80 hover:text-white shadow-lg rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 transition-all duration-300 active:scale-95"
+                                    aria-label="Torna al mazzo"
+                                    title="Torna al dettaglio del mazzo"
+                                >
+                                    <FiArrowLeft className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Indietro</span>
+                                </button>
+                            )}
                             <button
                                 onClick={onAddCard}
                                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"

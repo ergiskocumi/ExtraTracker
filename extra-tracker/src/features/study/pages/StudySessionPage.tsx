@@ -259,14 +259,16 @@ export const StudySessionPage: React.FC = () => {
     useEffect(() => {
         if (!sessionKey) return;
 
-        // Se la sessione è già completa (globale o locale), non ricaricare MAI
-        if (isSessionCompleteRef.current || globalCompletedSessions.has(sessionKey)) {
-            // Se la sessione è completata ma non abbiamo summary, naviga via (evita loop)
-            if (!summary) {
-                setTimeout(() => navigate('/study'), 100);
+            // Se la sessione è già completa (globale o locale), non ricaricare MAI
+            if (isSessionCompleteRef.current || globalCompletedSessions.has(sessionKey)) {
+                // Se la sessione è completata ma non abbiamo summary, naviga al dettaglio mazzo (evita loop)
+                if (!summary && deckId) {
+                    setTimeout(() => navigate(`/study/deck/${deckId}`), 100);
+                } else if (!summary) {
+                    setTimeout(() => navigate('/study'), 100);
+                }
+                return;
             }
-            return;
-        }
 
         // Se abbiamo già caricato una sessione, non ricaricare
         if (hasLoadedSessionRef.current) {
@@ -287,7 +289,8 @@ export const StudySessionPage: React.FC = () => {
 
                 if (data.cards.length === 0) {
                     emitToast.info('Nessuna carta da studiare in questo mazzo!');
-                    navigate('/study');
+                    // Naviga al dettaglio del mazzo invece della dashboard
+                    navigate(`/study/deck/${deckId}`);
                     return;
                 }
 
@@ -502,11 +505,24 @@ export const StudySessionPage: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isFlashcardMode, isFlipped, isSubmitting, handleRating]);
 
-    // Handler per uscire dalla sessione
-    const handleBackToDashboard = useCallback(() => {
+    /**
+     * Handler per tornare al dettaglio del mazzo corrente
+     * 
+     * Naviga al dettaglio del mazzo che si sta studiando invece della dashboard principale.
+     * Questo permette all'utente di continuare a lavorare sul mazzo senza perdere il contesto.
+     * 
+     * @returns {void}
+     */
+    const handleBackToDeck = useCallback(() => {
         setIsSummaryOpen(false);
-        navigate('/study');
-    }, [navigate]);
+        if (deckId) {
+            // Naviga al dettaglio del mazzo corrente
+            navigate(`/study/deck/${deckId}`);
+        } else {
+            // Fallback alla dashboard se deckId non è disponibile
+            navigate('/study');
+        }
+    }, [navigate, deckId]);
 
     // Varianti per animazione card - su desktop parte invisibile e si centra
     const viewVariants = {
@@ -549,10 +565,10 @@ export const StudySessionPage: React.FC = () => {
                 <div className="text-center">
                     <p className="text-red-400 mb-4">{error || 'Sessione non trovata'}</p>
                     <button
-                        onClick={() => navigate('/study')}
+                        onClick={() => deckId ? navigate(`/study/deck/${deckId}`) : navigate('/study')}
                         className="px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold hover:bg-primary-600 transition-colors"
                     >
-                        Torna alla Dashboard
+                        {deckId ? 'Torna al mazzo' : 'Torna alla Dashboard'}
                     </button>
                 </div>
             </div>
@@ -568,11 +584,13 @@ export const StudySessionPage: React.FC = () => {
             {/* Header */}
             <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/[0.06] bg-slate-950/80 backdrop-blur-xl">
                 <button
-                    onClick={handleBackToDashboard}
+                    onClick={handleBackToDeck}
                     className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+                    aria-label="Torna al mazzo"
+                    title="Torna al dettaglio del mazzo"
                 >
                     <FiArrowLeft className="w-5 h-5" />
-                    <span className="hidden sm:inline">Esci</span>
+                    <span className="hidden sm:inline">Torna al mazzo</span>
                 </button>
 
                 <div className="flex-1 mx-4 sm:mx-8">
@@ -595,9 +613,10 @@ export const StudySessionPage: React.FC = () => {
                 </div>
 
                 <button
-                    onClick={handleBackToDashboard}
+                    onClick={handleBackToDeck}
                     className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                    aria-label="Chiudi"
+                    aria-label="Torna al mazzo"
+                    title="Torna al dettaglio del mazzo"
                 >
                     <FiX className="w-5 h-5" />
                 </button>
@@ -719,7 +738,7 @@ export const StudySessionPage: React.FC = () => {
                     isOpen={isSummaryOpen}
                     title={session?.deck.title ? `Sessione completata • ${session.deck.title}` : 'Sessione completata'}
                     summary={summary}
-                    onClose={handleBackToDashboard}
+                    onClose={handleBackToDeck}
                 />
             )}
         </div>
