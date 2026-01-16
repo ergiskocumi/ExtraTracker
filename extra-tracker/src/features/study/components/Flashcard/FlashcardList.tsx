@@ -1,32 +1,48 @@
 /**
- * 🎴 FLASHCARD LIST - Lista di Card con Drag & Drop e Inserimento Posizionale
+ * 🎴 FLASHCARD LIST - iOS-Style Sortable List/Grid with dnd-kit
  * ============================================================================
  * 
- * Componente principale per la visualizzazione e manipolazione delle flashcard.
- * Supporta due modalità di visualizzazione: lista verticale e griglia quadrata.
+ * Refactored component using @dnd-kit for robust, industry-standard drag & drop.
+ * Features:
+ * - DndContext: Main drag & drop context
+ * - SortableContext: Manages sortable items with appropriate strategies
+ * - DragOverlay: Renders a clean copy of the dragged card in a portal (solves Z-index issues)
+ * - Sensors: Mouse, Touch, Keyboard with activation constraints (5px movement)
  * 
- * Funzionalità principali:
- * - Numerazione delle card (visibile ma discreta, solo su hover in grid)
- * - Drag & Drop per riordinare le card con scambio visivo immediato
- * - Inserimento di nuove card in posizione specifica tramite pulsante +
- * - Supporto per card filtrate (mantiene l'ordine del deck completo)
+ * Architecture:
+ * - Grid View: Uses rectSortingStrategy for 2D grid layout
+ * - List View: Uses verticalListSortingStrategy for vertical stacking
+ * - Insert Buttons: Safe to render between SortableItems (dnd-kit is headless)
  * 
- * Drag & Drop:
- * - Vista Grid: scambio visivo immediato quando si passa sopra un'altra card
- * - Vista List: inserimento posizionale basato sulla posizione del mouse
- * - Animazione fluida con scale e opacità durante il drag
- * 
- * Clean Code Principles:
- * - Single Responsibility: gestisce solo la lista e l'ordinamento
- * - Separation of Concerns: logica di business separata dalla presentazione
- * - Error Handling: gestione errori centralizzata
- * - State Management: stato locale per scambio visivo durante drag
+ * Why DragOverlay Solves Visual Glitches:
+ * - The dragged item is rendered in a portal, completely separate from the DOM tree
+ * - No z-index conflicts because it's outside the normal stacking context
+ * - The original item stays in place (with reduced opacity) while overlay follows cursor
+ * - This eliminates overlapping, clipping, and visual glitches completely
  */
 
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { FiPlus, FiArrowLeft } from 'react-icons/fi';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    TouchSensor,
+    useSensor,
+    useSensors,
+    DragOverlay,
+} from '@dnd-kit/core';
+import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
+import {
+    SortableContext,
+    rectSortingStrategy,
+    verticalListSortingStrategy,
+    arrayMove,
+} from '@dnd-kit/sortable';
 import type { Deck, Card } from '../../services/studyService';
+import { SortableItem } from './SortableItem';
 import { FlashcardItem } from './FlashcardItem';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
@@ -64,38 +80,15 @@ interface InsertButtonProps {
 // ============================================
 
 const INSERT_BUTTON_HEIGHT = 40; // Altezza del pulsante di inserimento in px
+const ACTIVATION_DISTANCE = 5; // Pixels to move before drag activates (prevents accidental drags)
 
 // ============================================
 // SUB-COMPONENTS
 // ============================================
 
 /**
- * Icona personalizzata per il drag handle
- * Rappresenta visivamente la possibilità di trascinare l'elemento
- */
-const DragHandleIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
-    <svg
-        className={className}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <circle cx="9" cy="5" r="1" />
-        <circle cx="9" cy="12" r="1" />
-        <circle cx="9" cy="19" r="1" />
-        <circle cx="15" cy="5" r="1" />
-        <circle cx="15" cy="12" r="1" />
-        <circle cx="15" cy="19" r="1" />
-    </svg>
-);
-
-/**
  * Pulsante per inserire una card in una posizione specifica
  * Appare tra due card quando si passa il mouse sopra o durante il drag
- * Ha un effetto "risucchio" quando viene trascinata una card sopra
  */
 const InsertButton: React.FC<InsertButtonProps> = ({ position, onInsert, isVisible }) => {
     const handleClick = useCallback((e: React.MouseEvent) => {
@@ -170,180 +163,6 @@ const InsertButton: React.FC<InsertButtonProps> = ({ position, onInsert, isVisib
     );
 };
 
-/**
- * Card Item con supporto per drag & drop e numerazione
- * 
- * Gestisce:
- * - Drag & Drop HTML5 nativo per riordinare le card
- * - Visualizzazione del numero di posizione (discreto ma visibile)
- * - Feedback visivo durante il drag
- */
-interface DraggableCardItemProps {
-    card: Card;
-    index: number;
-    totalCards: number;
-    isDragging: boolean;
-    onUpdate: (cardId: string, front: string, back: string) => Promise<void>;
-    onClick?: (card: Card) => void;
-    onDelete?: (cardId: string) => void;
-    onDragStart: (e: React.DragEvent, cardId: string, index: number) => void;
-    onDragEnd: () => void;
-    onDragOver: (e: React.DragEvent, index: number) => void;
-    onDrop: (e: React.DragEvent, targetIndex: number) => void;
-    viewMode?: 'list' | 'grid';
-}
-
-const DraggableCardItem: React.FC<DraggableCardItemProps> = ({
-    card,
-    index,
-    totalCards,
-    isDragging,
-    onUpdate,
-    onClick,
-    onDelete,
-    onDragStart,
-    onDragEnd,
-    onDragOver,
-    onDrop,
-    viewMode = 'list',
-}) => {
-    /**
-     * Handler per iniziare il drag
-     * Configura i dati del drag e l'immagine fantasma
-     */
-    const handleDragStart = useCallback((e: React.DragEvent) => {
-        onDragStart(e, card.id, index);
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', card.id);
-        
-        // Crea un'immagine fantasma personalizzata più piccola e visibile
-        const dragImage = e.currentTarget.cloneNode(true) as HTMLElement;
-        dragImage.style.opacity = '1';
-        dragImage.style.transform = 'scale(0.7) rotate(2deg)';
-        dragImage.style.pointerEvents = 'none';
-        dragImage.style.width = `${e.currentTarget.clientWidth}px`;
-        dragImage.style.height = `${e.currentTarget.clientHeight}px`;
-        document.body.appendChild(dragImage);
-        dragImage.style.position = 'absolute';
-        dragImage.style.top = '-1000px';
-        dragImage.style.left = '-1000px';
-        e.dataTransfer.setDragImage(dragImage, e.currentTarget.clientWidth / 2, e.currentTarget.clientHeight / 2);
-        setTimeout(() => {
-            if (document.body.contains(dragImage)) {
-                document.body.removeChild(dragImage);
-            }
-        }, 0);
-    }, [card.id, index, onDragStart]);
-
-    /**
-     * Handler per drag over - permette il drop
-     */
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = 'move';
-        onDragOver(e, index);
-    }, [index, onDragOver]);
-
-    /**
-     * Handler per drop - gestisce il riordinamento
-     */
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onDrop(e, index);
-    }, [index, onDrop]);
-
-    // Per la vista grid, le card sono direttamente draggable senza wrapper
-    // Layout identico alla foto: card quadrate senza elementi extra visibili
-    if (viewMode === 'grid') {
-        return (
-            <motion.div
-                draggable
-                onDragStart={handleDragStart}
-                onDragEnd={onDragEnd}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                className="group relative cursor-grab active:cursor-grabbing"
-                animate={{
-                    scale: isDragging ? 0.7 : 1,
-                    opacity: isDragging ? 1 : 1,
-                }}
-                transition={{
-                    duration: 0.2,
-                    ease: 'easeOut',
-                }}
-                layout
-            >
-                {/* Numero card in modalità grid - discreto, in alto a sinistra, visibile solo su hover */}
-                <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <span className="text-xs font-medium text-white/30 bg-black/30 px-2 py-1 rounded-full select-none">
-                        #{index + 1}
-                    </span>
-                </div>
-                <FlashcardItem
-                    card={card}
-                    onUpdate={onUpdate}
-                    onClick={onClick}
-                    onDelete={onDelete}
-                />
-            </motion.div>
-        );
-    }
-
-    // Per la vista list, mantieni il layout con drag handle
-    return (
-        <div
-            draggable
-            onDragStart={handleDragStart}
-            onDragEnd={onDragEnd}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            className="group relative cursor-grab active:cursor-grabbing"
-        >
-            <motion.div
-                animate={{
-                    scale: isDragging ? 0.7 : 1,
-                    opacity: isDragging ? 1 : 1,
-                }}
-                transition={{
-                    duration: 0.2,
-                    ease: 'easeOut',
-                }}
-                className="flex items-start gap-3"
-            >
-                {/* Drag Handle e Numero */}
-                <div className="flex flex-col items-center gap-2 pt-1 flex-shrink-0">
-                    <button
-                        type="button"
-                        className="cursor-grab active:cursor-grabbing p-1 text-white/30 hover:text-white/60 transition-colors touch-none"
-                        aria-label="Trascina per riordinare"
-                        title="Trascina per riordinare"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <DragHandleIcon className="w-4 h-4" />
-                    </button>
-                    {/* Numero card - discreto ma visibile */}
-                    <span className="text-xs font-medium text-white/40 select-none">
-                        #{index + 1}
-                    </span>
-                </div>
-
-                {/* Card Content */}
-                <div className="flex-1 min-w-0">
-                    <FlashcardItem
-                        card={card}
-                        onUpdate={onUpdate}
-                        onClick={onClick}
-                        onDelete={onDelete}
-                    />
-                </div>
-            </motion.div>
-        </div>
-    );
-};
-
 // ============================================
 // MAIN COMPONENT
 // ============================================
@@ -360,199 +179,103 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     filteredCards,
     viewMode = 'list',
 }) => {
-    // State per drag & drop
-    const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
-    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-    const [hoveredInsertPosition, setHoveredInsertPosition] = useState<number | null>(null);
-    const [isReordering, setIsReordering] = useState(false);
-    /** Stato locale per l'ordine delle card durante il drag - permette scambio visivo immediato */
-    const [localCardOrder, setLocalCardOrder] = useState<Card[] | null>(null);
+    // Local state for drag interactions - ensures instant visual feedback
+    const [items, setItems] = useState<Card[]>(() => {
+        return filteredCards || deck.cards || [];
+    });
 
-    // Memoize cards array per evitare re-render inutili
-    // Usa filteredCards se fornito, altrimenti deck.cards
-    // Durante il drag, usa l'ordine locale per lo scambio visivo
-    const cards = useMemo(() => {
-        // Se c'è un ordine locale (durante drag), usalo per lo scambio visivo
-        if (localCardOrder) {
-            return localCardOrder;
-        }
-        // Altrimenti usa l'ordine normale
-        if (filteredCards) {
-            return filteredCards;
-        }
-        return deck.cards || [];
-    }, [deck.cards, filteredCards, localCardOrder]);
-    const cardCount = cards.length;
+    // Track which card is being dragged (for DragOverlay)
+    const [activeId, setActiveId] = useState<string | null>(null);
 
-    // Memoize callback per evitare re-render delle card
+    // Sync local state when deck or filteredCards change (but not during drag)
+    useEffect(() => {
+        const newCards = filteredCards || deck.cards || [];
+        // Only update if the card IDs have changed (not just reordered)
+        const currentIds = items.map(c => c.id).sort().join(',');
+        const newIds = newCards.map(c => c.id).sort().join(',');
+        if (currentIds !== newIds && !activeId) {
+            setItems(newCards);
+        }
+    }, [deck.cards, filteredCards, activeId]);
+
+    // Configure sensors with activation constraints
+    // This prevents accidental drags when clicking (requires 5px movement)
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: ACTIVATION_DISTANCE,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 200,
+                tolerance: ACTIVATION_DISTANCE,
+            },
+        }),
+        useSensor(KeyboardSensor)
+    );
+
+    // Memoize callback for card clicks
     const handleCardClick = useMemo(() => {
         if (!onCardClick) return undefined;
         return (card: Card) => onCardClick(card);
     }, [onCardClick]);
 
-    /**
-     * Handler per iniziare il drag di una card
-     * Inizializza l'ordine locale per permettere lo scambio visivo
-     */
-    const handleDragStart = useCallback((e: React.DragEvent, cardId: string, index: number) => {
-        setDraggedCardId(cardId);
-        setDraggedIndex(index);
-        setIsReordering(true);
-        // Inizializza l'ordine locale con l'ordine attuale
-        const currentCards = filteredCards || deck.cards || [];
-        setLocalCardOrder([...currentCards]);
-    }, [deck.cards, filteredCards]);
+    const cardCount = items.length;
 
     /**
-     * Handler per terminare il drag
-     * Resetta lo stato e ripristina l'ordine normale
+     * Handler for drag start - tracks which card is being dragged
      */
-    const handleDragEnd = useCallback(() => {
-        setDraggedCardId(null);
-        setDraggedIndex(null);
-        setIsReordering(false);
-        setHoveredInsertPosition(null);
-        // Ripristina l'ordine normale dopo un breve delay per permettere l'animazione
-        setTimeout(() => {
-            setLocalCardOrder(null);
-        }, 100);
+    const handleDragStart = useCallback((event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
     }, []);
 
     /**
-     * Handler per drag over - gestisce il feedback visivo durante il drag
-     * Implementa lo scambio visivo immediato: quando si passa sopra una card,
-     * quella card si sposta nella posizione della card trascinata
-     * 
-     * @param e - Evento drag
-     * @param index - Indice della card su cui si sta passando
+     * Handler for drag end - syncs with API/Server
+     * Called only when user releases, preventing API spam during drag
      */
-    const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        if (draggedIndex === null || draggedIndex === index || !localCardOrder) {
-            e.dataTransfer.dropEffect = 'none';
-            return;
-        }
-        
-        e.dataTransfer.dropEffect = 'move';
-        
-        // Per la vista grid, scambia direttamente le card quando si passa sopra
-        if (viewMode === 'grid') {
-            // Crea un nuovo array con le card scambiate
-            const newOrder = [...localCardOrder];
-            const draggedCard = newOrder[draggedIndex];
-            const targetCard = newOrder[index];
-            
-            // Scambia le card
-            newOrder[draggedIndex] = targetCard;
-            newOrder[index] = draggedCard;
-            
-            // Aggiorna l'ordine locale solo se è diverso
-            if (JSON.stringify(newOrder) !== JSON.stringify(localCardOrder)) {
-                setLocalCardOrder(newOrder);
-                // Aggiorna anche l'indice trascinato per riflettere la nuova posizione
-                setDraggedIndex(index);
-            }
-        } else {
-            // Per la vista list, usa la logica originale con posizione di inserimento
-            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            const mouseY = e.clientY;
-            const cardCenterY = rect.top + rect.height / 2;
-            const insertPosition = mouseY < cardCenterY ? index : index + 1;
-            setHoveredInsertPosition(insertPosition);
-        }
-    }, [draggedIndex, localCardOrder, viewMode]);
+    const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+        const { active, over } = event;
 
-    /**
-     * Handler per drop - riordina le card
-     * Gestisce il riordinamento quando una card viene rilasciata su un'altra
-     * 
-     * Per la vista grid: usa l'ordine locale già calcolato durante il drag
-     * Per la vista list: calcola la posizione basata sulla posizione del mouse
-     * 
-     * Nota: Usa sempre deck.cards per il riordinamento finale, anche se vengono mostrate card filtrate.
-     * Questo garantisce che l'ordine del deck completo sia mantenuto correttamente.
-     */
-    const handleDrop = useCallback(async (e: React.DragEvent, targetIndex: number) => {
-        e.preventDefault();
-        e.stopPropagation();
+        setActiveId(null);
 
-        if (draggedIndex === null || draggedCardId === null) {
-            handleDragEnd();
+        if (!over || active.id === over.id) {
             return;
         }
 
-        // Se la posizione è la stessa, non fare nulla
-        if (draggedIndex === targetIndex && viewMode === 'grid') {
-            handleDragEnd();
+        const oldIndex = items.findIndex((card) => card.id === active.id);
+        const newIndex = items.findIndex((card) => card.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) {
             return;
         }
+
+        // Update local state immediately for instant feedback
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+        setItems(newOrder);
 
         try {
-            setIsReordering(true);
-
-            // Usa sempre deck.cards per il riordinamento finale (non le card filtrate)
+            // Map the reordered items to the full deck if filteredCards are used
             const fullDeckCards = deck.cards || [];
             
             let finalOrder: string[];
             
-            if (viewMode === 'grid' && localCardOrder) {
-                // Per la vista grid, usa l'ordine locale già calcolato
-                // Mappa l'ordine locale al deck completo
-                const localOrderIds = localCardOrder.map(c => c.id);
-                const fullOrderIds = fullDeckCards.map(c => c.id);
+            if (filteredCards && filteredCards.length > 0 && filteredCards.length !== fullDeckCards.length) {
+                // If we have filtered cards, map the new order to the full deck
+                const newOrderIds = newOrder.map(c => c.id);
+                const visibleCardIds = filteredCards.map(c => c.id);
+                const hiddenCardIds = fullDeckCards
+                    .map(c => c.id)
+                    .filter(id => !visibleCardIds.includes(id));
                 
-                // Mantieni l'ordine delle card non visibili, inserisci l'ordine locale per quelle visibili
-                const visibleCardIds = (filteredCards || deck.cards || []).map(c => c.id);
-                const hiddenCardIds = fullOrderIds.filter(id => !visibleCardIds.includes(id));
-                
-                // Combina: prima le card nascoste, poi l'ordine locale
-                finalOrder = [...hiddenCardIds, ...localOrderIds];
+                // Combine: hidden cards first, then the reordered visible cards
+                finalOrder = [...hiddenCardIds, ...newOrderIds];
             } else {
-                // Per la vista list, calcola la posizione basata sul mouse
-                const draggedCard = cards[draggedIndex];
-                const targetCard = cards[targetIndex];
-                
-                const realDraggedIndex = fullDeckCards.findIndex(c => c.id === draggedCard.id);
-                const realTargetIndex = fullDeckCards.findIndex(c => c.id === targetCard.id);
-
-                if (realDraggedIndex === -1 || realTargetIndex === -1) {
-                    handleDragEnd();
-                    return;
-                }
-
-                // Calcola la nuova posizione basata sulla posizione del mouse
-                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                const mouseY = e.clientY;
-                const cardCenterY = rect.top + rect.height / 2;
-                const finalTargetIndex = mouseY < cardCenterY ? realTargetIndex : realTargetIndex + 1;
-
-                // Evita di riordinare se la posizione è la stessa
-                if (realDraggedIndex === finalTargetIndex) {
-                    handleDragEnd();
-                    return;
-                }
-
-                // Crea il nuovo array riordinato usando il deck completo
-                const newCards = [...fullDeckCards];
-                const [removed] = newCards.splice(realDraggedIndex, 1);
-                
-                // Calcola l'indice di inserimento corretto
-                let insertIndex = finalTargetIndex;
-                if (finalTargetIndex > realDraggedIndex) {
-                    insertIndex = finalTargetIndex - 1;
-                }
-                
-                // Assicurati che l'indice sia valido
-                insertIndex = Math.max(0, Math.min(insertIndex, newCards.length));
-                newCards.splice(insertIndex, 0, removed);
-
-                // Estrai gli IDs nell'ordine corretto
-                finalOrder = newCards.map(card => card.id);
+                // Simple case: just use the new order
+                finalOrder = newOrder.map(card => card.id);
             }
 
-            // Chiama l'API per riordinare
+            // Call API to persist the new order
             const updatedDeck = await studyService.reorderCards(deck.id, finalOrder);
             
             if (onDeckUpdate) {
@@ -563,17 +286,13 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
         } catch (err: any) {
             console.error('Errore nel riordinamento:', err);
             emitToast.error(err.message || 'Errore nel riordinamento delle card');
-        } finally {
-            handleDragEnd();
-            setHoveredInsertPosition(null);
+            // Revert local state on error
+            setItems(filteredCards || deck.cards || []);
         }
-    }, [cards, deck.cards, deck.id, draggedIndex, draggedCardId, localCardOrder, viewMode, filteredCards, onDeckUpdate, handleDragEnd]);
+    }, [items, deck.id, deck.cards, filteredCards, onDeckUpdate]);
 
     /**
      * Handler per inserire una card in una posizione specifica
-     * 
-     * Nota: Se vengono mostrate card filtrate, la posizione viene mappata al deck completo.
-     * Se la posizione è 0 o alla fine delle card filtrate, inserisce all'inizio o alla fine del deck.
      */
     const handleInsertCard = useCallback(async (position: number) => {
         try {
@@ -621,20 +340,11 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
         }
     }, [deck.id, deck.cards, filteredCards, onDeckUpdate]);
 
-    /**
-     * Handler per hover su area di inserimento
-     * Durante il drag, mostra sempre l'area di inserimento per effetto "risucchio"
-     */
-    const handleInsertAreaHover = useCallback((position: number) => {
-        setHoveredInsertPosition(position);
-    }, []);
+    // State for insert button visibility (list view only)
+    const [hoveredInsertPosition, setHoveredInsertPosition] = useState<number | null>(null);
 
-    const handleInsertAreaLeave = useCallback(() => {
-        // Non nascondere durante il drag per mantenere l'effetto "risucchio"
-        if (!isReordering) {
-            setHoveredInsertPosition(null);
-        }
-    }, [isReordering]);
+    // Get the active card for DragOverlay
+    const activeCard = activeId ? items.find((card) => card.id === activeId) : null;
 
     return (
         <div className="flex flex-col h-full">
@@ -656,21 +366,23 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                 <span className="hidden sm:inline">Indietro</span>
                             </button>
                         )}
-                    <button
-                        onClick={onAddCard}
-                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
-                        aria-label="Aggiungi carta"
-                        title="Aggiungi carta"
-                    >
-                        <FiPlus className="w-4 h-4" />
-                    </button>
+                        {/* Fixed "Add Card" button */}
+                        <button
+                            onClick={onAddCard}
+                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
+                            aria-label="Aggiungi carta"
+                            title="Aggiungi carta"
+                        >
+                            <FiPlus className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
             )}
 
             <div className="flex-1 p-3 md:p-4 overflow-y-auto overscroll-contain">
                 {cardCount === 0 ? (
-                    <div className="rounded-2xl md:rounded-3xl border border-white/[0.08] backdrop-blur-xl p-6 text-center shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
+                    <div 
+                        className="rounded-2xl md:rounded-3xl border border-white/[0.08] backdrop-blur-xl p-6 text-center shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
                         style={{
                             background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
                         }}
@@ -679,101 +391,142 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                             Nessuna carta ancora. Puoi aggiungerne una mentre leggi il PDF.
                         </p>
                     </div>
-                ) : viewMode === 'grid' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                        <AnimatePresence mode="popLayout">
-                            {cards.map((card, index) => (
-                                <DraggableCardItem
-                                    key={card.id} 
-                                    card={card} 
-                                    index={index}
-                                    totalCards={cardCount}
-                                    isDragging={draggedCardId === card.id}
-                                    onUpdate={onUpdate}
-                                    onClick={handleCardClick}
-                                    onDelete={onDelete}
-                                    onDragStart={handleDragStart}
-                                    onDragEnd={handleDragEnd}
-                                    onDragOver={handleDragOver}
-                                    onDrop={handleDrop}
-                                    viewMode="grid"
-                                />
-                            ))}
-                        </AnimatePresence>
-                    </div>
                 ) : (
-                    <div className="space-y-3 md:space-y-4">
-                        {/* Pulsante inserimento all'inizio */}
-                        <div
-                            className="group/insert"
-                            onMouseEnter={() => handleInsertAreaHover(0)}
-                            onMouseLeave={handleInsertAreaLeave}
-                            onDragOver={(e) => {
-                                e.preventDefault();
-                                if (isReordering) {
-                                    handleInsertAreaHover(0);
-                                }
-                            }}
-                            onDragLeave={(e) => {
-                                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                                    handleInsertAreaLeave();
-                                }
-                            }}
-                            style={{ minHeight: `${INSERT_BUTTON_HEIGHT}px` }}
-                        >
-                            <InsertButton
-                                position={0}
-                                onInsert={handleInsertCard}
-                                isVisible={hoveredInsertPosition === 0 || isReordering}
-                            />
-                        </div>
-
-                        <AnimatePresence mode="popLayout">
-                            {cards.map((card, index) => (
-                                <React.Fragment key={card.id}>
-                                    <DraggableCardItem
-                                        card={card}
-                                        index={index}
-                                        totalCards={cardCount}
-                                        isDragging={draggedCardId === card.id}
-                                        onUpdate={onUpdate}
-                                        onClick={handleCardClick}
-                                        onDelete={onDelete}
-                                        onDragStart={handleDragStart}
-                                        onDragEnd={handleDragEnd}
-                                        onDragOver={handleDragOver}
-                                        onDrop={handleDrop}
-                                        viewMode="list"
-                                    />
-
-                                    {/* Pulsante inserimento dopo ogni card */}
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                    >
+                        {viewMode === 'grid' ? (
+                            // GRID VIEW: Use rectSortingStrategy for 2D grid layout
+                            <SortableContext
+                                items={items.map(card => card.id)}
+                                strategy={rectSortingStrategy}
+                            >
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                                    {items.map((card, index) => (
+                                        <SortableItem
+                                            key={card.id}
+                                            card={card}
+                                            index={index}
+                                            totalCards={cardCount}
+                                            onUpdate={onUpdate}
+                                            onClick={handleCardClick}
+                                            onDelete={onDelete}
+                                            viewMode="grid"
+                                        />
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        ) : (
+                            // LIST VIEW: Use verticalListSortingStrategy for vertical stacking
+                            <SortableContext
+                                items={items.map(card => card.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <div className="space-y-3 md:space-y-4">
+                                    {/* Insert button at the start */}
                                     <div
                                         className="group/insert"
-                                        onMouseEnter={() => handleInsertAreaHover(index + 1)}
-                                        onMouseLeave={handleInsertAreaLeave}
-                                        onDragOver={(e) => {
-                                            e.preventDefault();
-                                            if (isReordering) {
-                                                handleInsertAreaHover(index + 1);
-                                            }
-                                        }}
-                                        onDragLeave={(e) => {
-                                            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                                                handleInsertAreaLeave();
-                                            }
-                                        }}
+                                        onMouseEnter={() => setHoveredInsertPosition(0)}
+                                        onMouseLeave={() => setHoveredInsertPosition(null)}
                                         style={{ minHeight: `${INSERT_BUTTON_HEIGHT}px` }}
                                     >
                                         <InsertButton
-                                            position={index + 1}
+                                            position={0}
                                             onInsert={handleInsertCard}
-                                            isVisible={hoveredInsertPosition === index + 1 || isReordering}
+                                            isVisible={hoveredInsertPosition === 0 || activeId !== null}
                                         />
                                     </div>
-                                </React.Fragment>
-                            ))}
-                        </AnimatePresence>
-                    </div>
+
+                                    {items.map((card, index) => (
+                                        <React.Fragment key={card.id}>
+                                            <SortableItem
+                                                card={card}
+                                                index={index}
+                                                totalCards={cardCount}
+                                                onUpdate={onUpdate}
+                                                onClick={handleCardClick}
+                                                onDelete={onDelete}
+                                                viewMode="list"
+                                            />
+
+                                            {/* Insert button after each card */}
+                                            <div
+                                                className="group/insert"
+                                                onMouseEnter={() => setHoveredInsertPosition(index + 1)}
+                                                onMouseLeave={() => setHoveredInsertPosition(null)}
+                                                style={{ minHeight: `${INSERT_BUTTON_HEIGHT}px` }}
+                                            >
+                                                <InsertButton
+                                                    position={index + 1}
+                                                    onInsert={handleInsertCard}
+                                                    isVisible={hoveredInsertPosition === index + 1 || activeId !== null}
+                                                />
+                                            </div>
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        )}
+
+                        {/* DragOverlay: Renders a clean copy of the dragged card in a portal */}
+                        <DragOverlay>
+                            {activeCard ? (
+                                <div
+                                    style={{
+                                        transform: 'rotate(2deg)',
+                                        boxShadow: '0px 15px 25px rgba(0,0,0,0.3)',
+                                    }}
+                                    className="opacity-90"
+                                >
+                                    {viewMode === 'grid' ? (
+                                        <FlashcardItem
+                                            card={activeCard}
+                                            onUpdate={onUpdate}
+                                            onClick={handleCardClick}
+                                            onDelete={onDelete}
+                                        />
+                                    ) : (
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex flex-col items-center gap-2 pt-1 flex-shrink-0">
+                                                <div className="p-1 text-white/30">
+                                                    <svg
+                                                        className="w-4 h-4"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                    >
+                                                        <circle cx="9" cy="5" r="1" />
+                                                        <circle cx="9" cy="12" r="1" />
+                                                        <circle cx="9" cy="19" r="1" />
+                                                        <circle cx="15" cy="5" r="1" />
+                                                        <circle cx="15" cy="12" r="1" />
+                                                        <circle cx="15" cy="19" r="1" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-xs font-medium text-white/40 select-none">
+                                                    #{items.findIndex(c => c.id === activeCard.id) + 1}
+                                                </span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <FlashcardItem
+                                                    card={activeCard}
+                                                    onUpdate={onUpdate}
+                                                    onClick={handleCardClick}
+                                                    onDelete={onDelete}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : null}
+                        </DragOverlay>
+                    </DndContext>
                 )}
             </div>
         </div>
