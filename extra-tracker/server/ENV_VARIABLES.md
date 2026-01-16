@@ -64,11 +64,21 @@ COOKIE_REFRESH_TOKEN_PATH=/api/auth/refresh
 # ==========================================
 # 🚦 RATE LIMITING CONFIGURATION
 # ==========================================
+# General Rate Limiter (Opzionale - DISABILITATO di default)
+# Da abilitare solo se necessario per protezione DDoS
+RATE_LIMIT_GENERAL_ENABLED=false
 RATE_LIMIT_GENERAL_WINDOW_MS=900000
-RATE_LIMIT_GENERAL_MAX=200
+RATE_LIMIT_GENERAL_MAX=1000
+
+# Auth Rate Limiter (Previene brute force)
 RATE_LIMIT_AUTH_WINDOW_MS=900000
 RATE_LIMIT_AUTH_MAX=15
 RATE_LIMIT_AUTH_SKIP_SUCCESS=true
+
+# AI Rate Limiter (Molto restrittivo - previene abusi costosi)
+# Limite: 10 chiamate AI per ora per utente
+RATE_LIMIT_AI_WINDOW_MS=3600000
+RATE_LIMIT_AI_MAX=10
 
 # ==========================================
 # 🌍 CORS CONFIGURATION
@@ -101,7 +111,7 @@ SESSION_REFRESH_TOKEN_EXPIRY_DAYS=7
 # 📦 BODY PARSER CONFIGURATION
 # ==========================================
 BODY_PARSER_JSON_LIMIT=10kb
-BODY_PARSER_URLENCODED_LIMIT=10kb
+BODY_PARSER_URLENCODED_LI**MIT=10kb
 BODY_PARSER_IMPORT_JSON_LIMIT=50mb
 
 # ==========================================
@@ -114,7 +124,7 @@ BACKEND_URL=http://localhost:3001
 # 📊 MONITORING & LOGGING CONFIGURATION
 # ==========================================
 MONITORING_EVENT_METRICS_INTERVAL=300000
-MONITORING_ENABLE_EVENT_METRICS_LOGGING=true
+MONITORING_ENABLE_EVENT_METRICS_LOGGING=true**
 ```
 
 ## 🔑 Variabili Obbligatorie per Produzione

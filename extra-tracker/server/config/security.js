@@ -183,6 +183,7 @@ module.exports = {
         general: {
             windowMs: envConfig.rateLimit.general.windowMs,
             max: envConfig.rateLimit.general.max,
+            enabled: envConfig.rateLimit.general.enabled,
             message: {
                 status: 429,
                 message: 'Troppe richieste, riprova tra 15 minuti',
@@ -198,6 +199,15 @@ module.exports = {
                 message: 'Troppi tentativi di accesso, riprova tra 15 minuti',
             },
             skipSuccessfulRequests: envConfig.rateLimit.auth.skipSuccessfulRequests,
+        },
+        ai: {
+            windowMs: envConfig.rateLimit.ai.windowMs,
+            max: envConfig.rateLimit.ai.max,
+            keyGenerator: envConfig.rateLimit.ai.keyGenerator,
+            message: {
+                status: 429,
+                message: 'Hai raggiunto il limite di chiamate AI. Riprova tra un\'ora.',
+            },
         },
     },
 

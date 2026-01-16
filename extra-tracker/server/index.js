@@ -110,8 +110,19 @@ app.use(cookieParser());
 // ==========================================
 // 5. RATE LIMITING
 // ==========================================
-
-app.use('/api', generalLimiter);
+// 
+// NOTA: Il generalLimiter è DISABILITATO di default
+// Rate limiting applicato solo a:
+// - Chiamate AI: aiLimiter (10 chiamate/ora per utente)
+// - Autenticazione: authLimiter (15 tentativi/15min per IP)
+// 
+// Per abilitare il generalLimiter globale, imposta RATE_LIMIT_GENERAL_ENABLED=true
+if (generalLimiter) {
+    app.use('/api', generalLimiter);
+    logger.info('Server', 'General Rate Limiter: ATTIVO');
+} else {
+    logger.info('Server', 'General Rate Limiter: DISABILITATO (utenti possono usare l\'app liberamente)');
+}
 
 // ==========================================
 // 6. ROUTES

@@ -14,6 +14,7 @@ const path = require('path');
 // Middleware
 const { requireAuth } = require('../middleware/auth');
 const { tenantContext } = require('../middleware/tenantContext');
+const { aiLimiter } = require('../middleware/rateLimiter');
 
 // Controller
 const studyController = require('../controllers/studyController');
@@ -79,11 +80,13 @@ router.delete('/:id/cards/:cardId', studyController.deleteCard);
 router.post('/:id/session-complete', studyController.completeSession);
 router.post('/:id/review', studyController.submitReview);
 router.post('/:id/verify-answer', studyController.verifyAnswer);
-router.post('/:id/chat', studyController.chatWithTutor);
+// AI Chat - Rate limited: 10 chiamate per ora per utente
+router.post('/:id/chat', aiLimiter, studyController.chatWithTutor);
 router.delete('/:id', studyController.deleteDeck);
 
 // 🪄 Magic Generate from PDF (con multer middleware)
-router.post('/:id/generate-pdf', (req, res, next) => {
+// AI Generate - Rate limited: 10 chiamate per ora per utente
+router.post('/:id/generate-pdf', aiLimiter, (req, res, next) => {
     upload.single('pdf')(req, res, (err) => {
         if (err) {
             console.error('Multer error:', err.message);

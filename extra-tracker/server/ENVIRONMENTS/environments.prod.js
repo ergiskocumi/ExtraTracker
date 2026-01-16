@@ -70,14 +70,25 @@ module.exports = {
     // Rate Limiting Configuration
     // ==========================================
     rateLimit: {
+        // Rate limiter generale - molto permissivo per non bloccare utenti normali
+        // Applicato solo se esplicitamente richiesto (non più globale)
         general: {
             windowMs: parseInt(process.env.RATE_LIMIT_GENERAL_WINDOW_MS || '900000', 10), // 15 minuti
-            max: parseInt(process.env.RATE_LIMIT_GENERAL_MAX || '200', 10),
+            max: parseInt(process.env.RATE_LIMIT_GENERAL_MAX || '1000', 10), // Molto permissivo: 1000 richieste per 15 minuti
+            enabled: process.env.RATE_LIMIT_GENERAL_ENABLED === 'true' || false, // Disabilitato di default
         },
+        // Rate limiter per autenticazione - previene brute force
         auth: {
             windowMs: parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MS || '900000', 10), // 15 minuti
             max: parseInt(process.env.RATE_LIMIT_AUTH_MAX || '15', 10),
             skipSuccessfulRequests: process.env.RATE_LIMIT_AUTH_SKIP_SUCCESS !== 'false',
+        },
+        // Rate limiter per chiamate AI - molto restrittivo per prevenire abusi
+        // Le chiamate AI sono costose e devono essere limitate severamente
+        ai: {
+            windowMs: parseInt(process.env.RATE_LIMIT_AI_WINDOW_MS || '3600000', 10), // 1 ora
+            max: parseInt(process.env.RATE_LIMIT_AI_MAX || '10', 10), // Solo 10 chiamate AI per ora per utente
+            keyGenerator: 'userId', // Usa userId invece di IP per limitare per utente autenticato
         },
     },
 
