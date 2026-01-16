@@ -20,6 +20,9 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
+// Environment Configuration (DEVE essere caricato per primo)
+const { config: envConfig, isProduction } = require('./ENVIRONMENTS');
+
 // Config e Middleware
 const securityConfig = require('./config/security');
 const { initRedis, closeRedis } = require('./config/redis');
@@ -46,8 +49,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const sseRoutes = require('./routes/sse');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-const isProduction = process.env.NODE_ENV === 'production';
+const PORT = envConfig.server.port;
 
 // ==========================================
 // 1. SECURITY MIDDLEWARE
@@ -68,9 +70,8 @@ app.use(hpp());
 
 // Trust proxy: fidati del primo hop del proxy (Nginx, AWS ELB, Cloudflare, Heroku, etc.)
 // Questo rende req.ip automaticamente corretto e funziona meglio con rate limiting
-// Valore 1 = fidati del primo proxy (sicuro per la maggior parte dei casi)
-// In sviluppo, funziona anche con Vite proxy
-app.set('trust proxy', 1);
+// Valore configurabile via TRUST_PROXY env var
+app.set('trust proxy', envConfig.server.trustProxy);
 
 // ==========================================
 // 3. REQUEST ID MIDDLEWARE (per tracciamento errori)
@@ -94,15 +95,15 @@ app.use(requestLogger);
 // 4. BODY PARSING
 // ==========================================
 
-// IMPORTANTE: Limite aumentato per route di import (50MB)
+// IMPORTANTE: Limite aumentato per route di import (configurabile)
 // DEVE essere applicato PRIMA del body parser standard
 // perché Express applica i middleware in ordine e il primo che matcha viene usato
-app.use('/api/settings/import', express.json({ limit: '50mb' }));
-app.use('/api/settings/import/check', express.json({ limit: '50mb' }));
+app.use('/api/settings/import', express.json({ limit: envConfig.bodyParser.importJsonLimit }));
+app.use('/api/settings/import/check', express.json({ limit: envConfig.bodyParser.importJsonLimit }));
 
 // Limite standard per la maggior parte delle richieste
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.json({ limit: envConfig.bodyParser.jsonLimit }));
+app.use(express.urlencoded({ extended: true, limit: envConfig.bodyParser.urlencodedLimit }));
 
 app.use(cookieParser());
 
@@ -165,7 +166,7 @@ app.use(errorHandler);
 // 8. DATABASE CONNECTION
 // ==========================================
 
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = envConfig.database.mongoUri;
 
 // Fail Secure: non tollerare credenziali mancanti
 if (!MONGO_URI) {
@@ -177,8 +178,8 @@ if (!MONGO_URI) {
 const connectDB = async () => {
     try {
         await mongoose.connect(MONGO_URI, {
-            maxPoolSize: 10,
-            serverSelectionTimeoutMS: 5000,
+            maxPoolSize: envConfig.database.maxPoolSize,
+            serverSelectionTimeoutMS: envConfig.database.serverSelectionTimeoutMS,
         });
         logger.success('Server', 'Connesso al database MongoDB');
     } catch (err) {
@@ -233,21 +234,23 @@ const startServer = async () => {
     // Deve essere fatto dopo la connessione al DB
     initializeSubscribers();
     
-    // Log metriche ogni 5 minuti (solo in sviluppo)
-    if (process.env.NODE_ENV !== 'production') {
+    // Log metriche (configurabile)
+    if (envConfig.monitoring.enableEventMetricsLogging) {
         setInterval(() => {
             const summary = eventMetrics.getSummary();
             logger.debug('EventMetrics', 'Summary', summary);
-        }, 5 * 60 * 1000);
+        }, envConfig.monitoring.eventMetricsInterval);
     }
     
     app.listen(PORT, () => {
         logger.success('Server', `Server in ascolto sulla porta ${PORT}`);
-        logger.info('Server', `Environment: ${process.env.NODE_ENV || 'development'}`);
+        logger.info('Server', `Environment: ${envConfig.server.nodeEnv}`);
         logger.info('Server', 'Security: Helmet, CORS, Rate Limiting attivi');
         logger.info('Server', 'Event Bus: Pattern Observer attivo');
         logger.info('Server', 'Activity Queue: Retry automatico attivo');
-        logger.info('Server', 'Event Metrics: Monitoring attivo');
+        if (envConfig.monitoring.enableEventMetricsLogging) {
+            logger.info('Server', 'Event Metrics: Monitoring attivo');
+        }
     });
 };
 
