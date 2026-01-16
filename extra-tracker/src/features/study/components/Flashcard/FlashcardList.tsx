@@ -471,15 +471,21 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                             </SortableContext>
                         )}
 
-                        {/* DragOverlay: Renders a clean copy of the dragged card in a portal */}
-                        <DragOverlay>
+                        {/* DragOverlay: iOS-style lifted card with physics */}
+                        <DragOverlay
+                            style={{
+                                zIndex: 9999,
+                            }}
+                        >
                             {activeCard ? (
                                 <div
+                                    className="scale-110 rotate-3 shadow-2xl cursor-grabbing transition-all duration-200 ease-out"
                                     style={{
-                                        transform: 'rotate(2deg)',
-                                        boxShadow: '0px 15px 25px rgba(0,0,0,0.3)',
+                                        // Deep, soft iOS-style shadow with violet tint
+                                        boxShadow: '0 25px 50px -12px rgba(139, 92, 246, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                                        // Additional depth with filter
+                                        filter: 'drop-shadow(0 30px 60px -15px rgba(0, 0, 0, 0.4))',
                                     }}
-                                    className="opacity-90"
                                 >
                                     {viewMode === 'grid' ? (
                                         <FlashcardItem
@@ -490,8 +496,8 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                         />
                                     ) : (
                                         <div className="flex items-start gap-3">
-                                            <div className="flex flex-col items-center gap-2 pt-1 flex-shrink-0">
-                                                <div className="p-1 text-white/30">
+                                            <div className="flex flex-col items-center gap-2 pt-1 flex-shrink-0 opacity-50">
+                                                <div className="p-1 text-white/20">
                                                     <svg
                                                         className="w-4 h-4"
                                                         viewBox="0 0 24 24"
@@ -509,7 +515,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                                         <circle cx="15" cy="19" r="1" />
                                                     </svg>
                                                 </div>
-                                                <span className="text-xs font-medium text-white/40 select-none">
+                                                <span className="text-xs font-medium text-white/30 select-none">
                                                     #{items.findIndex(c => c.id === activeCard.id) + 1}
                                                 </span>
                                             </div>

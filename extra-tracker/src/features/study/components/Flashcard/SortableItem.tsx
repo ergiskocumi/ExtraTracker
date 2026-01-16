@@ -64,9 +64,13 @@ export const SortableItem: React.FC<SortableItemProps> = ({
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
+        transition: isDragging ? 'all 200ms ease-out' : transition,
     };
+
+    // iOS-style ghost placeholder: fade out and scale down when dragging
+    const ghostStyles = isDragging
+        ? 'opacity-30 scale-95 transition-all duration-200 ease-out'
+        : 'opacity-100 scale-100 transition-all duration-200 ease-out';
 
     // Grid View: Simple card layout
     if (viewMode === 'grid') {
@@ -74,7 +78,7 @@ export const SortableItem: React.FC<SortableItemProps> = ({
             <div
                 ref={setNodeRef}
                 style={style}
-                className="group relative cursor-grab active:cursor-grabbing"
+                className={`group relative cursor-grab active:cursor-grabbing ${ghostStyles}`}
                 {...attributes}
                 {...listeners}
             >
@@ -95,24 +99,23 @@ export const SortableItem: React.FC<SortableItemProps> = ({
     }
 
     // List View: Card with drag handle and number
+    // Make entire card draggable (iOS-style), but keep handle subtle for visual reference
     return (
         <div
             ref={setNodeRef}
             style={style}
-            className="group relative"
+            className={`group relative cursor-grab active:cursor-grabbing ${ghostStyles}`}
+            {...attributes}
+            {...listeners}
         >
             <div className="flex items-start gap-3">
-                {/* Drag Handle and Number */}
-                <div
-                    className="flex flex-col items-center gap-2 pt-1 flex-shrink-0 cursor-grab active:cursor-grabbing"
-                    {...attributes}
-                    {...listeners}
-                >
-                    <div className="p-1 text-white/30 hover:text-white/60 transition-colors touch-none">
+                {/* Drag Handle and Number - More subtle, only visible on hover */}
+                <div className="flex flex-col items-center gap-2 pt-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                    <div className="p-1 text-white/20">
                         <DragHandleIcon className="w-4 h-4" />
                     </div>
                     {/* Numero card - discreto ma visibile */}
-                    <span className="text-xs font-medium text-white/40 select-none">
+                    <span className="text-xs font-medium text-white/30 select-none">
                         #{index + 1}
                     </span>
                 </div>
