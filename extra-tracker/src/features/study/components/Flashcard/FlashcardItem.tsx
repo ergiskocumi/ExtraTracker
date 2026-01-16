@@ -10,10 +10,16 @@ interface FlashcardItemProps {
     onClick?: (card: Card) => void;
     /** Callback per eliminare la card (opzionale) */
     onDelete?: (cardId: string) => void;
+    /** Se true, la card parte già in editing mode */
+    initialEditing?: boolean;
+    /** Callback quando la card viene cancellata (per card temporanee) */
+    onCancel?: () => void;
+    /** Callback per creare una nuova card (per card temporanee) */
+    onCreate?: (front: string, back: string) => Promise<void>;
 }
 
-export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdate, onClick, onDelete }) => {
-    const [isEditing, setIsEditing] = useState(false);
+export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdate, onClick, onDelete, initialEditing = false, onCancel, onCreate }) => {
+    const [isEditing, setIsEditing] = useState(initialEditing);
     const [tempFront, setTempFront] = useState(card.front);
     const [tempBack, setTempBack] = useState(card.back);
     const [saving, setSaving] = useState(false);
@@ -40,18 +46,27 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdat
         setTempFront(card.front);
         setTempBack(card.back);
         setIsEditing(false);
-    }, [card.front, card.back]);
+        // Se c'è onCancel (card temporanea), chiamalo
+        if (onCancel) {
+            onCancel();
+        }
+    }, [card.front, card.back, onCancel]);
 
     const handleSave = useCallback(async () => {
         if (!trimmedFront || !trimmedBack || saving) return;
         setSaving(true);
         try {
-            await onUpdate(card.id, trimmedFront, trimmedBack);
+            // Se è una card temporanea (ID inizia con "temp-") e c'è onCreate, usalo
+            if (card.id.startsWith('temp-') && onCreate) {
+                await onCreate(trimmedFront, trimmedBack);
+            } else {
+                await onUpdate(card.id, trimmedFront, trimmedBack);
+                emitToast.success('Carta aggiornata con successo', {
+                    title: 'Modifica completata',
+                    duration: 2000
+                });
+            }
             setIsEditing(false);
-            emitToast.success('Carta aggiornata con successo', {
-                title: 'Modifica completata',
-                duration: 2000
-            });
         } catch (err: any) {
             emitToast.error(err.message || 'Errore durante il salvataggio', {
                 title: 'Errore',
@@ -60,7 +75,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdat
         } finally {
             setSaving(false);
         }
-    }, [card.id, trimmedFront, trimmedBack, saving, onUpdate]);
+    }, [card.id, trimmedFront, trimmedBack, saving, onUpdate, onCreate]);
 
     const handleCardClick = useCallback((e: React.MouseEvent) => {
         if (!isEditing && onClick && !(e.target as HTMLElement).closest('button')) {

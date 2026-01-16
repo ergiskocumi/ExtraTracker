@@ -44,8 +44,8 @@ import {
 import type { Deck, Card } from '../../services/studyService';
 import { SortableItem } from './SortableItem';
 import { FlashcardItem } from './FlashcardItem';
-import { AddCardModal } from './AddCardModal';
 import { DeleteCardModal } from './DeleteCardModal';
+import { FlashcardInlineForm } from './FlashcardInlineForm';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 
@@ -189,14 +189,15 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     // Track which card is being dragged (for DragOverlay)
     const [activeId, setActiveId] = useState<string | null>(null);
 
-    // Modal state for adding new cards
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null);
+
+    // Inline form state (per entrambe le viste)
+    const [insertingIndex, setInsertingIndex] = useState<number | null>(null);
 
     // Modal state for deleting cards
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [cardToDelete, setCardToDelete] = useState<Card | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
 
     // Sync local state when deck or filteredCards change (but not during drag)
     useEffect(() => {
@@ -253,7 +254,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
         if (!over || active.id === over.id) {
             return;
         }
-
+        
         const oldIndex = items.findIndex((card) => card.id === active.id);
         const newIndex = items.findIndex((card) => card.id === over.id);
 
@@ -303,72 +304,14 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     }, [items, deck.id, deck.cards, filteredCards, onDeckUpdate]);
 
     /**
-     * Handler per aprire il modal di aggiunta card
+     * Handler per aprire il form inline di aggiunta card
      * @param position - The index position where the card should be inserted (0-based)
      */
     const handleInsertCard = useCallback((position: number) => {
-        setPendingInsertIndex(position);
-        setIsAddModalOpen(true);
+        // Usa sempre il form inline (sia grid che list view)
+        setInsertingIndex(position);
     }, []);
 
-    /**
-     * Handler per confermare l'aggiunta della card dal modal
-     * @param front - Il testo della domanda
-     * @param back - Il testo della risposta
-     */
-    const handleConfirmAdd = useCallback(async (front: string, back: string) => {
-        if (pendingInsertIndex === null) {
-            return;
-        }
-
-        try {
-            const position = pendingInsertIndex;
-
-            // Se ci sono card filtrate, mappa la posizione al deck completo
-            let insertPosition = position;
-            if (filteredCards && filteredCards.length > 0 && filteredCards.length !== deck.cards.length) {
-                const fullDeckCards = deck.cards || [];
-                
-                if (position === 0) {
-                    // Inserisci all'inizio del deck
-                    insertPosition = 0;
-                } else if (position >= filteredCards.length) {
-                    // Inserisci alla fine del deck
-                    insertPosition = fullDeckCards.length;
-                } else {
-                    // Trova la posizione della card precedente nel deck completo
-                    const previousCard = filteredCards[position - 1];
-                    const previousIndex = fullDeckCards.findIndex(c => c.id === previousCard.id);
-                    insertPosition = previousIndex >= 0 ? previousIndex + 1 : fullDeckCards.length;
-                }
-            }
-
-            // Inserisci la card nella posizione specificata
-            const updatedDeck = await studyService.addCardAtPosition(deck.id, {
-                front: front.trim(),
-                back: back.trim(),
-                position: insertPosition,
-            });
-
-            if (onDeckUpdate) {
-                onDeckUpdate(updatedDeck);
-            }
-
-            emitToast.success(`Card aggiunta in posizione ${insertPosition + 1}`);
-        } catch (err: any) {
-            console.error('Errore nell\'inserimento:', err);
-            emitToast.error(err.message || 'Errore nell\'aggiunta della card');
-            throw err; // Re-throw to let modal handle loading state
-        }
-    }, [pendingInsertIndex, deck.id, deck.cards, filteredCards, onDeckUpdate]);
-
-    /**
-     * Handler per chiudere il modal di aggiunta
-     */
-    const handleCloseModal = useCallback(() => {
-        setIsAddModalOpen(false);
-        setPendingInsertIndex(null);
-    }, []);
 
     /**
      * Handler per aprire il modal di eliminazione
@@ -428,14 +371,74 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
      * Handler per il pulsante "+" nell'header - aggiunge card alla fine
      */
     const handleHeaderAddCard = useCallback(() => {
-        // Se onAddCard è fornito, usalo (per compatibilità)
-        // Altrimenti apri il modal per aggiungere alla fine
+        // In entrambe le viste, usa il form inline
         if (onAddCard) {
             onAddCard();
         } else {
             handleInsertCard(items.length);
         }
     }, [onAddCard, handleInsertCard, items.length]);
+
+    /**
+     * Handler per salvare la card dal form inline
+     * @param front - Il testo della domanda
+     * @param back - Il testo della risposta
+     */
+    const handleSaveInlineForm = useCallback(async (front: string, back: string) => {
+        if (insertingIndex === null) {
+            return;
+        }
+
+        try {
+            const position = insertingIndex;
+
+            // Se ci sono card filtrate, mappa la posizione al deck completo
+            let insertPosition = position;
+            if (filteredCards && filteredCards.length > 0 && filteredCards.length !== deck.cards.length) {
+                const fullDeckCards = deck.cards || [];
+                
+                if (position === 0) {
+                    // Inserisci all'inizio del deck
+                    insertPosition = 0;
+                } else if (position >= filteredCards.length) {
+                    // Inserisci alla fine del deck
+                    insertPosition = fullDeckCards.length;
+                } else {
+                    // Trova la posizione della card precedente nel deck completo
+                    const previousCard = filteredCards[position - 1];
+                    const previousIndex = fullDeckCards.findIndex(c => c.id === previousCard.id);
+                    insertPosition = previousIndex >= 0 ? previousIndex + 1 : fullDeckCards.length;
+                }
+            }
+
+            // Inserisci la card nella posizione specificata
+            const updatedDeck = await studyService.addCardAtPosition(deck.id, {
+                front: front.trim(),
+                back: back.trim(),
+                position: insertPosition,
+            });
+
+            if (onDeckUpdate) {
+                onDeckUpdate(updatedDeck);
+            }
+
+            emitToast.success(`Card aggiunta in posizione ${insertPosition + 1}`);
+            
+            // Chiudi il form inline
+            setInsertingIndex(null);
+        } catch (err: any) {
+            console.error('Errore nell\'inserimento:', err);
+            emitToast.error(err.message || 'Errore nell\'aggiunta della card');
+        }
+    }, [insertingIndex, deck.id, deck.cards, filteredCards, onDeckUpdate]);
+
+    /**
+     * Handler per cancellare il form inline
+     */
+    const handleCancelInlineForm = useCallback(() => {
+        setInsertingIndex(null);
+    }, []);
+
 
     // State for insert button visibility (list view only)
     const [hoveredInsertPosition, setHoveredInsertPosition] = useState<number | null>(null);
@@ -465,14 +468,14 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                         )}
                         {/* Fixed "Add Card" button - Nascosto in cinema mode (grid view) */}
                         {viewMode !== 'grid' && (
-                            <button
+                    <button
                                 onClick={handleHeaderAddCard}
-                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
-                                aria-label="Aggiungi carta"
-                                title="Aggiungi carta"
-                            >
-                                <FiPlus className="w-4 h-4" />
-                            </button>
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
+                        aria-label="Aggiungi carta"
+                        title="Aggiungi carta"
+                    >
+                        <FiPlus className="w-4 h-4" />
+                    </button>
                         )}
                     </div>
                 </div>
@@ -503,69 +506,133 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                 items={items.map(card => card.id)}
                                 strategy={rectSortingStrategy}
                             >
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                                     {items.map((card, index) => (
-                                        <SortableItem
-                                            key={card.id} 
-                                            card={card} 
-                                            index={index}
-                                            totalCards={cardCount}
-                                            onUpdate={onUpdate}
-                                            onClick={handleCardClick}
-                                            onDelete={onDelete || handleDeleteClick}
-                                            viewMode="grid"
-                                        />
+                                        <React.Fragment key={card.id}>
+                                            <SortableItem
+                                    card={card} 
+                                    index={index}
+                                    totalCards={cardCount}
+                                    onUpdate={onUpdate}
+                                    onClick={handleCardClick}
+                                                onDelete={onDelete || handleDeleteClick}
+                                    viewMode="grid"
+                                />
+                                            
+                                            {/* Inline form dopo questa card se insertingIndex === index */}
+                                            {insertingIndex === index && (
+                                                <div className="col-span-full sm:col-span-2 lg:col-span-3">
+                                                    <FlashcardInlineForm
+                                                        onSave={handleSaveInlineForm}
+                                                        onCancel={handleCancelInlineForm}
+                                                        position={index}
+                                                    />
+                                                </div>
+                                            )}
+                                        </React.Fragment>
                                     ))}
-                                </div>
+                                    
+                                    {/* Inline form alla fine se insertingIndex === items.length */}
+                                    {insertingIndex === items.length && (
+                                        <div className="col-span-full sm:col-span-2 lg:col-span-3">
+                                            <FlashcardInlineForm
+                                                onSave={handleSaveInlineForm}
+                                                onCancel={handleCancelInlineForm}
+                                                position={items.length}
+                                            />
+                                        </div>
+                                    )}
+                    </div>
                             </SortableContext>
-                        ) : (
+                ) : (
                             // LIST VIEW: Use verticalListSortingStrategy for vertical stacking
                             <SortableContext
                                 items={items.map(card => card.id)}
                                 strategy={verticalListSortingStrategy}
                             >
-                                <div className="space-y-3 md:space-y-4">
-                                    {/* Insert button at the start */}
+                    <div className="space-y-3 md:space-y-4">
+                                    {/* Inline form all'inizio se insertingIndex === 0 */}
+                                    {insertingIndex === 0 ? (
+                                        <FlashcardInlineForm
+                                            onSave={handleSaveInlineForm}
+                                            onCancel={handleCancelInlineForm}
+                                            position={0}
+                                        />
+                                    ) : (
+                                        /* Insert button at the start */
+                        <div
+                            className="group/insert"
+                                            onMouseEnter={() => setHoveredInsertPosition(0)}
+                                            onMouseLeave={() => setHoveredInsertPosition(null)}
+                            style={{ minHeight: `${INSERT_BUTTON_HEIGHT}px` }}
+                        >
+                            <InsertButton
+                                position={0}
+                                onInsert={handleInsertCard}
+                                                isVisible={hoveredInsertPosition === 0 || activeId !== null}
+                            />
+                        </div>
+                                    )}
+
+                                    {items.map((card, index) => (
+                                <React.Fragment key={card.id}>
+                                            <SortableItem
+                                        card={card}
+                                        index={index}
+                                        totalCards={cardCount}
+                                        onUpdate={onUpdate}
+                                        onClick={handleCardClick}
+                                                onDelete={onDelete || handleDeleteClick}
+                                        viewMode="list"
+                                    />
+
+                                            {/* Inline form dopo questa card se insertingIndex === index + 1 */}
+                                            {insertingIndex === index + 1 ? (
+                                                <FlashcardInlineForm
+                                                    onSave={handleSaveInlineForm}
+                                                    onCancel={handleCancelInlineForm}
+                                                    position={index + 1}
+                                                />
+                                            ) : (
+                                                /* Insert button after each card */
                                     <div
                                         className="group/insert"
-                                        onMouseEnter={() => setHoveredInsertPosition(0)}
-                                        onMouseLeave={() => setHoveredInsertPosition(null)}
+                                                    onMouseEnter={() => setHoveredInsertPosition(index + 1)}
+                                                    onMouseLeave={() => setHoveredInsertPosition(null)}
                                         style={{ minHeight: `${INSERT_BUTTON_HEIGHT}px` }}
                                     >
                                         <InsertButton
-                                            position={0}
+                                            position={index + 1}
                                             onInsert={handleInsertCard}
-                                            isVisible={hoveredInsertPosition === 0 || activeId !== null}
+                                                        isVisible={hoveredInsertPosition === index + 1 || activeId !== null}
                                         />
                                     </div>
-
-                                    {items.map((card, index) => (
-                                        <React.Fragment key={card.id}>
-                                            <SortableItem
-                                                card={card}
-                                                index={index}
-                                                totalCards={cardCount}
-                                                onUpdate={onUpdate}
-                                                onClick={handleCardClick}
-                                                onDelete={onDelete || handleDeleteClick}
-                                                viewMode="list"
+                                            )}
+                                </React.Fragment>
+                            ))}
+                                    
+                                    {/* Inline form alla fine se insertingIndex === items.length */}
+                                    {insertingIndex === items.length ? (
+                                        <FlashcardInlineForm
+                                            onSave={handleSaveInlineForm}
+                                            onCancel={handleCancelInlineForm}
+                                            position={items.length}
+                                        />
+                                    ) : (
+                                        /* Insert button alla fine se non c'è form inline */
+                                        <div
+                                            className="group/insert"
+                                            onMouseEnter={() => setHoveredInsertPosition(items.length)}
+                                            onMouseLeave={() => setHoveredInsertPosition(null)}
+                                            style={{ minHeight: `${INSERT_BUTTON_HEIGHT}px` }}
+                                        >
+                                            <InsertButton
+                                                position={items.length}
+                                                onInsert={handleInsertCard}
+                                                isVisible={hoveredInsertPosition === items.length || activeId !== null}
                                             />
-
-                                            {/* Insert button after each card */}
-                                            <div
-                                                className="group/insert"
-                                                onMouseEnter={() => setHoveredInsertPosition(index + 1)}
-                                                onMouseLeave={() => setHoveredInsertPosition(null)}
-                                                style={{ minHeight: `${INSERT_BUTTON_HEIGHT}px` }}
-                                            >
-                                                <InsertButton
-                                                    position={index + 1}
-                                                    onInsert={handleInsertCard}
-                                                    isVisible={hoveredInsertPosition === index + 1 || activeId !== null}
-                                                />
-                                            </div>
-                                        </React.Fragment>
-                                    ))}
+                                        </div>
+                                    )}
                                 </div>
                             </SortableContext>
                         )}
@@ -628,19 +695,13 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                             </div>
                                         </div>
                                     )}
-                                </div>
+                    </div>
                             ) : null}
                         </DragOverlay>
                     </DndContext>
                 )}
 
-                {/* Add Card Modal */}
-                <AddCardModal
-                    isOpen={isAddModalOpen}
-                    onClose={handleCloseModal}
-                    onConfirm={handleConfirmAdd}
-                    position={pendingInsertIndex ?? undefined}
-                />
+                {/* Add Card Modal - Rimosso, ora usiamo sempre il form inline */}
 
                 {/* Delete Card Modal */}
                 <DeleteCardModal
