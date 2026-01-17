@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import {
     FiArrowLeft,
     FiPlay,
@@ -114,6 +115,9 @@ export const DeckDetailPage: React.FC = () => {
     useEffect(() => {
         loadDeck();
     }, [loadDeck]);
+
+    // Scroll to top when navigating to this page or when deck ID changes
+    useScrollToTop([id]);
 
     // Filtered cards
     const filteredCards = deck?.cards.filter(card => {

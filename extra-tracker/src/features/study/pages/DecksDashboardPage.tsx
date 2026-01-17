@@ -14,6 +14,7 @@ import { useDashboardCalculations, type FilterType } from '../hooks/useDashboard
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useDeckHandlers } from '../hooks/useDeckHandlers';
 import { useOrganizedDecks } from '../hooks/useOrganizedDecks';
+import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { DashboardHero } from '../components/DashboardHero';
 import { TodayPlan } from '../components/TodayPlan';
@@ -80,6 +81,9 @@ export const DecksDashboardPage: React.FC = () => {
     useEffect(() => {
         loadExams();
     }, [loadExams, examsRefreshKey]);
+
+    // Scroll to top when an exam is selected (non è un cambio di route, quindi serve hook specifico)
+    useScrollToTop([selectedExamId]);
 
     // Calculations
     const {

@@ -9,6 +9,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { EntryTimeline } from '../components/EntryTimeline';
 import { EntryDetailModal } from '../components/EntryDetailModal';
 import { TodoList } from '../components/TodoList';
@@ -32,6 +33,9 @@ export const ProjectDetailPage = () => {
         const pid = p.id || (p as any)._id;
         return String(pid) === String(id);
     });
+
+    // Scroll to top when navigating to this page or when project ID changes
+    useScrollToTop([id]);
 
     // Carica TODO del progetto
     useEffect(() => {

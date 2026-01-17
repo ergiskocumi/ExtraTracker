@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useGoalDetail, getDaysRemaining, getProgressColor } from '../hooks/useGoalDetail';
+import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import {
     LoadingSpinner,
     ErrorState,
@@ -176,6 +177,9 @@ export const GoalDetailPage = () => {
 
     // Local tab state for Mission Control
     const [activeTab, setActiveTab] = useState<MissionTab>('roadmap');
+
+    // Scroll to top when navigating to this page
+    useScrollToTop([goal?.id]);
 
     // Loading state
     if (loading) {
