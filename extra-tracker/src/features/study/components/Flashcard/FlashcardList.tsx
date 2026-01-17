@@ -69,6 +69,10 @@ interface FlashcardListProps {
     filteredCards?: Card[];
     /** Modalità di visualizzazione: 'list' (lista verticale) o 'grid' (griglia quadrata) */
     viewMode?: 'list' | 'grid';
+    /** Callback quando si clicca "Show Source" su una card */
+    onShowSource?: (card: Card) => void;
+    /** ID della card attualmente evidenziata come "source active" */
+    activeSourceCardId?: string | null;
 }
 
 interface InsertButtonProps {
@@ -180,10 +184,26 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     onDeckUpdate,
     filteredCards,
     viewMode = 'list',
+    onShowSource,
+    activeSourceCardId,
 }) => {
     // Local state for drag interactions - ensures instant visual feedback
+    // Add mock sourceMetadata to first 2-3 cards for testing
     const [items, setItems] = useState<Card[]>(() => {
-        return filteredCards || deck.cards || [];
+        const cards = filteredCards || deck.cards || [];
+        // Add mock sourceMetadata to first 2-3 cards if they don't have it
+        return cards.map((card, index) => {
+            if (index < 3 && !card.sourceMetadata) {
+                return {
+                    ...card,
+                    sourceMetadata: {
+                        pageNumber: index + 1, // Pages 1, 2, 3
+                        originalText: card.front.substring(0, 50) + '...', // Mock: first 50 chars of front
+                    },
+                };
+            }
+            return card;
+        });
     });
 
     // Track which card is being dragged (for DragOverlay)
@@ -517,6 +537,8 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                     onClick={handleCardClick}
                                                 onDelete={onDelete || handleDeleteClick}
                                     viewMode="grid"
+                                    onShowSource={onShowSource}
+                                    isSourceActive={activeSourceCardId === card.id}
                                 />
                                             
                                             {/* Inline form dopo questa card se insertingIndex === index */}
@@ -584,6 +606,8 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                         onClick={handleCardClick}
                                                 onDelete={onDelete || handleDeleteClick}
                                         viewMode="list"
+                                        onShowSource={onShowSource}
+                                        isSourceActive={activeSourceCardId === card.id}
                                     />
 
                                             {/* Inline form dopo questa card se insertingIndex === index + 1 */}
@@ -659,6 +683,8 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                             onUpdate={onUpdate}
                                             onClick={handleCardClick}
                                             onDelete={onDelete}
+                                            onShowSource={onShowSource}
+                                            isSourceActive={activeSourceCardId === activeCard.id}
                                         />
                                     ) : (
                                         <div className="flex items-start gap-3">
@@ -691,6 +717,8 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                                     onUpdate={onUpdate}
                                                     onClick={handleCardClick}
                                                     onDelete={onDelete}
+                                                    onShowSource={onShowSource}
+                                                    isSourceActive={activeSourceCardId === activeCard.id}
                                                 />
                                             </div>
                                         </div>

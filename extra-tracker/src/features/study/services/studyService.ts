@@ -20,6 +20,16 @@ export interface Card {
     repetitions: number;
     nextReviewDate: string;
     status: CardStatus;
+    /**
+     * Metadata per tracciare la fonte originale nel PDF
+     * Usato per il "Jump to Source" feature
+     */
+    sourceMetadata?: {
+        /** Numero di pagina (1-based index) */
+        pageNumber: number;
+        /** Il testo esatto nel PDF che ha generato questa card */
+        originalText: string;
+    };
 }
 
 export interface Deck {

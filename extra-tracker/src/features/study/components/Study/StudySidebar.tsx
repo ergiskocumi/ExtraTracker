@@ -10,7 +10,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiX, FiCheck, FiArrowLeft } from 'react-icons/fi';
 import { Layers, MessageCircle } from 'lucide-react';
-import type { Deck } from '../../services/studyService';
+import type { Deck, Card } from '../../services/studyService';
 import { PDFChat } from '../PDF/PDFChat';
 import { FlashcardList } from '../Flashcard/FlashcardList';
 
@@ -33,6 +33,10 @@ interface StudySidebarProps {
     onNavigateBack?: () => void;
     /** Callback quando il deck viene aggiornato (riordinamento, inserimento card) */
     onDeckUpdate?: (updatedDeck: Deck) => void;
+    /** Callback quando si clicca "Show Source" su una card */
+    onShowSource?: (card: Card) => void;
+    /** ID della card attualmente evidenziata come "source active" */
+    activeSourceCardId?: string | null;
 }
 
 export const StudySidebar: React.FC<StudySidebarProps> = ({
@@ -48,6 +52,8 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
     onConsumePendingChatMessage,
     onNavigateBack,
     onDeckUpdate,
+    onShowSource,
+    activeSourceCardId,
 }) => {
     const [activeTab, setActiveTab] = useState<'flashcards' | 'chat'>('flashcards');
     const currentTab = activeTabOverride ?? activeTab;
@@ -72,6 +78,8 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         showHeader
                         onNavigateBack={onNavigateBack}
                         onDeckUpdate={onDeckUpdate}
+                        onShowSource={onShowSource}
+                        activeSourceCardId={activeSourceCardId}
                     />
                 ) : (
                     <PDFChat
@@ -155,6 +163,8 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         onAddCard={onAddCard}
                         onUpdate={onUpdateCard}
                         onDeckUpdate={onDeckUpdate}
+                        onShowSource={onShowSource}
+                        activeSourceCardId={activeSourceCardId}
                     />
                 ) : (
                     <PDFChat

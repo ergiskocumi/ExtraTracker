@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
-import { FiEdit2, FiX, FiCheck, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiX, FiCheck, FiTrash2, FiTarget } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Card } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
@@ -16,9 +16,23 @@ interface FlashcardItemProps {
     onCancel?: () => void;
     /** Callback per creare una nuova card (per card temporanee) */
     onCreate?: (front: string, back: string) => Promise<void>;
+    /** Callback quando si clicca "Show Source" (opzionale) */
+    onShowSource?: (card: Card) => void;
+    /** Se true, la card è attualmente evidenziata come "source active" */
+    isSourceActive?: boolean;
 }
 
-export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdate, onClick, onDelete, initialEditing = false, onCancel, onCreate }) => {
+export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ 
+    card, 
+    onUpdate, 
+    onClick, 
+    onDelete, 
+    initialEditing = false, 
+    onCancel, 
+    onCreate,
+    onShowSource,
+    isSourceActive = false,
+}) => {
     const [isEditing, setIsEditing] = useState(initialEditing);
     const [tempFront, setTempFront] = useState(card.front);
     const [tempBack, setTempBack] = useState(card.back);
@@ -83,16 +97,29 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdat
         }
     }, [isEditing, onClick, card]);
 
+    const handleShowSource = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onShowSource && card.sourceMetadata) {
+            onShowSource(card);
+        }
+    }, [onShowSource, card]);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className={`group relative rounded-2xl md:rounded-3xl border border-white/[0.08] backdrop-blur-xl p-4 md:p-5 transition-all duration-300 hover:border-white/[0.15] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] ${
+            className={`group relative rounded-2xl md:rounded-3xl border backdrop-blur-xl p-4 md:p-5 transition-all duration-300 hover:border-white/[0.15] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] ${
                 onClick && !isEditing ? 'cursor-pointer' : ''
+            } ${
+                isSourceActive 
+                    ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.3)]' 
+                    : 'border-white/[0.08]'
             }`}
             style={{
-                background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
+                background: isSourceActive
+                    ? 'linear-gradient(145deg, rgba(234,179,8,0.1) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 100%)'
+                    : 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
             }}
             onClick={handleCardClick}
         >
@@ -116,6 +143,21 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ card, onUpdat
                                 </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                                {card.sourceMetadata && onShowSource && (
+                                    <button
+                                        type="button"
+                                        onClick={handleShowSource}
+                                        className={`p-2 rounded-xl border backdrop-blur-sm transition-all duration-300 active:scale-95 ${
+                                            isSourceActive
+                                                ? 'border-yellow-500/50 bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+                                                : 'border-blue-500/20 bg-blue-500/10 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20'
+                                        }`}
+                                        aria-label="Vedi nel testo"
+                                        title="Vedi nel testo"
+                                    >
+                                        <FiTarget className="w-4 h-4 md:w-5 md:h-5" />
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={handleStartEdit}

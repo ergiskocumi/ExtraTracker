@@ -7,19 +7,24 @@
  * - Performance ottimizzate con virtualizzazione
  * - Controlli standard (zoom, ricerca, navigazione)
  * - Pinch-to-zoom nativo con trackpad
+ * - Source Traceability: jump to page and highlight text
  * 
  * CRITICAL: defaultLayoutPlugin() is a HOOK internally (uses React hooks).
  * It MUST be called unconditionally as the FIRST line of the component,
  * before any conditional returns.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { Worker, Viewer } from '@react-pdf-viewer/core';
 import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
+import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation';
+import { searchPlugin } from '@react-pdf-viewer/search';
 
 // Import CSS required (CRITICAL for dark mode and text layer)
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/default-layout/lib/styles/index.css';
+import '@react-pdf-viewer/page-navigation/lib/styles/index.css';
+import '@react-pdf-viewer/search/lib/styles/index.css';
 
 // ============================================
 // TYPES
@@ -45,6 +50,31 @@ interface PDFReaderProps {
      * Classe CSS personalizzata per il container
      */
     className?: string;
+}
+
+/**
+ * Metodi esposti dal PDFReader tramite ref
+ * Permettono al parent di controllare navigazione e ricerca
+ */
+export interface PDFReaderRef {
+    /**
+     * Salta a una pagina specifica (0-based index)
+     */
+    jumpToPage: (pageIndex: number) => void;
+    
+    /**
+     * Cerca ed evidenzia un testo nel PDF
+     * @param text - Il testo da cercare
+     * @param options - Opzioni di ricerca (case sensitive, whole word, etc.)
+     */
+    highlightText: (text: string, options?: { caseSensitive?: boolean; wholeWords?: boolean }) => void;
+    
+    /**
+     * Salta a una pagina e poi evidenzia un testo
+     * @param pageNumber - Numero di pagina (1-based)
+     * @param text - Il testo da evidenziare
+     */
+    jumpToPageAndHighlight: (pageNumber: number, text: string) => void;
 }
 
 // ============================================
@@ -132,12 +162,12 @@ const useTheme = (): 'dark' | 'light' => {
 // COMPONENT
 // ============================================
 
-export const PDFReader: React.FC<PDFReaderProps> = ({
+export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
     pdfUrl,
     onError,
     onLoadSuccess,
     className = '',
-}) => {
+}, ref) => {
     /**
      * CRITICAL: defaultLayoutPlugin() IS A HOOK (uses React hooks internally).
      * 
@@ -150,7 +180,7 @@ export const PDFReader: React.FC<PDFReaderProps> = ({
      * Do NOT wrap it in useMemo or call it conditionally.
      */
     
-    // LINE 1 (CRITICAL): Call the hook FIRST, before any conditional logic
+    // LINE 1 (CRITICAL): Call the hooks FIRST, before any conditional logic
     // This MUST be the first executable line in the component
     const defaultLayoutPluginInstance = defaultLayoutPlugin({
         // Configurazione sidebar (thumbnails)
@@ -160,10 +190,118 @@ export const PDFReader: React.FC<PDFReaderProps> = ({
         ],
     });
 
+    // Initialize page navigation and search plugins
+    const pageNavigationPluginInstance = pageNavigationPlugin();
+    const searchPluginInstance = searchPlugin();
+
     // LINE 2: Detect theme (hook, so must be called early)
     const isDarkMode = useTheme() === 'dark';
     const containerRef = useRef<HTMLDivElement>(null);
     const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Expose methods via ref
+    useImperativeHandle(ref, () => ({
+        jumpToPage: (pageIndex: number) => {
+            try {
+                const jumpToPage = pageNavigationPluginInstance.jumpToPage;
+                if (typeof jumpToPage === 'function') {
+                    jumpToPage(pageIndex);
+                } else {
+                    console.warn('[PDFReader] jumpToPage method not available');
+                }
+            } catch (err) {
+                console.error('[PDFReader] Error jumping to page:', err);
+            }
+        },
+        highlightText: (text: string, options?: { caseSensitive?: boolean; wholeWords?: boolean }) => {
+            try {
+                // The search plugin API: use keyword property and clearHighlights/highlight methods
+                const plugin = searchPluginInstance as any;
+                
+                // Clear previous highlights
+                if (typeof plugin.clearHighlights === 'function') {
+                    plugin.clearHighlights();
+                }
+                
+                // Set keyword (this triggers the search automatically in some versions)
+                // For @react-pdf-viewer/search, we need to use the keyword setter
+                if (plugin.keyword !== text) {
+                    // Re-initialize plugin with new keyword if needed
+                    // Note: The plugin instance is already created, so we use its methods
+                    if (typeof plugin.setKeyword === 'function') {
+                        plugin.setKeyword(text);
+                    } else if (plugin.keyword !== undefined) {
+                        // Direct property access (if mutable)
+                        plugin.keyword = text;
+                    }
+                }
+                
+                // Set match case and whole words if options provided
+                if (options) {
+                    if (options.caseSensitive !== undefined) {
+                        if (typeof plugin.setMatchCase === 'function') {
+                            plugin.setMatchCase(options.caseSensitive);
+                        } else if (plugin.matchCase !== undefined) {
+                            plugin.matchCase = options.caseSensitive;
+                        }
+                    }
+                    if (options.wholeWords !== undefined) {
+                        if (typeof plugin.setWholeWords === 'function') {
+                            plugin.setWholeWords(options.wholeWords);
+                        } else if (plugin.wholeWords !== undefined) {
+                            plugin.wholeWords = options.wholeWords;
+                        }
+                    }
+                }
+                
+                // Trigger highlight/search
+                if (typeof plugin.highlight === 'function') {
+                    plugin.highlight(text);
+                } else if (typeof plugin.search === 'function') {
+                    plugin.search(text);
+                }
+            } catch (err) {
+                console.error('[PDFReader] Error highlighting text:', err);
+            }
+        },
+        jumpToPageAndHighlight: (pageNumber: number, text: string) => {
+            try {
+                // Jump to page first (convert 1-based to 0-based)
+                const pageIndex = Math.max(0, pageNumber - 1);
+                const jumpToPage = pageNavigationPluginInstance.jumpToPage;
+                if (typeof jumpToPage === 'function') {
+                    jumpToPage(pageIndex);
+                }
+                
+                // Wait a bit for page to load, then highlight
+                setTimeout(() => {
+                    try {
+                        const plugin = searchPluginInstance as any;
+                        // Clear previous highlights
+                        if (typeof plugin.clearHighlights === 'function') {
+                            plugin.clearHighlights();
+                        }
+                        // Set keyword
+                        if (typeof plugin.setKeyword === 'function') {
+                            plugin.setKeyword(text);
+                        } else if (plugin.keyword !== undefined) {
+                            plugin.keyword = text;
+                        }
+                        // Trigger highlight
+                        if (typeof plugin.highlight === 'function') {
+                            plugin.highlight(text);
+                        } else if (typeof plugin.search === 'function') {
+                            plugin.search(text);
+                        }
+                    } catch (err) {
+                        console.error('[PDFReader] Error highlighting after jump:', err);
+                    }
+                }, 500); // Increased delay to ensure page is rendered
+            } catch (err) {
+                console.error('[PDFReader] Error in jumpToPageAndHighlight:', err);
+            }
+        },
+    }), [pageNavigationPluginInstance, searchPluginInstance]);
 
     // LINE 3: Pinch-to-Zoom handler (trackpad)
     useEffect(() => {
@@ -305,7 +443,11 @@ export const PDFReader: React.FC<PDFReaderProps> = ({
                 >
                     <Viewer
                         fileUrl={pdfUrl}
-                        plugins={[defaultLayoutPluginInstance]}
+                        plugins={[
+                            defaultLayoutPluginInstance,
+                            pageNavigationPluginInstance,
+                            searchPluginInstance,
+                        ]}
                         theme={isDarkMode ? 'dark' : undefined}
                         onDocumentLoad={(e) => {
                             console.log('[PDFReader] PDF caricato:', e.doc.numPages, 'pagine');
@@ -428,6 +570,8 @@ export const PDFReader: React.FC<PDFReaderProps> = ({
             `}</style>
         </div>
     );
-};
+});
+
+PDFReader.displayName = 'PDFReader';
 
 export default PDFReader;

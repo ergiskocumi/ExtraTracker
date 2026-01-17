@@ -10,13 +10,13 @@
  * - Callback memoizzati
  */
 
-import React, { memo, useMemo, useCallback } from 'react';
+import React, { memo, useMemo, useCallback, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 import { Panel, Group, Separator } from 'react-resizable-panels';
-import { PDFReader } from '../components/PDF/PDFReader';
+import { PDFReader, type PDFReaderRef } from '../components/PDF/PDFReader';
 import { StudySidebar } from '../components/Study/StudySidebar';
-import type { Deck } from '../services/studyService';
+import type { Deck, Card } from '../services/studyService';
 
 // ============================================
 // CONSTANTS
@@ -55,9 +55,10 @@ interface CinemaLayoutProps {
 
 interface PDFPanelProps {
     pdfSrc: string | null;
+    pdfReaderRef: React.RefObject<PDFReaderRef>;
 }
 
-const PDFPanel = memo<PDFPanelProps>(({ pdfSrc }) => {
+const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef }) => {
     /**
      * CRITICAL: Always render PDFReader, even when pdfSrc is null.
      * 
@@ -79,7 +80,7 @@ const PDFPanel = memo<PDFPanelProps>(({ pdfSrc }) => {
                 }}
             >
                 {/* Always render PDFReader - it handles null pdfUrl internally */}
-                <PDFReader pdfUrl={normalizedPdfSrc} />
+                <PDFReader ref={pdfReaderRef} pdfUrl={normalizedPdfSrc} />
             </div>
         </div>
     );
@@ -101,6 +102,8 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
 }) => {
     const navigate = useNavigate();
     const { deckId } = useParams<{ deckId: string }>();
+    const pdfReaderRef = useRef<PDFReaderRef>(null);
+    const [activeSourceCardId, setActiveSourceCardId] = useState<string | null>(null);
 
     // Memoize deck title per evitare re-render inutili
     const deckTitle = useMemo(() => deck.title, [deck.title]);
@@ -134,6 +137,29 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
     const handleUpdateCard = useCallback(async (cardId: string, front: string, back: string) => {
         await onUpdateCard(cardId, front, back);
     }, [onUpdateCard]);
+
+    /**
+     * Handler per mostrare la fonte di una card nel PDF
+     * Salta alla pagina corretta e evidenzia il testo
+     */
+    const handleShowSource = useCallback((card: Card) => {
+        if (!card.sourceMetadata || !pdfReaderRef.current) {
+            return;
+        }
+
+        const { pageNumber, originalText } = card.sourceMetadata;
+        
+        // Set active card for visual feedback
+        setActiveSourceCardId(card.id);
+        
+        // Jump to page and highlight text
+        pdfReaderRef.current.jumpToPageAndHighlight(pageNumber, originalText);
+        
+        // Clear active state after 3 seconds
+        setTimeout(() => {
+            setActiveSourceCardId(null);
+        }, 3000);
+    }, []);
 
     return (
         <div className="fixed inset-0 h-screen w-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-[#050505] to-black text-white overflow-hidden flex flex-col">
@@ -217,7 +243,7 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                             minSize={PANEL_SIZES.LEFT_MIN} 
                             className="h-full w-full overflow-hidden"
                         >
-                            <PDFPanel pdfSrc={pdfSrc} />
+                            <PDFPanel pdfSrc={pdfSrc} pdfReaderRef={pdfReaderRef} />
                         </Panel>
 
                         {/* Resize Handle - Stile moderno discreto */}
@@ -252,6 +278,8 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                                 compactMode={true}
                                 onNavigateBack={handleNavigateBack}
                                 onDeckUpdate={onDeckUpdate}
+                                onShowSource={handleShowSource}
+                                activeSourceCardId={activeSourceCardId}
                             />
                         </Panel>
                     </Group>

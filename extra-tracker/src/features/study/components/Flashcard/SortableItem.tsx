@@ -20,6 +20,8 @@ interface SortableItemProps {
     onClick?: (card: Card) => void;
     onDelete?: (cardId: string) => void;
     viewMode?: 'list' | 'grid';
+    onShowSource?: (card: Card) => void;
+    isSourceActive?: boolean;
 }
 
 /**
@@ -52,6 +54,8 @@ export const SortableItem: React.FC<SortableItemProps> = ({
     onClick,
     onDelete,
     viewMode = 'list',
+    onShowSource,
+    isSourceActive = false,
 }) => {
     const {
         attributes,
@@ -93,6 +97,8 @@ export const SortableItem: React.FC<SortableItemProps> = ({
                     onUpdate={onUpdate}
                     onClick={onClick}
                     onDelete={onDelete}
+                    onShowSource={onShowSource}
+                    isSourceActive={isSourceActive}
                 />
             </div>
         );
