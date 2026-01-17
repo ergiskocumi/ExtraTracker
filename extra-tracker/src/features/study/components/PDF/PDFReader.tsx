@@ -3,16 +3,17 @@
  * 
  * Implementazione basata su @react-pdf-viewer (Phuoc Nguyen)
  * - Selezione testo nativa (text layer abilitato)
- * - Dark mode integrato
+ * - Dark/Light mode dinamico
  * - Performance ottimizzate con virtualizzazione
  * - Controlli standard (zoom, ricerca, navigazione)
+ * - Pinch-to-zoom nativo con trackpad
  * 
  * CRITICAL: defaultLayoutPlugin() is a HOOK internally (uses React hooks).
  * It MUST be called unconditionally as the FIRST line of the component,
  * before any conditional returns.
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Worker, Viewer } from '@react-pdf-viewer/core';
 import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
 
@@ -74,6 +75,60 @@ const PDFJS_VERSION = '3.11.174';
 const WORKER_URL = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`;
 
 // ============================================
+// HOOKS
+// ============================================
+
+/**
+ * Hook per rilevare il tema corrente dell'applicazione
+ * Legge l'attributo data-theme su document.documentElement
+ */
+const useTheme = (): 'dark' | 'light' => {
+    const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+        if (typeof window === 'undefined') return 'dark';
+        const root = document.documentElement;
+        const dataTheme = root.getAttribute('data-theme');
+        return (dataTheme === 'light' ? 'light' : 'dark');
+    });
+
+    useEffect(() => {
+        const root = document.documentElement;
+        
+        // Observer per cambiamenti all'attributo data-theme
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                    const dataTheme = root.getAttribute('data-theme');
+                    setTheme(dataTheme === 'light' ? 'light' : 'dark');
+                }
+            });
+        });
+
+        observer.observe(root, {
+            attributes: true,
+            attributeFilter: ['data-theme'],
+        });
+
+        // Ascolta anche i cambiamenti del media query (per tema 'system')
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const handleMediaChange = () => {
+            const dataTheme = root.getAttribute('data-theme');
+            if (dataTheme === 'system' || !dataTheme) {
+                setTheme(mediaQuery.matches ? 'dark' : 'light');
+            }
+        };
+
+        mediaQuery.addEventListener('change', handleMediaChange);
+
+        return () => {
+            observer.disconnect();
+            mediaQuery.removeEventListener('change', handleMediaChange);
+        };
+    }, []);
+
+    return theme;
+};
+
+// ============================================
 // COMPONENT
 // ============================================
 
@@ -105,7 +160,117 @@ export const PDFReader: React.FC<PDFReaderProps> = ({
         ],
     });
 
-    // LINE 2: Now we can safely handle conditional logic and early returns
+    // LINE 2: Detect theme (hook, so must be called early)
+    const isDarkMode = useTheme() === 'dark';
+    const containerRef = useRef<HTMLDivElement>(null);
+    const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // LINE 3: Pinch-to-Zoom handler (trackpad)
+    useEffect(() => {
+        if (!pdfUrl || !containerRef.current) return;
+
+        const container = containerRef.current;
+        let lastWheelTime = 0;
+        let currentScale = 1;
+
+        const handleWheel = (e: WheelEvent) => {
+            // Detect pinch gesture (Ctrl/Cmd + wheel on trackpad)
+            // On macOS trackpad, pinch gesture sends wheel events with ctrlKey=true
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Debounce: throttle to ~60fps to prevent excessive renders
+                const now = Date.now();
+                if (now - lastWheelTime < 16) return;
+                lastWheelTime = now;
+
+                // Get zoom plugin from defaultLayoutPlugin instance
+                // The plugin structure: defaultLayoutPluginInstance.toolbarPlugin.zoomPlugin
+                const toolbarPlugin = (defaultLayoutPluginInstance as any).toolbarPlugin;
+                const zoomPlugin = toolbarPlugin?.zoomPlugin;
+                
+                if (!zoomPlugin) {
+                    // Fallback: try direct access
+                    const directZoom = (defaultLayoutPluginInstance as any).zoomPlugin;
+                    if (!directZoom) return;
+                    
+                    // Use direct zoom plugin
+                    const delta = e.deltaY;
+                    const zoomStep = 0.05;
+                    const scaleDelta = delta < 0 ? zoomStep : -zoomStep;
+                    currentScale = Math.max(0.5, Math.min(3.0, currentScale + scaleDelta));
+                    
+                    if (zoomTimeoutRef.current) {
+                        clearTimeout(zoomTimeoutRef.current);
+                    }
+                    
+                    zoomTimeoutRef.current = setTimeout(() => {
+                        try {
+                            if (typeof directZoom.zoomTo === 'function') {
+                                directZoom.zoomTo(currentScale);
+                            }
+                        } catch (err) {
+                            console.warn('[PDFReader] Error applying zoom:', err);
+                        }
+                    }, 10);
+                    return;
+                }
+
+                // Calculate zoom delta
+                // Negative deltaY = zoom in (pinch out), positive = zoom out (pinch in)
+                const delta = e.deltaY;
+                const zoomStep = 0.05; // Smaller steps for smoother zoom
+                
+                // Get current scale if available
+                try {
+                    if (typeof zoomPlugin.getCurrentScale === 'function') {
+                        const scale = zoomPlugin.getCurrentScale();
+                        if (typeof scale === 'number') {
+                            currentScale = scale;
+                        }
+                    }
+                } catch (err) {
+                    // Fallback if getCurrentScale is not available
+                }
+                
+                // Calculate new scale
+                const scaleDelta = delta < 0 ? zoomStep : -zoomStep;
+                const newScale = Math.max(0.5, Math.min(3.0, currentScale + scaleDelta));
+                currentScale = newScale;
+
+                // Apply zoom with debounce to prevent flashing
+                if (zoomTimeoutRef.current) {
+                    clearTimeout(zoomTimeoutRef.current);
+                }
+
+                zoomTimeoutRef.current = setTimeout(() => {
+                    try {
+                        // Use zoomTo method if available
+                        if (typeof zoomPlugin.zoomTo === 'function') {
+                            zoomPlugin.zoomTo(newScale);
+                        } else if (typeof zoomPlugin.zoom === 'function') {
+                            // Alternative API
+                            zoomPlugin.zoom(newScale);
+                        }
+                    } catch (err) {
+                        console.warn('[PDFReader] Error applying zoom:', err);
+                    }
+                }, 10);
+            }
+        };
+
+        container.addEventListener('wheel', handleWheel, { passive: false });
+
+        return () => {
+            container.removeEventListener('wheel', handleWheel);
+            if (zoomTimeoutRef.current) {
+                clearTimeout(zoomTimeoutRef.current);
+            }
+        };
+    }, [pdfUrl, defaultLayoutPluginInstance]);
+
+    // LINE 4: Now we can safely handle conditional logic and early returns
     // All hooks have been called, so React's hook order is preserved
     if (!pdfUrl) {
         return (
@@ -120,20 +285,28 @@ export const PDFReader: React.FC<PDFReaderProps> = ({
         );
     }
 
-    // LINE 3: Main render - all hooks have been called
+    // LINE 5: Main render - all hooks have been called
+    const themeClass = isDarkMode ? 'pdf-reader-dark' : 'pdf-reader-light';
+    const viewerBackground = isDarkMode ? '#0a0a0a' : '#ffffff';
+    const pageBackground = isDarkMode ? '#1a1a1a' : '#f5f5f5';
+
     return (
-        <div className={`h-full w-full pdf-reader-dark ${className}`}>
+        <div 
+            ref={containerRef}
+            className={`h-full w-full ${themeClass} ${className}`}
+        >
             <Worker workerUrl={WORKER_URL}>
                 <div
                     className="h-full w-full rpv-core__viewer"
                     style={{
-                        backgroundColor: '#0a0a0a', // Dark background
-                        color: '#ffffff', // Testo chiaro per dark mode
+                        backgroundColor: viewerBackground,
+                        color: isDarkMode ? '#ffffff' : '#000000',
                     }}
                 >
                     <Viewer
                         fileUrl={pdfUrl}
                         plugins={[defaultLayoutPluginInstance]}
+                        theme={isDarkMode ? 'dark' : undefined}
                         onDocumentLoad={(e) => {
                             console.log('[PDFReader] PDF caricato:', e.doc.numPages, 'pagine');
                             onLoadSuccess?.();
@@ -145,8 +318,9 @@ export const PDFReader: React.FC<PDFReaderProps> = ({
                     />
                 </div>
             </Worker>
-            {/* Dark Mode Styles */}
+            {/* Dynamic Theme Styles */}
             <style>{`
+                /* Dark Mode Styles */
                 .pdf-reader-dark .rpv-core__viewer {
                     background-color: #0a0a0a !important;
                 }
@@ -173,6 +347,9 @@ export const PDFReader: React.FC<PDFReaderProps> = ({
                 .pdf-reader-dark .rpv-default-layout__toolbar button:hover {
                     background-color: rgba(255, 255, 255, 0.1) !important;
                 }
+                .pdf-reader-dark .rpv-core__icon {
+                    color: #ffffff !important;
+                }
                 /* Sidebar dark mode */
                 .pdf-reader-dark .rpv-default-layout__sidebar {
                     background-color: #1a1a1a !important;
@@ -186,6 +363,67 @@ export const PDFReader: React.FC<PDFReaderProps> = ({
                 }
                 .pdf-reader-dark .rpv-default-layout__sidebar-tab--active {
                     background-color: rgba(139, 92, 246, 0.2) !important;
+                }
+
+                /* Light Mode Styles */
+                .pdf-reader-light .rpv-core__viewer {
+                    background-color: #ffffff !important;
+                }
+                .pdf-reader-light .rpv-core__inner-pages {
+                    background-color: #ffffff !important;
+                }
+                .pdf-reader-light .rpv-core__page-layer {
+                    background-color: #f5f5f5 !important;
+                }
+                .pdf-reader-light .rpv-core__text-layer {
+                    color: transparent !important;
+                }
+                .pdf-reader-light .rpv-core__text-layer span {
+                    color: transparent !important;
+                }
+                /* Toolbar light mode - CRITICAL: icons must be dark */
+                .pdf-reader-light .rpv-default-layout__toolbar {
+                    background-color: #f9fafb !important;
+                    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+                }
+                .pdf-reader-light .rpv-default-layout__toolbar button {
+                    color: #1f2937 !important;
+                }
+                .pdf-reader-light .rpv-default-layout__toolbar button:hover {
+                    background-color: rgba(0, 0, 0, 0.05) !important;
+                }
+                .pdf-reader-light .rpv-core__icon {
+                    color: #1f2937 !important;
+                }
+                .pdf-reader-light .rpv-core__icon svg {
+                    fill: #1f2937 !important;
+                    stroke: #1f2937 !important;
+                }
+                /* Sidebar light mode */
+                .pdf-reader-light .rpv-default-layout__sidebar {
+                    background-color: #f9fafb !important;
+                    border-right: 1px solid rgba(0, 0, 0, 0.1) !important;
+                }
+                .pdf-reader-light .rpv-default-layout__sidebar-tabs {
+                    background-color: #f9fafb !important;
+                }
+                .pdf-reader-light .rpv-default-layout__sidebar-tab {
+                    color: #1f2937 !important;
+                }
+                .pdf-reader-light .rpv-default-layout__sidebar-tab--active {
+                    background-color: rgba(139, 92, 246, 0.1) !important;
+                }
+
+                /* Fix Black Flash on Zoom - White background during canvas redraw */
+                .rpv-core__page-layer {
+                    background-color: var(--page-bg, #f5f5f5) !important;
+                    transition: background-color 0.1s ease;
+                }
+                .pdf-reader-dark .rpv-core__page-layer {
+                    --page-bg: #1a1a1a;
+                }
+                .pdf-reader-light .rpv-core__page-layer {
+                    --page-bg: #f5f5f5;
                 }
             `}</style>
         </div>
