@@ -108,9 +108,12 @@ export const DecksDashboardPage: React.FC = () => {
                 setSelectedExam({ ...selectedExam, status: newStatus, outcome });
             }
             
-            // Refresh esami
+            // Refresh esami e deck per aggiornare le statistiche
             setExamsRefreshKey(prev => prev + 1);
-            await loadExams();
+            await Promise.all([
+                loadExams(),
+                loadDecks(), // Ricarica i deck per aggiornare le statistiche
+            ]);
         } catch (err: any) {
             throw new Error(err.message || 'Errore nel completamento dell\'esame');
         }
@@ -163,6 +166,16 @@ export const DecksDashboardPage: React.FC = () => {
         ).length;
     }, [exams]);
 
+    // Calcola dueCardCount escludendo le carte degli esami completati
+    const activeDueCardCount = useMemo(() => {
+        // Filtra i deck degli esami completati
+        const activeDecks = decks.filter(deck => 
+            !deck.goalId || !completedExamIds.includes(deck.goalId)
+        );
+        // Calcola il totale delle carte da ripassare solo per i deck attivi
+        return activeDecks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
+    }, [decks, completedExamIds]);
+
     // Calculations
     const {
         folderStats,
@@ -181,8 +194,13 @@ export const DecksDashboardPage: React.FC = () => {
         completedExamIds, // Passa gli IDs degli esami completati
     });
 
-    // Organized Decks (per sezioni)
-    const organizedDecks = useOrganizedDecks(decks, folders);
+    // Organized Decks (per sezioni) - escludi deck degli esami completati
+    const activeDecksForOrganization = useMemo(() => {
+        return decks.filter(deck => 
+            !deck.goalId || !completedExamIds.includes(deck.goalId)
+        );
+    }, [decks, completedExamIds]);
+    const organizedDecks = useOrganizedDecks(activeDecksForOrganization, folders);
 
     // Handlers
     const handlers = useDeckHandlers({
@@ -275,9 +293,9 @@ export const DecksDashboardPage: React.FC = () => {
             {!isLoading && decks.length > 0 && !selectedFolderId && !selectedExamId && (
                 <>
                     <DashboardHero
-                        totalDecks={decks.length}
+                        totalDecks={decks.filter(d => !d.goalId || !completedExamIds.includes(d.goalId)).length}
                         totalCards={totalCards}
-                        dueCards={dueCardCount}
+                        dueCards={activeDueCardCount}
                         masteredDecks={completedExamsCount}
                         mentalState={calculateMentalState}
                     />
@@ -291,7 +309,7 @@ export const DecksDashboardPage: React.FC = () => {
             {false && !isLoading && todayPriorityDecks.length > 0 && !selectedFolderId && (
                 <TodayPlan
                     priorityDecks={todayPriorityDecks}
-                    dueCardCount={dueCardCount}
+                    dueCardCount={activeDueCardCount}
                     onFilterChange={setFilter}
                     onStudy={handlers.handleStudy}
                     onViewDetail={handlers.handleViewDetail}
@@ -313,7 +331,7 @@ export const DecksDashboardPage: React.FC = () => {
                                 onFilterChange={setFilter}
                                 searchQuery={searchQuery}
                                 onSearchChange={setSearchQuery}
-                                dueCount={decks.filter(d => (d.dueCount ?? 0) > 0).length}
+                                dueCount={decks.filter(d => !d.goalId || !completedExamIds.includes(d.goalId)).filter(d => (d.dueCount ?? 0) > 0).length}
                                 viewMode={viewMode}
                                 onViewModeChange={(view) => setViewMode(view as ViewMode)}
                             />
