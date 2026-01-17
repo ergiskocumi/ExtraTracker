@@ -142,7 +142,8 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
                                     {card.front}
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                            <div className="flex items-center gap-2 shrink-0">
+                                {/* Source Button - Always visible if sourceMetadata exists */}
                                 {card.sourceMetadata && onShowSource && (
                                     <button
                                         type="button"
@@ -150,37 +151,40 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
                                         className={`p-2 rounded-xl border backdrop-blur-sm transition-all duration-300 active:scale-95 ${
                                             isSourceActive
                                                 ? 'border-yellow-500/50 bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
-                                                : 'border-blue-500/20 bg-blue-500/10 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20'
+                                                : 'border-amber-500/20 bg-amber-500/10 text-amber-400/80 hover:text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/40'
                                         }`}
-                                        aria-label="Vedi nel testo"
-                                        title="Vedi nel testo"
+                                        aria-label="Vai alla fonte nel PDF"
+                                        title="Vai alla fonte nel PDF"
                                     >
                                         <FiTarget className="w-4 h-4 md:w-5 md:h-5" />
                                     </button>
                                 )}
-                                <button
-                                    type="button"
-                                    onClick={handleStartEdit}
-                                    className="p-2 rounded-xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-sm text-white/60 hover:text-white hover:bg-white/[0.10] transition-all duration-300 active:scale-95"
-                                    aria-label="Modifica"
-                                    title="Modifica"
-                                >
-                                    <FiEdit2 className="w-4 h-4 md:w-5 md:h-5" />
-                                </button>
-                                {onDelete && (
+                                {/* Edit and Delete buttons - visible on hover */}
+                                <div className="flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
                                     <button
                                         type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onDelete(card.id);
-                                        }}
-                                        className="p-2 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm text-red-400 hover:text-red-300 hover:bg-red-500/20 transition-all duration-300 active:scale-95"
-                                        aria-label="Elimina"
-                                        title="Elimina"
+                                        onClick={handleStartEdit}
+                                        className="p-2 rounded-xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-sm text-white/60 hover:text-white hover:bg-white/[0.10] transition-all duration-300 active:scale-95"
+                                        aria-label="Modifica"
+                                        title="Modifica"
                                     >
-                                        <FiTrash2 className="w-4 h-4 md:w-5 md:h-5" />
+                                        <FiEdit2 className="w-4 h-4 md:w-5 md:h-5" />
                                     </button>
-                                )}
+                                    {onDelete && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDelete(card.id);
+                                            }}
+                                            className="p-2 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm text-red-400 hover:text-red-300 hover:bg-red-500/20 transition-all duration-300 active:scale-95"
+                                            aria-label="Elimina"
+                                            title="Elimina"
+                                        >
+                                            <FiTrash2 className="w-4 h-4 md:w-5 md:h-5" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

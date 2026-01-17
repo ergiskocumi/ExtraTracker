@@ -14,6 +14,7 @@
 
 import { useEffect, useMemo, memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { FiTarget } from 'react-icons/fi';
 import type { Card } from '../../services/studyService';
 
 interface FlashcardProps {
@@ -21,6 +22,10 @@ interface FlashcardProps {
     isFlipped: boolean;
     onFlip: () => void;
     exitDirection?: 'left' | 'right' | 'up' | null;
+    /** Callback quando si clicca "Show Source" (opzionale) */
+    onShowSource?: () => void;
+    /** Se true, la card ha sourceMetadata e mostra il pulsante */
+    hasSource?: boolean;
 }
 
 // Varianti semplici per transizioni tra card
@@ -61,7 +66,9 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
     card, 
     isFlipped, 
     onFlip,
-    exitDirection = null 
+    exitDirection = null,
+    onShowSource,
+    hasSource = false,
 }) => {
     // Gestione tastiera (Spazio per flip)
     useEffect(() => {
@@ -178,8 +185,26 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                             : '0 20px 60px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 0 rgba(0, 0, 0, 0.1)'
                     }}
                 >
-                    {/* Status Badge */}
-                    <div className={`flex justify-end ${isMobile ? 'mb-2' : 'mb-3'} flex-shrink-0`}>
+                    {/* Status Badge and Source Button */}
+                    <div className={`flex justify-between items-center ${isMobile ? 'mb-2' : 'mb-3'} flex-shrink-0`}>
+                        {/* Source Button - Top Left */}
+                        {hasSource && onShowSource && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onShowSource();
+                                }}
+                                className={`${isMobile ? 'p-1.5' : 'p-2'} rounded-lg border border-amber-500/20 bg-amber-500/10 backdrop-blur-sm text-amber-400/70 hover:text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/40 transition-all duration-300 active:scale-95 shadow-sm`}
+                                aria-label="Vai alla fonte nel PDF"
+                                title="Vai alla fonte nel PDF"
+                            >
+                                <FiTarget className={isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+                            </button>
+                        )}
+                        {/* Spacer se non c'è il pulsante source */}
+                        {(!hasSource || !onShowSource) && <div />}
+                        {/* Status Badge - Top Right */}
                         <span className={`${isMobile ? 'px-2 py-1 text-[9px]' : 'px-3 py-1.5 text-[10px]'} rounded-full font-bold uppercase tracking-wider ${status.bg} ${status.text} border ${status.border} shadow-sm`}>
                             {status.label}
                         </span>
@@ -277,7 +302,9 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
         prevProps.card.back === nextProps.card.back &&
         prevProps.card.status === nextProps.card.status &&
         prevProps.isFlipped === nextProps.isFlipped &&
-        prevProps.exitDirection === nextProps.exitDirection
+        prevProps.exitDirection === nextProps.exitDirection &&
+        prevProps.hasSource === nextProps.hasSource &&
+        prevProps.onShowSource === nextProps.onShowSource
     );
 });
 

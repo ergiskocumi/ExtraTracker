@@ -78,6 +78,25 @@ const cardSchema = new mongoose.Schema({
         repetitions: Number,
         algorithm: String,
     }],
+    // Source metadata per tracciare la fonte originale nel PDF (Source Grounding)
+    sourceMetadata: {
+        type: {
+            pageNumber: {
+                type: Number,
+                required: true,
+                min: [1, 'Il numero di pagina deve essere almeno 1'],
+            },
+            originalText: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: [20, 'Il testo originale deve essere almeno 20 caratteri'],
+                maxlength: [2000, 'Il testo originale non può superare 2000 caratteri'],
+            },
+        },
+        default: null,
+        _id: false,
+    },
 }, { _id: true });
 
 const normalizeTags = (tags) => {

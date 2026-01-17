@@ -188,22 +188,29 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     activeSourceCardId,
 }) => {
     // Local state for drag interactions - ensures instant visual feedback
-    // Add mock sourceMetadata to first 2-3 cards for testing
-    const [items, setItems] = useState<Card[]>(() => {
-        const cards = filteredCards || deck.cards || [];
-        // Add mock sourceMetadata to first 2-3 cards if they don't have it
+    // Helper function to apply mock sourceMetadata to first 2-3 cards
+    const applyMockSourceMetadata = useCallback((cards: Card[]): Card[] => {
         return cards.map((card, index) => {
+            // Apply mock data to first 3 cards if they don't have sourceMetadata
             if (index < 3 && !card.sourceMetadata) {
                 return {
                     ...card,
                     sourceMetadata: {
                         pageNumber: index + 1, // Pages 1, 2, 3
-                        originalText: card.front.substring(0, 50) + '...', // Mock: first 50 chars of front
+                        originalText: card.front.length > 50 
+                            ? card.front.substring(0, 50) + '...' 
+                            : card.front, // Mock: first 50 chars of front, or full front if shorter
                     },
                 };
             }
             return card;
         });
+    }, []);
+
+    // Add mock sourceMetadata to first 2-3 cards for testing
+    const [items, setItems] = useState<Card[]>(() => {
+        const cards = filteredCards || deck.cards || [];
+        return applyMockSourceMetadata(cards);
     });
 
     // Track which card is being dragged (for DragOverlay)
@@ -226,9 +233,10 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
         const currentIds = items.map(c => c.id).sort().join(',');
         const newIds = newCards.map(c => c.id).sort().join(',');
         if (currentIds !== newIds && !activeId) {
-            setItems(newCards);
+            // Re-apply mock sourceMetadata to first 2-3 cards if they don't have it
+            setItems(applyMockSourceMetadata(newCards));
         }
-    }, [deck.cards, filteredCards, activeId]);
+    }, [deck.cards, filteredCards, activeId, applyMockSourceMetadata]);
 
     // Configure sensors with activation constraints
     // This prevents accidental drags when clicking (requires 5px movement)

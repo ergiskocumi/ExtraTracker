@@ -133,6 +133,8 @@ export const SortableItem: React.FC<SortableItemProps> = ({
                         onUpdate={onUpdate}
                         onClick={onClick}
                         onDelete={onDelete}
+                        onShowSource={onShowSource}
+                        isSourceActive={isSourceActive}
                     />
                 </div>
             </div>

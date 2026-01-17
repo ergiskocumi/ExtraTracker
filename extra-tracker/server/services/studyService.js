@@ -949,15 +949,32 @@ class StudyService extends BaseService {
         const validCards = uniqueCards
             .filter(card => this._validateCardQuality(card))
             .slice(0, MAX_TOTAL_CARDS)
-            .map(card => ({
-                front: card.front.trim(),
-                back: card.back.trim(),
-                status: 'new',
-                nextReviewDate: new Date(),
-                easinessFactor: DEFAULT_EASINESS_FACTOR,
-                interval: 0,
-                repetitions: 0,
-            }));
+            .map(card => {
+                const cardData = {
+                    front: card.front.trim(),
+                    back: card.back.trim(),
+                    status: 'new',
+                    nextReviewDate: new Date(),
+                    easinessFactor: DEFAULT_EASINESS_FACTOR,
+                    interval: 0,
+                    repetitions: 0,
+                };
+
+                // Includi source_metadata se presente e valido
+                if (card.sourceMetadata && 
+                    typeof card.sourceMetadata === 'object' &&
+                    Number.isFinite(card.sourceMetadata.pageNumber) &&
+                    card.sourceMetadata.pageNumber > 0 &&
+                    typeof card.sourceMetadata.originalText === 'string' &&
+                    card.sourceMetadata.originalText.trim().length >= 20) {
+                    cardData.sourceMetadata = {
+                        pageNumber: card.sourceMetadata.pageNumber,
+                        originalText: card.sourceMetadata.originalText.trim(),
+                    };
+                }
+
+                return cardData;
+            });
 
         if (validCards.length === 0) {
             sseManager.sendToUser(userId, 'pdf-progress', { step: 'completed', totalCards: 0 });
@@ -1012,8 +1029,10 @@ class StudyService extends BaseService {
             if (end < text.length) {
                 const searchZone = text.slice(Math.max(start, end - 1000), end);
                 
-                // Priorità: 1. Marker pagina, 2. Doppio a capo, 3. Punto finale
-                const pageMarker = searchZone.lastIndexOf('--- Pagina');
+                // Priorità: 1. Marker pagina (nuovo formato), 2. Marker pagina (vecchio formato), 3. Doppio a capo, 4. Punto finale
+                const pageMarkerNew = searchZone.lastIndexOf('--- PAGE');
+                const pageMarkerOld = searchZone.lastIndexOf('--- Pagina');
+                const pageMarker = pageMarkerNew > pageMarkerOld ? pageMarkerNew : pageMarkerOld;
                 const doubleLine = searchZone.lastIndexOf('\n\n');
                 const period = searchZone.lastIndexOf('. ');
 
@@ -1188,15 +1207,54 @@ ${avoidList}
 - Domande su processi e sequenze
 - Domande che testano comprensione profonda
 
-FORMATO JSON OUTPUT:
+📌 CRITICAL: SOURCE GROUNDING (OBBLIGATORIO)
+Il testo fornito contiene marker di pagina nel formato:
+--- PAGE {n} ---
+{contenuto della pagina}
+--- END PAGE {n} ---
+
+Per OGNI flashcard generata, DEVI includere:
+1. page_number: Il numero della pagina (intero) trovato nel marker "--- PAGE {n} ---" da cui hai estratto l'informazione
+2. original_quote: La CITAZIONE ESATTA (verbatim) dal testo originale che hai usato per generare la risposta
+
+⚠️ REGOLA VERBATIM STRINGENTE:
+- original_quote DEVE essere una copia ESATTA (carattere per carattere) di una frase o paragrafo presente nel testo
+- NON parafrasare, NON riassumere, NON modificare
+- Se non trovi una citazione esatta nel testo, NON generare la flashcard
+- La citazione deve essere sufficientemente lunga da essere univoca (minimo 20 caratteri)
+- Verifica che la citazione esista letteralmente nel testo prima di includerla
+
+FORMATO JSON OUTPUT (STRICT):
 {
   "cards": [
     {
       "front": "Domanda completa e specifica...",
-      "back": "Risposta esaustiva con spiegazione..."
+      "back": "Risposta esaustiva con spiegazione...",
+      "source_metadata": {
+        "page_number": 5,
+        "original_quote": "La citazione ESATTA dal testo originale, senza modifiche."
+      }
     }
   ]
-}`;
+}
+
+ESEMPIO:
+Se nel testo vedi:
+--- PAGE 3 ---
+La fotosintesi è il processo mediante il quale le piante convertono la luce solare in energia chimica.
+--- END PAGE 3 ---
+
+E generi una flashcard su questo concetto, DEVI includere:
+{
+  "front": "Come le piante convertono la luce solare in energia?",
+  "back": "Le piante convertono la luce solare in energia chimica attraverso il processo chiamato fotosintesi.",
+  "source_metadata": {
+    "page_number": 3,
+    "original_quote": "La fotosintesi è il processo mediante il quale le piante convertono la luce solare in energia chimica."
+  }
+}
+
+NOTA: original_quote deve essere IDENTICA al testo tra i marker di pagina.`;
 
         const MAX_RETRIES = 2;
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -1637,12 +1695,39 @@ FORMATO JSON OUTPUT:
         return hasCardShape ? values : [];
     }
 
+    /**
+     * Normalizza una card generata dall'AI, includendo source_metadata se presente
+     */
     _normalizeGeneratedCard(card) {
         if (!card || typeof card !== 'object') return {};
-        return {
+        
+        const normalized = {
             front: card.front ?? card.question ?? card.q,
             back: card.back ?? card.answer ?? card.a,
         };
+
+        // Gestisci source_metadata se presente
+        if (card.source_metadata || card.sourceMetadata) {
+            const sourceMeta = card.source_metadata || card.sourceMetadata;
+            if (sourceMeta && typeof sourceMeta === 'object') {
+                const pageNumber = Number.isFinite(Number(sourceMeta.page_number ?? sourceMeta.pageNumber)) 
+                    ? Number(sourceMeta.page_number ?? sourceMeta.pageNumber) 
+                    : null;
+                const originalQuote = typeof sourceMeta.original_quote === 'string' 
+                    ? sourceMeta.original_quote.trim() 
+                    : (typeof sourceMeta.originalQuote === 'string' ? sourceMeta.originalQuote.trim() : null);
+
+                // Valida che abbiamo almeno page_number e original_quote
+                if (pageNumber !== null && pageNumber > 0 && originalQuote && originalQuote.length >= 20) {
+                    normalized.sourceMetadata = {
+                        pageNumber: pageNumber,
+                        originalText: originalQuote,
+                    };
+                }
+            }
+        }
+
+        return normalized;
     }
 
     _cleanJSON(dirtyJSON) {
@@ -1825,19 +1910,33 @@ FORMATO JSON OUTPUT:
             .trim();
     }
 
+    /**
+     * 📄 Formatta il testo PDF con marker di pagina standardizzati
+     * Formato: --- PAGE {n} ---\n{text}\n--- END PAGE {n} ---
+     * Questo formato permette all'AI di identificare esattamente la pagina e il testo originale
+     */
     _formatPdfTextWithPages(pdfTextResult) {
         const pages = Array.isArray(pdfTextResult?.pages) ? pdfTextResult.pages : [];
         const fallback = typeof pdfTextResult?.text === 'string' ? pdfTextResult.text : '';
 
-        if (pages.length === 0) return fallback;
+        if (pages.length === 0) {
+            // Se non abbiamo pagine separate, proviamo a estrarre dal testo completo
+            // e aggiungiamo un marker per la pagina 1
+            if (fallback) {
+                return `--- PAGE 1 ---\n${fallback}\n--- END PAGE 1 ---`;
+            }
+            return fallback;
+        }
 
         return pages
             .map((page, index) => {
+                // Usa page.num se disponibile (1-based), altrimenti index + 1
                 const pageNumber = Number.isFinite(Number(page?.num)) ? Number(page.num) : index + 1;
-                const text = typeof page?.text === 'string' ? page.text : '';
-                return `\n--- Pagina ${pageNumber} ---\n${text}`;
+                const text = typeof page?.text === 'string' ? page.text.trim() : '';
+                // Formato standardizzato: --- PAGE {n} ---\n{text}\n--- END PAGE {n} ---
+                return `--- PAGE ${pageNumber} ---\n${text}\n--- END PAGE ${pageNumber} ---`;
             })
-            .join('\n');
+            .join('\n\n');
     }
 
     _truncateText(text, maxLength, suffix = '') {
