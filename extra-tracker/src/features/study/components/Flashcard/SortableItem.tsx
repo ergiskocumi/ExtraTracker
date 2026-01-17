@@ -6,7 +6,7 @@
  * sortable. Handles the transform and transition styles automatically.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Card } from '../../services/studyService';
@@ -57,6 +57,13 @@ export const SortableItem: React.FC<SortableItemProps> = ({
     onShowSource,
     isSourceActive = false,
 }) => {
+    // #region agent log
+    useEffect(() => {
+        if (card.sourceMetadata) {
+            fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'SortableItem.tsx:59', message: 'SortableItem - card with sourceMetadata', data: { cardId: card.id, hasOnShowSource: !!onShowSource, onShowSourceType: typeof onShowSource, hasSourceMetadata: !!card.sourceMetadata, sourceMetadataType: typeof card.sourceMetadata, sourceMetadataKeys: card.sourceMetadata ? Object.keys(card.sourceMetadata) : [] }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A,B,E' }) }).catch(() => {});
+        }
+    }, [card.id, card.sourceMetadata, onShowSource]);
+    // #endregion
     const {
         attributes,
         listeners,

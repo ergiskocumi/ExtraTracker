@@ -17,6 +17,7 @@ import { Panel, Group, Separator } from 'react-resizable-panels';
 import { PDFReader, type PDFReaderRef } from '../components/PDF/PDFReader';
 import { StudySidebar } from '../components/Study/StudySidebar';
 import type { Deck, Card } from '../services/studyService';
+import { emitToast } from '../../../shared/components/toast';
 
 // ============================================
 // CONSTANTS
@@ -56,9 +57,10 @@ interface CinemaLayoutProps {
 interface PDFPanelProps {
     pdfSrc: string | null;
     pdfReaderRef: React.RefObject<PDFReaderRef>;
+    onSearchError?: (message: string) => void;
 }
 
-const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef }) => {
+const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef, onSearchError }) => {
     /**
      * CRITICAL: Always render PDFReader, even when pdfSrc is null.
      * 
@@ -80,7 +82,11 @@ const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef }) => {
                 }}
             >
                 {/* Always render PDFReader - it handles null pdfUrl internally */}
-                <PDFReader ref={pdfReaderRef} pdfUrl={normalizedPdfSrc} />
+                <PDFReader 
+                    ref={pdfReaderRef} 
+                    pdfUrl={normalizedPdfSrc}
+                    onSearchError={onSearchError}
+                />
             </div>
         </div>
     );
@@ -144,10 +150,23 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
      */
     const handleShowSource = useCallback((card: Card) => {
         if (!card.sourceMetadata || !pdfReaderRef.current) {
+            emitToast.error('Informazioni sulla fonte non disponibili per questa card', {
+                title: 'Fonte non disponibile',
+                duration: 3000,
+            });
             return;
         }
 
         const { pageNumber, originalText } = card.sourceMetadata;
+        
+        // Validate sourceMetadata
+        if (!pageNumber || pageNumber < 1 || !originalText || originalText.trim().length < 20) {
+            emitToast.error('I dati della fonte non sono validi', {
+                title: 'Errore',
+                duration: 3000,
+            });
+            return;
+        }
         
         // Set active card for visual feedback
         setActiveSourceCardId(card.id);
@@ -159,6 +178,16 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
         setTimeout(() => {
             setActiveSourceCardId(null);
         }, 3000);
+    }, []);
+    
+    /**
+     * Handler per errori di ricerca nel PDF
+     */
+    const handleSearchError = useCallback((message: string) => {
+        emitToast.error(message, {
+            title: 'Ricerca nel PDF',
+            duration: 4000,
+        });
     }, []);
 
     return (
@@ -243,7 +272,11 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                             minSize={PANEL_SIZES.LEFT_MIN} 
                             className="h-full w-full overflow-hidden"
                         >
-                            <PDFPanel pdfSrc={pdfSrc} pdfReaderRef={pdfReaderRef} />
+                            <PDFPanel 
+                                pdfSrc={pdfSrc} 
+                                pdfReaderRef={pdfReaderRef}
+                                onSearchError={handleSearchError}
+                            />
                         </Panel>
 
                         {/* Resize Handle - Stile moderno discreto */}
@@ -281,6 +314,12 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                                 onShowSource={handleShowSource}
                                 activeSourceCardId={activeSourceCardId}
                             />
+                            {/* #region agent log */}
+                            {(() => {
+                                fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'CinemaLayout.tsx:314', message: 'Passing onShowSource to StudySidebar', data: { hasHandleShowSource: !!handleShowSource, handleShowSourceType: typeof handleShowSource, deckId: deck.id, deckCardsCount: deck.cards?.length || 0 }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => {});
+                                return null;
+                            })()}
+                            {/* #endregion */}
                         </Panel>
                     </Group>
                 </div>

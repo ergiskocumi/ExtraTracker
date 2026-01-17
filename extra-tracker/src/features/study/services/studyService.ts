@@ -178,17 +178,44 @@ const safeNumber = (value: unknown, fallback = 0): number => {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 };
 
-const normalizeCard = (raw: any): Card => ({
-    id: raw.id || raw._id,
-    front: raw.front || '',
-    back: raw.back || '',
-    options: Array.isArray(raw.options) ? raw.options : undefined,
-    easinessFactor: safeNumber(raw.easinessFactor, 2.5),
-    interval: safeNumber(raw.interval, 0),
-    repetitions: safeNumber(raw.repetitions, 0),
-    nextReviewDate: raw.nextReviewDate || new Date().toISOString(),
-    status: raw.status || 'new',
-});
+const normalizeCard = (raw: any): Card => {
+    // Normalizza sourceMetadata se presente (supporta sia camelCase che snake_case)
+    let sourceMetadata: Card['sourceMetadata'] = undefined;
+    if (raw.sourceMetadata || raw.source_metadata) {
+        const sourceMeta = raw.sourceMetadata || raw.source_metadata;
+        if (sourceMeta && typeof sourceMeta === 'object') {
+            const pageNumber = Number.isFinite(Number(sourceMeta.pageNumber ?? sourceMeta.page_number)) 
+                ? Number(sourceMeta.pageNumber ?? sourceMeta.page_number) 
+                : undefined;
+            const originalText = typeof (sourceMeta.originalText ?? sourceMeta.original_text) === 'string'
+                ? (sourceMeta.originalText ?? sourceMeta.original_text).trim()
+                : undefined;
+            
+            if (pageNumber !== undefined && pageNumber > 0 && originalText && originalText.length >= 20) {
+                sourceMetadata = {
+                    pageNumber,
+                    originalText,
+                };
+                // #region agent log
+                fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'studyService.ts:normalizeCard', message: 'Normalized sourceMetadata', data: { cardId: raw.id || raw._id, hasRawSourceMetadata: !!(raw.sourceMetadata || raw.source_metadata), normalizedSourceMetadata: sourceMetadata }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'post-fix', hypothesisId: 'B' }) }).catch(() => {});
+                // #endregion
+            }
+        }
+    }
+
+    return {
+        id: raw.id || raw._id,
+        front: raw.front || '',
+        back: raw.back || '',
+        options: Array.isArray(raw.options) ? raw.options : undefined,
+        easinessFactor: safeNumber(raw.easinessFactor, 2.5),
+        interval: safeNumber(raw.interval, 0),
+        repetitions: safeNumber(raw.repetitions, 0),
+        nextReviewDate: raw.nextReviewDate || new Date().toISOString(),
+        status: raw.status || 'new',
+        sourceMetadata,
+    };
+};
 
 const normalizeDeck = (raw: any): Deck => {
     const cards = Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [];

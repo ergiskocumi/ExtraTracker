@@ -187,30 +187,16 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     onShowSource,
     activeSourceCardId,
 }) => {
-    // Local state for drag interactions - ensures instant visual feedback
-    // Helper function to apply mock sourceMetadata to first 2-3 cards
-    const applyMockSourceMetadata = useCallback((cards: Card[]): Card[] => {
-        return cards.map((card, index) => {
-            // Apply mock data to first 3 cards if they don't have sourceMetadata
-            if (index < 3 && !card.sourceMetadata) {
-                return {
-                    ...card,
-                    sourceMetadata: {
-                        pageNumber: index + 1, // Pages 1, 2, 3
-                        originalText: card.front.length > 50 
-                            ? card.front.substring(0, 50) + '...' 
-                            : card.front, // Mock: first 50 chars of front, or full front if shorter
-                    },
-                };
-            }
-            return card;
-        });
-    }, []);
-
-    // Add mock sourceMetadata to first 2-3 cards for testing
-    const [items, setItems] = useState<Card[]>(() => {
+    // #region agent log
+    useEffect(() => {
         const cards = filteredCards || deck.cards || [];
-        return applyMockSourceMetadata(cards);
+        const cardsWithSource = cards.filter(c => c.sourceMetadata);
+        fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'FlashcardList.tsx:189', message: 'FlashcardList received props', data: { hasOnShowSource: !!onShowSource, onShowSourceType: typeof onShowSource, totalCards: cards.length, cardsWithSourceCount: cardsWithSource.length, firstCardWithSource: cardsWithSource[0] ? { id: cardsWithSource[0].id, hasSourceMetadata: !!cardsWithSource[0].sourceMetadata, sourceMetadataKeys: cardsWithSource[0].sourceMetadata ? Object.keys(cardsWithSource[0].sourceMetadata) : [] } : null }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A,B,E' }) }).catch(() => {});
+    }, [onShowSource, filteredCards, deck.cards]);
+    // #endregion
+    // Local state for drag interactions - ensures instant visual feedback
+    const [items, setItems] = useState<Card[]>(() => {
+        return filteredCards || deck.cards || [];
     });
 
     // Track which card is being dragged (for DragOverlay)
@@ -233,10 +219,9 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
         const currentIds = items.map(c => c.id).sort().join(',');
         const newIds = newCards.map(c => c.id).sort().join(',');
         if (currentIds !== newIds && !activeId) {
-            // Re-apply mock sourceMetadata to first 2-3 cards if they don't have it
-            setItems(applyMockSourceMetadata(newCards));
+            setItems(newCards);
         }
-    }, [deck.cards, filteredCards, activeId, applyMockSourceMetadata]);
+    }, [deck.cards, filteredCards, activeId]);
 
     // Configure sensors with activation constraints
     // This prevents accidental drags when clicking (requires 5px movement)
@@ -536,18 +521,18 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                             >
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                                     {items.map((card, index) => (
-                                        <React.Fragment key={card.id}>
-                                            <SortableItem
-                                    card={card} 
-                                    index={index}
-                                    totalCards={cardCount}
-                                    onUpdate={onUpdate}
-                                    onClick={handleCardClick}
-                                                onDelete={onDelete || handleDeleteClick}
-                                    viewMode="grid"
-                                    onShowSource={onShowSource}
-                                    isSourceActive={activeSourceCardId === card.id}
-                                />
+                                            <React.Fragment key={card.id}>
+                                                <SortableItem
+                                                    card={card} 
+                                                    index={index}
+                                                    totalCards={cardCount}
+                                                    onUpdate={onUpdate}
+                                                    onClick={handleCardClick}
+                                                    onDelete={onDelete || handleDeleteClick}
+                                                    viewMode="grid"
+                                                    onShowSource={onShowSource}
+                                                    isSourceActive={activeSourceCardId === card.id}
+                                                />
                                             
                                             {/* Inline form dopo questa card se insertingIndex === index */}
                                             {insertingIndex === index && (
@@ -605,18 +590,18 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                                     )}
 
                                     {items.map((card, index) => (
-                                <React.Fragment key={card.id}>
-                                            <SortableItem
-                                        card={card}
-                                        index={index}
-                                        totalCards={cardCount}
-                                        onUpdate={onUpdate}
-                                        onClick={handleCardClick}
-                                                onDelete={onDelete || handleDeleteClick}
-                                        viewMode="list"
-                                        onShowSource={onShowSource}
-                                        isSourceActive={activeSourceCardId === card.id}
-                                    />
+                                            <React.Fragment key={card.id}>
+                                                <SortableItem
+                                                    card={card}
+                                                    index={index}
+                                                    totalCards={cardCount}
+                                                    onUpdate={onUpdate}
+                                                    onClick={handleCardClick}
+                                                    onDelete={onDelete || handleDeleteClick}
+                                                    viewMode="list"
+                                                    onShowSource={onShowSource}
+                                                    isSourceActive={activeSourceCardId === card.id}
+                                                />
 
                                             {/* Inline form dopo questa card se insertingIndex === index + 1 */}
                                             {insertingIndex === index + 1 ? (
