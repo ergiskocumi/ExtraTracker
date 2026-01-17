@@ -33,7 +33,15 @@ export type GoalCategory = 'finance' | 'health' | 'learning' | 'career' | 'perso
 export type GoalType = 'target' | 'habit' | 'milestone' | 'challenge' | 'project';
 
 // Stato dell'obiettivo
-export type GoalStatus = 'active' | 'completed' | 'abandoned';
+export type GoalStatus = 'active' | 'completed' | 'abandoned' | 'passed' | 'failed' | 'archived';
+
+// Outcome per esami completati
+export interface ExamOutcome {
+    grade?: number;           // Voto (opzionale)
+    date: string;            // Data del completamento
+    notes?: string;          // Note dell'utente
+    difficulties?: string[]; // Array di difficoltà riscontrate
+}
 
 // Mood per i check-in (1-3)
 export type Mood = 1 | 2 | 3;
@@ -124,6 +132,8 @@ export interface Goal {
     totalMilestones?: number;
     actionSteps?: ActionStep[];
     createdAt: string;
+    // 🆕 Exam Completion System
+    outcome?: ExamOutcome;          // Outcome per esami completati (PASSED/FAILED)
 }
 
 // DTO per creare un nuovo obiettivo
@@ -149,6 +159,7 @@ export interface UpdateGoalDTO {
     deadline?: string;
     status?: GoalStatus;
     description?: string;
+    outcome?: ExamOutcome; // Outcome per esami completati
 }
 
 // Interfaccia CheckIn (singolo progresso)

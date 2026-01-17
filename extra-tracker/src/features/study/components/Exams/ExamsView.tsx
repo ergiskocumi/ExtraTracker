@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Plus, Loader2 } from 'lucide-react';
+import { BookOpen, Plus, Loader2, CheckCircle } from 'lucide-react';
 import type { Goal } from '../../../goals/types';
 import type { Deck } from '../../services/studyService';
 import { ExamCard } from './ExamCard';
@@ -68,7 +68,8 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             setError(null);
             const allGoals = await goalsService.getAll();
             // Filtra solo gli esami (goals con category='learning')
-            const learningGoals = allGoals.filter(g => g.category === 'learning' && g.status === 'active');
+            // Ora includiamo tutti gli status, non solo 'active'
+            const learningGoals = allGoals.filter(g => g.category === 'learning');
             setExams(learningGoals);
         } catch (err: any) {
             setError(err.message || 'Errore nel caricamento degli esami');
@@ -184,18 +185,29 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
         const now = Date.now();
         if (filter === 'urgent') {
             filtered = filtered.filter(exam => {
+                if (exam.status !== 'active') return false;
                 const deadline = new Date(exam.deadline).getTime();
                 const daysUntil = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
                 return daysUntil <= 7 && daysUntil >= 0;
             });
         } else if (filter === 'upcoming') {
             filtered = filtered.filter(exam => {
+                if (exam.status !== 'active') return false;
                 const deadline = new Date(exam.deadline).getTime();
                 const daysUntil = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
                 return daysUntil > 7;
             });
         } else if (filter === 'completed') {
-            filtered = filtered.filter(exam => exam.status === 'completed');
+            // Include tutti gli esami completati (passed, failed, archived, completed)
+            filtered = filtered.filter(exam => 
+                exam.status === 'completed' || 
+                exam.status === 'passed' || 
+                exam.status === 'failed' || 
+                exam.status === 'archived'
+            );
+        } else if (filter === 'all') {
+            // Mostra solo esami attivi per default
+            filtered = filtered.filter(exam => exam.status === 'active');
         }
 
         // Ordina
@@ -369,29 +381,91 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                    {filteredAndSortedExams.map((exam, index) => {
-                        const stats = getExamStats(exam.id);
-                        return (
-                            <motion.div
-                                key={exam.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                            >
-                                <ExamCard
-                                    exam={exam}
-                                    deckCount={stats.deckCount}
-                                    totalCards={stats.totalCards}
-                                    dueCards={stats.dueCards}
-                                    masteryPercent={stats.masteryPercent}
-                                    onClick={() => onExamClick(exam.id)}
-                                    onDelete={handleRequestDeleteExam}
-                                />
-                            </motion.div>
+                <>
+                    {/* Esami Attivi */}
+                    {filteredAndSortedExams.filter(e => e.status === 'active').length > 0 && (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                                <h3 className="text-lg font-semibold text-white/80 px-4">Esami Attivi</h3>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                                {filteredAndSortedExams
+                                    .filter(e => e.status === 'active')
+                                    .map((exam, index) => {
+                                        const stats = getExamStats(exam.id);
+                                        return (
+                                            <motion.div
+                                                key={exam.id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: index * 0.05 }}
+                                            >
+                                                <ExamCard
+                                                    exam={exam}
+                                                    deckCount={stats.deckCount}
+                                                    totalCards={stats.totalCards}
+                                                    dueCards={stats.dueCards}
+                                                    masteryPercent={stats.masteryPercent}
+                                                    onClick={() => onExamClick(exam.id)}
+                                                    onDelete={handleRequestDeleteExam}
+                                                />
+                                            </motion.div>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Esami Completati */}
+                    {(() => {
+                        const completedExams = filteredAndSortedExams.filter(e => 
+                            e.status === 'passed' || 
+                            e.status === 'failed' || 
+                            e.status === 'archived' || 
+                            e.status === 'completed'
                         );
-                    })}
-                </div>
+                        
+                        if (completedExams.length === 0) return null;
+                        
+                        return (
+                            <div className="space-y-4 mt-8">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent"></div>
+                                    <h3 className="text-lg font-semibold text-amber-400/90 px-4 flex items-center gap-2">
+                                        <CheckCircle className="w-5 h-5" />
+                                        Esami Completati
+                                    </h3>
+                                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent"></div>
+                                </div>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                                    {completedExams.map((exam, index) => {
+                                        const stats = getExamStats(exam.id);
+                                        return (
+                                            <motion.div
+                                                key={exam.id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: index * 0.05 }}
+                                            >
+                                                <ExamCard
+                                                    exam={exam}
+                                                    deckCount={stats.deckCount}
+                                                    totalCards={stats.totalCards}
+                                                    dueCards={stats.dueCards}
+                                                    masteryPercent={stats.masteryPercent}
+                                                    onClick={() => onExamClick(exam.id)}
+                                                    onDelete={handleRequestDeleteExam}
+                                                />
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </>
             )}
 
             {/* Confirmation Modal */}

@@ -9,7 +9,7 @@
  * - Visual hierarchy chiara
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDashboardCalculations, type FilterType } from '../hooks/useDashboardCalculations';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useDeckHandlers } from '../hooks/useDeckHandlers';
@@ -27,9 +27,12 @@ import { ExamDetailView } from '../components/Exams/ExamDetailView';
 import { ExamDeckToggle, type ViewType } from '../components/ViewToggle/ExamDeckToggle';
 import { DashboardModals } from '../components/DashboardModals';
 import { HybridGoalWizard } from '../../goals/components/HybridGoalWizard';
+import { ExamCompletionModal } from '../components/Exams/ExamCompletionModal';
 import type { ViewMode } from '../components/ViewToggle/ViewToggle';
-import type { Goal } from '../../goals/types';
+import type { Goal, ExamOutcome } from '../../goals/types';
 import goalsService from '../../goals/services/goalsService';
+import { studyService } from '../services/studyService';
+import { emitToast } from '../../../shared/components/toast';
 
 // ============================================
 // MAIN DASHBOARD PAGE
@@ -49,6 +52,7 @@ export const DecksDashboardPage: React.FC = () => {
     const [selectedExam, setSelectedExam] = useState<Goal | null>(null);
     const [examsRefreshKey, setExamsRefreshKey] = useState(0); // Key per forzare refresh ExamsView
     const [exams, setExams] = useState<Goal[]>([]); // Esami caricati
+    const [showCompletionModal, setShowCompletionModal] = useState(false);
 
     // Data loading
     const {
@@ -64,13 +68,11 @@ export const DecksDashboardPage: React.FC = () => {
         refreshAll,
     } = useDashboardData();
 
-    // Carica esami (goals con category='learning' e status='active')
+    // Carica esami (goals con category='learning' - tutti gli status)
     const loadExams = useCallback(async () => {
         try {
             const allGoals = await goalsService.getAll();
-            const learningGoals = allGoals.filter(
-                g => g.category === 'learning' && g.status === 'active'
-            );
+            const learningGoals = allGoals.filter(g => g.category === 'learning');
             setExams(learningGoals);
         } catch (err) {
             console.error('Errore nel caricamento degli esami:', err);
@@ -84,6 +86,82 @@ export const DecksDashboardPage: React.FC = () => {
 
     // Scroll to top when an exam is selected (non è un cambio di route, quindi serve hook specifico)
     useScrollToTop([selectedExamId]);
+
+    // Exam Completion Handlers
+    const handleCompleteExam = useCallback(async (examId: string, outcome: ExamOutcome, status: 'passed' | 'failed') => {
+        try {
+            const newStatus = status === 'passed' ? 'passed' : 'failed';
+            
+            // Prepara outcome per il backend (converte date string in Date se necessario)
+            const outcomeForBackend = {
+                ...outcome,
+                date: outcome.date ? new Date(outcome.date).toISOString() : new Date().toISOString(),
+            };
+            
+            await goalsService.update(examId, {
+                status: newStatus,
+                outcome: outcomeForBackend, // Invia outcome al backend
+            });
+            
+            // Aggiorna lo stato locale
+            if (selectedExam) {
+                setSelectedExam({ ...selectedExam, status: newStatus, outcome });
+            }
+            
+            // Refresh esami
+            setExamsRefreshKey(prev => prev + 1);
+            await loadExams();
+        } catch (err: any) {
+            throw new Error(err.message || 'Errore nel completamento dell\'esame');
+        }
+    }, [selectedExam, loadExams]);
+
+    const handleResetCards = useCallback(async (examId: string, type: 'all' | 'hard-only') => {
+        try {
+            const examDecks = decks.filter(d => d.goalId === examId);
+            
+            // TODO: Implementare API endpoint per reset carte
+            // Per ora mostriamo un messaggio informativo
+            if (type === 'all') {
+                emitToast.info('Reset completo: tutte le carte verranno resettate. Funzionalità in arrivo!');
+            } else {
+                emitToast.info('Reset mirato: solo le carte difficili verranno resettate. Funzionalità in arrivo!');
+            }
+            
+            // Refresh decks
+            await loadDecks();
+        } catch (err: any) {
+            throw new Error(err.message || 'Errore nel reset delle carte');
+        }
+    }, [decks, loadDecks]);
+
+    const handleGenerateAIQuestions = useCallback(async (examId: string, topics: string[]) => {
+        // Mock implementation - da implementare con API reale
+        emitToast.info('Funzionalità AI in arrivo! Per ora puoi usare Magic Generate su ogni mazzo.');
+        // TODO: Implementare chiamata API per generare domande AI
+    }, []);
+
+    // Calcola IDs degli esami completati (passed/failed/archived)
+    const completedExamIds = useMemo(() => {
+        return exams
+            .filter(exam => 
+                exam.status === 'passed' || 
+                exam.status === 'failed' || 
+                exam.status === 'archived' || 
+                exam.status === 'completed'
+            )
+            .map(exam => exam.id);
+    }, [exams]);
+
+    // Calcola numero esami completati
+    const completedExamsCount = useMemo(() => {
+        return exams.filter(exam => 
+            exam.status === 'passed' || 
+            exam.status === 'failed' || 
+            exam.status === 'archived' || 
+            exam.status === 'completed'
+        ).length;
+    }, [exams]);
 
     // Calculations
     const {
@@ -100,6 +178,7 @@ export const DecksDashboardPage: React.FC = () => {
         searchQuery,
         selectedFolderId,
         selectedTags,
+        completedExamIds, // Passa gli IDs degli esami completati
     });
 
     // Organized Decks (per sezioni)
@@ -190,6 +269,7 @@ export const DecksDashboardPage: React.FC = () => {
                 setSelectedExamId(null);
                 setSelectedExam(null);
             }}
+            onCompleteExam={() => setShowCompletionModal(true)}
         >
             {/* Hero Stats + Stato Mentale - Nascosti quando una cartella o un esame è selezionato */}
             {!isLoading && decks.length > 0 && !selectedFolderId && !selectedExamId && (
@@ -198,7 +278,7 @@ export const DecksDashboardPage: React.FC = () => {
                         totalDecks={decks.length}
                         totalCards={totalCards}
                         dueCards={dueCardCount}
-                        masteredDecks={masteredDecks}
+                        masteredDecks={completedExamsCount}
                         mentalState={calculateMentalState}
                     />
                     {/* Separatore */}
@@ -422,6 +502,18 @@ export const DecksDashboardPage: React.FC = () => {
                 onDeleteConfirm={handlers.handleDeleteDeck}
                 onDeleteCancel={() => handlers.setDeletingDeck(null)}
             />
+
+            {/* Exam Completion Modal */}
+            {selectedExam && (
+                <ExamCompletionModal
+                    isOpen={showCompletionModal}
+                    exam={selectedExam}
+                    onClose={() => setShowCompletionModal(false)}
+                    onComplete={handleCompleteExam}
+                    onResetCards={handleResetCards}
+                    onGenerateAIQuestions={handleGenerateAIQuestions}
+                />
+            )}
         </DashboardLayout>
     );
 };

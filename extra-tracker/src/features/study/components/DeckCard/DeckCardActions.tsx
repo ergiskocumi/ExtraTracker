@@ -200,7 +200,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                                 "
                             >
                                 <Monitor className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                                <span>Studia (Cinema Mode)</span>
+                                <span>Focus & Flow</span>
                             </motion.button>
                             
                             {/* Pulsanti secondari - Piccoli e semi-trasparenti */}
