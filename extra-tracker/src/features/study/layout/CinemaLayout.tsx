@@ -14,7 +14,7 @@ import React, { memo, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 import { Panel, Group, Separator } from 'react-resizable-panels';
-import { FluidPDFViewer } from '../components/PDF/FluidPDFViewer';
+import { PDFReader } from '../components/PDF/PDFReader';
 import { StudySidebar } from '../components/Study/StudySidebar';
 import type { Deck } from '../services/studyService';
 
@@ -58,19 +58,18 @@ interface PDFPanelProps {
 }
 
 const PDFPanel = memo<PDFPanelProps>(({ pdfSrc }) => {
-    // Verifica che pdfSrc sia una stringa valida
-    if (!pdfSrc || typeof pdfSrc !== 'string') {
-        return (
-            <div className="h-full w-full flex flex-col items-center justify-center text-white/40 gap-3">
-                <div className="w-16 h-16 rounded-full border-2 border-violet-500/20 bg-violet-500/5 backdrop-blur-xl flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
-                    <svg className="w-8 h-8 text-violet-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                </div>
-                <p className="text-sm text-slate-400">Nessun PDF disponibile</p>
-            </div>
-        );
-    }
+    /**
+     * CRITICAL: Always render PDFReader, even when pdfSrc is null.
+     * 
+     * React's Rules of Hooks require that components are always rendered
+     * in the same way. If we conditionally render PDFReader, its hooks
+     * won't be called consistently, causing "Rendered fewer hooks than expected" errors.
+     * 
+     * PDFReader handles the null case internally, so we can safely always render it.
+     */
+    
+    // Normalize pdfSrc to ensure it's either a valid string or null
+    const normalizedPdfSrc = (pdfSrc && typeof pdfSrc === 'string') ? pdfSrc : null;
 
     return (
         <div className="h-full w-full overflow-hidden p-4">
@@ -79,7 +78,8 @@ const PDFPanel = memo<PDFPanelProps>(({ pdfSrc }) => {
                     background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
                 }}
             >
-                <FluidPDFViewer pdfUrl={pdfSrc} />
+                {/* Always render PDFReader - it handles null pdfUrl internally */}
+                <PDFReader pdfUrl={normalizedPdfSrc} />
             </div>
         </div>
     );
