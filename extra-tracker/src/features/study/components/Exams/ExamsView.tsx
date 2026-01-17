@@ -9,6 +9,8 @@ import { UnassignedDecksSection } from './UnassignedDecksSection';
 import { SearchResults } from './SearchResults';
 import goalsService from '../../../goals/services/goalsService';
 import type { Tag } from '../../services/tagsService';
+import { ConfirmationModal } from '../../../../shared/components/ConfirmationModal';
+import { emitToast } from '../../../../shared/components/toast';
 
 // ============================================
 // TYPES
@@ -55,6 +57,10 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<ExamSortOption>('recent'); // Default: Recente
     const [filter, setFilter] = useState<ExamFilterOption>('all');
+    
+    // Delete state
+    const [pendingDeleteExamId, setPendingDeleteExamId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const loadExams = useCallback(async () => {
         try {
@@ -82,6 +88,50 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             delete (window as any).__refreshExams;
         };
     }, [loadExams]);
+
+    // Delete handlers
+    const handleRequestDeleteExam = useCallback((examId: string) => {
+        setPendingDeleteExamId(examId);
+    }, []);
+
+    const handleCancelDeleteExam = useCallback(() => {
+        if (!isDeleting) {
+            setPendingDeleteExamId(null);
+        }
+    }, [isDeleting]);
+
+    const handleConfirmDeleteExam = useCallback(async () => {
+        if (!pendingDeleteExamId) return;
+
+        setIsDeleting(true);
+        try {
+            // Optimistic UI: rimuovi immediatamente dalla lista
+            setExams(prev => prev.filter(exam => exam.id !== pendingDeleteExamId));
+            
+            // Chiama l'API
+            await goalsService.delete(pendingDeleteExamId);
+            
+            // Toast di successo
+            emitToast.success('Esame eliminato correttamente');
+            
+            // Refresh se c'è un callback
+            if (onRefresh) {
+                onRefresh();
+            }
+        } catch (err: any) {
+            // Rollback in caso di errore
+            await loadExams();
+            emitToast.error(err.message || 'Errore nell\'eliminazione dell\'esame');
+        } finally {
+            setIsDeleting(false);
+            setPendingDeleteExamId(null);
+        }
+    }, [pendingDeleteExamId, onRefresh, loadExams]);
+
+    const pendingDeleteExam = exams.find(exam => exam.id === pendingDeleteExamId);
+    const pendingDeleteExamTitle = pendingDeleteExam?.title || 'questo esame';
+    const pendingDeleteExamDecks = pendingDeleteExam ? decks.filter(d => d.goalId === pendingDeleteExamId) : [];
+    const pendingDeleteExamCards = pendingDeleteExamDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
 
     // Calcola statistiche per ogni esame
     const getExamStats = (examId: string) => {
@@ -336,12 +386,30 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                                     dueCards={stats.dueCards}
                                     masteryPercent={stats.masteryPercent}
                                     onClick={() => onExamClick(exam.id)}
+                                    onDelete={handleRequestDeleteExam}
                                 />
                             </motion.div>
                         );
                     })}
                 </div>
             )}
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={Boolean(pendingDeleteExamId)}
+                title="Elimina Esame"
+                description={
+                    pendingDeleteExamDecks.length > 0
+                        ? `Sei sicuro di voler eliminare "${pendingDeleteExamTitle}"? Questa azione cancellerà anche tutti i ${pendingDeleteExamDecks.length} mazzi e le ${pendingDeleteExamCards} flashcard associati. L'azione è irreversibile.`
+                        : `Sei sicuro di voler eliminare "${pendingDeleteExamTitle}"? L'azione è irreversibile.`
+                }
+                confirmLabel="Elimina"
+                cancelLabel="Annulla"
+                onConfirm={handleConfirmDeleteExam}
+                onCancel={handleCancelDeleteExam}
+                isLoading={isDeleting}
+                destructive
+            />
         </div>
     );
 };
