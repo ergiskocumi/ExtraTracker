@@ -92,16 +92,21 @@ export const DecksDashboardPage: React.FC = () => {
         try {
             const newStatus = status === 'passed' ? 'passed' : 'failed';
             
+            console.log('[DecksDashboardPage] handleCompleteExam chiamato:', { examId, status: newStatus, outcome });
+            
             // Prepara outcome per il backend (converte date string in Date se necessario)
             const outcomeForBackend = {
                 ...outcome,
                 date: outcome.date ? new Date(outcome.date).toISOString() : new Date().toISOString(),
             };
             
+            console.log('[DecksDashboardPage] Aggiornando goal con status:', newStatus);
             await goalsService.update(examId, {
                 status: newStatus,
                 outcome: outcomeForBackend, // Invia outcome al backend
             });
+            
+            console.log('[DecksDashboardPage] Goal aggiornato con successo');
             
             // Aggiorna lo stato locale
             if (selectedExam) {
@@ -114,35 +119,141 @@ export const DecksDashboardPage: React.FC = () => {
                 loadExams(),
                 loadDecks(), // Ricarica i deck per aggiornare le statistiche
             ]);
+            
+            console.log('[DecksDashboardPage] Refresh completato');
         } catch (err: any) {
+            console.error('[DecksDashboardPage] Errore nel completamento esame:', err);
             throw new Error(err.message || 'Errore nel completamento dell\'esame');
         }
-    }, [selectedExam, loadExams]);
+    }, [selectedExam, loadExams, loadDecks]);
 
     const handleResetCards = useCallback(async (examId: string, type: 'all' | 'hard-only') => {
         try {
+            console.log('[DecksDashboardPage] handleResetCards chiamato:', { examId, type });
+            
             const examDecks = decks.filter(d => d.goalId === examId);
             
-            // TODO: Implementare API endpoint per reset carte
-            // Per ora mostriamo un messaggio informativo
-            if (type === 'all') {
-                emitToast.info('Reset completo: tutte le carte verranno resettate. Funzionalità in arrivo!');
-            } else {
-                emitToast.info('Reset mirato: solo le carte difficili verranno resettate. Funzionalità in arrivo!');
+            if (examDecks.length === 0) {
+                console.warn('[DecksDashboardPage] Nessun mazzo trovato per esame:', examId);
+                emitToast.warning('Nessun mazzo trovato per questo esame');
+                return;
             }
+
+            console.log('[DecksDashboardPage] Trovati', examDecks.length, 'mazzi per l\'esame');
+            console.log('[DecksDashboardPage] Chiamando studyService.resetExamCards...');
             
-            // Refresh decks
+            // Chiama l'API per resettare le carte
+            const result = await studyService.resetExamCards(examId, type);
+            
+            console.log('[DecksDashboardPage] Reset completato:', result);
+            
+            emitToast.success(
+                type === 'all' 
+                    ? `Reset completato: ${result.cardsReset} carte resettate in ${result.decksAffected} mazzo/i`
+                    : `Reset mirato completato: ${result.cardsReset} carte difficili resettate in ${result.decksAffected} mazzo/i`,
+                {
+                    title: 'Reset completato',
+                    duration: 3000
+                }
+            );
+            
+            // Refresh decks per mostrare le modifiche
             await loadDecks();
         } catch (err: any) {
+            console.error('[DecksDashboardPage] Errore nel reset:', err);
+            emitToast.error(err.message || 'Errore nel reset delle carte', {
+                title: 'Errore',
+                duration: 4000
+            });
             throw new Error(err.message || 'Errore nel reset delle carte');
         }
     }, [decks, loadDecks]);
 
+    const handleReactivateExam = useCallback(async (examId: string) => {
+        try {
+            console.log('[DecksDashboardPage] handleReactivateExam chiamato:', { examId });
+            
+            // Riattiva l'esame cambiando lo status a 'active' e resettando l'outcome
+            await goalsService.update(examId, {
+                status: 'active',
+                outcome: null, // Reset outcome quando si riattiva
+            });
+            
+            console.log('[DecksDashboardPage] Esame riattivato con successo');
+            
+            emitToast.success('Esame riattivato! Ora puoi continuare a studiare.', {
+                title: 'Esame riattivato',
+                duration: 3000
+            });
+            
+            // Refresh esami e deck
+            setExamsRefreshKey(prev => prev + 1);
+            await Promise.all([
+                loadExams(),
+                loadDecks(),
+            ]);
+            
+            // Se l'esame era selezionato, aggiorna lo stato locale
+            if (selectedExam && selectedExam.id === examId) {
+                const allGoals = await goalsService.getAll();
+                const updatedExam = allGoals.find((g: Goal) => g.id === examId);
+                if (updatedExam) {
+                    setSelectedExam(updatedExam);
+                }
+            }
+        } catch (err: any) {
+            console.error('[DecksDashboardPage] Errore nella riattivazione esame:', err);
+            emitToast.error(err.message || 'Errore nella riattivazione dell\'esame', {
+                title: 'Errore',
+                duration: 4000
+            });
+        }
+    }, [loadExams, loadDecks, selectedExam]);
+
     const handleGenerateAIQuestions = useCallback(async (examId: string, topics: string[]) => {
-        // Mock implementation - da implementare con API reale
-        emitToast.info('Funzionalità AI in arrivo! Per ora puoi usare Magic Generate su ogni mazzo.');
-        // TODO: Implementare chiamata API per generare domande AI
-    }, []);
+        try {
+            console.log('[DecksDashboardPage] handleGenerateAIQuestions chiamato:', { examId, topics });
+            
+            const examDecks = decks.filter(d => d.goalId === examId);
+            
+            if (examDecks.length === 0) {
+                console.warn('[DecksDashboardPage] Nessun mazzo trovato per esame:', examId);
+                emitToast.warning('Nessun mazzo trovato per questo esame');
+                return;
+            }
+
+            console.log('[DecksDashboardPage] Trovati', examDecks.length, 'mazzi per l\'esame');
+            console.log('[DecksDashboardPage] Chiamando studyService.generateRecoveryQuestions...');
+            
+            // Chiama l'API per generare domande AI
+            const result = await studyService.generateRecoveryQuestions(examId, topics);
+            
+            console.log('[DecksDashboardPage] Generazione completata:', result);
+            
+            if (result.totalGenerated === 0) {
+                emitToast.warning('Nessuna domanda generata. Potrebbe essere necessario caricare un PDF nei mazzi per fornire contesto all\'AI.');
+                return;
+            }
+
+            emitToast.success(
+                `Generazione completata: ${result.totalGenerated} nuove domande aggiunte in ${result.decksAffected} mazzo/i`,
+                {
+                    title: 'Domande AI generate',
+                    duration: 4000
+                }
+            );
+            
+            // Refresh decks per mostrare le nuove carte
+            await loadDecks();
+        } catch (err: any) {
+            console.error('[DecksDashboardPage] Errore nella generazione AI:', err);
+            emitToast.error(err.message || 'Errore nella generazione delle domande AI', {
+                title: 'Errore',
+                duration: 4000
+            });
+            throw new Error(err.message || 'Errore nella generazione delle domande AI');
+        }
+    }, [decks, loadDecks]);
 
     // Calcola IDs degli esami completati (passed/failed/archived)
     const completedExamIds = useMemo(() => {
@@ -396,6 +507,7 @@ export const DecksDashboardPage: React.FC = () => {
                             console.error('Errore nel caricamento dell\'esame:', err);
                         }
                     }}
+                    onReactivateExam={handleReactivateExam}
                     onRefresh={() => {
                         // Trigger refresh chiamando la funzione esposta
                         if ((window as any).__refreshExams) {

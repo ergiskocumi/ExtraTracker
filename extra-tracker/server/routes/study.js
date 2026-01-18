@@ -102,4 +102,20 @@ router.post('/:id/generate-pdf', aiLimiter, (req, res, next) => {
     });
 }, studyController.uploadAndGenerate);
 
+// =========================================
+// RECOVERY PLAN - Exam Recovery Actions
+// =========================================
+
+/**
+ * POST /api/study/exam/:examId/reset-cards
+ * Resetta le carte di tutti i deck associati a un esame
+ */
+router.post('/exam/:examId/reset-cards', studyController.resetExamCards);
+
+/**
+ * POST /api/study/exam/:examId/generate-recovery-questions
+ * Genera domande AI di approfondimento basate sulle difficoltà
+ */
+router.post('/exam/:examId/generate-recovery-questions', aiLimiter, studyController.generateRecoveryQuestions);
+
 module.exports = router;

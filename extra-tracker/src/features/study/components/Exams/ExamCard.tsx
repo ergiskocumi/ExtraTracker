@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, TrendingUp, ArrowRight, Layers, FileText, Target, MoreVertical, Trash2 } from 'lucide-react';
+import { Calendar, TrendingUp, ArrowRight, Layers, FileText, Target, MoreVertical, Trash2, RotateCcw } from 'lucide-react';
 import type { Goal } from '../../../goals/types';
 import { getExamIcon, getExamColors } from './utils/examIcons';
 
@@ -16,6 +16,7 @@ interface ExamCardProps {
     masteryPercent: number;
     onClick: () => void;
     onDelete?: (examId: string) => void;
+    onReactivate?: (examId: string) => void;
 }
 
 // ============================================
@@ -30,6 +31,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
     masteryPercent,
     onClick,
     onDelete,
+    onReactivate,
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -56,11 +58,21 @@ export const ExamCard: React.FC<ExamCardProps> = ({
         };
     }, [isMenuOpen]);
 
+    const isCompleted = exam.status === 'passed' || exam.status === 'failed' || exam.status === 'archived' || exam.status === 'completed';
+
     const handleDeleteClick = (e: React.MouseEvent) => {
         e.stopPropagation(); // Previeni il click sulla card
         setIsMenuOpen(false);
         if (onDelete) {
             onDelete(exam.id);
+        }
+    };
+
+    const handleReactivateClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Previeni il click sulla card
+        setIsMenuOpen(false);
+        if (onReactivate) {
+            onReactivate(exam.id);
         }
     };
 
@@ -142,13 +154,24 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                         transition={{ duration: 0.15 }}
                                         className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-white/15 bg-gradient-to-br from-white/[0.12] to-white/[0.06] shadow-2xl shadow-black/60 overflow-hidden z-50 backdrop-blur-xl"
                                     >
-                                        <button
-                                            onClick={handleDeleteClick}
-                                            className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/15 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                            <span className="text-sm font-medium">Elimina Esame</span>
-                                        </button>
+                                        {isCompleted && onReactivate && (
+                                            <button
+                                                onClick={handleReactivateClick}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-blue-400 hover:bg-blue-500/15 transition-colors border-b border-white/10"
+                                            >
+                                                <RotateCcw className="w-4 h-4" />
+                                                <span className="text-sm font-medium">Riattiva Esame</span>
+                                            </button>
+                                        )}
+                                        {onDelete && (
+                                            <button
+                                                onClick={handleDeleteClick}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/15 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                <span className="text-sm font-medium">Elimina Esame</span>
+                                            </button>
+                                        )}
                                     </motion.div>
                                 )}
                             </AnimatePresence>

@@ -30,6 +30,7 @@ interface ExamsViewProps {
     onAddCard: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onTogglePin?: (deck: Deck) => void;
+    onReactivateExam?: (examId: string) => void;
 }
 
 // ============================================
@@ -50,6 +51,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
     onAddCard,
     onDelete,
     onTogglePin,
+    onReactivateExam,
 }) => {
     const [exams, setExams] = useState<Goal[]>([]);
     const [isLoading, setIsLoading] = useState(true);

@@ -314,12 +314,6 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                                 onShowSource={handleShowSource}
                                 activeSourceCardId={activeSourceCardId}
                             />
-                            {/* #region agent log */}
-                            {(() => {
-                                fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'CinemaLayout.tsx:314', message: 'Passing onShowSource to StudySidebar', data: { hasHandleShowSource: !!handleShowSource, handleShowSourceType: typeof handleShowSource, deckId: deck.id, deckCardsCount: deck.cards?.length || 0 }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => {});
-                                return null;
-                            })()}
-                            {/* #endregion */}
                         </Panel>
                     </Group>
                 </div>

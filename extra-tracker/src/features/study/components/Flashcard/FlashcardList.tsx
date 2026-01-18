@@ -187,13 +187,6 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     onShowSource,
     activeSourceCardId,
 }) => {
-    // #region agent log
-    useEffect(() => {
-        const cards = filteredCards || deck.cards || [];
-        const cardsWithSource = cards.filter(c => c.sourceMetadata);
-        fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'FlashcardList.tsx:189', message: 'FlashcardList received props', data: { hasOnShowSource: !!onShowSource, onShowSourceType: typeof onShowSource, totalCards: cards.length, cardsWithSourceCount: cardsWithSource.length, firstCardWithSource: cardsWithSource[0] ? { id: cardsWithSource[0].id, hasSourceMetadata: !!cardsWithSource[0].sourceMetadata, sourceMetadataKeys: cardsWithSource[0].sourceMetadata ? Object.keys(cardsWithSource[0].sourceMetadata) : [] } : null }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A,B,E' }) }).catch(() => {});
-    }, [onShowSource, filteredCards, deck.cards]);
-    // #endregion
     // Local state for drag interactions - ensures instant visual feedback
     const [items, setItems] = useState<Card[]>(() => {
         return filteredCards || deck.cards || [];

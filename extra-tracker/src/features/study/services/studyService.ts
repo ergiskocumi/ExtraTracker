@@ -196,9 +196,6 @@ const normalizeCard = (raw: any): Card => {
                     pageNumber,
                     originalText,
                 };
-                // #region agent log
-                fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'studyService.ts:normalizeCard', message: 'Normalized sourceMetadata', data: { cardId: raw.id || raw._id, hasRawSourceMetadata: !!(raw.sourceMetadata || raw.source_metadata), normalizedSourceMetadata: sourceMetadata }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'post-fix', hypothesisId: 'B' }) }).catch(() => {});
-                // #endregion
             }
         }
     }
@@ -538,6 +535,26 @@ class StudyService {
     async getDeckAnalytics(deckId: string): Promise<DeckAnalytics> {
         const response = await apiClient.get<DeckAnalytics>(`${this.baseUrl}/${deckId}/analytics`);
         return unwrap(response, 'Errore nel recupero delle analytics');
+    }
+
+    /**
+     * Resetta le carte di tutti i deck associati a un esame
+     * @param examId - ID dell'esame (Goal)
+     * @param type - 'all' per reset completo, 'hard-only' per solo carte difficili
+     */
+    async resetExamCards(examId: string, type: 'all' | 'hard-only'): Promise<{ decksAffected: number; cardsReset: number; type: string }> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/exam/${examId}/reset-cards`, { type });
+        return unwrap(response, 'Errore nel reset delle carte');
+    }
+
+    /**
+     * Genera domande AI di approfondimento basate sulle difficoltà segnalate
+     * @param examId - ID dell'esame (Goal)
+     * @param difficulties - Array di difficoltà segnalate (es. ['concepts', 'time'])
+     */
+    async generateRecoveryQuestions(examId: string, difficulties: string[]): Promise<{ decksAffected: number; totalGenerated: number; generatedByDeck: Array<{ deckId: string; deckTitle: string; count: number }> }> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/exam/${examId}/generate-recovery-questions`, { difficulties });
+        return unwrap(response, 'Errore nella generazione delle domande AI');
     }
 }
 

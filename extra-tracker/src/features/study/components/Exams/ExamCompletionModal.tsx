@@ -74,6 +74,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
     const [grade, setGrade] = useState<string>('');
     const [gradingSystem, setGradingSystem] = useState<GradingSystem>('30');
     const [selectedDifficulties, setSelectedDifficulties] = useState<Set<DifficultyOption>>(new Set());
+    const [savedDifficulties, setSavedDifficulties] = useState<Set<DifficultyOption>>(new Set()); // Preserva le difficoltà per le azioni di recupero
     const [notes, setNotes] = useState<string>('');
     const [gradeError, setGradeError] = useState<string>('');
 
@@ -129,6 +130,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
             setGrade('');
             setGradingSystem('30');
             setSelectedDifficulties(new Set());
+            setSavedDifficulties(new Set());
             setNotes('');
             setGradeError('');
         }
@@ -285,6 +287,9 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
 
         setIsLoading(true);
         try {
+            // Salva le difficoltà originali (chiavi) per le azioni di recupero
+            setSavedDifficulties(new Set(selectedDifficulties));
+
             const difficulties = Array.from(selectedDifficulties).map(d => {
                 const map: Record<DifficultyOption, string> = {
                     concepts: 'Concetti difficili',
@@ -301,22 +306,32 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                 difficulties,
             };
 
+            console.log('[ExamCompletionModal] Salvando esame come failed:', { examId: exam.id, outcome, status: 'failed' });
             await onComplete(exam.id, outcome, 'failed');
+            console.log('[ExamCompletionModal] Esame salvato come failed, passando a recovery-actions');
             setStep('recovery-actions');
         } catch (err: any) {
+            console.error('[ExamCompletionModal] Errore nel salvataggio:', err);
             emitToast.error(err.message || 'Errore nel salvataggio del risultato');
             setIsLoading(false);
         }
     };
 
     const handleResetCards = async (type: 'all' | 'hard-only') => {
-        if (!onResetCards) return;
+        if (!onResetCards) {
+            console.warn('[ExamCompletionModal] onResetCards non disponibile');
+            emitToast.error('Funzionalità di reset non disponibile');
+            return;
+        }
         setIsLoading(true);
         try {
+            console.log('[ExamCompletionModal] Chiamando resetCards:', { examId: exam.id, type });
             await onResetCards(exam.id, type);
+            console.log('[ExamCompletionModal] Reset completato con successo');
             emitToast.success(type === 'all' ? 'Tutte le carte sono state resettate' : 'Le carte difficili sono state resettate');
             onClose();
         } catch (err: any) {
+            console.error('[ExamCompletionModal] Errore nel reset:', err);
             emitToast.error(err.message || 'Errore nel reset delle carte');
         } finally {
             setIsLoading(false);
@@ -324,14 +339,32 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
     };
 
     const handleGenerateAIQuestions = async () => {
-        if (!onGenerateAIQuestions) return;
+        if (!onGenerateAIQuestions) {
+            console.warn('[ExamCompletionModal] onGenerateAIQuestions non disponibile');
+            emitToast.error('Funzionalità AI non disponibile');
+            return;
+        }
         setIsLoading(true);
         try {
-            const topics = Array.from(selectedDifficulties);
+            // Usa le difficoltà salvate (chiavi originali) invece di selectedDifficulties
+            // che potrebbe essere vuoto se siamo già nello step recovery-actions
+            const topics = savedDifficulties.size > 0 
+                ? Array.from(savedDifficulties) 
+                : Array.from(selectedDifficulties);
+            
+            if (topics.length === 0) {
+                emitToast.warning('Nessuna difficoltà selezionata. Seleziona le difficoltà prima di generare le domande.');
+                setIsLoading(false);
+                return;
+            }
+
+            console.log('[ExamCompletionModal] Chiamando generateAIQuestions:', { examId: exam.id, topics });
             await onGenerateAIQuestions(exam.id, topics);
+            console.log('[ExamCompletionModal] Generazione AI completata con successo');
             emitToast.success('Domande AI generate con successo!');
             onClose();
         } catch (err: any) {
+            console.error('[ExamCompletionModal] Errore nella generazione AI:', err);
             emitToast.error(err.message || 'Errore nella generazione delle domande');
         } finally {
             setIsLoading(false);
@@ -665,9 +698,20 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                     className="space-y-4"
                                 >
                                     <div className="text-center py-2 mb-4">
-                                        <p className="text-white/80">
+                                        <div className="flex items-center justify-center gap-2 mb-2">
+                                            <AlertCircle className="w-5 h-5 text-orange-400" />
+                                            <p className="text-white font-semibold">
+                                                Esame segnato come non superato
+                                            </p>
+                                        </div>
+                                        <p className="text-white/80 text-sm mb-3">
                                             Ecco un piano di recupero personalizzato per te:
                                         </p>
+                                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-left">
+                                            <p className="text-xs text-blue-300">
+                                                💡 <strong>Suggerimento:</strong> Dopo aver scelto un'azione, potrai continuare a studiare con le carte aggiornate. L'esame rimarrà nello stato "Non superato" finché non lo completerai di nuovo come "Superato".
+                                            </p>
+                                        </div>
                                     </div>
 
                                     <div className="space-y-3">

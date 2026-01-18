@@ -68,9 +68,6 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
 
     // Compact mode: just render the content
     if (compactMode) {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'StudySidebar.tsx:70', message: 'StudySidebar compactMode - received onShowSource', data: { hasOnShowSource: !!onShowSource, onShowSourceType: typeof onShowSource, deckId: deck.id, deckCardsCount: deck.cards?.length || 0 }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => {});
-        // #endregion
         return (
             <div className={`h-full ${className}`}>
                 {currentTab === 'flashcards' ? (
@@ -162,12 +159,6 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
             <div className="flex-1 overflow-hidden">
                 {currentTab === 'flashcards' ? (
                     <>
-                        {/* #region agent log */}
-                        {(() => {
-                            fetch('http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'StudySidebar.tsx:160', message: 'StudySidebar fullMode - passing onShowSource to FlashcardList', data: { hasOnShowSource: !!onShowSource, onShowSourceType: typeof onShowSource, deckId: deck.id }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => {});
-                            return null;
-                        })()}
-                        {/* #endregion */}
                         <FlashcardList
                             deck={deck}
                             onAddCard={onAddCard}
