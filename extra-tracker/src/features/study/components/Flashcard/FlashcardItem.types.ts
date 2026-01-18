@@ -30,6 +30,8 @@ export interface FlashcardItemProps {
     onShowSource?: (card: Card) => void;
     /** If true, card is highlighted as "source active" */
     isSourceActive?: boolean;
+    /** Callback when editing state changes (for disabling drag during edit) */
+    onEditingChange?: (isEditing: boolean) => void;
 }
 
 // ============================================

@@ -9,7 +9,7 @@
  */
 
 import React, { useEffect, useState, useCallback, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import type { Card } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { CARD_STYLES, ANIMATION_CONFIG, TEXT_CONTENT } from './FlashcardItem.constants';
@@ -40,6 +40,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     onCreate,
     onShowSource,
     isSourceActive = false,
+    onEditingChange,
 }) => {
     // ============================================
     // STATE
@@ -63,6 +64,14 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
             setTempBack(card.back);
         }
     }, [card.front, card.back, isEditing]);
+
+    /**
+     * Notify parent component when editing state changes.
+     * This allows parent to disable drag & drop during editing.
+     */
+    useEffect(() => {
+        onEditingChange?.(isEditing);
+    }, [isEditing, onEditingChange]);
 
     // ============================================
     // VALIDATION
@@ -93,7 +102,8 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
         setTempFront(card.front);
         setTempBack(card.back);
         setIsEditing(true);
-    }, [card.front, card.back]);
+        onEditingChange?.(true);
+    }, [card.front, card.back, onEditingChange]);
 
     /**
      * Cancels editing and resets to original values.
@@ -102,11 +112,12 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
         setTempFront(card.front);
         setTempBack(card.back);
         setIsEditing(false);
+        onEditingChange?.(false);
         
         if (onCancel) {
             onCancel();
         }
-    }, [card.front, card.back, onCancel]);
+    }, [card.front, card.back, onCancel, onEditingChange]);
 
     /**
      * Saves card changes.
@@ -126,6 +137,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
                 });
             }
             setIsEditing(false);
+            onEditingChange?.(false);
         } catch (error) {
             const errorMessage = error instanceof Error 
                 ? error.message 
@@ -138,7 +150,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
         } finally {
             setIsSaving(false);
         }
-    }, [card.id, validation.trimmedFront, validation.trimmedBack, validation.canSave, onUpdate, onCreate]);
+    }, [card.id, validation.trimmedFront, validation.trimmedBack, validation.canSave, onUpdate, onCreate, onEditingChange]);
 
     /**
      * Handles card click (only when not editing).
@@ -166,14 +178,18 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     // ============================================
 
     const getCardClasses = (): string => {
-        const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding} ${CARD_STYLES.base.transition} ${CARD_STYLES.base.hover.border} ${CARD_STYLES.base.hover.shadow}`;
+        const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding}`;
+        // Disable hover effects and transitions during editing for better UX
+        const interactive = !isEditing 
+            ? `${CARD_STYLES.base.transition} ${CARD_STYLES.base.hover.border} ${CARD_STYLES.base.hover.shadow}` 
+            : '';
         const cursor = onClick && !isEditing ? 'cursor-pointer' : '';
         const border = isSourceActive 
             ? CARD_STYLES.sourceActive.border 
             : CARD_STYLES.default.border;
-        const shadow = isSourceActive ? CARD_STYLES.sourceActive.shadow : '';
+        const shadow = isSourceActive && !isEditing ? CARD_STYLES.sourceActive.shadow : '';
         
-        return `${base} ${cursor} ${border} ${shadow}`.trim();
+        return `${base} ${interactive} ${cursor} ${border} ${shadow}`.trim();
     };
 
     const getCardBackground = (): string => {
@@ -186,6 +202,44 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     // RENDER
     // ============================================
 
+    const cardContent = !isEditing ? (
+        <ViewMode
+            card={card}
+            buttonState={buttonState}
+            isSourceActive={isSourceActive}
+            onEdit={handleStartEdit}
+            onDelete={onDelete}
+            onShowSource={handleShowSource}
+            onCardClick={handleCardClick}
+        />
+    ) : (
+        <EditMode
+            frontValue={tempFront}
+            backValue={tempBack}
+            isSaving={isSaving}
+            canSave={validation.canSave}
+            onFrontChange={setTempFront}
+            onBackChange={setTempBack}
+            onSave={handleSave}
+            onCancel={handleCancel}
+        />
+    );
+
+    // Use regular div when editing to avoid animation conflicts with text input
+    // No motion props, no drag, no hover effects - completely static during editing
+    if (isEditing) {
+        return (
+            <div
+                className={getCardClasses()}
+                style={{ background: getCardBackground() }}
+                // No onClick during editing to prevent any interaction conflicts
+            >
+                {cardContent}
+            </div>
+        );
+    }
+
+    // Use motion.div for view mode to enable smooth animations
     return (
         <motion.div
             initial={ANIMATION_CONFIG.card.initial}
@@ -195,30 +249,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
             style={{ background: getCardBackground() }}
             onClick={handleCardClick}
         >
-            <AnimatePresence mode="wait">
-                {!isEditing ? (
-                    <ViewMode
-                        card={card}
-                        buttonState={buttonState}
-                        isSourceActive={isSourceActive}
-                        onEdit={handleStartEdit}
-                        onDelete={onDelete}
-                        onShowSource={handleShowSource}
-                        onCardClick={handleCardClick}
-                    />
-                ) : (
-                    <EditMode
-                        frontValue={tempFront}
-                        backValue={tempBack}
-                        isSaving={isSaving}
-                        canSave={validation.canSave}
-                        onFrontChange={setTempFront}
-                        onBackChange={setTempBack}
-                        onSave={handleSave}
-                        onCancel={handleCancel}
-                    />
-                )}
-            </AnimatePresence>
+            {cardContent}
         </motion.div>
     );
 });

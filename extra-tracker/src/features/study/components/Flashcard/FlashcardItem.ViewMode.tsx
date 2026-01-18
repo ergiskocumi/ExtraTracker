@@ -7,9 +7,8 @@
 
 import React from 'react';
 import { FiEdit2, FiTrash2, FiTarget } from 'react-icons/fi';
-import { motion } from 'framer-motion';
 import type { Card } from '../../services/studyService';
-import { ANIMATION_CONFIG, BADGE_STYLES, BUTTON_STYLES, TEXT_CONTENT, ICON_SIZES, LAYOUT } from './FlashcardItem.constants';
+import { BADGE_STYLES, BUTTON_STYLES, TEXT_CONTENT, ICON_SIZES, LAYOUT } from './FlashcardItem.constants';
 import type { ButtonState } from './FlashcardItem.types';
 
 // ============================================
@@ -54,11 +53,7 @@ export const ViewMode: React.FC<ViewModeProps> = ({
     };
 
     return (
-        <motion.div
-            key="view"
-            initial={ANIMATION_CONFIG.viewMode.initial}
-            animate={ANIMATION_CONFIG.viewMode.animate}
-            exit={ANIMATION_CONFIG.viewMode.exit}
+        <div
             className="space-y-3"
             onClick={onCardClick}
         >
@@ -136,6 +131,6 @@ export const ViewMode: React.FC<ViewModeProps> = ({
                     {card.back}
                 </p>
             </div>
-        </motion.div>
+        </div>
     );
 };
