@@ -5,9 +5,9 @@
  * animazioni e feedback visivo migliorato.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileQuestion, BookOpen, Trash2, LucideIcon } from 'lucide-react';
+import { FileQuestion, BookOpen, Trash2 } from 'lucide-react';
 
 // ============================================
 // TYPES
@@ -16,7 +16,7 @@ import { FileQuestion, BookOpen, Trash2, LucideIcon } from 'lucide-react';
 export interface DropzoneConfig {
     id: 'questions' | 'source';
     label: string;
-    icon: LucideIcon;
+    icon: React.ElementType;
     acceptedTypes: string[];
     acceptedExtensions: string[];
     file: File | null;

@@ -4,13 +4,11 @@
  * Design in stile macOS con glassmorphism, seguendo MagicGenerateModal
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     FileQuestion, 
     BookOpen, 
     X, 
-    Upload, 
     FileText, 
     CheckCircle2, 
     AlertCircle, 
@@ -18,19 +16,12 @@ import {
     Loader2,
     Plus,
     ChevronRight,
-    Trash2,
-    Edit3,
-    Search,
-    CheckSquare,
-    Square,
-    Check
+    Check,
+    Search
 } from 'lucide-react';
-import { studyService } from '../../services/studyService';
-import { emitToast } from '../../../../shared/components/toast';
-import goalsService from '../../../goals/services/goalsService';
-import type { Goal } from '../../../goals/types';
 import { DualDropzone, type DropzoneConfig } from './ExamSolver/DualDropzone';
 import { QuestionsPreview } from './ExamSolver/QuestionsPreview';
+import { useExamSolver, type Step } from './ExamSolver/useExamSolver';
 
 // ============================================
 // TYPES
@@ -53,16 +44,7 @@ interface ExamSolverModalProps {
     preselectedDeckId?: string; // ID deck pre-selezionato (opzionale)
 }
 
-type Step = 'upload' | 'preview' | 'config' | 'progress' | 'completed';
-
 type ProgressStep = 'idle' | 'extracting' | 'analyzing' | 'generating' | 'completed' | 'error';
-
-interface GeneratedFlashcard {
-    front: string;
-    back: string;
-    found: boolean;
-    manualEdit?: string; // Risposta editata manualmente (Livello 2)
-}
 
 // ============================================
 // COMPONENT
@@ -76,128 +58,48 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
     goalId,
     preselectedDeckId,
 }) => {
-    const [currentStep, setCurrentStep] = useState<Step>('upload');
-    const [questionsFile, setQuestionsFile] = useState<File | null>(null);
-    const [sourceFile, setSourceFile] = useState<File | null>(null);
-    const [extractedQuestions, setExtractedQuestions] = useState<string[]>([]);
-    const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
-    const [generatedFlashcards, setGeneratedFlashcards] = useState<GeneratedFlashcard[]>([]);
-    const [editingAnswerIndex, setEditingAnswerIndex] = useState<number | null>(null);
-    const [manualAnswer, setManualAnswer] = useState<string>('');
-    const [deckMode, setDeckMode] = useState<'new' | 'existing'>('new');
-    const [deckTitle, setDeckTitle] = useState('');
-    const [selectedDeckId, setSelectedDeckId] = useState<string>('');
-    // Goal selection per nuovo mazzo
-    const [goals, setGoals] = useState<Goal[]>([]);
-    const [selectedGoalId, setSelectedGoalId] = useState<string>('');
-    const [isLoadingGoals, setIsLoadingGoals] = useState(false);
-    const [progressStep, setProgressStep] = useState<ProgressStep>('idle');
-    const [progressMessage, setProgressMessage] = useState('');
-    const [stats, setStats] = useState<ExamSolverStats | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [createdDeckId, setCreatedDeckId] = useState<string>('');
-
-    const startTimeRef = useRef<number | null>(null);
-    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    // Reset quando si apre il modal
-    useEffect(() => {
-        if (isOpen) {
-            setCurrentStep('upload');
-            setQuestionsFile(null);
-            setSourceFile(null);
-            setExtractedQuestions([]);
-            setSelectedQuestions(new Set());
-            setGeneratedFlashcards([]);
-            setEditingAnswerIndex(null);
-            setManualAnswer('');
-            // Se c'è un deckId pre-selezionato, usa quello
-            if (preselectedDeckId && existingDecks.some(d => d.id === preselectedDeckId)) {
-                setDeckMode('existing');
-                setSelectedDeckId(preselectedDeckId);
-            } else {
-                setDeckMode('new');
-                setDeckTitle('');
-                setSelectedDeckId('');
-            }
-            setGoals([]);
-            setSelectedGoalId(goalId || ''); // Usa goalId prop se disponibile
-            setProgressStep('idle');
-            setProgressMessage('');
-            setStats(null);
-            setError(null);
-            setCreatedDeckId('');
-            startTimeRef.current = null;
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-            }
-        }
-    }, [isOpen, preselectedDeckId, existingDecks, goalId]);
-
-    // Carica goals quando si sceglie "Crea nuovo mazzo"
-    useEffect(() => {
-        if (isOpen && deckMode === 'new' && goals.length === 0) {
-            loadGoals();
-        }
-    }, [isOpen, deckMode]);
-
-    const loadGoals = async () => {
-        try {
-            setIsLoadingGoals(true);
-            const allGoals = await goalsService.getAll();
-            // Filtra solo goal attivi
-            const activeGoals = allGoals.filter(g => g.status === 'active');
-            setGoals(activeGoals);
-            
-            // Auto-seleziona se c'è solo un goal o se goalId prop è disponibile
-            if (goalId && activeGoals.some(g => g.id === goalId)) {
-                setSelectedGoalId(goalId);
-            } else if (activeGoals.length === 1) {
-                setSelectedGoalId(activeGoals[0].id);
-            }
-        } catch (err) {
-            console.error('Failed to load goals:', err);
-            emitToast.error('Errore nel caricamento degli esami');
-        } finally {
-            setIsLoadingGoals(false);
-        }
-    };
-
-    // Timer per il tempo trascorso
-    useEffect(() => {
-        if (['extracting', 'analyzing', 'generating'].includes(progressStep)) {
-            if (!startTimeRef.current) {
-                startTimeRef.current = Date.now();
-            }
-            timerRef.current = setInterval(() => {
-                if (startTimeRef.current) {
-                    const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-                    // Timer visibile nel progress step
-                }
-            }, 1000);
-        } else {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-                timerRef.current = null;
-            }
-        }
-        return () => {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-            }
-        };
-    }, [progressStep]);
-
-    const handleClose = useCallback(() => {
-        if (['extracting', 'analyzing', 'generating'].includes(progressStep)) {
-            return; // Non chiudere durante l'elaborazione
-        }
-        if (timerRef.current) {
-            clearInterval(timerRef.current);
-        }
-        startTimeRef.current = null;
-        onClose();
-    }, [progressStep, onClose]);
+        // Use custom hook for all logic
+    const {
+        currentStep,
+        goToStep,
+        questionsFile,
+        sourceFile,
+        setQuestionsFile,
+        setSourceFile,
+        extractedQuestions,
+        selectedQuestions,
+        setSelectedQuestions,
+        deckMode,
+        setDeckMode,
+        deckTitle,
+        setDeckTitle,
+        selectedDeckId,
+        setSelectedDeckId,
+        selectedGoalId,
+        setSelectedGoalId,
+        goals,
+        isLoadingGoals,
+        progressStep,
+        progressMessage,
+        stats,
+        createdDeckId,
+        extractQuestions,
+        generateAnswers,
+        handleNextFromPreview,
+        error,
+        setError,
+        clearError,
+        isProcessing,
+        canClose,
+        handleClose,
+    } = useExamSolver({
+        isOpen,
+        existingDecks,
+        goalId,
+        preselectedDeckId,
+        onSuccess,
+        onClose,
+    });
 
     // Dropzone configurations
     const questionsConfig: DropzoneConfig = {
@@ -221,114 +123,6 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         onFileSelect: setSourceFile,
         onFileRemove: () => setSourceFile(null),
     };
-
-    const handleNextFromUpload = useCallback(async () => {
-        if (!questionsFile || !sourceFile) return;
-
-        try {
-            setProgressStep('extracting');
-            setProgressMessage('Estrazione domande...');
-            setError(null);
-            startTimeRef.current = Date.now();
-
-            // Estrai domande (Livello 1)
-            const result = await studyService.extractExamQuestions(questionsFile);
-            
-            setExtractedQuestions(result.questions);
-            // Seleziona tutte le domande di default
-            setSelectedQuestions(new Set(result.questions.map((_, idx) => idx)));
-            
-            setProgressStep('idle');
-            setCurrentStep('preview');
-        } catch (err: any) {
-            setProgressStep('error');
-            setError(err.message || 'Errore durante l\'estrazione delle domande');
-            emitToast.error(err.message || 'Errore durante l\'estrazione delle domande');
-        }
-    }, [questionsFile, sourceFile]);
-
-    const handleNextFromPreview = useCallback(() => {
-        if (selectedQuestions.size === 0) {
-            setError('Seleziona almeno una domanda');
-            return;
-        }
-        setCurrentStep('config');
-    }, [selectedQuestions]);
-
-    const handleGenerate = useCallback(async () => {
-        if (!sourceFile) return;
-
-        // Validazione configurazione
-        if (deckMode === 'new') {
-            if (!deckTitle.trim()) {
-                setError('Inserisci un titolo per il nuovo mazzo');
-                return;
-            }
-            if (!selectedGoalId) {
-                setError('Seleziona un esame/obiettivo per il nuovo mazzo');
-                return;
-            }
-        }
-        if (deckMode === 'existing' && !selectedDeckId) {
-            setError('Seleziona un mazzo esistente');
-            return;
-        }
-
-        // Prepara domande selezionate
-        const questionsToProcess = Array.from(selectedQuestions)
-            .map(idx => extractedQuestions[idx])
-            .filter(Boolean);
-
-        if (questionsToProcess.length === 0) {
-            setError('Seleziona almeno una domanda');
-            return;
-        }
-
-        setCurrentStep('progress');
-        setProgressStep('analyzing');
-        setProgressMessage('Analisi materiale...');
-        setError(null);
-        startTimeRef.current = Date.now();
-
-        try {
-            setProgressStep('generating');
-            setProgressMessage('Generazione risposte...');
-
-            // Usa la nuova API con domande selezionate (Livello 1)
-            const result = await studyService.generateExamAnswers(
-                sourceFile,
-                questionsToProcess,
-                {
-                    deckId: deckMode === 'existing' ? selectedDeckId : undefined,
-                    title: deckMode === 'new' ? deckTitle.trim() : undefined,
-                    goalId: deckMode === 'new' ? selectedGoalId : undefined,
-                }
-            );
-
-            // Salva le flashcard generate per editing manuale (Livello 2)
-            // Nota: Il backend non restituisce le flashcard, quindi le ricostruiamo dalle stats
-            // In un'implementazione completa, il backend dovrebbe restituire le flashcard
-            setGeneratedFlashcards([]); // Reset per ora, sarà popolato se il backend le restituisce
-
-            setProgressStep('completed');
-            setProgressMessage('Completato!');
-            setStats(result.stats);
-            setCreatedDeckId(result.deck.id);
-
-            // Non auto-close, mostra editing manuale se ci sono risposte non trovate (Livello 2)
-            if (result.stats.answersNotFound > 0) {
-                // Mostra opzione per editing manuale
-            } else {
-                setTimeout(() => {
-                    onSuccess(result.deck.id, result.stats);
-                }, 2000);
-            }
-        } catch (err: any) {
-            setProgressStep('error');
-            setError(err.message || 'Errore durante la generazione delle risposte');
-            emitToast.error(err.message || 'Errore durante la generazione delle risposte');
-        }
-    }, [sourceFile, deckMode, deckTitle, selectedDeckId, goalId, selectedQuestions, extractedQuestions, generatedFlashcards, onSuccess]);
 
 
     // ============================================
@@ -488,7 +282,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                         </div>
                         <button
                             onClick={handleClose}
-                            disabled={['extracting', 'analyzing', 'generating'].includes(progressStep)}
+                            disabled={!canClose}
                             className="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <X className="w-5 h-5 text-white/60" />
@@ -518,7 +312,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                     <motion.button
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
-                                        onClick={handleNextFromUpload}
+                                        onClick={extractQuestions}
                                         className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all flex items-center justify-center gap-2"
                                     >
                                         Avanti
@@ -534,7 +328,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                 questions={extractedQuestions}
                                 selectedIndices={selectedQuestions}
                                 onSelectionChange={setSelectedQuestions}
-                                onBack={() => setCurrentStep('upload')}
+                                onBack={() => goToStep('upload')}
                                 onNext={handleNextFromPreview}
                                 error={error}
                             />
@@ -672,13 +466,13 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
 
                                 <div className="flex gap-3">
                                     <button
-                                        onClick={() => setCurrentStep('preview')}
+                                        onClick={() => goToStep('preview')}
                                         className="flex-1 px-4 py-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white font-medium transition-colors"
                                     >
                                         Indietro
                                     </button>
                                     <button
-                                        onClick={handleGenerate}
+                                        onClick={generateAnswers}
                                         disabled={
                                             (deckMode === 'new' && (!deckTitle.trim() || !selectedGoalId)) ||
                                             (deckMode === 'existing' && !selectedDeckId)
@@ -702,16 +496,13 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                 <div className="flex items-center justify-between pb-4 border-b border-white/5">
                                     <div>
                                         <h3 className="text-lg font-semibold text-white mb-1">
-                                            {progressStep === 'extracting' && 'Estrazione domande...'}
-                                            {progressStep === 'analyzing' && 'Analisi materiale...'}
-                                            {progressStep === 'generating' && 'Generazione risposte...'}
-                                            {progressStep === 'completed' && 'Completato!'}
+                                            {progressMessage || 'Elaborazione...'}
                                         </h3>
                                         {progressMessage && (
                                             <p className="text-sm text-white/50">{progressMessage}</p>
                                         )}
                                     </div>
-                                    {progressStep !== 'completed' && progressStep !== 'error' && (
+                                    {isProcessing && (
                                         <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
                                     )}
                                 </div>
@@ -866,9 +657,8 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                         </div>
                                         <button
                                             onClick={() => {
-                                                setCurrentStep('config');
-                                                setProgressStep('idle');
-                                                setError(null);
+                                                goToStep('config');
+                                                clearError();
                                             }}
                                             className="px-4 py-2 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white text-sm font-medium transition-colors"
                                         >
