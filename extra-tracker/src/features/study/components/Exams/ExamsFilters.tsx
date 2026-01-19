@@ -1,7 +1,7 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Filter, Calendar, TrendingUp, Search, X, Clock } from 'lucide-react';
 import type { Goal } from '../../../goals/types';
+import { FILTER_STYLES, FILTER_BASE_STYLES } from './ExamsFilters.constants';
 
 // ============================================
 // TYPES
@@ -91,33 +91,38 @@ export const ExamsFilters: React.FC<ExamsFiltersProps> = ({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 {/* Filters */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none flex-1">
-                    {filters.map((f) => (
-                        <button
-                            key={f.key}
-                            onClick={() => onFilterChange(f.key)}
-                            className={`
-                                flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all
-                                ${filter === f.key
-                                    ? 'bg-primary-500/20 text-primary-300 border border-primary-500/30'
-                                    : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 border border-white/10'
-                                }
-                            `}
-                        >
-                            <Filter className="w-4 h-4 flex-shrink-0" />
-                            {f.label}
-                            {f.count !== undefined && f.count > 0 && (
-                                <span className={`
-                                    px-2 py-0.5 rounded-full text-xs font-bold
-                                    ${filter === f.key
-                                        ? 'bg-primary-500/30 text-primary-200'
-                                        : 'bg-orange-500/20 text-orange-400'
-                                    }
-                                `}>
-                                    {f.count}
-                                </span>
-                            )}
-                        </button>
-                    ))}
+                    {filters.map((f) => {
+                        const isActive = filter === f.key;
+                        const styles = FILTER_STYLES[f.key];
+                        const stateStyles = isActive ? styles.active : styles.inactive;
+
+                        return (
+                            <button
+                                key={f.key}
+                                onClick={() => onFilterChange(f.key)}
+                                className={`
+                                    ${FILTER_BASE_STYLES.container}
+                                    ${stateStyles.background}
+                                    ${stateStyles.text}
+                                    ${stateStyles.border}
+                                    ${!isActive ? stateStyles.hover.background : ''}
+                                    ${!isActive ? stateStyles.hover.text : ''}
+                                `}
+                            >
+                                <Filter className={FILTER_BASE_STYLES.icon} />
+                                {f.label}
+                                {f.count !== undefined && f.count > 0 && (
+                                    <span className={`
+                                        ${FILTER_BASE_STYLES.badge}
+                                        ${isActive ? styles.active.badge.background : styles.inactive.badge.background}
+                                        ${isActive ? styles.active.badge.text : styles.inactive.badge.text}
+                                    `}>
+                                        {f.count}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* Sort */}

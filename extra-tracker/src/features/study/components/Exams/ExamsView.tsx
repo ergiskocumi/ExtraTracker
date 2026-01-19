@@ -324,7 +324,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                         {filteredAndSortedExams.length} di {exams.length} {exams.length === 1 ? 'esame' : 'esami'}
                     </p>
                 </div>
-                <motion.button
+               {/*  <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={onCreateExam}
@@ -336,7 +336,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nuovo Esame</span>
                 </motion.button>
-            </div>
+ */}            </div>
 
             {/* Filters */}
             <ExamsFilters
