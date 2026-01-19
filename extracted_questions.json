@@ -1,0 +1,93 @@
+{
+  "questions": [
+    {
+      "id": 1,
+      "text": "Fornire una definizione di rendita certa o discreta.",
+      "type": "imperative"
+    },
+    {
+      "id": 2,
+      "text": "Come si possono classificare le rendite?",
+      "type": "question"
+    },
+    {
+      "id": 3,
+      "text": "Fornire una definizione generica di valore in t di una rendita.",
+      "type": "imperative"
+    },
+    {
+      "id": 4,
+      "text": "Cosa si intende per valore attuale di una rendita?",
+      "type": "question"
+    },
+    {
+      "id": 5,
+      "text": "Cosa si intende per valore finale o montante di una rendita?",
+      "type": "question"
+    },
+    {
+      "id": 6,
+      "text": "Formalizzazione matematica del valore attuale di una rendita immediata posticipata a rata costante.",
+      "type": "implicit"
+    },
+    {
+      "id": 7,
+      "text": "Definizione e formulazione matematica del valore finale di una rendita immediata posticipata a rata costante.",
+      "type": "implicit"
+    },
+    {
+      "id": 8,
+      "text": "Formalizzazione matematica del valore attuale di una rendita immediata anticipata a rata costante.",
+      "type": "implicit"
+    },
+    {
+      "id": 9,
+      "text": "Relazione matematica tra i valori attuali di una rendita immediata posticipata e anticipata a rata costante.",
+      "type": "implicit"
+    },
+    {
+      "id": 10,
+      "text": "Definizione e formulazione matematica del valore finale di una rendita immediata anticipata a rata costante.",
+      "type": "implicit"
+    },
+    {
+      "id": 11,
+      "text": "Relazione tra montante e valore attuale di una rendita (immediata anticipata e immediata posticipata).",
+      "type": "implicit"
+    },
+    {
+      "id": 12,
+      "text": "Definizione e formulazione matematica del valore attuale di una rendita differita di p anni, posticipata a rata costante",
+      "type": "implicit"
+    },
+    {
+      "id": 13,
+      "text": "Definizione e formulazione matematica del valore attuale di una rendita differita di p anni, anticipata a rata costante.",
+      "type": "implicit"
+    },
+    {
+      "id": 14,
+      "text": "Definizione e formulazione matematica del valore attuale di una rendita perpetua, immediata, anticipata a rata costante.",
+      "type": "implicit"
+    },
+    {
+      "id": 15,
+      "text": "Definizione e formulazione matematica del valore attuale di una rendita perpetua, immediata, posticipata a rata costante.",
+      "type": "implicit"
+    },
+    {
+      "id": 16,
+      "text": "Definizione e formulazione matematica del valore attuale di una rendita perpetua, differita di m anni, anticipata a rata costante.",
+      "type": "implicit"
+    },
+    {
+      "id": 17,
+      "text": "Definizione e formulazione matematica del valore attuale di una rendita perpetua, differita di m anni, posticipata a rata costante.",
+      "type": "implicit"
+    }
+  ],
+  "metadata": {
+    "total_found": 17,
+    "confidence": "high"
+  }
+}

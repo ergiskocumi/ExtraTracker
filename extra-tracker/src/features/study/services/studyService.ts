@@ -127,6 +127,12 @@ export interface TutorReply {
     reply: string;
 }
 
+export interface ExamAnswer {
+    answer: string;
+    foundInContext: boolean;
+    relatedTopics: string[] | null;
+}
+
 export interface DeckSettings {
     algorithm?: 'sm2' | 'fsrs' | 'leitner' | 'anki';
     aiSettings?: {
@@ -500,6 +506,17 @@ class StudyService {
         }
 
         return reply;
+    }
+
+    /**
+     * 📚 Tutor Accademico - Risponde a domande d'esame usando ESCLUSIVAMENTE il contesto fornito
+     */
+    async answerExamQuestion(deckId: string, question: string): Promise<ExamAnswer> {
+        const response = await apiClient.post<ExamAnswer>(`${this.baseUrl}/${deckId}/answer-question`, {
+            question,
+        });
+
+        return unwrap(response, 'Errore nella risposta alla domanda');
     }
 
     /**

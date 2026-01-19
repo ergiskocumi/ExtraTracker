@@ -303,6 +303,29 @@ const chatWithTutor = asyncHandler(async (req, res) => {
 });
 
 /**
+ * POST /api/study/:id/answer-question
+ * Risponde a una domanda d'esame usando ESCLUSIVAMENTE il contesto fornito dal PDF.
+ */
+const answerExamQuestion = asyncHandler(async (req, res) => {
+    const { question } = req.body;
+    
+    if (!question || typeof question !== 'string' || !question.trim()) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'La domanda è obbligatoria' }
+        });
+    }
+
+    const result = await studyService.answerExamQuestion(
+        req.tenantScope,
+        req.params.id,
+        question.trim()
+    );
+
+    res.json({ success: true, data: result });
+});
+
+/**
  * PUT /api/study/:id/settings
  * Aggiorna le impostazioni del deck (algoritmo e AI)
  */
@@ -387,6 +410,113 @@ const generateRecoveryQuestions = asyncHandler(async (req, res) => {
     res.json({ success: true, data: result });
 });
 
+/**
+ * POST /api/study/exam-solver
+ * Exam Solver: estrae domande da un documento e genera risposte da un altro
+ * Multipart form-data:
+ *   - questionsFile: PDF o TXT con le domande
+ *   - sourceFile: PDF con il materiale di studio
+ *   - deckId: (opzionale) ID deck esistente da aggiornare
+ *   - title: (opzionale) Titolo per nuovo deck
+ *   - goalId: (opzionale) ID goal per nuovo deck
+ */
+const examSolver = asyncHandler(async (req, res) => {
+    console.log('🎯 examSolver called');
+    console.log('   - req.files:', req.files ? Object.keys(req.files) : 'UNDEFINED');
+    console.log('   - req.body:', req.body);
+
+    // Verifica file domande (multer.fields() restituisce un oggetto con array)
+    const questionsFile = req.files?.questionsFile?.[0];
+    if (!questionsFile) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File domande (questionsFile) obbligatorio' }
+        });
+    }
+
+    // Verifica file materiale
+    const sourceFile = req.files?.sourceFile?.[0];
+    if (!sourceFile) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File materiale (sourceFile) obbligatorio' }
+        });
+    }
+
+    // Validazione tipo file domande (PDF o TXT)
+    const questionsIsPdf = questionsFile.mimetype === 'application/pdf';
+    const questionsIsTxt = questionsFile.mimetype === 'text/plain' || 
+                           questionsFile.originalname.toLowerCase().endsWith('.txt');
+    
+    if (!questionsIsPdf && !questionsIsTxt) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File domande deve essere PDF o TXT' }
+        });
+    }
+
+    // Validazione tipo file materiale (solo PDF)
+    if (sourceFile.mimetype !== 'application/pdf') {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File materiale deve essere un PDF' }
+        });
+    }
+
+    // Limite dimensione file (10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (questionsFile.size > maxSize) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File domande troppo grande. Massimo 10MB.' }
+        });
+    }
+    if (sourceFile.size > maxSize) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File materiale troppo grande. Massimo 10MB.' }
+        });
+    }
+
+    // Opzioni
+    const deckId = req.body?.deckId || null;
+    const title = req.body?.title || null;
+    const goalId = req.body?.goalId || null;
+
+    // Validazione opzioni
+    if (!deckId && (!title || !goalId)) {
+        return res.status(400).json({
+            success: false,
+            error: { 
+                message: 'Se non specifichi deckId, devi fornire sia title che goalId per creare un nuovo deck' 
+            }
+        });
+    }
+
+    try {
+        const result = await studyService.examSolver(
+            req.tenantScope,
+            questionsFile.path,
+            sourceFile.path,
+            { deckId, title, goalId }
+        );
+
+        console.log('✅ examSolver completato:', {
+            questionsExtracted: result.stats.questionsExtracted,
+            totalFlashcards: result.stats.totalFlashcards,
+            processingTimeMs: result.stats.processingTimeMs
+        });
+
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (err) {
+        console.error('❌ examSolver error:', err.message);
+        throw err; // L'asyncHandler gestirà l'errore
+    }
+});
+
 module.exports = {
     createDeck,
     updateDeck,
@@ -404,6 +534,8 @@ module.exports = {
     verifyAnswer,
     uploadAndGenerate,
     chatWithTutor,
+    answerExamQuestion,
+    examSolver,
     updateDeckSettings,
     getDeckAnalytics,
     resetExamCards,

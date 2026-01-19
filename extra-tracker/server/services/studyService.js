@@ -1603,6 +1603,579 @@ NOTA: original_quote deve essere IDENTICA al testo tra i marker di pagina.`;
         return { reply };
     }
 
+    /**
+     * 📚 TUTOR ACCADEMICO - Risponde a domande d'esame usando ESCLUSIVAMENTE il contesto fornito
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} deckId - ID del deck
+     * @param {string} question - Domanda esatta da rispondere
+     * @returns {Promise<object>} - Risposta con { answer, foundInContext, relatedTopics }
+     */
+    async answerExamQuestion(tenantScope, deckId, question) {
+        const userId = this._getUserId(tenantScope);
+
+        if (!question || typeof question !== 'string') {
+            throw AppError.validation('La domanda è obbligatoria');
+        }
+
+        const cleanQuestion = question.trim();
+        if (!cleanQuestion) {
+            throw AppError.validation('La domanda non può essere vuota');
+        }
+        if (cleanQuestion.length > MAX_TUTOR_MESSAGE_LENGTH) {
+            throw AppError.validation(`Domanda troppo lunga (max ${MAX_TUTOR_MESSAGE_LENGTH} caratteri)`);
+        }
+
+        const deck = await Deck.findOne({ _id: deckId, user: userId })
+            .select('+extractedText');
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        let extractedText = typeof deck.extractedText === 'string' ? deck.extractedText : '';
+        const hasPageMarkers = /--- Pagina \d+ ---/.test(extractedText);
+
+        const extractAndStorePdfText = async ({ strict = true } = {}) => {
+            if (!deck.pdfUrl || typeof deck.pdfUrl !== 'string') {
+                if (strict) {
+                    throw AppError.validation('Nessun PDF collegato a questo mazzo');
+                }
+                return null;
+            }
+
+            const pdfFileName = path.basename(deck.pdfUrl);
+            const pdfFilePath = path.join(__dirname, '..', 'uploads', 'pdfs', pdfFileName);
+
+            let pdfBuffer;
+            try {
+                pdfBuffer = await fs.readFile(pdfFilePath);
+            } catch (err) {
+                console.error('❌ PDF Read Error (Exam Tutor):', err.message);
+                if (strict) {
+                    throw AppError.validation('PDF non trovato sul server. Ricaricalo e riprova.');
+                }
+                return null;
+            }
+
+            let pdfText;
+            try {
+                const pdfData = await pdfParse(pdfBuffer);
+                pdfText = this._formatPdfTextWithPages(pdfData);
+            } catch (err) {
+                console.error('❌ PDF Parse Error (Exam Tutor):', err.message);
+                if (strict) {
+                    throw AppError.validation('Impossibile leggere il PDF.');
+                }
+                return null;
+            }
+
+            const normalizedExtracted = this._normalizeExtractedText(pdfText);
+            if (!normalizedExtracted || normalizedExtracted.length < 50) {
+                if (strict) {
+                    throw AppError.validation('Il PDF non contiene testo leggibile.');
+                }
+                return null;
+            }
+
+            deck.extractedText = this._truncateText(
+                normalizedExtracted,
+                MAX_EXTRACTED_TEXT_STORE_LENGTH,
+                '\n\n[...testo troncato...]'
+            );
+            await deck.save({ validateModifiedOnly: true });
+            extractedText = deck.extractedText;
+
+            return extractedText;
+        };
+
+        if (!extractedText || extractedText.trim().length < 50) {
+            await extractAndStorePdfText({ strict: true });
+        } else if (!hasPageMarkers) {
+            await extractAndStorePdfText({ strict: false });
+        }
+
+        let context = '';
+        try {
+            const matches = await vectorStoreService.queryDeck(deckId, cleanQuestion, 8);
+            if (Array.isArray(matches) && matches.length > 0) {
+                context = matches.join('\n\n---\n\n');
+            }
+        } catch (err) {
+            console.error('⚠️ Vector query error:', err.message);
+        }
+
+        if (!context && extractedText) {
+            try {
+                await vectorStoreService.ingestDeck(deckId, extractedText);
+                const matches = await vectorStoreService.queryDeck(deckId, cleanQuestion, 8);
+                if (Array.isArray(matches) && matches.length > 0) {
+                    context = matches.join('\n\n---\n\n');
+                }
+            } catch (err) {
+                console.error('⚠️ Vector ingest+query fallback error:', err.message);
+            }
+        }
+
+        const model = process.env.OPENAI_CHAT_MODEL || ACTIVE_AI_MODEL;
+        const contextLimit = model.includes('gpt-3.5') ? 15000 : 50000;
+
+        if (!context) {
+            context = this._buildTutorContext(extractedText, cleanQuestion, contextLimit);
+        }
+
+        if (!context || context.trim().length < 20) {
+            throw AppError.validation('Non ci sono abbastanza dati nel materiale per rispondere.');
+        }
+
+        context = this._truncateText(context, contextLimit, '\n\n[...contesto troncato...]');
+
+        // Prompt rigoroso per risposte d'esame
+        const systemPrompt = `Sei un TUTOR ACCADEMICO che aiuta studenti a preparare esami.
+
+IL TUO COMPITO: Rispondere alla domanda usando ESCLUSIVAMENTE il contesto fornito.
+
+═══════════════════════════════════════════════════════════════════
+REGOLE CRITICHE:
+═══════════════════════════════════════════════════════════════════
+
+1. USA SOLO IL CONTESTO: 
+   - Ogni informazione nella tua risposta DEVE provenire dal contesto
+   - NON usare conoscenze esterne
+   - NON inventare dati, date, nomi, numeri
+
+2. SE LA RISPOSTA NON È NEL CONTESTO:
+   - Rispondi con: "⚠️ RISPOSTA NON TROVATA NEL MATERIALE FORNITO"
+   - Poi suggerisci: "Argomenti correlati trovati: [lista]" (se ce ne sono)
+
+3. FORMATO RISPOSTA:
+   - Concisa ma completa (50-150 parole ideali)
+   - Usa elenchi puntati se appropriato
+   - Cita parti specifiche del contesto quando utile
+
+4. QUALITÀ:
+   - Rispondi come se dovessi scrivere su un compito d'esame
+   - Sii preciso e tecnico dove richiesto
+   - Evita ripetizioni e filler
+
+CONTESTO (DAL LIBRO/SLIDE DELLO STUDENTE):
+"""
+${context}
+"""
+
+DOMANDA DA RISPONDERE:
+"""
+${cleanQuestion}
+"""
+
+GENERA LA RISPOSTA:`;
+
+        let aiResponse;
+        try {
+            const completion = await openai.chat.completions.create({
+                model,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: cleanQuestion },
+                ],
+                temperature: 0.1, // Più basso per risposte più precise
+                max_completion_tokens: 800, // Più spazio per risposte complete
+            });
+
+            aiResponse = completion.choices[0]?.message?.content;
+        } catch (err) {
+            console.error('❌ OpenAI Exam Tutor Error:', err.message);
+            
+            if (err.code === 'insufficient_quota') {
+                throw AppError.validation('Quota OpenAI esaurita.');
+            }
+            throw AppError.validation('Errore nella risposta AI. Riprova.');
+        }
+
+        const answer = typeof aiResponse === 'string' ? aiResponse.trim() : '';
+        if (!answer) {
+            throw AppError.validation('Risposta AI vuota. Riprova.');
+        }
+
+        // Determina se la risposta è stata trovata nel contesto
+        const foundInContext = !answer.includes('⚠️ RISPOSTA NON TROVATA');
+
+        // Estrai argomenti correlati se presenti
+        const relatedTopicsMatch = answer.match(/Argomenti correlati trovati:\s*(.+)/i);
+        const relatedTopics = relatedTopicsMatch 
+            ? relatedTopicsMatch[1].split(/[,;]/).map(t => t.trim()).filter(Boolean)
+            : [];
+
+        return { 
+            answer,
+            foundInContext,
+            relatedTopics: relatedTopics.length > 0 ? relatedTopics : null
+        };
+    }
+
+    /**
+     * 🎯 EXAM SOLVER - Risolve esami estraendo domande e generando risposte
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} questionsFilePath - Path al file con le domande (PDF o TXT)
+     * @param {string} sourceFilePath - Path al file con il materiale di studio (PDF)
+     * @param {object} options - Opzioni { deckId?, title?, goalId? }
+     * @returns {Promise<object>} - Deck e statistiche
+     */
+    async examSolver(tenantScope, questionsFilePath, sourceFilePath, options = {}) {
+        const startTime = Date.now();
+        const userId = this._getUserId(tenantScope);
+        const { deckId, title, goalId } = options;
+
+        // Validazione input
+        if (!questionsFilePath || typeof questionsFilePath !== 'string') {
+            throw AppError.validation('Path file domande non valido');
+        }
+        if (!sourceFilePath || typeof sourceFilePath !== 'string') {
+            throw AppError.validation('Path file materiale non valido');
+        }
+
+        // =========================================
+        // STEP 1: ESTRAZIONE DOMANDE dal Documento A
+        // =========================================
+        console.log('📋 STEP 1: Estrazione domande...');
+        let questionsText = '';
+
+        // Determina se è PDF o TXT
+        const questionsIsPdf = questionsFilePath.toLowerCase().endsWith('.pdf');
+        
+        if (questionsIsPdf) {
+            // Leggi e parsa PDF
+            let pdfBuffer;
+            try {
+                pdfBuffer = await fs.readFile(questionsFilePath);
+            } catch (err) {
+                console.error('❌ PDF Read Error (Questions):', err.message);
+                throw AppError.validation('Impossibile leggere il file delle domande.');
+            }
+
+            try {
+                const pdfData = await pdfParse(pdfBuffer);
+                questionsText = this._formatPdfTextWithPages(pdfData);
+            } catch (err) {
+                console.error('❌ PDF Parse Error (Questions):', err.message);
+                throw AppError.validation('Impossibile leggere il file delle domande. Assicurati che sia un PDF valido.');
+            }
+        } else {
+            // Leggi file TXT
+            try {
+                questionsText = await fs.readFile(questionsFilePath, 'utf-8');
+            } catch (err) {
+                console.error('❌ TXT Read Error (Questions):', err.message);
+                throw AppError.validation('Impossibile leggere il file delle domande.');
+            }
+        }
+
+        if (!questionsText || questionsText.trim().length < 50) {
+            throw AppError.validation('Il file delle domande non contiene abbastanza testo.');
+        }
+
+        const normalizedQuestionsText = this._normalizeExtractedText(questionsText);
+        
+        // Estrai domande usando OpenAI
+        const extractionPrompt = `Sei un EXTRACTION AGENT. Estrai TUTTE le domande dal testo.
+
+REGOLE CRITICHE:
+
+COPIA LETTERALE: Non modificare, non parafrasare, non correggere errori
+IDENTIFICA come domande: frasi con "?", numerate (1. 2. 3.), imperativi (Spiega, Definisci, Descrivi)
+OUTPUT: JSON array {"questions": ["testo esatto 1", "testo esatto 2"]}
+
+TESTO:
+"""
+${this._truncateText(normalizedQuestionsText, 50000, '\n\n[...testo troncato...]')}
+"""
+
+Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
+
+        let questions = [];
+        try {
+            const extractionCompletion = await openai.chat.completions.create({
+                model: ACTIVE_AI_MODEL,
+                messages: [
+                    { role: 'system', content: 'Sei un agente di estrazione specializzato. Restituisci SOLO JSON valido.' },
+                    { role: 'user', content: extractionPrompt },
+                ],
+                temperature: 0.1,
+                max_completion_tokens: 4000,
+                response_format: { type: 'json_object' },
+            });
+
+            const extractionResponse = extractionCompletion.choices[0]?.message?.content;
+            if (extractionResponse) {
+                try {
+                    const parsed = JSON.parse(extractionResponse);
+                    if (Array.isArray(parsed.questions)) {
+                        questions = parsed.questions.filter(q => q && typeof q === 'string' && q.trim().length > 0);
+                    } else if (Array.isArray(parsed)) {
+                        questions = parsed.filter(q => q && typeof q === 'string' && q.trim().length > 0);
+                    }
+                } catch (parseErr) {
+                    console.error('❌ JSON Parse Error (Questions):', parseErr.message);
+                    // Fallback: cerca pattern comuni nel testo
+                    questions = this._extractQuestionsFallback(normalizedQuestionsText);
+                }
+            }
+        } catch (err) {
+            console.error('❌ OpenAI Extraction Error:', err.message);
+            // Fallback: estrazione pattern-based
+            questions = this._extractQuestionsFallback(normalizedQuestionsText);
+        }
+
+        if (questions.length === 0) {
+            throw AppError.validation('Nessuna domanda trovata nel documento. Verifica che il file contenga domande d\'esame.');
+        }
+
+        console.log(`✅ Estratte ${questions.length} domande`);
+
+        // =========================================
+        // STEP 2: ESTRAZIONE TESTO dal Documento B
+        // =========================================
+        console.log('📚 STEP 2: Estrazione materiale di studio...');
+        let sourceBuffer;
+        try {
+            sourceBuffer = await fs.readFile(sourceFilePath);
+        } catch (err) {
+            console.error('❌ PDF Read Error (Source):', err.message);
+            throw AppError.validation('Impossibile leggere il file del materiale di studio.');
+        }
+
+        let sourceText = '';
+        try {
+            const pdfData = await pdfParse(sourceBuffer);
+            sourceText = this._formatPdfTextWithPages(pdfData);
+        } catch (err) {
+            console.error('❌ PDF Parse Error (Source):', err.message);
+            throw AppError.validation('Impossibile leggere il file del materiale di studio. Assicurati che sia un PDF valido.');
+        }
+
+        if (!sourceText || sourceText.trim().length < 100) {
+            throw AppError.validation('Il file del materiale di studio non contiene abbastanza testo.');
+        }
+
+        const normalizedSourceText = this._normalizeExtractedText(sourceText);
+        const sourceTextForContext = this._truncateText(normalizedSourceText, 100000, '\n\n[...materiale troncato...]');
+
+        console.log(`✅ Materiale estratto: ${normalizedSourceText.length} caratteri`);
+
+        // =========================================
+        // STEP 3: GENERAZIONE BATCH delle risposte
+        // =========================================
+        console.log('🤖 STEP 3: Generazione risposte...');
+        
+        // Processa in batch per evitare token limit
+        const BATCH_SIZE = 10; // Processa 10 domande alla volta
+        const allFlashcards = [];
+        let answersFound = 0;
+        let answersNotFound = 0;
+
+        for (let i = 0; i < questions.length; i += BATCH_SIZE) {
+            const batch = questions.slice(i, i + BATCH_SIZE);
+            console.log(`🔄 Processando batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(questions.length / BATCH_SIZE)} (${batch.length} domande)`);
+
+            const batchPrompt = `Sei un TUTOR ACCADEMICO. Per OGNI domanda, genera una risposta usando SOLO il contesto.
+
+CONTESTO:
+"""
+${sourceTextForContext}
+"""
+
+DOMANDE:
+${batch.map((q, idx) => `${i + idx + 1}. ${q}`).join('\n')}
+
+REGOLE:
+
+Il campo "front" deve contenere la domanda ESATTA (copiata letteralmente)
+Il campo "back" contiene la risposta (max 150 parole)
+Se la risposta non è nel contesto: back = "⚠️ Risposta non trovata nel materiale fornito"
+Il campo "found" indica se la risposta è stata trovata (true/false)
+
+OUTPUT JSON:
+{"flashcards": [{"front": "domanda esatta", "back": "risposta", "found": true/false}]}
+
+Genera una risposta per OGNI domanda nella lista.`;
+
+            try {
+                const batchCompletion = await openai.chat.completions.create({
+                    model: ACTIVE_AI_MODEL,
+                    messages: [
+                        { role: 'system', content: 'Sei un tutor accademico. Restituisci SOLO JSON valido.' },
+                        { role: 'user', content: batchPrompt },
+                    ],
+                    temperature: 0.1,
+                    max_completion_tokens: 4000,
+                    response_format: { type: 'json_object' },
+                });
+
+                const batchResponse = batchCompletion.choices[0]?.message?.content;
+                if (batchResponse) {
+                    try {
+                        const parsed = JSON.parse(batchResponse);
+                        const flashcards = Array.isArray(parsed.flashcards) ? parsed.flashcards : [];
+                        
+                        for (const card of flashcards) {
+                            if (card && card.front && card.back) {
+                                allFlashcards.push({
+                                    front: String(card.front).trim(),
+                                    back: String(card.back).trim(),
+                                    found: card.found === true || card.found === 'true',
+                                });
+                                
+                                if (card.found === true || card.found === 'true') {
+                                    answersFound++;
+                                } else {
+                                    answersNotFound++;
+                                }
+                            }
+                        }
+                    } catch (parseErr) {
+                        console.error('❌ JSON Parse Error (Batch):', parseErr.message);
+                    }
+                }
+            } catch (err) {
+                console.error(`❌ OpenAI Batch Error (${i}-${i + batch.length}):`, err.message);
+                // Crea card placeholder per questo batch
+                for (const question of batch) {
+                    allFlashcards.push({
+                        front: question.trim(),
+                        back: '⚠️ Errore nella generazione della risposta',
+                        found: false,
+                    });
+                    answersNotFound++;
+                }
+            }
+
+            // Piccola pausa tra batch per evitare rate limiting
+            if (i + BATCH_SIZE < questions.length) {
+                await this._sleep(500);
+            }
+        }
+
+        if (allFlashcards.length === 0) {
+            throw AppError.validation('Nessuna flashcard generata. Riprova con documenti diversi.');
+        }
+
+        console.log(`✅ Generate ${allFlashcards.length} flashcard (${answersFound} trovate, ${answersNotFound} non trovate)`);
+
+        // =========================================
+        // STEP 4: SALVATAGGIO
+        // =========================================
+        console.log('💾 STEP 4: Salvataggio...');
+
+        let deck;
+        if (deckId) {
+            // Aggiorna deck esistente
+            deck = await Deck.findOne({ _id: deckId, user: userId });
+            if (!deck) {
+                throw AppError.notFound('Mazzo');
+            }
+        } else {
+            // Crea nuovo deck
+            if (!title || typeof title !== 'string') {
+                throw AppError.validation('Il titolo del mazzo è obbligatorio per creare un nuovo deck');
+            }
+            if (!goalId) {
+                throw AppError.validation('Il goalId è obbligatorio per creare un nuovo deck');
+            }
+
+            await this._validateGoalOwnership(tenantScope, goalId);
+            deck = await this.create(tenantScope, {
+                goalId,
+                title,
+                description: `Generato automaticamente da Exam Solver - ${new Date().toLocaleDateString('it-IT')}`,
+                tags: [],
+            });
+        }
+
+        // Aggiungi le flashcard al deck
+        const cardsToAdd = allFlashcards.map(card => ({
+            front: card.front,
+            back: card.back,
+            easinessFactor: DEFAULT_EASINESS_FACTOR,
+            interval: 1,
+            repetitions: 0,
+            nextReviewDate: new Date(),
+            status: 'new',
+        }));
+
+        deck.cards.push(...cardsToAdd);
+        
+        // Salva anche il testo estratto del materiale di studio
+        deck.extractedText = this._truncateText(normalizedSourceText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
+        
+        // Salva il PDF del materiale se non esiste già
+        if (!deck.pdfUrl) {
+            const sourceFileName = path.basename(sourceFilePath);
+            deck.pdfUrl = `/uploads/pdfs/${sourceFileName}`;
+        }
+
+        await deck.save();
+
+        // Ingestione vettoriale (background, non bloccante)
+        try {
+            await vectorStoreService.ingestDeck(deck._id.toString(), normalizedSourceText);
+        } catch (err) {
+            console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
+        }
+
+        const processingTimeMs = Date.now() - startTime;
+
+        return {
+            deck: deck.toJSON(),
+            stats: {
+                questionsExtracted: questions.length,
+                answersFound,
+                answersNotFound,
+                totalFlashcards: allFlashcards.length,
+                processingTimeMs,
+            },
+        };
+    }
+
+    /**
+     * Fallback per estrazione domande pattern-based
+     * @private
+     */
+    _extractQuestionsFallback(text) {
+        const questions = [];
+        const lines = text.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            
+            // Pattern: frasi con "?"
+            if (line.includes('?') && line.length > 10) {
+                questions.push(line);
+                continue;
+            }
+
+            // Pattern: numerate (1. 2. 3. oppure a) b) c))
+            if (/^(\d+\.|[a-z]\))\s+/.test(line) && line.length > 15) {
+                questions.push(line);
+                continue;
+            }
+
+            // Pattern: imperativi comuni
+            const imperativePatterns = /^(Spiega|Definisci|Descrivi|Elenca|Confronta|Illustra|Parlare|Trattare)/i;
+            if (imperativePatterns.test(line) && line.length > 15) {
+                questions.push(line);
+            }
+        }
+
+        return questions;
+    }
+
+    /**
+     * Sleep utility per pause tra batch
+     * @private
+     */
+    _sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     async generateCardsFromAI(_tenantScope, _payload) {
         return null;
     }
