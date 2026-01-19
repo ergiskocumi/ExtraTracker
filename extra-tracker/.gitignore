@@ -16,6 +16,11 @@ dist-ssr
 server/uploads/pdfs/*
 !server/uploads/pdfs/.gitkeep
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
