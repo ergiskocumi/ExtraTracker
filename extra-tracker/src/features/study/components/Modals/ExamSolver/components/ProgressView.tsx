@@ -91,7 +91,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                 <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
                         <span className="text-white/70">
-                            {progressCurrent}/{progressTotal}
+                            {progressCurrent}/{progressTotal} domande
                         </span>
                         <span className="text-amber-400 font-semibold">
                             {Math.round(progressPercent)}%

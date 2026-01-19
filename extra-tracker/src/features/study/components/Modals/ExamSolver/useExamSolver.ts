@@ -132,6 +132,7 @@ export const useExamSolver = ({
     const [stats, setStats] = useState<ExamSolverStats | null>(null);
     const [createdDeckId, setCreatedDeckId] = useState<string>('');
     const [generatedFlashcards, setGeneratedFlashcards] = useState<FlashcardWithId[]>([]);
+    const [sourceFileUrl, setSourceFileUrl] = useState<string | null>(null);
     
     // Error
     const [error, setError] = useState<string | null>(null);
@@ -173,6 +174,7 @@ export const useExamSolver = ({
             setError(null);
             setCreatedDeckId('');
             setGeneratedFlashcards([]);
+            setSourceFileUrl(null);
             startTimeRef.current = null;
             
             if (timerRef.current) {
@@ -400,10 +402,35 @@ export const useExamSolver = ({
                                 setProgressMessage('Generazione completata!');
                                 setStats(data.stats);
                                 setCreatedDeckId(data.deck?.id || '');
-                                setGeneratedFlashcards(data.flashcards || []);
-
-                                // Vai allo step review invece di completed
-                                setCurrentStep('review');
+                                
+                                // Assicurati che le flashcards siano un array valido
+                                const flashcards = Array.isArray(data.flashcards) ? data.flashcards : [];
+                                console.log('📋 Flashcards ricevute:', flashcards.length, flashcards);
+                                
+                                // Setta le flashcards PRIMA di cambiare step
+                                setGeneratedFlashcards(flashcards);
+                                
+                                // Estrai sourceFileUrl dal deck (pdfUrl)
+                                const deckPdfUrl = data.deck?.pdfUrl;
+                                if (deckPdfUrl && typeof deckPdfUrl === 'string') {
+                                    // Se è un path relativo, aggiungi il prefisso API se necessario
+                                    const pdfUrl = deckPdfUrl.startsWith('http') 
+                                        ? deckPdfUrl 
+                                        : `/api${deckPdfUrl.startsWith('/') ? '' : '/'}${deckPdfUrl}`;
+                                    setSourceFileUrl(pdfUrl);
+                                } else {
+                                    // Fallback: crea URL dal sourceFile se disponibile
+                                    if (sourceFile) {
+                                        const objectUrl = URL.createObjectURL(sourceFile);
+                                        setSourceFileUrl(objectUrl);
+                                    }
+                                }
+                                
+                                // Piccolo delay per assicurarsi che lo stato sia aggiornato
+                                setTimeout(() => {
+                                    // Vai allo step review invece di completed
+                                    setCurrentStep('review');
+                                }, 100);
                             } else if (data.type === 'error' || eventType === 'error') {
                                 throw new Error(data.message || 'Errore durante la generazione');
                             }
@@ -631,6 +658,7 @@ export const useExamSolver = ({
         stats,
         createdDeckId,
         generatedFlashcards,
+        sourceFileUrl,
         
     // Actions
     extractQuestions,

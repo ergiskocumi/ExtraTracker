@@ -2136,12 +2136,28 @@ Genera una risposta per OGNI domanda nella lista.`;
                                     ? card.sourceSnippet.trim().substring(0, 200)
                                     : undefined;
 
+                                // Estrai pageNumber (dall'AI o dal sourceSnippet se contiene marker)
+                                let pageNumber = undefined;
+                                if (typeof card.pageNumber === 'number' && Number.isFinite(card.pageNumber) && card.pageNumber > 0) {
+                                    pageNumber = Math.round(card.pageNumber);
+                                } else if (sourceSnippet) {
+                                    // Prova a estrarre dal marker "--- PAGE {n} ---" nel sourceSnippet
+                                    const pageMatch = sourceSnippet.match(/---\s*PAGE\s+(\d+)\s+---/i);
+                                    if (pageMatch && pageMatch[1]) {
+                                        const extractedPage = parseInt(pageMatch[1], 10);
+                                        if (Number.isFinite(extractedPage) && extractedPage > 0) {
+                                            pageNumber = extractedPage;
+                                        }
+                                    }
+                                }
+
                                 allFlashcards.push({
                                     front: String(card.front).trim(),
                                     back: String(card.back).trim(),
                                     found: card.found === true || card.found === 'true',
                                     confidence,
                                     sourceSnippet,
+                                    pageNumber,
                                 });
                                 
                                 if (card.found === true || card.found === 'true') {
@@ -2177,6 +2193,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                         found: false,
                         confidence: 0,
                         sourceSnippet: undefined,
+                        pageNumber: undefined,
                     });
                     answersNotFound++;
 
@@ -2286,6 +2303,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                 found: allFlashcards[idx]?.found || false,
                 confidence: allFlashcards[idx]?.confidence ?? 0,
                 sourceSnippet: allFlashcards[idx]?.sourceSnippet,
+                pageNumber: allFlashcards[idx]?.pageNumber,
             }));
 
         return {

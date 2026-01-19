@@ -12,6 +12,7 @@ import {
     X, 
     Sparkles,
     ChevronRight,
+    Loader2,
 } from 'lucide-react';
 import { DualDropzone } from './DualDropzone';
 import { QuestionsPreview } from './QuestionsPreview';
@@ -63,6 +64,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         stats,
         createdDeckId,
         generatedFlashcards,
+        sourceFileUrl,
         extractQuestions,
         generateAnswers,
         handleNextFromPreview,
@@ -259,15 +261,23 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                         )}
 
                         {/* STEP 5: REVIEW ANSWERS */}
-                        {currentStep === 'review' && createdDeckId && generatedFlashcards.length > 0 && (
-                            <ReviewAnswers
-                                flashcards={generatedFlashcards}
-                                deckId={createdDeckId}
-                                onEdit={handleEditCard}
-                                onRegenerate={handleRegenerateCard}
-                                onSave={handleSaveReview}
-                                onBack={() => goToStep('progress')}
-                            />
+                        {currentStep === 'review' && createdDeckId && (
+                            generatedFlashcards.length > 0 ? (
+                                <ReviewAnswers
+                                    flashcards={generatedFlashcards}
+                                    deckId={createdDeckId}
+                                    sourceFileUrl={sourceFileUrl || undefined}
+                                    onEdit={handleEditCard}
+                                    onRegenerate={handleRegenerateCard}
+                                    onSave={handleSaveReview}
+                                    onBack={() => goToStep('progress')}
+                                />
+                            ) : (
+                                <div className="space-y-4 text-center py-8">
+                                    <p className="text-white/60">Caricamento risposte generate...</p>
+                                    <Loader2 className="w-6 h-6 text-amber-400 animate-spin mx-auto" />
+                                </div>
+                            )
                         )}
                     </div>
                 </motion.div>

@@ -592,8 +592,15 @@ const generateAnswers = asyncHandler(async (req, res) => {
         console.log('✅ generateAnswers completato:', {
             questionsExtracted: result.stats.questionsExtracted,
             totalFlashcards: result.stats.totalFlashcards,
-            processingTimeMs: result.stats.processingTimeMs
+            processingTimeMs: result.stats.processingTimeMs,
+            flashcardsCount: result.flashcards?.length || 0,
+            hasFlashcards: !!result.flashcards,
         });
+
+        // Verifica che le flashcards siano presenti
+        if (!result.flashcards || !Array.isArray(result.flashcards)) {
+            console.error('❌ generateAnswers: flashcards mancanti o non array:', result);
+        }
 
         // Invia evento finale
         sendEvent('complete', result);
