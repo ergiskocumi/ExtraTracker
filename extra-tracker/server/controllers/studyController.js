@@ -128,6 +128,47 @@ const deleteCard = asyncHandler(async (req, res) => {
     res.json({ success: true, data: deck });
 });
 
+/**
+ * PUT /api/study/:id/cards/reorder
+ * Riordina le card di un mazzo
+ * Body: { cardIds: string[] } - Array di card IDs nell'ordine desiderato
+ */
+const reorderCards = asyncHandler(async (req, res) => {
+    const { cardIds } = req.body;
+
+    if (!Array.isArray(cardIds)) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'cardIds deve essere un array' }
+        });
+    }
+
+    const deck = await studyService.reorderCards(
+        req.tenantScope,
+        req.params.id,
+        cardIds
+    );
+
+    res.json({ success: true, data: deck });
+});
+
+/**
+ * POST /api/study/:id/cards/insert
+ * Aggiunge una card in una posizione specifica
+ * Body: { front: string, back: string, position?: number }
+ */
+const addCardAtPosition = asyncHandler(async (req, res) => {
+    const { front, back, position } = req.body;
+
+    const deck = await studyService.addCardAtPosition(
+        req.tenantScope,
+        req.params.id,
+        { front, back, position }
+    );
+
+    res.status(201).json({ success: true, data: deck });
+});
+
 // =========================================
 // DASHBOARD
 // =========================================
@@ -288,6 +329,64 @@ const getDeckAnalytics = asyncHandler(async (req, res) => {
     res.json({ success: true, data: analytics });
 });
 
+// =========================================
+// RECOVERY PLAN
+// =========================================
+
+/**
+ * POST /api/study/exam/:examId/reset-cards
+ * Resetta le carte di tutti i deck associati a un esame
+ * Body: { type: 'all' | 'hard-only' }
+ */
+const resetExamCards = asyncHandler(async (req, res) => {
+    console.log('[StudyController] resetExamCards chiamato:', { examId: req.params.examId, type: req.body.type });
+    const { type } = req.body;
+    
+    if (!type || !['all', 'hard-only'].includes(type)) {
+        console.error('[StudyController] Tipo non valido:', type);
+        return res.status(400).json({
+            success: false,
+            error: { message: 'type deve essere "all" o "hard-only"' }
+        });
+    }
+
+    const result = await studyService.resetExamCards(
+        req.tenantScope,
+        req.params.examId,
+        type
+    );
+
+    console.log('[StudyController] resetExamCards completato:', result);
+    res.json({ success: true, data: result });
+});
+
+/**
+ * POST /api/study/exam/:examId/generate-recovery-questions
+ * Genera domande AI di approfondimento basate sulle difficoltà
+ * Body: { difficulties: string[] }
+ */
+const generateRecoveryQuestions = asyncHandler(async (req, res) => {
+    console.log('[StudyController] generateRecoveryQuestions chiamato:', { examId: req.params.examId, difficulties: req.body.difficulties });
+    const { difficulties } = req.body;
+    
+    if (!Array.isArray(difficulties)) {
+        console.error('[StudyController] difficulties non è un array:', difficulties);
+        return res.status(400).json({
+            success: false,
+            error: { message: 'difficulties deve essere un array' }
+        });
+    }
+
+    const result = await studyService.generateRecoveryQuestions(
+        req.tenantScope,
+        req.params.examId,
+        difficulties
+    );
+
+    console.log('[StudyController] generateRecoveryQuestions completato:', result);
+    res.json({ success: true, data: result });
+});
+
 module.exports = {
     createDeck,
     updateDeck,
@@ -295,8 +394,10 @@ module.exports = {
     getDeckById,
     getSession,
     addCard,
+    addCardAtPosition,
     updateCard,
     deleteCard,
+    reorderCards,
     getDashboard,
     completeSession,
     submitReview,
@@ -305,4 +406,6 @@ module.exports = {
     chatWithTutor,
     updateDeckSettings,
     getDeckAnalytics,
+    resetExamCards,
+    generateRecoveryQuestions,
 };

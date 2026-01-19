@@ -29,6 +29,32 @@ const actionStepSchema = new mongoose.Schema({
     },
 }, { _id: false });
 
+// =========================================
+// OUTCOME SUB-SCHEMA (Embedded Document)
+// =========================================
+
+const outcomeSchema = new mongoose.Schema({
+    grade: {
+        type: Number,
+        default: null,
+        min: [0, 'Il voto non può essere negativo'],
+    },
+    date: {
+        type: Date,
+        default: null,
+    },
+    notes: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [1000, 'Le note non possono superare 1000 caratteri'],
+    },
+    difficulties: [{
+        type: String,
+        trim: true,
+    }],
+}, { _id: false });
+
 const milestoneSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -204,7 +230,13 @@ const goalSchema = new mongoose.Schema({
     status: { 
         type: String, 
         default: 'active',
-        enum: ['active', 'completed', 'abandoned'],
+        enum: ['active', 'completed', 'abandoned', 'passed', 'failed', 'archived'],
+    },
+    
+    // Outcome per esami completati (solo per category='learning' e status='passed'/'failed')
+    outcome: {
+        type: outcomeSchema,
+        default: null,
     },
     
     // Descrizione/Note aggiuntive

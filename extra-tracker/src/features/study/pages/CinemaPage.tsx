@@ -160,12 +160,33 @@ export const CinemaPage: React.FC = () => {
         }
     }, [deckId]);
 
+    /**
+     * Handler per aggiornare il deck quando viene modificato (riordinamento, inserimento)
+     */
+    const handleDeckUpdate = useCallback((updatedDeck: Deck) => {
+        setDeck(updatedDeck);
+    }, []);
+
     // Memoize pdfSrc per evitare re-render inutili
     const pdfSrc = useMemo(() => deck?.pdfUrl || null, [deck?.pdfUrl]);
 
+    /**
+     * Handler per tornare al dettaglio del mazzo corrente
+     * 
+     * Naviga al dettaglio del mazzo che si sta visualizzando in Cinema Mode invece della dashboard principale.
+     * Questo permette all'utente di continuare a lavorare sul mazzo senza perdere il contesto.
+     * 
+     * @returns {void}
+     */
     const handleNavigateBack = useCallback(() => {
-        navigate('/study');
-    }, [navigate]);
+        if (deckId) {
+            // Naviga al dettaglio del mazzo corrente
+            navigate(`/study/deck/${deckId}`);
+        } else {
+            // Fallback alla dashboard se deckId non è disponibile
+            navigate('/study');
+        }
+    }, [navigate, deckId]);
 
     // ========== RENDER ==========
 
@@ -188,6 +209,8 @@ export const CinemaPage: React.FC = () => {
             pdfSrc={pdfSrc}
             onAddCard={handleAddCard}
             onUpdateCard={handleUpdateCard}
+            onNavigateBack={handleNavigateBack}
+            onDeckUpdate={handleDeckUpdate}
         />
     );
 };

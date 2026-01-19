@@ -1,0 +1,755 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{pgf-umlsd}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+
+\geometry{margin=2.5cm}
+
+% ============================================
+% COLORI E STILI
+% ============================================
+
+\definecolor{codebg}{RGB}{40, 42, 54}
+\definecolor{codefg}{RGB}{248, 248, 242}
+\definecolor{codecomment}{RGB}{98, 114, 164}
+\definecolor{codekeyword}{RGB}{139, 233, 253}
+\definecolor{codestring}{RGB}{255, 184, 108}
+\definecolor{codefunction}{RGB}{80, 250, 123}
+\definecolor{accent}{RGB}{139, 92, 246}
+
+\lstdefinestyle{typescript}{
+    language=TypeScript,
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small\color{codefg},
+    commentstyle=\color{codecomment}\itshape,
+    keywordstyle=\color{codekeyword}\bfseries,
+    stringstyle=\color{codestring},
+    functionstyle=\color{codefunction},
+    numberstyle=\tiny\color{codecomment},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{accent},
+    frameround=tttt,
+}
+
+\lstdefinestyle{javascript}{
+    language=JavaScript,
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small\color{codefg},
+    commentstyle=\color{codecomment}\itshape,
+    keywordstyle=\color{codekeyword}\bfseries,
+    stringstyle=\color{codestring},
+    numberstyle=\tiny\color{codecomment},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{accent},
+    frameround=tttt,
+}
+
+% ============================================
+% METADATA
+% ============================================
+
+\title{
+    \textbf{Documentazione Tecnica: FlashcardItem Component} \\
+    \large Sistema STUDY - Modulo Flashcard
+}
+\author{Sistema ExtraTracker}
+\date{\today}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=accent,
+    filecolor=accent,
+    urlcolor=accent,
+    citecolor=accent,
+    pdftitle={FlashcardItem Component Documentation},
+    pdfauthor={ExtraTracker System},
+}
+
+% ============================================
+% DOCUMENTO
+% ============================================
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Questo documento fornisce un'analisi tecnica completa del componente \texttt{FlashcardItem}, parte del sistema STUDY per la gestione di flashcard. Il componente implementa un'interfaccia dual-mode (visualizzazione e modifica) con supporto per navigazione sorgente, validazione input e gestione stato ottimizzata. La documentazione include analisi architetturale, specifiche delle interfacce, diagrammi di flusso e pattern di interazione.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ============================================
+% SEZIONE 1: OVERVIEW
+% ============================================
+
+\section{Overview del Componente}
+
+\subsection{Responsabilità Principali}
+
+Il componente \texttt{FlashcardItem} rappresenta l'unità atomica di visualizzazione e modifica di una singola flashcard all'interno del sistema STUDY. Le responsabilità principali includono:
+
+\begin{itemize}
+    \item \textbf{Visualizzazione}: Rendering della card in modalità read-only con domanda (Q) e risposta (A)
+    \item \textbf{Modifica}: Interfaccia di editing inline con validazione real-time
+    \item \textbf{Navigazione Sorgente}: Integrazione con sistema PDF per jump-to-source
+    \item \textbf{Gestione Stato}: Coordinamento tra stato locale e stato del parent
+    \item \textbf{Validazione}: Controllo integrità dati prima del salvataggio
+\end{itemize}
+
+\subsection{Modello Mentale: Vista Utente vs. Sistema}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black,title=Modello Mentale]
+\textbf{Vista Utente:}
+L'utente vede una card con domanda e risposta. Può cliccare per modificare, eliminare o navigare alla fonte nel PDF. Durante la modifica, vede un form con due campi di testo e pulsanti Salva/Annulla.
+
+\textbf{Sistema Interno:}
+Il componente gestisce due modalità distinte (ViewMode/EditMode) con state machine. Valida input in tempo reale, sincronizza con il parent tramite callbacks, e gestisce transizioni animate tra stati. Il sistema traccia modifiche non salvate e previene operazioni concorrenti.
+\end{tcolorbox}
+
+\subsection{Architettura Modulare}
+
+Il componente è stato refactorizzato seguendo principi Clean Code in una struttura modulare:
+
+\begin{itemize}
+    \item \texttt{FlashcardItem.tsx} - Componente orchestratore principale
+    \item \texttt{FlashcardItem.ViewMode.tsx} - Modalità visualizzazione
+    \item \texttt{FlashcardItem.EditMode.tsx} - Modalità modifica
+    \item \texttt{FlashcardItem.constants.ts} - Costanti centralizzate
+    \item \texttt{FlashcardItem.types.ts} - Definizioni TypeScript
+    \item \texttt{FlashcardItem.utils.ts} - Funzioni pure di utilità
+\end{itemize}
+
+% ============================================
+% SEZIONE 2: INTERFACCIA E PROPS
+% ============================================
+
+\section{Interfaccia e Props (Input)}
+
+\subsection{Tabella Props Completa}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|c|c|}
+\hline
+\textbf{Prop} & \textbf{Descrizione} & \textbf{Tipo} & \textbf{Req.} \\
+\hline
+\hline
+\texttt{card} & Oggetto Card contenente i dati della flashcard (front, back, id, metadata). Rappresenta l'entità di dominio principale. & \texttt{Card} & \checkmark \\
+\hline
+\texttt{onUpdate} & Callback asincrono invocato quando l'utente salva modifiche. Riceve \texttt{(cardId: string, front: string, back: string)} e restituisce \texttt{Promise<void>}. Gestito dal parent per persistenza. & \texttt{(cardId: string, front: string, back: string) => Promise<void>} & \checkmark \\
+\hline
+\texttt{onClick} & Callback opzionale invocato quando l'utente clicca sulla card (solo in view mode). Utile per navigazione o selezione. & \texttt{(card: Card) => void} & \textcolor{gray}{Opz.} \\
+\hline
+\texttt{onDelete} & Callback opzionale per eliminazione card. Riceve \texttt{cardId: string}. Se assente, il pulsante delete non viene renderizzato. & \texttt{(cardId: string) => void} & \textcolor{gray}{Opz.} \\
+\hline
+\texttt{initialEditing} & Flag booleano per avviare il componente in modalità editing. Default: \texttt{false}. Utile per card temporanee o creazione inline. & \texttt{boolean} & \textcolor{gray}{Opz.} \\
+\hline
+\texttt{onCancel} & Callback opzionale invocato quando editing viene annullato. Utile per cleanup di card temporanee. & \texttt{() => void} & \textcolor{gray}{Opz.} \\
+\hline
+\texttt{onCreate} & Callback opzionale per creazione nuova card (alternativa a \texttt{onUpdate}). Usato quando \texttt{card.id} inizia con \texttt{"temp-"}. & \texttt{(front: string, back: string) => Promise<void>} & \textcolor{gray}{Opz.} \\
+\hline
+\texttt{onShowSource} & Callback opzionale per navigazione alla fonte PDF. Invocato quando utente clicca pulsante "Show Source". Richiede \texttt{card.sourceMetadata} presente. & \texttt{(card: Card) => void} & \textcolor{gray}{Opz.} \\
+\hline
+\texttt{isSourceActive} & Flag booleano che indica se la card è attualmente evidenziata come "source active" (navigazione PDF attiva). Modifica styling per feedback visivo. & \texttt{boolean} & \textcolor{gray}{Opz.} \\
+\hline
+\end{tabularx}
+\caption{Tabella completa delle props di FlashcardItem}
+\label{tab:props}
+\end{table}
+
+\subsection{Flusso di Dati dal Parent}
+
+Il componente riceve dati attraverso un pattern unidirezionale:
+
+\begin{enumerate}
+    \item \textbf{Props Immutabili}: Il parent passa \texttt{card} come prop immutabile
+    \item \textbf{State Locale}: Il componente crea copie temporanee (\texttt{tempFront}, \texttt{tempBack}) per editing
+    \item \textbf{Sincronizzazione}: \texttt{useEffect} sincronizza state locale quando \texttt{card} cambia (solo se non in editing)
+    \item \textbf{Callback Upstream}: Modifiche vengono propagate al parent tramite \texttt{onUpdate} o \texttt{onCreate}
+\end{enumerate}
+
+% ============================================
+% SEZIONE 3: GESTIONE STATO E LOGICA
+% ============================================
+
+\section{Gestione dello Stato e Logica Interna}
+
+\subsection{State Management}
+
+Il componente utilizza quattro hook di stato:
+
+\begin{lstlisting}[style=typescript, caption=State Hooks]
+const [isEditing, setIsEditing] = useState(initialEditing);
+const [tempFront, setTempFront] = useState(card.front);
+const [tempBack, setTempBack] = useState(card.back);
+const [isSaving, setIsSaving] = useState(false);
+\end{lstlisting}
+
+\subsubsection{Analisi Dettagliata degli State}
+
+\begin{description}
+    \item[\texttt{isEditing}] \textbf{Tipo}: \texttt{boolean}. \textbf{Scopo}: Flag che determina quale modalità renderizzare (ViewMode vs EditMode). \textbf{Transizioni}: \texttt{false} $\rightarrow$ \texttt{true} tramite \texttt{handleStartEdit()}, \texttt{true} $\rightarrow$ \texttt{false} tramite \texttt{handleSave()} o \texttt{handleCancel()}.
+    
+    \item[\texttt{tempFront}] \textbf{Tipo}: \texttt{string}. \textbf{Scopo}: Buffer temporaneo per il testo della domanda durante editing. \textbf{Sincronizzazione}: Aggiornato da \texttt{card.front} quando si esce da editing mode.
+    
+    \item[\texttt{tempBack}] \textbf{Tipo}: \texttt{string}. \textbf{Scopo}: Buffer temporaneo per il testo della risposta durante editing. \textbf{Sincronizzazione}: Aggiornato da \texttt{card.back} quando si esce da editing mode.
+    
+    \item[\texttt{isSaving}] \textbf{Tipo}: \texttt{boolean}. \textbf{Scopo}: Flag per prevenire operazioni concorrenti durante salvataggio. \textbf{Lifecycle}: \texttt{false} $\rightarrow$ \texttt{true} all'inizio di \texttt{handleSave()}, \texttt{true} $\rightarrow$ \texttt{false} nel \texttt{finally} block.
+\end{description}
+
+\subsection{Effects e Sincronizzazione}
+
+\subsubsection{useEffect per Sincronizzazione}
+
+\begin{lstlisting}[style=typescript, caption=Sincronizzazione State]
+useEffect(() => {
+    if (!isEditing) {
+        setTempFront(card.front);
+        setTempBack(card.back);
+    }
+}, [card.front, card.back, isEditing]);
+\end{lstlisting}
+
+\textbf{Logica}: L'effect sincronizza i valori temporanei con i valori originali della card \textbf{solo quando non si è in modalità editing}. Questo previene perdita di dati durante editing e garantisce coerenza quando la card viene aggiornata esternamente.
+
+\textbf{Dipendenze}: 
+\begin{itemize}
+    \item \texttt{card.front}, \texttt{card.back}: Trigger quando il parent aggiorna la card
+    \item \texttt{isEditing}: Condizione di guardia per evitare sovrascritture durante editing
+\end{itemize}
+
+\subsection{Validazione e Computed Values}
+
+\subsubsection{Funzione di Validazione}
+
+La validazione è implementata tramite funzione pura in \texttt{FlashcardItem.utils.ts}:
+
+\begin{lstlisting}[style=typescript, caption=Validazione Contenuto]
+export function validateCardContent(
+    tempFront: string,
+    tempBack: string,
+    originalFront: string,
+    originalBack: string,
+    isSaving: boolean
+): ValidationResult {
+    const trimmedFront = tempFront.trim();
+    const trimmedBack = tempBack.trim();
+    const isDirty = trimmedFront !== originalFront || 
+                    trimmedBack !== originalBack;
+    const canSave = !isSaving && 
+                   trimmedFront.length > 0 && 
+                   trimmedBack.length > 0 && 
+                   isDirty;
+    return { trimmedFront, trimmedBack, isDirty, canSave };
+}
+\end{lstlisting}
+
+\textbf{Regole di Validazione}:
+\begin{enumerate}
+    \item \textbf{Trim}: Rimozione spazi iniziali/finali
+    \item \textbf{Length Check}: Entrambi i campi devono avere lunghezza $> 0$
+    \item \textbf{Dirty Check}: Almeno un campo deve essere modificato rispetto all'originale
+    \item \textbf{Concurrency Check}: Salvataggio non in corso
+\end{enumerate}
+
+\subsection{Event Handlers e Callbacks}
+
+\subsubsection{handleStartEdit}
+
+\begin{lstlisting}[style=typescript, caption=Handler Inizio Editing]
+const handleStartEdit = useCallback(() => {
+    setTempFront(card.front);
+    setTempBack(card.back);
+    setIsEditing(true);
+}, [card.front, card.back]);
+\end{lstlisting}
+
+\textbf{Comportamento}: 
+\begin{enumerate}
+    \item Reset dei valori temporanei ai valori originali (previene carry-over di modifiche precedenti)
+    \item Transizione a modalità editing
+    \item \texttt{useCallback} previene re-render inutili dei children
+\end{enumerate}
+
+\subsubsection{handleSave}
+
+\begin{lstlisting}[style=typescript, caption=Handler Salvataggio]
+const handleSave = useCallback(async () => {
+    if (!validation.canSave) return;
+    setIsSaving(true);
+    try {
+        if (isTemporaryCard(card.id) && onCreate) {
+            await onCreate(validation.trimmedFront, validation.trimmedBack);
+        } else {
+            await onUpdate(card.id, validation.trimmedFront, validation.trimmedBack);
+            emitToast.success(TEXT_CONTENT.toast.success.message, {...});
+        }
+        setIsEditing(false);
+    } catch (error) {
+        emitToast.error(errorMessage, {...});
+    } finally {
+        setIsSaving(false);
+    }
+}, [card.id, validation, onUpdate, onCreate]);
+\end{lstlisting}
+
+\textbf{Flusso di Esecuzione}:
+\begin{enumerate}
+    \item \textbf{Guard Clause}: Verifica \texttt{canSave} (previene doppi submit)
+    \item \textbf{Lock State}: Imposta \texttt{isSaving = true}
+    \item \textbf{Branching}: Se card temporanea, usa \texttt{onCreate}, altrimenti \texttt{onUpdate}
+    \item \textbf{Success Path}: Toast di successo, exit da editing mode
+    \item \textbf{Error Path}: Toast di errore, mantiene editing mode per retry
+    \item \textbf{Cleanup}: \texttt{finally} block garantisce unlock di \texttt{isSaving}
+\end{enumerate}
+
+\subsubsection{handleCardClick}
+
+\begin{lstlisting}[style=typescript, caption=Handler Click Card]
+const handleCardClick = useCallback((e: React.MouseEvent) => {
+    if (shouldHandleCardClick(e, isEditing) && onClick) {
+        onClick(card);
+    }
+}, [isEditing, onClick, card]);
+\end{lstlisting}
+
+\textbf{Logica di Filtraggio}:
+La funzione \texttt{shouldHandleCardClick()} previene propagazione quando:
+\begin{itemize}
+    \item Componente in editing mode
+    \item Click su elementi interattivi (button, textarea, input)
+\end{itemize}
+
+% ============================================
+% SEZIONE 4: INTERAZIONI E COMUNICAZIONE
+% ============================================
+
+\section{Interazioni e Comunicazione (I/O)}
+
+\subsection{Comunicazione Upstream (Parent)}
+
+Il componente comunica con il parent attraverso callbacks:
+
+\begin{description}
+    \item[\texttt{onUpdate(cardId, front, back)}] \textbf{Trigger}: Salvataggio modifiche. \textbf{Payload}: ID card e contenuti validati. \textbf{Contratto}: Promise che risolve quando persistenza completata.
+    
+    \item[\texttt{onCreate(front, back)}] \textbf{Trigger}: Salvataggio card temporanea. \textbf{Payload}: Solo contenuti (ID generato dal parent). \textbf{Contratto}: Promise che risolve quando card creata.
+    
+    \item[\texttt{onClick(card)}] \textbf{Trigger}: Click su card (view mode). \textbf{Payload}: Oggetto card completo. \textbf{Contratto}: Sincrono, nessun ritorno.
+    
+    \item[\texttt{onDelete(cardId)}] \textbf{Trigger}: Click pulsante delete. \textbf{Payload}: Solo ID. \textbf{Contratto}: Sincrono, gestione eliminazione delegata al parent.
+    
+    \item[\texttt{onCancel()}] \textbf{Trigger}: Annullamento editing. \textbf{Payload}: Nessuno. \textbf{Contratto}: Sincrono, cleanup opzionale.
+    
+    \item[\texttt{onShowSource(card)}] \textbf{Trigger}: Click pulsante "Show Source". \textbf{Payload}: Card completa (per accesso a \texttt{sourceMetadata}). \textbf{Contratto}: Sincrono, navigazione PDF gestita dal parent.
+\end{description}
+
+\subsection{Comunicazione Downstream (Children)}
+
+Il componente non ha children diretti, ma utilizza sub-componenti interni:
+
+\begin{description}
+    \item[\texttt{ViewMode}] Riceve: \texttt{card}, \texttt{buttonState}, \texttt{isSourceActive}, handlers. Passa: Nessun dato, solo event handlers.
+    
+    \item[\texttt{EditMode}] Riceve: \texttt{tempFront}, \texttt{tempBack}, \texttt{isSaving}, \texttt{canSave}, handlers. Passa: Valori controllati e validazione state.
+\end{description}
+
+\subsection{Interazioni Esterne}
+
+\begin{description}
+    \item[\texttt{emitToast}] \textbf{Modulo}: \texttt{shared/components/toast}. \textbf{Uso}: Feedback utente per successo/errore operazioni. \textbf{Pattern}: Toast notifications non bloccanti.
+    
+    \item[\texttt{Card Type}] \textbf{Modulo}: \texttt{services/studyService}. \textbf{Uso}: Tipo TypeScript importato per type safety. \textbf{Contratto}: Interfaccia definita nel service layer.
+\end{description}
+
+% ============================================
+% SEZIONE 5: DIAGRAMMI TECNICI
+% ============================================
+
+\section{Diagrammi Tecnici}
+
+\subsection{Diagramma di Sequenza: Flusso Completo}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    every node/.style={align=center},
+    component/.style={rectangle, draw=accent, fill=accent!10, minimum width=2.5cm, minimum height=1cm},
+    action/.style={rectangle, draw=blue!50, fill=blue!5, minimum width=2cm, minimum height=0.8cm},
+]
+
+% Nodes
+\node[component] (parent) {Parent\\Component};
+\node[component, right=of parent] (item) {FlashcardItem};
+\node[component, right=of item] (viewmode) {ViewMode};
+\node[component, below=of item] (editmode) {EditMode};
+\node[action, below=of parent] (user) {User\\Action};
+
+% Initialization
+\draw[->, thick] (parent) -- node[above] {\texttt{card, onUpdate}} (item);
+\draw[->, thick] (item) -- node[above] {\texttt{props}} (viewmode);
+
+% User clicks edit
+\draw[->, dashed, blue] (user) -- node[left] {Click Edit} (item);
+\draw[->, thick, blue] (item) -- node[right] {\texttt{setIsEditing(true)}} (editmode);
+
+% User types
+\draw[->, dashed, blue] (user) -- node[below] {Type Input} (editmode);
+\draw[->, thick, blue] (editmode) -- node[left] {\texttt{setTempFront/Back}} (item);
+
+% Validation
+\draw[->, thick, green] (item) -- node[above, sloped] {\texttt{validateCardContent()}} (item);
+\draw[->, thick, green] (item) -- node[right] {\texttt{canSave}} (editmode);
+
+% User saves
+\draw[->, dashed, blue] (user) -- node[below] {Click Save} (editmode);
+\draw[->, thick, blue] (editmode) -- node[left] {\texttt{handleSave()}} (item);
+\draw[->, thick, red] (item) -- node[above] {\texttt{onUpdate(cardId, front, back)}} (parent);
+
+% Response
+\draw[->, dashed, green] (parent) -- node[below] {\texttt{Promise.resolve()}} (item);
+\draw[->, thick, green] (item) -- node[right] {\texttt{setIsEditing(false)}} (viewmode);
+\draw[->, thick, green] (item) -- node[above, sloped] {\texttt{emitToast.success()}} (item);
+
+\end{tikzpicture}
+\caption{Diagramma di sequenza: Flusso completo di interazione FlashcardItem}
+\label{fig:sequence}
+\end{figure}
+
+\subsection{Diagramma di Flusso: State Machine}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=2.5cm,
+    state/.style={ellipse, draw=accent, fill=accent!10, minimum width=2.5cm, minimum height=1.5cm},
+    transition/.style={->, thick, blue},
+    decision/.style={diamond, draw=orange, fill=orange!10, minimum width=2cm, minimum height=1.5cm},
+]
+
+% States
+\node[state] (view) {View\\Mode};
+\node[state, right=of view] (edit) {Edit\\Mode};
+\node[state, below=of view] (saving) {Saving\\State};
+
+% Transitions
+\draw[transition] (view) -- node[above] {\texttt{handleStartEdit()}} (edit);
+\draw[transition] (edit) -- node[below] {\texttt{handleSave()}} (saving);
+\draw[transition] (saving) -- node[left] {\texttt{Success}} (view);
+\draw[transition, bend right=30] (edit) -- node[below] {\texttt{handleCancel()}} (view);
+\draw[transition, bend left=30] (saving) -- node[right] {\texttt{Error}} (edit);
+
+% Decision points
+\node[decision, above=of edit] (validate) {Valid?};
+\draw[transition] (edit) -- (validate);
+\draw[transition] (validate) -- node[left] {No} (edit);
+\draw[transition] (validate) -- node[right] {Yes} (saving);
+
+\end{tikzpicture}
+\caption{State Machine: Transizioni di stato FlashcardItem}
+\label{fig:statemachine}
+\end{figure}
+
+\subsection{Diagramma Architetturale: Struttura Modulare}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.8cm,
+    module/.style={rectangle, draw=accent, fill=accent!10, rounded corners, minimum width=3cm, minimum height=1.2cm, text centered},
+    data/.style={rectangle, draw=green!50, fill=green!5, rounded corners, minimum width=2.5cm, minimum height=0.8cm},
+    arrow/.style={->, thick},
+]
+
+% Main component
+\node[module] (main) {FlashcardItem.tsx\\Orchestrator};
+
+% Sub-components
+\node[module, above=of main] (view) {ViewMode.tsx};
+\node[module, below=of main] (edit) {EditMode.tsx};
+
+% Supporting modules
+\node[data, left=of main] (constants) {constants.ts};
+\node[data, right=of main] (types) {types.ts};
+\node[data, below=of constants] (utils) {utils.ts};
+
+% Connections
+\draw[arrow] (main) -- node[left] {renders} (view);
+\draw[arrow] (main) -- node[left] {renders} (edit);
+\draw[arrow] (constants) -- node[above] {imports} (main);
+\draw[arrow] (types) -- node[above] {imports} (main);
+\draw[arrow] (utils) -- node[below] {imports} (main);
+\draw[arrow] (constants) -- node[above, sloped] {imports} (view);
+\draw[arrow] (constants) -- node[below, sloped] {imports} (edit);
+
+\end{tikzpicture}
+\caption{Architettura modulare: Dipendenze e struttura}
+\label{fig:architecture}
+\end{figure}
+
+% ============================================
+% SEZIONE 6: EDGE CASES E ERROR HANDLING
+% ============================================
+
+\section{Edge Cases e Error Handling}
+
+\subsection{Gestione Dati Mancanti}
+
+\begin{description}
+    \item[\texttt{card} null/undefined] \textbf{Prevenzione}: TypeScript garantisce prop required. \textbf{Fallback}: Componente non renderizza se card mancante (parent responsabilità).
+    
+    \item[\texttt{card.front/back} vuoti] \textbf{Validazione}: \texttt{validateCardContent()} verifica \texttt{length > 0}. \textbf{UI}: Pulsante Save disabilitato se campi vuoti.
+    
+    \item[\texttt{card.sourceMetadata} assente] \textbf{Comportamento}: Pulsante "Show Source" non renderizzato. \textbf{Logica}: \texttt{getButtonState()} ritorna \texttt{shouldShowSourceButton = false}.
+\end{description}
+
+\subsection{Gestione Errori API}
+
+\begin{lstlisting}[style=typescript, caption=Error Handling Pattern]
+try {
+    await onUpdate(card.id, validation.trimmedFront, validation.trimmedBack);
+    emitToast.success(...);
+    setIsEditing(false);
+} catch (error) {
+    const errorMessage = error instanceof Error 
+        ? error.message 
+        : TEXT_CONTENT.toast.error.message;
+    emitToast.error(errorMessage, {...});
+} finally {
+    setIsSaving(false);
+}
+\end{lstlisting}
+
+\textbf{Strategia}:
+\begin{enumerate}
+    \item \textbf{Type Guard}: Verifica che error sia istanza di \texttt{Error}
+    \item \textbf{Fallback Message}: Usa messaggio default se error non standard
+    \item \textbf{State Preservation}: Mantiene editing mode per permettere retry
+    \item \textbf{Cleanup Guaranteed}: \texttt{finally} block garantisce unlock anche su error
+\end{enumerate}
+
+\subsection{Concorrenza e Race Conditions}
+
+\begin{description}
+    \item[\texttt{isSaving} Flag] \textbf{Problema}: Doppi click su Save durante operazione asincrona. \textbf{Soluzione}: Guard clause \texttt{if (!validation.canSave) return} previene esecuzione concorrente.
+    
+    \item[Sincronizzazione Props] \textbf{Problema}: Card aggiornata esternamente durante editing. \textbf{Soluzione}: \texttt{useEffect} sincronizza solo se \texttt{!isEditing}, preservando modifiche in corso.
+    
+    \item[Card Temporanee] \textbf{Problema}: Card con ID \texttt{"temp-*"} richiede \texttt{onCreate} invece di \texttt{onUpdate}. \textbf{Soluzione}: Branching logico in \texttt{handleSave()} basato su \texttt{isTemporaryCard()}.
+\end{description}
+
+\subsection{Accessibilità e UX Edge Cases}
+
+\begin{description}
+    \item[Keyboard Navigation] \textbf{Supporto}: \texttt{autoFocus} su textarea front in EditMode. \textbf{Limiti}: Navigazione tra campi tramite Tab standard.
+    
+    \item[Screen Readers] \textbf{Supporto}: \texttt{aria-label} su tutti i pulsanti. \textbf{Contenuto}: Labels descrittivi per azioni (Edit, Delete, Show Source).
+    
+    \item[Touch Devices] \textbf{Supporto}: Pulsanti con \texttt{active:scale-95} per feedback tattile. \textbf{Area Click}: Sufficientemente grande per touch targets.
+\end{description}
+
+% ============================================
+% SEZIONE 7: SUB-COMPONENTI
+% ============================================
+
+\section{Sub-Componenti}
+
+\subsection{ViewMode Component}
+
+\subsubsection{Responsabilità}
+
+Il componente \texttt{ViewMode} gestisce esclusivamente la visualizzazione read-only della card.
+
+\subsubsection{Props}
+
+\begin{tabularx}{\textwidth}{|l|X|c|}
+\hline
+\textbf{Prop} & \textbf{Descrizione} & \textbf{Tipo} \\
+\hline
+\texttt{card} & Card da visualizzare & \texttt{Card} \\
+\hline
+\texttt{buttonState} & Stato dei pulsanti (calcolato) & \texttt{ButtonState} \\
+\hline
+\texttt{isSourceActive} & Flag highlight sorgente & \texttt{boolean} \\
+\hline
+\texttt{onEdit} & Handler inizio editing & \texttt{() => void} \\
+\hline
+\texttt{onDelete} & Handler eliminazione & \texttt{(cardId: string) => void} \\
+\hline
+\texttt{onShowSource} & Handler navigazione PDF & \texttt{(e: MouseEvent) => void} \\
+\hline
+\texttt{onCardClick} & Handler click card & \texttt{(e: MouseEvent) => void} \\
+\hline
+\end{tabularx}
+
+\subsubsection{Logica di Rendering}
+
+Il componente calcola classi CSS dinamicamente per il pulsante "Show Source":
+
+\begin{lstlisting}[style=typescript, caption=Calcolo Classi Dinamiche]
+const getShowSourceButtonClasses = (): string => {
+    const base = `${BUTTON_STYLES.base.size} ...`;
+    if (!buttonState.hasOnShowSource) {
+        return `${base} ...disabled styles`;
+    }
+    if (isSourceActive) {
+        return `${base} ...active styles`;
+    }
+    return `${base} ...default styles`;
+};
+\end{lstlisting}
+
+\subsection{EditMode Component}
+
+\subsubsection{Responsabilità}
+
+Il componente \texttt{EditMode} gestisce l'interfaccia di modifica con validazione real-time.
+
+\subsubsection{Props}
+
+\begin{tabularx}{\textwidth}{|l|X|c|}
+\hline
+\textbf{Prop} & \textbf{Descrizione} & \textbf{Tipo} \\
+\hline
+\texttt{frontValue} & Valore temporaneo front & \texttt{string} \\
+\hline
+\texttt{backValue} & Valore temporaneo back & \texttt{string} \\
+\hline
+\texttt{isSaving} & Flag operazione in corso & \texttt{boolean} \\
+\hline
+\texttt{canSave} & Flag validazione passata & \texttt{boolean} \\
+\hline
+\texttt{onFrontChange} & Handler cambio front & \texttt{(value: string) => void} \\
+\hline
+\texttt{onBackChange} & Handler cambio back & \texttt{(value: string) => void} \\
+\hline
+\texttt{onSave} & Handler salvataggio & \texttt{() => void} \\
+\hline
+\texttt{onCancel} & Handler annullamento & \texttt{() => void} \\
+\hline
+\end{tabularx}
+
+\subsubsection{Loading State}
+
+Durante salvataggio, il componente mostra spinner animato:
+
+\begin{lstlisting}[style=typescript, caption=Loading Spinner]
+{saving ? (
+    <>
+        <motion.div
+            animate={{ rotate: 360 }}
+            transition={ANIMATION_CONFIG.loadingSpinner}
+            className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+        />
+        <span>{TEXT_CONTENT.buttons.saving}</span>
+    </>
+) : (
+    <>
+        <FiCheck className={ICON_SIZES.small} />
+        <span>{TEXT_CONTENT.buttons.save}</span>
+    </>
+)}
+\end{lstlisting}
+
+% ============================================
+% SEZIONE 8: PERFORMANCE E OTTIMIZZAZIONI
+% ============================================
+
+\section{Performance e Ottimizzazioni}
+
+\subsection{React.memo}
+
+Il componente è wrappato in \texttt{React.memo} per prevenire re-render inutili:
+
+\begin{lstlisting}[style=typescript, caption=Memoization]
+export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({ ... }) => {
+    // Component implementation
+});
+\end{lstlisting}
+
+\textbf{Benefici}: Re-render solo quando props cambiano (shallow comparison).
+
+\subsection{useCallback Optimization}
+
+Tutti gli event handlers utilizzano \texttt{useCallback} con dipendenze ottimizzate:
+
+\begin{itemize}
+    \item \texttt{handleStartEdit}: Dipende da \texttt{card.front}, \texttt{card.back}
+    \item \texttt{handleSave}: Dipende da \texttt{card.id}, \texttt{validation}, callbacks
+    \item \texttt{handleCardClick}: Dipende da \texttt{isEditing}, \texttt{onClick}, \texttt{card}
+\end{itemize}
+
+\textbf{Impatto}: Previene ricreazione funzioni ad ogni render, riducendo re-render di children.
+
+\subsection{Computed Values}
+
+Valori computati sono calcolati una volta per render:
+
+\begin{lstlisting}[style=typescript, caption=Computed Values]
+const validation = validateCardContent(...);
+const buttonState = getButtonState(card, onShowSource);
+\end{lstlisting}
+
+\textbf{Pattern}: Funzioni pure senza side effects, facilmente testabili.
+
+% ============================================
+% CONCLUSIONI
+% ============================================
+
+\section{Conclusioni}
+
+Il componente \texttt{FlashcardItem} rappresenta un'implementazione robusta e production-ready di un'interfaccia dual-mode per la gestione di flashcard. L'architettura modulare, la separazione delle responsabilità e l'uso di pattern React ottimizzati garantiscono manutenibilità, performance e type safety.
+
+\textbf{Punti di Forza}:
+\begin{itemize}
+    \item Architettura modulare con separazione concerns
+    \item Type safety completo con TypeScript
+    \item Gestione errori robusta con fallback
+    \item Performance ottimizzate con memoization
+    \item Accessibilità e UX curate
+\end{itemize}
+
+\textbf{Aree di Miglioramento Future}:
+\begin{itemize}
+    \item Aggiunta unit tests per funzioni pure
+    \item Implementazione undo/redo per editing
+    \item Supporto markdown nei campi testo
+    \item Ottimizzazione animazioni per dispositivi low-end
+\end{itemize}
+
+\end{document}

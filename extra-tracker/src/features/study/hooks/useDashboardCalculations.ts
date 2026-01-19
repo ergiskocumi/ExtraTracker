@@ -13,6 +13,7 @@ interface UseDashboardCalculationsProps {
     searchQuery: string;
     selectedFolderId: string | null;
     selectedTags: string[];
+    completedExamIds?: string[]; // IDs degli esami completati (passed/failed/archived)
 }
 
 export const useDashboardCalculations = ({
@@ -22,7 +23,13 @@ export const useDashboardCalculations = ({
     searchQuery,
     selectedFolderId,
     selectedTags,
+    completedExamIds = [],
 }: UseDashboardCalculationsProps) => {
+    // Filtra i deck escludendo quelli degli esami completati
+    const activeDecks = useMemo(() => {
+        if (completedExamIds.length === 0) return decks;
+        return decks.filter(deck => !deck.goalId || !completedExamIds.includes(deck.goalId));
+    }, [decks, completedExamIds]);
     // Stato per le ore di studio
     const [studyHours, setStudyHours] = useState<number>(0);
     
@@ -70,8 +77,8 @@ export const useDashboardCalculations = ({
             });
         });
 
-        // Calcola statistiche dai deck
-        decks.forEach(deck => {
+        // Calcola statistiche dai deck (solo quelli attivi, escludendo esami completati)
+        activeDecks.forEach(deck => {
             if (!deck.folderId) return;
             
             const stats = statsMap.get(deck.folderId);
@@ -97,11 +104,11 @@ export const useDashboardCalculations = ({
         });
 
         return statsMap;
-    }, [decks, folders]);
+    }, [activeDecks, folders]);
 
-    // Calcola mazzi prioritari per oggi
+    // Calcola mazzi prioritari per oggi (solo quelli attivi)
     const todayPriorityDecks = useMemo(() => {
-        return decks
+        return activeDecks
             .filter(deck => (deck.dueCount ?? 0) > 0)
             .map(deck => {
                 const total = deck.totalCards ?? deck.cards?.length ?? 0;
@@ -122,7 +129,7 @@ export const useDashboardCalculations = ({
                 return b.dueCount - a.dueCount;
             })
             .slice(0, 3);
-    }, [decks]);
+    }, [activeDecks]);
 
     // Calcola statistiche per ogni giorno della settimana
     const weeklyStudyPlan = useMemo(() => {
@@ -144,7 +151,7 @@ export const useDashboardCalculations = ({
             let newCards = 0;
             let completedCards = 0;
 
-            decks.forEach(deck => {
+            activeDecks.forEach(deck => {
                 if (!deck.cards || deck.cards.length === 0) return;
 
                 deck.cards.forEach(card => {
@@ -175,13 +182,13 @@ export const useDashboardCalculations = ({
         });
 
         return weekData;
-    }, [decks]);
+    }, [activeDecks]);
 
     // Calcola lo stato mentale (algoritmo migliorato con ore di studio)
     const calculateMentalState = useMemo(() => {
-        const totalCards = decks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
-        const dueCards = decks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
-        const masteredCards = decks.reduce((sum, deck) => {
+        const totalCards = activeDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
+        const dueCards = activeDecks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
+        const masteredCards = activeDecks.reduce((sum, deck) => {
             const mastered = deck.cards?.filter(c => c.status === 'mastered').length ?? 0;
             return sum + mastered;
         }, 0);
@@ -202,8 +209,8 @@ export const useDashboardCalculations = ({
         const stressFromDue = Math.min(100, dueRatio * 100);
         const masteryRatio = totalCards > 0 ? masteredCards / totalCards : 0;
         const recoveryFromMastery = masteryRatio * 30;
-        const activeDecks = decks.filter(d => (d.totalCards ?? 0) > 0).length;
-        const cognitiveLoad = Math.min(20, activeDecks * 2);
+        const activeDecksCount = activeDecks.filter(d => (d.totalCards ?? 0) > 0).length;
+        const cognitiveLoad = Math.min(20, activeDecksCount * 2);
         
         // Fattore basato sulle ore di studio degli ultimi 7 giorni
         // Basato su studi psicologici sulla concentrazione e apprendimento:
@@ -298,7 +305,7 @@ export const useDashboardCalculations = ({
             suggestion,
             studyHours,
         };
-    }, [decks, studyHours]);
+    }, [activeDecks, studyHours]);
 
     // Calcola i prossimi passi guidati
     const nextSteps = useMemo(() => {
@@ -315,7 +322,7 @@ export const useDashboardCalculations = ({
             actionType: 'study' | 'magic-generate' | 'create-deck' | 'enrich-deck';
         }> = [];
 
-        const urgentDecks = decks.filter(deck => {
+        const urgentDecks = activeDecks.filter(deck => {
             const total = deck.totalCards ?? deck.cards?.length ?? 0;
             const due = deck.dueCount ?? 0;
             return total > 0 && due > 0 && (due / total) > 0.5;
@@ -338,7 +345,7 @@ export const useDashboardCalculations = ({
             });
         }
 
-        const emptyDecks = decks.filter(deck => (deck.totalCards ?? deck.cards?.length ?? 0) === 0);
+        const emptyDecks = activeDecks.filter(deck => (deck.totalCards ?? deck.cards?.length ?? 0) === 0);
         if (emptyDecks.length > 0) {
             steps.push({
                 id: 'start-empty',
@@ -356,7 +363,7 @@ export const useDashboardCalculations = ({
             });
         }
 
-        const inProgressDecks = decks.filter(deck => {
+        const inProgressDecks = activeDecks.filter(deck => {
             const total = deck.totalCards ?? deck.cards?.length ?? 0;
             const due = deck.dueCount ?? 0;
             return total > 0 && due > 0 && due < total * 0.5;
@@ -379,23 +386,23 @@ export const useDashboardCalculations = ({
             });
         }
 
-        if (decks.length === 0 || (decks.length < 5 && emptyDecks.length === 0)) {
+        if (activeDecks.length === 0 || (activeDecks.length < 5 && emptyDecks.length === 0)) {
             steps.push({
                 id: 'create-deck',
                 title: 'Crea il tuo primo mazzo',
-                description: decks.length === 0 
+                description: activeDecks.length === 0 
                     ? 'Inizia organizzando il tuo materiale di studio'
                     : 'Aggiungi un nuovo argomento da studiare',
                 action: () => {},
                 actionType: 'create-deck' as const,
                 estimatedTime: '2m',
-                priority: decks.length === 0 ? 'high' : 'low',
+                priority: activeDecks.length === 0 ? 'high' : 'low',
                 icon: Plus,
                 color: 'violet',
             });
         }
 
-        const decksWithCards = decks.filter(deck => (deck.totalCards ?? deck.cards?.length ?? 0) > 0);
+        const decksWithCards = activeDecks.filter(deck => (deck.totalCards ?? deck.cards?.length ?? 0) > 0);
         if (decksWithCards.length > 0 && decksWithCards.length < 10) {
             const deckToEnrich = decksWithCards.find(d => (d.totalCards ?? 0) < 20) || decksWithCards[0];
             if (deckToEnrich) {
@@ -415,11 +422,11 @@ export const useDashboardCalculations = ({
         }
 
         return steps.slice(0, 4);
-    }, [decks]);
+    }, [activeDecks]);
 
-    // Filtered decks
+    // Filtered decks (solo quelli attivi)
     const filteredDecks = useMemo(() => {
-        let result = [...decks];
+        let result = [...activeDecks];
 
         if (selectedFolderId !== null) {
             result = result.filter(d => d.folderId === selectedFolderId);
@@ -493,11 +500,11 @@ export const useDashboardCalculations = ({
         }
 
         return result;
-    }, [decks, filter, searchQuery, selectedFolderId, selectedTags]);
+    }, [activeDecks, filter, searchQuery, selectedFolderId, selectedTags]);
 
-    // Computed stats
-    const totalCards = decks.reduce((sum, d) => sum + (d.totalCards ?? d.cards?.length ?? 0), 0);
-    const masteredDecks = decks.filter(d => {
+    // Computed stats (solo per deck attivi)
+    const totalCards = activeDecks.reduce((sum, d) => sum + (d.totalCards ?? d.cards?.length ?? 0), 0);
+    const masteredDecks = activeDecks.filter(d => {
         const total = d.totalCards ?? d.cards?.length ?? 0;
         const mastered = d.cards?.filter(c => c.status === 'mastered').length ?? 0;
         return total > 0 && mastered === total;

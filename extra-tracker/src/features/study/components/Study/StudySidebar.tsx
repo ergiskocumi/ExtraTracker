@@ -8,9 +8,9 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiX, FiCheck } from 'react-icons/fi';
+import { FiPlus, FiX, FiCheck, FiArrowLeft } from 'react-icons/fi';
 import { Layers, MessageCircle } from 'lucide-react';
-import type { Deck } from '../../services/studyService';
+import type { Deck, Card } from '../../services/studyService';
 import { PDFChat } from '../PDF/PDFChat';
 import { FlashcardList } from '../Flashcard/FlashcardList';
 
@@ -29,6 +29,14 @@ interface StudySidebarProps {
     /** Programmatic message send in AI Tutor */
     pendingChatMessage?: { id: string; content: string } | null;
     onConsumePendingChatMessage?: (id: string) => void;
+    /** Callback per navigazione indietro (opzionale) */
+    onNavigateBack?: () => void;
+    /** Callback quando il deck viene aggiornato (riordinamento, inserimento card) */
+    onDeckUpdate?: (updatedDeck: Deck) => void;
+    /** Callback quando si clicca "Show Source" su una card */
+    onShowSource?: (card: Card) => void;
+    /** ID della card attualmente evidenziata come "source active" */
+    activeSourceCardId?: string | null;
 }
 
 export const StudySidebar: React.FC<StudySidebarProps> = ({
@@ -42,6 +50,10 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
     tabRequest,
     pendingChatMessage,
     onConsumePendingChatMessage,
+    onNavigateBack,
+    onDeckUpdate,
+    onShowSource,
+    activeSourceCardId,
 }) => {
     const [activeTab, setActiveTab] = useState<'flashcards' | 'chat'>('flashcards');
     const currentTab = activeTabOverride ?? activeTab;
@@ -64,6 +76,10 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         onAddCard={onAddCard}
                         onUpdate={onUpdateCard}
                         showHeader
+                        onNavigateBack={onNavigateBack}
+                        onDeckUpdate={onDeckUpdate}
+                        onShowSource={onShowSource}
+                        activeSourceCardId={activeSourceCardId}
                     />
                 ) : (
                     <PDFChat
@@ -110,13 +126,18 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
 
                     {currentTab === 'flashcards' && (
                         <div className="flex items-center gap-2">
-                            <button
-                                onClick={onAddCard}
-                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/20 hover:from-violet-400 hover:to-fuchsia-400 transition-all duration-300 active:scale-95"
-                            >
-                                <FiPlus className="w-4 h-4" />
-                                Add
-                            </button>
+                            {/* Pulsante Indietro - Visibile solo se onNavigateBack è fornito */}
+                            {onNavigateBack && (
+                                <button
+                                    onClick={onNavigateBack}
+                                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white/80 hover:text-white shadow-lg rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 transition-all duration-300 active:scale-95"
+                                    aria-label="Torna al mazzo"
+                                    title="Torna al dettaglio del mazzo"
+                                >
+                                    <FiArrowLeft className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Indietro</span>
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -137,11 +158,16 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
             {/* Tab Content */}
             <div className="flex-1 overflow-hidden">
                 {currentTab === 'flashcards' ? (
-                    <FlashcardList
-                        deck={deck}
-                        onAddCard={onAddCard}
-                        onUpdate={onUpdateCard}
-                    />
+                    <>
+                        <FlashcardList
+                            deck={deck}
+                            onAddCard={onAddCard}
+                            onUpdate={onUpdateCard}
+                            onDeckUpdate={onDeckUpdate}
+                            onShowSource={onShowSource}
+                            activeSourceCardId={activeSourceCardId}
+                        />
+                    </>
                 ) : (
                     <PDFChat
                         deckId={deck.id}

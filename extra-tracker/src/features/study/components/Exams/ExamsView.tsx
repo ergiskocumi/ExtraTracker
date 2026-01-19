@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Plus, Loader2 } from 'lucide-react';
+import { BookOpen, Plus, Loader2, CheckCircle } from 'lucide-react';
 import type { Goal } from '../../../goals/types';
 import type { Deck } from '../../services/studyService';
 import { ExamCard } from './ExamCard';
@@ -9,6 +9,8 @@ import { UnassignedDecksSection } from './UnassignedDecksSection';
 import { SearchResults } from './SearchResults';
 import goalsService from '../../../goals/services/goalsService';
 import type { Tag } from '../../services/tagsService';
+import { ConfirmationModal } from '../../../../shared/components/ConfirmationModal';
+import { emitToast } from '../../../../shared/components/toast';
 
 // ============================================
 // TYPES
@@ -28,6 +30,7 @@ interface ExamsViewProps {
     onAddCard: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onTogglePin?: (deck: Deck) => void;
+    onReactivateExam?: (examId: string) => void;
 }
 
 // ============================================
@@ -48,6 +51,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
     onAddCard,
     onDelete,
     onTogglePin,
+    onReactivateExam,
 }) => {
     const [exams, setExams] = useState<Goal[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -55,6 +59,10 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<ExamSortOption>('recent'); // Default: Recente
     const [filter, setFilter] = useState<ExamFilterOption>('all');
+    
+    // Delete state
+    const [pendingDeleteExamId, setPendingDeleteExamId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const loadExams = useCallback(async () => {
         try {
@@ -62,7 +70,8 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             setError(null);
             const allGoals = await goalsService.getAll();
             // Filtra solo gli esami (goals con category='learning')
-            const learningGoals = allGoals.filter(g => g.category === 'learning' && g.status === 'active');
+            // Ora includiamo tutti gli status, non solo 'active'
+            const learningGoals = allGoals.filter(g => g.category === 'learning');
             setExams(learningGoals);
         } catch (err: any) {
             setError(err.message || 'Errore nel caricamento degli esami');
@@ -82,6 +91,50 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             delete (window as any).__refreshExams;
         };
     }, [loadExams]);
+
+    // Delete handlers
+    const handleRequestDeleteExam = useCallback((examId: string) => {
+        setPendingDeleteExamId(examId);
+    }, []);
+
+    const handleCancelDeleteExam = useCallback(() => {
+        if (!isDeleting) {
+            setPendingDeleteExamId(null);
+        }
+    }, [isDeleting]);
+
+    const handleConfirmDeleteExam = useCallback(async () => {
+        if (!pendingDeleteExamId) return;
+
+        setIsDeleting(true);
+        try {
+            // Optimistic UI: rimuovi immediatamente dalla lista
+            setExams(prev => prev.filter(exam => exam.id !== pendingDeleteExamId));
+            
+            // Chiama l'API
+            await goalsService.delete(pendingDeleteExamId);
+            
+            // Toast di successo
+            emitToast.success('Esame eliminato correttamente');
+            
+            // Refresh se c'è un callback
+            if (onRefresh) {
+                onRefresh();
+            }
+        } catch (err: any) {
+            // Rollback in caso di errore
+            await loadExams();
+            emitToast.error(err.message || 'Errore nell\'eliminazione dell\'esame');
+        } finally {
+            setIsDeleting(false);
+            setPendingDeleteExamId(null);
+        }
+    }, [pendingDeleteExamId, onRefresh, loadExams]);
+
+    const pendingDeleteExam = exams.find(exam => exam.id === pendingDeleteExamId);
+    const pendingDeleteExamTitle = pendingDeleteExam?.title || 'questo esame';
+    const pendingDeleteExamDecks = pendingDeleteExam ? decks.filter(d => d.goalId === pendingDeleteExamId) : [];
+    const pendingDeleteExamCards = pendingDeleteExamDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
 
     // Calcola statistiche per ogni esame
     const getExamStats = (examId: string) => {
@@ -134,18 +187,29 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
         const now = Date.now();
         if (filter === 'urgent') {
             filtered = filtered.filter(exam => {
+                if (exam.status !== 'active') return false;
                 const deadline = new Date(exam.deadline).getTime();
                 const daysUntil = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
                 return daysUntil <= 7 && daysUntil >= 0;
             });
         } else if (filter === 'upcoming') {
             filtered = filtered.filter(exam => {
+                if (exam.status !== 'active') return false;
                 const deadline = new Date(exam.deadline).getTime();
                 const daysUntil = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
                 return daysUntil > 7;
             });
         } else if (filter === 'completed') {
-            filtered = filtered.filter(exam => exam.status === 'completed');
+            // Include tutti gli esami completati (passed, failed, archived, completed)
+            filtered = filtered.filter(exam => 
+                exam.status === 'completed' || 
+                exam.status === 'passed' || 
+                exam.status === 'failed' || 
+                exam.status === 'archived'
+            );
+        } else if (filter === 'all') {
+            // Mostra solo esami attivi per default
+            filtered = filtered.filter(exam => exam.status === 'active');
         }
 
         // Ordina
@@ -260,7 +324,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                         {filteredAndSortedExams.length} di {exams.length} {exams.length === 1 ? 'esame' : 'esami'}
                     </p>
                 </div>
-                <motion.button
+               {/*  <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={onCreateExam}
@@ -272,7 +336,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nuovo Esame</span>
                 </motion.button>
-            </div>
+ */}            </div>
 
             {/* Filters */}
             <ExamsFilters
@@ -319,29 +383,109 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                    {filteredAndSortedExams.map((exam, index) => {
-                        const stats = getExamStats(exam.id);
-                        return (
-                            <motion.div
-                                key={exam.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                            >
-                                <ExamCard
-                                    exam={exam}
-                                    deckCount={stats.deckCount}
-                                    totalCards={stats.totalCards}
-                                    dueCards={stats.dueCards}
-                                    masteryPercent={stats.masteryPercent}
-                                    onClick={() => onExamClick(exam.id)}
-                                />
-                            </motion.div>
+                <>
+                    {/* Esami Attivi */}
+                    {filteredAndSortedExams.filter(e => e.status === 'active').length > 0 && (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                                <h3 className="text-lg font-semibold text-white/80 px-4">Esami Attivi</h3>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                                {filteredAndSortedExams
+                                    .filter(e => e.status === 'active')
+                                    .map((exam, index) => {
+                                        const stats = getExamStats(exam.id);
+                                        return (
+                                            <motion.div
+                                                key={exam.id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: index * 0.05 }}
+                                            >
+                                                <ExamCard
+                                                    exam={exam}
+                                                    deckCount={stats.deckCount}
+                                                    totalCards={stats.totalCards}
+                                                    dueCards={stats.dueCards}
+                                                    masteryPercent={stats.masteryPercent}
+                                                    onClick={() => onExamClick(exam.id)}
+                                                    onDelete={handleRequestDeleteExam}
+                                                />
+                                            </motion.div>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Esami Completati */}
+                    {(() => {
+                        const completedExams = filteredAndSortedExams.filter(e => 
+                            e.status === 'passed' || 
+                            e.status === 'failed' || 
+                            e.status === 'archived' || 
+                            e.status === 'completed'
                         );
-                    })}
-                </div>
+                        
+                        if (completedExams.length === 0) return null;
+                        
+                        return (
+                            <div className="space-y-4 mt-8">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent"></div>
+                                    <h3 className="text-lg font-semibold text-amber-400/90 px-4 flex items-center gap-2">
+                                        <CheckCircle className="w-5 h-5" />
+                                        Esami Completati
+                                    </h3>
+                                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent"></div>
+                                </div>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                                    {completedExams.map((exam, index) => {
+                                        const stats = getExamStats(exam.id);
+                                        return (
+                                            <motion.div
+                                                key={exam.id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: index * 0.05 }}
+                                            >
+                                                <ExamCard
+                                                    exam={exam}
+                                                    deckCount={stats.deckCount}
+                                                    totalCards={stats.totalCards}
+                                                    dueCards={stats.dueCards}
+                                                    masteryPercent={stats.masteryPercent}
+                                                    onClick={() => onExamClick(exam.id)}
+                                                    onDelete={handleRequestDeleteExam}
+                                                />
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </>
             )}
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={Boolean(pendingDeleteExamId)}
+                title="Elimina Esame"
+                description={
+                    pendingDeleteExamDecks.length > 0
+                        ? `Sei sicuro di voler eliminare "${pendingDeleteExamTitle}"? Questa azione cancellerà anche tutti i ${pendingDeleteExamDecks.length} mazzi e le ${pendingDeleteExamCards} flashcard associati. L'azione è irreversibile.`
+                        : `Sei sicuro di voler eliminare "${pendingDeleteExamTitle}"? L'azione è irreversibile.`
+                }
+                confirmLabel="Elimina"
+                cancelLabel="Annulla"
+                onConfirm={handleConfirmDeleteExam}
+                onCancel={handleCancelDeleteExam}
+                isLoading={isDeleting}
+                destructive
+            />
         </div>
     );
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Folder, ArrowLeft, Home, BookOpen } from 'lucide-react';
+import { Plus, Folder, ArrowLeft, Home, BookOpen, CheckCircle } from 'lucide-react';
 
 interface DashboardHeaderProps {
     onCreateDeck: () => void;
@@ -8,6 +8,8 @@ interface DashboardHeaderProps {
     onBackToAll?: () => void;
     selectedExamName?: string | null; // Nome dell'esame selezionato
     onBackToExams?: () => void; // Callback per tornare agli esami
+    onCompleteExam?: () => void; // Callback per completare l'esame
+    selectedExamId?: string | null; // ID dell'esame selezionato (per mostrare il pulsante)
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ 
@@ -16,6 +18,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     onBackToAll,
     selectedExamName,
     onBackToExams,
+    onCompleteExam,
+    selectedExamId,
 }) => {
     return (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -97,14 +101,30 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     }
                 </p>
             </div>
-            <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={onCreateDeck}
-                className="flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-3 sm:py-3.5 md:py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-violet-500 to-violet-600 text-white font-bold shadow-xl shadow-violet-500/30 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
-            >
-                <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                <span>Nuovo Mazzo</span>
-            </motion.button>
+            <div className="flex items-center gap-2 sm:gap-3">
+                {/* Pulsante Concludi Esame - Solo quando c'è un esame selezionato */}
+                {selectedExamName && selectedExamId && onCompleteExam && (
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={onCompleteExam}
+                        className="flex items-center justify-center gap-2 px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold shadow-lg shadow-emerald-500/25 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
+                    >
+                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                        <span className="hidden sm:inline">Concludi Esame</span>
+                        <span className="sm:hidden">Concludi</span>
+                    </motion.button>
+                )}
+                
+                <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={onCreateDeck}
+                    className="flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-3 sm:py-3.5 md:py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-violet-500 to-violet-600 text-white font-bold shadow-xl shadow-violet-500/30 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
+                >
+                    <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span>Nuovo Mazzo</span>
+                </motion.button>
+            </div>
         </div>
     );
 };

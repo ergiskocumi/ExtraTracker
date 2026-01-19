@@ -10,11 +10,14 @@
  * - Callback memoizzati
  */
 
-import React, { memo, useMemo, useCallback } from 'react';
+import React, { memo, useMemo, useCallback, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { FiArrowLeft } from 'react-icons/fi';
 import { Panel, Group, Separator } from 'react-resizable-panels';
-import { FluidPDFViewer } from '../components/PDF/FluidPDFViewer';
+import { PDFReader, type PDFReaderRef } from '../components/PDF/PDFReader';
 import { StudySidebar } from '../components/Study/StudySidebar';
-import type { Deck } from '../services/studyService';
+import type { Deck, Card } from '../services/studyService';
+import { emitToast } from '../../../shared/components/toast';
 
 // ============================================
 // CONSTANTS
@@ -36,6 +39,15 @@ interface CinemaLayoutProps {
     pdfSrc: string | null;
     onAddCard: () => void;
     onUpdateCard: (cardId: string, front: string, back: string) => Promise<void>;
+    /**
+     * Callback opzionale per la navigazione indietro.
+     * Se non fornito, usa la navigazione di default al dettaglio del mazzo.
+     */
+    onNavigateBack?: () => void;
+    /**
+     * Callback quando il deck viene aggiornato (riordinamento, inserimento card)
+     */
+    onDeckUpdate?: (updatedDeck: Deck) => void;
 }
 
 // ============================================
@@ -44,22 +56,23 @@ interface CinemaLayoutProps {
 
 interface PDFPanelProps {
     pdfSrc: string | null;
+    pdfReaderRef: React.RefObject<PDFReaderRef>;
+    onSearchError?: (message: string) => void;
 }
 
-const PDFPanel = memo<PDFPanelProps>(({ pdfSrc }) => {
-    // Verifica che pdfSrc sia una stringa valida
-    if (!pdfSrc || typeof pdfSrc !== 'string') {
-        return (
-            <div className="h-full w-full flex flex-col items-center justify-center text-white/40 gap-3">
-                <div className="w-16 h-16 rounded-full border-2 border-violet-500/20 bg-violet-500/5 backdrop-blur-xl flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
-                    <svg className="w-8 h-8 text-violet-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                </div>
-                <p className="text-sm text-slate-400">Nessun PDF disponibile</p>
-            </div>
-        );
-    }
+const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef, onSearchError }) => {
+    /**
+     * CRITICAL: Always render PDFReader, even when pdfSrc is null.
+     * 
+     * React's Rules of Hooks require that components are always rendered
+     * in the same way. If we conditionally render PDFReader, its hooks
+     * won't be called consistently, causing "Rendered fewer hooks than expected" errors.
+     * 
+     * PDFReader handles the null case internally, so we can safely always render it.
+     */
+    
+    // Normalize pdfSrc to ensure it's either a valid string or null
+    const normalizedPdfSrc = (pdfSrc && typeof pdfSrc === 'string') ? pdfSrc : null;
 
     return (
         <div className="h-full w-full overflow-hidden p-4">
@@ -68,7 +81,12 @@ const PDFPanel = memo<PDFPanelProps>(({ pdfSrc }) => {
                     background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
                 }}
             >
-                <FluidPDFViewer pdfUrl={pdfSrc} />
+                {/* Always render PDFReader - it handles null pdfUrl internally */}
+                <PDFReader 
+                    ref={pdfReaderRef} 
+                    pdfUrl={normalizedPdfSrc}
+                    onSearchError={onSearchError}
+                />
             </div>
         </div>
     );
@@ -85,9 +103,37 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
     pdfSrc,
     onAddCard,
     onUpdateCard,
+    onNavigateBack,
+    onDeckUpdate,
 }) => {
+    const navigate = useNavigate();
+    const { deckId } = useParams<{ deckId: string }>();
+    const pdfReaderRef = useRef<PDFReaderRef>(null);
+    const [activeSourceCardId, setActiveSourceCardId] = useState<string | null>(null);
+
     // Memoize deck title per evitare re-render inutili
     const deckTitle = useMemo(() => deck.title, [deck.title]);
+
+    /**
+     * Handler per tornare al dettaglio del mazzo corrente
+     * 
+     * Naviga al dettaglio del mazzo che si sta visualizzando in Cinema Mode invece della dashboard principale.
+     * Se onNavigateBack è fornito come prop, usa quello, altrimenti usa la navigazione di default.
+     * 
+     * @returns {void}
+     */
+    const handleNavigateBack = useCallback(() => {
+        if (onNavigateBack) {
+            // Usa il callback fornito se disponibile
+            onNavigateBack();
+        } else if (deckId) {
+            // Naviga al dettaglio del mazzo corrente
+            navigate(`/study/deck/${deckId}`);
+        } else {
+            // Fallback alla dashboard se deckId non è disponibile
+            navigate('/study');
+        }
+    }, [onNavigateBack, navigate, deckId]);
 
     // Memoize callbacks per evitare re-render dei componenti figli
     const handleAddCard = useCallback(() => {
@@ -98,23 +144,109 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
         await onUpdateCard(cardId, front, back);
     }, [onUpdateCard]);
 
+    /**
+     * Handler per mostrare la fonte di una card nel PDF
+     * Salta alla pagina corretta e evidenzia il testo
+     */
+    const handleShowSource = useCallback((card: Card) => {
+        if (!card.sourceMetadata || !pdfReaderRef.current) {
+            emitToast.error('Informazioni sulla fonte non disponibili per questa card', {
+                title: 'Fonte non disponibile',
+                duration: 3000,
+            });
+            return;
+        }
+
+        const { pageNumber, originalText } = card.sourceMetadata;
+        
+        // Validate sourceMetadata
+        if (!pageNumber || pageNumber < 1 || !originalText || originalText.trim().length < 20) {
+            emitToast.error('I dati della fonte non sono validi', {
+                title: 'Errore',
+                duration: 3000,
+            });
+            return;
+        }
+        
+        // Set active card for visual feedback
+        setActiveSourceCardId(card.id);
+        
+        // Jump to page and highlight text
+        pdfReaderRef.current.jumpToPageAndHighlight(pageNumber, originalText);
+        
+        // Clear active state after 3 seconds
+        setTimeout(() => {
+            setActiveSourceCardId(null);
+        }, 3000);
+    }, []);
+    
+    /**
+     * Handler per errori di ricerca nel PDF
+     */
+    const handleSearchError = useCallback((message: string) => {
+        emitToast.error(message, {
+            title: 'Ricerca nel PDF',
+            duration: 4000,
+        });
+    }, []);
+
     return (
         <div className="fixed inset-0 h-screen w-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-[#050505] to-black text-white overflow-hidden flex flex-col">
             {/* Header - Stile moderno con backdrop blur */}
+            {/* 
+                sticky top-0: mantiene l'header sempre visibile in cima durante lo scroll
+                z-[100]: z-index molto alto per assicurarsi che l'header sia sempre sopra il contenuto
+                Questo previene che il pulsante indietro venga nascosto da altri elementi (PDF viewer, modali, etc.)
+            */}
             <header className="
+                sticky top-0
                 h-14 
                 border-b border-white/[0.08] 
-                flex-none flex items-center px-6 
+                flex-none flex items-center justify-between px-4 sm:px-6 
                 backdrop-blur-2xl
-                relative
-                bg-gradient-to-r from-slate-900/80 via-[#050505]/80 to-black/80
+                z-[100]
+                bg-gradient-to-r from-slate-900/95 via-[#050505]/95 to-black/95
+                shadow-lg shadow-black/20
             ">
-                <h1 className="text-sm font-semibold text-white relative z-10 flex items-center gap-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgb(139,92,246,0.5)] animate-pulse" />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">
+                {/* Pulsante Indietro - Sempre visibile con contrasto migliorato */}
+                <button
+                    onClick={handleNavigateBack}
+                    className="
+                        flex items-center justify-center gap-2 
+                        text-white hover:text-white 
+                        transition-all duration-200 
+                        px-3 py-2 rounded-lg 
+                        bg-white/10 hover:bg-white/20 active:bg-white/25
+                        border border-white/20 hover:border-white/30
+                        shadow-md hover:shadow-lg
+                        min-w-[44px] min-h-[44px]
+                        flex-shrink-0
+                        group
+                    "
+                    aria-label="Torna al mazzo"
+                    title="Torna al dettaglio del mazzo"
+                >
+                    <FiArrowLeft className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                    <span className="hidden sm:inline text-sm font-semibold">Torna al mazzo</span>
+                </button>
+
+                {/* Titolo del mazzo - Centrato */}
+                <h1 className="
+                    text-sm font-semibold text-white 
+                    relative z-10 
+                    flex items-center gap-2.5
+                    flex-1 justify-center
+                    px-4
+                    truncate
+                ">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgb(139,92,246,0.5)] animate-pulse flex-shrink-0" />
+                    <span className="text-white/90 bg-clip-text bg-gradient-to-r from-violet-300 to-violet-500 truncate">
                         {deckTitle}
                     </span>
                 </h1>
+
+                {/* Spacer per bilanciare il layout - Stessa larghezza del pulsante */}
+                <div className="w-[44px] sm:w-[180px] flex-shrink-0" />
             </header>
 
             {/* Main Body - Container principale con stile moderno */}
@@ -140,7 +272,11 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                             minSize={PANEL_SIZES.LEFT_MIN} 
                             className="h-full w-full overflow-hidden"
                         >
-                            <PDFPanel pdfSrc={pdfSrc} />
+                            <PDFPanel 
+                                pdfSrc={pdfSrc} 
+                                pdfReaderRef={pdfReaderRef}
+                                onSearchError={handleSearchError}
+                            />
                         </Panel>
 
                         {/* Resize Handle - Stile moderno discreto */}
@@ -173,6 +309,10 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                                 onAddCard={handleAddCard}
                                 onUpdateCard={handleUpdateCard}
                                 compactMode={true}
+                                onNavigateBack={handleNavigateBack}
+                                onDeckUpdate={onDeckUpdate}
+                                onShowSource={handleShowSource}
+                                activeSourceCardId={activeSourceCardId}
                             />
                         </Panel>
                     </Group>

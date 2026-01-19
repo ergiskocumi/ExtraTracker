@@ -475,17 +475,20 @@ router.get('/mood-stats', asyncHandler(async (req, res) => {
 // =========================================
 
 const aiGoalService = require('../services/aiGoalService');
+const { aiLimiter } = require('../middleware/rateLimiter');
 
 /**
  * POST /api/goals/suggest
  * Genera un piano strategico AI per un nuovo obiettivo
+ * 
+ * @rateLimit AI Rate Limiter: 10 chiamate per ora per utente
  * 
  * Body:
  * - category: string (finance, health, learning, etc.)
  * - query: string (desiderio/intento dell'utente)
  * - intensity: 'relax' | 'normal' | 'hardcore'
  */
-router.post('/goals/suggest', asyncHandler(async (req, res) => {
+router.post('/goals/suggest', aiLimiter, asyncHandler(async (req, res) => {
     const { category, query, intensity } = req.body;
     const userId = req.tenantScope?.userId;
 

@@ -32,6 +32,7 @@ interface DashboardLayoutProps {
     onCreateExam?: () => void;
     selectedExamName?: string | null; // Nome dell'esame selezionato
     onBackToExams?: () => void; // Callback per tornare agli esami
+    onCompleteExam?: () => void; // Callback per completare l'esame
     children: React.ReactNode;
 }
 
@@ -57,6 +58,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     onCreateExam,
     selectedExamName,
     onBackToExams,
+    onCompleteExam,
     children,
 }) => {
     // Trova il nome della cartella selezionata
@@ -99,6 +101,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                             onBackToAll={() => onFolderSelect(null)}
                             selectedExamName={selectedExamName}
                             onBackToExams={onBackToExams}
+                            onCompleteExam={onCompleteExam}
+                            selectedExamId={selectedExamId}
                         />
                     </header>
                     {children}

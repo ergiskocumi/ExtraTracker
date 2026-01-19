@@ -14,6 +14,7 @@ const path = require('path');
 // Middleware
 const { requireAuth } = require('../middleware/auth');
 const { tenantContext } = require('../middleware/tenantContext');
+const { aiLimiter } = require('../middleware/rateLimiter');
 
 // Controller
 const studyController = require('../controllers/studyController');
@@ -73,17 +74,21 @@ router.get('/:id', studyController.getDeckById);
 router.post('/', studyController.createDeck);
 router.patch('/:id', studyController.updateDeck);
 router.post('/:id/cards', studyController.addCard);
+router.post('/:id/cards/insert', studyController.addCardAtPosition); // Inserimento in posizione specifica
+router.put('/:id/cards/reorder', studyController.reorderCards); // Riordinamento card
 router.put('/:id/cards/:cardId', studyController.updateCard);
 router.put('/:id/settings', studyController.updateDeckSettings);
 router.delete('/:id/cards/:cardId', studyController.deleteCard);
 router.post('/:id/session-complete', studyController.completeSession);
 router.post('/:id/review', studyController.submitReview);
 router.post('/:id/verify-answer', studyController.verifyAnswer);
-router.post('/:id/chat', studyController.chatWithTutor);
+// AI Chat - Rate limited: 10 chiamate per ora per utente
+router.post('/:id/chat', aiLimiter, studyController.chatWithTutor);
 router.delete('/:id', studyController.deleteDeck);
 
 // 🪄 Magic Generate from PDF (con multer middleware)
-router.post('/:id/generate-pdf', (req, res, next) => {
+// AI Generate - Rate limited: 10 chiamate per ora per utente
+router.post('/:id/generate-pdf', aiLimiter, (req, res, next) => {
     upload.single('pdf')(req, res, (err) => {
         if (err) {
             console.error('Multer error:', err.message);
@@ -96,5 +101,21 @@ router.post('/:id/generate-pdf', (req, res, next) => {
         next();
     });
 }, studyController.uploadAndGenerate);
+
+// =========================================
+// RECOVERY PLAN - Exam Recovery Actions
+// =========================================
+
+/**
+ * POST /api/study/exam/:examId/reset-cards
+ * Resetta le carte di tutti i deck associati a un esame
+ */
+router.post('/exam/:examId/reset-cards', studyController.resetExamCards);
+
+/**
+ * POST /api/study/exam/:examId/generate-recovery-questions
+ * Genera domande AI di approfondimento basate sulle difficoltà
+ */
+router.post('/exam/:examId/generate-recovery-questions', aiLimiter, studyController.generateRecoveryQuestions);
 
 module.exports = router;

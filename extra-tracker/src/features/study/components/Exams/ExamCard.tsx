@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Calendar, TrendingUp, ArrowRight, Layers, FileText, Target } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, TrendingUp, ArrowRight, Layers, FileText, Target, MoreVertical, Trash2, RotateCcw } from 'lucide-react';
 import type { Goal } from '../../../goals/types';
 import { getExamIcon, getExamColors } from './utils/examIcons';
 
@@ -15,6 +15,8 @@ interface ExamCardProps {
     dueCards: number;
     masteryPercent: number;
     onClick: () => void;
+    onDelete?: (examId: string) => void;
+    onReactivate?: (examId: string) => void;
 }
 
 // ============================================
@@ -28,7 +30,11 @@ export const ExamCard: React.FC<ExamCardProps> = ({
     dueCards,
     masteryPercent,
     onClick,
+    onDelete,
+    onReactivate,
 }) => {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
     const deadlineDate = new Date(exam.deadline);
     const daysUntilDeadline = Math.ceil((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     const isUrgent = daysUntilDeadline <= 7 && daysUntilDeadline >= 0;
@@ -36,6 +42,44 @@ export const ExamCard: React.FC<ExamCardProps> = ({
     // Rileva materia e icona automaticamente
     const ExamIcon = getExamIcon(exam.title, exam.description);
     const examColors = getExamColors(exam.title, exam.description);
+
+    // Chiudi menu quando si clicca fuori
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+        if (isMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isMenuOpen]);
+
+    const isCompleted = exam.status === 'passed' || exam.status === 'failed' || exam.status === 'archived' || exam.status === 'completed';
+
+    const handleDeleteClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Previeni il click sulla card
+        setIsMenuOpen(false);
+        if (onDelete) {
+            onDelete(exam.id);
+        }
+    };
+
+    const handleReactivateClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Previeni il click sulla card
+        setIsMenuOpen(false);
+        if (onReactivate) {
+            onReactivate(exam.id);
+        }
+    };
+
+    const handleMenuClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Previeni il click sulla card
+        setIsMenuOpen(!isMenuOpen);
+    };
 
     return (
         <motion.div
@@ -80,6 +124,59 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                             </p>
                         )}
                     </div>
+
+                    {/* Context Menu Button */}
+                    {onDelete && (
+                        <div className="relative flex-shrink-0" ref={menuRef}>
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={handleMenuClick}
+                                className={`
+                                    p-2 rounded-lg transition-all
+                                    ${isMenuOpen
+                                        ? 'bg-white/10 text-white'
+                                        : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                                    }
+                                `}
+                                aria-label="Menu opzioni"
+                            >
+                                <MoreVertical className="w-5 h-5" />
+                            </motion.button>
+
+                            {/* Dropdown Menu */}
+                            <AnimatePresence>
+                                {isMenuOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-white/15 bg-gradient-to-br from-white/[0.12] to-white/[0.06] shadow-2xl shadow-black/60 overflow-hidden z-50 backdrop-blur-xl"
+                                    >
+                                        {isCompleted && onReactivate && (
+                                            <button
+                                                onClick={handleReactivateClick}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-blue-400 hover:bg-blue-500/15 transition-colors border-b border-white/10"
+                                            >
+                                                <RotateCcw className="w-4 h-4" />
+                                                <span className="text-sm font-medium">Riattiva Esame</span>
+                                            </button>
+                                        )}
+                                        {onDelete && (
+                                            <button
+                                                onClick={handleDeleteClick}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/15 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                <span className="text-sm font-medium">Elimina Esame</span>
+                                            </button>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
                 </div>
 
                 {/* Statistiche Principali - Layout Migliorato */}

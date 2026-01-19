@@ -14,6 +14,7 @@
 
 import { useEffect, useMemo, memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { FiTarget } from 'react-icons/fi';
 import type { Card } from '../../services/studyService';
 
 interface FlashcardProps {
@@ -21,6 +22,8 @@ interface FlashcardProps {
     isFlipped: boolean;
     onFlip: () => void;
     exitDirection?: 'left' | 'right' | 'up' | null;
+    /** Callback quando si clicca "Show Source" (opzionale) */
+    onShowSource?: (card: Card) => void;
 }
 
 // Varianti semplici per transizioni tra card
@@ -61,7 +64,8 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
     card, 
     isFlipped, 
     onFlip,
-    exitDirection = null 
+    exitDirection = null,
+    onShowSource,
 }) => {
     // Gestione tastiera (Spazio per flip)
     useEffect(() => {
@@ -185,6 +189,27 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                         </span>
                     </div>
 
+                    {/* SOURCE BUTTON - Visibile solo se c'è sourceMetadata */}
+                    {card.sourceMetadata && onShowSource && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation(); // Fondamentale: non girare la card
+                                onShowSource(card);
+                            }}
+                            className={`absolute ${isMobile ? 'top-3 left-3 p-1.5' : 'top-4 left-4 p-2'} z-50 rounded-full transition-all duration-200
+                                bg-amber-500/10 hover:bg-amber-500/20 
+                                text-amber-500/70 hover:text-amber-400
+                                border border-amber-500/20 hover:border-amber-500/50
+                                hover:scale-110 active:scale-95
+                                backdrop-blur-sm shadow-sm`}
+                            title="Vedi nel testo (PDF)"
+                            aria-label="Vai alla fonte nel PDF"
+                        >
+                            <FiTarget className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
+                        </button>
+                    )}
+
                     {/* Contenuto Fronte - STILI SEPARATI MOBILE/DESKTOP */}
                     <div 
                         className={`flex-1 flex items-center justify-center w-full min-w-0 ${frontNeedsScroll ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}
@@ -277,7 +302,10 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
         prevProps.card.back === nextProps.card.back &&
         prevProps.card.status === nextProps.card.status &&
         prevProps.isFlipped === nextProps.isFlipped &&
-        prevProps.exitDirection === nextProps.exitDirection
+        prevProps.exitDirection === nextProps.exitDirection &&
+        prevProps.onShowSource === nextProps.onShowSource &&
+        prevProps.card.sourceMetadata?.pageNumber === nextProps.card.sourceMetadata?.pageNumber &&
+        prevProps.card.sourceMetadata?.originalText === nextProps.card.sourceMetadata?.originalText
     );
 });
 

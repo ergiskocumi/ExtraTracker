@@ -5,7 +5,13 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.3'),
+    // Read version from environment variable (VITE_APP_VERSION) or fallback to package.json
+    // Priority: VITE_APP_VERSION > npm_package_version > default fallback
+    __APP_VERSION__: JSON.stringify(
+      process.env.VITE_APP_VERSION ?? 
+      process.env.npm_package_version ?? 
+      '0.0.4'
+    ),
   },
   build: {
     target: 'esnext',

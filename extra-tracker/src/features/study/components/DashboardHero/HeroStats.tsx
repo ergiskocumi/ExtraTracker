@@ -124,14 +124,14 @@ export const HeroStats: React.FC<HeroStatsProps> = ({
             description: 'Carte pronte per il ripasso'
         },
         {
-            label: 'Completati',
+            label: 'Esami Completati',
             value: masteredDecks,
             icon: CheckCircle,
             color: 'emerald',
             bgClass: 'bg-emerald-500/10 border-emerald-500/20',
             iconClass: 'text-emerald-400',
             valueClass: 'text-emerald-400',
-            description: 'Mazzi completamente padroneggiati'
+            description: 'Numero di esami completati (superati o non superati)'
         }
     ];
 

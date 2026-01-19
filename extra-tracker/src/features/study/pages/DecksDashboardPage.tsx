@@ -9,11 +9,12 @@
  * - Visual hierarchy chiara
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDashboardCalculations, type FilterType } from '../hooks/useDashboardCalculations';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useDeckHandlers } from '../hooks/useDeckHandlers';
 import { useOrganizedDecks } from '../hooks/useOrganizedDecks';
+import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { DashboardHero } from '../components/DashboardHero';
 import { TodayPlan } from '../components/TodayPlan';
@@ -26,9 +27,12 @@ import { ExamDetailView } from '../components/Exams/ExamDetailView';
 import { ExamDeckToggle, type ViewType } from '../components/ViewToggle/ExamDeckToggle';
 import { DashboardModals } from '../components/DashboardModals';
 import { HybridGoalWizard } from '../../goals/components/HybridGoalWizard';
+import { ExamCompletionModal } from '../components/Exams/ExamCompletionModal';
 import type { ViewMode } from '../components/ViewToggle/ViewToggle';
-import type { Goal } from '../../goals/types';
+import type { Goal, ExamOutcome } from '../../goals/types';
 import goalsService from '../../goals/services/goalsService';
+import { studyService } from '../services/studyService';
+import { emitToast } from '../../../shared/components/toast';
 
 // ============================================
 // MAIN DASHBOARD PAGE
@@ -48,6 +52,7 @@ export const DecksDashboardPage: React.FC = () => {
     const [selectedExam, setSelectedExam] = useState<Goal | null>(null);
     const [examsRefreshKey, setExamsRefreshKey] = useState(0); // Key per forzare refresh ExamsView
     const [exams, setExams] = useState<Goal[]>([]); // Esami caricati
+    const [showCompletionModal, setShowCompletionModal] = useState(false);
 
     // Data loading
     const {
@@ -63,13 +68,11 @@ export const DecksDashboardPage: React.FC = () => {
         refreshAll,
     } = useDashboardData();
 
-    // Carica esami (goals con category='learning' e status='active')
+    // Carica esami (goals con category='learning' - tutti gli status)
     const loadExams = useCallback(async () => {
         try {
             const allGoals = await goalsService.getAll();
-            const learningGoals = allGoals.filter(
-                g => g.category === 'learning' && g.status === 'active'
-            );
+            const learningGoals = allGoals.filter(g => g.category === 'learning');
             setExams(learningGoals);
         } catch (err) {
             console.error('Errore nel caricamento degli esami:', err);
@@ -80,6 +83,209 @@ export const DecksDashboardPage: React.FC = () => {
     useEffect(() => {
         loadExams();
     }, [loadExams, examsRefreshKey]);
+
+    // Scroll to top when an exam is selected (non è un cambio di route, quindi serve hook specifico)
+    useScrollToTop([selectedExamId]);
+
+    // Exam Completion Handlers
+    const handleCompleteExam = useCallback(async (examId: string, outcome: ExamOutcome, status: 'passed' | 'failed') => {
+        try {
+            const newStatus = status === 'passed' ? 'passed' : 'failed';
+            
+            console.log('[DecksDashboardPage] handleCompleteExam chiamato:', { examId, status: newStatus, outcome });
+            
+            // Prepara outcome per il backend (converte date string in Date se necessario)
+            const outcomeForBackend = {
+                ...outcome,
+                date: outcome.date ? new Date(outcome.date).toISOString() : new Date().toISOString(),
+            };
+            
+            console.log('[DecksDashboardPage] Aggiornando goal con status:', newStatus);
+            await goalsService.update(examId, {
+                status: newStatus,
+                outcome: outcomeForBackend, // Invia outcome al backend
+            });
+            
+            console.log('[DecksDashboardPage] Goal aggiornato con successo');
+            
+            // Aggiorna lo stato locale
+            if (selectedExam) {
+                setSelectedExam({ ...selectedExam, status: newStatus, outcome });
+            }
+            
+            // Refresh esami e deck per aggiornare le statistiche
+            setExamsRefreshKey(prev => prev + 1);
+            await Promise.all([
+                loadExams(),
+                loadDecks(), // Ricarica i deck per aggiornare le statistiche
+            ]);
+            
+            console.log('[DecksDashboardPage] Refresh completato');
+        } catch (err: any) {
+            console.error('[DecksDashboardPage] Errore nel completamento esame:', err);
+            throw new Error(err.message || 'Errore nel completamento dell\'esame');
+        }
+    }, [selectedExam, loadExams, loadDecks]);
+
+    const handleResetCards = useCallback(async (examId: string, type: 'all' | 'hard-only') => {
+        try {
+            console.log('[DecksDashboardPage] handleResetCards chiamato:', { examId, type });
+            
+            const examDecks = decks.filter(d => d.goalId === examId);
+            
+            if (examDecks.length === 0) {
+                console.warn('[DecksDashboardPage] Nessun mazzo trovato per esame:', examId);
+                emitToast.warning('Nessun mazzo trovato per questo esame');
+                return;
+            }
+
+            console.log('[DecksDashboardPage] Trovati', examDecks.length, 'mazzi per l\'esame');
+            console.log('[DecksDashboardPage] Chiamando studyService.resetExamCards...');
+            
+            // Chiama l'API per resettare le carte
+            const result = await studyService.resetExamCards(examId, type);
+            
+            console.log('[DecksDashboardPage] Reset completato:', result);
+            
+            emitToast.success(
+                type === 'all' 
+                    ? `Reset completato: ${result.cardsReset} carte resettate in ${result.decksAffected} mazzo/i`
+                    : `Reset mirato completato: ${result.cardsReset} carte difficili resettate in ${result.decksAffected} mazzo/i`,
+                {
+                    title: 'Reset completato',
+                    duration: 3000
+                }
+            );
+            
+            // Refresh decks per mostrare le modifiche
+            await loadDecks();
+        } catch (err: any) {
+            console.error('[DecksDashboardPage] Errore nel reset:', err);
+            emitToast.error(err.message || 'Errore nel reset delle carte', {
+                title: 'Errore',
+                duration: 4000
+            });
+            throw new Error(err.message || 'Errore nel reset delle carte');
+        }
+    }, [decks, loadDecks]);
+
+    const handleReactivateExam = useCallback(async (examId: string) => {
+        try {
+            console.log('[DecksDashboardPage] handleReactivateExam chiamato:', { examId });
+            
+            // Riattiva l'esame cambiando lo status a 'active' e resettando l'outcome
+            await goalsService.update(examId, {
+                status: 'active',
+                outcome: null, // Reset outcome quando si riattiva
+            });
+            
+            console.log('[DecksDashboardPage] Esame riattivato con successo');
+            
+            emitToast.success('Esame riattivato! Ora puoi continuare a studiare.', {
+                title: 'Esame riattivato',
+                duration: 3000
+            });
+            
+            // Refresh esami e deck
+            setExamsRefreshKey(prev => prev + 1);
+            await Promise.all([
+                loadExams(),
+                loadDecks(),
+            ]);
+            
+            // Se l'esame era selezionato, aggiorna lo stato locale
+            if (selectedExam && selectedExam.id === examId) {
+                const allGoals = await goalsService.getAll();
+                const updatedExam = allGoals.find((g: Goal) => g.id === examId);
+                if (updatedExam) {
+                    setSelectedExam(updatedExam);
+                }
+            }
+        } catch (err: any) {
+            console.error('[DecksDashboardPage] Errore nella riattivazione esame:', err);
+            emitToast.error(err.message || 'Errore nella riattivazione dell\'esame', {
+                title: 'Errore',
+                duration: 4000
+            });
+        }
+    }, [loadExams, loadDecks, selectedExam]);
+
+    const handleGenerateAIQuestions = useCallback(async (examId: string, topics: string[]) => {
+        try {
+            console.log('[DecksDashboardPage] handleGenerateAIQuestions chiamato:', { examId, topics });
+            
+            const examDecks = decks.filter(d => d.goalId === examId);
+            
+            if (examDecks.length === 0) {
+                console.warn('[DecksDashboardPage] Nessun mazzo trovato per esame:', examId);
+                emitToast.warning('Nessun mazzo trovato per questo esame');
+                return;
+            }
+
+            console.log('[DecksDashboardPage] Trovati', examDecks.length, 'mazzi per l\'esame');
+            console.log('[DecksDashboardPage] Chiamando studyService.generateRecoveryQuestions...');
+            
+            // Chiama l'API per generare domande AI
+            const result = await studyService.generateRecoveryQuestions(examId, topics);
+            
+            console.log('[DecksDashboardPage] Generazione completata:', result);
+            
+            if (result.totalGenerated === 0) {
+                emitToast.warning('Nessuna domanda generata. Potrebbe essere necessario caricare un PDF nei mazzi per fornire contesto all\'AI.');
+                return;
+            }
+
+            emitToast.success(
+                `Generazione completata: ${result.totalGenerated} nuove domande aggiunte in ${result.decksAffected} mazzo/i`,
+                {
+                    title: 'Domande AI generate',
+                    duration: 4000
+                }
+            );
+            
+            // Refresh decks per mostrare le nuove carte
+            await loadDecks();
+        } catch (err: any) {
+            console.error('[DecksDashboardPage] Errore nella generazione AI:', err);
+            emitToast.error(err.message || 'Errore nella generazione delle domande AI', {
+                title: 'Errore',
+                duration: 4000
+            });
+            throw new Error(err.message || 'Errore nella generazione delle domande AI');
+        }
+    }, [decks, loadDecks]);
+
+    // Calcola IDs degli esami completati (passed/failed/archived)
+    const completedExamIds = useMemo(() => {
+        return exams
+            .filter(exam => 
+                exam.status === 'passed' || 
+                exam.status === 'failed' || 
+                exam.status === 'archived' || 
+                exam.status === 'completed'
+            )
+            .map(exam => exam.id);
+    }, [exams]);
+
+    // Calcola numero esami completati
+    const completedExamsCount = useMemo(() => {
+        return exams.filter(exam => 
+            exam.status === 'passed' || 
+            exam.status === 'failed' || 
+            exam.status === 'archived' || 
+            exam.status === 'completed'
+        ).length;
+    }, [exams]);
+
+    // Calcola dueCardCount escludendo le carte degli esami completati
+    const activeDueCardCount = useMemo(() => {
+        // Filtra i deck degli esami completati
+        const activeDecks = decks.filter(deck => 
+            !deck.goalId || !completedExamIds.includes(deck.goalId)
+        );
+        // Calcola il totale delle carte da ripassare solo per i deck attivi
+        return activeDecks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
+    }, [decks, completedExamIds]);
 
     // Calculations
     const {
@@ -96,10 +302,16 @@ export const DecksDashboardPage: React.FC = () => {
         searchQuery,
         selectedFolderId,
         selectedTags,
+        completedExamIds, // Passa gli IDs degli esami completati
     });
 
-    // Organized Decks (per sezioni)
-    const organizedDecks = useOrganizedDecks(decks, folders);
+    // Organized Decks (per sezioni) - escludi deck degli esami completati
+    const activeDecksForOrganization = useMemo(() => {
+        return decks.filter(deck => 
+            !deck.goalId || !completedExamIds.includes(deck.goalId)
+        );
+    }, [decks, completedExamIds]);
+    const organizedDecks = useOrganizedDecks(activeDecksForOrganization, folders);
 
     // Handlers
     const handlers = useDeckHandlers({
@@ -186,15 +398,16 @@ export const DecksDashboardPage: React.FC = () => {
                 setSelectedExamId(null);
                 setSelectedExam(null);
             }}
+            onCompleteExam={() => setShowCompletionModal(true)}
         >
             {/* Hero Stats + Stato Mentale - Nascosti quando una cartella o un esame è selezionato */}
             {!isLoading && decks.length > 0 && !selectedFolderId && !selectedExamId && (
                 <>
                     <DashboardHero
-                        totalDecks={decks.length}
+                        totalDecks={decks.filter(d => !d.goalId || !completedExamIds.includes(d.goalId)).length}
                         totalCards={totalCards}
-                        dueCards={dueCardCount}
-                        masteredDecks={masteredDecks}
+                        dueCards={activeDueCardCount}
+                        masteredDecks={completedExamsCount}
                         mentalState={calculateMentalState}
                     />
                     {/* Separatore */}
@@ -207,7 +420,7 @@ export const DecksDashboardPage: React.FC = () => {
             {false && !isLoading && todayPriorityDecks.length > 0 && !selectedFolderId && (
                 <TodayPlan
                     priorityDecks={todayPriorityDecks}
-                    dueCardCount={dueCardCount}
+                    dueCardCount={activeDueCardCount}
                     onFilterChange={setFilter}
                     onStudy={handlers.handleStudy}
                     onViewDetail={handlers.handleViewDetail}
@@ -229,7 +442,7 @@ export const DecksDashboardPage: React.FC = () => {
                                 onFilterChange={setFilter}
                                 searchQuery={searchQuery}
                                 onSearchChange={setSearchQuery}
-                                dueCount={decks.filter(d => (d.dueCount ?? 0) > 0).length}
+                                dueCount={decks.filter(d => !d.goalId || !completedExamIds.includes(d.goalId)).filter(d => (d.dueCount ?? 0) > 0).length}
                                 viewMode={viewMode}
                                 onViewModeChange={(view) => setViewMode(view as ViewMode)}
                             />
@@ -294,6 +507,7 @@ export const DecksDashboardPage: React.FC = () => {
                             console.error('Errore nel caricamento dell\'esame:', err);
                         }
                     }}
+                    onReactivateExam={handleReactivateExam}
                     onRefresh={() => {
                         // Trigger refresh chiamando la funzione esposta
                         if ((window as any).__refreshExams) {
@@ -418,6 +632,18 @@ export const DecksDashboardPage: React.FC = () => {
                 onDeleteConfirm={handlers.handleDeleteDeck}
                 onDeleteCancel={() => handlers.setDeletingDeck(null)}
             />
+
+            {/* Exam Completion Modal */}
+            {selectedExam && (
+                <ExamCompletionModal
+                    isOpen={showCompletionModal}
+                    exam={selectedExam}
+                    onClose={() => setShowCompletionModal(false)}
+                    onComplete={handleCompleteExam}
+                    onResetCards={handleResetCards}
+                    onGenerateAIQuestions={handleGenerateAIQuestions}
+                />
+            )}
         </DashboardLayout>
     );
 };

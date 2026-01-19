@@ -198,6 +198,100 @@ class StudyService extends BaseService {
         return deck;
     }
 
+    /**
+     * Riordina le card di un mazzo
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} deckId - ID del mazzo
+     * @param {string[]} cardIds - Array di card IDs nell'ordine desiderato
+     * @returns {Promise<object>} - Deck aggiornato
+     */
+    async reorderCards(tenantScope, deckId, cardIds) {
+        const userId = this._getUserId(tenantScope);
+
+        if (!Array.isArray(cardIds) || cardIds.length === 0) {
+            throw AppError.validation('Devi fornire un array di card IDs valido');
+        }
+
+        // Recupera il deck corrente
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        // Verifica che tutti i cardIds esistano nel deck
+        const existingCardIds = deck.cards.map(card => card._id.toString());
+        const invalidIds = cardIds.filter(id => !existingCardIds.includes(id));
+        if (invalidIds.length > 0) {
+            throw AppError.validation(`Card IDs non validi: ${invalidIds.join(', ')}`);
+        }
+
+        // Verifica che tutti i cardIds del deck siano presenti nell'array fornito
+        if (cardIds.length !== existingCardIds.length) {
+            throw AppError.validation('Devi fornire tutti i card IDs del mazzo');
+        }
+
+        // Crea una mappa per accesso rapido alle card
+        const cardMap = new Map();
+        deck.cards.forEach(card => {
+            cardMap.set(card._id.toString(), card.toObject());
+        });
+
+        // Riordina le card secondo l'ordine fornito
+        const reorderedCards = cardIds.map(id => cardMap.get(id));
+
+        // Aggiorna il deck con le card riordinate
+        deck.cards = reorderedCards;
+        await deck.save();
+
+        return deck;
+    }
+
+    /**
+     * Aggiunge una card in una posizione specifica
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} deckId - ID del mazzo
+     * @param {object} cardData - Dati della card (front, back, position)
+     * @param {string} cardData.front - Fronte della card
+     * @param {string} cardData.back - Retro della card
+     * @param {number} cardData.position - Posizione dove inserire (0-based, opzionale, default: fine)
+     * @returns {Promise<object>} - Deck aggiornato
+     */
+    async addCardAtPosition(tenantScope, deckId, cardData = {}) {
+        const userId = this._getUserId(tenantScope);
+        const { front, back, position } = cardData;
+
+        if (!front || typeof front !== 'string') {
+            throw AppError.validation('Il fronte della card è obbligatorio');
+        }
+        if (!back || typeof back !== 'string') {
+            throw AppError.validation('Il retro della card è obbligatorio');
+        }
+
+        // Recupera il deck corrente
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        // Crea la nuova card
+        const newCard = {
+            front: front.trim(),
+            back: back.trim(),
+        };
+
+        // Se position è specificato, inserisci in quella posizione
+        if (typeof position === 'number' && position >= 0 && position <= deck.cards.length) {
+            deck.cards.splice(position, 0, newCard);
+        } else {
+            // Altrimenti aggiungi alla fine
+            deck.cards.push(newCard);
+        }
+
+        await deck.save();
+
+        return deck;
+    }
+
     async deleteDeck(tenantScope, deckId) {
         return this.delete(tenantScope, deckId);
     }
@@ -855,15 +949,32 @@ class StudyService extends BaseService {
         const validCards = uniqueCards
             .filter(card => this._validateCardQuality(card))
             .slice(0, MAX_TOTAL_CARDS)
-            .map(card => ({
-                front: card.front.trim(),
-                back: card.back.trim(),
-                status: 'new',
-                nextReviewDate: new Date(),
-                easinessFactor: DEFAULT_EASINESS_FACTOR,
-                interval: 0,
-                repetitions: 0,
-            }));
+            .map(card => {
+                const cardData = {
+                    front: card.front.trim(),
+                    back: card.back.trim(),
+                    status: 'new',
+                    nextReviewDate: new Date(),
+                    easinessFactor: DEFAULT_EASINESS_FACTOR,
+                    interval: 0,
+                    repetitions: 0,
+                };
+
+                // Includi source_metadata se presente e valido
+                if (card.sourceMetadata && 
+                    typeof card.sourceMetadata === 'object' &&
+                    Number.isFinite(card.sourceMetadata.pageNumber) &&
+                    card.sourceMetadata.pageNumber > 0 &&
+                    typeof card.sourceMetadata.originalText === 'string' &&
+                    card.sourceMetadata.originalText.trim().length >= 20) {
+                    cardData.sourceMetadata = {
+                        pageNumber: card.sourceMetadata.pageNumber,
+                        originalText: card.sourceMetadata.originalText.trim(),
+                    };
+                }
+
+                return cardData;
+            });
 
         if (validCards.length === 0) {
             sseManager.sendToUser(userId, 'pdf-progress', { step: 'completed', totalCards: 0 });
@@ -918,8 +1029,10 @@ class StudyService extends BaseService {
             if (end < text.length) {
                 const searchZone = text.slice(Math.max(start, end - 1000), end);
                 
-                // Priorità: 1. Marker pagina, 2. Doppio a capo, 3. Punto finale
-                const pageMarker = searchZone.lastIndexOf('--- Pagina');
+                // Priorità: 1. Marker pagina (nuovo formato), 2. Marker pagina (vecchio formato), 3. Doppio a capo, 4. Punto finale
+                const pageMarkerNew = searchZone.lastIndexOf('--- PAGE');
+                const pageMarkerOld = searchZone.lastIndexOf('--- Pagina');
+                const pageMarker = pageMarkerNew > pageMarkerOld ? pageMarkerNew : pageMarkerOld;
                 const doubleLine = searchZone.lastIndexOf('\n\n');
                 const period = searchZone.lastIndexOf('. ');
 
@@ -1094,15 +1207,54 @@ ${avoidList}
 - Domande su processi e sequenze
 - Domande che testano comprensione profonda
 
-FORMATO JSON OUTPUT:
+📌 CRITICAL: SOURCE GROUNDING (OBBLIGATORIO)
+Il testo fornito contiene marker di pagina nel formato:
+--- PAGE {n} ---
+{contenuto della pagina}
+--- END PAGE {n} ---
+
+Per OGNI flashcard generata, DEVI includere:
+1. page_number: Il numero della pagina (intero) trovato nel marker "--- PAGE {n} ---" da cui hai estratto l'informazione
+2. original_quote: La CITAZIONE ESATTA (verbatim) dal testo originale che hai usato per generare la risposta
+
+⚠️ REGOLA VERBATIM STRINGENTE:
+- original_quote DEVE essere una copia ESATTA (carattere per carattere) di una frase o paragrafo presente nel testo
+- NON parafrasare, NON riassumere, NON modificare
+- Se non trovi una citazione esatta nel testo, NON generare la flashcard
+- La citazione deve essere sufficientemente lunga da essere univoca (minimo 20 caratteri)
+- Verifica che la citazione esista letteralmente nel testo prima di includerla
+
+FORMATO JSON OUTPUT (STRICT):
 {
   "cards": [
     {
       "front": "Domanda completa e specifica...",
-      "back": "Risposta esaustiva con spiegazione..."
+      "back": "Risposta esaustiva con spiegazione...",
+      "source_metadata": {
+        "page_number": 5,
+        "original_quote": "La citazione ESATTA dal testo originale, senza modifiche."
+      }
     }
   ]
-}`;
+}
+
+ESEMPIO:
+Se nel testo vedi:
+--- PAGE 3 ---
+La fotosintesi è il processo mediante il quale le piante convertono la luce solare in energia chimica.
+--- END PAGE 3 ---
+
+E generi una flashcard su questo concetto, DEVI includere:
+{
+  "front": "Come le piante convertono la luce solare in energia?",
+  "back": "Le piante convertono la luce solare in energia chimica attraverso il processo chiamato fotosintesi.",
+  "source_metadata": {
+    "page_number": 3,
+    "original_quote": "La fotosintesi è il processo mediante il quale le piante convertono la luce solare in energia chimica."
+  }
+}
+
+NOTA: original_quote deve essere IDENTICA al testo tra i marker di pagina.`;
 
         const MAX_RETRIES = 2;
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -1543,12 +1695,39 @@ FORMATO JSON OUTPUT:
         return hasCardShape ? values : [];
     }
 
+    /**
+     * Normalizza una card generata dall'AI, includendo source_metadata se presente
+     */
     _normalizeGeneratedCard(card) {
         if (!card || typeof card !== 'object') return {};
-        return {
+        
+        const normalized = {
             front: card.front ?? card.question ?? card.q,
             back: card.back ?? card.answer ?? card.a,
         };
+
+        // Gestisci source_metadata se presente
+        if (card.source_metadata || card.sourceMetadata) {
+            const sourceMeta = card.source_metadata || card.sourceMetadata;
+            if (sourceMeta && typeof sourceMeta === 'object') {
+                const pageNumber = Number.isFinite(Number(sourceMeta.page_number ?? sourceMeta.pageNumber)) 
+                    ? Number(sourceMeta.page_number ?? sourceMeta.pageNumber) 
+                    : null;
+                const originalQuote = typeof sourceMeta.original_quote === 'string' 
+                    ? sourceMeta.original_quote.trim() 
+                    : (typeof sourceMeta.originalQuote === 'string' ? sourceMeta.originalQuote.trim() : null);
+
+                // Valida che abbiamo almeno page_number e original_quote
+                if (pageNumber !== null && pageNumber > 0 && originalQuote && originalQuote.length >= 20) {
+                    normalized.sourceMetadata = {
+                        pageNumber: pageNumber,
+                        originalText: originalQuote,
+                    };
+                }
+            }
+        }
+
+        return normalized;
     }
 
     _cleanJSON(dirtyJSON) {
@@ -1731,19 +1910,33 @@ FORMATO JSON OUTPUT:
             .trim();
     }
 
+    /**
+     * 📄 Formatta il testo PDF con marker di pagina standardizzati
+     * Formato: --- PAGE {n} ---\n{text}\n--- END PAGE {n} ---
+     * Questo formato permette all'AI di identificare esattamente la pagina e il testo originale
+     */
     _formatPdfTextWithPages(pdfTextResult) {
         const pages = Array.isArray(pdfTextResult?.pages) ? pdfTextResult.pages : [];
         const fallback = typeof pdfTextResult?.text === 'string' ? pdfTextResult.text : '';
 
-        if (pages.length === 0) return fallback;
+        if (pages.length === 0) {
+            // Se non abbiamo pagine separate, proviamo a estrarre dal testo completo
+            // e aggiungiamo un marker per la pagina 1
+            if (fallback) {
+                return `--- PAGE 1 ---\n${fallback}\n--- END PAGE 1 ---`;
+            }
+            return fallback;
+        }
 
         return pages
             .map((page, index) => {
+                // Usa page.num se disponibile (1-based), altrimenti index + 1
                 const pageNumber = Number.isFinite(Number(page?.num)) ? Number(page.num) : index + 1;
-                const text = typeof page?.text === 'string' ? page.text : '';
-                return `\n--- Pagina ${pageNumber} ---\n${text}`;
+                const text = typeof page?.text === 'string' ? page.text.trim() : '';
+                // Formato standardizzato: --- PAGE {n} ---\n{text}\n--- END PAGE {n} ---
+                return `--- PAGE ${pageNumber} ---\n${text}\n--- END PAGE ${pageNumber} ---`;
             })
-            .join('\n');
+            .join('\n\n');
     }
 
     _truncateText(text, maxLength, suffix = '') {
@@ -1877,6 +2070,272 @@ FORMATO JSON OUTPUT:
             }
         } else {
             analytics.studyStreak = 1;
+        }
+    }
+
+    // =========================================
+    // RECOVERY PLAN - Reset Cards & AI Generation
+    // =========================================
+
+    /**
+     * Resetta le carte di tutti i deck associati a un esame
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} examId - ID dell'esame (Goal)
+     * @param {string} type - 'all' per reset completo, 'hard-only' per solo carte difficili
+     * @returns {Promise<object>} - Statistiche del reset
+     */
+    async resetExamCards(tenantScope, examId, type = 'all') {
+        console.log('[StudyService] resetExamCards chiamato:', { examId, type });
+        const userId = this._getUserId(tenantScope);
+        console.log('[StudyService] userId:', userId);
+
+        // Verifica che l'esame esista e appartenga all'utente
+        const goal = await Goal.findOne({ _id: examId, user: userId });
+        if (!goal) {
+            console.error('[StudyService] Esame non trovato:', { examId, userId });
+            throw AppError.notFound('Esame non trovato');
+        }
+        console.log('[StudyService] Esame trovato:', goal.title);
+
+        // Trova tutti i deck associati a questo esame
+        const decks = await Deck.find({ goalId: examId, user: userId });
+        console.log('[StudyService] Trovati', decks.length, 'deck per l\'esame');
+        if (decks.length === 0) {
+            console.warn('[StudyService] Nessun mazzo trovato per esame:', examId);
+            throw AppError.notFound('Nessun mazzo trovato per questo esame');
+        }
+
+        let totalReset = 0;
+        let hardReset = 0;
+
+        for (const deck of decks) {
+            let cardsToReset = [];
+
+            if (type === 'all') {
+                // Reset tutte le carte
+                cardsToReset = deck.cards;
+            } else if (type === 'hard-only') {
+                // Reset solo carte difficili (status: 'learning' o con basso easinessFactor)
+                cardsToReset = deck.cards.filter(card => {
+                    const isHard = card.status === 'learning' || 
+                                   card.easinessFactor < 2.0 || 
+                                   card.repetitions === 0 ||
+                                   (card.reviewHistory && card.reviewHistory.length > 0 && 
+                                    card.reviewHistory.slice(-3).some(r => r.rating < 3));
+                    return isHard;
+                });
+            }
+
+            // Reset delle carte selezionate
+            for (const card of cardsToReset) {
+                card.easinessFactor = DEFAULT_EASINESS_FACTOR;
+                card.interval = 0;
+                card.repetitions = 0;
+                card.nextReviewDate = new Date();
+                card.status = 'new';
+                card.lastReviewed = null;
+                // Mantieni reviewHistory per analytics, ma resetta i parametri SM-2
+            }
+
+            if (type === 'all') {
+                totalReset += cardsToReset.length;
+            } else {
+                hardReset += cardsToReset.length;
+            }
+
+            await deck.save();
+        }
+
+        const result = {
+            decksAffected: decks.length,
+            cardsReset: type === 'all' ? totalReset : hardReset,
+            type,
+        };
+        console.log('[StudyService] resetExamCards completato:', result);
+        return result;
+    }
+
+    /**
+     * Genera domande AI di approfondimento basate sulle difficoltà segnalate
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} examId - ID dell'esame (Goal)
+     * @param {string[]} difficulties - Array di difficoltà segnalate (es. ['concepts', 'time'])
+     * @returns {Promise<object>} - Statistiche della generazione
+     */
+    async generateRecoveryQuestions(tenantScope, examId, difficulties = []) {
+        console.log('[StudyService] generateRecoveryQuestions chiamato:', { examId, difficulties });
+        const userId = this._getUserId(tenantScope);
+        console.log('[StudyService] userId:', userId);
+
+        // Verifica che l'esame esista e appartenga all'utente
+        const goal = await Goal.findOne({ _id: examId, user: userId });
+        if (!goal) {
+            console.error('[StudyService] Esame non trovato:', { examId, userId });
+            throw AppError.notFound('Esame non trovato');
+        }
+        console.log('[StudyService] Esame trovato:', goal.title);
+
+        // Trova tutti i deck associati a questo esame
+        const decks = await Deck.find({ goalId: examId, user: userId });
+        console.log('[StudyService] Trovati', decks.length, 'deck per l\'esame');
+        if (decks.length === 0) {
+            console.warn('[StudyService] Nessun mazzo trovato per esame:', examId);
+            throw AppError.notFound('Nessun mazzo trovato per questo esame');
+        }
+
+        // Mappa delle difficoltà a descrizioni
+        const difficultyMap = {
+            concepts: 'concetti difficili e complessi',
+            time: 'gestione del tempo e velocità di risposta',
+            anxiety: 'ansia e vuoti di memoria',
+            unexpected: 'domande impreviste e argomenti non preparati',
+        };
+
+        const difficultyDescriptions = difficulties
+            .map(d => difficultyMap[d] || d)
+            .filter(Boolean);
+
+        const contextPrompt = difficultyDescriptions.length > 0
+            ? `L'utente ha riscontrato difficoltà con: ${difficultyDescriptions.join(', ')}.`
+            : 'L\'utente ha bisogno di approfondire gli argomenti dell\'esame.';
+
+        let totalGenerated = 0;
+        const generatedByDeck = [];
+
+        for (const deck of decks) {
+            // Prepara il contesto per la generazione
+            const deckContext = deck.extractedText || '';
+            const existingCards = deck.cards || [];
+            
+            // Estrai argomenti dalle carte esistenti per contesto
+            const topics = existingCards
+                .slice(0, 20) // Limita a prime 20 carte per contesto
+                .map(c => c.front)
+                .join('\n');
+
+            const prompt = `Sei un tutor esperto che aiuta studenti a prepararsi per esami universitari.
+
+${contextPrompt}
+
+CONTESTO ESAME: "${goal.title}"
+${goal.description ? `DESCRIZIONE: ${goal.description}` : ''}
+
+ARGOMENTI ESISTENTI NEL MAZZO:
+${topics || 'Nessun argomento specifico'}
+
+${deckContext ? `\nCONTENUTO DEL DOCUMENTO:\n${deckContext.substring(0, 5000)}` : ''}
+
+IL TUO COMPITO:
+Genera esattamente 10 nuove flashcard di approfondimento che aiutino l'utente a:
+1. Comprendere meglio i concetti difficili
+2. Prepararsi per domande impreviste
+3. Rafforzare la memoria e ridurre l'ansia
+4. Gestire meglio il tempo durante l'esame
+
+REGOLE:
+- Le domande devono essere SPECIFICHE e AZIONABILI
+- Le risposte devono essere COMPLETE ma CONCISE (minimo 30 parole)
+- Evita duplicati con le carte esistenti
+- Focus su approfondimento e comprensione profonda
+- Usa esempi pratici quando possibile
+
+FORMATO JSON:
+{
+  "cards": [
+    {
+      "front": "Domanda specifica e approfondita...",
+      "back": "Risposta completa con spiegazione dettagliata..."
+    }
+  ]
+}`;
+
+            try {
+                const completion = await openai.chat.completions.create({
+                    model: ACTIVE_AI_MODEL,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Sei un esperto tutor universitario. Generi flashcard di alta qualità per aiutare gli studenti a superare esami difficili. Rispondi SOLO con JSON valido, senza markdown, senza testo extra.',
+                        },
+                        {
+                            role: 'user',
+                            content: prompt,
+                        },
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 3000,
+                });
+
+                const content = completion.choices[0]?.message?.content || '';
+                const parsed = this._parseJSONResponse(content);
+                const generatedCards = this._extractGeneratedCards(parsed);
+
+                if (generatedCards.length === 0) {
+                    console.warn(`[StudyService] generateRecoveryQuestions: Nessuna carta generata per deck ${deck._id}`);
+                    continue;
+                }
+
+                // Limita a 10 carte come richiesto
+                const cardsToAdd = generatedCards.slice(0, 10).map(card => ({
+                    front: (card.front || card.question || '').trim(),
+                    back: (card.back || card.answer || '').trim(),
+                    easinessFactor: DEFAULT_EASINESS_FACTOR,
+                    interval: 0,
+                    repetitions: 0,
+                    nextReviewDate: new Date(),
+                    status: 'new',
+                })).filter(c => c.front.length > 10 && c.back.length > 20);
+
+                if (cardsToAdd.length > 0) {
+                    deck.cards.push(...cardsToAdd);
+                    await deck.save();
+                    totalGenerated += cardsToAdd.length;
+                    generatedByDeck.push({
+                        deckId: deck._id.toString(),
+                        deckTitle: deck.title,
+                        count: cardsToAdd.length,
+                    });
+                }
+            } catch (error) {
+                console.error(`[StudyService] generateRecoveryQuestions: Errore per deck ${deck._id}:`, error.message);
+                // Continua con gli altri deck anche se uno fallisce
+            }
+        }
+
+        const result = {
+            decksAffected: generatedByDeck.length,
+            totalGenerated,
+            generatedByDeck,
+        };
+        console.log('[StudyService] generateRecoveryQuestions completato:', result);
+        return result;
+    }
+
+    /**
+     * Helper per parsare risposte JSON dall'AI
+     */
+    _parseJSONResponse(content) {
+        if (!content || typeof content !== 'string') return null;
+
+        // Rimuovi markdown code blocks se presenti
+        const cleaned = content
+            .replace(/```json\n?/g, '')
+            .replace(/```\n?/g, '')
+            .trim();
+
+        try {
+            return JSON.parse(cleaned);
+        } catch (e) {
+            // Prova a estrarre JSON da stringhe che contengono altro testo
+            const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    return JSON.parse(jsonMatch[0]);
+                } catch (e2) {
+                    console.warn('[StudyService] _parseJSONResponse: Fallito parsing JSON:', e2.message);
+                }
+            }
+            return null;
         }
     }
 }

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 1. IL DATABASE
   mongodb:
@@ -14,5 +12,17 @@ services:
     volumes:
       - mongo-data:/data/db # Persistenza: salva i dati anche se spegni docker
 
+  # 2. REDIS (Rate Limiting, Token Blacklist, Activity Queue)
+  redis:
+    image: redis:latest
+    container_name: extra-tracker-redis
+    restart: always
+    ports:
+      - 6379:6379
+    command: redis-server --requirepass password123
+    volumes:
+      - redis-data:/data # Persistenza: salva i dati anche se spegni docker
+
 volumes:
   mongo-data:
+  redis-data:

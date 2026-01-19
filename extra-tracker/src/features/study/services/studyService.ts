@@ -20,6 +20,16 @@ export interface Card {
     repetitions: number;
     nextReviewDate: string;
     status: CardStatus;
+    /**
+     * Metadata per tracciare la fonte originale nel PDF
+     * Usato per il "Jump to Source" feature
+     */
+    sourceMetadata?: {
+        /** Numero di pagina (1-based index) */
+        pageNumber: number;
+        /** Il testo esatto nel PDF che ha generato questa card */
+        originalText: string;
+    };
 }
 
 export interface Deck {
@@ -168,17 +178,41 @@ const safeNumber = (value: unknown, fallback = 0): number => {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 };
 
-const normalizeCard = (raw: any): Card => ({
-    id: raw.id || raw._id,
-    front: raw.front || '',
-    back: raw.back || '',
-    options: Array.isArray(raw.options) ? raw.options : undefined,
-    easinessFactor: safeNumber(raw.easinessFactor, 2.5),
-    interval: safeNumber(raw.interval, 0),
-    repetitions: safeNumber(raw.repetitions, 0),
-    nextReviewDate: raw.nextReviewDate || new Date().toISOString(),
-    status: raw.status || 'new',
-});
+const normalizeCard = (raw: any): Card => {
+    // Normalizza sourceMetadata se presente (supporta sia camelCase che snake_case)
+    let sourceMetadata: Card['sourceMetadata'] = undefined;
+    if (raw.sourceMetadata || raw.source_metadata) {
+        const sourceMeta = raw.sourceMetadata || raw.source_metadata;
+        if (sourceMeta && typeof sourceMeta === 'object') {
+            const pageNumber = Number.isFinite(Number(sourceMeta.pageNumber ?? sourceMeta.page_number)) 
+                ? Number(sourceMeta.pageNumber ?? sourceMeta.page_number) 
+                : undefined;
+            const originalText = typeof (sourceMeta.originalText ?? sourceMeta.original_text) === 'string'
+                ? (sourceMeta.originalText ?? sourceMeta.original_text).trim()
+                : undefined;
+            
+            if (pageNumber !== undefined && pageNumber > 0 && originalText && originalText.length >= 20) {
+                sourceMetadata = {
+                    pageNumber,
+                    originalText,
+                };
+            }
+        }
+    }
+
+    return {
+        id: raw.id || raw._id,
+        front: raw.front || '',
+        back: raw.back || '',
+        options: Array.isArray(raw.options) ? raw.options : undefined,
+        easinessFactor: safeNumber(raw.easinessFactor, 2.5),
+        interval: safeNumber(raw.interval, 0),
+        repetitions: safeNumber(raw.repetitions, 0),
+        nextReviewDate: raw.nextReviewDate || new Date().toISOString(),
+        status: raw.status || 'new',
+        sourceMetadata,
+    };
+};
 
 const normalizeDeck = (raw: any): Deck => {
     const cards = Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [];
@@ -306,6 +340,33 @@ class StudyService {
     async deleteCard(deckId: string, cardId: string): Promise<Deck> {
         const response = await apiClient.delete<any>(`${this.baseUrl}/${deckId}/cards/${cardId}`);
         const raw = unwrap(response, 'Errore nell\'eliminazione della carta');
+        return normalizeDeck(raw);
+    }
+
+    /**
+     * Riordina le card di un mazzo
+     * @param deckId - ID del mazzo
+     * @param cardIds - Array di card IDs nell'ordine desiderato
+     * @returns Deck aggiornato
+     */
+    async reorderCards(deckId: string, cardIds: string[]): Promise<Deck> {
+        const response = await apiClient.put<any>(`${this.baseUrl}/${deckId}/cards/reorder`, { cardIds });
+        const raw = unwrap(response, 'Errore nel riordinamento delle card');
+        return normalizeDeck(raw);
+    }
+
+    /**
+     * Aggiunge una card in una posizione specifica
+     * @param deckId - ID del mazzo
+     * @param payload - Dati della card e posizione
+     * @param payload.front - Fronte della card
+     * @param payload.back - Retro della card
+     * @param payload.position - Posizione dove inserire (0-based, opzionale)
+     * @returns Deck aggiornato
+     */
+    async addCardAtPosition(deckId: string, payload: AddCardPayload & { position?: number }): Promise<Deck> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/cards/insert`, payload);
+        const raw = unwrap(response, 'Errore nell\'aggiunta della carta');
         return normalizeDeck(raw);
     }
 
@@ -474,6 +535,26 @@ class StudyService {
     async getDeckAnalytics(deckId: string): Promise<DeckAnalytics> {
         const response = await apiClient.get<DeckAnalytics>(`${this.baseUrl}/${deckId}/analytics`);
         return unwrap(response, 'Errore nel recupero delle analytics');
+    }
+
+    /**
+     * Resetta le carte di tutti i deck associati a un esame
+     * @param examId - ID dell'esame (Goal)
+     * @param type - 'all' per reset completo, 'hard-only' per solo carte difficili
+     */
+    async resetExamCards(examId: string, type: 'all' | 'hard-only'): Promise<{ decksAffected: number; cardsReset: number; type: string }> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/exam/${examId}/reset-cards`, { type });
+        return unwrap(response, 'Errore nel reset delle carte');
+    }
+
+    /**
+     * Genera domande AI di approfondimento basate sulle difficoltà segnalate
+     * @param examId - ID dell'esame (Goal)
+     * @param difficulties - Array di difficoltà segnalate (es. ['concepts', 'time'])
+     */
+    async generateRecoveryQuestions(examId: string, difficulties: string[]): Promise<{ decksAffected: number; totalGenerated: number; generatedByDeck: Array<{ deckId: string; deckTitle: string; count: number }> }> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/exam/${examId}/generate-recovery-questions`, { difficulties });
+        return unwrap(response, 'Errore nella generazione delle domande AI');
     }
 }
 
