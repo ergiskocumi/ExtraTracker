@@ -2,6 +2,7 @@ import React from 'react';
 import { CreateDeckModal } from '../Modals/CreateDeckModal';
 import { AddCardModal } from '../AddCardModal';
 import { MagicGenerateModal } from '../Modals/MagicGenerateModal';
+import { ExamSolverModal, type ExamSolverStats } from '../Modals/ExamSolverModal';
 import { StudyModeSelector, type StudyMode } from '../Modals/StudyModeSelector';
 import { ConfirmationModal } from '../../../../shared/components/ConfirmationModal';
 import type { Deck, CreateDeckPayload, AddCardPayload } from '../../services/studyService';
@@ -23,6 +24,14 @@ interface DashboardModalsProps {
     isMagicGenerateOpen: boolean;
     onMagicGenerateClose: () => void;
     onMagicGenerateSuccess: (count: number) => Promise<void>;
+
+    // Exam Solver Modal
+    isExamSolverOpen: boolean;
+    examSolverDeckId: string | null;
+    onExamSolverClose: () => void;
+    onExamSolverSuccess: (deckId: string, stats: ExamSolverStats) => Promise<void>;
+    existingDecks?: Array<{ id: string; title: string }>;
+    goalId?: string;
 
     // Study Mode Selector
     isStudyModeOpen: boolean;
@@ -48,6 +57,12 @@ export const DashboardModals: React.FC<DashboardModalsProps> = ({
     isMagicGenerateOpen,
     onMagicGenerateClose,
     onMagicGenerateSuccess,
+    isExamSolverOpen,
+    examSolverDeckId,
+    onExamSolverClose,
+    onExamSolverSuccess,
+    existingDecks = [],
+    goalId,
     isStudyModeOpen,
     studyDeck,
     onStudyModeClose,
@@ -79,6 +94,15 @@ export const DashboardModals: React.FC<DashboardModalsProps> = ({
                 deckTitle={selectedDeck?.title ?? ''}
                 onClose={onMagicGenerateClose}
                 onSuccess={onMagicGenerateSuccess}
+            />
+
+            <ExamSolverModal
+                isOpen={isExamSolverOpen}
+                onClose={onExamSolverClose}
+                onSuccess={onExamSolverSuccess}
+                existingDecks={existingDecks}
+                goalId={goalId}
+                preselectedDeckId={examSolverDeckId || undefined}
             />
 
             <StudyModeSelector

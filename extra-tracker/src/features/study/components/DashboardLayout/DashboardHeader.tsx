@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Folder, ArrowLeft, Home, BookOpen, CheckCircle } from 'lucide-react';
+import { Plus, Folder, ArrowLeft, Home, BookOpen, CheckCircle, FileText } from 'lucide-react';
 
 interface DashboardHeaderProps {
     onCreateDeck: () => void;
+    onExamSolver?: () => void; // Callback per aprire Exam Solver
     selectedFolderName?: string | null;
     onBackToAll?: () => void;
     selectedExamName?: string | null; // Nome dell'esame selezionato
@@ -13,7 +14,8 @@ interface DashboardHeaderProps {
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ 
-    onCreateDeck, 
+    onCreateDeck,
+    onExamSolver,
     selectedFolderName,
     onBackToAll,
     selectedExamName,
@@ -113,6 +115,20 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                         <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                         <span className="hidden sm:inline">Concludi Esame</span>
                         <span className="sm:hidden">Concludi</span>
+                    </motion.button>
+                )}
+                
+                {/* Pulsante Exam Solver */}
+                {onExamSolver && (
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={onExamSolver}
+                        className="flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
+                    >
+                        <FileText className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                        <span className="hidden sm:inline">Exam Solver</span>
+                        <span className="sm:hidden">Solver</span>
                     </motion.button>
                 )}
                 

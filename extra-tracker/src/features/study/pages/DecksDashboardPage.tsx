@@ -392,6 +392,7 @@ export const DecksDashboardPage: React.FC = () => {
             onDeckDrop={handlers.handleDeckDrop}
             onRefresh={handleRefreshOrganization}
             onCreateDeck={() => handlers.setIsCreateModalOpen(true)}
+            onExamSolver={() => handlers.handleExamSolver()}
             onCreateExam={() => setShowCreateExamModal(true)}
             selectedExamName={selectedExam?.title || null}
             onBackToExams={() => {
@@ -485,6 +486,7 @@ export const DecksDashboardPage: React.FC = () => {
                     onUpdate={(updated) => {
                         setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
                     }}
+                    onExamSolver={handlers.handleExamSolver}
                     onViewFolder={handleFolderSelect}
                     onTogglePin={handlers.handleTogglePin}
                     viewMode={viewMode === 'list' ? 'grid' : viewMode === 'compact' ? 'compact' : 'grid'}
@@ -523,6 +525,7 @@ export const DecksDashboardPage: React.FC = () => {
                     onMagicGenerate={handlers.handleMagicGenerate}
                     onAddCard={handlers.handleAddCard}
                     onDelete={handlers.setDeletingDeck}
+                    onExamSolver={handlers.handleExamSolver}
                     onTogglePin={handlers.handleTogglePin}
                 />
             ) : !isLoading && viewType === 'decks' && !selectedFolderId && filter === 'all' && searchQuery === '' && selectedTags.length === 0 ? (
@@ -539,6 +542,7 @@ export const DecksDashboardPage: React.FC = () => {
                     onUpdate={(updated) => {
                         setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
                     }}
+                    onExamSolver={handlers.handleExamSolver}
                     onViewFolder={handleFolderSelect}
                     onTogglePin={handlers.handleTogglePin}
                 />
@@ -566,6 +570,7 @@ export const DecksDashboardPage: React.FC = () => {
                     onUpdate={(updated) => {
                         setDecks(prev => prev.map(d => d.id === updated.id ? updated : d));
                     }}
+                    onExamSolver={handlers.handleExamSolver}
                     isFolderSelected={!!selectedFolderId}
                     onTogglePin={handlers.handleTogglePin}
                 />
@@ -621,6 +626,14 @@ export const DecksDashboardPage: React.FC = () => {
                     handlers.setSelectedDeck(null);
                 }}
                 onMagicGenerateSuccess={handlers.handleMagicGenerateSuccess}
+                isExamSolverOpen={handlers.isExamSolverOpen}
+                examSolverDeckId={handlers.examSolverDeckId}
+                onExamSolverClose={() => {
+                    handlers.setIsExamSolverOpen(false);
+                    handlers.setExamSolverDeckId(null);
+                }}
+                onExamSolverSuccess={handlers.handleExamSolverSuccess}
+                existingDecks={decks.map(d => ({ id: d.id, title: d.title }))}
                 isStudyModeOpen={handlers.isStudyModeOpen}
                 studyDeck={handlers.studyDeck}
                 onStudyModeClose={() => {

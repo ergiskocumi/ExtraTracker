@@ -16,6 +16,7 @@ export interface DeckCardProps {
     onAddCard: (deckId: string) => void;
     onViewDetail: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
+    onExamSolver?: (deckId: string) => void;
     onUpdate: (deck: Deck) => void;
     tags?: Tag[];
     onDragStart?: () => void;
@@ -41,6 +42,7 @@ export const DeckCard: React.FC<DeckCardProps> = ({
     onViewDetail, 
     onDelete,
     onUpdate,
+    onExamSolver,
     tags = [],
     onDragStart: onDragStartProp,
     onDragEnd: onDragEndProp,
@@ -260,6 +262,7 @@ export const DeckCard: React.FC<DeckCardProps> = ({
                 deck={deck}
                 totalCards={totalCards}
                 showMenu={showMenu}
+                onExamSolver={onExamSolver}
                 onToggleMenu={() => setShowMenu(!showMenu)}
                 onViewDetail={onViewDetail}
                 onMagicGenerate={onMagicGenerate}

@@ -23,6 +23,8 @@ export const useDeckHandlers = ({
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
     const [isMagicGenerateOpen, setIsMagicGenerateOpen] = useState(false);
+    const [isExamSolverOpen, setIsExamSolverOpen] = useState(false);
+    const [examSolverDeckId, setExamSolverDeckId] = useState<string | null>(null);
     const [deletingDeck, setDeletingDeck] = useState<Deck | null>(null);
     const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
     const [isStudyModeOpen, setIsStudyModeOpen] = useState(false);
@@ -61,6 +63,21 @@ export const useDeckHandlers = ({
         if (generatedCount > 0) {
             emitToast.success(`✅ ${generatedCount} ${generatedCount === 1 ? 'nuova carta aggiunta' : 'nuove carte aggiunte'} al mazzo!`);
         }
+    }, [loadDecks]);
+
+    const handleExamSolver = useCallback((deckId?: string) => {
+        setExamSolverDeckId(deckId || null);
+        setIsExamSolverOpen(true);
+    }, []);
+
+    const handleExamSolverSuccess = useCallback(async (deckId: string, stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number }) => {
+        await loadDecks();
+        emitToast.success(
+            `✅ Exam Solver completato! ${stats.totalFlashcards} flashcard generate (${stats.answersFound} risposte trovate, ${stats.answersNotFound} non trovate)`,
+            { title: 'Exam Solver', duration: 5000 }
+        );
+        setIsExamSolverOpen(false);
+        setExamSolverDeckId(null);
     }, [loadDecks]);
 
     const handleStartSession = useCallback((config: { mode: StudyMode; shuffle: boolean; reverse: boolean }) => {
@@ -159,6 +176,10 @@ export const useDeckHandlers = ({
         setIsAddCardModalOpen,
         isMagicGenerateOpen,
         setIsMagicGenerateOpen,
+        isExamSolverOpen,
+        setIsExamSolverOpen,
+        examSolverDeckId,
+        setExamSolverDeckId,
         deletingDeck,
         setDeletingDeck,
         selectedDeck,
@@ -174,6 +195,8 @@ export const useDeckHandlers = ({
         handleAddCard,
         handleMagicGenerate,
         handleMagicGenerateSuccess,
+        handleExamSolver,
+        handleExamSolverSuccess,
         handleStartSession,
         handleDeleteDeck,
         handleCreateDeck,

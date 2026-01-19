@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreHorizontal, Eye, Sparkles, BarChart2, Trash2, Star, BookOpen } from 'lucide-react';
+import { MoreHorizontal, Eye, Sparkles, BarChart2, Trash2, Star, BookOpen, FileText } from 'lucide-react';
 import type { Deck } from '../../services/studyService';
 import { ChangeExamModal } from '../Deck/ChangeExamModal';
 
@@ -28,6 +28,9 @@ interface DeckCardMenuProps {
     
     /** Callback chiamato quando l'utente vuole generare carte con AI */
     onMagicGenerate: (deck: Deck) => void;
+    
+    /** Callback chiamato quando l'utente vuole aprire Exam Solver per questo deck */
+    onExamSolver?: (deckId: string) => void;
     
     /** Callback chiamato quando l'utente vuole eliminare il deck */
     onDelete: (deck: Deck) => void;
@@ -76,6 +79,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
     onToggleMenu,
     onViewDetail,
     onMagicGenerate,
+    onExamSolver,
     onDelete,
     onTogglePin,
     onUpdate,
@@ -341,6 +345,19 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                 <Sparkles className="w-4 h-4 flex-shrink-0" />
                                 <span className="flex-1 text-left">{totalCards === 0 ? 'Magic Generate' : 'Add Chapter via AI'}</span>
                             </button>
+                            {onExamSolver && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onExamSolver(deck.id);
+                                        onToggleMenu();
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-orange-400 hover:bg-orange-500/10 active:bg-orange-500/15 transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
+                                >
+                                    <FileText className="w-4 h-4 flex-shrink-0" />
+                                    <span className="flex-1 text-left">Aggiungi domande d&apos;esame</span>
+                                </button>
+                            )}
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();

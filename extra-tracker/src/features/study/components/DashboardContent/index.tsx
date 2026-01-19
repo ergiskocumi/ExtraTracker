@@ -25,6 +25,7 @@ interface DashboardContentProps {
     onViewDetail: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
+    onExamSolver?: (deckId: string) => void;
     isFolderSelected?: boolean;
     onTogglePin?: (deck: Deck) => void;
 }
@@ -47,6 +48,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
     onViewDetail,
     onDelete,
     onUpdate,
+    onExamSolver,
     isFolderSelected = false,
     onTogglePin,
 }) => {
@@ -141,6 +143,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
             onAddCard={onAddCard}
             onViewDetail={onViewDetail}
             onDelete={onDelete}
+            onExamSolver={onExamSolver}
             onUpdate={onUpdate}
             isFolderSelected={isFolderSelected}
             onTogglePin={onTogglePin}

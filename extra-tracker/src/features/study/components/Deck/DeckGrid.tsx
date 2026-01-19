@@ -29,6 +29,7 @@ interface DeckGridProps {
     onViewDetail: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
+    onExamSolver?: (deckId: string) => void;
     isFolderSelected?: boolean;
     onTogglePin?: (deck: Deck) => void;
 }
@@ -44,6 +45,7 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
     onViewDetail,
     onDelete,
     onUpdate,
+    onExamSolver,
     isFolderSelected = false,
     onTogglePin,
 }) => {
@@ -93,6 +95,7 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
                             onViewDetail={onViewDetail}
                             onDelete={onDelete}
                             onUpdate={onUpdate}
+                            onExamSolver={onExamSolver}
                             tags={tags}
                             onTogglePin={onTogglePin}
                         />

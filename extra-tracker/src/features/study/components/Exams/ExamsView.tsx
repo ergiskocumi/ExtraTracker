@@ -29,6 +29,7 @@ interface ExamsViewProps {
     onMagicGenerate: (deck: Deck) => void;
     onAddCard: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
+    onExamSolver?: (deckId: string) => void;
     onTogglePin?: (deck: Deck) => void;
     onReactivateExam?: (examId: string) => void;
 }
@@ -50,6 +51,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
     onMagicGenerate,
     onAddCard,
     onDelete,
+    onExamSolver,
     onTogglePin,
     onReactivateExam,
 }) => {
@@ -312,6 +314,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                     onMagicGenerate={onMagicGenerate}
                     onAddCard={onAddCard}
                     onDelete={onDelete}
+                    onExamSolver={onExamSolver}
                     onTogglePin={onTogglePin}
                 />
             )}
@@ -364,6 +367,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                     onMagicGenerate={onMagicGenerate}
                     onAddCard={onAddCard}
                     onDelete={onDelete}
+                    onExamSolver={onExamSolver}
                     onTogglePin={onTogglePin}
                     getExamStats={getExamStats}
                 />

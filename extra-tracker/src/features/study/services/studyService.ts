@@ -573,6 +573,48 @@ class StudyService {
         const response = await apiClient.post<any>(`${this.baseUrl}/exam/${examId}/generate-recovery-questions`, { difficulties });
         return unwrap(response, 'Errore nella generazione delle domande AI');
     }
+
+    /**
+     * 🎯 Exam Solver - Estrae domande da un documento e genera risposte da un altro
+     * @param formData - FormData con questionsFile, sourceFile, deckId (opzionale), title (opzionale), goalId (opzionale)
+     * @returns Deck e statistiche
+     */
+    async examSolver(formData: FormData): Promise<{ deck: Deck; stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number } }> {
+        console.log('📤 Uploading files for Exam Solver...');
+
+        // Chiamata API con FormData
+        const response = await fetch(`/api${this.baseUrl}/exam-solver`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include', // Include cookies per auth
+        });
+
+        console.log('📥 Response status:', response.status);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('❌ Error response:', errorData);
+            throw new Error(
+                errorData.error?.message || 
+                errorData.message || 
+                `Errore ${response.status}: risoluzione esame fallita`
+            );
+        }
+
+        const result = await response.json();
+        const data = result.data || result;
+
+        return {
+            deck: normalizeDeck(data.deck),
+            stats: data.stats || {
+                questionsExtracted: 0,
+                answersFound: 0,
+                answersNotFound: 0,
+                totalFlashcards: 0,
+                processingTimeMs: 0,
+            },
+        };
+    }
 }
 
 export const studyService = new StudyService();

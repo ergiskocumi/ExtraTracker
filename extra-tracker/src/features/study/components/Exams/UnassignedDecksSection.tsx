@@ -55,6 +55,9 @@ interface UnassignedDecksSectionProps {
     /** Callback per aggiungere una carta */
     onAddCard: (deckId: string) => void;
     
+    /** Callback per aprire Exam Solver per questo deck */
+    onExamSolver?: (deckId: string) => void;
+    
     /** Callback per eliminare un mazzo */
     onDelete: (deck: Deck) => void;
     
@@ -80,6 +83,7 @@ export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
     onMagicGenerate,
     onAddCard,
     onDelete,
+    onExamSolver,
     onTogglePin,
     viewMode = 'grid',
 }) => {
@@ -267,6 +271,7 @@ export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
                                         onMagicGenerate={onMagicGenerate}
                                         onAddCard={onAddCard}
                                         onDelete={onDelete}
+                                        onExamSolver={onExamSolver}
                                         onTogglePin={onTogglePin}
                                     />
                                 )}
@@ -277,6 +282,7 @@ export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
                                 onViewDetail={onViewDetail}
                                 onDelete={onDelete}
                                 onUpdate={onDeckUpdate}
+                                onExamSolver={onExamSolver}
                                 isFolderSelected={false}
                                 onTogglePin={onTogglePin}
                             />

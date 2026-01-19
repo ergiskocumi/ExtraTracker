@@ -55,6 +55,9 @@ interface SearchResultsProps {
     /** Callback per aggiungere carta */
     onAddCard?: (deckId: string) => void;
     
+    /** Callback per aprire Exam Solver per questo deck */
+    onExamSolver?: (deckId: string) => void;
+    
     /** Callback per eliminare mazzo */
     onDelete?: (deck: Deck) => void;
     
@@ -87,6 +90,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     onMagicGenerate,
     onAddCard,
     onDelete,
+    onExamSolver,
     onTogglePin,
     getExamStats,
 }) => {
@@ -186,6 +190,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                         onViewDetail={onViewDetail}
                         onDelete={onDelete}
                         onUpdate={onDeckUpdate}
+                        onExamSolver={onExamSolver}
                         isFolderSelected={false}
                         onTogglePin={onTogglePin}
                     />
