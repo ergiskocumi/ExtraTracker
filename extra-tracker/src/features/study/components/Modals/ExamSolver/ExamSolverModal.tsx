@@ -19,6 +19,7 @@ import { useExamSolver } from './useExamSolver';
 import { StepIndicator } from './components/StepIndicator';
 import { DeckConfigForm } from './components/DeckConfigForm';
 import { ProgressView } from './components/ProgressView';
+import { ReviewAnswers } from './components/ReviewAnswers';
 import type { ExamSolverModalProps, DropzoneConfig } from './ExamSolverModal.types';
 
 // ============================================
@@ -65,6 +66,10 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         extractQuestions,
         generateAnswers,
         handleNextFromPreview,
+        handleApproveCard,
+        handleEditCard,
+        handleRegenerateCard,
+        handleSaveReview,
         error,
         setError,
         clearError,
@@ -251,6 +256,19 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                 }}
                                 onClose={handleClose}
                                 onSuccess={onSuccess}
+                            />
+                        )}
+
+                        {/* STEP 5: REVIEW ANSWERS */}
+                        {currentStep === 'review' && createdDeckId && generatedFlashcards.length > 0 && (
+                            <ReviewAnswers
+                                flashcards={generatedFlashcards}
+                                deckId={createdDeckId}
+                                onApprove={handleApproveCard}
+                                onEdit={handleEditCard}
+                                onRegenerate={handleRegenerateCard}
+                                onSave={handleSaveReview}
+                                onBack={() => goToStep('progress')}
                             />
                         )}
                     </div>

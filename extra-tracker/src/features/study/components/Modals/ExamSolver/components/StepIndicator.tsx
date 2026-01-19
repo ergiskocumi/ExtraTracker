@@ -24,8 +24,9 @@ const getStepNumber = (step: Step): number => {
         case 'upload': return 1;
         case 'preview': return 2;
         case 'config': return 3;
-        case 'progress':
-        case 'completed': return 4;
+        case 'progress': return 4;
+        case 'review': return 5;
+        case 'completed': return 5;
         default: return 1;
     }
 };
@@ -41,6 +42,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => 
         { number: 2, label: 'Anteprima', key: 'preview' },
         { number: 3, label: 'Configura', key: 'config' },
         { number: 4, label: 'Genera', key: 'progress' },
+        { number: 5, label: 'Rivedi', key: 'review' },
     ];
 
     return (

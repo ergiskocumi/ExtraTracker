@@ -2119,10 +2119,29 @@ Genera una risposta per OGNI domanda nella lista.`;
                         for (let cardIdx = 0; cardIdx < flashcards.length; cardIdx++) {
                             const card = flashcards[cardIdx];
                             if (card && card.front && card.back) {
+                                // Estrai confidence (default 0 se non trovata, 50 se trovata ma non specificata)
+                                let confidence = 0;
+                                if (card.found === true || card.found === 'true') {
+                                    confidence = typeof card.confidence === 'number' && Number.isFinite(card.confidence)
+                                        ? Math.max(0, Math.min(100, Math.round(card.confidence)))
+                                        : 50; // Default per risposte trovate
+                                } else {
+                                    confidence = typeof card.confidence === 'number' && Number.isFinite(card.confidence)
+                                        ? Math.max(0, Math.min(100, Math.round(card.confidence)))
+                                        : 0; // Default per risposte non trovate
+                                }
+
+                                // Estrai sourceSnippet
+                                const sourceSnippet = typeof card.sourceSnippet === 'string' && card.sourceSnippet.trim()
+                                    ? card.sourceSnippet.trim().substring(0, 200)
+                                    : undefined;
+
                                 allFlashcards.push({
                                     front: String(card.front).trim(),
                                     back: String(card.back).trim(),
                                     found: card.found === true || card.found === 'true',
+                                    confidence,
+                                    sourceSnippet,
                                 });
                                 
                                 if (card.found === true || card.found === 'true') {
@@ -2156,6 +2175,8 @@ Genera una risposta per OGNI domanda nella lista.`;
                         front: question.trim(),
                         back: '⚠️ Errore nella generazione della risposta',
                         found: false,
+                        confidence: 0,
+                        sourceSnippet: undefined,
                     });
                     answersNotFound++;
 
@@ -2263,6 +2284,8 @@ Genera una risposta per OGNI domanda nella lista.`;
                 front: card.front,
                 back: card.back,
                 found: allFlashcards[idx]?.found || false,
+                confidence: allFlashcards[idx]?.confidence ?? 0,
+                sourceSnippet: allFlashcards[idx]?.sourceSnippet,
             }));
 
         return {

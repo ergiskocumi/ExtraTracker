@@ -21,13 +21,16 @@ export interface FlashcardWithId {
     front: string;
     back: string;
     found: boolean;
+    confidence: number; // 0-100
+    sourceSnippet?: string; // Snippet del testo originale da cui proviene la risposta
+    pageNumber?: number; // Numero di pagina nel PDF sorgente (1-based)
 }
 
 // ============================================
 // STEPS & PROGRESS
 // ============================================
 
-export type Step = 'upload' | 'preview' | 'config' | 'progress' | 'completed';
+export type Step = 'upload' | 'preview' | 'config' | 'progress' | 'review' | 'completed';
 export type ProgressStep = 'idle' | 'extracting' | 'analyzing' | 'generating' | 'completed' | 'error';
 
 // ============================================
@@ -147,4 +150,19 @@ export interface ProgressViewProps {
     onRetry: () => void;
     onClose: () => void;
     onSuccess: (deckId: string, stats: ExamSolverStats) => void;
+}
+
+// ============================================
+// REVIEW ANSWERS TYPES
+// ============================================
+
+export interface ReviewAnswersProps {
+    flashcards: FlashcardWithId[];
+    deckId: string;
+    sourceFileUrl?: string; // URL del PDF sorgente per "Visualizza nel PDF"
+    onApprove: (cardId: string) => void;
+    onEdit: (cardId: string, newAnswer: string) => void;
+    onRegenerate: (cardId: string, question: string) => Promise<void>;
+    onSave: () => void;
+    onBack: () => void;
 }

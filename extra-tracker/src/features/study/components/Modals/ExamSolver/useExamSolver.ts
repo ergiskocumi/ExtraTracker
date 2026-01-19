@@ -70,10 +70,17 @@ export interface UseExamSolverReturn {
     // Generated flashcards (per editing manuale)
     generatedFlashcards: FlashcardWithId[];
     
+    // Source file URL per visualizzazione PDF
+    sourceFileUrl: string | null;
+    
     // Actions
     extractQuestions: () => Promise<void>;
     generateAnswers: () => Promise<void>;
     handleNextFromPreview: () => void;
+    handleApproveCard: (cardId: string) => void;
+    handleEditCard: (cardId: string, newAnswer: string) => void;
+    handleRegenerateCard: (cardId: string, question: string) => Promise<void>;
+    handleSaveReview: () => void;
     
     // Error
     error: string | null;
@@ -391,17 +398,13 @@ export const useExamSolver = ({
                                 setProgressMessage(`Domanda ${data.current}/${data.total}: ${data.question || ''}`);
                             } else if (data.type === 'complete' || eventType === 'complete') {
                                 setProgressStep('completed');
-                                setProgressMessage('Completato!');
+                                setProgressMessage('Generazione completata!');
                                 setStats(data.stats);
                                 setCreatedDeckId(data.deck?.id || '');
                                 setGeneratedFlashcards(data.flashcards || []);
 
-                                // Auto-close dopo 2 secondi se non ci sono risposte non trovate
-                                if (data.stats?.answersNotFound === 0) {
-                                    setTimeout(() => {
-                                        onSuccess(data.deck.id, data.stats);
-                                    }, 2000);
-                                }
+                                // Vai allo step review invece di completed
+                                setCurrentStep('review');
                             } else if (data.type === 'error' || eventType === 'error') {
                                 throw new Error(data.message || 'Errore durante la generazione');
                             }
@@ -426,6 +429,122 @@ export const useExamSolver = ({
         extractedQuestions,
         onSuccess,
     ]);
+
+    // ============================================
+    // REVIEW ACTIONS
+    // ============================================
+
+    const handleApproveCard = useCallback((cardId: string) => {
+        // L'approvazione è gestita localmente nel componente ReviewAnswers
+        // Questa funzione può essere usata per logging o altre azioni
+        console.log('Card approved:', cardId);
+    }, []);
+
+    const handleEditCard = useCallback((cardId: string, newAnswer: string) => {
+        // Aggiorna la flashcard locale
+        setGeneratedFlashcards(prev => 
+            prev.map(card => 
+                card.id === cardId 
+                    ? { ...card, back: newAnswer }
+                    : card
+            )
+        );
+    }, []);
+
+    const handleRegenerateCard = useCallback(async (cardId: string, question: string) => {
+        if (!sourceFile || !createdDeckId) {
+            throw new Error('File o deck non disponibili');
+        }
+
+        // Rigenera la risposta per una singola domanda
+        const formData = new FormData();
+        formData.append('sourceFile', sourceFile);
+        formData.append('selectedQuestions', JSON.stringify([question]));
+        formData.append('deckId', createdDeckId);
+
+        const response = await fetch('/api/study/exam-solver/generate-answers', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+                errorData.error?.message || 
+                errorData.message || 
+                'Errore nella rigenerazione'
+            );
+        }
+
+        // Leggi la risposta come stream SSE (semplificato per una singola domanda)
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        if (!reader) {
+            throw new Error('Impossibile leggere la risposta dal server');
+        }
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const events = buffer.split('\n\n');
+            buffer = events.pop() || '';
+
+            for (const event of events) {
+                if (!event.trim()) continue;
+                
+                const lines = event.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.substring(6).trim();
+                        try {
+                            const data = JSON.parse(dataStr);
+                            if (data.type === 'complete' && data.flashcards && data.flashcards.length > 0) {
+                                const newFlashcard = data.flashcards[0];
+                                // Aggiorna la flashcard con tutti i campi inclusi confidence e sourceSnippet
+                                setGeneratedFlashcards(prev => 
+                                    prev.map(card => 
+                                        card.id === cardId 
+                                            ? { 
+                                                ...card, 
+                                                back: newFlashcard.back, 
+                                                found: newFlashcard.found,
+                                                confidence: newFlashcard.confidence ?? card.confidence ?? 0,
+                                                sourceSnippet: newFlashcard.sourceSnippet ?? card.sourceSnippet,
+                                            }
+                                            : card
+                                    )
+                                );
+                                // Aggiorna anche nel deck
+                                if (newFlashcard.back) {
+                                    await studyService.updateCardAnswer(createdDeckId, cardId, newFlashcard.back);
+                                }
+                                return;
+                            }
+                        } catch (parseErr) {
+                            console.error('Error parsing regenerate response:', parseErr);
+                        }
+                    }
+                }
+            }
+        }
+    }, [sourceFile, createdDeckId]);
+
+    const handleSaveReview = useCallback(() => {
+        if (!createdDeckId || !stats) {
+            emitToast.error('Dati mancanti per il salvataggio');
+            return;
+        }
+
+        // Vai allo step completed e chiama onSuccess
+        setCurrentStep('completed');
+        setProgressStep('completed');
+        onSuccess(createdDeckId, stats);
+    }, [createdDeckId, stats, onSuccess]);
 
     // ============================================
     // HELPERS
@@ -470,7 +589,7 @@ export const useExamSolver = ({
         }
     }, [currentStep, questionsFile, sourceFile, selectedQuestions, deckMode, deckTitle, selectedGoalId, selectedDeckId]);
 
-    const canGoBack = currentStep !== 'upload' && currentStep !== 'progress';
+    const canGoBack = currentStep !== 'upload' && currentStep !== 'progress' && currentStep !== 'review';
 
     const isProcessing = ['extracting', 'analyzing', 'generating'].includes(progressStep);
 
@@ -524,6 +643,10 @@ export const useExamSolver = ({
         extractQuestions,
         generateAnswers,
         handleNextFromPreview,
+        handleApproveCard,
+        handleEditCard,
+        handleRegenerateCard,
+        handleSaveReview,
         
         // Error
         error,

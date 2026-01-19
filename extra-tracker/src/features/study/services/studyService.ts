@@ -341,6 +341,15 @@ class StudyService {
     }
 
     /**
+     * Aggiorna solo la risposta (back) di una flashcard
+     */
+    async updateCardAnswer(deckId: string, cardId: string, answer: string): Promise<Deck> {
+        const response = await apiClient.patch<any>(`${this.baseUrl}/${deckId}/cards/${cardId}/answer`, { answer });
+        const raw = unwrap(response, 'Errore nell\'aggiornamento della risposta');
+        return normalizeDeck(raw);
+    }
+
+    /**
      * Elimina una carta da un mazzo
      */
     async deleteCard(deckId: string, cardId: string): Promise<Deck> {
