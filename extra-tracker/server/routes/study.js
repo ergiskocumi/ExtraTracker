@@ -189,8 +189,46 @@ router.post('/exam/:examId/reset-cards', studyController.resetExamCards);
 router.post('/exam/:examId/generate-recovery-questions', aiLimiter, studyController.generateRecoveryQuestions);
 
 /**
+ * POST /api/study/exam-solver/extract-questions
+ * Estrae domande da un documento (Livello 1 - Preview)
+ * Rate limited: 10 chiamate per ora
+ */
+router.post('/exam-solver/extract-questions', aiLimiter, (req, res, next) => {
+    examSolverUpload.single('questionsFile')(req, res, (err) => {
+        if (err) {
+            console.error('Multer error (extract-questions):', err.message);
+            return res.status(400).json({
+                success: false,
+                error: { message: err.message || 'Errore nel caricamento del file' }
+            });
+        }
+        console.log('📄 Extract Questions file ricevuto:', req.file?.originalname || 'NONE');
+        next();
+    });
+}, studyController.extractQuestions);
+
+/**
+ * POST /api/study/exam-solver/generate-answers
+ * Genera risposte per domande selezionate (Livello 1 - Preview)
+ * Rate limited: 5 chiamate per ora (operazione pesante)
+ */
+router.post('/exam-solver/generate-answers', examSolverLimiter, (req, res, next) => {
+    examSolverUpload.single('sourceFile')(req, res, (err) => {
+        if (err) {
+            console.error('Multer error (generate-answers):', err.message);
+            return res.status(400).json({
+                success: false,
+                error: { message: err.message || 'Errore nel caricamento del file' }
+            });
+        }
+        console.log('📄 Generate Answers file ricevuto:', req.file?.originalname || 'NONE');
+        next();
+    });
+}, studyController.generateAnswers);
+
+/**
  * POST /api/study/exam-solver
- * Exam Solver: estrae domande da un documento e genera risposte da un altro
+ * Exam Solver: estrae domande da un documento e genera risposte da un altro (LEGACY)
  * Multipart form-data:
  *   - questionsFile: PDF o TXT con le domande
  *   - sourceFile: PDF con il materiale di studio

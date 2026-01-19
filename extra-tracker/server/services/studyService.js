@@ -1813,7 +1813,383 @@ GENERA LA RISPOSTA:`;
     }
 
     /**
-     * 🎯 EXAM SOLVER - Risolve esami estraendo domande e generando risposte
+     * 📋 ESTRAZIONE DOMANDE - Estrae domande da un documento
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} questionsFilePath - Path al file con le domande (PDF o TXT)
+     * @returns {Promise<object>} - Array di domande estratte
+     */
+    async extractExamQuestions(tenantScope, questionsFilePath) {
+        console.log('📋 Estrazione domande...');
+        let questionsText = '';
+
+        // Determina se è PDF o TXT
+        const questionsIsPdf = questionsFilePath.toLowerCase().endsWith('.pdf');
+        
+        if (questionsIsPdf) {
+            // Leggi e parsa PDF
+            let pdfBuffer;
+            try {
+                pdfBuffer = await fs.readFile(questionsFilePath);
+            } catch (err) {
+                console.error('❌ PDF Read Error (Questions):', err.message);
+                throw AppError.validation('Impossibile leggere il file delle domande.');
+            }
+
+            try {
+                const pdfData = await pdfParse(pdfBuffer);
+                questionsText = this._formatPdfTextWithPages(pdfData);
+            } catch (err) {
+                console.error('❌ PDF Parse Error (Questions):', err.message);
+                throw AppError.validation('Impossibile leggere il file delle domande. Assicurati che sia un PDF valido.');
+            }
+        } else {
+            // Leggi file TXT
+            try {
+                questionsText = await fs.readFile(questionsFilePath, 'utf-8');
+            } catch (err) {
+                console.error('❌ TXT Read Error (Questions):', err.message);
+                throw AppError.validation('Impossibile leggere il file delle domande.');
+            }
+        }
+
+        if (!questionsText || questionsText.trim().length < 50) {
+            throw AppError.validation('Il file delle domande non contiene abbastanza testo.');
+        }
+
+        const normalizedQuestionsText = this._normalizeExtractedText(questionsText);
+        
+        // Estrai domande usando OpenAI
+        const extractionPrompt = `Sei un EXTRACTION AGENT. Estrai TUTTE le domande dal testo.
+
+REGOLE CRITICHE:
+
+COPIA LETTERALE: Non modificare, non parafrasare, non correggere errori
+IDENTIFICA come domande: frasi con "?", numerate (1. 2. 3.), imperativi (Spiega, Definisci, Descrivi)
+OUTPUT: JSON array {"questions": ["testo esatto 1", "testo esatto 2"]}
+
+TESTO:
+"""
+${this._truncateText(normalizedQuestionsText, 50000, '\n\n[...testo troncato...]')}
+"""
+
+Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
+
+        let questions = [];
+        try {
+            const extractionCompletion = await openai.chat.completions.create({
+                model: ACTIVE_AI_MODEL,
+                messages: [
+                    { role: 'system', content: 'Sei un agente di estrazione specializzato. Restituisci SOLO JSON valido.' },
+                    { role: 'user', content: extractionPrompt },
+                ],
+                temperature: 0.1,
+                max_completion_tokens: 4000,
+                response_format: { type: 'json_object' },
+            });
+
+            const extractionResponse = extractionCompletion.choices[0]?.message?.content;
+            if (extractionResponse) {
+                try {
+                    const parsed = JSON.parse(extractionResponse);
+                    if (Array.isArray(parsed.questions)) {
+                        questions = parsed.questions.filter(q => q && typeof q === 'string' && q.trim().length > 0);
+                    } else if (Array.isArray(parsed)) {
+                        questions = parsed.filter(q => q && typeof q === 'string' && q.trim().length > 0);
+                    }
+                } catch (parseErr) {
+                    console.error('❌ JSON Parse Error (Questions):', parseErr.message);
+                    // Fallback: cerca pattern comuni nel testo
+                    questions = this._extractQuestionsFallback(normalizedQuestionsText);
+                }
+            }
+        } catch (err) {
+            console.error('❌ OpenAI Extraction Error:', err.message);
+            // Fallback: estrazione pattern-based
+            questions = this._extractQuestionsFallback(normalizedQuestionsText);
+        }
+
+        if (questions.length === 0) {
+            throw AppError.validation('Nessuna domanda trovata nel documento. Verifica che il file contenga domande d\'esame.');
+        }
+
+        console.log(`✅ Estratte ${questions.length} domande`);
+
+        return { questions };
+    }
+
+    /**
+     * 🤖 GENERAZIONE RISPOSTE - Genera risposte per domande selezionate
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} sourceFilePath - Path al file con il materiale di studio (PDF)
+     * @param {string[]} selectedQuestions - Array di domande selezionate dall'utente
+     * @param {object} options - Opzioni { deckId?, title?, goalId? }
+     * @returns {Promise<object>} - Deck e statistiche
+     */
+    async generateExamAnswers(tenantScope, sourceFilePath, selectedQuestions, options = {}) {
+        const startTime = Date.now();
+        const userId = this._getUserId(tenantScope);
+        const { deckId, title, goalId } = options;
+
+        if (!Array.isArray(selectedQuestions) || selectedQuestions.length === 0) {
+            throw AppError.validation('Devi selezionare almeno una domanda');
+        }
+
+        // =========================================
+        // STEP 1: ESTRAZIONE TESTO dal Documento B
+        // =========================================
+        console.log('📚 Estrazione materiale di studio...');
+        let sourceBuffer;
+        try {
+            sourceBuffer = await fs.readFile(sourceFilePath);
+        } catch (err) {
+            console.error('❌ PDF Read Error (Source):', err.message);
+            throw AppError.validation('Impossibile leggere il file del materiale di studio.');
+        }
+
+        let sourceText = '';
+        try {
+            const pdfData = await pdfParse(sourceBuffer);
+            sourceText = this._formatPdfTextWithPages(pdfData);
+        } catch (err) {
+            console.error('❌ PDF Parse Error (Source):', err.message);
+            throw AppError.validation('Impossibile leggere il file del materiale di studio. Assicurati che sia un PDF valido.');
+        }
+
+        if (!sourceText || sourceText.trim().length < 100) {
+            throw AppError.validation('Il file del materiale di studio non contiene abbastanza testo.');
+        }
+
+        const normalizedSourceText = this._normalizeExtractedText(sourceText);
+        
+        // =========================================
+        // STEP 2: CHUNKING INTELLIGENTE (Livello 3)
+        // =========================================
+        console.log('🧠 Chunking intelligente per documenti lunghi...');
+        let useSmartChunking = normalizedSourceText.length > 20000; // Attiva per documenti > 20k caratteri
+        
+        let sourceTextForContext = '';
+        let tempDeckId = null;
+        
+        if (useSmartChunking) {
+            // Usa chunking semantico con vectorStoreService
+            // Crea un deck temporaneo per l'ingestione (stesso ID per tutto il processo)
+            tempDeckId = `temp-exam-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+            try {
+                await vectorStoreService.ingestDeck(tempDeckId, normalizedSourceText);
+                console.log('✅ Materiale ingerito nel vector store (chunking intelligente attivo)');
+            } catch (err) {
+                console.warn('⚠️ Vector ingest error (fallback a testo completo):', err.message);
+                useSmartChunking = false;
+                tempDeckId = null;
+            }
+        }
+        
+        if (!useSmartChunking) {
+            sourceTextForContext = this._truncateText(normalizedSourceText, 100000, '\n\n[...materiale troncato...]');
+        }
+
+        console.log(`✅ Materiale estratto: ${normalizedSourceText.length} caratteri${useSmartChunking ? ' (chunking intelligente attivo)' : ''}`);
+
+        // =========================================
+        // STEP 3: GENERAZIONE BATCH delle risposte
+        // =========================================
+        console.log('🤖 Generazione risposte...');
+        
+        // Processa in batch per evitare token limit
+        const BATCH_SIZE = 10; // Processa 10 domande alla volta
+        const allFlashcards = [];
+        let answersFound = 0;
+        let answersNotFound = 0;
+
+        for (let i = 0; i < selectedQuestions.length; i += BATCH_SIZE) {
+            const batch = selectedQuestions.slice(i, i + BATCH_SIZE);
+            console.log(`🔄 Processando batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(selectedQuestions.length / BATCH_SIZE)} (${batch.length} domande)`);
+
+            // Se usa smart chunking, recupera contesto rilevante per ogni domanda
+            let batchContext = sourceTextForContext;
+            if (useSmartChunking && tempDeckId) {
+                // Per ogni domanda nel batch, trova i chunk più rilevanti
+                const relevantChunks = [];
+                for (const question of batch) {
+                    try {
+                        const matches = await vectorStoreService.queryDeck(tempDeckId, question, 3);
+                        if (Array.isArray(matches) && matches.length > 0) {
+                            relevantChunks.push(...matches);
+                        }
+                    } catch (err) {
+                        console.warn(`⚠️ Vector query error per domanda:`, err.message);
+                    }
+                }
+                // Deduplica e combina
+                const uniqueChunks = [...new Set(relevantChunks)];
+                batchContext = uniqueChunks.join('\n\n---\n\n');
+                if (!batchContext || batchContext.trim().length < 100) {
+                    // Fallback a testo completo se non trova chunk rilevanti
+                    batchContext = this._truncateText(normalizedSourceText, 100000, '\n\n[...materiale troncato...]');
+                }
+            }
+
+            const batchPrompt = `Sei un TUTOR ACCADEMICO. Per OGNI domanda, genera una risposta usando SOLO il contesto.
+
+CONTESTO:
+"""
+${batchContext}
+"""
+
+DOMANDE:
+${batch.map((q, idx) => `${i + idx + 1}. ${q}`).join('\n')}
+
+REGOLE:
+
+Il campo "front" deve contenere la domanda ESATTA (copiata letteralmente)
+Il campo "back" contiene la risposta (max 150 parole)
+Se la risposta non è nel contesto: back = "⚠️ Risposta non trovata nel materiale fornito"
+Il campo "found" indica se la risposta è stata trovata (true/false)
+
+OUTPUT JSON:
+{"flashcards": [{"front": "domanda esatta", "back": "risposta", "found": true/false}]}
+
+Genera una risposta per OGNI domanda nella lista.`;
+
+            try {
+                const batchCompletion = await openai.chat.completions.create({
+                    model: ACTIVE_AI_MODEL,
+                    messages: [
+                        { role: 'system', content: 'Sei un tutor accademico. Restituisci SOLO JSON valido.' },
+                        { role: 'user', content: batchPrompt },
+                    ],
+                    temperature: 0.1,
+                    max_completion_tokens: 4000,
+                    response_format: { type: 'json_object' },
+                });
+
+                const batchResponse = batchCompletion.choices[0]?.message?.content;
+                if (batchResponse) {
+                    try {
+                        const parsed = JSON.parse(batchResponse);
+                        const flashcards = Array.isArray(parsed.flashcards) ? parsed.flashcards : [];
+                        
+                        for (const card of flashcards) {
+                            if (card && card.front && card.back) {
+                                allFlashcards.push({
+                                    front: String(card.front).trim(),
+                                    back: String(card.back).trim(),
+                                    found: card.found === true || card.found === 'true',
+                                });
+                                
+                                if (card.found === true || card.found === 'true') {
+                                    answersFound++;
+                                } else {
+                                    answersNotFound++;
+                                }
+                            }
+                        }
+                    } catch (parseErr) {
+                        console.error('❌ JSON Parse Error (Batch):', parseErr.message);
+                    }
+                }
+            } catch (err) {
+                console.error(`❌ OpenAI Batch Error (${i}-${i + batch.length}):`, err.message);
+                // Crea card placeholder per questo batch
+                for (const question of batch) {
+                    allFlashcards.push({
+                        front: question.trim(),
+                        back: '⚠️ Errore nella generazione della risposta',
+                        found: false,
+                    });
+                    answersNotFound++;
+                }
+            }
+
+            // Piccola pausa tra batch per evitare rate limiting
+            if (i + BATCH_SIZE < selectedQuestions.length) {
+                await this._sleep(500);
+            }
+        }
+
+        if (allFlashcards.length === 0) {
+            throw AppError.validation('Nessuna flashcard generata. Riprova con documenti diversi.');
+        }
+
+        console.log(`✅ Generate ${allFlashcards.length} flashcard (${answersFound} trovate, ${answersNotFound} non trovate)`);
+
+        // =========================================
+        // STEP 4: SALVATAGGIO
+        // =========================================
+        console.log('💾 Salvataggio...');
+
+        let deck;
+        if (deckId) {
+            // Aggiorna deck esistente
+            deck = await Deck.findOne({ _id: deckId, user: userId });
+            if (!deck) {
+                throw AppError.notFound('Mazzo');
+            }
+        } else {
+            // Crea nuovo deck
+            if (!title || typeof title !== 'string') {
+                throw AppError.validation('Il titolo del mazzo è obbligatorio per creare un nuovo deck');
+            }
+            if (!goalId) {
+                throw AppError.validation('Il goalId è obbligatorio per creare un nuovo deck');
+            }
+
+            await this._validateGoalOwnership(tenantScope, goalId);
+            deck = await this.create(tenantScope, {
+                goalId,
+                title,
+                description: `Generato automaticamente da Exam Solver - ${new Date().toLocaleDateString('it-IT')}`,
+                tags: [],
+            });
+        }
+
+        // Aggiungi le flashcard al deck
+        const cardsToAdd = allFlashcards.map(card => ({
+            front: card.front,
+            back: card.back,
+            easinessFactor: DEFAULT_EASINESS_FACTOR,
+            interval: 1,
+            repetitions: 0,
+            nextReviewDate: new Date(),
+            status: 'new',
+        }));
+
+        deck.cards.push(...cardsToAdd);
+        
+        // Salva anche il testo estratto del materiale di studio
+        deck.extractedText = this._truncateText(normalizedSourceText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
+        
+        // Salva il PDF del materiale se non esiste già
+        if (!deck.pdfUrl) {
+            const sourceFileName = path.basename(sourceFilePath);
+            deck.pdfUrl = `/uploads/pdfs/${sourceFileName}`;
+        }
+
+        await deck.save();
+
+        // Ingestione vettoriale (background, non bloccante)
+        try {
+            await vectorStoreService.ingestDeck(deck._id.toString(), normalizedSourceText);
+        } catch (err) {
+            console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
+        }
+
+        const processingTimeMs = Date.now() - startTime;
+
+        return {
+            deck: deck.toJSON(),
+            stats: {
+                questionsExtracted: selectedQuestions.length,
+                answersFound,
+                answersNotFound,
+                totalFlashcards: allFlashcards.length,
+                processingTimeMs,
+            },
+        };
+    }
+
+    /**
+     * 🎯 EXAM SOLVER - Risolve esami estraendo domande e generando risposte (LEGACY - usa extractExamQuestions + generateExamAnswers)
      * @param {object} tenantScope - Scope del tenant
      * @param {string} questionsFilePath - Path al file con le domande (PDF o TXT)
      * @param {string} sourceFilePath - Path al file con il materiale di studio (PDF)

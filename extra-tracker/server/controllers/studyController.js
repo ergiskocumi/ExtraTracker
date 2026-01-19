@@ -411,8 +411,162 @@ const generateRecoveryQuestions = asyncHandler(async (req, res) => {
 });
 
 /**
+ * POST /api/study/exam-solver/extract-questions
+ * Estrae domande da un documento (Livello 1 - Preview)
+ * Multipart form-data:
+ *   - questionsFile: PDF o TXT con le domande
+ */
+const extractQuestions = asyncHandler(async (req, res) => {
+    console.log('📋 extractQuestions called');
+    console.log('   - req.file:', req.file ? req.file.originalname : 'UNDEFINED');
+    
+    // Con multer.single(), il file è in req.file, non req.files
+    const questionsFile = req.file;
+    if (!questionsFile) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File domande (questionsFile) obbligatorio' }
+        });
+    }
+
+    const questionsIsPdf = questionsFile.mimetype === 'application/pdf';
+    const questionsIsTxt = questionsFile.mimetype === 'text/plain' || 
+                           questionsFile.originalname.toLowerCase().endsWith('.txt');
+    
+    if (!questionsIsPdf && !questionsIsTxt) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File domande deve essere PDF o TXT' }
+        });
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+    if (questionsFile.size > maxSize) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File domande troppo grande. Massimo 10MB.' }
+        });
+    }
+
+    try {
+        const result = await studyService.extractExamQuestions(
+            req.tenantScope,
+            questionsFile.path
+        );
+
+        console.log('✅ extractQuestions completato:', {
+            questionsCount: result.questions.length
+        });
+
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (err) {
+        console.error('❌ extractQuestions error:', err.message);
+        throw err;
+    }
+});
+
+/**
+ * POST /api/study/exam-solver/generate-answers
+ * Genera risposte per domande selezionate (Livello 1 - Preview)
+ * Multipart form-data:
+ *   - sourceFile: PDF con il materiale di studio
+ *   - selectedQuestions: JSON array di domande selezionate
+ *   - deckId: (opzionale) ID deck esistente da aggiornare
+ *   - title: (opzionale) Titolo per nuovo deck
+ *   - goalId: (opzionale) ID goal per nuovo deck
+ */
+const generateAnswers = asyncHandler(async (req, res) => {
+    console.log('🤖 generateAnswers called');
+    console.log('   - req.file:', req.file ? req.file.originalname : 'UNDEFINED');
+    
+    // Con multer.single(), il file è in req.file, non req.files
+    const sourceFile = req.file;
+    if (!sourceFile) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File materiale (sourceFile) obbligatorio' }
+        });
+    }
+
+    if (sourceFile.mimetype !== 'application/pdf') {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File materiale deve essere un PDF' }
+        });
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+    if (sourceFile.size > maxSize) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'File materiale troppo grande. Massimo 10MB.' }
+        });
+    }
+
+    // Parse selectedQuestions
+    let selectedQuestions = [];
+    try {
+        const questionsStr = req.body?.selectedQuestions;
+        if (questionsStr) {
+            selectedQuestions = JSON.parse(questionsStr);
+        }
+    } catch (err) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'selectedQuestions deve essere un JSON array valido' }
+        });
+    }
+
+    if (!Array.isArray(selectedQuestions) || selectedQuestions.length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Devi selezionare almeno una domanda' }
+        });
+    }
+
+    const deckId = req.body?.deckId || null;
+    const title = req.body?.title || null;
+    const goalId = req.body?.goalId || null;
+
+    if (!deckId && (!title || !goalId)) {
+        return res.status(400).json({
+            success: false,
+            error: { 
+                message: 'Se non specifichi deckId, devi fornire sia title che goalId per creare un nuovo deck' 
+            }
+        });
+    }
+
+    try {
+        const result = await studyService.generateExamAnswers(
+            req.tenantScope,
+            sourceFile.path,
+            selectedQuestions,
+            { deckId, title, goalId }
+        );
+
+        console.log('✅ generateAnswers completato:', {
+            questionsExtracted: result.stats.questionsExtracted,
+            totalFlashcards: result.stats.totalFlashcards,
+            processingTimeMs: result.stats.processingTimeMs
+        });
+
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (err) {
+        console.error('❌ generateAnswers error:', err.message);
+        throw err;
+    }
+});
+
+/**
  * POST /api/study/exam-solver
- * Exam Solver: estrae domande da un documento e genera risposte da un altro
+ * Exam Solver: estrae domande da un documento e genera risposte da un altro (LEGACY)
  * Multipart form-data:
  *   - questionsFile: PDF o TXT con le domande
  *   - sourceFile: PDF con il materiale di studio
@@ -536,6 +690,8 @@ module.exports = {
     chatWithTutor,
     answerExamQuestion,
     examSolver,
+    extractQuestions,
+    generateAnswers,
     updateDeckSettings,
     getDeckAnalytics,
     resetExamCards,

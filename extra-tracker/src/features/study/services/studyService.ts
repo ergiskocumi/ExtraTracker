@@ -575,7 +575,95 @@ class StudyService {
     }
 
     /**
-     * 🎯 Exam Solver - Estrae domande da un documento e genera risposte da un altro
+     * 📋 Estrae domande da un documento (Livello 1 - Preview)
+     * @param questionsFile - File con le domande (PDF o TXT)
+     * @returns Array di domande estratte
+     */
+    async extractExamQuestions(questionsFile: File): Promise<{ questions: string[] }> {
+        console.log('📤 Uploading questions file for extraction...');
+
+        const formData = new FormData();
+        formData.append('questionsFile', questionsFile);
+
+        const response = await fetch(`/api${this.baseUrl}/exam-solver/extract-questions`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+                errorData.error?.message || 
+                errorData.message || 
+                `Errore ${response.status}: estrazione domande fallita`
+            );
+        }
+
+        const result = await response.json();
+        return result.data || { questions: [] };
+    }
+
+    /**
+     * 🤖 Genera risposte per domande selezionate (Livello 1 - Preview)
+     * @param sourceFile - File PDF con il materiale di studio
+     * @param selectedQuestions - Array di domande selezionate dall'utente
+     * @param options - Opzioni { deckId?, title?, goalId? }
+     * @returns Deck e statistiche
+     */
+    async generateExamAnswers(
+        sourceFile: File,
+        selectedQuestions: string[],
+        options: { deckId?: string; title?: string; goalId?: string } = {}
+    ): Promise<{ deck: Deck; stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number } }> {
+        console.log('📤 Uploading source file and generating answers...');
+
+        const formData = new FormData();
+        formData.append('sourceFile', sourceFile);
+        formData.append('selectedQuestions', JSON.stringify(selectedQuestions));
+        
+        if (options.deckId) {
+            formData.append('deckId', options.deckId);
+        }
+        if (options.title) {
+            formData.append('title', options.title);
+        }
+        if (options.goalId) {
+            formData.append('goalId', options.goalId);
+        }
+
+        const response = await fetch(`/api${this.baseUrl}/exam-solver/generate-answers`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+                errorData.error?.message || 
+                errorData.message || 
+                `Errore ${response.status}: generazione risposte fallita`
+            );
+        }
+
+        const result = await response.json();
+        const data = result.data || result;
+
+        return {
+            deck: normalizeDeck(data.deck),
+            stats: data.stats || {
+                questionsExtracted: 0,
+                answersFound: 0,
+                answersNotFound: 0,
+                totalFlashcards: 0,
+                processingTimeMs: 0,
+            },
+        };
+    }
+
+    /**
+     * 🎯 Exam Solver - Estrae domande da un documento e genera risposte da un altro (LEGACY)
      * @param formData - FormData con questionsFile, sourceFile, deckId (opzionale), title (opzionale), goalId (opzionale)
      * @returns Deck e statistiche
      */

@@ -18,10 +18,16 @@ import {
     Loader2,
     Plus,
     ChevronRight,
-    Trash2
+    Trash2,
+    Edit3,
+    Search,
+    CheckSquare,
+    Square
 } from 'lucide-react';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
+import goalsService from '../../../goals/services/goalsService';
+import type { Goal } from '../../../goals/types';
 
 // ============================================
 // TYPES
@@ -44,9 +50,16 @@ interface ExamSolverModalProps {
     preselectedDeckId?: string; // ID deck pre-selezionato (opzionale)
 }
 
-type Step = 'upload' | 'config' | 'progress' | 'completed';
+type Step = 'upload' | 'preview' | 'config' | 'progress' | 'completed';
 
 type ProgressStep = 'idle' | 'extracting' | 'analyzing' | 'generating' | 'completed' | 'error';
+
+interface GeneratedFlashcard {
+    front: string;
+    back: string;
+    found: boolean;
+    manualEdit?: string; // Risposta editata manualmente (Livello 2)
+}
 
 // ============================================
 // COMPONENT
@@ -65,9 +78,18 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
     const [sourceFile, setSourceFile] = useState<File | null>(null);
     const [isDraggingQuestions, setIsDraggingQuestions] = useState(false);
     const [isDraggingSource, setIsDraggingSource] = useState(false);
+    const [extractedQuestions, setExtractedQuestions] = useState<string[]>([]);
+    const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
+    const [generatedFlashcards, setGeneratedFlashcards] = useState<GeneratedFlashcard[]>([]);
+    const [editingAnswerIndex, setEditingAnswerIndex] = useState<number | null>(null);
+    const [manualAnswer, setManualAnswer] = useState<string>('');
     const [deckMode, setDeckMode] = useState<'new' | 'existing'>('new');
     const [deckTitle, setDeckTitle] = useState('');
     const [selectedDeckId, setSelectedDeckId] = useState<string>('');
+    // Goal selection per nuovo mazzo
+    const [goals, setGoals] = useState<Goal[]>([]);
+    const [selectedGoalId, setSelectedGoalId] = useState<string>('');
+    const [isLoadingGoals, setIsLoadingGoals] = useState(false);
     const [progressStep, setProgressStep] = useState<ProgressStep>('idle');
     const [progressMessage, setProgressMessage] = useState('');
     const [stats, setStats] = useState<ExamSolverStats | null>(null);
@@ -85,6 +107,11 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
             setCurrentStep('upload');
             setQuestionsFile(null);
             setSourceFile(null);
+            setExtractedQuestions([]);
+            setSelectedQuestions(new Set());
+            setGeneratedFlashcards([]);
+            setEditingAnswerIndex(null);
+            setManualAnswer('');
             // Se c'è un deckId pre-selezionato, usa quello
             if (preselectedDeckId && existingDecks.some(d => d.id === preselectedDeckId)) {
                 setDeckMode('existing');
@@ -94,6 +121,8 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                 setDeckTitle('');
                 setSelectedDeckId('');
             }
+            setGoals([]);
+            setSelectedGoalId(goalId || ''); // Usa goalId prop se disponibile
             setProgressStep('idle');
             setProgressMessage('');
             setStats(null);
@@ -104,7 +133,36 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                 clearInterval(timerRef.current);
             }
         }
-    }, [isOpen, preselectedDeckId, existingDecks]);
+    }, [isOpen, preselectedDeckId, existingDecks, goalId]);
+
+    // Carica goals quando si sceglie "Crea nuovo mazzo"
+    useEffect(() => {
+        if (isOpen && deckMode === 'new' && goals.length === 0) {
+            loadGoals();
+        }
+    }, [isOpen, deckMode]);
+
+    const loadGoals = async () => {
+        try {
+            setIsLoadingGoals(true);
+            const allGoals = await goalsService.getAll();
+            // Filtra solo goal attivi
+            const activeGoals = allGoals.filter(g => g.status === 'active');
+            setGoals(activeGoals);
+            
+            // Auto-seleziona se c'è solo un goal o se goalId prop è disponibile
+            if (goalId && activeGoals.some(g => g.id === goalId)) {
+                setSelectedGoalId(goalId);
+            } else if (activeGoals.length === 1) {
+                setSelectedGoalId(activeGoals[0].id);
+            }
+        } catch (err) {
+            console.error('Failed to load goals:', err);
+            emitToast.error('Errore nel caricamento degli esami');
+        } finally {
+            setIsLoadingGoals(false);
+        }
+    };
 
     // Timer per il tempo trascorso
     useEffect(() => {
@@ -246,69 +304,113 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         }
     }, []);
 
-    const handleNextFromUpload = useCallback(() => {
-        if (questionsFile && sourceFile) {
-            setCurrentStep('config');
+    const handleNextFromUpload = useCallback(async () => {
+        if (!questionsFile || !sourceFile) return;
+
+        try {
+            setProgressStep('extracting');
+            setProgressMessage('Estrazione domande...');
+            setError(null);
+            startTimeRef.current = Date.now();
+
+            // Estrai domande (Livello 1)
+            const result = await studyService.extractExamQuestions(questionsFile);
+            
+            setExtractedQuestions(result.questions);
+            // Seleziona tutte le domande di default
+            setSelectedQuestions(new Set(result.questions.map((_, idx) => idx)));
+            
+            setProgressStep('idle');
+            setCurrentStep('preview');
+        } catch (err: any) {
+            setProgressStep('error');
+            setError(err.message || 'Errore durante l\'estrazione delle domande');
+            emitToast.error(err.message || 'Errore durante l\'estrazione delle domande');
         }
     }, [questionsFile, sourceFile]);
 
+    const handleNextFromPreview = useCallback(() => {
+        if (selectedQuestions.size === 0) {
+            setError('Seleziona almeno una domanda');
+            return;
+        }
+        setCurrentStep('config');
+    }, [selectedQuestions]);
+
     const handleGenerate = useCallback(async () => {
-        if (!questionsFile || !sourceFile) return;
+        if (!sourceFile) return;
 
         // Validazione configurazione
-        if (deckMode === 'new' && !deckTitle.trim()) {
-            setError('Inserisci un titolo per il nuovo mazzo');
-            return;
+        if (deckMode === 'new') {
+            if (!deckTitle.trim()) {
+                setError('Inserisci un titolo per il nuovo mazzo');
+                return;
+            }
+            if (!selectedGoalId) {
+                setError('Seleziona un esame/obiettivo per il nuovo mazzo');
+                return;
+            }
         }
         if (deckMode === 'existing' && !selectedDeckId) {
             setError('Seleziona un mazzo esistente');
             return;
         }
 
+        // Prepara domande selezionate
+        const questionsToProcess = Array.from(selectedQuestions)
+            .map(idx => extractedQuestions[idx])
+            .filter(Boolean);
+
+        if (questionsToProcess.length === 0) {
+            setError('Seleziona almeno una domanda');
+            return;
+        }
+
         setCurrentStep('progress');
-        setProgressStep('extracting');
-        setProgressMessage('Estrazione domande...');
+        setProgressStep('analyzing');
+        setProgressMessage('Analisi materiale...');
         setError(null);
         startTimeRef.current = Date.now();
 
         try {
-            const formData = new FormData();
-            formData.append('questionsFile', questionsFile);
-            formData.append('sourceFile', sourceFile);
-            
-            if (deckMode === 'existing') {
-                formData.append('deckId', selectedDeckId);
-            } else {
-                formData.append('title', deckTitle.trim());
-                if (goalId) {
-                    formData.append('goalId', goalId);
-                }
-            }
-
-            setProgressStep('analyzing');
-            setProgressMessage('Analisi materiale...');
-
-            const result = await studyService.examSolver(formData);
-
             setProgressStep('generating');
             setProgressMessage('Generazione risposte...');
 
-            // Il backend processa tutto, quindi quando arriva la risposta è completato
+            // Usa la nuova API con domande selezionate (Livello 1)
+            const result = await studyService.generateExamAnswers(
+                sourceFile,
+                questionsToProcess,
+                {
+                    deckId: deckMode === 'existing' ? selectedDeckId : undefined,
+                    title: deckMode === 'new' ? deckTitle.trim() : undefined,
+                    goalId: deckMode === 'new' ? selectedGoalId : undefined,
+                }
+            );
+
+            // Salva le flashcard generate per editing manuale (Livello 2)
+            // Nota: Il backend non restituisce le flashcard, quindi le ricostruiamo dalle stats
+            // In un'implementazione completa, il backend dovrebbe restituire le flashcard
+            setGeneratedFlashcards([]); // Reset per ora, sarà popolato se il backend le restituisce
+
             setProgressStep('completed');
             setProgressMessage('Completato!');
             setStats(result.stats);
             setCreatedDeckId(result.deck.id);
 
-            // Auto-close dopo 3 secondi o chiama onSuccess
-            setTimeout(() => {
-                onSuccess(result.deck.id, result.stats);
-            }, 1000);
+            // Non auto-close, mostra editing manuale se ci sono risposte non trovate (Livello 2)
+            if (result.stats.answersNotFound > 0) {
+                // Mostra opzione per editing manuale
+            } else {
+                setTimeout(() => {
+                    onSuccess(result.deck.id, result.stats);
+                }, 2000);
+            }
         } catch (err: any) {
             setProgressStep('error');
-            setError(err.message || 'Errore durante la risoluzione dell\'esame');
-            emitToast.error(err.message || 'Errore durante la risoluzione dell\'esame');
+            setError(err.message || 'Errore durante la generazione delle risposte');
+            emitToast.error(err.message || 'Errore durante la generazione delle risposte');
         }
-    }, [questionsFile, sourceFile, deckMode, deckTitle, selectedDeckId, onSuccess]);
+    }, [sourceFile, deckMode, deckTitle, selectedDeckId, goalId, selectedQuestions, extractedQuestions, generatedFlashcards, onSuccess]);
 
     const formatFileSize = (bytes: number) => {
         if (bytes < 1024) return `${bytes} B`;
@@ -535,7 +637,115 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                             </motion.div>
                         )}
 
-                        {/* STEP 2: CONFIGURAZIONE */}
+                        {/* STEP 2: PREVIEW DOMANDE (Livello 1) */}
+                        {currentStep === 'preview' && (
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="space-y-6"
+                            >
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-lg font-semibold text-white">
+                                            Domande Estratte ({extractedQuestions.length})
+                                        </h3>
+                                        <div className="flex items-center gap-2 text-sm text-white/60">
+                                            <span>{selectedQuestions.size} selezionate</span>
+                                            <button
+                                                onClick={() => {
+                                                    if (selectedQuestions.size === extractedQuestions.length) {
+                                                        setSelectedQuestions(new Set());
+                                                    } else {
+                                                        setSelectedQuestions(new Set(extractedQuestions.map((_, idx) => idx)));
+                                                    }
+                                                }}
+                                                className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-colors text-xs"
+                                            >
+                                                {selectedQuestions.size === extractedQuestions.length ? 'Deseleziona tutte' : 'Seleziona tutte'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="max-h-96 overflow-y-auto space-y-2 custom-scrollbar">
+                                        {extractedQuestions.map((question, idx) => {
+                                            const isSelected = selectedQuestions.has(idx);
+                                            return (
+                                                <motion.label
+                                                    key={idx}
+                                                    initial={{ opacity: 0, y: 5 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: idx * 0.02 }}
+                                                    className={`
+                                                        flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all
+                                                        ${isSelected
+                                                            ? 'bg-amber-500/10 border-amber-500/30'
+                                                            : 'bg-zinc-900/60 border-white/5 hover:bg-zinc-900/80'
+                                                        }
+                                                    `}
+                                                >
+                                                    <div className="flex-shrink-0 mt-0.5">
+                                                        {isSelected ? (
+                                                            <CheckSquare className="w-5 h-5 text-amber-400" />
+                                                        ) : (
+                                                            <Square className="w-5 h-5 text-white/40" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-sm text-white/90 leading-relaxed">
+                                                            {question}
+                                                        </p>
+                                                    </div>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={(e) => {
+                                                            const newSelected = new Set(selectedQuestions);
+                                                            if (e.target.checked) {
+                                                                newSelected.add(idx);
+                                                            } else {
+                                                                newSelected.delete(idx);
+                                                            }
+                                                            setSelectedQuestions(newSelected);
+                                                        }}
+                                                        className="hidden"
+                                                    />
+                                                </motion.label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {error && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm flex items-center gap-2"
+                                    >
+                                        <AlertCircle className="w-4 h-4 text-red-400" />
+                                        <p className="text-sm text-red-400">{error}</p>
+                                    </motion.div>
+                                )}
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setCurrentStep('upload')}
+                                        className="flex-1 px-4 py-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white font-medium transition-colors"
+                                    >
+                                        Indietro
+                                    </button>
+                                    <button
+                                        onClick={handleNextFromPreview}
+                                        disabled={selectedQuestions.size === 0}
+                                        className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        Continua ({selectedQuestions.size} selezionate)
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* STEP 3: CONFIGURAZIONE */}
                         {currentStep === 'config' && (
                             <motion.div
                                 initial={{ opacity: 0, x: 20 }}
@@ -576,23 +786,55 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                         )}
                                     </div>
 
-                                    {/* Input titolo (nuovo mazzo) */}
+                                    {/* Input titolo e goal (nuovo mazzo) */}
                                     {deckMode === 'new' && (
                                         <motion.div
                                             initial={{ opacity: 0, height: 0 }}
                                             animate={{ opacity: 1, height: 'auto' }}
-                                            className="space-y-2"
+                                            className="space-y-4"
                                         >
-                                            <label className="block text-sm font-medium text-white/80">
-                                                Titolo del mazzo
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={deckTitle}
-                                                onChange={(e) => setDeckTitle(e.target.value)}
-                                                placeholder="Es: Esame Matematica - Domande e Risposte"
-                                                className="w-full px-4 py-3 rounded-xl bg-zinc-900/60 border border-white/10 text-white placeholder-white/30 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
-                                            />
+                                            <div className="space-y-2">
+                                                <label className="block text-sm font-medium text-white/80">
+                                                    Titolo del mazzo
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={deckTitle}
+                                                    onChange={(e) => setDeckTitle(e.target.value)}
+                                                    placeholder="Es: Esame Matematica - Domande e Risposte"
+                                                    className="w-full px-4 py-3 rounded-xl bg-zinc-900/60 border border-white/10 text-white placeholder-white/30 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                                                />
+                                            </div>
+                                            
+                                            <div className="space-y-2">
+                                                <label className="block text-sm font-medium text-white/80">
+                                                    Esame / Obiettivo <span className="text-red-400">*</span>
+                                                </label>
+                                                {isLoadingGoals ? (
+                                                    <div className="px-4 py-3 rounded-xl bg-zinc-900/60 border border-white/10 flex items-center gap-2">
+                                                        <Loader2 className="w-4 h-4 text-white/60 animate-spin" />
+                                                        <span className="text-sm text-white/60">Caricamento esami...</span>
+                                                    </div>
+                                                ) : (
+                                                    <select
+                                                        value={selectedGoalId}
+                                                        onChange={(e) => setSelectedGoalId(e.target.value)}
+                                                        className="w-full px-4 py-3 rounded-xl bg-zinc-900/60 border border-white/10 text-white focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                                                    >
+                                                        <option value="">Seleziona un esame...</option>
+                                                        {goals.map((goal) => (
+                                                            <option key={goal.id} value={goal.id}>
+                                                                {goal.title}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                                {goals.length === 0 && !isLoadingGoals && (
+                                                    <p className="text-xs text-white/50">
+                                                        Nessun esame attivo trovato. Crea un esame dalla dashboard.
+                                                    </p>
+                                                )}
+                                            </div>
                                         </motion.div>
                                     )}
 
@@ -635,7 +877,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
 
                                 <div className="flex gap-3">
                                     <button
-                                        onClick={() => setCurrentStep('upload')}
+                                        onClick={() => setCurrentStep('preview')}
                                         className="flex-1 px-4 py-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white font-medium transition-colors"
                                     >
                                         Indietro
@@ -643,7 +885,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                     <button
                                         onClick={handleGenerate}
                                         disabled={
-                                            (deckMode === 'new' && !deckTitle.trim()) ||
+                                            (deckMode === 'new' && (!deckTitle.trim() || !selectedGoalId)) ||
                                             (deckMode === 'existing' && !selectedDeckId)
                                         }
                                         className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -745,11 +987,56 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                             </div>
                                         </div>
 
+                                        {/* Livello 2: Editing manuale per risposte non trovate */}
+                                        {stats.answersNotFound > 0 && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20"
+                                            >
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <AlertCircle className="w-5 h-5 text-amber-400" />
+                                                    <h4 className="text-sm font-semibold text-amber-300">
+                                                        {stats.answersNotFound} risposta{stats.answersNotFound > 1 ? 'e' : ''} non trovata{stats.answersNotFound > 1 ? 'e' : ''}
+                                                    </h4>
+                                                </div>
+                                                <p className="text-xs text-white/60 mb-3">
+                                                    Puoi inserire manualmente le risposte o cercarle su Google.
+                                                </p>
+                                                <div className="space-y-2">
+                                                    {Array.from({ length: Math.min(stats.answersNotFound, 3) }).map((_, idx) => (
+                                                        <div key={idx} className="flex items-center gap-2">
+                                                            <input
+                                                                type="text"
+                                                                placeholder={`Inserisci risposta manuale ${idx + 1}...`}
+                                                                className="flex-1 px-3 py-2 rounded-lg bg-zinc-900/60 border border-white/10 text-white text-sm placeholder-white/30 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                                                            />
+                                                            <button
+                                                                onClick={() => {
+                                                                    const question = extractedQuestions[Array.from(selectedQuestions)[idx] || 0] || '';
+                                                                    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(question)}`;
+                                                                    window.open(searchUrl, '_blank');
+                                                                }}
+                                                                className="px-3 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 text-sm font-medium transition-colors flex items-center gap-1.5"
+                                                            >
+                                                                <Search className="w-4 h-4" />
+                                                                Cerca
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {stats.answersNotFound > 3 && (
+                                                        <p className="text-xs text-white/40 text-center">
+                                                            ... e altre {stats.answersNotFound - 3} risposte
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        )}
+
                                         <div className="flex gap-3 pt-4">
                                             <button
                                                 onClick={() => {
                                                     if (createdDeckId) {
-                                                        // Naviga al deck (dovrebbe essere gestito dal parent)
                                                         onSuccess(createdDeckId, stats);
                                                         handleClose();
                                                     }
