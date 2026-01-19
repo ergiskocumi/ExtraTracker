@@ -495,6 +495,7 @@ const extractQuestions = asyncHandler(async (req, res) => {
 /**
  * POST /api/study/exam-solver/generate-answers
  * Genera risposte per domande selezionate (Livello 1 - Preview)
+ * Usa Server-Sent Events (SSE) per inviare progress in tempo reale
  * Multipart form-data:
  *   - sourceFile: PDF con il materiale di studio
  *   - selectedQuestions: JSON array di domande selezionate
@@ -503,7 +504,7 @@ const extractQuestions = asyncHandler(async (req, res) => {
  *   - goalId: (opzionale) ID goal per nuovo deck
  */
 const generateAnswers = asyncHandler(async (req, res) => {
-    console.log('🤖 generateAnswers called');
+    console.log('🤖 generateAnswers called (SSE mode)');
     console.log('   - req.file:', req.file ? req.file.originalname : 'UNDEFINED');
     
     // Con multer.single(), il file è in req.file, non req.files
@@ -564,12 +565,28 @@ const generateAnswers = asyncHandler(async (req, res) => {
         });
     }
 
+    // Configura SSE
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disabilita buffering nginx
+
+    // Helper per inviare eventi SSE
+    const sendEvent = (type, data) => {
+        res.write(`event: ${type}\n`);
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
     try {
         const result = await studyService.generateExamAnswers(
             req.tenantScope,
             sourceFile.path,
             selectedQuestions,
-            { deckId, title, goalId }
+            { deckId, title, goalId },
+            (progress) => {
+                // Callback per inviare progress
+                sendEvent('progress', progress);
+            }
         );
 
         console.log('✅ generateAnswers completato:', {
@@ -578,13 +595,13 @@ const generateAnswers = asyncHandler(async (req, res) => {
             processingTimeMs: result.stats.processingTimeMs
         });
 
-        res.json({
-            success: true,
-            data: result
-        });
+        // Invia evento finale
+        sendEvent('complete', result);
+        res.end();
     } catch (err) {
         console.error('❌ generateAnswers error:', err.message);
-        throw err;
+        sendEvent('error', { message: err.message || 'Errore durante la generazione' });
+        res.end();
     }
 });
 

@@ -61,6 +61,9 @@ export interface UseExamSolverReturn {
     // Progress
     progressStep: ProgressStep;
     progressMessage: string;
+    progressCurrent: number;
+    progressTotal: number;
+    currentQuestion: string;
     stats: ExamSolverStats | null;
     createdDeckId: string;
     
@@ -117,6 +120,9 @@ export const useExamSolver = ({
     // Progress
     const [progressStep, setProgressStep] = useState<ProgressStep>('idle');
     const [progressMessage, setProgressMessage] = useState('');
+    const [progressCurrent, setProgressCurrent] = useState(0);
+    const [progressTotal, setProgressTotal] = useState(0);
+    const [currentQuestion, setCurrentQuestion] = useState<string>('');
     const [stats, setStats] = useState<ExamSolverStats | null>(null);
     const [createdDeckId, setCreatedDeckId] = useState<string>('');
     const [generatedFlashcards, setGeneratedFlashcards] = useState<FlashcardWithId[]>([]);
@@ -154,6 +160,9 @@ export const useExamSolver = ({
             setSelectedGoalId(goalId || '');
             setProgressStep('idle');
             setProgressMessage('');
+            setProgressCurrent(0);
+            setProgressTotal(0);
+            setCurrentQuestion('');
             setStats(null);
             setError(null);
             setCreatedDeckId('');
@@ -301,30 +310,106 @@ export const useExamSolver = ({
         try {
             setProgressStep('generating');
             setProgressMessage('Generazione risposte...');
+            setProgressTotal(questionsToProcess.length);
+            setProgressCurrent(0);
 
-            const result = await studyService.generateExamAnswers(
-                sourceFile,
-                questionsToProcess,
-                {
-                    deckId: deckMode === 'existing' ? selectedDeckId : undefined,
-                    title: deckMode === 'new' ? deckTitle.trim() : undefined,
-                    goalId: deckMode === 'new' ? selectedGoalId : undefined,
-                }
-            );
-
-            setProgressStep('completed');
-            setProgressMessage('Completato!');
-            setStats(result.stats);
-            setCreatedDeckId(result.deck.id);
+            // Usa fetch con streaming SSE invece di studyService.generateExamAnswers
+            const formData = new FormData();
+            formData.append('sourceFile', sourceFile);
+            formData.append('selectedQuestions', JSON.stringify(questionsToProcess));
             
-            // Salva le flashcard generate con ID per editing manuale
-            setGeneratedFlashcards(result.flashcards || []);
+            if (deckMode === 'existing' && selectedDeckId) {
+                formData.append('deckId', selectedDeckId);
+            }
+            if (deckMode === 'new') {
+                if (deckTitle.trim()) {
+                    formData.append('title', deckTitle.trim());
+                }
+                if (selectedGoalId) {
+                    formData.append('goalId', selectedGoalId);
+                }
+            }
 
-            // Auto-close dopo 2 secondi se non ci sono risposte non trovate
-            if (result.stats.answersNotFound === 0) {
-                setTimeout(() => {
-                    onSuccess(result.deck.id, result.stats);
-                }, 2000);
+            const response = await fetch('/api/study/exam-solver/generate-answers', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error?.message || 
+                    errorData.message || 
+                    `Errore ${response.status}: generazione risposte fallita`
+                );
+            }
+
+            // Leggi la risposta come stream SSE
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            if (!reader) {
+                throw new Error('Impossibile leggere la risposta dal server');
+            }
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                
+                // Gli eventi SSE sono separati da \n\n
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || ''; // Mantieni l'ultimo evento incompleto
+
+                for (const event of events) {
+                    if (!event.trim()) continue;
+                    
+                    let eventType = 'message';
+                    let eventData = '';
+
+                    // Parse evento SSE
+                    const lines = event.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('event: ')) {
+                            eventType = line.substring(7).trim();
+                        } else if (line.startsWith('data: ')) {
+                            eventData = line.substring(6).trim();
+                        }
+                    }
+
+                    if (eventData) {
+                        try {
+                            const data = JSON.parse(eventData);
+                            
+                            if (data.type === 'progress' || eventType === 'progress') {
+                                setProgressCurrent(data.current);
+                                setProgressTotal(data.total);
+                                setCurrentQuestion(data.question || '');
+                                setProgressMessage(`Domanda ${data.current}/${data.total}: ${data.question || ''}`);
+                            } else if (data.type === 'complete' || eventType === 'complete') {
+                                setProgressStep('completed');
+                                setProgressMessage('Completato!');
+                                setStats(data.stats);
+                                setCreatedDeckId(data.deck?.id || '');
+                                setGeneratedFlashcards(data.flashcards || []);
+
+                                // Auto-close dopo 2 secondi se non ci sono risposte non trovate
+                                if (data.stats?.answersNotFound === 0) {
+                                    setTimeout(() => {
+                                        onSuccess(data.deck.id, data.stats);
+                                    }, 2000);
+                                }
+                            } else if (data.type === 'error' || eventType === 'error') {
+                                throw new Error(data.message || 'Errore durante la generazione');
+                            }
+                        } catch (parseErr) {
+                            console.error('Error parsing SSE data:', parseErr, 'Raw data:', eventData);
+                        }
+                    }
+                }
             }
         } catch (err: any) {
             setProgressStep('error');
@@ -428,6 +513,9 @@ export const useExamSolver = ({
         // Progress
         progressStep,
         progressMessage,
+        progressCurrent,
+        progressTotal,
+        currentQuestion,
         stats,
         createdDeckId,
         generatedFlashcards,

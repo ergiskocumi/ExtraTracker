@@ -1966,9 +1966,10 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
      * @param {string} sourceFilePath - Path al file con il materiale di studio (PDF)
      * @param {string[]} selectedQuestions - Array di domande selezionate dall'utente
      * @param {object} options - Opzioni { deckId?, title?, goalId? }
+     * @param {function} onProgress - Callback opzionale per inviare progress: (progress) => void
      * @returns {Promise<object>} - Deck e statistiche
      */
-    async generateExamAnswers(tenantScope, sourceFilePath, selectedQuestions, options = {}) {
+    async generateExamAnswers(tenantScope, sourceFilePath, selectedQuestions, options = {}, onProgress = null) {
         const startTime = Date.now();
         const userId = this._getUserId(tenantScope);
         const { deckId, title, goalId } = options;
@@ -2043,10 +2044,13 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
         const allFlashcards = [];
         let answersFound = 0;
         let answersNotFound = 0;
+        const totalQuestions = selectedQuestions.length;
 
         for (let i = 0; i < selectedQuestions.length; i += BATCH_SIZE) {
             const batch = selectedQuestions.slice(i, i + BATCH_SIZE);
-            console.log(`🔄 Processando batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(selectedQuestions.length / BATCH_SIZE)} (${batch.length} domande)`);
+            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+            const totalBatches = Math.ceil(selectedQuestions.length / BATCH_SIZE);
+            console.log(`🔄 Processando batch ${batchNumber}/${totalBatches} (${batch.length} domande)`);
 
             // Se usa smart chunking, recupera contesto rilevante per ogni domanda
             let batchContext = sourceTextForContext;
@@ -2112,7 +2116,8 @@ Genera una risposta per OGNI domanda nella lista.`;
                         const parsed = JSON.parse(batchResponse);
                         const flashcards = Array.isArray(parsed.flashcards) ? parsed.flashcards : [];
                         
-                        for (const card of flashcards) {
+                        for (let cardIdx = 0; cardIdx < flashcards.length; cardIdx++) {
+                            const card = flashcards[cardIdx];
                             if (card && card.front && card.back) {
                                 allFlashcards.push({
                                     front: String(card.front).trim(),
@@ -2125,6 +2130,17 @@ Genera una risposta per OGNI domanda nella lista.`;
                                 } else {
                                     answersNotFound++;
                                 }
+
+                                // Invia progress dopo ogni flashcard processata
+                                const currentIndex = i + cardIdx + 1;
+                                if (onProgress && currentIndex <= totalQuestions) {
+                                    onProgress({
+                                        type: 'progress',
+                                        current: currentIndex,
+                                        total: totalQuestions,
+                                        question: card.front || batch[cardIdx] || '',
+                                    });
+                                }
                             }
                         }
                     } catch (parseErr) {
@@ -2134,13 +2150,25 @@ Genera una risposta per OGNI domanda nella lista.`;
             } catch (err) {
                 console.error(`❌ OpenAI Batch Error (${i}-${i + batch.length}):`, err.message);
                 // Crea card placeholder per questo batch
-                for (const question of batch) {
+                for (let j = 0; j < batch.length; j++) {
+                    const question = batch[j];
                     allFlashcards.push({
                         front: question.trim(),
                         back: '⚠️ Errore nella generazione della risposta',
                         found: false,
                     });
                     answersNotFound++;
+
+                    // Invia progress anche per errori
+                    const currentIndex = i + j + 1;
+                    if (onProgress && currentIndex <= totalQuestions) {
+                        onProgress({
+                            type: 'progress',
+                            current: currentIndex,
+                            total: totalQuestions,
+                            question: question,
+                        });
+                    }
                 }
             }
 

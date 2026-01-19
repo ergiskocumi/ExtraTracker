@@ -56,6 +56,9 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         isLoadingGoals,
         progressStep,
         progressMessage,
+        progressCurrent,
+        progressTotal,
+        currentQuestion,
         stats,
         createdDeckId,
         generatedFlashcards,
@@ -234,6 +237,9 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                             <ProgressView
                                 progressStep={progressStep}
                                 progressMessage={progressMessage}
+                                progressCurrent={progressCurrent}
+                                progressTotal={progressTotal}
+                                currentQuestion={currentQuestion}
                                 isProcessing={isProcessing}
                                 stats={stats}
                                 generatedFlashcards={generatedFlashcards}

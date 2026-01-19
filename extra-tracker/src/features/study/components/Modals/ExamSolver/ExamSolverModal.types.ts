@@ -136,6 +136,9 @@ export interface DeckConfigFormProps {
 export interface ProgressViewProps {
     progressStep: ProgressStep;
     progressMessage: string;
+    progressCurrent: number;
+    progressTotal: number;
+    currentQuestion: string;
     isProcessing: boolean;
     stats: ExamSolverStats | null;
     generatedFlashcards: FlashcardWithId[];
