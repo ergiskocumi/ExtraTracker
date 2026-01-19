@@ -12,7 +12,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, Square, Search, AlertCircle, RotateCcw } from 'lucide-react';
-import { QuestionsSkeleton, StreamingSkeleton } from './QuestionsSkeleton';
+import { QuestionsSkeleton } from './QuestionsSkeleton';
 import type { QuestionsPreviewProps } from './ExamSolverModal.types';
 
 // Re-export for convenience
@@ -70,10 +70,11 @@ interface GroupedQuestion {
     questions: Array<{ text: string; originalIndex: number }>;
 }
 
-const groupSimilarQuestions = (questions: string[]): GroupedQuestion[] => {
+const groupSimilarQuestions = (questions: Array<{ text: string; originalIndex: number }>): GroupedQuestion[] => {
     const groups: Map<string, Array<{ text: string; originalIndex: number }>> = new Map();
     
-    questions.forEach((question, idx) => {
+    questions.forEach((questionObj) => {
+        const question = questionObj.text;
         // Estrai prefisso comune (prime 3-5 parole)
         const words = question.trim().split(/\s+/).slice(0, 5);
         const prefix = words.join(' ').toLowerCase();
@@ -84,14 +85,14 @@ const groupSimilarQuestions = (questions: string[]): GroupedQuestion[] => {
             // Se il prefisso inizia con quello esistente o viceversa
             if (prefix.startsWith(existingPrefix.substring(0, 20)) || 
                 existingPrefix.startsWith(prefix.substring(0, 20))) {
-                group.push({ text: question, originalIndex: idx });
+                group.push({ text: question, originalIndex: questionObj.originalIndex });
                 foundGroup = true;
                 break;
             }
         }
         
         if (!foundGroup) {
-            groups.set(prefix, [{ text: question, originalIndex: idx }]);
+            groups.set(prefix, [{ text: question, originalIndex: questionObj.originalIndex }]);
         }
     });
     
@@ -180,48 +181,19 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
     const [useGrouping, setUseGrouping] = useState(true);
-    const [streamingQuestions, setStreamingQuestions] = useState<string[]>([]);
-    const [isStreaming, setIsStreaming] = useState(false);
-    const streamingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const hasQuestionsRef = useRef(false);
+
+    // Track quando le domande arrivano per forzare re-render
+    useEffect(() => {
+        if (questions.length > 0) {
+            hasQuestionsRef.current = true;
+        }
+    }, [questions.length]);
 
     // Keyboard shortcuts
     useKeyboardShortcuts(questions, selectedIndices, onSelectionChange, focusedIndex, setFocusedIndex);
 
-    // Streaming simulato quando le domande arrivano
-    useEffect(() => {
-        if (isLoading && questions.length === 0) {
-            // Reset streaming quando inizia il loading
-            setStreamingQuestions([]);
-            setIsStreaming(false);
-        } else if (!isLoading && questions.length > 0 && streamingQuestions.length === 0) {
-            // Inizia streaming quando le domande arrivano
-            setIsStreaming(true);
-            setStreamingQuestions([]);
-            
-            // Simula streaming: aggiungi una domanda ogni 300ms
-            let currentIndex = 0;
-            streamingTimerRef.current = setInterval(() => {
-                if (currentIndex < questions.length) {
-                    setStreamingQuestions(prev => [...prev, questions[currentIndex]]);
-                    currentIndex++;
-                } else {
-                    if (streamingTimerRef.current) {
-                        clearInterval(streamingTimerRef.current);
-                        streamingTimerRef.current = null;
-                    }
-                    setIsStreaming(false);
-                }
-            }, 300);
-        }
-
-        return () => {
-            if (streamingTimerRef.current) {
-                clearInterval(streamingTimerRef.current);
-            }
-        };
-    }, [isLoading, questions.length]);
-
-    // Filtra domande basandosi sulla ricerca (usa sempre questions per il filtro)
+    // Filtra domande basandosi sulla ricerca
     const filteredQuestions = useMemo(() => {
         if (!searchQuery.trim()) {
             return questions.map((q, idx) => ({ text: q, originalIndex: idx }));
@@ -233,31 +205,18 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
             .filter(({ text }) => text.toLowerCase().includes(query));
     }, [questions, searchQuery]);
 
-    // Per lo streaming, mostra solo le domande già "arrivate"
-    const displayQuestions = useMemo(() => {
-        if (isStreaming && streamingQuestions.length > 0) {
-            // Filtra solo le domande che sono già arrivate nello streaming
-            return questions.filter((_, idx) => idx < streamingQuestions.length);
-        }
-        return questions;
-    }, [isStreaming, streamingQuestions, questions]);
-
-    // Raggruppa domande se abilitato (solo quando non in streaming)
+    // Raggruppa domande se abilitato
     const groupedQuestions = useMemo(() => {
-        if (isStreaming || !useGrouping || filteredQuestions.length < 5) {
+        if (!useGrouping || filteredQuestions.length < 5) {
             return null;
         }
-        return groupSimilarQuestions(filteredQuestions.map(q => q.text));
-    }, [filteredQuestions, useGrouping, isStreaming]);
+        return groupSimilarQuestions(filteredQuestions);
+    }, [filteredQuestions, useGrouping]);
 
-    // Calcola statistiche (usa displayQuestions durante streaming)
+    // Calcola statistiche
     const filteredSelectedCount = useMemo(() => {
-        if (isStreaming) {
-            // Durante streaming, conta solo le domande già arrivate
-            return displayQuestions.filter((_, idx) => selectedIndices.has(idx)).length;
-        }
         return filteredQuestions.filter(q => selectedIndices.has(q.originalIndex)).length;
-    }, [filteredQuestions, selectedIndices, isStreaming, displayQuestions]);
+    }, [filteredQuestions, selectedIndices]);
 
     // Handlers
     const handleToggleSelection = useCallback((index: number) => {
@@ -271,68 +230,44 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
     }, [selectedIndices, onSelectionChange]);
 
     const handleSelectAll = useCallback(() => {
-        const questionsToUse = isStreaming ? displayQuestions : filteredQuestions;
-        const countToUse = isStreaming ? displayQuestions.length : filteredQuestions.length;
-        
-        if (filteredSelectedCount === countToUse) {
+        if (filteredSelectedCount === filteredQuestions.length) {
             // Deseleziona tutte
             const newSelected = new Set(selectedIndices);
-            if (isStreaming) {
-                displayQuestions.forEach((_, idx) => newSelected.delete(idx));
-            } else {
-                questionsToUse.forEach(q => newSelected.delete(q.originalIndex));
-            }
+            filteredQuestions.forEach(q => newSelected.delete(q.originalIndex));
             onSelectionChange(newSelected);
         } else {
             // Seleziona tutte
             const newSelected = new Set(selectedIndices);
-            if (isStreaming) {
-                displayQuestions.forEach((_, idx) => newSelected.add(idx));
-            } else {
-                questionsToUse.forEach(q => newSelected.add(q.originalIndex));
-            }
+            filteredQuestions.forEach(q => newSelected.add(q.originalIndex));
             onSelectionChange(newSelected);
         }
-    }, [filteredQuestions, filteredSelectedCount, selectedIndices, onSelectionChange, isStreaming, displayQuestions]);
+    }, [filteredQuestions, filteredSelectedCount, selectedIndices, onSelectionChange]);
 
     const handleInvertSelection = useCallback(() => {
         const newSelected = new Set(selectedIndices);
-        if (isStreaming) {
-            displayQuestions.forEach((_, idx) => {
-                if (newSelected.has(idx)) {
-                    newSelected.delete(idx);
-                } else {
-                    newSelected.add(idx);
-                }
-            });
-        } else {
-            filteredQuestions.forEach(q => {
-                if (newSelected.has(q.originalIndex)) {
-                    newSelected.delete(q.originalIndex);
-                } else {
-                    newSelected.add(q.originalIndex);
-                }
-            });
-        }
+        filteredQuestions.forEach(q => {
+            if (newSelected.has(q.originalIndex)) {
+                newSelected.delete(q.originalIndex);
+            } else {
+                newSelected.add(q.originalIndex);
+            }
+        });
         onSelectionChange(newSelected);
-    }, [filteredQuestions, selectedIndices, onSelectionChange, isStreaming, displayQuestions]);
+    }, [filteredQuestions, selectedIndices, onSelectionChange]);
 
     // Render item
     const renderQuestionItem = useCallback((
-        item: { text: string; originalIndex: number } | string,
+        item: { text: string; originalIndex: number },
         displayIndex: number
     ) => {
-        // Gestisci sia oggetto che stringa (per streaming)
-        const questionText = typeof item === 'string' ? item : item.text;
-        const originalIndex = typeof item === 'string' ? displayIndex : item.originalIndex;
-        const isSelected = selectedIndices.has(originalIndex);
+        const isSelected = selectedIndices.has(item.originalIndex);
         
         return (
             <motion.label
-                key={item.originalIndex}
+                key={`question-${item.originalIndex}`}
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: displayIndex * 0.01 }}
+                transition={{ delay: displayIndex * 0.02 }}
                 onMouseEnter={() => setFocusedIndex(item.originalIndex)}
                 onMouseLeave={() => setFocusedIndex(null)}
                 className={`
@@ -359,18 +294,24 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                 </div>
                 <div className="flex-1">
                     <p className="text-sm text-white/90 leading-relaxed">
-                        {questionText}
+                        {item.text}
                     </p>
                 </div>
                 <input
                     type="checkbox"
                     checked={isSelected}
-                    onChange={() => handleToggleSelection(originalIndex)}
+                    onChange={() => handleToggleSelection(item.originalIndex)}
                     className="hidden"
                 />
             </motion.label>
         );
     }, [selectedIndices, focusedIndex, handleToggleSelection]);
+
+    // Determina cosa mostrare
+    const showSkeleton = isLoading && questions.length === 0;
+    const showEmpty = !isLoading && questions.length === 0;
+    const showQuestions = !isLoading && questions.length > 0 && filteredQuestions.length > 0;
+    const showNoResults = !isLoading && questions.length > 0 && filteredQuestions.length === 0 && searchQuery.trim() !== '';
 
     return (
         <motion.div
@@ -383,18 +324,10 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-lg font-semibold text-white">
-                            {isLoading && questions.length === 0 
-                                ? 'Estrazione in corso...' 
-                                : isStreaming 
-                                ? 'Domande in arrivo...' 
-                                : 'Domande Estratte'
-                            }
+                            {isLoading ? 'Estrazione in corso...' : 'Domande Estratte'}
                         </h3>
                         <p className="text-xs text-white/50 mt-1">
-                            {isStreaming 
-                                ? `${displayQuestions.length} di ${questions.length} arrivate`
-                                : `${questions.length} domande totali`
-                            }
+                            {questions.length} domande totali
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -404,10 +337,7 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                             className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/30"
                         >
                             <span className="text-sm font-semibold text-amber-300">
-                                {isStreaming 
-                                    ? `${displayQuestions.length} di ${questions.length} arrivate`
-                                    : `${filteredSelectedCount} di ${filteredQuestions.length} selezionate`
-                                }
+                                {filteredSelectedCount} di {filteredQuestions.length} selezionate
                             </span>
                         </motion.div>
                     </div>
@@ -451,105 +381,88 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                 </div>
             </div>
 
-            {/* Lista domande */}
+            {/* Lista domande - LOGICA SEMPLIFICATA */}
             <div className="max-h-96 overflow-y-auto custom-scrollbar">
-                <AnimatePresence mode="wait">
-                    {/* Skeleton durante loading iniziale */}
-                    {isLoading && questions.length === 0 ? (
-                        <motion.div
-                            key="skeleton"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            <QuestionsSkeleton count={8} isLoading={true} />
-                        </motion.div>
-                    ) : isStreaming && questions.length > 0 ? (
-                        <motion.div
-                            key="streaming"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            <StreamingSkeleton
-                                totalCount={questions.length}
-                                currentCount={streamingQuestions.length}
-                                questions={streamingQuestions}
-                            />
-                        </motion.div>
-                    ) : isStreaming && displayQuestions.length > 0 ? (
-                        <motion.div
-                            key="streaming-list"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="space-y-2"
-                        >
-                            {displayQuestions.map((question, idx) => 
-                                renderQuestionItem(question, idx)
-                            )}
-                            {streamingQuestions.length < questions.length && (
-                                <QuestionsSkeleton 
-                                    count={Math.min(3, questions.length - streamingQuestions.length)} 
-                                    isLoading={true} 
-                                />
-                            )}
-                        </motion.div>
-                    ) : groupedQuestions && groupedQuestions.length > 0 ? (
-                        <motion.div
-                            key="grouped"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="space-y-4"
-                        >
-                            {groupedQuestions.map((group, groupIdx) => (
-                                <div key={groupIdx} className="space-y-2">
-                                    {group.questions.length > 1 && (
-                                        <div className="px-3 py-1.5 rounded-lg bg-zinc-800/40 border border-white/5">
-                                            <p className="text-xs font-medium text-white/60">
-                                                {group.questions.length} domande simili
-                                            </p>
-                                        </div>
-                                    )}
-                                    <div className="space-y-2">
-                                        {group.questions.map((item) => 
-                                            renderQuestionItem(item, item.originalIndex)
+                {/* Skeleton - solo durante caricamento iniziale */}
+                {showSkeleton && (
+                    <motion.div
+                        key="skeleton"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <QuestionsSkeleton count={8} isLoading={true} />
+                    </motion.div>
+                )}
+
+                {/* Messaggio vuoto - nessuna domanda estratta */}
+                {showEmpty && (
+                    <motion.div
+                        key="empty"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-center py-8"
+                    >
+                        <p className="text-sm text-white/50">
+                            Nessuna domanda estratta
+                        </p>
+                    </motion.div>
+                )}
+
+                {/* Nessun risultato dalla ricerca */}
+                {showNoResults && (
+                    <motion.div
+                        key="no-results"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-center py-8"
+                    >
+                        <p className="text-sm text-white/50">
+                            Nessuna domanda trovata per &quot;{searchQuery}&quot;
+                        </p>
+                    </motion.div>
+                )}
+
+                {/* DOMANDE - Renderizzate sempre quando disponibili */}
+                {showQuestions && (
+                    <motion.div
+                        key={`questions-${questions.length}-${hasQuestionsRef.current}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-2"
+                    >
+                        {groupedQuestions && groupedQuestions.length > 0 ? (
+                            // Domande raggruppate
+                            <div className="space-y-4">
+                                {groupedQuestions.map((group, groupIdx) => (
+                                    <div key={`group-${groupIdx}`} className="space-y-2">
+                                        {group.questions.length > 1 && (
+                                            <div className="px-3 py-1.5 rounded-lg bg-zinc-800/40 border border-white/5">
+                                                <p className="text-xs font-medium text-white/60">
+                                                    {group.questions.length} domande simili
+                                                </p>
+                                            </div>
                                         )}
+                                        <div className="space-y-2">
+                                            {group.questions.map((item, idx) => 
+                                                renderQuestionItem(item, item.originalIndex)
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </motion.div>
-                    ) : (
-                        <motion.div
-                            key="flat"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                        >
+                                ))}
+                            </div>
+                        ) : (
+                            // Lista piatta normale
                             <VirtualizedList
                                 items={filteredQuestions}
                                 renderItem={renderQuestionItem}
                             />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                        )}
+                    </motion.div>
+                )}
             </div>
-
-            {/* Messaggio se nessuna domanda trovata */}
-            {filteredQuestions.length === 0 && searchQuery && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-center py-8"
-                >
-                    <p className="text-sm text-white/50">
-                        Nessuna domanda trovata per &quot;{searchQuery}&quot;
-                    </p>
-                </motion.div>
-            )}
 
             {/* Error message */}
             {error && (
