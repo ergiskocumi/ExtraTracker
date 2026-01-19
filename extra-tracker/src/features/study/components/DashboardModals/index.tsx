@@ -2,7 +2,7 @@ import React from 'react';
 import { CreateDeckModal } from '../Modals/CreateDeckModal';
 import { AddCardModal } from '../AddCardModal';
 import { MagicGenerateModal } from '../Modals/MagicGenerateModal';
-import { ExamSolverModal, type ExamSolverStats } from '../Modals/ExamSolverModal';
+import { ExamSolverModal, type ExamSolverStats } from '../Modals/ExamSolver';
 import { StudyModeSelector, type StudyMode } from '../Modals/StudyModeSelector';
 import { ConfirmationModal } from '../../../../shared/components/ConfirmationModal';
 import type { Deck, CreateDeckPayload, AddCardPayload } from '../../services/studyService';

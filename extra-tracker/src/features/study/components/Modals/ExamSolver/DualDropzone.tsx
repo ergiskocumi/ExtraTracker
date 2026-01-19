@@ -8,21 +8,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileQuestion, BookOpen, Trash2 } from 'lucide-react';
+import type { DropzoneConfig } from './ExamSolverModal.types';
 
-// ============================================
-// TYPES
-// ============================================
-
-export interface DropzoneConfig {
-    id: 'questions' | 'source';
-    label: string;
-    icon: React.ElementType;
-    acceptedTypes: string[];
-    acceptedExtensions: string[];
-    file: File | null;
-    onFileSelect: (file: File) => void;
-    onFileRemove: () => void;
-}
+// Re-export for convenience
+export type { DropzoneConfig };
 
 interface DualDropzoneProps {
     questionsConfig: DropzoneConfig;

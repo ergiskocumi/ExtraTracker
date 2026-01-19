@@ -6,16 +6,10 @@
  */
 
 import { motion, AnimatePresence } from 'framer-motion';
+import type { QuestionsSkeletonProps, StreamingSkeletonProps } from './ExamSolverModal.types';
 
-// ============================================
-// TYPES
-// ============================================
-
-export interface QuestionsSkeletonProps {
-    count?: number;
-    isLoading: boolean;
-    onStreamingComplete?: () => void;
-}
+// Re-export for convenience
+export type { QuestionsSkeletonProps, StreamingSkeletonProps };
 
 // ============================================
 // COMPONENT
@@ -94,13 +88,6 @@ export const QuestionsSkeleton: React.FC<QuestionsSkeletonProps> = ({
 // ============================================
 // STREAMING SKELETON (Variante Avanzata)
 // ============================================
-
-interface StreamingSkeletonProps {
-    totalCount: number;
-    currentCount: number;
-    questions: string[];
-    onComplete?: () => void;
-}
 
 export const StreamingSkeleton: React.FC<StreamingSkeletonProps> = ({
     totalCount,

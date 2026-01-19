@@ -10,23 +10,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Search, Check, Loader2, AlertCircle } from 'lucide-react';
 import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
+import type { ManualAnswerEditorProps, FlashcardWithId } from './ExamSolverModal.types';
 
-// ============================================
-// TYPES
-// ============================================
-
-export interface FlashcardWithId {
-    id: string;
-    front: string;
-    back: string;
-    found: boolean;
-}
-
-interface ManualAnswerEditorProps {
-    flashcards: FlashcardWithId[];
-    deckId: string;
-    onSave?: () => void;
-}
+// Re-export for convenience
+export type { ManualAnswerEditorProps, FlashcardWithId };
 
 // ============================================
 // COMPONENT

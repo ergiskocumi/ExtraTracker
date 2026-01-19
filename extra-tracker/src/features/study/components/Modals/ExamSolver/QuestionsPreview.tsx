@@ -13,20 +13,10 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, Square, Search, AlertCircle, RotateCcw } from 'lucide-react';
 import { QuestionsSkeleton, StreamingSkeleton } from './QuestionsSkeleton';
+import type { QuestionsPreviewProps } from './ExamSolverModal.types';
 
-// ============================================
-// TYPES
-// ============================================
-
-export interface QuestionsPreviewProps {
-    questions: string[];
-    selectedIndices: Set<number>;
-    onSelectionChange: (indices: Set<number>) => void;
-    onBack: () => void;
-    onNext: () => void;
-    error: string | null;
-    isLoading?: boolean; // Se true, mostra skeleton durante estrazione
-}
+// Re-export for convenience
+export type { QuestionsPreviewProps };
 
 // ============================================
 // HOOK: useKeyboardShortcuts

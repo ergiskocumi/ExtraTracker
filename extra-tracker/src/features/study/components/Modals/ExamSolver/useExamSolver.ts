@@ -9,21 +9,15 @@ import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
 import goalsService from '../../../../goals/services/goalsService';
 import type { Goal } from '../../../../goals/types';
-import type { ExamSolverStats } from '../ExamSolverModal';
+import type { 
+    ExamSolverStats, 
+    Step, 
+    ProgressStep, 
+    FlashcardWithId 
+} from './ExamSolverModal.types';
 
-// ============================================
-// TYPES
-// ============================================
-
-export type Step = 'upload' | 'preview' | 'config' | 'progress' | 'completed';
-export type ProgressStep = 'idle' | 'extracting' | 'analyzing' | 'generating' | 'completed' | 'error';
-
-export interface FlashcardWithId {
-    id: string;
-    front: string;
-    back: string;
-    found: boolean;
-}
+// Re-export types for convenience
+export type { Step, ProgressStep, FlashcardWithId };
 
 export interface UseExamSolverProps {
     isOpen: boolean;

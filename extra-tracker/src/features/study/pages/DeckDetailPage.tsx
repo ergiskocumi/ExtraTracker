@@ -33,7 +33,7 @@ import { DeckAnalytics } from '../components/Deck/DeckAnalytics';
 import { DeckSettings } from '../components/Deck/DeckSettings';
 import { DeckNotifications } from '../components/Deck/DeckNotifications';
 import { FlashcardList } from '../components/Flashcard/FlashcardList';
-import { ExamSolverModal, type ExamSolverStats } from '../components/Modals/ExamSolverModal';
+import { ExamSolverModal, type ExamSolverStats } from '../components/Modals/ExamSolver';
 
 // ============================================
 // FILTER TABS
