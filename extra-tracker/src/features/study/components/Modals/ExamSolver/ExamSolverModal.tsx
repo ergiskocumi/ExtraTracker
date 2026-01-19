@@ -66,7 +66,6 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         extractQuestions,
         generateAnswers,
         handleNextFromPreview,
-        handleApproveCard,
         handleEditCard,
         handleRegenerateCard,
         handleSaveReview,
@@ -264,7 +263,6 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                             <ReviewAnswers
                                 flashcards={generatedFlashcards}
                                 deckId={createdDeckId}
-                                onApprove={handleApproveCard}
                                 onEdit={handleEditCard}
                                 onRegenerate={handleRegenerateCard}
                                 onSave={handleSaveReview}

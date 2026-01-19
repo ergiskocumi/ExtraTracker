@@ -4,7 +4,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, AlertCircle, Edit2, RefreshCw, Save, ArrowLeft, Check, FileText, ExternalLink } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Edit2, RefreshCw, Save, ArrowLeft, FileText, ExternalLink } from 'lucide-react';
 import { SourceViewer } from './SourceViewer';
 import { studyService } from '../../../../services/studyService';
 import { emitToast } from '../../../../../../shared/components/toast';
@@ -18,7 +18,6 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
     flashcards,
     deckId,
     sourceFileUrl,
-    onApprove,
     onEdit,
     onRegenerate,
     onSave,
@@ -26,7 +25,6 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
 }) => {
     const [editingCardId, setEditingCardId] = useState<string | null>(null);
     const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
-    const [approvedCards, setApprovedCards] = useState<Set<string>>(new Set());
     const [savingStates, setSavingStates] = useState<Record<string, 'idle' | 'saving' | 'saved'>>({});
     const [regeneratingCards, setRegeneratingCards] = useState<Set<string>>(new Set());
     
@@ -87,10 +85,8 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
         }
     }, []);
 
-    // Conta risposte approvate
-    const approvedCount = approvedCards.size;
-    const totalCount = flashcards.length;
-    const canSave = approvedCount >= 1;
+    // Il salvataggio è sempre disponibile
+    const canSave = flashcards.length > 0;
 
     // Gestione modifica
     const handleEdit = useCallback((cardId: string) => {
@@ -141,19 +137,6 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
         }
     }, [flashcards]);
 
-    // Gestione approvazione
-    const handleApprove = useCallback((cardId: string) => {
-        setApprovedCards(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(cardId)) {
-                newSet.delete(cardId);
-            } else {
-                newSet.add(cardId);
-            }
-            return newSet;
-        });
-        onApprove(cardId);
-    }, [onApprove]);
 
     // Gestione rigenerazione
     const handleRegenerate = useCallback(async (card: FlashcardWithId) => {
@@ -202,7 +185,6 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                     const confidence = card.confidence ?? 0;
                     const confidenceBadge = getConfidenceBadge(confidence);
                     const isEditing = editingCardId === card.id;
-                    const isApproved = approvedCards.has(card.id);
                     const isRegenerating = regeneratingCards.has(card.id);
                     const savingState = savingStates[card.id] || 'idle';
                     const currentAnswer = editedAnswers[card.id] || card.back;
@@ -213,11 +195,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
-                            className={`p-4 rounded-xl border transition-all ${
-                                isApproved
-                                    ? 'bg-emerald-500/10 border-emerald-500/30'
-                                    : 'bg-zinc-900/60 border-white/5'
-                            }`}
+                            className="p-4 rounded-xl border bg-zinc-900/60 border-white/5 transition-all"
                         >
                             {/* Badge Status */}
                             <div className="flex items-center justify-between mb-3">
@@ -236,12 +214,6 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${confidenceBadge.bg} border ${confidenceBadge.border} ${confidenceBadge.text} text-xs font-medium`}>
                                         {confidenceBadge.label} ({confidence}%)
                                     </span>
-                                    {isApproved && (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary-500/20 border border-primary-500/30 text-primary-300 text-xs font-medium">
-                                            <Check className="w-3.5 h-3.5" />
-                                            Approvata
-                                        </span>
-                                    )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {!isEditing ? (
@@ -260,16 +232,6 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                                 title="Rigenera"
                                             >
                                                 <RefreshCw className={`w-4 h-4 text-white/60 ${isRegenerating ? 'animate-spin' : ''}`} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleApprove(card.id)}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                                                    isApproved
-                                                        ? 'bg-primary-500/20 text-primary-300 border border-primary-500/30'
-                                                        : 'bg-zinc-800 hover:bg-zinc-700 text-white/70'
-                                                }`}
-                                            >
-                                                {isApproved ? 'Rimuovi' : 'Approva'}
                                             </button>
                                         </>
                                     ) : (
@@ -372,10 +334,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
 
             {/* Footer */}
             <div className="pt-4 border-t border-white/5">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="text-sm text-white/70">
-                        <span className="font-semibold text-white">{approvedCount}</span> / {totalCount} risposte approvate
-                    </div>
+                <div className="flex items-center justify-end mb-4">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onBack}

@@ -77,7 +77,6 @@ export interface UseExamSolverReturn {
     extractQuestions: () => Promise<void>;
     generateAnswers: () => Promise<void>;
     handleNextFromPreview: () => void;
-    handleApproveCard: (cardId: string) => void;
     handleEditCard: (cardId: string, newAnswer: string) => void;
     handleRegenerateCard: (cardId: string, question: string) => Promise<void>;
     handleSaveReview: () => void;
@@ -434,12 +433,6 @@ export const useExamSolver = ({
     // REVIEW ACTIONS
     // ============================================
 
-    const handleApproveCard = useCallback((cardId: string) => {
-        // L'approvazione è gestita localmente nel componente ReviewAnswers
-        // Questa funzione può essere usata per logging o altre azioni
-        console.log('Card approved:', cardId);
-    }, []);
-
     const handleEditCard = useCallback((cardId: string, newAnswer: string) => {
         // Aggiorna la flashcard locale
         setGeneratedFlashcards(prev => 
@@ -639,14 +632,13 @@ export const useExamSolver = ({
         createdDeckId,
         generatedFlashcards,
         
-        // Actions
-        extractQuestions,
-        generateAnswers,
-        handleNextFromPreview,
-        handleApproveCard,
-        handleEditCard,
-        handleRegenerateCard,
-        handleSaveReview,
+    // Actions
+    extractQuestions,
+    generateAnswers,
+    handleNextFromPreview,
+    handleEditCard,
+    handleRegenerateCard,
+    handleSaveReview,
         
         // Error
         error,

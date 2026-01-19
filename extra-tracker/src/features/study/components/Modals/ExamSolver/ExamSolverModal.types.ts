@@ -160,7 +160,6 @@ export interface ReviewAnswersProps {
     flashcards: FlashcardWithId[];
     deckId: string;
     sourceFileUrl?: string; // URL del PDF sorgente per "Visualizza nel PDF"
-    onApprove: (cardId: string) => void;
     onEdit: (cardId: string, newAnswer: string) => void;
     onRegenerate: (cardId: string, question: string) => Promise<void>;
     onSave: () => void;
