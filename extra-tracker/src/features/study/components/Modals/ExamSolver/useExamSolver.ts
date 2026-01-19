@@ -18,6 +18,13 @@ import type { ExamSolverStats } from '../ExamSolverModal';
 export type Step = 'upload' | 'preview' | 'config' | 'progress' | 'completed';
 export type ProgressStep = 'idle' | 'extracting' | 'analyzing' | 'generating' | 'completed' | 'error';
 
+export interface FlashcardWithId {
+    id: string;
+    front: string;
+    back: string;
+    found: boolean;
+}
+
 export interface UseExamSolverProps {
     isOpen: boolean;
     existingDecks: Array<{ id: string; title: string }>;
@@ -62,6 +69,9 @@ export interface UseExamSolverReturn {
     progressMessage: string;
     stats: ExamSolverStats | null;
     createdDeckId: string;
+    
+    // Generated flashcards (per editing manuale)
+    generatedFlashcards: FlashcardWithId[];
     
     // Actions
     extractQuestions: () => Promise<void>;
@@ -115,6 +125,7 @@ export const useExamSolver = ({
     const [progressMessage, setProgressMessage] = useState('');
     const [stats, setStats] = useState<ExamSolverStats | null>(null);
     const [createdDeckId, setCreatedDeckId] = useState<string>('');
+    const [generatedFlashcards, setGeneratedFlashcards] = useState<FlashcardWithId[]>([]);
     
     // Error
     const [error, setError] = useState<string | null>(null);
@@ -152,6 +163,7 @@ export const useExamSolver = ({
             setStats(null);
             setError(null);
             setCreatedDeckId('');
+            setGeneratedFlashcards([]);
             startTimeRef.current = null;
             
             if (timerRef.current) {
@@ -227,6 +239,8 @@ export const useExamSolver = ({
         if (!questionsFile || !sourceFile) return;
 
         try {
+            // Passa subito allo step preview per mostrare skeleton
+            setCurrentStep('preview');
             setProgressStep('extracting');
             setProgressMessage('Estrazione domande...');
             setError(null);
@@ -239,7 +253,7 @@ export const useExamSolver = ({
             setSelectedQuestions(new Set(result.questions.map((_, idx) => idx)));
             
             setProgressStep('idle');
-            setCurrentStep('preview');
+            setProgressMessage('');
         } catch (err: any) {
             setProgressStep('error');
             setError(err.message || 'Errore durante l\'estrazione delle domande');
@@ -308,6 +322,9 @@ export const useExamSolver = ({
             setProgressMessage('Completato!');
             setStats(result.stats);
             setCreatedDeckId(result.deck.id);
+            
+            // Salva le flashcard generate con ID per editing manuale
+            setGeneratedFlashcards(result.flashcards || []);
 
             // Auto-close dopo 2 secondi se non ci sono risposte non trovate
             if (result.stats.answersNotFound === 0) {
@@ -419,6 +436,7 @@ export const useExamSolver = ({
         progressMessage,
         stats,
         createdDeckId,
+        generatedFlashcards,
         
         // Actions
         extractQuestions,

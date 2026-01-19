@@ -175,6 +175,49 @@ class StudyService extends BaseService {
         return deck;
     }
 
+    /**
+     * ✏️ Aggiorna solo la risposta (back) di una flashcard
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} deckId - ID del deck
+     * @param {string} cardId - ID della card
+     * @param {string} answer - Nuova risposta
+     * @returns {Promise<object>} - Deck aggiornato
+     */
+    async updateCardAnswer(tenantScope, deckId, cardId, answer) {
+        const userId = this._getUserId(tenantScope);
+
+        // Validazione
+        if (!answer || typeof answer !== 'string') {
+            throw AppError.validation('La risposta è obbligatoria');
+        }
+        if (answer.trim().length < 10) {
+            throw AppError.validation('La risposta deve contenere almeno 10 caratteri');
+        }
+        if (answer.trim().length > 1000) {
+            throw AppError.validation('La risposta non può superare 1000 caratteri');
+        }
+
+        const deck = await Deck.findOneAndUpdate(
+            {
+                _id: deckId,
+                user: userId,
+                'cards._id': cardId,
+            },
+            {
+                $set: {
+                    'cards.$.back': answer.trim(),
+                },
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo o carta');
+        }
+
+        return deck;
+    }
+
     async deleteCard(tenantScope, deckId, cardId) {
         const userId = this._getUserId(tenantScope);
 
@@ -2176,8 +2219,27 @@ Genera una risposta per OGNI domanda nella lista.`;
 
         const processingTimeMs = Date.now() - startTime;
 
+        // Prepara flashcard con ID per il frontend (per editing manuale)
+        // Ricarica il deck per ottenere gli ID delle card appena aggiunte
+        const savedDeck = await Deck.findById(deck._id);
+        if (!savedDeck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        // Le card sono state aggiunte alla fine, quindi prendiamo le ultime N card
+        const totalCardsBefore = savedDeck.cards.length - allFlashcards.length;
+        const flashcardsWithIds = savedDeck.cards
+            .slice(totalCardsBefore) // Prendi solo le card appena aggiunte
+            .map((card, idx) => ({
+                id: card._id.toString(),
+                front: card.front,
+                back: card.back,
+                found: allFlashcards[idx]?.found || false,
+            }));
+
         return {
-            deck: deck.toJSON(),
+            deck: savedDeck.toJSON(),
+            flashcards: flashcardsWithIds, // Aggiungi flashcard con ID
             stats: {
                 questionsExtracted: selectedQuestions.length,
                 answersFound,

@@ -609,13 +609,17 @@ class StudyService {
      * @param sourceFile - File PDF con il materiale di studio
      * @param selectedQuestions - Array di domande selezionate dall'utente
      * @param options - Opzioni { deckId?, title?, goalId? }
-     * @returns Deck e statistiche
+     * @returns Deck, flashcard con ID e statistiche
      */
     async generateExamAnswers(
         sourceFile: File,
         selectedQuestions: string[],
         options: { deckId?: string; title?: string; goalId?: string } = {}
-    ): Promise<{ deck: Deck; stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number } }> {
+    ): Promise<{ 
+        deck: Deck; 
+        flashcards: Array<{ id: string; front: string; back: string; found: boolean }>;
+        stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number } 
+    }> {
         console.log('📤 Uploading source file and generating answers...');
 
         const formData = new FormData();

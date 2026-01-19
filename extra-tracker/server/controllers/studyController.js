@@ -115,6 +115,30 @@ const updateCard = asyncHandler(async (req, res) => {
 });
 
 /**
+ * PATCH /api/study/:id/cards/:cardId/answer
+ * Aggiorna solo la risposta (back) di una flashcard
+ */
+const updateCardAnswer = asyncHandler(async (req, res) => {
+    const { answer } = req.body;
+    
+    if (!answer || typeof answer !== 'string') {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'La risposta è obbligatoria' }
+        });
+    }
+
+    const deck = await studyService.updateCardAnswer(
+        req.tenantScope,
+        req.params.id,
+        req.params.cardId,
+        answer
+    );
+
+    res.json({ success: true, data: deck });
+});
+
+/**
  * DELETE /api/study/:id/cards/:cardId
  * Elimina una card da un mazzo
  */
@@ -680,6 +704,7 @@ module.exports = {
     addCard,
     addCardAtPosition,
     updateCard,
+    updateCardAnswer,
     deleteCard,
     reorderCards,
     getDashboard,

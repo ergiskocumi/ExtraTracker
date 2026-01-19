@@ -12,6 +12,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, Square, Search, AlertCircle, RotateCcw } from 'lucide-react';
+import { QuestionsSkeleton, StreamingSkeleton } from './QuestionsSkeleton';
 
 // ============================================
 // TYPES
@@ -24,6 +25,7 @@ export interface QuestionsPreviewProps {
     onBack: () => void;
     onNext: () => void;
     error: string | null;
+    isLoading?: boolean; // Se true, mostra skeleton durante estrazione
 }
 
 // ============================================
@@ -183,15 +185,53 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
     onBack,
     onNext,
     error,
+    isLoading = false,
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
     const [useGrouping, setUseGrouping] = useState(true);
+    const [streamingQuestions, setStreamingQuestions] = useState<string[]>([]);
+    const [isStreaming, setIsStreaming] = useState(false);
+    const streamingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Keyboard shortcuts
     useKeyboardShortcuts(questions, selectedIndices, onSelectionChange, focusedIndex, setFocusedIndex);
 
-    // Filtra domande basandosi sulla ricerca
+    // Streaming simulato quando le domande arrivano
+    useEffect(() => {
+        if (isLoading && questions.length === 0) {
+            // Reset streaming quando inizia il loading
+            setStreamingQuestions([]);
+            setIsStreaming(false);
+        } else if (!isLoading && questions.length > 0 && streamingQuestions.length === 0) {
+            // Inizia streaming quando le domande arrivano
+            setIsStreaming(true);
+            setStreamingQuestions([]);
+            
+            // Simula streaming: aggiungi una domanda ogni 300ms
+            let currentIndex = 0;
+            streamingTimerRef.current = setInterval(() => {
+                if (currentIndex < questions.length) {
+                    setStreamingQuestions(prev => [...prev, questions[currentIndex]]);
+                    currentIndex++;
+                } else {
+                    if (streamingTimerRef.current) {
+                        clearInterval(streamingTimerRef.current);
+                        streamingTimerRef.current = null;
+                    }
+                    setIsStreaming(false);
+                }
+            }, 300);
+        }
+
+        return () => {
+            if (streamingTimerRef.current) {
+                clearInterval(streamingTimerRef.current);
+            }
+        };
+    }, [isLoading, questions.length]);
+
+    // Filtra domande basandosi sulla ricerca (usa sempre questions per il filtro)
     const filteredQuestions = useMemo(() => {
         if (!searchQuery.trim()) {
             return questions.map((q, idx) => ({ text: q, originalIndex: idx }));
@@ -203,18 +243,31 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
             .filter(({ text }) => text.toLowerCase().includes(query));
     }, [questions, searchQuery]);
 
-    // Raggruppa domande se abilitato
+    // Per lo streaming, mostra solo le domande già "arrivate"
+    const displayQuestions = useMemo(() => {
+        if (isStreaming && streamingQuestions.length > 0) {
+            // Filtra solo le domande che sono già arrivate nello streaming
+            return questions.filter((_, idx) => idx < streamingQuestions.length);
+        }
+        return questions;
+    }, [isStreaming, streamingQuestions, questions]);
+
+    // Raggruppa domande se abilitato (solo quando non in streaming)
     const groupedQuestions = useMemo(() => {
-        if (!useGrouping || filteredQuestions.length < 5) {
+        if (isStreaming || !useGrouping || filteredQuestions.length < 5) {
             return null;
         }
         return groupSimilarQuestions(filteredQuestions.map(q => q.text));
-    }, [filteredQuestions, useGrouping]);
+    }, [filteredQuestions, useGrouping, isStreaming]);
 
-    // Calcola statistiche
+    // Calcola statistiche (usa displayQuestions durante streaming)
     const filteredSelectedCount = useMemo(() => {
+        if (isStreaming) {
+            // Durante streaming, conta solo le domande già arrivate
+            return displayQuestions.filter((_, idx) => selectedIndices.has(idx)).length;
+        }
         return filteredQuestions.filter(q => selectedIndices.has(q.originalIndex)).length;
-    }, [filteredQuestions, selectedIndices]);
+    }, [filteredQuestions, selectedIndices, isStreaming, displayQuestions]);
 
     // Handlers
     const handleToggleSelection = useCallback((index: number) => {
@@ -228,37 +281,61 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
     }, [selectedIndices, onSelectionChange]);
 
     const handleSelectAll = useCallback(() => {
-        if (filteredSelectedCount === filteredQuestions.length) {
-            // Deseleziona tutte quelle filtrate
+        const questionsToUse = isStreaming ? displayQuestions : filteredQuestions;
+        const countToUse = isStreaming ? displayQuestions.length : filteredQuestions.length;
+        
+        if (filteredSelectedCount === countToUse) {
+            // Deseleziona tutte
             const newSelected = new Set(selectedIndices);
-            filteredQuestions.forEach(q => newSelected.delete(q.originalIndex));
+            if (isStreaming) {
+                displayQuestions.forEach((_, idx) => newSelected.delete(idx));
+            } else {
+                questionsToUse.forEach(q => newSelected.delete(q.originalIndex));
+            }
             onSelectionChange(newSelected);
         } else {
-            // Seleziona tutte quelle filtrate
+            // Seleziona tutte
             const newSelected = new Set(selectedIndices);
-            filteredQuestions.forEach(q => newSelected.add(q.originalIndex));
+            if (isStreaming) {
+                displayQuestions.forEach((_, idx) => newSelected.add(idx));
+            } else {
+                questionsToUse.forEach(q => newSelected.add(q.originalIndex));
+            }
             onSelectionChange(newSelected);
         }
-    }, [filteredQuestions, filteredSelectedCount, selectedIndices, onSelectionChange]);
+    }, [filteredQuestions, filteredSelectedCount, selectedIndices, onSelectionChange, isStreaming, displayQuestions]);
 
     const handleInvertSelection = useCallback(() => {
         const newSelected = new Set(selectedIndices);
-        filteredQuestions.forEach(q => {
-            if (newSelected.has(q.originalIndex)) {
-                newSelected.delete(q.originalIndex);
-            } else {
-                newSelected.add(q.originalIndex);
-            }
-        });
+        if (isStreaming) {
+            displayQuestions.forEach((_, idx) => {
+                if (newSelected.has(idx)) {
+                    newSelected.delete(idx);
+                } else {
+                    newSelected.add(idx);
+                }
+            });
+        } else {
+            filteredQuestions.forEach(q => {
+                if (newSelected.has(q.originalIndex)) {
+                    newSelected.delete(q.originalIndex);
+                } else {
+                    newSelected.add(q.originalIndex);
+                }
+            });
+        }
         onSelectionChange(newSelected);
-    }, [filteredQuestions, selectedIndices, onSelectionChange]);
+    }, [filteredQuestions, selectedIndices, onSelectionChange, isStreaming, displayQuestions]);
 
     // Render item
     const renderQuestionItem = useCallback((
-        item: { text: string; originalIndex: number },
+        item: { text: string; originalIndex: number } | string,
         displayIndex: number
     ) => {
-        const isSelected = selectedIndices.has(item.originalIndex);
+        // Gestisci sia oggetto che stringa (per streaming)
+        const questionText = typeof item === 'string' ? item : item.text;
+        const originalIndex = typeof item === 'string' ? displayIndex : item.originalIndex;
+        const isSelected = selectedIndices.has(originalIndex);
         
         return (
             <motion.label
@@ -292,13 +369,13 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                 </div>
                 <div className="flex-1">
                     <p className="text-sm text-white/90 leading-relaxed">
-                        {item.text}
+                        {questionText}
                     </p>
                 </div>
                 <input
                     type="checkbox"
                     checked={isSelected}
-                    onChange={() => handleToggleSelection(item.originalIndex)}
+                    onChange={() => handleToggleSelection(originalIndex)}
                     className="hidden"
                 />
             </motion.label>
@@ -316,10 +393,18 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-lg font-semibold text-white">
-                            Domande Estratte
+                            {isLoading && questions.length === 0 
+                                ? 'Estrazione in corso...' 
+                                : isStreaming 
+                                ? 'Domande in arrivo...' 
+                                : 'Domande Estratte'
+                            }
                         </h3>
                         <p className="text-xs text-white/50 mt-1">
-                            {questions.length} domande totali
+                            {isStreaming 
+                                ? `${displayQuestions.length} di ${questions.length} arrivate`
+                                : `${questions.length} domande totali`
+                            }
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -329,7 +414,10 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                             className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/30"
                         >
                             <span className="text-sm font-semibold text-amber-300">
-                                {filteredSelectedCount} di {filteredQuestions.length} selezionate
+                                {isStreaming 
+                                    ? `${displayQuestions.length} di ${questions.length} arrivate`
+                                    : `${filteredSelectedCount} di ${filteredQuestions.length} selezionate`
+                                }
                             </span>
                         </motion.div>
                     </div>
@@ -376,7 +464,50 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
             {/* Lista domande */}
             <div className="max-h-96 overflow-y-auto custom-scrollbar">
                 <AnimatePresence mode="wait">
-                    {groupedQuestions && groupedQuestions.length > 0 ? (
+                    {/* Skeleton durante loading iniziale */}
+                    {isLoading && questions.length === 0 ? (
+                        <motion.div
+                            key="skeleton"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <QuestionsSkeleton count={8} isLoading={true} />
+                        </motion.div>
+                    ) : isStreaming && questions.length > 0 ? (
+                        <motion.div
+                            key="streaming"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <StreamingSkeleton
+                                totalCount={questions.length}
+                                currentCount={streamingQuestions.length}
+                                questions={streamingQuestions}
+                            />
+                        </motion.div>
+                    ) : isStreaming && displayQuestions.length > 0 ? (
+                        <motion.div
+                            key="streaming-list"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="space-y-2"
+                        >
+                            {displayQuestions.map((question, idx) => 
+                                renderQuestionItem(question, idx)
+                            )}
+                            {streamingQuestions.length < questions.length && (
+                                <QuestionsSkeleton 
+                                    count={Math.min(3, questions.length - streamingQuestions.length)} 
+                                    isLoading={true} 
+                                />
+                            )}
+                        </motion.div>
+                    ) : groupedQuestions && groupedQuestions.length > 0 ? (
                         <motion.div
                             key="grouped"
                             initial={{ opacity: 0 }}

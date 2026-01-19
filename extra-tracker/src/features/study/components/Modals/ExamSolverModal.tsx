@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { DualDropzone, type DropzoneConfig } from './ExamSolver/DualDropzone';
 import { QuestionsPreview } from './ExamSolver/QuestionsPreview';
+import { ManualAnswerEditor } from './ExamSolver/ManualAnswerEditor';
 import { useExamSolver, type Step } from './ExamSolver/useExamSolver';
 
 // ============================================
@@ -83,6 +84,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         progressMessage,
         stats,
         createdDeckId,
+        generatedFlashcards,
         extractQuestions,
         generateAnswers,
         handleNextFromPreview,
@@ -331,6 +333,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                 onBack={() => goToStep('upload')}
                                 onNext={handleNextFromPreview}
                                 error={error}
+                                isLoading={progressStep === 'extracting'}
                             />
                         )}
 
@@ -574,49 +577,14 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                         </div>
 
                                         {/* Livello 2: Editing manuale per risposte non trovate */}
-                                        {stats.answersNotFound > 0 && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20"
-                                            >
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <AlertCircle className="w-5 h-5 text-amber-400" />
-                                                    <h4 className="text-sm font-semibold text-amber-300">
-                                                        {stats.answersNotFound} risposta{stats.answersNotFound > 1 ? 'e' : ''} non trovata{stats.answersNotFound > 1 ? 'e' : ''}
-                                                    </h4>
-                                                </div>
-                                                <p className="text-xs text-white/60 mb-3">
-                                                    Puoi inserire manualmente le risposte o cercarle su Google.
-                                                </p>
-                                                <div className="space-y-2">
-                                                    {Array.from({ length: Math.min(stats.answersNotFound, 3) }).map((_, idx) => (
-                                                        <div key={idx} className="flex items-center gap-2">
-                                                            <input
-                                                                type="text"
-                                                                placeholder={`Inserisci risposta manuale ${idx + 1}...`}
-                                                                className="flex-1 px-3 py-2 rounded-lg bg-zinc-900/60 border border-white/10 text-white text-sm placeholder-white/30 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
-                                                            />
-                                                            <button
-                                                                onClick={() => {
-                                                                    const question = extractedQuestions[Array.from(selectedQuestions)[idx] || 0] || '';
-                                                                    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(question)}`;
-                                                                    window.open(searchUrl, '_blank');
-                                                                }}
-                                                                className="px-3 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 text-sm font-medium transition-colors flex items-center gap-1.5"
-                                                            >
-                                                                <Search className="w-4 h-4" />
-                                                                Cerca
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                    {stats.answersNotFound > 3 && (
-                                                        <p className="text-xs text-white/40 text-center">
-                                                            ... e altre {stats.answersNotFound - 3} risposte
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </motion.div>
+                                        {stats.answersNotFound > 0 && generatedFlashcards.length > 0 && (
+                                            <ManualAnswerEditor
+                                                flashcards={generatedFlashcards}
+                                                deckId={createdDeckId}
+                                                onSave={() => {
+                                                    // Refresh opzionale dopo salvataggio
+                                                }}
+                                            />
                                         )}
 
                                         <div className="flex gap-3 pt-4">
