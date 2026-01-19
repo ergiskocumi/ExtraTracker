@@ -29,6 +29,8 @@ import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import goalsService from '../../../goals/services/goalsService';
 import type { Goal } from '../../../goals/types';
+import { DualDropzone, type DropzoneConfig } from './ExamSolver/DualDropzone';
+import { QuestionsPreview } from './ExamSolver/QuestionsPreview';
 
 // ============================================
 // TYPES
@@ -77,8 +79,6 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
     const [currentStep, setCurrentStep] = useState<Step>('upload');
     const [questionsFile, setQuestionsFile] = useState<File | null>(null);
     const [sourceFile, setSourceFile] = useState<File | null>(null);
-    const [isDraggingQuestions, setIsDraggingQuestions] = useState(false);
-    const [isDraggingSource, setIsDraggingSource] = useState(false);
     const [extractedQuestions, setExtractedQuestions] = useState<string[]>([]);
     const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
     const [generatedFlashcards, setGeneratedFlashcards] = useState<GeneratedFlashcard[]>([]);
@@ -97,8 +97,6 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [createdDeckId, setCreatedDeckId] = useState<string>('');
 
-    const questionsInputRef = useRef<HTMLInputElement>(null);
-    const sourceInputRef = useRef<HTMLInputElement>(null);
     const startTimeRef = useRef<number | null>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -201,109 +199,28 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         onClose();
     }, [progressStep, onClose]);
 
-    // File handlers per domande
-    const handleQuestionsFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const validTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-            const validExtensions = ['.pdf', '.txt', '.docx'];
-            const isValid = validTypes.includes(file.type) || 
-                          validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-            
-            if (isValid) {
-                setQuestionsFile(file);
-                setError(null);
-            } else {
-                setError('File domande deve essere PDF, TXT o DOCX');
-            }
-        }
-        if (questionsInputRef.current) {
-            questionsInputRef.current.value = '';
-        }
-    }, []);
+    // Dropzone configurations
+    const questionsConfig: DropzoneConfig = {
+        id: 'questions',
+        label: "📝 Domande d'Esame",
+        icon: FileQuestion,
+        acceptedTypes: ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        acceptedExtensions: ['.pdf', '.txt', '.docx'],
+        file: questionsFile,
+        onFileSelect: setQuestionsFile,
+        onFileRemove: () => setQuestionsFile(null),
+    };
 
-    const handleQuestionsDragEnter = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDraggingQuestions(true);
-    }, []);
-
-    const handleQuestionsDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDraggingQuestions(false);
-    }, []);
-
-    const handleQuestionsDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, []);
-
-    const handleQuestionsDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDraggingQuestions(false);
-
-        const file = e.dataTransfer.files?.[0];
-        if (file) {
-            const validTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-            const validExtensions = ['.pdf', '.txt', '.docx'];
-            const isValid = validTypes.includes(file.type) || 
-                          validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-            
-            if (isValid) {
-                setQuestionsFile(file);
-                setError(null);
-            } else {
-                setError('File domande deve essere PDF, TXT o DOCX');
-            }
-        }
-    }, []);
-
-    // File handlers per materiale
-    const handleSourceFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file && file.type === 'application/pdf') {
-            setSourceFile(file);
-            setError(null);
-        } else {
-            setError('File materiale deve essere un PDF');
-        }
-        if (sourceInputRef.current) {
-            sourceInputRef.current.value = '';
-        }
-    }, []);
-
-    const handleSourceDragEnter = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDraggingSource(true);
-    }, []);
-
-    const handleSourceDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDraggingSource(false);
-    }, []);
-
-    const handleSourceDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, []);
-
-    const handleSourceDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDraggingSource(false);
-
-        const file = e.dataTransfer.files?.[0];
-        if (file && file.type === 'application/pdf') {
-            setSourceFile(file);
-            setError(null);
-        } else {
-            setError('File materiale deve essere un PDF');
-        }
-    }, []);
+    const sourceConfig: DropzoneConfig = {
+        id: 'source',
+        label: '📚 Materiale di Studio',
+        icon: BookOpen,
+        acceptedTypes: ['application/pdf'],
+        acceptedExtensions: ['.pdf'],
+        file: sourceFile,
+        onFileSelect: setSourceFile,
+        onFileRemove: () => setSourceFile(null),
+    };
 
     const handleNextFromUpload = useCallback(async () => {
         if (!questionsFile || !sourceFile) return;
@@ -413,11 +330,6 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         }
     }, [sourceFile, deckMode, deckTitle, selectedDeckId, goalId, selectedQuestions, extractedQuestions, generatedFlashcards, onSuccess]);
 
-    const formatFileSize = (bytes: number) => {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-        return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-    };
 
     // ============================================
     // STEP INDICATOR COMPONENT
@@ -595,142 +507,12 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 className="space-y-4"
                             >
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Dropzone Domande */}
-                                    <div
-                                        onDragEnter={!questionsFile ? handleQuestionsDragEnter : undefined}
-                                        onDragLeave={!questionsFile ? handleQuestionsDragLeave : undefined}
-                                        onDragOver={!questionsFile ? handleQuestionsDragOver : undefined}
-                                        onDrop={!questionsFile ? handleQuestionsDrop : undefined}
-                                        onClick={() => !questionsFile && questionsInputRef.current?.click()}
-                                        className={`
-                                            relative h-48 rounded-2xl border-2 border-dashed transition-all duration-300
-                                            flex flex-col items-center justify-center gap-4 cursor-pointer
-                                            ${questionsFile
-                                                ? 'border-emerald-400/40 bg-emerald-500/10'
-                                                : isDraggingQuestions
-                                                    ? 'border-blue-400/40 bg-blue-500/10'
-                                                    : 'border-white/10 bg-zinc-900/40 hover:border-white/20 hover:bg-zinc-900/60'
-                                            }
-                                        `}
-                                    >
-                                        <input
-                                            ref={questionsInputRef}
-                                            type="file"
-                                            accept=".pdf,.txt,.docx,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                            onChange={handleQuestionsFileSelect}
-                                            className="hidden"
-                                        />
-                                        {questionsFile ? (
-                                            <>
-                                                <FileQuestion className="w-10 h-10 text-emerald-400" />
-                                                <div className="text-center px-4">
-                                                    <p className="text-sm font-medium text-white truncate max-w-[200px]">
-                                                        {questionsFile.name}
-                                                    </p>
-                                                    <p className="text-xs text-white/60 mt-1">
-                                                        {formatFileSize(questionsFile.size)}
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setQuestionsFile(null);
-                                                    }}
-                                                    className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs font-medium transition-colors flex items-center gap-1.5"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                    Rimuovi
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <FileQuestion className="w-10 h-10 text-white/40" />
-                                                <div className="text-center px-4">
-                                                    <p className="text-sm font-medium text-white/80">
-                                                        📝 Domande d&apos;Esame
-                                                    </p>
-                                                    <p className="text-xs text-white/50 mt-1">
-                                                        PDF, TXT, DOCX
-                                                    </p>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {/* Dropzone Materiale */}
-                                    <div
-                                        onDragEnter={!sourceFile ? handleSourceDragEnter : undefined}
-                                        onDragLeave={!sourceFile ? handleSourceDragLeave : undefined}
-                                        onDragOver={!sourceFile ? handleSourceDragOver : undefined}
-                                        onDrop={!sourceFile ? handleSourceDrop : undefined}
-                                        onClick={() => !sourceFile && sourceInputRef.current?.click()}
-                                        className={`
-                                            relative h-48 rounded-2xl border-2 border-dashed transition-all duration-300
-                                            flex flex-col items-center justify-center gap-4 cursor-pointer
-                                            ${sourceFile
-                                                ? 'border-emerald-400/40 bg-emerald-500/10'
-                                                : isDraggingSource
-                                                    ? 'border-blue-400/40 bg-blue-500/10'
-                                                    : 'border-white/10 bg-zinc-900/40 hover:border-white/20 hover:bg-zinc-900/60'
-                                            }
-                                        `}
-                                    >
-                                        <input
-                                            ref={sourceInputRef}
-                                            type="file"
-                                            accept=".pdf,application/pdf"
-                                            onChange={handleSourceFileSelect}
-                                            className="hidden"
-                                        />
-                                        {sourceFile ? (
-                                            <>
-                                                <BookOpen className="w-10 h-10 text-emerald-400" />
-                                                <div className="text-center px-4">
-                                                    <p className="text-sm font-medium text-white truncate max-w-[200px]">
-                                                        {sourceFile.name}
-                                                    </p>
-                                                    <p className="text-xs text-white/60 mt-1">
-                                                        {formatFileSize(sourceFile.size)}
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSourceFile(null);
-                                                    }}
-                                                    className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs font-medium transition-colors flex items-center gap-1.5"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                    Rimuovi
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <BookOpen className="w-10 h-10 text-white/40" />
-                                                <div className="text-center px-4">
-                                                    <p className="text-sm font-medium text-white/80">
-                                                        📚 Materiale di Studio
-                                                    </p>
-                                                    <p className="text-xs text-white/50 mt-1">
-                                                        PDF
-                                                    </p>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {error && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm flex items-center gap-2"
-                                    >
-                                        <AlertCircle className="w-4 h-4 text-red-400" />
-                                        <p className="text-sm text-red-400">{error}</p>
-                                    </motion.div>
-                                )}
+                                <DualDropzone
+                                    questionsConfig={questionsConfig}
+                                    sourceConfig={sourceConfig}
+                                    error={error}
+                                    onError={setError}
+                                />
 
                                 {questionsFile && sourceFile && (
                                     <motion.button
@@ -748,110 +530,14 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
 
                         {/* STEP 2: PREVIEW DOMANDE (Livello 1) */}
                         {currentStep === 'preview' && (
-                            <motion.div
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="space-y-6"
-                            >
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-lg font-semibold text-white">
-                                            Domande Estratte ({extractedQuestions.length})
-                                        </h3>
-                                        <div className="flex items-center gap-2 text-sm text-white/60">
-                                            <span>{selectedQuestions.size} selezionate</span>
-                                            <button
-                                                onClick={() => {
-                                                    if (selectedQuestions.size === extractedQuestions.length) {
-                                                        setSelectedQuestions(new Set());
-                                                    } else {
-                                                        setSelectedQuestions(new Set(extractedQuestions.map((_, idx) => idx)));
-                                                    }
-                                                }}
-                                                className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-colors text-xs"
-                                            >
-                                                {selectedQuestions.size === extractedQuestions.length ? 'Deseleziona tutte' : 'Seleziona tutte'}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="max-h-96 overflow-y-auto space-y-2 custom-scrollbar">
-                                        {extractedQuestions.map((question, idx) => {
-                                            const isSelected = selectedQuestions.has(idx);
-                                            return (
-                                                <motion.label
-                                                    key={idx}
-                                                    initial={{ opacity: 0, y: 5 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ delay: idx * 0.02 }}
-                                                    className={`
-                                                        flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all
-                                                        ${isSelected
-                                                            ? 'bg-amber-500/10 border-amber-500/30'
-                                                            : 'bg-zinc-900/60 border-white/5 hover:bg-zinc-900/80'
-                                                        }
-                                                    `}
-                                                >
-                                                    <div className="flex-shrink-0 mt-0.5">
-                                                        {isSelected ? (
-                                                            <CheckSquare className="w-5 h-5 text-amber-400" />
-                                                        ) : (
-                                                            <Square className="w-5 h-5 text-white/40" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <p className="text-sm text-white/90 leading-relaxed">
-                                                            {question}
-                                                        </p>
-                                                    </div>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={(e) => {
-                                                            const newSelected = new Set(selectedQuestions);
-                                                            if (e.target.checked) {
-                                                                newSelected.add(idx);
-                                                            } else {
-                                                                newSelected.delete(idx);
-                                                            }
-                                                            setSelectedQuestions(newSelected);
-                                                        }}
-                                                        className="hidden"
-                                                    />
-                                                </motion.label>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {error && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm flex items-center gap-2"
-                                    >
-                                        <AlertCircle className="w-4 h-4 text-red-400" />
-                                        <p className="text-sm text-red-400">{error}</p>
-                                    </motion.div>
-                                )}
-
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => setCurrentStep('upload')}
-                                        className="flex-1 px-4 py-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white font-medium transition-colors"
-                                    >
-                                        Indietro
-                                    </button>
-                                    <button
-                                        onClick={handleNextFromPreview}
-                                        disabled={selectedQuestions.size === 0}
-                                        className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                    >
-                                        Continua ({selectedQuestions.size} selezionate)
-                                        <ChevronRight className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </motion.div>
+                            <QuestionsPreview
+                                questions={extractedQuestions}
+                                selectedIndices={selectedQuestions}
+                                onSelectionChange={setSelectedQuestions}
+                                onBack={() => setCurrentStep('upload')}
+                                onNext={handleNextFromPreview}
+                                error={error}
+                            />
                         )}
 
                         {/* STEP 3: CONFIGURAZIONE */}
