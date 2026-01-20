@@ -74,13 +74,10 @@ const LazyAnalyticsChart = ({ data }: { data: any[] }) => {
                     <TrendingUp className="w-5 h-5 text-primary-400" />
                     Andamento Settimanale
                 </h3>
-                <Link
-                    to="/timeline"
-                    className="text-sm text-white/50 hover:text-white/80 flex items-center gap-1 transition-colors"
-                >
-                    Vedi tutto
+                <span className="text-sm text-white/40 flex items-center gap-1">
+                    Storico timeline disabilitato
                     <ChevronRight className="w-4 h-4" />
-                </Link>
+                </span>
             </div>
             
             <div className="h-64">
@@ -376,11 +373,11 @@ const WorkActionCard: React.FC<WorkActionCardProps> = React.memo(({ todayFormatt
                 <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('/timeline')}
+                    onClick={() => navigate('/dashboard')}
                     className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white/[0.08] text-white/80 hover:bg-white/[0.12] border border-white/[0.1] font-semibold transition-all"
                 >
                     <Plus className="w-4 h-4" />
-                    Registra Lavoro
+                    Apri Tracker
                 </motion.button>
             </div>
         </motion.div>
@@ -409,7 +406,7 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
                 navigate(`/goals/${item.id}`);
                 break;
             case 'worklog':
-                navigate('/timeline');
+                navigate('/dashboard');
                 break;
         }
     };

@@ -3,7 +3,7 @@
  * 
  * Sistema di routing:
  * - /login, /register, /forgot-password, /reset-password, /verify-email → Pagine pubbliche (AuthLayout)
- * - /, /goals, /settings, /timeline, /study → Pagine protette (AppLayout)
+ * - /, /goals, /settings, /study → Pagine protette (AppLayout)
  */
 
 import { lazy, Suspense } from 'react';

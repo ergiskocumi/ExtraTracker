@@ -12,13 +12,10 @@ import {
     FiLayout, 
     FiTarget, 
     FiSettings, 
-    FiClock, 
     FiLogOut, 
     FiChevronDown,
-    FiFolder,
     FiMenu,
-    FiBookOpen,
-    FiBriefcase
+    FiBookOpen
 } from 'react-icons/fi';
 import { useAuth } from '../../features/auth/context/AuthContext';
 import { useSettings } from '../../features/settings/context/SettingsContext';
@@ -86,7 +83,6 @@ export const AppLayout = () => {
             label: 'Principale',
             items: [
                 { path: '/dashboard', label: 'Dashboard', icon: FiLayout, description: 'Panoramica generale' },
-                { path: '/timeline', label: 'Timeline', icon: FiClock, description: 'Storico attività' },
             ]
         },
         {

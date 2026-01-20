@@ -197,7 +197,6 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                     options={[
                         { value: 'dashboard', label: '📊 Dashboard' },
                         { value: 'goals', label: '🎯 Obiettivi' },
-                        { value: 'timeline', label: '📅 Timeline' },
                     ]}
                 />
             </div>

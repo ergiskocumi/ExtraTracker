@@ -141,9 +141,13 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
             if (response.success && response.data) {
                 const data = response.data as AllSettingsData;
+                const normalizedPreferences = { ...defaultPreferences, ...data.preferences };
+                normalizedPreferences.defaultView = normalizedPreferences.defaultView === 'goals'
+                    ? 'goals'
+                    : 'dashboard';
                 setState({
                     profile: data.profile || {},
-                    preferences: { ...defaultPreferences, ...data.preferences },
+                    preferences: normalizedPreferences,
                     notifications: { ...defaultNotifications, ...data.notifications },
                     account: data.account,
                     isLoading: false,

@@ -331,16 +331,14 @@ exports.getQuickActions = asyncHandler(async (req, res) => {
     }
     
     // Quick action: Log lavoro
-    if (projects.length > 0) {
-        actions.push({
-            id: 'worklog',
-            label: 'Registra lavoro',
-            description: 'Traccia le tue ore',
-            icon: 'clock',
-            color: 'blue',
-            link: '/timeline'
-        });
-    }
+    actions.push({
+        id: 'worklog',
+        label: 'Registra lavoro',
+        description: 'Traccia le tue ore',
+        icon: 'clock',
+        color: 'blue',
+        link: '/dashboard'
+    });
     
     // Quick action: Nuovo obiettivo
     actions.push({
