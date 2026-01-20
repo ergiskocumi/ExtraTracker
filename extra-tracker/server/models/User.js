@@ -213,6 +213,7 @@ const userSchema = new mongoose.Schema(
         // GAMIFICATION & STATS
         // ==========================================
         gamification: {
+            // Base XP e Level
             xp: {
                 type: Number,
                 default: 0,
@@ -221,6 +222,15 @@ const userSchema = new mongoose.Schema(
                 type: Number,
                 default: 1,
             },
+
+            // Rank corrente (calcolato da level)
+            rank: {
+                type: String,
+                enum: ['UNRANKED', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND', 'MASTER'],
+                default: 'UNRANKED',
+            },
+
+            // Streak
             streak: {
                 current: {
                     type: Number,
@@ -235,6 +245,8 @@ const userSchema = new mongoose.Schema(
                     default: 0,
                 },
             },
+
+            // Stats base (esistenti)
             stats: {
                 totalStudySessions: {
                     type: Number,
@@ -248,6 +260,247 @@ const userSchema = new mongoose.Schema(
                     type: Number,
                     default: 0,
                 },
+            },
+
+            // Stats estese per achievements
+            extendedStats: {
+                // Studio
+                perfectSessions: { type: Number, default: 0 },
+                nightSessions: { type: Number, default: 0 },
+                earlySessions: { type: Number, default: 0 },
+                marathonDays: { type: Number, default: 0 },
+                decksCompleted: { type: Number, default: 0 },
+                highGradeExams: { type: Number, default: 0 },
+                laudeCount: { type: Number, default: 0 },
+
+                // Goals
+                goalsCreated: { type: Number, default: 0 },
+                goalsCompleted: { type: Number, default: 0 },
+                habitCheckIns: { type: Number, default: 0 },
+                milestonesCompleted: { type: Number, default: 0 },
+                earlyCompletions: { type: Number, default: 0 },
+                projectsCompleted: { type: Number, default: 0 },
+                challengesCompleted: { type: Number, default: 0 },
+
+                // Challenge completion counts
+                dailyAllCompleteCount: { type: Number, default: 0 },
+                weeklyAllCompleteCount: { type: Number, default: 0 },
+                monthlyAllCompleteCount: { type: Number, default: 0 },
+
+                // Streak
+                weekStreaksAchieved: { type: Number, default: 0 },
+                comebacks: { type: Number, default: 0 },
+                totalActiveDays: { type: Number, default: 0 },
+                weekendActiveDays: { type: Number, default: 0 },
+
+                // Produttività
+                workSessionsLogged: { type: Number, default: 0 },
+                totalWorkMinutes: { type: Number, default: 0 },
+                notesCreated: { type: Number, default: 0 },
+                deadlinesMet: { type: Number, default: 0 },
+                fullWorkDays: { type: Number, default: 0 },
+                projectTasksCompleted: { type: Number, default: 0 },
+                multiProjectDays: { type: Number, default: 0 },
+
+                // Special
+                firstActivity: { type: Number, default: 0 },
+                freezesUsed: { type: Number, default: 0 },
+                highestRank: { type: String, default: 'UNRANKED' },
+            },
+
+            // Achievements sbloccati
+            achievements: [{
+                achievementId: {
+                    type: String,
+                    required: true,
+                },
+                tier: {
+                    type: String,
+                    enum: ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'],
+                    required: true,
+                },
+                unlockedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+                xpEarned: {
+                    type: Number,
+                    default: 0,
+                },
+            }],
+
+            // Daily Challenges
+            dailyChallenges: {
+                date: {
+                    type: Date,
+                    default: null,
+                },
+                challenges: [{
+                    type: {
+                        type: String,
+                        required: true,
+                    },
+                    target: {
+                        type: Number,
+                        required: true,
+                    },
+                    progress: {
+                        type: Number,
+                        default: 0,
+                    },
+                    reward: {
+                        type: Number,
+                        required: true,
+                    },
+                    completed: {
+                        type: Boolean,
+                        default: false,
+                    },
+                    completedAt: {
+                        type: Date,
+                        default: null,
+                    },
+                }],
+                rerollsUsed: {
+                    type: Number,
+                    default: 0,
+                },
+                allCompleteBonusClaimed: {
+                    type: Boolean,
+                    default: false,
+                },
+            },
+
+            // Weekly Challenges
+            weeklyChallenges: {
+                weekStart: {
+                    type: Date,
+                    default: null,
+                },
+                challenges: [{
+                    type: {
+                        type: String,
+                        required: true,
+                    },
+                    target: {
+                        type: Number,
+                        required: true,
+                    },
+                    progress: {
+                        type: Number,
+                        default: 0,
+                    },
+                    reward: {
+                        type: Number,
+                        required: true,
+                    },
+                    completed: {
+                        type: Boolean,
+                        default: false,
+                    },
+                    completedAt: {
+                        type: Date,
+                        default: null,
+                    },
+                }],
+                allCompleteBonusClaimed: {
+                    type: Boolean,
+                    default: false,
+                },
+            },
+
+            // Monthly Challenges
+            monthlyChallenges: {
+                monthStart: {
+                    type: Date,
+                    default: null,
+                },
+                challenges: [{
+                    type: {
+                        type: String,
+                        required: true,
+                    },
+                    target: {
+                        type: Number,
+                        required: true,
+                    },
+                    progress: {
+                        type: Number,
+                        default: 0,
+                    },
+                    reward: {
+                        type: Number,
+                        required: true,
+                    },
+                    completed: {
+                        type: Boolean,
+                        default: false,
+                    },
+                    completedAt: {
+                        type: Date,
+                        default: null,
+                    },
+                }],
+                allCompleteBonusClaimed: {
+                    type: Boolean,
+                    default: false,
+                },
+            },
+
+            // Daily XP Caps tracking
+            dailyXpCaps: {
+                date: {
+                    type: Date,
+                    default: null,
+                },
+                byCategory: {
+                    study: { type: Number, default: 0 },
+                    work: { type: Number, default: 0 },
+                    notes: { type: Number, default: 0 },
+                    projects: { type: Number, default: 0 },
+                },
+            },
+
+            // Streak Freezes
+            streakFreezes: {
+                available: {
+                    type: Number,
+                    default: 0,
+                    max: 3,
+                },
+                lastPurchased: {
+                    type: Date,
+                    default: null,
+                },
+            },
+
+            // Tracking per multipliers
+            lastActivityTimestamp: {
+                type: Date,
+                default: null,
+            },
+            comboCount: {
+                type: Number,
+                default: 0,
+            },
+
+            // Tracking per XP decay
+            xpDecayApplied: {
+                type: Date,
+                default: null,
+            },
+
+            // Weekly activity tracking per consistency bonus
+            weeklyActivity: {
+                weekStart: {
+                    type: Date,
+                    default: null,
+                },
+                daysActive: [{
+                    type: Number,
+                    min: 0,
+                    max: 6,
+                }],
             },
         },
 

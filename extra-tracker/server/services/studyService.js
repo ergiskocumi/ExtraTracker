@@ -713,6 +713,10 @@ class StudyService extends BaseService {
         const timeSpentSeconds = this._toNumber(stats.timeSeconds ?? stats.timeSpentSeconds, 0);
         const totalCards = this._toNumber(stats.totalCards, correctCount + wrongCount);
 
+        // Calcola accuratezza
+        const accuracy = totalCards > 0 ? Math.round((correctCount / totalCards) * 100) : 0;
+        const avgTimePerCard = totalCards > 0 ? (timeSpentSeconds * 1000) / totalCards : 0;
+
         const metadata = {
             correctCount,
             wrongCount,
@@ -720,6 +724,8 @@ class StudyService extends BaseService {
             totalCards,
             deckId,
             mode,
+            accuracy,
+            avgTimePerCard,
         };
 
         const xpBreakdown = this._calculateSessionXpBreakdown(metadata);
@@ -3144,26 +3150,66 @@ Genera una risposta per OGNI domanda nella lista.`;
     }
 
     _calculateSessionXpBreakdown(metadata = {}) {
+        const { XP_ACTIONS } = require('../config/gamification');
+        const config = XP_ACTIONS.SESSION_COMPLETE;
+        const accuracyConfig = XP_ACTIONS.ACCURACY_BONUS;
+
         const correctCount = this._toNumber(metadata.correctCount, 0);
         const wrongCount = this._toNumber(metadata.wrongCount, 0);
         const timeSpentSeconds = this._toNumber(metadata.timeSpentSeconds, 0);
         const totalCards = this._toNumber(metadata.totalCards, correctCount + wrongCount);
-        const streakBonus = this._toNumber(metadata.streakBonus, 0);
 
-        const timePerCard = totalCards > 0 ? timeSpentSeconds / totalCards : 0;
-        const speedBonus = timePerCard > 0
-            ? Math.max(0, Math.round(10 - timePerCard / 3))
-            : 0;
+        // Calcola accuratezza
+        const accuracy = totalCards > 0 ? Math.round((correctCount / totalCards) * 100) : 0;
 
-        const correctXp = correctCount * 2;
-        const total = SESSION_BASE_XP + correctXp + speedBonus + streakBonus;
+        // XP base
+        let total = config.base;
+        const breakdown = [
+            { type: 'base', value: config.base, description: 'Sessione completata' }
+        ];
+
+        // Bonus per risposte corrette (2 XP per risposta corretta)
+        const correctXp = correctCount * config.perCorrect;
+        if (correctXp > 0) {
+            total += correctXp;
+            breakdown.push({ type: 'correct', value: correctXp, description: `${correctCount} risposte corrette` });
+        }
+
+        // Speed bonus (tempo medio per card < 10 secondi = bonus)
+        const avgTimePerCard = totalCards > 0 ? (timeSpentSeconds * 1000) / totalCards : 0;
+        let speedBonus = 0;
+        if (avgTimePerCard > 0 && avgTimePerCard < 10000) {
+            const speedFactor = Math.max(0, 1 - (avgTimePerCard / 10000));
+            speedBonus = Math.floor(speedFactor * config.speedBonus.max);
+            if (speedBonus > 0) {
+                total += speedBonus;
+                breakdown.push({ type: 'speed', value: speedBonus, description: 'Velocità risposta' });
+            }
+        }
+
+        // Accuracy bonus
+        let accuracyBonus = 0;
+        if (accuracy >= 100) {
+            accuracyBonus = accuracyConfig.perfect;
+        } else if (accuracy >= 90) {
+            accuracyBonus = accuracyConfig.excellent;
+        } else if (accuracy >= 80) {
+            accuracyBonus = accuracyConfig.good;
+        }
+
+        if (accuracyBonus > 0) {
+            total += accuracyBonus;
+            breakdown.push({ type: 'accuracy', value: accuracyBonus, description: `Accuratezza ${accuracy}%` });
+        }
 
         return {
-            base: SESSION_BASE_XP,
+            base: config.base,
             correct: correctXp,
             speedBonus,
-            streakBonus,
+            accuracyBonus,
+            accuracy,
             total,
+            breakdown
         };
     }
 
