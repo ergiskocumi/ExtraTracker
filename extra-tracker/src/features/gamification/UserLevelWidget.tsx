@@ -30,32 +30,33 @@ export const UserLevelWidget: React.FC<UserLevelWidgetProps> = ({
 
     if (compact) {
         return (
-            <div className="rounded-xl border border-white/10 bg-white/[0.06] p-3">
+            <div className="rounded-xl border border-white/15 bg-slate-900/50 p-3 shadow-[0_18px_36px_-24px_rgba(15,23,42,0.9)] relative overflow-hidden">
+                <div className="absolute -top-6 -right-6 h-16 w-16 rotate-12 rounded-[14px] bg-white/[0.04] border border-white/10" />
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-black/20">
                             <span className="text-white text-xs font-bold">L{level}</span>
                         </div>
                         <div>
-                            <p className="text-xs text-white/50">Livello</p>
+                            <p className="text-xs text-white/70">Livello</p>
                             <p className="text-sm font-semibold text-white">{level}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/15 border border-orange-500/20">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/20 border border-orange-500/30">
                         <FiZap className="w-3.5 h-3.5 text-orange-400" />
                         <span className="text-sm font-semibold text-orange-400">{streakCurrent}</span>
                     </div>
                 </div>
 
-                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-2 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${progress * 100}%` }}
                         transition={{ duration: 0.5, ease: 'easeOut' }}
-                        className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-emerald-400"
+                        className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-emerald-400 shadow-lg shadow-indigo-500/20"
                     />
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-white/50">
+                <div className="mt-2 flex items-center justify-between text-xs text-white/70">
                     <span>{xp} XP</span>
                     <span>{nextLevelXp} XP</span>
                 </div>
@@ -64,19 +65,20 @@ export const UserLevelWidget: React.FC<UserLevelWidgetProps> = ({
     }
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4">
+        <div className="rounded-2xl border border-white/15 bg-slate-900/50 backdrop-blur-xl p-4 shadow-[0_20px_50px_-30px_rgba(15,23,42,0.9)] relative overflow-hidden">
+            <div className="absolute -top-10 -right-8 h-24 w-24 rotate-12 rounded-[18px] bg-white/[0.04] border border-white/10" />
             <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/10 overflow-hidden flex items-center justify-center">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/10 overflow-hidden flex items-center justify-center">
                     {avatarUrl ? (
                         <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
                     ) : (
-                        <span className="text-white/60 text-sm font-semibold">
+                        <span className="text-white/70 text-sm font-semibold">
                             {displayName.charAt(0).toUpperCase()}
                         </span>
                     )}
                 </div>
                 <div className="flex-1">
-                    <p className="text-sm text-white/60">{displayName}</p>
+                    <p className="text-sm text-white/70">{displayName}</p>
                     <p className="text-lg font-semibold text-white">Livello {level}</p>
                 </div>
                 <div className="flex items-center gap-1 text-orange-400 text-sm font-semibold">
@@ -85,15 +87,15 @@ export const UserLevelWidget: React.FC<UserLevelWidgetProps> = ({
                 </div>
             </div>
 
-            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-2 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
                 <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${progress * 100}%` }}
                     transition={{ duration: 0.5, ease: 'easeOut' }}
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-emerald-400"
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-emerald-400 shadow-lg shadow-indigo-500/20"
                 />
             </div>
-            <div className="mt-2 text-xs text-white/50">
+            <div className="mt-2 text-xs text-white/70">
                 {xp} / {nextLevelXp} XP
             </div>
         </div>

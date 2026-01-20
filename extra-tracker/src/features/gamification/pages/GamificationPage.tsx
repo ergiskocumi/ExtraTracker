@@ -104,53 +104,68 @@ export const GamificationPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen pb-8">
-            {/* Header */}
-            <div className="mb-8">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <motion.h1
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-3xl font-bold text-white mb-2"
-                        >
-                            Gamification
-                        </motion.h1>
-                        <motion.p
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="text-white/60"
-                        >
-                            Traccia i tuoi progressi, sblocca achievements e completa le challenges
-                        </motion.p>
-                    </div>
-
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleRefresh}
-                        disabled={isRefreshing}
-                        className="p-3 rounded-xl bg-white/[0.04] border border-white/10 text-white/60 hover:text-white hover:bg-white/[0.08] transition-all disabled:opacity-50"
-                    >
-                        <motion.div
-                            animate={isRefreshing ? { rotate: 360 } : {}}
-                            transition={{
-                                duration: 1,
-                                repeat: isRefreshing ? Infinity : 0,
-                                ease: 'linear',
-                            }}
-                        >
-                            <FiRefreshCw className="w-5 h-5" />
-                        </motion.div>
-                    </motion.button>
-                </div>
+        <div className="relative min-h-screen pb-10">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="absolute -top-24 -right-24 h-64 w-64 rotate-12 rounded-[32px] bg-gradient-to-br from-primary-500/20 via-indigo-500/10 to-transparent blur-2xl" />
+                <div className="absolute top-32 -left-16 h-48 w-48 -rotate-12 rounded-[28px] bg-gradient-to-br from-amber-400/15 via-rose-500/10 to-transparent blur-2xl" />
+                <div className="absolute bottom-0 right-0 h-72 w-72 rounded-[36px] bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-transparent blur-3xl" />
             </div>
 
-            {/* Main Content */}
-            <div className="space-y-8">
+            <div className="relative z-10">
+                {/* Header */}
+                <div className="mb-8">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white/70"
+                            >
+                                Progress Hub
+                            </motion.div>
+                            <motion.h1
+                                initial={{ opacity: 0, y: -20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mt-3 text-3xl font-bold text-white"
+                            >
+                                Gamification
+                            </motion.h1>
+                            <motion.p
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="mt-2 text-white/70"
+                            >
+                                Traccia i tuoi progressi, sblocca achievements e completa le challenges
+                            </motion.p>
+                        </div>
+
+                        <motion.button
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            className="group p-3 rounded-xl border border-white/10 bg-white/[0.06] text-white/70 hover:text-white hover:border-white/20 hover:bg-white/[0.12] shadow-lg shadow-black/10 transition-all disabled:opacity-50"
+                        >
+                            <motion.div
+                                animate={isRefreshing ? { rotate: 360 } : {}}
+                                transition={{
+                                    duration: 1,
+                                    repeat: isRefreshing ? Infinity : 0,
+                                    ease: 'linear',
+                                }}
+                                className="group-hover:text-white"
+                            >
+                                <FiRefreshCw className="w-5 h-5" />
+                            </motion.div>
+                        </motion.button>
+                    </div>
+                </div>
+
+                {/* Main Content */}
+                <div className="space-y-8">
                 {/* Top Section: Level & Streak */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Level Progress */}
@@ -211,6 +226,7 @@ export const GamificationPage: React.FC = () => {
                     }
                     isLoading={isLoading}
                 />
+                </div>
             </div>
         </div>
     );

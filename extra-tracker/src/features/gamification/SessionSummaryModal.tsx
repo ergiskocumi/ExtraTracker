@@ -193,7 +193,7 @@ export const SessionSummaryModal: React.FC<SessionSummaryModalProps> = ({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 z-[100] bg-gradient-to-br from-black/80 via-black/70 to-black/80 backdrop-blur-md"
+                        className="fixed inset-0 z-[100] bg-gradient-to-br from-slate-950/90 via-black/80 to-slate-950/90 backdrop-blur-md"
                     />
 
                     {/* Modal */}
@@ -204,11 +204,13 @@ export const SessionSummaryModal: React.FC<SessionSummaryModalProps> = ({
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
                             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                             onClick={(event) => event.stopPropagation()}
-                            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-900/98 to-slate-900/95 backdrop-blur-2xl shadow-2xl pointer-events-auto custom-scrollbar"
+                            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/15 bg-gradient-to-br from-slate-900/95 via-slate-900/98 to-slate-950/95 backdrop-blur-2xl shadow-2xl pointer-events-auto custom-scrollbar relative overflow-hidden"
                             style={{
                                 boxShadow: '0 20px 60px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)'
                             }}
                         >
+                            <div className="pointer-events-none absolute -top-20 -right-16 h-40 w-40 rotate-12 rounded-[30px] bg-white/[0.05] border border-white/10" />
+                            <div className="pointer-events-none absolute -bottom-20 -left-16 h-48 w-48 -rotate-12 rounded-[34px] bg-white/[0.04] border border-white/10" />
                             {/* Header */}
                             <div className="sticky top-0 z-10 bg-gradient-to-b from-slate-900/98 to-transparent backdrop-blur-xl border-b border-white/10 px-6 sm:px-8 pt-6 sm:pt-8 pb-4">
                                 <div className="flex items-start justify-between mb-4">

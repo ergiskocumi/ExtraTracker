@@ -62,8 +62,10 @@ export const LevelProgress: React.FC<LevelProgressProps> = ({
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-6 relative overflow-hidden"
+            className="rounded-2xl border border-white/15 bg-slate-900/50 backdrop-blur-xl p-6 relative overflow-hidden shadow-[0_20px_50px_-30px_rgba(15,23,42,0.9)]"
         >
+            <div className="absolute -top-16 -right-10 h-40 w-40 rotate-12 rounded-[28px] bg-white/[0.04] border border-white/10" />
+            <div className="absolute -bottom-12 -left-8 h-32 w-32 -rotate-12 rounded-[24px] bg-gradient-to-br from-white/[0.06] to-transparent border border-white/10" />
             {/* Background Gradient */}
             <div
                 className={`absolute inset-0 bg-gradient-to-br ${rankColor} opacity-5`}
@@ -77,7 +79,7 @@ export const LevelProgress: React.FC<LevelProgressProps> = ({
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">Livello & Rank</h3>
-                        <p className="text-sm text-white/50">{totalXp.toLocaleString()} XP totali</p>
+                        <p className="text-sm text-white/70">{totalXp.toLocaleString()} XP totali</p>
                     </div>
                 </div>
 
@@ -100,9 +102,9 @@ export const LevelProgress: React.FC<LevelProgressProps> = ({
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 200 }}
-                    className={`relative w-24 h-24 rounded-2xl bg-gradient-to-br ${rankColor} flex items-center justify-center shadow-lg`}
+                    className={`relative w-24 h-24 rounded-2xl bg-gradient-to-br ${rankColor} flex items-center justify-center shadow-lg shadow-black/20`}
                     style={{
-                        boxShadow: `0 0 30px rgba(255, 255, 255, 0.1)`,
+                        boxShadow: `0 0 40px rgba(255, 255, 255, 0.12)`,
                     }}
                 >
                     <div className="text-center">
@@ -154,7 +156,7 @@ export const LevelProgress: React.FC<LevelProgressProps> = ({
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.1 }}
-                        className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-gradient-to-r ${rankColor} bg-opacity-20`}
+                        className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-gradient-to-r ${rankColor} bg-opacity-20 border border-white/15`}
                     >
                         <FiStar className="w-4 h-4 text-white/80" />
                         <span className="text-sm font-semibold text-white/90 uppercase tracking-wider">
@@ -167,21 +169,21 @@ export const LevelProgress: React.FC<LevelProgressProps> = ({
             {/* XP Progress Bar */}
             <div className="relative">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-white/60">Progresso livello</span>
+                    <span className="text-sm text-white/70">Progresso livello</span>
                     <span className="text-sm font-medium text-white">
                         {xpInCurrentLevel.toLocaleString()} / {xpNeededForLevel.toLocaleString()} XP
                     </span>
                 </div>
-                <div className="h-3 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-3 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
                         transition={{ duration: 0.8, ease: 'easeOut' }}
-                        className={`h-full rounded-full bg-gradient-to-r ${rankColor}`}
+                        className={`h-full rounded-full bg-gradient-to-r ${rankColor} shadow-lg shadow-white/10`}
                     />
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-white/40">Livello {level}</span>
+                    <span className="text-xs text-white/60">Livello {level}</span>
                     <div className="flex items-center gap-1.5">
                         <FiTrendingUp className="w-3 h-3 text-emerald-400" />
                         <span className="text-xs text-emerald-400">

@@ -94,13 +94,15 @@ const AchievementCard: React.FC<{
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay, duration: 0.3 }}
             className={`rounded-xl border ${
-                isUnlocked ? tierConfig.border : 'border-white/10'
-            } ${isUnlocked ? tierConfig.bg : 'bg-white/[0.02]'} p-4 relative overflow-hidden group hover:bg-white/[0.04] transition-all`}
+                isUnlocked ? tierConfig.border : 'border-white/15'
+            } ${isUnlocked ? tierConfig.bg : 'bg-slate-900/50'} p-4 relative overflow-hidden group hover:bg-white/[0.06] transition-all shadow-[0_18px_36px_-24px_rgba(15,23,42,0.9)]`}
         >
+            <div className="absolute -top-8 -right-6 h-20 w-20 rotate-12 rounded-[16px] bg-white/[0.04] border border-white/10" />
+            <div className="absolute -bottom-10 -left-6 h-24 w-24 -rotate-12 rounded-[18px] bg-white/[0.03] border border-white/10" />
             {/* Locked Overlay */}
             {!isUnlocked && (
-                <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <FiLock className="w-6 h-6 text-white/40" />
+                <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <FiLock className="w-6 h-6 text-white/60" />
                 </div>
             )}
 
@@ -127,14 +129,14 @@ const AchievementCard: React.FC<{
                 <div className="flex-1 min-w-0 pr-16">
                     <h4
                         className={`text-sm font-semibold ${
-                            isUnlocked ? 'text-white' : 'text-white/50'
+                            isUnlocked ? 'text-white' : 'text-white/70'
                         } truncate`}
                     >
                         {achievement.name}
                     </h4>
                     <p
                         className={`text-xs ${
-                            isUnlocked ? 'text-white/60' : 'text-white/40'
+                            isUnlocked ? 'text-white/70' : 'text-white/60'
                         } line-clamp-2 mt-0.5`}
                     >
                         {achievement.description}
@@ -146,19 +148,19 @@ const AchievementCard: React.FC<{
             {!isUnlocked && (
                 <div className="mb-3">
                     <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs text-white/40">
+                        <span className="text-xs text-white/60">
                             {achievement.progress.current} / {achievement.progress.target}
                         </span>
-                        <span className="text-xs font-medium text-white/60">
+                        <span className="text-xs font-medium text-white/80">
                             {progress.toFixed(0)}%
                         </span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${progress}%` }}
                             transition={{ duration: 0.5, ease: 'easeOut' }}
-                            className="h-full rounded-full bg-gradient-to-r from-primary-500 to-indigo-500 opacity-60"
+                            className="h-full rounded-full bg-gradient-to-r from-primary-500 to-indigo-500 opacity-80 shadow-lg shadow-primary-500/20"
                         />
                     </div>
                 </div>
@@ -175,7 +177,7 @@ const AchievementCard: React.FC<{
                     ) : (
                         <>
                             <FiLock className="w-3.5 h-3.5 text-white/30" />
-                            <span className="text-xs text-white/30">Bloccato</span>
+                            <span className="text-xs text-white/50">Bloccato</span>
                         </>
                     )}
                 </div>
@@ -183,15 +185,15 @@ const AchievementCard: React.FC<{
                     className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
                         isUnlocked
                             ? 'bg-amber-500/20 border border-amber-500/30'
-                            : 'bg-white/[0.04] border border-white/10'
+                            : 'bg-white/[0.06] border border-white/15'
                     }`}
                 >
                     <FiZap
-                        className={`w-3 h-3 ${isUnlocked ? 'text-amber-400' : 'text-white/30'}`}
+                        className={`w-3 h-3 ${isUnlocked ? 'text-amber-400' : 'text-white/50'}`}
                     />
                     <span
                         className={`text-xs font-medium ${
-                            isUnlocked ? 'text-amber-400' : 'text-white/30'
+                            isUnlocked ? 'text-amber-400' : 'text-white/60'
                         }`}
                     >
                         +{achievement.xpReward} XP
@@ -201,7 +203,7 @@ const AchievementCard: React.FC<{
 
             {/* Unlocked Date */}
             {isUnlocked && achievement.unlockedAt && (
-                <p className="text-[10px] text-white/30 mt-2">
+                <p className="text-[10px] text-white/50 mt-2">
                     Sbloccato il {new Date(achievement.unlockedAt).toLocaleDateString('it-IT')}
                 </p>
             )}
@@ -280,17 +282,19 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-6"
+            className="rounded-2xl border border-white/15 bg-slate-900/50 backdrop-blur-xl p-6 relative overflow-hidden shadow-[0_22px_50px_-30px_rgba(15,23,42,0.9)]"
         >
+            <div className="absolute -top-16 -left-10 h-36 w-36 -rotate-12 rounded-[26px] bg-white/[0.04] border border-white/10" />
+            <div className="absolute -bottom-16 -right-12 h-40 w-40 rotate-12 rounded-[28px] bg-white/[0.03] border border-white/10" />
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 shadow-lg shadow-black/20">
                         <FiAward className="w-5 h-5 text-white" />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">Achievements</h3>
-                        <p className="text-sm text-white/50">
+                        <p className="text-sm text-white/70">
                             {achievements.stats?.unlocked || 0}/{achievements.stats?.total || 0}{' '}
                             sbloccati ({achievements.stats?.percentage?.toFixed(0) || 0}%)
                         </p>
@@ -300,12 +304,12 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
 
             {/* Progress Overview */}
             <div className="mb-6">
-                <div className="h-3 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-3 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${achievements.stats?.percentage || 0}%` }}
                         transition={{ duration: 0.8, ease: 'easeOut' }}
-                        className="h-full rounded-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-500"
+                        className="h-full rounded-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-500 shadow-lg shadow-amber-500/20"
                     />
                 </div>
             </div>
@@ -318,8 +322,8 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
                         onClick={() => setFilter(f.key)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                             filter === f.key
-                                ? 'bg-white/10 text-white border border-white/20'
-                                : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04] border border-transparent'
+                                ? 'bg-white/15 text-white border border-white/20'
+                                : 'text-white/60 hover:text-white/90 hover:bg-white/[0.06] border border-transparent'
                         }`}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
@@ -340,7 +344,7 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                                 category === cat
                                     ? 'bg-primary-500/20 text-primary-300 border border-primary-500/30'
-                                    : 'text-white/40 hover:text-white/60 bg-white/[0.02] border border-white/5'
+                                    : 'text-white/60 hover:text-white/80 bg-white/[0.04] border border-white/10'
                             }`}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
@@ -370,11 +374,11 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
                         ))
                     ) : (
                         <div className="col-span-full text-center py-12">
-                            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/[0.04] flex items-center justify-center">
-                                <FiAward className="w-8 h-8 text-white/30" />
+                            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/[0.06] flex items-center justify-center border border-white/10">
+                                <FiAward className="w-8 h-8 text-white/50" />
                             </div>
-                            <p className="text-white/50">Nessun achievement trovato</p>
-                            <p className="text-xs text-white/30 mt-1">
+                            <p className="text-white/70">Nessun achievement trovato</p>
+                            <p className="text-xs text-white/50 mt-1">
                                 Prova a cambiare i filtri
                             </p>
                         </div>

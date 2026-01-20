@@ -82,12 +82,14 @@ const ChallengeCard: React.FC<{
             transition={{ delay, duration: 0.3 }}
             className={`rounded-xl border ${
                 isCompleted
-                    ? 'border-emerald-500/30 bg-emerald-500/5'
+                    ? 'border-emerald-500/30 bg-emerald-500/10'
                     : isFailed
-                    ? 'border-rose-500/30 bg-rose-500/5'
-                    : 'border-white/10 bg-white/[0.04]'
-            } p-4 relative overflow-hidden`}
+                    ? 'border-rose-500/30 bg-rose-500/10'
+                    : 'border-white/15 bg-slate-900/50'
+            } p-4 relative overflow-hidden shadow-[0_18px_36px_-24px_rgba(15,23,42,0.9)]`}
         >
+            <div className="absolute -top-10 -right-8 h-24 w-24 rotate-12 rounded-[18px] bg-white/[0.04] border border-white/10" />
+            <div className="absolute -bottom-8 -left-6 h-20 w-20 -rotate-12 rounded-[16px] bg-white/[0.03] border border-white/10" />
             {/* Completed Badge */}
             {isCompleted && (
                 <motion.div
@@ -104,7 +106,7 @@ const ChallengeCard: React.FC<{
             {/* Header */}
             <div className="flex items-start gap-3 mb-3">
                 <div
-                    className={`p-2.5 rounded-xl bg-gradient-to-br ${getStatusColor()} bg-opacity-20`}
+                    className={`p-2.5 rounded-xl bg-gradient-to-br ${getStatusColor()} bg-opacity-20 shadow-lg shadow-black/10`}
                 >
                     {getIconForChallengeType(challenge.type)}
                 </div>
@@ -112,7 +114,7 @@ const ChallengeCard: React.FC<{
                     <h4 className="text-sm font-semibold text-white truncate pr-8">
                         {challenge.title}
                     </h4>
-                    <p className="text-xs text-white/50 line-clamp-2 mt-0.5">
+                    <p className="text-xs text-white/70 line-clamp-2 mt-0.5">
                         {challenge.description}
                     </p>
                 </div>
@@ -121,24 +123,24 @@ const ChallengeCard: React.FC<{
             {/* Progress Bar */}
             <div className="mb-3">
                 <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-white/60">
+                    <span className="text-xs text-white/70">
                         {challenge.currentValue} / {challenge.targetValue}
                     </span>
-                    <span className="text-xs font-medium text-white/80">{progress.toFixed(0)}%</span>
+                    <span className="text-xs font-medium text-white/90">{progress.toFixed(0)}%</span>
                 </div>
-                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-2 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
                         transition={{ duration: 0.5, ease: 'easeOut' }}
-                        className={`h-full rounded-full bg-gradient-to-r ${getStatusColor()}`}
+                        className={`h-full rounded-full bg-gradient-to-r ${getStatusColor()} shadow-lg shadow-white/10`}
                     />
                 </div>
             </div>
 
             {/* Footer */}
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs text-white/50">
+                <div className="flex items-center gap-1.5 text-xs text-white/70">
                     <FiClock className="w-3 h-3" />
                     <span>{getTimeRemaining()}</span>
                 </div>
@@ -204,17 +206,19 @@ export const ChallengesSection: React.FC<ChallengesSectionProps> = ({
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-6"
+            className="rounded-2xl border border-white/15 bg-slate-900/50 backdrop-blur-xl p-6 relative overflow-hidden shadow-[0_22px_50px_-30px_rgba(15,23,42,0.9)]"
         >
+            <div className="absolute -top-16 -right-10 h-36 w-36 rotate-12 rounded-[26px] bg-white/[0.04] border border-white/10" />
+            <div className="absolute -bottom-14 -left-10 h-32 w-32 -rotate-12 rounded-[24px] bg-white/[0.03] border border-white/10" />
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-500">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-500 shadow-lg shadow-black/20">
                         <FiTarget className="w-5 h-5 text-white" />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">Challenges</h3>
-                        <p className="text-sm text-white/50">
+                        <p className="text-sm text-white/70">
                             {completedCount}/{totalCount} completate
                         </p>
                     </div>
@@ -226,7 +230,7 @@ export const ChallengesSection: React.FC<ChallengesSectionProps> = ({
                         whileTap={{ scale: 0.95 }}
                         onClick={handleRefresh}
                         disabled={isRefreshing}
-                        className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white/60 hover:text-white hover:bg-white/[0.08] transition-all disabled:opacity-50"
+                        className="p-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-white/70 hover:text-white hover:bg-white/[0.12] transition-all disabled:opacity-50"
                     >
                         <motion.div
                             animate={isRefreshing ? { rotate: 360 } : {}}
@@ -239,15 +243,15 @@ export const ChallengesSection: React.FC<ChallengesSectionProps> = ({
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 p-1 bg-white/[0.04] rounded-xl mb-6">
+            <div className="flex gap-2 p-1 bg-white/[0.06] rounded-xl mb-6 border border-white/10">
                 {tabs.map((tab) => (
                     <motion.button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
                         className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
                             activeTab === tab.key
-                                ? 'bg-white/10 text-white shadow-lg'
-                                : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
+                                ? 'bg-white/15 text-white shadow-lg'
+                                : 'text-white/60 hover:text-white/90 hover:bg-white/[0.06]'
                         }`}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}

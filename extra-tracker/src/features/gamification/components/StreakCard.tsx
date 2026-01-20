@@ -65,8 +65,10 @@ export const StreakCard: React.FC<StreakCardProps> = ({
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-6 overflow-hidden relative"
+            className="rounded-2xl border border-white/15 bg-slate-900/50 backdrop-blur-xl p-6 overflow-hidden relative shadow-[0_20px_50px_-30px_rgba(15,23,42,0.9)]"
         >
+            <div className="absolute -top-14 -left-10 h-36 w-36 -rotate-12 rounded-[26px] bg-white/[0.04] border border-white/10" />
+            <div className="absolute -bottom-16 -right-8 h-40 w-40 rotate-12 rounded-[28px] bg-gradient-to-br from-white/[0.06] to-transparent border border-white/10" />
             {/* Background Gradient */}
             <div
                 className={`absolute inset-0 bg-gradient-to-br ${getStreakColor()} opacity-5`}
@@ -75,12 +77,12 @@ export const StreakCard: React.FC<StreakCardProps> = ({
             {/* Header */}
             <div className="relative flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${getStreakColor()}`}>
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${getStreakColor()} shadow-lg shadow-black/20`}>
                         <FiZap className="w-5 h-5 text-white" />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">Streak</h3>
-                        <p className="text-sm text-white/50">Mantieni la tua serie!</p>
+                        <p className="text-sm text-white/70">Mantieni la tua serie!</p>
                     </div>
                 </div>
 
@@ -108,43 +110,43 @@ export const StreakCard: React.FC<StreakCardProps> = ({
                     <span className={`text-6xl font-bold bg-gradient-to-r ${getStreakColor()} bg-clip-text text-transparent`}>
                         {streak.current}
                     </span>
-                    <span className="text-2xl text-white/60">giorni</span>
+                    <span className="text-2xl text-white/70">giorni</span>
                 </motion.div>
             </div>
 
             {/* Stats Grid */}
             <div className="relative grid grid-cols-2 gap-4 mb-6">
                 {/* Longest Streak */}
-                <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4">
+                <div className="rounded-xl bg-white/[0.06] border border-white/15 p-4">
                     <div className="flex items-center gap-2 mb-2">
                         <FiTrendingUp className="w-4 h-4 text-emerald-400" />
-                        <span className="text-xs text-white/50 uppercase tracking-wider">Record</span>
+                        <span className="text-xs text-white/70 uppercase tracking-wider">Record</span>
                     </div>
                     <p className="text-2xl font-bold text-white">{streak.longest}</p>
-                    <p className="text-xs text-white/40">giorni</p>
+                    <p className="text-xs text-white/60">giorni</p>
                 </div>
 
                 {/* Days Until Reset */}
-                <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4">
+                <div className="rounded-xl bg-white/[0.06] border border-white/15 p-4">
                     <div className="flex items-center gap-2 mb-2">
                         <FiClock className="w-4 h-4 text-blue-400" />
-                        <span className="text-xs text-white/50 uppercase tracking-wider">Tempo rimasto</span>
+                        <span className="text-xs text-white/70 uppercase tracking-wider">Tempo rimasto</span>
                     </div>
                     <p className="text-2xl font-bold text-white">
                         {streak.daysUntilReset > 0 ? streak.daysUntilReset : '< 24'}
                     </p>
-                    <p className="text-xs text-white/40">ore</p>
+                    <p className="text-xs text-white/60">ore</p>
                 </div>
             </div>
 
             {/* Streak Freezes */}
-            <div className="relative rounded-xl bg-white/[0.04] border border-white/10 p-4">
+            <div className="relative rounded-xl bg-white/[0.06] border border-white/15 p-4">
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                         <FiShield className="w-4 h-4 text-cyan-400" />
                         <span className="text-sm font-medium text-white">Streak Freeze</span>
                     </div>
-                    <span className="text-sm text-white/50">
+                    <span className="text-sm text-white/70">
                         {streak.freezesAvailable} / {streak.maxFreezes}
                     </span>
                 </div>
@@ -193,7 +195,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({
                     </motion.button>
                 )}
 
-                <p className="text-xs text-white/40 text-center mt-3">
+                <p className="text-xs text-white/60 text-center mt-3">
                     Il freeze protegge la streak per un giorno
                 </p>
             </div>
