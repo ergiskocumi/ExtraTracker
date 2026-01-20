@@ -1,32 +1,21 @@
 import { motion } from 'framer-motion';
-import { FiClock, FiDollarSign, FiTrendingUp, FiActivity, FiCalendar } from 'react-icons/fi';
+import { FiClock, FiTrendingUp, FiActivity, FiCalendar } from 'react-icons/fi';
 import type { WorkLog } from '../tracker/type';
-import type { Project } from '../projects/type';
 import { useFormat } from '../../shared/hooks/useFormat';
 
 interface QuickStatsProps {
     logs: WorkLog[];
-    projects: Project[];
     allLogs: WorkLog[]; // Tutti i log (per calcolare trend)
 }
 
-export const QuickStats = ({ logs, projects, allLogs }: QuickStatsProps) => {
-    const { formatMoney, formatHours } = useFormat();
-    
+export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
+    const { formatHours } = useFormat();
+
     // Calcola statistiche correnti
     const totalHours = logs.reduce((acc, log) => {
         const start = new Date(`2000-01-01T${log.startTime}`);
         const end = new Date(`2000-01-01T${log.endTime}`);
         return acc + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-    }, 0);
-
-    const totalEarnings = logs.reduce((acc, log) => {
-        const project = projects.find(p => p.id === log.projectId);
-        if (!project) return acc;
-        const start = new Date(`2000-01-01T${log.startTime}`);
-        const end = new Date(`2000-01-01T${log.endTime}`);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        return acc + (hours * project.rate);
     }, 0);
 
     // Calcola giorni lavorati questo mese
@@ -65,15 +54,6 @@ export const QuickStats = ({ logs, projects, allLogs }: QuickStatsProps) => {
             trendPositive: Number(hoursTrend) >= 0
         },
         {
-            label: 'Guadagno',
-            value: formatMoney(totalEarnings),
-            suffix: '',
-            icon: FiDollarSign,
-            color: 'from-emerald-500 to-emerald-600',
-            bgColor: 'bg-emerald-500/10',
-            iconColor: 'text-emerald-400',
-        },
-        {
             label: 'Giorni Lavorati',
             value: uniqueDays.toString(),
             suffix: 'gg',
@@ -94,7 +74,7 @@ export const QuickStats = ({ logs, projects, allLogs }: QuickStatsProps) => {
     ];
 
     return (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
             {stats.map((stat, index) => (
                 <motion.div
                     key={stat.label}

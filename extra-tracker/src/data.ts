@@ -1,38 +1,9 @@
 /*
-Questo file seve per fornire dati MOCK per i progetti e i log di lavoro.
+Questo file serve per fornire dati MOCK per i log di lavoro.
 Simula un database con dati predefiniti per facilitare lo sviluppo e i test dell'applicazione.
 */
 
-import type { Project } from "./features/projects/type";
 import type { WorkLog } from "./features/tracker/type";
-
-// import dei clienti per cui avrei lavorato con dati MOCK
-export const MOCK_PROJECTS: Project[] = [
-    {
-        id: "c1",
-        name: "Cliente A",
-        code: "COM001",
-        description: "Implementazione piattaforma web",
-        type: "CLIENT",
-        rate: 25,
-    },
-    {
-        id: "c2",
-        name: "Cliente B",
-        code: "COM002",
-        description: "Migrazione infrastruttura cloud",
-        type: "CLIENT",
-        rate: 25,
-    },
-    {
-        id: "c3",
-        name: "Martesana",
-        code: "3474",
-        description: "Supporto sistemistico continuativo",
-        type: "CLIENT",
-        rate: 25,
-    }
-]
 
 //import delle ore di straordinario che avrei fatto con dati MOCK
 export const MOCK_WORKLOGS: WorkLog[] = [

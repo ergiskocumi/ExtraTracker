@@ -56,7 +56,7 @@ export interface UserPreferences {
     // Dashboard
     dashboardLayout: 'default' | 'compact' | 'expanded';
     showMotivationalMessages: boolean;
-    defaultView: 'dashboard' | 'timeline' | 'goals';
+    defaultView: 'dashboard' | 'goals';
     
     // Lavoro
     weekStartsOn: 0 | 1;

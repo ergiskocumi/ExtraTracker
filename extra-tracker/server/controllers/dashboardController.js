@@ -12,7 +12,6 @@
 const studyService = require('../services/studyService');
 const goalService = require('../services/goalService');
 const activityService = require('../services/activityService');
-const projectService = require('../services/projectService');
 const UserActivity = require('../models/UserActivity');
 const User = require('../models/User');
 const Deck = require('../models/Deck');
@@ -315,10 +314,7 @@ exports.getSummary = asyncHandler(async (req, res) => {
 exports.getQuickActions = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     
-    const [decks, projects] = await Promise.all([
-        Deck.find({ user: userId }).select('_id title').limit(5).lean(),
-        projectService.find(req.tenantScope, {}, { limit: 5 })
-    ]);
+    const decks = await Deck.find({ user: userId }).select('_id title').limit(5).lean();
     
     const actions = [];
     
@@ -335,16 +331,14 @@ exports.getQuickActions = asyncHandler(async (req, res) => {
     }
     
     // Quick action: Log lavoro
-    if (projects.length > 0) {
-        actions.push({
-            id: 'worklog',
-            label: 'Registra lavoro',
-            description: 'Traccia le tue ore',
-            icon: 'clock',
-            color: 'blue',
-            link: '/timeline'
-        });
-    }
+    actions.push({
+        id: 'worklog',
+        label: 'Registra lavoro',
+        description: 'Traccia le tue ore',
+        icon: 'clock',
+        color: 'blue',
+        link: '/dashboard'
+    });
     
     // Quick action: Nuovo obiettivo
     actions.push({

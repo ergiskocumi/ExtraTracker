@@ -21,7 +21,6 @@ const workLogSchema = new mongoose.Schema({
     // Riferimento al progetto (DEVE essere dello stesso utente)
     projectId: { 
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Project',
         required: [true, 'Il progetto è obbligatorio'],
         index: true,
     },

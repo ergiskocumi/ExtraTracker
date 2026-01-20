@@ -163,15 +163,12 @@ class WorkTodoService extends BaseService {
 
     /**
      * Valida e converte projectId in ObjectId.
-     * Verifica anche che il progetto appartenga all'utente.
      */
     async validateAndConvertProjectId(tenantScope, projectId) {
         if (!projectId) {
             throw AppError.validation('Il progetto è obbligatorio');
         }
         
-        const userId = this._getUserId(tenantScope);
-        const Project = require('../models/Project');
         const mongoose = require('mongoose');
         
         // Converti in ObjectId
@@ -191,16 +188,6 @@ class WorkTodoService extends BaseService {
         } catch (err) {
             if (err instanceof AppError) throw err;
             throw AppError.validation('ID progetto non valido');
-        }
-        
-        // Verifica che il progetto esista e appartenga all'utente
-        const project = await Project.findOne({ 
-            _id: projectObjectId, 
-            user: userId 
-        });
-        
-        if (!project) {
-            throw AppError.notFound('Progetto non trovato');
         }
         
         return projectObjectId;

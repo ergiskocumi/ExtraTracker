@@ -1,51 +1,59 @@
-import type { WorkLog } from "../../features/tracker/type";
-import type { Project } from "../../features/projects/type";
 import { calculateDurationInHours } from "./dateUtils";
 
-export interface ProjectSummary {
-    projectId: string;
-    projectName: string;
-    totalHours: number;
-    totalAmount: number;
+export type WorkLog = {
+	projectId: string;
+	date: string;
+	startTime: string;
+	endTime: string;
 };
 
-export const calculatesTotalsByProject = (logs: WorkLog[], projects: Project[]): ProjectSummary[] => {
-    const summaryMap = new Map<string, ProjectSummary>();
+export interface ProjectSummary {
+	projectId: string;
+	projectName?: string;
+	totalHours: number;
+	totalAmount: number;
+}
 
-    projects.forEach(p => {
-        summaryMap.set(p.id, {
-            projectId: p.id,
-            projectName: p.name,
-            totalHours: 0,
-            totalAmount: 0
-        });
-    });
+export const calculatesTotalsByProject = (
+	logs: WorkLog[],
+	projects: { id: string; name?: string; rate?: number }[]
+): ProjectSummary[] => {
+	const projectMap = new Map(projects.map((p) => [p.id, p]));
 
-    logs.forEach(log => {
-        const stats = summaryMap.get(log.projectId);
-        const project = projects.find(p => p.id === log.projectId);
+	const totals = new Map<string, { hours: number; amount: number; name?: string }>();
 
-        if(stats && project) {
-            // RIMOSSO IL BLOCCO: if(log.startTime > log.endTime) { throw ... }
-            // Ora ci fidiamo di calculateDurationInHours che gestisce il 'Midnight Crossing'
+	for (const log of logs) {
+		const project = projectMap.get(log.projectId);
+		if (!project) continue;
 
-            try {
-                const hours = calculateDurationInHours(log.startTime, log.endTime);
-                
-                // Opzionale: Se vuoi evitare turni assurdi (es. > 24 ore), potresti mettere un controllo qui
-                // ma per ora lasciamo che calcoli tutto.
-                
-                const amount = hours * project.rate;
-                
-                stats.totalHours += hours;
-                stats.totalAmount += amount;
-            } catch (error) {
-                // Se dateUtils lancia un errore (es. formato invalido), lo ignoriamo o lo logghiamo
-                // ma non blocchiamo l'intero report
-                console.warn(`Skipping invalid log ${log.id}`, error);
-            }
-        }
-    });
+		// calculateDurationInHours should handle regular cases; add midnight crossing support
+		const duration = calculateDurationInHours(log.startTime, log.endTime);
+		const hours = Number.isFinite(duration)
+			? duration
+			: (() => {
+					const [sh, sm] = log.startTime.split(":").map(Number);
+					const [eh, em] = log.endTime.split(":").map(Number);
+					const start = sh * 60 + sm;
+					const end = eh * 60 + em;
+					const minutes = end >= start ? end - start : end + 1440 - start;
+					return minutes / 60;
+				})();
 
-    return Array.from(summaryMap.values()).filter(s => s.totalHours > 0);
+		const amount = (project.rate ?? 0) * hours;
+		const current = totals.get(log.projectId) || { hours: 0, amount: 0, name: project.name };
+		totals.set(log.projectId, {
+			hours: current.hours + hours,
+			amount: current.amount + amount,
+			name: project.name,
+		});
+	}
+
+	return Array.from(totals.entries())
+		.map(([projectId, value]) => ({
+			projectId,
+			projectName: value.name,
+			totalHours: value.hours,
+			totalAmount: value.amount,
+		}))
+		.filter((item) => item.totalHours > 0);
 };

@@ -200,7 +200,6 @@ const getNotifications = asyncHandler(async (req, res) => {
             enabled: true,
             weeklyReport: true,
             goalReminders: true,
-            projectUpdates: false,
         },
         push: {
             enabled: false,
@@ -233,7 +232,6 @@ const updateNotifications = asyncHandler(async (req, res) => {
         if (email.enabled !== undefined) updates['notifications.email.enabled'] = email.enabled;
         if (email.weeklyReport !== undefined) updates['notifications.email.weeklyReport'] = email.weeklyReport;
         if (email.goalReminders !== undefined) updates['notifications.email.goalReminders'] = email.goalReminders;
-        if (email.projectUpdates !== undefined) updates['notifications.email.projectUpdates'] = email.projectUpdates;
     }
 
     // Aggiorna preferenze push
@@ -433,7 +431,6 @@ const deleteAccount = asyncHandler(async (req, res) => {
 
     // Elimina tutti i dati dell'utente
     const WorkLog = require('../models/WorkLog');
-    const Project = require('../models/Project');
     const Goal = require('../models/Goal');
     const CheckIn = require('../models/CheckIn');
     const Deck = require('../models/Deck');
@@ -443,7 +440,6 @@ const deleteAccount = asyncHandler(async (req, res) => {
 
     await Promise.all([
         WorkLog.deleteMany({ user: req.user.id }),
-        Project.deleteMany({ user: req.user.id }),
         Goal.deleteMany({ user: req.user.id }),
         CheckIn.deleteMany({ user: req.user.id }),
         Deck.deleteMany({ user: req.user.id }),

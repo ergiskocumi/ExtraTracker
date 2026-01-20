@@ -47,6 +47,9 @@ describe('CinemaLayout - Navigation Tests', () => {
         title: 'Test Deck',
         cards: [],
         pdfUrl: 'https://example.com/test.pdf',
+        tags: [],
+        totalCards: 0,
+        dueCount: 0,
     };
 
     beforeEach(() => {

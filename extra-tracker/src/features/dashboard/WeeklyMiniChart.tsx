@@ -2,15 +2,13 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FiTrendingUp } from 'react-icons/fi';
 import type { WorkLog } from '../tracker/type';
-import type { Project } from '../projects/type';
 import { calculateDurationInHours } from '../../shared/utils/dateUtils';
 
 interface MiniChartProps {
     logs: WorkLog[];
-    projects: Project[];
 }
 
-export const WeeklyMiniChart = ({ logs, projects }: MiniChartProps) => {
+export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
     // OTTIMIZZATO: Memoizza tutti i calcoli costosi
     const { dailyData, maxHours, totalWeekHours, avgDailyHours } = useMemo(() => {
         // Calcola ore per gli ultimi 7 giorni
@@ -20,30 +18,16 @@ export const WeeklyMiniChart = ({ logs, projects }: MiniChartProps) => {
             return date.toISOString().split('T')[0];
         });
 
-        // OTTIMIZZATO: Crea mappa progetti per lookup O(1)
-        const projectMap = projects.reduce<Record<string, Project>>((map, project) => {
-            map[project.id] = project;
-            return map;
-        }, {});
-
         const dailyData = last7Days.map(dateStr => {
             const dayLogs = logs.filter(l => l.date === dateStr);
             const hours = dayLogs.reduce((acc, log) => {
                 return acc + calculateDurationInHours(log.startTime, log.endTime);
             }, 0);
-            
-            const earnings = dayLogs.reduce((acc, log) => {
-                const project = projectMap[log.projectId];
-                if (!project) return acc;
-                const h = calculateDurationInHours(log.startTime, log.endTime);
-                return acc + (h * project.rate);
-            }, 0);
 
             return {
                 date: dateStr,
                 dayName: new Date(dateStr).toLocaleDateString('it-IT', { weekday: 'short' }),
-                hours,
-                earnings
+                hours
             };
         });
 
@@ -52,7 +36,7 @@ export const WeeklyMiniChart = ({ logs, projects }: MiniChartProps) => {
         const avgDailyHours = totalWeekHours / 7;
 
         return { dailyData, maxHours, totalWeekHours, avgDailyHours };
-    }, [logs, projects]);
+    }, [logs]);
 
     return (
         <motion.div
@@ -102,7 +86,6 @@ export const WeeklyMiniChart = ({ logs, projects }: MiniChartProps) => {
                                 {/* Tooltip */}
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-lg bg-dark-700 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                                     <p className="font-semibold text-white">{day.hours.toFixed(1)}h</p>
-                                    <p className="text-white/60">€{day.earnings.toFixed(0)}</p>
                                 </div>
                             </motion.div>
                         </div>
