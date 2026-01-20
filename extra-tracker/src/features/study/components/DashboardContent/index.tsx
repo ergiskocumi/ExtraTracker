@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
-import { DeckSkeleton } from '../DeckSkeleton';
+import { DeckGridSkeleton } from '../../../../shared/components/skeleton';
 import { DashboardEmptyState } from '../Dashboard/DashboardEmptyState';
 import { DeckGrid } from '../Deck/DeckGrid';
 import { DeckCard } from '../DeckCard';
@@ -53,13 +53,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
     onTogglePin,
 }) => {
     if (isLoading) {
-        return (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                {[...Array(4)].map((_, i) => (
-                    <DeckSkeleton key={i} />
-                ))}
-            </div>
-        );
+        return <DeckGridSkeleton count={6} />;
     }
 
     if (error) {

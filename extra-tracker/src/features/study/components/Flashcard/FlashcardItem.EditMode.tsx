@@ -1,12 +1,13 @@
 /**
  * 🎴 FLASHCARD ITEM - Edit Mode Component
  * =======================================
- * 
+ *
  * Displays the card in edit mode with input fields.
  * Optimized for immediate text input without animation interference.
+ * Memoized with React.memo to prevent unnecessary re-renders.
  */
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, memo } from 'react';
 import { FiX, FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG, INPUT_STYLES, BUTTON_STYLES, TEXT_CONTENT, ICON_SIZES, LAYOUT } from './FlashcardItem.constants';
@@ -30,7 +31,7 @@ interface EditModeProps {
 // COMPONENT
 // ============================================
 
-export const EditMode: React.FC<EditModeProps> = ({
+const EditModeComponent: React.FC<EditModeProps> = ({
     frontValue,
     backValue,
     isSaving,
@@ -241,3 +242,9 @@ export const EditMode: React.FC<EditModeProps> = ({
         </div>
     );
 };
+
+/**
+ * Memoized EditMode component.
+ * Re-renders only when props change.
+ */
+export const EditMode = memo(EditModeComponent);

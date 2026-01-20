@@ -1,11 +1,12 @@
 /**
  * 🎴 FLASHCARD ITEM - View Mode Component
  * =======================================
- * 
+ *
  * Displays the card in view mode (non-editing).
+ * Optimized with React.memo to prevent unnecessary re-renders.
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { FiEdit2, FiTrash2, FiTarget } from 'react-icons/fi';
 import type { Card } from '../../services/studyService';
 import { BADGE_STYLES, BUTTON_STYLES, TEXT_CONTENT, ICON_SIZES, LAYOUT } from './FlashcardItem.constants';
@@ -29,7 +30,7 @@ interface ViewModeProps {
 // COMPONENT
 // ============================================
 
-export const ViewMode: React.FC<ViewModeProps> = ({
+const ViewModeComponent: React.FC<ViewModeProps> = ({
     card,
     buttonState,
     isSourceActive,
@@ -134,3 +135,9 @@ export const ViewMode: React.FC<ViewModeProps> = ({
         </div>
     );
 };
+
+/**
+ * Memoized ViewMode component.
+ * Re-renders only when props change.
+ */
+export const ViewMode = memo(ViewModeComponent);
