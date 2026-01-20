@@ -247,7 +247,9 @@ export const StudySessionPage: React.FC = () => {
     // REFACTOR: Usa ref locale + globale per tracciare completamento
     const isSessionCompleteRef = useRef(false);
     const hasLoadedSessionRef = useRef(false);
+    const hasStudiedAnyCardRef = useRef(false); // Traccia se l'utente ha studiato almeno una carta
     const sessionKey = deckId ? `${deckId}-${mode}` : null;
+    const startTimeRef = useRef(Date.now()); // Ref per startTime (non cambia durante la sessione)
 
     const updateSessionStats = useCallback((updater: (prev: typeof sessionStats) => typeof sessionStats) => {
         const next = updater(sessionStatsRef.current);
@@ -299,7 +301,10 @@ export const StudySessionPage: React.FC = () => {
                 setCurrentCardIndex(0);
                 setIsFlipped(false);
                 setExitDirection(null);
-                setStartTime(Date.now());
+                const now = Date.now();
+                setStartTime(now);
+                startTimeRef.current = now;
+                hasStudiedAnyCardRef.current = false;
                 updateSessionStats(() => ({
                     total: orderedCards.length,
                     hard: 0,
@@ -399,6 +404,115 @@ export const StudySessionPage: React.FC = () => {
         }
     }, [deckId, session, isFinalizing, mode, checkAuth]);
 
+    // ============================================
+    // EARLY EXIT HANDLER - Salva sessione quando utente esce
+    // ============================================
+    useEffect(() => {
+        // Funzione per salvare la sessione quando l'utente esce
+        const saveSessionOnExit = async () => {
+            // Non salvare se:
+            // - Sessione già completata
+            // - Nessuna carta studiata
+            // - Nessun deckId valido
+            // - Sessione già marcata globalmente come completata
+            if (
+                isSessionCompleteRef.current ||
+                !hasStudiedAnyCardRef.current ||
+                !deckId ||
+                (sessionKey && globalCompletedSessions.has(sessionKey))
+            ) {
+                return;
+            }
+
+            const statsSnapshot = sessionStatsRef.current;
+            const cardsStudied = statsSnapshot.hard + statsSnapshot.good + statsSnapshot.easy;
+
+            // Se non ha studiato nessuna carta, non salvare
+            if (cardsStudied === 0) {
+                return;
+            }
+
+            const durationSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+            const correctCount = statsSnapshot.good + statsSnapshot.easy;
+            const wrongCount = statsSnapshot.hard;
+
+            // Marca come completata per evitare doppio salvataggio
+            isSessionCompleteRef.current = true;
+            if (sessionKey) {
+                globalCompletedSessions.add(sessionKey);
+            }
+
+            try {
+                // Usa sendBeacon per garantire che la richiesta venga completata anche se la pagina si chiude
+                const payload = {
+                    mode,
+                    stats: {
+                        correct: correctCount,
+                        wrong: wrongCount,
+                        timeSeconds: durationSeconds,
+                    },
+                };
+
+                // Prova prima con fetch normale (più affidabile per dati di risposta)
+                await studyService.completeSession(deckId, payload);
+                console.log('[StudySession] Sessione parziale salvata con successo');
+            } catch (err) {
+                console.error('[StudySession] Errore nel salvataggio sessione parziale:', err);
+                // Resetta i flag per permettere retry se l'utente torna
+                isSessionCompleteRef.current = false;
+                if (sessionKey) {
+                    globalCompletedSessions.delete(sessionKey);
+                }
+            }
+        };
+
+        // Handler per beforeunload (chiusura tab/browser)
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (
+                !isSessionCompleteRef.current &&
+                hasStudiedAnyCardRef.current &&
+                deckId
+            ) {
+                const statsSnapshot = sessionStatsRef.current;
+                const cardsStudied = statsSnapshot.hard + statsSnapshot.good + statsSnapshot.easy;
+
+                if (cardsStudied > 0) {
+                    const durationSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+                    const correctCount = statsSnapshot.good + statsSnapshot.easy;
+                    const wrongCount = statsSnapshot.hard;
+
+                    // Usa sendBeacon per inviare dati anche quando la pagina si chiude
+                    const payload = JSON.stringify({
+                        mode,
+                        stats: {
+                            correct: correctCount,
+                            wrong: wrongCount,
+                            timeSeconds: durationSeconds,
+                        },
+                    });
+
+                    navigator.sendBeacon(
+                        `/api/study/${deckId}/session-complete`,
+                        new Blob([payload], { type: 'application/json' })
+                    );
+
+                    // Mostra avviso (opzionale, alcuni browser lo ignorano)
+                    e.preventDefault();
+                    e.returnValue = 'Hai una sessione in corso. Sei sicuro di voler uscire?';
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        // Cleanup: salva sessione quando componente viene smontato (navigazione interna)
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            // Salva sessione in modo asincrono quando si esce dalla pagina
+            saveSessionOnExit();
+        };
+    }, [deckId, mode, sessionKey]);
+
     const advanceCard = useCallback(() => {
         if (!session || isSessionCompleteRef.current) return;
 
@@ -439,6 +553,9 @@ export const StudySessionPage: React.FC = () => {
                 good: prev.good + (rating === 3 ? 1 : 0),
                 easy: prev.easy + (rating === 5 ? 1 : 0),
             }));
+
+            // Marca che l'utente ha studiato almeno una carta
+            hasStudiedAnyCardRef.current = true;
 
             return true;
         } catch (err: any) {
