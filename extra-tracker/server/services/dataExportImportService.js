@@ -11,7 +11,6 @@
  */
 
 const Goal = require('../models/Goal');
-const Project = require('../models/Project');
 const WorkLog = require('../models/WorkLog');
 const Deck = require('../models/Deck');
 const Folder = require('../models/Folder');
@@ -31,9 +30,8 @@ const AppError = require('../utils/AppError');
 async function exportUserData(userId) {
     try {
         // Raccogli tutti i dati in parallelo
-        const [goals, projects, workLogs, decks, folders, tags, checkIns, workTodos] = await Promise.all([
+        const [goals, workLogs, decks, folders, tags, checkIns, workTodos] = await Promise.all([
             Goal.find({ user: userId }).lean(),
-            Project.find({ user: userId }).lean(),
             WorkLog.find({ user: userId }).lean(),
             Deck.find({ user: userId }).lean(),
             Folder.find({ user: userId }).lean(),
@@ -46,11 +44,6 @@ async function exportUserData(userId) {
         const cleanGoals = goals.map(goal => {
             const { user, __v, ...cleanGoal } = goal;
             return cleanGoal;
-        });
-
-        const cleanProjects = projects.map(project => {
-            const { user, __v, ...cleanProject } = project;
-            return cleanProject;
         });
 
         const cleanWorkLogs = workLogs.map(log => {
@@ -94,18 +87,16 @@ async function exportUserData(userId) {
                 decks: cleanDecks,
                 folders: cleanFolders,
                 tags: cleanTags,
+                workLogs: cleanWorkLogs,
+                decks: cleanDecks,
+                folders: cleanFolders,
+                tags: cleanTags,
                 checkIns: cleanCheckIns,
                 workTodos: cleanWorkTodos,
             },
             metadata: {
                 counts: {
                     goals: cleanGoals.length,
-                    projects: cleanProjects.length,
-                    workLogs: cleanWorkLogs.length,
-                    decks: cleanDecks.length,
-                    folders: cleanFolders.length,
-                    tags: cleanTags.length,
-                    checkIns: cleanCheckIns.length,
                     workTodos: cleanWorkTodos.length,
                 },
             },
@@ -144,7 +135,7 @@ function validateImportData(data) {
     const { data: importData } = data;
 
     // Valida che ogni sezione sia un array
-    const requiredSections = ['goals', 'projects', 'workLogs', 'decks', 'folders', 'tags', 'checkIns', 'workTodos'];
+    const requiredSections = ['goals', 'workLogs', 'decks', 'folders', 'tags', 'checkIns', 'workTodos'];
     for (const section of requiredSections) {
         if (!Array.isArray(importData[section])) {
             throw new AppError(
@@ -180,11 +171,6 @@ function validateDocument(doc, type) {
             break;
         case 'deck':
             if (!doc.title || !doc.goalId) {
-                return { valid: false, error: 'Deck: titolo o goalId mancante' };
-            }
-            break;
-        case 'folder':
-            if (!doc.name) {
                 return { valid: false, error: 'Folder: nome mancante' };
             }
             break;
@@ -220,9 +206,8 @@ async function compareImportData(userId, importData) {
     validateImportData(importData);
 
     // Raccogli dati esistenti
-    const [existingGoals, existingProjects, existingWorkLogs, existingDecks, existingFolders, existingTags, existingCheckIns, existingWorkTodos] = await Promise.all([
+    const [existingGoals, existingWorkLogs, existingDecks, existingFolders, existingTags, existingCheckIns, existingWorkTodos] = await Promise.all([
         Goal.find({ user: userId }).lean(),
-        Project.find({ user: userId }).lean(),
         WorkLog.find({ user: userId }).lean(),
         Deck.find({ user: userId }).lean(),
         Folder.find({ user: userId }).lean(),
@@ -233,7 +218,6 @@ async function compareImportData(userId, importData) {
 
     const existing = {
         goals: existingGoals.length,
-        projects: existingProjects.length,
         workLogs: existingWorkLogs.length,
         decks: existingDecks.length,
         folders: existingFolders.length,
@@ -244,7 +228,6 @@ async function compareImportData(userId, importData) {
 
     const importing = {
         goals: importData.data.goals.length,
-        projects: importData.data.projects.length,
         workLogs: importData.data.workLogs.length,
         decks: importData.data.decks.length,
         folders: importData.data.folders.length,
@@ -256,7 +239,6 @@ async function compareImportData(userId, importData) {
     // Verifica se i dati sono identici (stesso numero di elementi per tipo)
     const isIdentical = 
         existing.goals === importing.goals &&
-        existing.projects === importing.projects &&
         existing.workLogs === importing.workLogs &&
         existing.decks === importing.decks &&
         existing.folders === importing.folders &&
@@ -267,7 +249,6 @@ async function compareImportData(userId, importData) {
     // Verifica se i dati importati sono minori (almeno un tipo ha meno elementi)
     const hasLessData = 
         importing.goals < existing.goals ||
-        importing.projects < existing.projects ||
         importing.workLogs < existing.workLogs ||
         importing.decks < existing.decks ||
         importing.folders < existing.folders ||
@@ -278,7 +259,6 @@ async function compareImportData(userId, importData) {
     // Calcola differenze per tipo
     const differences = {
         goals: importing.goals - existing.goals,
-        projects: importing.projects - existing.projects,
         workLogs: importing.workLogs - existing.workLogs,
         decks: importing.decks - existing.decks,
         folders: importing.folders - existing.folders,
@@ -308,8 +288,8 @@ async function compareImportData(userId, importData) {
  * 2. Confronta con dati esistenti
  * 3. Valida ogni documento
  * 4. Crea mapping ID vecchi -> nuovi
- * 5. Importa in ordine: folders, tags, goals, projects, decks, workLogs, checkIns, workTodos
- * 6. Aggiorna riferimenti (goalId, projectId, folderId)
+ * 5. Importa in ordine: folders, tags, goals, decks, workLogs, checkIns, workTodos
+ * 6. Aggiorna riferimenti (goalId, folderId)
  */
 async function importUserData(userId, importData, options = {}) {
     const { merge = false, force = false } = options; // force: true = ignora warning
@@ -345,7 +325,6 @@ async function importUserData(userId, importData, options = {}) {
     // 2. Mapping ID vecchi -> nuovi (per mantenere relazioni)
     const idMappings = {
         goals: new Map(),
-        projects: new Map(),
         folders: new Map(),
         tags: new Map(),
     };
@@ -357,13 +336,6 @@ async function importUserData(userId, importData, options = {}) {
         const validation = validateDocument(goal, 'goal');
         if (!validation.valid) {
             validationErrors.push(`Goal ${index}: ${validation.error}`);
-        }
-    });
-
-    data.projects.forEach((project, index) => {
-        const validation = validateDocument(project, 'project');
-        if (!validation.valid) {
-            validationErrors.push(`Project ${index}: ${validation.error}`);
         }
     });
 
@@ -438,21 +410,7 @@ async function importUserData(userId, importData, options = {}) {
         importedGoals.push(newGoal);
     }
 
-    // 5.4 Projects (dipende da nulla, ma referenziato da workLogs e workTodos)
-    const importedProjects = [];
-    for (const project of data.projects) {
-        const { _id, ...projectData } = project;
-        const newProject = await Project.create({
-            ...projectData,
-            user: userId,
-        });
-        if (_id) {
-            idMappings.projects.set(_id.toString(), newProject._id);
-        }
-        importedProjects.push(newProject);
-    }
-
-    // 5.5 Decks (dipende da goals e folders)
+    // 5.4 Decks (dipende da goals e folders)
     const importedDecks = [];
     for (const deck of data.decks) {
         const { _id, goalId, folderId, ...deckData } = deck;
@@ -493,35 +451,19 @@ async function importUserData(userId, importData, options = {}) {
         importedDecks.push(newDeck);
     }
 
-    // 5.6 WorkLogs (dipende da projects)
+    // 5.5 WorkLogs (non ha dipendenze esterne dopo rimozione di Project)
     const importedWorkLogs = [];
     for (const workLog of data.workLogs) {
-        const { _id, projectId, ...workLogData } = workLog;
+        const { _id, ...workLogData } = workLog;
         
-        // Mappa projectId
-        let newProjectId = projectId;
-        if (projectId && idMappings.projects.has(projectId.toString())) {
-            newProjectId = idMappings.projects.get(projectId.toString());
-        } else if (projectId) {
-            const projectExists = await Project.findOne({ _id: projectId, user: userId });
-            if (!projectExists) {
-                throw new AppError(
-                    `WorkLog: projectId non valido`,
-                    400,
-                    'INVALID_REFERENCE'
-                );
-            }
-        }
-
         const newWorkLog = await WorkLog.create({
             ...workLogData,
-            projectId: newProjectId,
             user: userId,
         });
         importedWorkLogs.push(newWorkLog);
     }
 
-    // 5.7 CheckIns (dipende da goals)
+    // 5.6 CheckIns (dipende da goals)
     const importedCheckIns = [];
     for (const checkIn of data.checkIns) {
         const { _id, goalId, ...checkInData } = checkIn;
@@ -549,29 +491,13 @@ async function importUserData(userId, importData, options = {}) {
         importedCheckIns.push(newCheckIn);
     }
 
-    // 5.8 WorkTodos (dipende da projects)
+    // 5.7 WorkTodos (non ha dipendenze esterne dopo rimozione di Project)
     const importedWorkTodos = [];
     for (const workTodo of data.workTodos) {
-        const { _id, project, ...workTodoData } = workTodo;
+        const { _id, ...workTodoData } = workTodo;
         
-        // Mappa project
-        let newProjectId = project;
-        if (project && idMappings.projects.has(project.toString())) {
-            newProjectId = idMappings.projects.get(project.toString());
-        } else if (project) {
-            const projectExists = await Project.findOne({ _id: project, user: userId });
-            if (!projectExists) {
-                throw new AppError(
-                    `WorkTodo: project non valido`,
-                    400,
-                    'INVALID_REFERENCE'
-                );
-            }
-        }
-
         const newWorkTodo = await WorkTodo.create({
             ...workTodoData,
-            project: newProjectId,
             user: userId,
         });
         importedWorkTodos.push(newWorkTodo);
@@ -581,7 +507,6 @@ async function importUserData(userId, importData, options = {}) {
         success: true,
         imported: {
             goals: importedGoals.length,
-            projects: importedProjects.length,
             workLogs: importedWorkLogs.length,
             decks: importedDecks.length,
             folders: importedFolders.length,

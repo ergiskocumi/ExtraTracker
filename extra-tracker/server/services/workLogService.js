@@ -14,7 +14,6 @@
 
 const BaseService = require('./BaseService');
 const WorkLog = require('../models/WorkLog');
-const Project = require('../models/Project');
 const AppError = require('../utils/AppError');
 const eventBus = require('../utils/eventBus');
 
@@ -197,23 +196,14 @@ class WorkLogService extends BaseService {
      * @returns {Promise<Object>} Statistiche progetto
      * @returns {number} totalHours - Ore totali lavorate
      * @returns {number} totalRevenue - Revenue totale (ore × rate)
-     * @returns {number} burnRate - Percentuale ore consumate (0-100+)
-     * @returns {string|null} lastActivity - Data ultima attività (YYYY-MM-DD)
-     * @returns {number} entriesCount - Numero totale di log/note
-     * @returns {number} billableHours - Ore fatturabili
-     * @returns {number} nonBillableHours - Ore non fatturabili
+    /**
+     * Ottiene statistiche aggregate per un progetto.
+     * @param {Object} tenantScope - Ambito tenant (contiene userId)
+     * @param {string} projectId - ID del progetto
+     * @returns {object} Statistics object con minuti, ore, revenue, ecc.
      */
     async getProjectStats(tenantScope, projectId) {
         const userId = this._getUserId(tenantScope);
-        
-        // 1. Verifica ownership progetto
-        await this.validateProjectOwnership(tenantScope, projectId);
-        
-        // 2. Recupera progetto per ottenere rate e estimatedHours
-        const project = await Project.findOne({ _id: projectId, user: userId });
-        if (!project) {
-            throw AppError.notFound('Progetto');
-        }
         
         // 3. Aggrega tutti i worklogs per questo progetto
         const results = await WorkLog.aggregate([
@@ -265,29 +255,21 @@ class WorkLogService extends BaseService {
         const nonBillableHours = (stats.nonBillableMinutes / 60).toFixed(2);
         
         // Revenue = ore fatturabili × tariffa
-        const totalRevenue = (stats.billableMinutes / 60) * (project.rate || 0);
+        const totalRevenue = (stats.billableMinutes / 60) * (0 || 0);
         
         // Burn rate = (ore consumate / ore stimate) × 100
         // Se estimatedHours è 0 o null, burnRate è null (non calcolabile)
         let burnRate = null;
-        if (project.estimatedHours && project.estimatedHours > 0) {
-            burnRate = ((stats.totalMinutes / 60) / project.estimatedHours) * 100;
-            burnRate = Math.round(burnRate * 100) / 100; // Arrotonda a 2 decimali
-        }
         
         return {
             projectId: projectId.toString(),
-            projectName: project.name,
-            projectCode: project.code,
             totalHours: parseFloat(totalHours),
             billableHours: parseFloat(billableHours),
             nonBillableHours: parseFloat(nonBillableHours),
             totalRevenue: Math.round(totalRevenue * 100) / 100, // Arrotonda a 2 decimali
-            burnRate, // Può essere null se estimatedHours non è impostato
+            burnRate, // Può essere null
             lastActivity: stats.lastActivityDate || null,
             entriesCount: stats.entriesCount,
-            projectRate: project.rate,
-            estimatedHours: project.estimatedHours || null,
         };
     }
 
@@ -297,15 +279,11 @@ class WorkLogService extends BaseService {
 
     /**
      * Validazione pre-creazione:
-     * - Verifica che il progetto appartenga allo stesso utente (IDOR prevention)
      * - Se presenti orari, valida che siano coerenti
      * - Se non presenti orari, permette creazione (nota/journal)
      */
     async beforeCreate(tenantScope, data) {
-        // 1. Validazione ownership progetto (sempre richiesta)
-        await this.validateProjectOwnership(tenantScope, data.projectId);
-        
-        // 2. Validazione orari (solo se presenti entrambi)
+        // 1. Validazione orari (solo se presenti entrambi)
         // Se startTime o endTime sono presenti, devono essere entrambi presenti e validi
         if (data.startTime || data.endTime) {
             if (!data.startTime || !data.endTime) {
@@ -375,14 +353,9 @@ class WorkLogService extends BaseService {
 
     /**
      * Validazione pre-update:
-     * - Se si cambia progetto, verifica ownership
      * - Se si modificano orari, valida coerenza (solo se entrambi presenti)
      */
     async beforeUpdate(tenantScope, id, data) {
-        if (data.projectId) {
-            await this.validateProjectOwnership(tenantScope, data.projectId);
-        }
-        
         // Validazione orari: se si modifica uno, deve essere presente anche l'altro
         if (data.startTime || data.endTime) {
             const existing = await this.findById(tenantScope, id);
@@ -420,25 +393,6 @@ class WorkLogService extends BaseService {
      * 1. Conoscere l'ID di un progetto altrui (es. da URL o leak)
      * 2. Creare un WorkLog associato a quel progetto
      * 3. "Inquinare" i dati di un altro utente
-     * 
-     * @throws {AppError} Se il progetto non esiste o non appartiene all'utente
-     */
-    async validateProjectOwnership(tenantScope, projectId) {
-        if (!projectId) {
-            throw AppError.validation('Il progetto è obbligatorio');
-        }
-
-        const userId = this._getUserId(tenantScope);
-        
-        // 🔒 Query diretta con filtro esplicito
-        const project = await Project.findOne({ _id: projectId, user: userId });
-        
-        if (!project) {
-            // ATTENZIONE: Non rivelare se il progetto esiste ma appartiene ad altri!
-            throw AppError.notFound('Progetto');
-        }
-    }
-
     /**
      * Verifica che l'ora di fine sia successiva all'ora di inizio.
      * (Considera anche il caso di lavoro oltre mezzanotte)

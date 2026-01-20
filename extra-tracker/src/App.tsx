@@ -9,7 +9,6 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { GoalsProvider } from './features/goals/context/GoalsContext';
-import { ProjectsProvider } from './features/projects/context/ProjectsContext';
 import { WorkLogProvider } from './features/tracker/context/WorkLogContext';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
 import { WorkspaceProvider } from './features/workspace/context/WorkspaceContext';
@@ -19,13 +18,11 @@ import { useSettings } from './features/settings/context/SettingsContext';
 
 // OTTIMIZZATO: Lazy loading per tutte le pagine (code splitting)
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
-const ProjectsPage = lazy(() => import('./features/projects/pages/ProjectsPage').then(m => ({ default: m.ProjectsPage })));
 const SettingsPage = lazy(() => import('./features/settings/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const GoalsPage = lazy(() => import('./features/goals/pages/GoalsPage').then(m => ({ default: m.GoalsPage })));
 const GoalDetailPage = lazy(() => import('./features/goals/pages/GoalDetailPage').then(m => ({ default: m.GoalDetailPage })));
 const TimelinePage = lazy(() => import('./features/tracker/pages/TimelinePage').then(m => ({ default: m.TimelinePage })));
 const WorkspacePage = lazy(() => import('./features/workspace/pages/WorkspacePage').then(m => ({ default: m.WorkspacePage })));
-const ProjectDetailPage = lazy(() => import('./features/workspace/pages/ProjectDetailPage').then(m => ({ default: m.ProjectDetailPage })));
 const LoginPage = lazy(() => import('./features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('./features/auth/pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
@@ -74,19 +71,17 @@ function App() {
                 </Route>
 
                 {/* ===== ROUTE PROTETTE (App) ===== */}
-                <Route 
+                <Route
                     element={
                         <ProtectedRoute>
                             <SettingsProvider>
-                                <ProjectsProvider>
-                                    <WorkLogProvider>
-                                        <WorkspaceProvider>
-                                            <GoalsProvider>
-                                                <AppLayout />
-                                            </GoalsProvider>
-                                        </WorkspaceProvider>
-                                    </WorkLogProvider>
-                                </ProjectsProvider>
+                                <WorkLogProvider>
+                                    <WorkspaceProvider>
+                                        <GoalsProvider>
+                                            <AppLayout />
+                                        </GoalsProvider>
+                                    </WorkspaceProvider>
+                                </WorkLogProvider>
                             </SettingsProvider>
                         </ProtectedRoute>
                     }
@@ -95,9 +90,7 @@ function App() {
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/goals" element={<GoalsPage />} />
                     <Route path="/goals/:id" element={<GoalDetailPage />} />
-                    <Route path="/projects" element={<ProjectsPage />} />
                     <Route path="/workspace" element={<WorkspacePage />} />
-                    <Route path="/workspace/project/:id" element={<ProjectDetailPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/timeline" element={<TimelinePage />} />
                     

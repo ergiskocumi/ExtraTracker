@@ -19,7 +19,6 @@ const { tenantContext } = require('../middleware/tenantContext');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 // Services
-const projectService = require('../services/projectService');
 const workLogService = require('../services/workLogService');
 
 // Controllers
@@ -35,84 +34,6 @@ const tagsRoutes = require('./tags');
 
 router.use(requireAuth);
 router.use(tenantContext({ required: true }));
-
-// =========================================
-// PROJECTS ROUTES
-// =========================================
-
-/**
- * GET /api/projects
- * Lista tutti i progetti dell'utente corrente
- */
-router.get('/projects', asyncHandler(async (req, res) => {
-    const projects = await projectService.findWithHealth(req.tenantScope);
-    res.json({ success: true, data: projects });
-}));
-
-/**
- * GET /api/projects/:id
- * Dettaglio singolo progetto
- */
-router.get('/projects/:id', asyncHandler(async (req, res) => {
-    const project = await projectService.findById(
-        req.tenantScope, 
-        req.params.id, 
-        { throwIfNotFound: true }
-    );
-    res.json({ success: true, data: project });
-}));
-
-/**
- * POST /api/projects
- * Crea nuovo progetto
- */
-router.post('/projects', asyncHandler(async (req, res) => {
-    const project = await projectService.create(req.tenantScope, {
-        name: req.body.name,
-        code: req.body.code,
-        description: req.body.description,
-        type: req.body.type, // FIX: Aggiunto type
-        rate: req.body.rate,
-        budget: req.body.budget, // FIX: Aggiunto budget
-        estimatedHours: req.body.estimatedHours,
-        progress: req.body.progress,
-        status: req.body.status,
-        color: req.body.color,
-    });
-    
-    res.status(201).json({ success: true, data: project });
-}));
-
-/**
- * PUT /api/projects/:id
- * Aggiorna progetto
- */
-router.put('/projects/:id', asyncHandler(async (req, res) => {
-    const project = await projectService.update(
-        req.tenantScope,
-        req.params.id,
-        req.body
-    );
-    res.json({ success: true, data: project });
-}));
-
-/**
- * DELETE /api/projects/:id
- * Elimina progetto (se non ha worklog)
- */
-router.delete('/projects/:id', asyncHandler(async (req, res) => {
-    await projectService.delete(req.tenantScope, req.params.id);
-    res.json({ success: true, message: 'Progetto eliminato' });
-}));
-
-/**
- * GET /api/projects/stats
- * Statistiche progetti con ore e guadagni
- */
-router.get('/projects-stats', asyncHandler(async (req, res) => {
-    const stats = await projectService.getProjectStats(req.tenantScope);
-    res.json({ success: true, data: stats });
-}));
 
 // =========================================
 // WORKLOGS ROUTES
@@ -134,7 +55,6 @@ router.get('/worklogs', asyncHandler(async (req, res) => {
  * IMPORTANTE: Deve essere PRIMA di /worklogs/:id per evitare che "feed" venga matchato come :id
  * 
  * Query params:
- * - projectId: Filtra per progetto
  * - date: Filtra per data specifica (YYYY-MM-DD)
  * - startDate: Inizio range date (YYYY-MM-DD)
  * - endDate: Fine range date (YYYY-MM-DD)
@@ -144,11 +64,7 @@ router.get('/worklogs', asyncHandler(async (req, res) => {
  */
 router.get('/worklogs/feed', asyncHandler(async (req, res) => {
     const filters = {};
-    
-    if (req.query.projectId) {
-        filters.projectId = req.query.projectId;
-    }
-    
+
     if (req.query.date) {
         filters.date = req.query.date;
     } else if (req.query.startDate || req.query.endDate) {
@@ -273,79 +189,9 @@ router.get('/worklogs/totals', asyncHandler(async (req, res) => {
     res.json({ success: true, data: totals });
 }));
 
-
-/**
- * GET /api/worklogs/project/:projectId/stats
- * Statistiche progetto per Vista Amministrativa (Dashboard Progetti)
- * 
- * Questo endpoint serve alla **Vista Amministrativa (Control Room)**.
- * Calcola metriche finanziarie e di progresso per un progetto specifico:
- * - Totale ore lavorate
- * - Revenue totale (ore × tariffa)
- * - Burn rate (ore consumate / ore stimate)
- * - Ultima attività
- * 
- * Response:
- * {
- *   projectId: string,
- *   projectName: string,
- *   projectCode: string,
- *   totalHours: number,
- *   billableHours: number,
- *   nonBillableHours: number,
- *   totalRevenue: number,
- *   burnRate: number | null, // null se estimatedHours non è impostato
- *   lastActivity: string | null, // YYYY-MM-DD
- *   entriesCount: number,
- *   projectRate: number,
- *   estimatedHours: number | null
- * }
- */
-router.get('/worklogs/project/:projectId/stats', asyncHandler(async (req, res) => {
-    const { projectId } = req.params;
-    const stats = await workLogService.getProjectStats(req.tenantScope, projectId);
-    res.json({ success: true, data: stats });
-}));
-
 // =========================================
 // WORKSPACE ROUTES (Work Journal)
 // =========================================
-
-/**
- * GET /api/workspace/projects
- * Lista tutti i progetti workspace
- */
-router.get('/workspace/projects', workspaceController.getProjects);
-
-/**
- * GET /api/workspace/projects/active
- * Lista solo i progetti attivi
- */
-router.get('/workspace/projects/active', workspaceController.getActiveProjects);
-
-/**
- * GET /api/workspace/projects/:id
- * Dettaglio singolo progetto
- */
-router.get('/workspace/projects/:id', workspaceController.getProject);
-
-/**
- * POST /api/workspace/projects
- * Crea nuovo progetto
- */
-router.post('/workspace/projects', workspaceController.createProject);
-
-/**
- * PUT /api/workspace/projects/:id
- * Aggiorna progetto
- */
-router.put('/workspace/projects/:id', workspaceController.updateProject);
-
-/**
- * DELETE /api/workspace/projects/:id
- * Elimina progetto
- */
-router.delete('/workspace/projects/:id', workspaceController.deleteProject);
 
 // =========================================
 // WORK ENTRIES ROUTES (DEPRECATO - Unificato in /api/worklogs)
@@ -372,22 +218,10 @@ router.delete('/workspace/projects/:id', workspaceController.deleteProject);
 router.get('/workspace/todos', workspaceController.getTodos);
 
 /**
- * GET /api/workspace/todos/project/:projectId
- * Lista TODO di un progetto
- */
-router.get('/workspace/todos/project/:projectId', workspaceController.getTodosByProject);
-
-/**
  * GET /api/workspace/todos/upcoming
  * Lista TODO in scadenza
  */
 router.get('/workspace/todos/upcoming', workspaceController.getUpcomingTodos);
-
-/**
- * GET /api/workspace/todos/project/:projectId/stats
- * Statistiche TODO per progetto
- */
-router.get('/workspace/todos/project/:projectId/stats', workspaceController.getTodosStats);
 
 /**
  * GET /api/workspace/todos/:id
