@@ -1880,7 +1880,7 @@ GENERA LA RISPOSTA:`;
             }
 
             try {
-                const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
+                const pdfData = await pdfCacheService.parsePDF(questionsFilePath, pdfBuffer);
                 questionsText = this._formatPdfTextWithPages(pdfData);
             } catch (err) {
                 console.error('❌ PDF Parse Error (Questions):', err.message);
@@ -2423,7 +2423,7 @@ Genera una risposta per OGNI domanda nella lista.`;
             }
 
             try {
-                const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
+                const pdfData = await pdfCacheService.parsePDF(questionsFilePath, pdfBuffer);
                 questionsText = this._formatPdfTextWithPages(pdfData);
             } catch (err) {
                 console.error('❌ PDF Parse Error (Questions):', err.message);
