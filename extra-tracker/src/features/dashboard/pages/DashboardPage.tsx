@@ -32,6 +32,7 @@ import {
 
 import { dashboardService, type DashboardSummary, type RecentItem } from '../services/dashboardService';
 import { analyticsService, type WeeklyAnalyticsResponse } from '../../analytics/services/analyticsService';
+import { LevelBadge } from '../../gamification/components/LevelBadge';
 
 // OTTIMIZZATO: Lazy load componenti pesanti (charts, AI widgets)
 const ProductivityChart = lazy(() => import('../../analytics/components/ProductivityChart').then(m => ({ default: m.ProductivityChart })));
@@ -67,8 +68,10 @@ const LazyAnalyticsChart = ({ data }: { data: any[] }) => {
             animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.6 }}
             style={{ willChange: 'transform, opacity' }}
-            className="rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-6 card"
+            className="relative overflow-hidden rounded-[28px] border border-white/15 bg-slate-900/60 backdrop-blur-2xl p-6 shadow-[0_24px_60px_-40px_rgba(8,14,28,0.9)]"
         >
+            <div className="absolute -top-12 -right-16 h-36 w-36 rotate-12 rounded-[24px] bg-white/5 border border-white/10" />
+            <div className="absolute -bottom-16 -left-12 h-40 w-40 -rotate-12 rounded-[26px] bg-white/[0.04] border border-white/10" />
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-primary-400" />
@@ -101,7 +104,7 @@ const LazyAnalyticsChart = ({ data }: { data: any[] }) => {
 // =========================================
 
 const ActionCardSkeleton = () => (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 animate-pulse">
+    <div className="rounded-[28px] border border-white/10 bg-slate-900/50 p-6 animate-pulse">
         <div className="flex items-start justify-between mb-6">
             <div className="w-14 h-14 rounded-2xl bg-white/10" />
             <div className="w-20 h-6 rounded-full bg-white/10" />
@@ -115,7 +118,7 @@ const ActionCardSkeleton = () => (
 );
 
 const RecentItemSkeleton = () => (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 animate-pulse">
+    <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-4 animate-pulse">
         <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-white/10" />
             <div className="flex-1 space-y-2">
@@ -154,20 +157,28 @@ const StudyActionCard: React.FC<StudyActionCardProps> = React.memo(({ dueCards, 
             animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.1 }}
             style={{ willChange: 'transform, opacity' }}
-            className="relative rounded-3xl border border-violet-500/25 bg-gradient-to-br from-violet-500/12 via-violet-500/6 to-transparent p-6 overflow-hidden group card-action"
+            className="relative rounded-[28px] border border-violet-400/25 bg-gradient-to-br from-slate-950/80 via-violet-950/40 to-slate-950/60 p-6 overflow-hidden group shadow-[0_24px_60px_-40px_rgba(71,48,180,0.6)]"
         >
             {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-violet-500/15 rounded-full blur-3xl" />
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-violet-500/8 rounded-full blur-2xl" />
+            <div className="absolute -top-10 -right-10 w-44 h-44 bg-violet-500/15 rounded-[28px] blur-3xl rotate-12" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-indigo-500/10 rounded-[24px] blur-2xl -rotate-12" />
+            <div
+                className="absolute inset-0 opacity-[0.05]"
+                style={{
+                    backgroundImage:
+                        'linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
+                    backgroundSize: '24px 24px',
+                }}
+            />
             
             <div className="relative">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-violet-500/20 flex items-center justify-center">
-                        <Brain className="w-7 h-7 text-violet-400" />
+                    <div className="w-14 h-14 rounded-2xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center shadow-lg shadow-violet-500/20">
+                        <Brain className="w-7 h-7 text-violet-300" />
                     </div>
                     {dueCards > 0 && (
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-500/20 border border-violet-500/30 text-violet-300 text-sm font-medium">
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-500/20 border border-violet-500/30 text-violet-200 text-sm font-medium">
                             <Zap className="w-4 h-4" />
                             {dueCards} da fare
                         </span>
@@ -196,10 +207,10 @@ const StudyActionCard: React.FC<StudyActionCardProps> = React.memo(({ dueCards, 
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handleStudy}
-                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-semibold transition-all ${
+                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl font-semibold transition-all ${
                         dueCards > 0
-                            ? 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/30 hover:from-violet-400 hover:to-violet-500 hover:shadow-violet-500/40'
-                            : 'bg-white/[0.08] text-white/80 hover:bg-white/[0.12] border border-white/[0.1]'
+                            ? 'bg-gradient-to-r from-violet-500 via-indigo-500 to-violet-600 text-white shadow-lg shadow-violet-500/30 hover:from-violet-400 hover:to-violet-500 hover:shadow-violet-500/40'
+                            : 'bg-white/[0.06] text-white/80 hover:bg-white/[0.12] border border-white/[0.12]'
                     }`}
                 >
                     {dueCards > 0 ? (
@@ -245,20 +256,28 @@ const GoalActionCard: React.FC<GoalActionCardProps> = React.memo(({ activeCount,
             animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.2 }}
             style={{ willChange: 'transform, opacity' }}
-            className="relative rounded-3xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/12 via-emerald-500/6 to-transparent p-6 overflow-hidden card-action"
+            className="relative rounded-[28px] border border-emerald-400/25 bg-gradient-to-br from-slate-950/80 via-emerald-950/40 to-slate-950/60 p-6 overflow-hidden shadow-[0_24px_60px_-40px_rgba(16,185,129,0.5)]"
         >
             {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/15 rounded-full blur-3xl" />
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-500/8 rounded-full blur-2xl" />
+            <div className="absolute -top-10 -right-10 w-44 h-44 bg-emerald-500/12 rounded-[28px] blur-3xl rotate-12" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-teal-500/10 rounded-[24px] blur-2xl -rotate-12" />
+            <div
+                className="absolute inset-0 opacity-[0.05]"
+                style={{
+                    backgroundImage:
+                        'linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
+                    backgroundSize: '24px 24px',
+                }}
+            />
             
             <div className="relative">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
-                        <Target className="w-7 h-7 text-emerald-400" />
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                        <Target className="w-7 h-7 text-emerald-300" />
                     </div>
                     {overdueCount > 0 && (
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm font-medium">
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-200 text-sm font-medium">
                             <AlertCircle className="w-4 h-4" />
                             {overdueCount} in ritardo
                         </span>
@@ -281,12 +300,12 @@ const GoalActionCard: React.FC<GoalActionCardProps> = React.memo(({ activeCount,
                     
                     {topPriority && (
                         <div className="mt-4">
-                            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                            <div className="h-2 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
                                 <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${topPriority.progress}%` }}
                                     transition={{ duration: 0.8, ease: 'easeOut' }}
-                                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-500/30"
                                 />
                             </div>
                         </div>
@@ -298,10 +317,10 @@ const GoalActionCard: React.FC<GoalActionCardProps> = React.memo(({ activeCount,
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => navigate(topPriority ? `/goals/${topPriority.id}` : '/goals')}
-                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-semibold transition-all ${
+                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl font-semibold transition-all ${
                         overdueCount > 0
-                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-500/40'
-                            : 'bg-white/[0.08] text-white/80 hover:bg-white/[0.12] border border-white/[0.1]'
+                            ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-500/40'
+                            : 'bg-white/[0.06] text-white/80 hover:bg-white/[0.12] border border-white/[0.12]'
                     }`}
                 >
                     {topPriority ? (
@@ -336,20 +355,28 @@ const WorkActionCard: React.FC<WorkActionCardProps> = React.memo(({ todayFormatt
             animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.3 }}
             style={{ willChange: 'transform, opacity' }}
-            className="relative rounded-3xl border border-blue-500/25 bg-gradient-to-br from-blue-500/12 via-blue-500/6 to-transparent p-6 overflow-hidden card-action"
+            className="relative rounded-[28px] border border-sky-400/25 bg-gradient-to-br from-slate-950/80 via-sky-950/40 to-slate-950/60 p-6 overflow-hidden shadow-[0_24px_60px_-40px_rgba(59,130,246,0.5)]"
         >
             {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/15 rounded-full blur-3xl" />
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/8 rounded-full blur-2xl" />
+            <div className="absolute -top-10 -right-10 w-44 h-44 bg-sky-500/12 rounded-[28px] blur-3xl rotate-12" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/10 rounded-[24px] blur-2xl -rotate-12" />
+            <div
+                className="absolute inset-0 opacity-[0.05]"
+                style={{
+                    backgroundImage:
+                        'linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
+                    backgroundSize: '24px 24px',
+                }}
+            />
             
             <div className="relative">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center">
-                        <Clock className="w-7 h-7 text-blue-400" />
+                    <div className="w-14 h-14 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center shadow-lg shadow-sky-500/20">
+                        <Clock className="w-7 h-7 text-sky-300" />
                     </div>
                     {todayMinutes > 0 && (
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm font-medium">
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/20 border border-sky-500/30 text-sky-200 text-sm font-medium">
                             <TrendingUp className="w-4 h-4" />
                             {todayFormatted}
                         </span>
@@ -374,7 +401,7 @@ const WorkActionCard: React.FC<WorkActionCardProps> = React.memo(({ todayFormatt
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => navigate('/dashboard')}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white/[0.08] text-white/80 hover:bg-white/[0.12] border border-white/[0.1] font-semibold transition-all"
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-white/[0.06] text-white/80 hover:bg-white/[0.12] border border-white/[0.12] font-semibold transition-all"
                 >
                     <Plus className="w-4 h-4" />
                     Apri Tracker
@@ -426,8 +453,10 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
             animate={{ opacity: 1, transform: 'translateY(0)' }}
             transition={{ delay: 0.4 }}
             style={{ willChange: 'transform, opacity' }}
-            className="rounded-3xl border border-white/[0.12] bg-white/[0.04] backdrop-blur-xl p-6 card"
+            className="relative overflow-hidden rounded-[28px] border border-white/15 bg-slate-900/60 backdrop-blur-2xl p-6 shadow-[0_24px_60px_-40px_rgba(8,14,28,0.9)]"
         >
+            <div className="absolute -top-12 -right-16 h-36 w-36 rotate-12 rounded-[24px] bg-white/5 border border-white/10" />
+            <div className="absolute -bottom-16 -left-12 h-40 w-40 -rotate-12 rounded-[26px] bg-white/[0.04] border border-white/10" />
             <div className="flex items-center justify-between mb-5">
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-amber-400" />
@@ -438,7 +467,7 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
                 </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 relative z-10">
                 {items.map((item, index) => {
                     const styles = getItemStyles(item.type);
                     return (
@@ -451,7 +480,7 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
                             whileTap={{ scale: 0.98 }}
                             style={{ willChange: 'transform, opacity' }}
                             onClick={() => handleClick(item)}
-                            className={`relative text-left p-4 rounded-2xl border ${styles} transition-all group`}
+                            className={`relative text-left p-4 rounded-2xl border ${styles} transition-all group hover:-translate-y-0.5`}
                         >
                             <div className="flex items-center gap-3 mb-2">
                                 <span className="text-2xl">{item.icon}</span>
@@ -483,55 +512,65 @@ interface GamificationWidgetProps {
     progress: number;
 }
 
-const GamificationWidget: React.FC<GamificationWidgetProps> = React.memo(({ streak, level, xp, nextLevelXp, progress }) => (
-    <motion.div
-        initial={{ opacity: 0, transform: 'translateY(20px)' }}
-        animate={{ opacity: 1, transform: 'translateY(0)' }}
-        transition={{ delay: 0.35 }}
-        style={{ willChange: 'transform, opacity' }}
-        className="relative rounded-3xl border border-amber-500/25 bg-gradient-to-br from-amber-500/12 via-amber-500/6 to-transparent p-6 overflow-hidden card-action"
-    >
-        {/* Background decoration */}
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl" />
-        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-amber-500/8 rounded-full blur-2xl" />
-        <div className="relative flex items-center gap-6">
-            {/* Level Badge */}
-            <div className="relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 ring-2 ring-amber-500/20">
-                    <Trophy className="w-8 h-8 text-white" />
-                </div>
-                <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white text-amber-600 text-xs font-bold flex items-center justify-center shadow-lg ring-2 ring-amber-500/30">
-                    {level}
-                </span>
-            </div>
-
-            {/* Stats */}
-            <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-white font-medium">Livello {level}</span>
-                    <div className="flex items-center gap-1.5 text-orange-400">
-                        <Flame className="w-4 h-4" />
-                        <span className="text-sm font-semibold">{streak} giorni</span>
+const GamificationWidget: React.FC<GamificationWidgetProps> = React.memo(
+    ({ streak, level, xp, nextLevelXp, progress }) => (
+        <motion.div
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
+            transition={{ delay: 0.35 }}
+            style={{ willChange: 'transform, opacity' }}
+            className="relative rounded-[28px] border border-amber-400/25 bg-gradient-to-br from-slate-950/80 via-amber-950/40 to-slate-950/60 p-6 overflow-hidden shadow-[0_24px_60px_-40px_rgba(245,158,11,0.45)]"
+        >
+            {/* Background decoration */}
+            <div className="absolute -top-10 -right-10 w-44 h-44 bg-amber-500/12 rounded-[28px] blur-3xl rotate-12" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-orange-500/10 rounded-[24px] blur-2xl -rotate-12" />
+            <div
+                className="absolute inset-0 opacity-[0.05]"
+                style={{
+                    backgroundImage:
+                        'linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
+                    backgroundSize: '24px 24px',
+                }}
+            />
+            <div className="relative flex items-center gap-6">
+                {/* Level Badge */}
+                <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 ring-2 ring-amber-500/20">
+                        <Trophy className="w-8 h-8 text-white" />
+                    </div>
+                    <div className="absolute -bottom-2 -right-2">
+                        <LevelBadge level={level} size="sm" variant="icon" />
                     </div>
                 </div>
-                
-                <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-2">
-                    <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
-                        transition={{ duration: 0.8, ease: 'easeOut' }}
-                        className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
-                    />
-                </div>
-                
-                <div className="flex items-center justify-between text-xs text-white/50">
-                    <span>{xp} XP</span>
-                    <span>{nextLevelXp} XP</span>
+
+                {/* Stats */}
+                <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-white font-medium">Livello {level}</span>
+                        <div className="flex items-center gap-1.5 text-orange-300">
+                            <Flame className="w-4 h-4" />
+                            <span className="text-sm font-semibold">{streak} giorni</span>
+                        </div>
+                    </div>
+
+                    <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-2 ring-1 ring-white/10">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress}%` }}
+                            transition={{ duration: 0.8, ease: 'easeOut' }}
+                            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 shadow-lg shadow-amber-500/30"
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-white/60">
+                        <span>{xp} XP</span>
+                        <span>{nextLevelXp} XP</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    </motion.div>
-));
+        </motion.div>
+    )
+);
 
 // =========================================
 // MAIN COMPONENT
@@ -580,28 +619,37 @@ export const DashboardPage = () => {
     }, []);
 
     return (
-        <div className="space-y-6 pb-10">
-            {/* Header con Saluto - OTTIMIZZATO: Usa transform invece di y per animazioni composite */}
+        <div className="relative space-y-8 pb-12">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="absolute -top-32 -right-24 h-72 w-72 rotate-12 rounded-[36px] bg-gradient-to-br from-primary-500/20 via-indigo-500/10 to-transparent blur-3xl" />
+                <div className="absolute top-40 -left-20 h-56 w-56 -rotate-12 rounded-[32px] bg-gradient-to-br from-emerald-400/15 via-cyan-500/10 to-transparent blur-3xl" />
+                <div className="absolute bottom-0 right-0 h-80 w-80 rounded-[40px] bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-transparent blur-3xl" />
+            </div>
+
+            {/* Header - Nuovo stile */}
             <motion.div
                 initial={{ opacity: 0, transform: 'translateY(-20px)' }}
                 animate={{ opacity: 1, transform: 'translateY(0)' }}
                 style={{ willChange: 'transform, opacity' }}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6"
             >
                 <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-white/40 mb-1">
-                        Command Center
+                    <p className="text-xs uppercase tracking-[0.4em] text-white/40 mb-2">
+                        Control Nexus
                     </p>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                    <h1 className="text-3xl sm:text-4xl font-bold text-white">
                         {loading ? 'Caricamento...' : summary?.greeting || 'Benvenuto'}
                     </h1>
+                    <p className="text-sm text-white/60 mt-2">
+                        Un centro operativo futuristico per guidare ogni obiettivo.
+                    </p>
                 </div>
 
                 {!loading && summary && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
                         <Link
                             to="/study"
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 transition-all text-sm"
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all text-sm"
                         >
                             <Brain className="w-4 h-4" />
                             Flashcards
@@ -609,12 +657,17 @@ export const DashboardPage = () => {
                         </Link>
                         <Link
                             to="/goals"
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 transition-all text-sm"
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all text-sm"
                         >
                             <Target className="w-4 h-4" />
                             Obiettivi
                             <ChevronRight className="w-4 h-4" />
                         </Link>
+                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/70 text-sm">
+                            <Sparkles className="w-4 h-4 text-primary-300" />
+                            Livello attivo
+                            <LevelBadge level={summary.gamification.level} size="sm" variant="icon" />
+                        </div>
                     </div>
                 )}
             </motion.div>
@@ -624,7 +677,7 @@ export const DashboardPage = () => {
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-rose-300 text-sm"
+                    className="relative z-10 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-rose-300 text-sm"
                 >
                     {error}
                 </motion.div>
@@ -632,12 +685,12 @@ export const DashboardPage = () => {
 
             {/* Loading State */}
             {loading && (
-                <div className="space-y-6">
+                <div className="relative z-10 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <ActionCardSkeleton />
                         <ActionCardSkeleton />
                         <ActionCardSkeleton />
-                        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 animate-pulse">
+                        <div className="rounded-[28px] border border-white/10 bg-slate-900/50 p-6 animate-pulse">
                             <div className="flex items-center gap-4">
                                 <div className="w-16 h-16 rounded-2xl bg-white/10" />
                                 <div className="flex-1 space-y-2">
@@ -657,9 +710,9 @@ export const DashboardPage = () => {
 
             {/* Main Content */}
             {!loading && summary && (
-                <>
-                    {/* Hero Action Cards - Bento Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="relative z-10 space-y-8">
+                    {/* Hero Action Cards - Nuova griglia */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                         <StudyActionCard
                             dueCards={summary.study.dueCards}
                             nextDeck={summary.study.nextDeck}
@@ -690,14 +743,14 @@ export const DashboardPage = () => {
                         <RecentActivityList items={summary.recents} />
                     )}
 
-                    {/* Analytics Section (Ridotta) - OTTIMIZZATO: Animazione composite + Intersection Observer */}
+                    {/* Analytics Section */}
                     {analyticsData && <LazyAnalyticsChart data={analyticsData.dailyActivity} />}
 
-                    {/* OTTIMIZZATO: AIInsightsWidget caricato solo quando necessario (già lazy con Suspense) */}
-                    <Suspense fallback={<div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 animate-pulse h-32" />}>
+                    {/* AI Insights */}
+                    <Suspense fallback={<div className="rounded-[28px] border border-white/10 bg-slate-900/50 p-6 animate-pulse h-32" />}>
                         <AIInsightsWidget />
                     </Suspense>
-                </>
+                </div>
             )}
         </div>
     );

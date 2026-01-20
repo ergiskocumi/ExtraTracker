@@ -6,6 +6,7 @@
 
 import { motion } from 'framer-motion';
 import { FiZap } from 'react-icons/fi';
+import { LevelBadge } from './components/LevelBadge';
 
 interface UserLevelWidgetProps {
     avatarUrl?: string;
@@ -34,9 +35,7 @@ export const UserLevelWidget: React.FC<UserLevelWidgetProps> = ({
                 <div className="absolute -top-6 -right-6 h-16 w-16 rotate-12 rounded-[14px] bg-white/[0.04] border border-white/10" />
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-black/20">
-                            <span className="text-white text-xs font-bold">L{level}</span>
-                        </div>
+                        <LevelBadge level={level} size="sm" variant="icon" />
                         <div>
                             <p className="text-xs text-white/70">Livello</p>
                             <p className="text-sm font-semibold text-white">{level}</p>
@@ -79,7 +78,10 @@ export const UserLevelWidget: React.FC<UserLevelWidgetProps> = ({
                 </div>
                 <div className="flex-1">
                     <p className="text-sm text-white/70">{displayName}</p>
-                    <p className="text-lg font-semibold text-white">Livello {level}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-lg font-semibold text-white">Livello {level}</p>
+                        <LevelBadge level={level} size="sm" variant="icon" />
+                    </div>
                 </div>
                 <div className="flex items-center gap-1 text-orange-400 text-sm font-semibold">
                     <FiZap className="w-4 h-4" />

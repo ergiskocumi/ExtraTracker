@@ -27,6 +27,8 @@ import {
 import { useAuth } from '../../../features/auth/context/AuthContext';
 import { useSettings } from '../../../features/settings/context/SettingsContext';
 import { useGamificationStatus } from '../../../features/gamification/hooks/useGamificationStatus';
+import { RankBadge } from '../../../features/gamification/components/RankBadge';
+import { LevelBadge } from '../../../features/gamification/components/LevelBadge';
 
 // ============================================
 // TYPES
@@ -44,44 +46,6 @@ interface MenuCategory {
     label: string;
     items: MenuItem[];
 }
-
-// ============================================
-// LEVEL BADGE COMPONENT
-// ============================================
-
-const LevelBadge = memo(({ level, size = 'md' }: { level: number; size?: 'sm' | 'md' | 'lg' }) => {
-    const sizeConfig = {
-        sm: 'w-6 h-6 text-[10px]',
-        md: 'w-8 h-8 text-xs',
-        lg: 'w-10 h-10 text-sm',
-    };
-
-    const getRankGradient = (lvl: number) => {
-        if (lvl >= 50) return 'from-violet-400 via-purple-500 to-indigo-600';
-        if (lvl >= 30) return 'from-amber-400 via-yellow-500 to-orange-500';
-        if (lvl >= 15) return 'from-cyan-400 via-blue-500 to-indigo-500';
-        if (lvl >= 5) return 'from-emerald-400 via-green-500 to-teal-500';
-        return 'from-slate-400 via-gray-500 to-slate-600';
-    };
-
-    return (
-        <div
-            className={`
-                ${sizeConfig[size]} rounded-lg flex items-center justify-center font-bold text-white
-                bg-gradient-to-br ${getRankGradient(level)} shadow-lg
-                relative overflow-hidden
-            `}
-        >
-            {/* Geometric overlay */}
-            <div className="absolute inset-0 opacity-30">
-                <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-white/20 transform rotate-45 translate-x-1/2 -translate-y-1/2" />
-            </div>
-            <span className="relative z-10">{level}</span>
-        </div>
-    );
-});
-
-LevelBadge.displayName = 'LevelBadge';
 
 // ============================================
 // XP PROGRESS BAR
@@ -246,6 +210,7 @@ export const UserMenuDropdown = memo(() => {
     // Gamification data with fallbacks
     const level = gamification?.level ?? user?.gamification?.level ?? 1;
     const title = gamification?.title ?? 'Principiante';
+    const rank = gamification?.rank ?? user?.gamification?.rank ?? 'Unranked';
     const xp = gamification?.xp ?? user?.gamification?.xp ?? 0;
     const xpForCurrentLevel = gamification?.xpForCurrentLevel ?? 0;
     const xpForNextLevel = gamification?.xpForNextLevel ?? 100;
@@ -381,7 +346,10 @@ export const UserMenuDropdown = memo(() => {
                                     </div>
                                     <div className="flex-1 min-w-0 pt-1">
                                         <p className="text-lg font-semibold text-white truncate">{userLabel}</p>
-                                        <p className="text-sm text-primary-300/90 font-medium">{title}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm text-primary-300/90 font-medium">{title}</p>
+                                            <RankBadge rank={rank} size="sm" variant="icon" />
+                                        </div>
                                         <p className="text-xs text-white/50 truncate mt-1">{user?.email}</p>
                                     </div>
                                 </div>

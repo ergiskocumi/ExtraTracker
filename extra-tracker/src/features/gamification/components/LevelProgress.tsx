@@ -5,7 +5,9 @@
  */
 
 import { motion } from 'framer-motion';
-import { FiTrendingUp, FiStar, FiAward, FiZap } from 'react-icons/fi';
+import { FiTrendingUp, FiAward, FiZap } from 'react-icons/fi';
+import { RankBadge } from './RankBadge';
+import { LevelBadge } from './LevelBadge';
 
 interface LevelProgressProps {
     level: number;
@@ -156,12 +158,10 @@ export const LevelProgress: React.FC<LevelProgressProps> = ({
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.1 }}
-                        className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-gradient-to-r ${rankColor} bg-opacity-20 border border-white/15`}
+                        className="flex flex-wrap items-center gap-2"
                     >
-                        <FiStar className="w-4 h-4 text-white/80" />
-                        <span className="text-sm font-semibold text-white/90 uppercase tracking-wider">
-                            {rank}
-                        </span>
+                        <RankBadge rank={rank} size="sm" />
+                        <LevelBadge level={level} size="sm" variant="icon" />
                     </motion.div>
                 </div>
             </div>

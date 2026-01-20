@@ -13,18 +13,19 @@
  */
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    FiCheckCircle, 
-    FiClock, 
-    FiTrendingUp, 
-    FiXCircle, 
+import {
+    FiCheckCircle,
+    FiClock,
+    FiTrendingUp,
+    FiXCircle,
     FiZap,
     FiAward,
     FiTarget,
     FiBarChart2,
     FiStar,
-    FiX
+    FiX,
 } from 'react-icons/fi';
+import { LevelBadge } from './components/LevelBadge';
 
 export interface SessionSummary {
     correctCount: number;
@@ -384,6 +385,9 @@ export const SessionSummaryModal: React.FC<SessionSummaryModalProps> = ({
                                                 </p>
                                             </div>
                                         </div>
+                                        {summary.level && (
+                                            <LevelBadge level={summary.level.current} size="sm" variant="icon" />
+                                        )}
                                     </div>
 
                                     {summary.level && (

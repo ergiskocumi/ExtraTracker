@@ -20,6 +20,7 @@ import type {
     AchievementsData,
 } from '../services/gamificationService';
 import { LevelProgress } from '../components/LevelProgress';
+import { LevelBadge } from '../components/LevelBadge';
 import { StreakCard } from '../components/StreakCard';
 import { ChallengesSection } from '../components/ChallengesSection';
 import { AchievementsSection } from '../components/AchievementsSection';
@@ -123,13 +124,16 @@ export const GamificationPage: React.FC = () => {
                             >
                                 Progress Hub
                             </motion.div>
-                            <motion.h1
-                                initial={{ opacity: 0, y: -20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="mt-3 text-3xl font-bold text-white"
-                            >
-                                Gamification
-                            </motion.h1>
+                            <div className="mt-3 flex items-center gap-3">
+                                <motion.h1
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="text-3xl font-bold text-white"
+                                >
+                                    Gamification
+                                </motion.h1>
+                                <LevelBadge level={status?.level || 1} size="sm" variant="icon" />
+                            </div>
                             <motion.p
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
