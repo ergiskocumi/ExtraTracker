@@ -117,6 +117,10 @@ const EditModeComponent: React.FC<EditModeProps> = ({
         e.stopPropagation();
     }, []);
 
+    const stopFocusPropagation = useCallback<React.FocusEventHandler<HTMLTextAreaElement>>((e) => {
+        e.stopPropagation();
+    }, []);
+
     /**
      * Handles input change and stops propagation.
      */
@@ -161,7 +165,7 @@ const EditModeComponent: React.FC<EditModeProps> = ({
                     onMouseDown={stopPropagation}
                     onTouchStart={stopPropagation}
                     onClick={stopPropagation}
-                    onFocus={stopPropagation}
+                    onFocus={stopFocusPropagation}
                     rows={3}
                     className={inputBaseClasses}
                     placeholder={TEXT_CONTENT.placeholders.front}
@@ -183,7 +187,7 @@ const EditModeComponent: React.FC<EditModeProps> = ({
                     onMouseDown={stopPropagation}
                     onTouchStart={stopPropagation}
                     onClick={stopPropagation}
-                    onFocus={stopPropagation}
+                    onFocus={stopFocusPropagation}
                     rows={4}
                     className={inputBaseClasses}
                     placeholder={TEXT_CONTENT.placeholders.back}
@@ -227,7 +231,7 @@ const EditModeComponent: React.FC<EditModeProps> = ({
                             <motion.div
                                 animate={{ rotate: 360 }}
                                 transition={ANIMATION_CONFIG.loadingSpinner}
-                                className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                                className="w-4 h-4 border-2 rounded-full border-white/30 border-t-white"
                             />
                             <span>{TEXT_CONTENT.buttons.saving}</span>
                         </>

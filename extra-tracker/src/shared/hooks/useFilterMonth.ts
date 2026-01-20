@@ -1,5 +1,8 @@
 import { useState } from "react";
-import type { WorkLog } from "../../features/tracker/type";
+
+type WorkLog = {
+  date: string;
+};
 
 export const useFilterMonth = ( logs: WorkLog[]) => {
   // creazione del filtro per il mese selezionato

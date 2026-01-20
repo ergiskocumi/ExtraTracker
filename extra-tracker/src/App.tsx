@@ -9,9 +9,7 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { GoalsProvider } from './features/goals/context/GoalsContext';
-import { WorkLogProvider } from './features/tracker/context/WorkLogContext';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
-import { WorkspaceProvider } from './features/workspace/context/WorkspaceContext';
 import { ProtectedRoute } from './features/auth/context/AuthContext';
 import { AppLayout, AuthLayout } from './shared/layouts';
 import { useSettings } from './features/settings/context/SettingsContext';
@@ -21,8 +19,6 @@ const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPag
 const SettingsPage = lazy(() => import('./features/settings/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const GoalsPage = lazy(() => import('./features/goals/pages/GoalsPage').then(m => ({ default: m.GoalsPage })));
 const GoalDetailPage = lazy(() => import('./features/goals/pages/GoalDetailPage').then(m => ({ default: m.GoalDetailPage })));
-const TimelinePage = lazy(() => import('./features/tracker/pages/TimelinePage').then(m => ({ default: m.TimelinePage })));
-const WorkspacePage = lazy(() => import('./features/workspace/pages/WorkspacePage').then(m => ({ default: m.WorkspacePage })));
 const LoginPage = lazy(() => import('./features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('./features/auth/pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
@@ -48,11 +44,9 @@ const HomeRedirect = () => {
     // Evita redirect "a caso" prima di aver caricato le preferenze reali dal backend.
     if (!hasLoaded) return null;
 
-    const to = preferences.defaultView === 'timeline'
-        ? '/timeline'
-        : preferences.defaultView === 'goals'
-            ? '/goals'
-            : '/dashboard';
+    const to = preferences.defaultView === 'goals'
+        ? '/goals'
+        : '/dashboard';
 
     return <Navigate to={to} replace />;
 };
@@ -75,13 +69,9 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <SettingsProvider>
-                                <WorkLogProvider>
-                                    <WorkspaceProvider>
-                                        <GoalsProvider>
-                                            <AppLayout />
-                                        </GoalsProvider>
-                                    </WorkspaceProvider>
-                                </WorkLogProvider>
+                                <GoalsProvider>
+                                    <AppLayout />
+                                </GoalsProvider>
                             </SettingsProvider>
                         </ProtectedRoute>
                     }
@@ -90,10 +80,8 @@ function App() {
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/goals" element={<GoalsPage />} />
                     <Route path="/goals/:id" element={<GoalDetailPage />} />
-                    <Route path="/workspace" element={<WorkspacePage />} />
                     <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/timeline" element={<TimelinePage />} />
-                    
+
                     {/* Study / Flashcards */}
                     <Route path="/study" element={<DecksDashboardPage />} />
                     <Route path="/study/deck/:id" element={<DeckDetailPage />} />

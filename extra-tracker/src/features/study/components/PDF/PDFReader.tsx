@@ -203,7 +203,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
     // LINE 2: Detect theme (hook, so must be called early)
     const isDarkMode = useTheme() === 'dark';
     const containerRef = useRef<HTMLDivElement>(null);
-    const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const zoomTimeoutRef = useRef<number | null>(null);
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
@@ -301,7 +301,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                 const normalizedText = normalizeText(text);
                 
                 // Strategy: Try multiple search approaches with increasing flexibility
-                let fallbackTimeout: NodeJS.Timeout | null = null;
+                let fallbackTimeout: number | null = null;
                 const attemptHighlight = (searchText: string, attempt: number = 0) => {
                     // Clear any pending fallback
                     if (fallbackTimeout) {
@@ -543,10 +543,6 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                         onDocumentLoad={(e) => {
                             console.log('[PDFReader] PDF caricato:', e.doc.numPages, 'pagine');
                             onLoadSuccess?.();
-                        }}
-                        onDocumentLoadError={(error) => {
-                            console.error('[PDFReader] Errore nel caricamento documento:', error);
-                            onError?.(error as Error);
                         }}
                     />
                 </div>

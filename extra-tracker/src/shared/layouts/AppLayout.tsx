@@ -93,8 +93,6 @@ export const AppLayout = () => {
             label: 'Gestione',
             items: [
                 { path: '/goals', label: 'Obiettivi', icon: FiTarget, description: 'I tuoi traguardi' },
-                { path: '/projects', label: 'Progetti', icon: FiFolder, description: 'Clienti e commesse' },
-                { path: '/workspace', label: 'Workspace', icon: FiBriefcase, description: 'Work Journal' },
                 { path: '/study', label: 'Flashcards', icon: FiBookOpen, description: 'Ripetizione spaziata' },
             ]
         },

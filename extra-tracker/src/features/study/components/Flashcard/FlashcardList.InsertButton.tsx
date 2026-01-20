@@ -47,7 +47,7 @@ export const InsertButton: React.FC<InsertButtonProps> = ({
                 >
                     <motion.div 
                         className={`${INSERT_BUTTON_STYLES.line.flex} ${INSERT_BUTTON_STYLES.line.height} ${INSERT_BUTTON_STYLES.line.background}`}
-                        animate={ANIMATION_CONFIG.insertButtonLine.scaleX}
+                        animate={{ scaleX: ANIMATION_CONFIG.insertButtonLine.scaleX }}
                         transition={ANIMATION_CONFIG.insertButtonLine.transition}
                     />
                     <motion.button
@@ -55,14 +55,14 @@ export const InsertButton: React.FC<InsertButtonProps> = ({
                         className={`${INSERT_BUTTON_STYLES.button.margin} ${INSERT_BUTTON_STYLES.button.layout} ${INSERT_BUTTON_STYLES.button.size} ${INSERT_BUTTON_STYLES.button.borderRadius} ${INSERT_BUTTON_STYLES.button.background} ${INSERT_BUTTON_STYLES.button.text} ${INSERT_BUTTON_STYLES.button.shadow} ${INSERT_BUTTON_STYLES.button.hover.shadow} ${INSERT_BUTTON_STYLES.button.hover.scale} ${INSERT_BUTTON_STYLES.button.active} ${INSERT_BUTTON_STYLES.button.transition}`}
                         aria-label={TEXT_CONTENT.ariaLabels.insertCard(position)}
                         title={TEXT_CONTENT.buttons.insertCard(position)}
-                        animate={ANIMATION_CONFIG.insertButtonIcon.scale}
+                        animate={{ scale: ANIMATION_CONFIG.insertButtonIcon.scale }}
                         transition={ANIMATION_CONFIG.insertButtonIcon.transition}
                     >
                         <FiPlus className={INSERT_BUTTON_STYLES.icon.size} />
                     </motion.button>
                     <motion.div 
                         className={`${INSERT_BUTTON_STYLES.line.flex} ${INSERT_BUTTON_STYLES.line.height} ${INSERT_BUTTON_STYLES.line.background}`}
-                        animate={ANIMATION_CONFIG.insertButtonLine.scaleX}
+                        animate={{ scaleX: ANIMATION_CONFIG.insertButtonLine.scaleX }}
                         transition={ANIMATION_CONFIG.insertButtonLine.transition}
                     />
                 </motion.div>
