@@ -102,20 +102,20 @@ const XpProgressBar = memo(({
 
     return (
         <div className="w-full">
-            <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-white/50 font-medium">
+            <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] text-white/70 font-medium">
                     {xpInLevel.toLocaleString()} / {xpNeeded.toLocaleString()} XP
                 </span>
-                <span className="text-[10px] text-primary-400 font-semibold">
+                <span className="text-[11px] text-primary-300 font-semibold">
                     {progress.toFixed(0)}%
                 </span>
             </div>
-            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-2 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
                 <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.8, ease: 'easeOut' }}
-                    className="h-full rounded-full bg-gradient-to-r from-primary-500 via-primary-400 to-violet-500"
+                    className="h-full rounded-full bg-gradient-to-r from-primary-500 via-primary-400 to-violet-500 shadow-lg shadow-primary-500/25"
                 />
             </div>
         </div>
@@ -148,11 +148,11 @@ const StatPill = memo(({
 
     return (
         <div
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${colorConfig[color]}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${colorConfig[color]}`}
             title={label}
         >
-            <Icon className="w-3 h-3" />
-            <span className="text-[11px] font-semibold">{value}</span>
+            <Icon className="w-3.5 h-3.5" />
+            <span className="text-xs font-semibold">{value}</span>
         </div>
     );
 });
@@ -176,35 +176,35 @@ const MenuItemComponent = memo(({
         to={item.path}
         onClick={onClick}
         className={`
-            group flex items-center gap-3 px-3 py-2.5 mx-2 rounded-xl transition-all duration-150
+            group flex items-center gap-3.5 px-4 py-3 mx-2 rounded-2xl transition-all duration-150
             ${isActive
-                ? 'bg-gradient-to-r from-primary-500/20 to-violet-500/10 text-white border border-primary-500/20'
-                : 'text-white/70 hover:bg-white/[0.06] hover:text-white border border-transparent'
+                ? 'bg-gradient-to-r from-primary-500/25 to-violet-500/15 text-white border border-primary-500/25 shadow-lg shadow-primary-500/10'
+                : 'text-white/70 hover:bg-white/[0.08] hover:text-white border border-transparent'
             }
         `}
     >
         <div
             className={`
-                w-9 h-9 rounded-xl flex items-center justify-center transition-all
+                w-10 h-10 rounded-2xl flex items-center justify-center transition-all
                 ${isActive
                     ? 'bg-gradient-to-br from-primary-500 to-violet-600 text-white shadow-lg shadow-primary-500/30'
                     : 'bg-white/[0.06] group-hover:bg-white/[0.1]'
                 }
             `}
         >
-            <item.icon size={18} />
+            <item.icon size={20} />
         </div>
         <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">{item.label}</p>
-            <p className="text-[10px] text-white/40 truncate">{item.description}</p>
+            <p className="text-base font-medium">{item.label}</p>
+            <p className="text-xs text-white/50 truncate">{item.description}</p>
         </div>
         {item.badge && (
-            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-primary-500/20 text-primary-400">
+            <span className="px-2 py-1 text-[11px] font-bold rounded-md bg-primary-500/20 text-primary-300">
                 {item.badge}
             </span>
         )}
         {isActive && (
-            <div className="w-1 h-6 rounded-full bg-gradient-to-b from-primary-400 to-violet-500" />
+            <div className="w-1 h-7 rounded-full bg-gradient-to-b from-primary-400 to-violet-500" />
         )}
     </Link>
 ));
@@ -351,18 +351,18 @@ export const UserMenuDropdown = memo(() => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 8, scale: 0.95 }}
                         transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className="absolute right-0 mt-2 w-80 rounded-2xl border border-white/[0.12] shadow-2xl shadow-black/50 overflow-hidden z-50"
+                        className="absolute right-0 mt-3 w-[360px] rounded-3xl border border-white/[0.16] shadow-2xl shadow-black/60 overflow-hidden z-50"
                         style={{
-                            background: 'linear-gradient(145deg, rgba(30, 27, 50, 0.97) 0%, rgba(20, 18, 35, 0.98) 100%)',
-                            backdropFilter: 'blur(24px) saturate(180%)',
+                            background: 'linear-gradient(145deg, rgba(18, 16, 34, 0.98) 0%, rgba(12, 10, 24, 0.98) 100%)',
+                            backdropFilter: 'blur(28px) saturate(190%)',
                         }}
                     >
                         {/* ===== USER PROFILE SECTION ===== */}
-                        <div className="relative p-4 overflow-hidden">
+                        <div className="relative p-5 overflow-hidden">
                             {/* Background geometric shapes */}
                             <div className="absolute inset-0 pointer-events-none">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
-                                <div className="absolute bottom-0 left-0 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl transform -translate-x-1/2 translate-y-1/2" />
+                                <div className="absolute top-0 right-0 w-36 h-36 bg-primary-500/15 rounded-[32px] blur-3xl transform translate-x-1/2 -translate-y-1/2 rotate-12" />
+                                <div className="absolute bottom-0 left-0 w-28 h-28 bg-violet-500/12 rounded-[26px] blur-2xl transform -translate-x-1/2 translate-y-1/2 -rotate-12" />
                                 {/* Geometric lines */}
                                 <svg className="absolute inset-0 w-full h-full opacity-[0.03]" viewBox="0 0 100 100">
                                     <line x1="0" y1="0" x2="100" y2="100" stroke="white" strokeWidth="0.5" />
@@ -372,22 +372,22 @@ export const UserMenuDropdown = memo(() => {
 
                             <div className="relative z-10">
                                 {/* User header */}
-                                <div className="flex items-start gap-3 mb-4">
+                                <div className="flex items-start gap-4 mb-5">
                                     <div className="relative">
-                                        <div className="flex items-center justify-center w-14 h-14 text-xl font-bold text-white rounded-2xl shadow-xl bg-gradient-to-br from-primary-500 via-primary-600 to-violet-600 shadow-primary-500/30">
+                                        <div className="flex items-center justify-center w-16 h-16 text-xl font-bold text-white rounded-2xl shadow-xl bg-gradient-to-br from-primary-500 via-primary-600 to-violet-600 shadow-primary-500/30">
                                             {userInitials}
                                         </div>
                                         <LevelBadge level={level} size="sm" />
                                     </div>
                                     <div className="flex-1 min-w-0 pt-1">
-                                        <p className="text-base font-semibold text-white truncate">{userLabel}</p>
-                                        <p className="text-xs text-primary-400/80 font-medium">{title}</p>
-                                        <p className="text-[10px] text-white/40 truncate mt-0.5">{user?.email}</p>
+                                        <p className="text-lg font-semibold text-white truncate">{userLabel}</p>
+                                        <p className="text-sm text-primary-300/90 font-medium">{title}</p>
+                                        <p className="text-xs text-white/50 truncate mt-1">{user?.email}</p>
                                     </div>
                                 </div>
 
                                 {/* XP Progress */}
-                                <div className="mb-3">
+                                <div className="mb-4">
                                     <XpProgressBar
                                         currentXp={xp}
                                         currentLevelXp={xpForCurrentLevel}
@@ -396,7 +396,7 @@ export const UserMenuDropdown = memo(() => {
                                 </div>
 
                                 {/* Stats Row */}
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2.5">
                                     <StatPill icon={FiZap} value={streak} label="Streak" color="amber" />
                                     <StatPill icon={FiTrendingUp} value={`${multiplier.toFixed(1)}x`} label="Multiplier" color="emerald" />
                                     <StatPill icon={FiAward} value={`${xp.toLocaleString()} XP`} label="Total XP" color="primary" />
@@ -408,13 +408,13 @@ export const UserMenuDropdown = memo(() => {
                         <div className="h-px bg-gradient-to-r from-transparent via-white/[0.15] to-transparent" />
 
                         {/* ===== MENU ITEMS ===== */}
-                        <div className="py-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <div className="py-3 max-h-[420px] overflow-y-auto custom-scrollbar">
                             {menuCategories.map((category, catIndex) => (
                                 <div key={category.label}>
                                     {catIndex > 0 && (
                                         <div className="my-2 mx-4 h-px bg-white/[0.06]" />
                                     )}
-                                    <p className="px-5 py-1.5 text-[9px] font-bold text-white/30 uppercase tracking-[0.2em]">
+                                    <p className="px-5 py-2 text-[10px] font-bold text-white/40 uppercase tracking-[0.25em]">
                                         {category.label}
                                     </p>
                                     {category.items.map((item) => {
