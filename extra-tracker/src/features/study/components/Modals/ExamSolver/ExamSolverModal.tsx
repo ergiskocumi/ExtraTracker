@@ -71,12 +71,17 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         handleEditCard,
         handleRegenerateCard,
         handleSaveReview,
+        handleCancelGeneration,
         error,
         setError,
         clearError,
         isProcessing,
         canClose,
         handleClose,
+        showRestorePrompt,
+        cachedSession,
+        restoreFromCache,
+        resetToDefault,
     } = useExamSolver({
         isOpen,
         existingDecks,
@@ -112,15 +117,76 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <AnimatePresence>
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-50 flex items-center justify-center p-4"
-                onClick={handleClose}
-            >
+        <>
+            {/* Restore Session Prompt */}
+            <AnimatePresence>
+                {showRestorePrompt && cachedSession && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+                    >
+                        {/* Backdrop */}
+                        <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" />
+
+                        {/* Dialog */}
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative bg-zinc-900/95 backdrop-blur-xl rounded-2xl border border-white/10 p-6 max-w-md w-full shadow-2xl"
+                        >
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                    <Sparkles className="w-5 h-5 text-blue-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white">Sessione Precedente Trovata</h3>
+                                    <p className="text-sm text-white/60">
+                                        {cachedSession.extractedQuestions?.length || 0} domande,{' '}
+                                        step: {cachedSession.step}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p className="text-white/80 text-sm mb-6">
+                                Hai una sessione Exam Solver non completata. Vuoi riprendere da dove avevi lasciato?
+                            </p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        restoreFromCache(cachedSession);
+                                    }}
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+                                >
+                                    Ripristina Sessione
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        resetToDefault();
+                                    }}
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium transition-colors border border-white/10"
+                                >
+                                    Inizia Nuova
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Main Modal */}
+            <AnimatePresence>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    onClick={handleClose}
+                >
                 {/* Backdrop */}
                 <motion.div
                     initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
@@ -232,8 +298,10 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                 onBack={() => goToStep('preview')}
                                 onGenerate={generateAnswers}
                                 canGenerate={
-                                    (deckMode === 'new' && deckTitle.trim() && selectedGoalId) ||
-                                    (deckMode === 'existing' && !!selectedDeckId)
+                                    !!(
+                                        (deckMode === 'new' && deckTitle.trim() && selectedGoalId) ||
+                                        (deckMode === 'existing' && selectedDeckId)
+                                    )
                                 }
                             />
                         )}
@@ -255,6 +323,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                     goToStep('config');
                                     clearError();
                                 }}
+                                onCancel={handleCancelGeneration}
                                 onClose={handleClose}
                                 onSuccess={onSuccess}
                             />
@@ -283,6 +352,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                 </motion.div>
             </motion.div>
         </AnimatePresence>
+        </>
     );
 };
 

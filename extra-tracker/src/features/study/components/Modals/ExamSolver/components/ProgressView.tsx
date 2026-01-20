@@ -24,11 +24,13 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
     createdDeckId,
     error,
     onRetry,
+    onCancel,
     onClose,
     onSuccess,
 }) => {
     const [elapsedTime, setElapsedTime] = useState(0);
     const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<number | null>(null);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const startTimeRef = useRef<number | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -145,6 +147,63 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                                 ~{estimatedTimeRemaining} {estimatedTimeRemaining === 1 ? 'secondo' : 'secondi'} rimanenti
                             </span>
                         </div>
+                    )}
+
+                    {/* Cancel Button */}
+                    {isProcessing && (
+                        <div className="pt-4 border-t border-white/5">
+                            <button
+                                onClick={() => setShowCancelConfirm(true)}
+                                className="w-full px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-medium transition-colors"
+                            >
+                                Annulla Generazione
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Cancel Confirm Dialog */}
+                    {showCancelConfirm && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                            style={{ margin: 0 }}
+                        >
+                            <div
+                                className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+                                onClick={() => setShowCancelConfirm(false)}
+                            />
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="relative bg-zinc-900/95 backdrop-blur-xl rounded-2xl border border-white/10 p-6 max-w-sm w-full shadow-2xl"
+                            >
+                                <h3 className="text-lg font-semibold text-white mb-2">
+                                    Annullare la generazione?
+                                </h3>
+                                <p className="text-white/70 text-sm mb-6">
+                                    Il progresso attuale verrà perso e dovrai ricominciare da capo.
+                                </p>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setShowCancelConfirm(false);
+                                            onCancel();
+                                        }}
+                                        className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
+                                    >
+                                        Sì, Annulla
+                                    </button>
+                                    <button
+                                        onClick={() => setShowCancelConfirm(false)}
+                                        className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium transition-colors border border-white/10"
+                                    >
+                                        No, Continua
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
                     )}
                 </div>
             )}

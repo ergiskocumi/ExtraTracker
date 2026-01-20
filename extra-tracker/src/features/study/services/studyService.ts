@@ -665,6 +665,7 @@ class StudyService {
 
         return {
             deck: normalizeDeck(data.deck),
+            flashcards: data.flashcards || [],
             stats: data.stats || {
                 questionsExtracted: 0,
                 answersFound: 0,

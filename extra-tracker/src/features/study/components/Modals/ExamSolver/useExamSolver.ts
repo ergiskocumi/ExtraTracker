@@ -80,6 +80,7 @@ export interface UseExamSolverReturn {
     handleEditCard: (cardId: string, newAnswer: string) => void;
     handleRegenerateCard: (cardId: string, question: string) => Promise<void>;
     handleSaveReview: () => void;
+    handleCancelGeneration: () => void;
     
     // Error
     error: string | null;
@@ -90,6 +91,12 @@ export interface UseExamSolverReturn {
     isProcessing: boolean;
     canClose: boolean;
     handleClose: () => void;
+
+    // Session restore
+    showRestorePrompt: boolean;
+    cachedSession: any;
+    restoreFromCache: (cache: any) => void;
+    resetToDefault: () => void;
 }
 
 // ============================================
@@ -106,15 +113,15 @@ export const useExamSolver = ({
 }: UseExamSolverProps): UseExamSolverReturn => {
     // Step management
     const [currentStep, setCurrentStep] = useState<Step>('upload');
-    
+
     // Files
     const [questionsFile, setQuestionsFile] = useState<File | null>(null);
     const [sourceFile, setSourceFile] = useState<File | null>(null);
-    
+
     // Questions
     const [extractedQuestions, setExtractedQuestions] = useState<string[]>([]);
     const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
-    
+
     // Deck config
     const [deckMode, setDeckMode] = useState<'new' | 'existing'>('new');
     const [deckTitle, setDeckTitle] = useState('');
@@ -122,7 +129,7 @@ export const useExamSolver = ({
     const [goals, setGoals] = useState<Goal[]>([]);
     const [selectedGoalId, setSelectedGoalId] = useState<string>('');
     const [isLoadingGoals, setIsLoadingGoals] = useState(false);
-    
+
     // Progress
     const [progressStep, setProgressStep] = useState<ProgressStep>('idle');
     const [progressMessage, setProgressMessage] = useState('');
@@ -133,13 +140,121 @@ export const useExamSolver = ({
     const [createdDeckId, setCreatedDeckId] = useState<string>('');
     const [generatedFlashcards, setGeneratedFlashcards] = useState<FlashcardWithId[]>([]);
     const [sourceFileUrl, setSourceFileUrl] = useState<string | null>(null);
-    
+
     // Error
     const [error, setError] = useState<string | null>(null);
-    
+
+    // Restore session prompt
+    const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+    const [cachedSession, setCachedSession] = useState<any>(null);
+
     // Refs
     const startTimeRef = useRef<number | null>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    // ============================================
+    // LOCALSTORAGE CACHE
+    // ============================================
+
+    const CACHE_KEY = 'examSolverCache';
+    const CACHE_TTL = 60 * 60 * 1000; // 1 ora
+
+    interface ExamSolverCache {
+        timestamp: number;
+        step: Step;
+        questionsFileName?: string;
+        questionsFileSize?: number;
+        sourceFileName?: string;
+        sourceFileSize?: number;
+        extractedQuestions: string[];
+        selectedQuestions: number[];
+        deckMode: 'new' | 'existing';
+        deckTitle: string;
+        selectedDeckId: string;
+        selectedGoalId: string;
+        generatedFlashcards?: FlashcardWithId[];
+        createdDeckId?: string;
+    }
+
+    // Save cache
+    const saveCache = useCallback(() => {
+        // Non salvare se siamo in upload step o processing
+        if (currentStep === 'upload' || progressStep === 'generating' || progressStep === 'analyzing') {
+            return;
+        }
+
+        try {
+            const cache: ExamSolverCache = {
+                timestamp: Date.now(),
+                step: currentStep,
+                questionsFileName: questionsFile?.name,
+                questionsFileSize: questionsFile?.size,
+                sourceFileName: sourceFile?.name,
+                sourceFileSize: sourceFile?.size,
+                extractedQuestions,
+                selectedQuestions: Array.from(selectedQuestions),
+                deckMode,
+                deckTitle,
+                selectedDeckId,
+                selectedGoalId,
+                generatedFlashcards: currentStep === 'review' ? generatedFlashcards : undefined,
+                createdDeckId: createdDeckId || undefined,
+            };
+
+            localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+            console.log('💾 Exam Solver cache salvato');
+        } catch (err) {
+            console.error('❌ Errore salvataggio cache:', err);
+        }
+    }, [
+        currentStep,
+        progressStep,
+        questionsFile,
+        sourceFile,
+        extractedQuestions,
+        selectedQuestions,
+        deckMode,
+        deckTitle,
+        selectedDeckId,
+        selectedGoalId,
+        generatedFlashcards,
+        createdDeckId,
+    ]);
+
+    // Load cache
+    const loadCache = useCallback((): ExamSolverCache | null => {
+        try {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (!cached) return null;
+
+            const data: ExamSolverCache = JSON.parse(cached);
+            const age = Date.now() - data.timestamp;
+
+            // Check se cache è scaduto (> 1 ora)
+            if (age > CACHE_TTL) {
+                console.log('⏰ Cache scaduto, rimuovo');
+                localStorage.removeItem(CACHE_KEY);
+                return null;
+            }
+
+            console.log('✅ Cache trovato (età:', Math.floor(age / 1000 / 60), 'min)');
+            return data;
+        } catch (err) {
+            console.error('❌ Errore caricamento cache:', err);
+            return null;
+        }
+    }, []);
+
+    // Clear cache
+    const clearCache = useCallback(() => {
+        try {
+            localStorage.removeItem(CACHE_KEY);
+            console.log('🗑️ Cache rimosso');
+        } catch (err) {
+            console.error('❌ Errore rimozione cache:', err);
+        }
+    }, []);
 
     // ============================================
     // RESET LOGIC
@@ -147,41 +262,103 @@ export const useExamSolver = ({
 
     useEffect(() => {
         if (isOpen) {
-            setCurrentStep('upload');
-            setQuestionsFile(null);
-            setSourceFile(null);
-            setExtractedQuestions([]);
-            setSelectedQuestions(new Set());
-            
-            // Se c'è un deckId pre-selezionato, usa quello
-            if (preselectedDeckId && existingDecks.some(d => d.id === preselectedDeckId)) {
-                setDeckMode('existing');
-                setSelectedDeckId(preselectedDeckId);
+            // Check se c'è una sessione salvata
+            const cached = loadCache();
+
+            if (cached && cached.step !== 'upload') {
+                // Mostra prompt per ripristinare
+                setCachedSession(cached);
+                setShowRestorePrompt(true);
             } else {
-                setDeckMode('new');
-                setDeckTitle('');
-                setSelectedDeckId('');
-            }
-            
-            setGoals([]);
-            setSelectedGoalId(goalId || '');
-            setProgressStep('idle');
-            setProgressMessage('');
-            setProgressCurrent(0);
-            setProgressTotal(0);
-            setCurrentQuestion('');
-            setStats(null);
-            setError(null);
-            setCreatedDeckId('');
-            setGeneratedFlashcards([]);
-            setSourceFileUrl(null);
-            startTimeRef.current = null;
-            
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
+                // Nessuna cache, reset normale
+                resetToDefault();
             }
         }
-    }, [isOpen, preselectedDeckId, existingDecks, goalId]);
+    }, [isOpen, loadCache]);
+
+    // Reset to default state
+    const resetToDefault = useCallback(() => {
+        setCurrentStep('upload');
+        setQuestionsFile(null);
+        setSourceFile(null);
+        setExtractedQuestions([]);
+        setSelectedQuestions(new Set());
+
+        // Se c'è un deckId pre-selezionato, usa quello
+        if (preselectedDeckId && existingDecks.some(d => d.id === preselectedDeckId)) {
+            setDeckMode('existing');
+            setSelectedDeckId(preselectedDeckId);
+        } else {
+            setDeckMode('new');
+            setDeckTitle('');
+            setSelectedDeckId('');
+        }
+
+        setGoals([]);
+        setSelectedGoalId(goalId || '');
+        setProgressStep('idle');
+        setProgressMessage('');
+        setProgressCurrent(0);
+        setProgressTotal(0);
+        setCurrentQuestion('');
+        setStats(null);
+        setError(null);
+        setCreatedDeckId('');
+        setGeneratedFlashcards([]);
+        setSourceFileUrl(null);
+        startTimeRef.current = null;
+        setShowRestorePrompt(false);
+        setCachedSession(null);
+    }, [preselectedDeckId, existingDecks, goalId]);
+
+    // Restore from cache
+    const restoreFromCache = useCallback((cache: ExamSolverCache) => {
+        setCurrentStep(cache.step);
+        setExtractedQuestions(cache.extractedQuestions || []);
+        setSelectedQuestions(new Set(cache.selectedQuestions || []));
+        setDeckMode(cache.deckMode || 'new');
+        setDeckTitle(cache.deckTitle || '');
+        setSelectedDeckId(cache.selectedDeckId || '');
+        setSelectedGoalId(cache.selectedGoalId || goalId || '');
+
+        if (cache.generatedFlashcards) {
+            setGeneratedFlashcards(cache.generatedFlashcards);
+        }
+        if (cache.createdDeckId) {
+            setCreatedDeckId(cache.createdDeckId);
+        }
+
+        setShowRestorePrompt(false);
+        setCachedSession(null);
+
+        emitToast.success('Sessione ripristinata!');
+        console.log('✅ Sessione ripristinata da cache');
+    }, [goalId]);
+
+    // Auto-save after state changes
+    useEffect(() => {
+        if (isOpen && currentStep !== 'upload') {
+            saveCache();
+        }
+    }, [
+        isOpen,
+        currentStep,
+        extractedQuestions,
+        selectedQuestions,
+        deckMode,
+        deckTitle,
+        selectedDeckId,
+        selectedGoalId,
+        generatedFlashcards,
+        saveCache,
+    ]);
+
+    // Clear cache on successful completion
+    useEffect(() => {
+        if (progressStep === 'completed' && createdDeckId) {
+            clearCache();
+        }
+    }, [progressStep, createdDeckId, clearCache]);
 
     // ============================================
     // LOAD GOALS
@@ -315,45 +492,89 @@ export const useExamSolver = ({
         setError(null);
         startTimeRef.current = Date.now();
 
+        // Configurazione retry
+        const MAX_RETRIES = 3;
+        let retryCount = 0;
+
+        // Helper: sleep per exponential backoff
+        const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // Helper: fetch con retry
+        const fetchWithRetry = async (): Promise<Response> => {
+            while (retryCount < MAX_RETRIES) {
+                try {
+                    setProgressStep('generating');
+                    setProgressMessage(
+                        retryCount > 0
+                            ? `Generazione risposte (tentativo ${retryCount + 1}/${MAX_RETRIES})...`
+                            : 'Generazione risposte...'
+                    );
+                    setProgressTotal(questionsToProcess.length);
+                    setProgressCurrent(0);
+
+                    // Usa fetch con streaming SSE
+                    const formData = new FormData();
+                    formData.append('sourceFile', sourceFile);
+                    formData.append('selectedQuestions', JSON.stringify(questionsToProcess));
+
+                    if (deckMode === 'existing' && selectedDeckId) {
+                        formData.append('deckId', selectedDeckId);
+                    }
+                    if (deckMode === 'new') {
+                        if (deckTitle.trim()) {
+                            formData.append('title', deckTitle.trim());
+                        }
+                        if (selectedGoalId) {
+                            formData.append('goalId', selectedGoalId);
+                        }
+                    }
+
+                    // Crea nuovo AbortController per questo fetch
+                    abortControllerRef.current = new AbortController();
+
+                    const response = await fetch('/api/study/exam-solver/generate-answers', {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include',
+                        signal: abortControllerRef.current.signal,
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(
+                            errorData.error?.message ||
+                            errorData.message ||
+                            `Errore ${response.status}: generazione risposte fallita`
+                        );
+                    }
+
+                    return response;
+
+                } catch (err: any) {
+                    retryCount++;
+                    const isLastAttempt = retryCount >= MAX_RETRIES;
+
+                    if (isLastAttempt) {
+                        throw err; // Fallimento definitivo
+                    }
+
+                    // Exponential backoff: 2s, 4s, 8s
+                    const delay = Math.min(2000 * Math.pow(2, retryCount - 1), 8000);
+                    console.warn(`⚠️ SSE fetch fallito (tentativo ${retryCount}/${MAX_RETRIES}), retry in ${delay}ms...`);
+
+                    setProgressMessage(`⚠️ Errore connessione, nuovo tentativo in ${delay / 1000}s...`);
+                    await sleep(delay);
+                }
+            }
+
+            throw new Error('Max tentativi raggiunto');
+        };
+
         try {
-            setProgressStep('generating');
-            setProgressMessage('Generazione risposte...');
-            setProgressTotal(questionsToProcess.length);
-            setProgressCurrent(0);
+            // Usa fetch con retry
+            const response = await fetchWithRetry();
 
-            // Usa fetch con streaming SSE invece di studyService.generateExamAnswers
-            const formData = new FormData();
-            formData.append('sourceFile', sourceFile);
-            formData.append('selectedQuestions', JSON.stringify(questionsToProcess));
-            
-            if (deckMode === 'existing' && selectedDeckId) {
-                formData.append('deckId', selectedDeckId);
-            }
-            if (deckMode === 'new') {
-                if (deckTitle.trim()) {
-                    formData.append('title', deckTitle.trim());
-                }
-                if (selectedGoalId) {
-                    formData.append('goalId', selectedGoalId);
-                }
-            }
-
-            const response = await fetch('/api/study/exam-solver/generate-answers', {
-                method: 'POST',
-                body: formData,
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(
-                    errorData.error?.message || 
-                    errorData.message || 
-                    `Errore ${response.status}: generazione risposte fallita`
-                );
-            }
-
-            // Leggi la risposta come stream SSE
+            // Leggi la risposta come stream SSE con retry su stream errors
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
@@ -397,6 +618,27 @@ export const useExamSolver = ({
                                 setProgressTotal(data.total);
                                 setCurrentQuestion(data.question || '');
                                 setProgressMessage(`Domanda ${data.current}/${data.total}: ${data.question || ''}`);
+                            } else if (data.type === 'flashcard' || eventType === 'flashcard') {
+                                // STREAMING: Aggiungi flashcard incrementalmente
+                                if (data.flashcard) {
+                                    // Aggiungi ID temporaneo se mancante
+                                    const flashcardWithId = {
+                                        ...data.flashcard,
+                                        id: data.flashcard.id || `temp-${Date.now()}-${data.index || Math.random()}`,
+                                    };
+
+                                    setGeneratedFlashcards(prev => [...prev, flashcardWithId]);
+
+                                    // Auto-transizione a review quando arriva la prima flashcard
+                                    if (currentStep === 'progress') {
+                                        setTimeout(() => {
+                                            setCurrentStep('review');
+                                            setProgressStep('completed');
+                                        }, 100);
+                                    }
+
+                                    console.log(`📥 Flashcard streaming: ${data.index || '?'}/${data.total || '?'}`);
+                                }
                             } else if (data.type === 'complete' || eventType === 'complete') {
                                 setProgressStep('completed');
                                 setProgressMessage('Generazione completata!');
@@ -441,9 +683,20 @@ export const useExamSolver = ({
                 }
             }
         } catch (err: any) {
+            // Se è un abort, non mostrare errore (cancel intenzionale)
+            if (err.name === 'AbortError') {
+                setProgressStep('idle');
+                setCurrentStep('config');
+                emitToast.info('Generazione annullata');
+                return;
+            }
+
             setProgressStep('error');
             setError(err.message || 'Errore durante la generazione delle risposte');
             emitToast.error(err.message || 'Errore durante la generazione delle risposte');
+        } finally {
+            // Cleanup AbortController
+            abortControllerRef.current = null;
         }
     }, [
         sourceFile,
@@ -589,6 +842,13 @@ export const useExamSolver = ({
         onClose();
     }, [progressStep, onClose]);
 
+    const handleCancelGeneration = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            console.log('🚫 Generazione cancellata dall\'utente');
+        }
+    }, []);
+
     // ============================================
     // COMPUTED VALUES
     // ============================================
@@ -660,22 +920,29 @@ export const useExamSolver = ({
         generatedFlashcards,
         sourceFileUrl,
         
-    // Actions
-    extractQuestions,
-    generateAnswers,
-    handleNextFromPreview,
-    handleEditCard,
-    handleRegenerateCard,
-    handleSaveReview,
-        
+        // Actions
+        extractQuestions,
+        generateAnswers,
+        handleNextFromPreview,
+        handleEditCard,
+        handleRegenerateCard,
+        handleSaveReview,
+        handleCancelGeneration,
+
         // Error
         error,
         setError,
         clearError,
-        
+
         // UI helpers
         isProcessing,
         canClose,
         handleClose,
+
+        // Session restore
+        showRestorePrompt,
+        cachedSession,
+        restoreFromCache,
+        resetToDefault,
     };
 };

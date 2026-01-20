@@ -148,6 +148,7 @@ export interface ProgressViewProps {
     createdDeckId: string;
     error: string | null;
     onRetry: () => void;
+    onCancel: () => void;
     onClose: () => void;
     onSuccess: (deckId: string, stats: ExamSolverStats) => void;
 }

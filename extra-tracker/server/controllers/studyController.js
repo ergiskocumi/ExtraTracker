@@ -7,6 +7,7 @@
 
 const studyService = require('../services/studyService');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { validatePdfFile } = require('../utils/pdfValidator');
 
 // =========================================
 // DECKS
@@ -454,9 +455,9 @@ const extractQuestions = asyncHandler(async (req, res) => {
     }
 
     const questionsIsPdf = questionsFile.mimetype === 'application/pdf';
-    const questionsIsTxt = questionsFile.mimetype === 'text/plain' || 
+    const questionsIsTxt = questionsFile.mimetype === 'text/plain' ||
                            questionsFile.originalname.toLowerCase().endsWith('.txt');
-    
+
     if (!questionsIsPdf && !questionsIsTxt) {
         return res.status(400).json({
             success: false,
@@ -470,6 +471,17 @@ const extractQuestions = asyncHandler(async (req, res) => {
             success: false,
             error: { message: 'File domande troppo grande. Massimo 10MB.' }
         });
+    }
+
+    // Validate PDF integrity (magic bytes check)
+    if (questionsIsPdf) {
+        const pdfValidation = await validatePdfFile(questionsFile.path);
+        if (!pdfValidation.isValid) {
+            return res.status(400).json({
+                success: false,
+                error: { message: `PDF corrotto: ${pdfValidation.error}` }
+            });
+        }
     }
 
     try {
@@ -531,6 +543,15 @@ const generateAnswers = asyncHandler(async (req, res) => {
         });
     }
 
+    // Validate PDF integrity (magic bytes check)
+    const pdfValidation = await validatePdfFile(sourceFile.path);
+    if (!pdfValidation.isValid) {
+        return res.status(400).json({
+            success: false,
+            error: { message: `PDF corrotto: ${pdfValidation.error}` }
+        });
+    }
+
     // Parse selectedQuestions
     let selectedQuestions = [];
     try {
@@ -583,9 +604,16 @@ const generateAnswers = asyncHandler(async (req, res) => {
             sourceFile.path,
             selectedQuestions,
             { deckId, title, goalId },
-            (progress) => {
-                // Callback per inviare progress
-                sendEvent('progress', progress);
+            (event) => {
+                // Callback per inviare eventi SSE (progress o flashcard)
+                if (event.type === 'flashcard') {
+                    sendEvent('flashcard', event);
+                } else if (event.type === 'progress') {
+                    sendEvent('progress', event);
+                } else {
+                    // Default: progress
+                    sendEvent('progress', event);
+                }
             }
         );
 

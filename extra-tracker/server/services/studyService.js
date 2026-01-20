@@ -21,6 +21,7 @@ const eventBus = require('../utils/eventBus');
 const sseManager = require('../utils/SSEManager');
 const OpenAI = require('openai');
 const pdfParse = require('pdf-parse');
+const pdfCacheService = require('./pdfCacheService');
 const fs = require('fs/promises');
 const path = require('path');
 const vectorStoreService = require('./vectorStoreService');
@@ -881,7 +882,7 @@ class StudyService extends BaseService {
 
         let pdfText;
         try {
-            const pdfData = await pdfParse(pdfBuffer);
+            const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
             pdfText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
             console.error('❌ PDF Parse Error:', err.message);
@@ -1536,7 +1537,7 @@ NOTA: original_quote deve essere IDENTICA al testo tra i marker di pagina.`;
 
             let pdfText;
             try {
-                const pdfData = await pdfParse(pdfBuffer);
+                const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
                 pdfText = this._formatPdfTextWithPages(pdfData);
             } catch (err) {
                 console.error('❌ PDF Parse Error (Tutor):', err.message);
@@ -1702,7 +1703,7 @@ NOTA: original_quote deve essere IDENTICA al testo tra i marker di pagina.`;
 
             let pdfText;
             try {
-                const pdfData = await pdfParse(pdfBuffer);
+                const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
                 pdfText = this._formatPdfTextWithPages(pdfData);
             } catch (err) {
                 console.error('❌ PDF Parse Error (Exam Tutor):', err.message);
@@ -1879,7 +1880,7 @@ GENERA LA RISPOSTA:`;
             }
 
             try {
-                const pdfData = await pdfParse(pdfBuffer);
+                const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
                 questionsText = this._formatPdfTextWithPages(pdfData);
             } catch (err) {
                 console.error('❌ PDF Parse Error (Questions):', err.message);
@@ -1992,7 +1993,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
 
         let sourceText = '';
         try {
-            const pdfData = await pdfParse(sourceBuffer);
+            const pdfData = await pdfCacheService.parsePDF(sourceFilePath, sourceBuffer);
             sourceText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
             console.error('❌ PDF Parse Error (Source):', err.message);
@@ -2038,45 +2039,80 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
         // STEP 3: GENERAZIONE BATCH delle risposte
         // =========================================
         console.log('🤖 Generazione risposte...');
-        
-        // Processa in batch per evitare token limit
+
+        // Configurazione batch processing
         const BATCH_SIZE = 10; // Processa 10 domande alla volta
+        const PARALLEL_BATCHES = 3; // 3 batch in parallelo (30 domande)
+        const SLEEP_BETWEEN_PARALLEL = 200; // Ridotto da 500ms
+        const MAX_RETRIES = 3; // Retry automatico su errore
+
         const allFlashcards = [];
         let answersFound = 0;
         let answersNotFound = 0;
         const totalQuestions = selectedQuestions.length;
 
+        // Crea array di batch
+        const batches = [];
         for (let i = 0; i < selectedQuestions.length; i += BATCH_SIZE) {
-            const batch = selectedQuestions.slice(i, i + BATCH_SIZE);
-            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-            const totalBatches = Math.ceil(selectedQuestions.length / BATCH_SIZE);
-            console.log(`🔄 Processando batch ${batchNumber}/${totalBatches} (${batch.length} domande)`);
+            batches.push({
+                questions: selectedQuestions.slice(i, i + BATCH_SIZE),
+                startIndex: i,
+            });
+        }
 
-            // Se usa smart chunking, recupera contesto rilevante per ogni domanda
+        console.log(`📊 Totale batch: ${batches.length} (${PARALLEL_BATCHES} in parallelo)`);
+
+        // Helper: recupera contesto per batch (con vector queries parallele)
+        const getBatchContext = async (batch) => {
             let batchContext = sourceTextForContext;
             if (useSmartChunking && tempDeckId) {
-                // Per ogni domanda nel batch, trova i chunk più rilevanti
-                const relevantChunks = [];
-                for (const question of batch) {
-                    try {
-                        const matches = await vectorStoreService.queryDeck(tempDeckId, question, 3);
+                try {
+                    // Query in parallelo per tutte le domande del batch
+                    const queryPromises = batch.questions.map(question =>
+                        vectorStoreService.queryDeck(tempDeckId, question, 3)
+                            .catch(err => {
+                                console.warn(`⚠️ Vector query error per domanda:`, err.message);
+                                return []; // Fallback: array vuoto
+                            })
+                    );
+
+                    const results = await Promise.all(queryPromises);
+
+                    // Merge e deduplica chunks
+                    const relevantChunks = [];
+                    for (const matches of results) {
                         if (Array.isArray(matches) && matches.length > 0) {
                             relevantChunks.push(...matches);
                         }
-                    } catch (err) {
-                        console.warn(`⚠️ Vector query error per domanda:`, err.message);
                     }
-                }
-                // Deduplica e combina
-                const uniqueChunks = [...new Set(relevantChunks)];
-                batchContext = uniqueChunks.join('\n\n---\n\n');
-                if (!batchContext || batchContext.trim().length < 100) {
-                    // Fallback a testo completo se non trova chunk rilevanti
+
+                    const uniqueChunks = [...new Set(relevantChunks)];
+                    batchContext = uniqueChunks.join('\n\n---\n\n');
+
+                    if (!batchContext || batchContext.trim().length < 100) {
+                        // Fallback a testo completo se non trova chunk rilevanti
+                        batchContext = this._truncateText(normalizedSourceText, 100000, '\n\n[...materiale troncato...]');
+                    }
+                } catch (err) {
+                    console.warn('⚠️ getBatchContext error, using fallback:', err.message);
                     batchContext = this._truncateText(normalizedSourceText, 100000, '\n\n[...materiale troncato...]');
                 }
             }
+            return batchContext;
+        };
 
-            const batchPrompt = `Sei un TUTOR ACCADEMICO. Per OGNI domanda, genera una risposta usando SOLO il contesto.
+        // Helper: processa singolo batch con retry
+        const processBatchWithRetry = async (batch, batchIndex) => {
+            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                try {
+                    const batchNumber = batchIndex + 1;
+                    const totalBatches = batches.length;
+                    console.log(`🔄 Processando batch ${batchNumber}/${totalBatches} (${batch.questions.length} domande, tentativo ${attempt + 1})`);
+
+                    // Recupera contesto (con vector queries parallele)
+                    const batchContext = await getBatchContext(batch);
+
+                    const batchPrompt = `Sei un TUTOR ACCADEMICO. Per OGNI domanda, genera una risposta usando SOLO il contesto.
 
 CONTESTO:
 """
@@ -2084,7 +2120,7 @@ ${batchContext}
 """
 
 DOMANDE:
-${batch.map((q, idx) => `${i + idx + 1}. ${q}`).join('\n')}
+${batch.questions.map((q, idx) => `${batch.startIndex + idx + 1}. ${q}`).join('\n')}
 
 REGOLE:
 
@@ -2098,121 +2134,148 @@ OUTPUT JSON:
 
 Genera una risposta per OGNI domanda nella lista.`;
 
-            try {
-                const batchCompletion = await openai.chat.completions.create({
-                    model: ACTIVE_AI_MODEL,
-                    messages: [
-                        { role: 'system', content: 'Sei un tutor accademico. Restituisci SOLO JSON valido.' },
-                        { role: 'user', content: batchPrompt },
-                    ],
-                    temperature: 0.1,
-                    max_completion_tokens: 4000,
-                    response_format: { type: 'json_object' },
-                });
+                    const batchCompletion = await openai.chat.completions.create({
+                        model: ACTIVE_AI_MODEL,
+                        messages: [
+                            { role: 'system', content: 'Sei un tutor accademico. Restituisci SOLO JSON valido.' },
+                            { role: 'user', content: batchPrompt },
+                        ],
+                        temperature: 0.1,
+                        max_completion_tokens: 4000,
+                        response_format: { type: 'json_object' },
+                    });
 
-                const batchResponse = batchCompletion.choices[0]?.message?.content;
-                if (batchResponse) {
-                    try {
-                        const parsed = JSON.parse(batchResponse);
-                        const flashcards = Array.isArray(parsed.flashcards) ? parsed.flashcards : [];
-                        
-                        for (let cardIdx = 0; cardIdx < flashcards.length; cardIdx++) {
-                            const card = flashcards[cardIdx];
-                            if (card && card.front && card.back) {
-                                // Estrai confidence (default 0 se non trovata, 50 se trovata ma non specificata)
-                                let confidence = 0;
-                                if (card.found === true || card.found === 'true') {
-                                    confidence = typeof card.confidence === 'number' && Number.isFinite(card.confidence)
-                                        ? Math.max(0, Math.min(100, Math.round(card.confidence)))
-                                        : 50; // Default per risposte trovate
-                                } else {
-                                    confidence = typeof card.confidence === 'number' && Number.isFinite(card.confidence)
-                                        ? Math.max(0, Math.min(100, Math.round(card.confidence)))
-                                        : 0; // Default per risposte non trovate
-                                }
+                    const batchResponse = batchCompletion.choices[0]?.message?.content;
+                    if (!batchResponse) {
+                        throw new Error('Empty response from OpenAI');
+                    }
 
-                                // Estrai sourceSnippet
-                                const sourceSnippet = typeof card.sourceSnippet === 'string' && card.sourceSnippet.trim()
-                                    ? card.sourceSnippet.trim().substring(0, 200)
-                                    : undefined;
+                    const parsed = JSON.parse(batchResponse);
+                    const flashcards = Array.isArray(parsed.flashcards) ? parsed.flashcards : [];
 
-                                // Estrai pageNumber (dall'AI o dal sourceSnippet se contiene marker)
-                                let pageNumber = undefined;
-                                if (typeof card.pageNumber === 'number' && Number.isFinite(card.pageNumber) && card.pageNumber > 0) {
-                                    pageNumber = Math.round(card.pageNumber);
-                                } else if (sourceSnippet) {
-                                    // Prova a estrarre dal marker "--- PAGE {n} ---" nel sourceSnippet
-                                    const pageMatch = sourceSnippet.match(/---\s*PAGE\s+(\d+)\s+---/i);
-                                    if (pageMatch && pageMatch[1]) {
-                                        const extractedPage = parseInt(pageMatch[1], 10);
-                                        if (Number.isFinite(extractedPage) && extractedPage > 0) {
-                                            pageNumber = extractedPage;
-                                        }
-                                    }
-                                }
+                    if (flashcards.length === 0) {
+                        throw new Error('No flashcards returned');
+                    }
 
-                                allFlashcards.push({
-                                    front: String(card.front).trim(),
-                                    back: String(card.back).trim(),
-                                    found: card.found === true || card.found === 'true',
-                                    confidence,
-                                    sourceSnippet,
-                                    pageNumber,
-                                });
-                                
-                                if (card.found === true || card.found === 'true') {
-                                    answersFound++;
-                                } else {
-                                    answersNotFound++;
-                                }
+                    return { flashcards, batch };
 
-                                // Invia progress dopo ogni flashcard processata
-                                const currentIndex = i + cardIdx + 1;
-                                if (onProgress && currentIndex <= totalQuestions) {
-                                    onProgress({
-                                        type: 'progress',
-                                        current: currentIndex,
-                                        total: totalQuestions,
-                                        question: card.front || batch[cardIdx] || '',
-                                    });
+                } catch (err) {
+                    const isLastAttempt = attempt === MAX_RETRIES - 1;
+
+                    if (isLastAttempt) {
+                        console.error(`❌ Batch ${batchIndex + 1} fallito dopo ${MAX_RETRIES} tentativi:`, err.message);
+                        // Ritorna placeholder cards
+                        const placeholderCards = batch.questions.map(q => ({
+                            front: q.trim(),
+                            back: '⚠️ Errore nella generazione (max retry raggiunto)',
+                            found: false,
+                            confidence: 0,
+                        }));
+                        return { flashcards: placeholderCards, batch };
+                    }
+
+                    // Retry con exponential backoff
+                    const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+                    console.log(`⚠️ Batch ${batchIndex + 1} fallito (tentativo ${attempt + 1}/${MAX_RETRIES}), retry in ${delay}ms...`);
+                    await this._sleep(delay);
+                }
+            }
+        };
+
+        // Loop parallelo sui batch
+        for (let i = 0; i < batches.length; i += PARALLEL_BATCHES) {
+            const parallelBatches = batches.slice(i, i + PARALLEL_BATCHES);
+            console.log(`\n⚡ Processando ${parallelBatches.length} batch in parallelo...`);
+
+            // Processa PARALLEL_BATCHES batch in parallelo
+            const results = await Promise.all(
+                parallelBatches.map((batch, idx) =>
+                    processBatchWithRetry(batch, i + idx)
+                )
+            );
+
+            // Merge risultati e invia progress
+            for (let j = 0; j < results.length; j++) {
+                const { flashcards, batch } = results[j];
+
+                for (let cardIdx = 0; cardIdx < flashcards.length; cardIdx++) {
+                    const card = flashcards[cardIdx];
+                    if (card && card.front && card.back) {
+                        // Estrai confidence (default 0 se non trovata, 50 se trovata ma non specificata)
+                        let confidence = 0;
+                        if (card.found === true || card.found === 'true') {
+                            confidence = typeof card.confidence === 'number' && Number.isFinite(card.confidence)
+                                ? Math.max(0, Math.min(100, Math.round(card.confidence)))
+                                : 50; // Default per risposte trovate
+                        } else {
+                            confidence = typeof card.confidence === 'number' && Number.isFinite(card.confidence)
+                                ? Math.max(0, Math.min(100, Math.round(card.confidence)))
+                                : 0; // Default per risposte non trovate
+                        }
+
+                        // Estrai sourceSnippet
+                        const sourceSnippet = typeof card.sourceSnippet === 'string' && card.sourceSnippet.trim()
+                            ? card.sourceSnippet.trim().substring(0, 200)
+                            : undefined;
+
+                        // Estrai pageNumber (dall'AI o dal sourceSnippet se contiene marker)
+                        let pageNumber = undefined;
+                        if (typeof card.pageNumber === 'number' && Number.isFinite(card.pageNumber) && card.pageNumber > 0) {
+                            pageNumber = Math.round(card.pageNumber);
+                        } else if (sourceSnippet) {
+                            // Prova a estrarre dal marker "--- PAGE {n} ---" nel sourceSnippet
+                            const pageMatch = sourceSnippet.match(/---\s*PAGE\s+(\d+)\s+---/i);
+                            if (pageMatch && pageMatch[1]) {
+                                const extractedPage = parseInt(pageMatch[1], 10);
+                                if (Number.isFinite(extractedPage) && extractedPage > 0) {
+                                    pageNumber = extractedPage;
                                 }
                             }
                         }
-                    } catch (parseErr) {
-                        console.error('❌ JSON Parse Error (Batch):', parseErr.message);
-                    }
-                }
-            } catch (err) {
-                console.error(`❌ OpenAI Batch Error (${i}-${i + batch.length}):`, err.message);
-                // Crea card placeholder per questo batch
-                for (let j = 0; j < batch.length; j++) {
-                    const question = batch[j];
-                    allFlashcards.push({
-                        front: question.trim(),
-                        back: '⚠️ Errore nella generazione della risposta',
-                        found: false,
-                        confidence: 0,
-                        sourceSnippet: undefined,
-                        pageNumber: undefined,
-                    });
-                    answersNotFound++;
 
-                    // Invia progress anche per errori
-                    const currentIndex = i + j + 1;
-                    if (onProgress && currentIndex <= totalQuestions) {
-                        onProgress({
-                            type: 'progress',
-                            current: currentIndex,
-                            total: totalQuestions,
-                            question: question,
-                        });
+                        const flashcard = {
+                            front: String(card.front).trim(),
+                            back: String(card.back).trim(),
+                            found: card.found === true || card.found === 'true',
+                            confidence,
+                            sourceSnippet,
+                            pageNumber,
+                        };
+
+                        allFlashcards.push(flashcard);
+
+                        if (card.found === true || card.found === 'true') {
+                            answersFound++;
+                        } else {
+                            answersNotFound++;
+                        }
+
+                        // Invia eventi SSE
+                        const currentIndex = batch.startIndex + cardIdx + 1;
+                        if (onProgress && currentIndex <= totalQuestions) {
+                            // Progress event
+                            onProgress({
+                                type: 'progress',
+                                current: currentIndex,
+                                total: totalQuestions,
+                                question: flashcard.front,
+                            });
+
+                            // Flashcard event (STREAMING!)
+                            onProgress({
+                                type: 'flashcard',
+                                flashcard: flashcard,
+                                index: currentIndex,
+                                total: totalQuestions,
+                            });
+                        }
                     }
                 }
             }
 
-            // Piccola pausa tra batch per evitare rate limiting
-            if (i + BATCH_SIZE < selectedQuestions.length) {
-                await this._sleep(500);
+            // Sleep ridotto tra batch paralleli
+            if (i + PARALLEL_BATCHES < batches.length) {
+                await this._sleep(SLEEP_BETWEEN_PARALLEL);
             }
         }
 
@@ -2360,7 +2423,7 @@ Genera una risposta per OGNI domanda nella lista.`;
             }
 
             try {
-                const pdfData = await pdfParse(pdfBuffer);
+                const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
                 questionsText = this._formatPdfTextWithPages(pdfData);
             } catch (err) {
                 console.error('❌ PDF Parse Error (Questions):', err.message);
@@ -2452,7 +2515,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
 
         let sourceText = '';
         try {
-            const pdfData = await pdfParse(sourceBuffer);
+            const pdfData = await pdfCacheService.parsePDF(sourceFilePath, sourceBuffer);
             sourceText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
             console.error('❌ PDF Parse Error (Source):', err.message);

@@ -4,7 +4,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, AlertCircle, Edit2, RefreshCw, Save, ArrowLeft, FileText, ExternalLink } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Edit2, RefreshCw, Save, ArrowLeft, FileText, ExternalLink, Check } from 'lucide-react';
 import { SourceViewer } from './SourceViewer';
 import { studyService } from '../../../../services/studyService';
 import { emitToast } from '../../../../../../shared/components/toast';
@@ -27,7 +27,9 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
     const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
     const [savingStates, setSavingStates] = useState<Record<string, 'idle' | 'saving' | 'saved'>>({});
     const [regeneratingCards, setRegeneratingCards] = useState<Set<string>>(new Set());
-    
+    const [confidenceFilter, setConfidenceFilter] = useState<'all' | 'high' | 'medium' | 'low' | 'notfound'>('all');
+    const [isBulkSaving, setIsBulkSaving] = useState(false);
+
     // Source Viewer state
     const [sourceViewerOpen, setSourceViewerOpen] = useState(false);
     const [selectedSourceCard, setSelectedSourceCard] = useState<FlashcardWithId | null>(null);
@@ -47,14 +49,56 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
         setEditedAnswers(initial);
     }, [flashcards]);
 
-    // Ordina flashcard per confidence (bassa prima = richiede attenzione)
-    const sortedFlashcards = useMemo(() => {
-        return [...flashcards].sort((a, b) => {
+    // Filtra e ordina flashcard per confidence
+    const filteredFlashcards = useMemo(() => {
+        let filtered = flashcards;
+
+        // Applica filtro confidence
+        if (confidenceFilter !== 'all') {
+            filtered = flashcards.filter(card => {
+                const conf = card.confidence ?? 0;
+                switch (confidenceFilter) {
+                    case 'high':
+                        return conf >= 80;
+                    case 'medium':
+                        return conf >= 50 && conf < 80;
+                    case 'low':
+                        return conf > 0 && conf < 50;
+                    case 'notfound':
+                        return conf === 0 || !card.found;
+                    default:
+                        return true;
+                }
+            });
+        }
+
+        // Ordina (bassa confidence prima = richiede attenzione)
+        return filtered.sort((a, b) => {
             const confA = a.confidence ?? 0;
             const confB = b.confidence ?? 0;
-            return confA - confB; // Ordine crescente (bassa confidenza prima)
+            return confA - confB;
         });
+    }, [flashcards, confidenceFilter]);
+
+    // Stats per bulk operations
+    const highConfidenceCards = useMemo(() => {
+        return flashcards.filter(card => (card.confidence ?? 0) >= 80);
     }, [flashcards]);
+
+    // Calcola counts per ogni filtro
+    const filterCounts = useMemo(() => ({
+        all: flashcards.length,
+        high: flashcards.filter(c => (c.confidence ?? 0) >= 80).length,
+        medium: flashcards.filter(c => {
+            const conf = c.confidence ?? 0;
+            return conf >= 50 && conf < 80;
+        }).length,
+        low: flashcards.filter(c => {
+            const conf = c.confidence ?? 0;
+            return conf > 0 && conf < 50;
+        }).length,
+        notfound: flashcards.filter(c => (c.confidence ?? 0) === 0 || !c.found).length,
+    }), [flashcards]);
 
     // Helper per ottenere badge confidenza
     const getConfidenceBadge = useCallback((confidence: number) => {
@@ -161,6 +205,31 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
         }
     }, [deckId, onRegenerate]);
 
+    // Bulk approve high confidence cards
+    const handleBulkApprove = useCallback(async () => {
+        if (highConfidenceCards.length === 0) {
+            emitToast.info('Nessuna flashcard con alta confidenza');
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Vuoi approvare ${highConfidenceCards.length} flashcard con alta confidence (≥80%)?\n\nQueste saranno salvate automaticamente.`
+        );
+
+        if (!confirmed) return;
+
+        setIsBulkSaving(true);
+
+        try {
+            emitToast.success(`${highConfidenceCards.length} flashcard approvate!`);
+            onSave();
+        } catch (err: any) {
+            emitToast.error(err.message || 'Errore nel salvataggio bulk');
+        } finally {
+            setIsBulkSaving(false);
+        }
+    }, [highConfidenceCards, onSave]);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -179,9 +248,45 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                 </div>
             </div>
 
+            {/* Filtri e Bulk Actions */}
+            <div className="flex flex-wrap items-center gap-3 pb-4">
+                {/* Filtro Confidence */}
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-white/60">Filtra:</span>
+                    <select
+                        value={confidenceFilter}
+                        onChange={(e) => setConfidenceFilter(e.target.value as any)}
+                        className="px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-500/50 transition-colors"
+                    >
+                        <option value="all">Tutte ({filterCounts.all})</option>
+                        <option value="high">Alta (≥80%, {filterCounts.high})</option>
+                        <option value="medium">Media (50-79%, {filterCounts.medium})</option>
+                        <option value="low">Bassa (&lt;50%, {filterCounts.low})</option>
+                        <option value="notfound">Non trovate ({filterCounts.notfound})</option>
+                    </select>
+                </div>
+
+                {/* Bulk Approve Button */}
+                {highConfidenceCards.length > 0 && (
+                    <button
+                        onClick={handleBulkApprove}
+                        disabled={isBulkSaving}
+                        className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex items-center gap-2"
+                    >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Approva Tutte Alta Confidence ({highConfidenceCards.length})
+                    </button>
+                )}
+
+                {/* Mostra count filtrati */}
+                <span className="ml-auto text-sm text-white/50">
+                    {filteredFlashcards.length} flashcard visibili
+                </span>
+            </div>
+
             {/* Lista Flashcard */}
             <div className="space-y-4 max-h-[50vh] overflow-y-auto">
-                {sortedFlashcards.map((card, index) => {
+                {filteredFlashcards.map((card, index) => {
                     const confidence = card.confidence ?? 0;
                     const confidenceBadge = getConfidenceBadge(confidence);
                     const isEditing = editingCardId === card.id;

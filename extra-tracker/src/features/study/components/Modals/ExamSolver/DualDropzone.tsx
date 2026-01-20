@@ -9,6 +9,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileQuestion, BookOpen, Trash2 } from 'lucide-react';
 import type { DropzoneConfig } from './ExamSolverModal.types';
+import { validateFileSize } from './utils/fileValidation';
 
 // Re-export for convenience
 export type { DropzoneConfig };
@@ -50,13 +51,33 @@ const useDropzone = (config: DropzoneConfig, onError: (error: string | null) => 
 
         // Small delay for visual feedback
         setTimeout(() => {
+            // VALIDATION 1: Check file size (50MB limit)
+            const sizeValidation = validateFileSize(file, 50);
+            if (!sizeValidation.isValid) {
+                setValidationResult('invalid');
+                onError(sizeValidation.error || 'File troppo grande (max 50MB)');
+
+                // Reset validation state after animation
+                setTimeout(() => {
+                    setIsValidating(false);
+                    setValidationResult(null);
+                }, 2000);
+                return;
+            }
+
+            // Show warning for large files (>20MB)
+            if (file.size > 20 * 1024 * 1024) {
+                console.warn(`⚠️ File grande (${(file.size / 1024 / 1024).toFixed(2)}MB), l'elaborazione potrebbe richiedere tempo`);
+            }
+
+            // VALIDATION 2: Check file type
             const isValid = validateFile(file);
-            
+
             if (isValid) {
                 setValidationResult('valid');
                 config.onFileSelect(file);
                 onError(null);
-                
+
                 // Reset validation state after animation
                 setTimeout(() => {
                     setIsValidating(false);
@@ -64,11 +85,11 @@ const useDropzone = (config: DropzoneConfig, onError: (error: string | null) => 
                 }, 1000);
             } else {
                 setValidationResult('invalid');
-                const errorMsg = config.id === 'questions' 
+                const errorMsg = config.id === 'questions'
                     ? 'File domande deve essere PDF, TXT o DOCX'
                     : 'File materiale deve essere un PDF';
                 onError(errorMsg);
-                
+
                 // Reset validation state after animation
                 setTimeout(() => {
                     setIsValidating(false);
