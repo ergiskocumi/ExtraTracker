@@ -8,14 +8,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    FiLayout, 
-    FiTarget, 
-    FiSettings, 
-    FiLogOut, 
+import {
+    FiLayout,
+    FiTarget,
+    FiSettings,
+    FiLogOut,
     FiChevronDown,
     FiMenu,
-    FiBookOpen
+    FiBookOpen,
+    FiAward
 } from 'react-icons/fi';
 import { useAuth } from '../../features/auth/context/AuthContext';
 import { useSettings } from '../../features/settings/context/SettingsContext';
@@ -90,6 +91,7 @@ export const AppLayout = () => {
             items: [
                 { path: '/goals', label: 'Obiettivi', icon: FiTarget, description: 'I tuoi traguardi' },
                 { path: '/study', label: 'Flashcards', icon: FiBookOpen, description: 'Ripetizione spaziata' },
+                { path: '/gamification', label: 'Gamification', icon: FiAward, description: 'Progressi e achievements' },
             ]
         },
         {

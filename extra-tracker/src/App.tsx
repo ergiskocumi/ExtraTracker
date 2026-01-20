@@ -31,6 +31,9 @@ const StudySessionPage = lazy(() => import('./features/study/pages/StudySessionP
 const DeckDetailPage = lazy(() => import('./features/study/pages/DeckDetailPage').then(m => ({ default: m.DeckDetailPage })));
 const CinemaPage = lazy(() => import('./features/study/pages/CinemaPage').then(m => ({ default: m.CinemaPage })));
 
+// Gamification Page - Lazy loaded
+const GamificationPage = lazy(() => import('./features/gamification/pages/GamificationPage').then(m => ({ default: m.GamificationPage })));
+
 // Loading fallback component
 const PageLoader = () => (
     <div className="min-h-screen flex items-center justify-center bg-dark-500">
@@ -88,6 +91,9 @@ function App() {
                     <Route path="/study/deck/:deckId/cinema" element={<CinemaPage />} />
                     <Route path="/study/:deckId" element={<StudySessionPage />} />
                     <Route path="/study/:deckId/session" element={<StudySessionPage />} />
+
+                    {/* Gamification */}
+                    <Route path="/gamification" element={<GamificationPage />} />
                 </Route>
             </Routes>
         </Suspense>
