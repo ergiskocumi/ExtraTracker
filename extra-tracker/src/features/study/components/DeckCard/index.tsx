@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Clock } from 'lucide-react';
 import type { Deck, Tag } from '../../services/studyService';
@@ -16,6 +16,7 @@ export interface DeckCardProps {
     onAddCard: (deckId: string) => void;
     onViewDetail: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
+    onExamSolver?: (deckId: string) => void;
     onUpdate: (deck: Deck) => void;
     tags?: Tag[];
     onDragStart?: () => void;
@@ -25,22 +26,24 @@ export interface DeckCardProps {
 
 /**
  * Componente principale DeckCard
- * 
+ *
  * Gestisce la visualizzazione e l'interazione con un deck di flashcard.
  * Supporta drag & drop, menu contestuale, e tutte le azioni principali.
- * 
+ * Ottimizzato con React.memo per prevenire re-render non necessari.
+ *
  * @param props - Le props del componente (vedi DeckCardProps)
  * @returns Il componente DeckCard renderizzato
  */
-export const DeckCard: React.FC<DeckCardProps> = ({ 
-    deck, 
-    onStudy, 
+const DeckCardComponent: React.FC<DeckCardProps> = ({
+    deck,
+    onStudy,
     onRead,
-    onMagicGenerate, 
+    onMagicGenerate,
     onAddCard,
-    onViewDetail, 
+    onViewDetail,
     onDelete,
     onUpdate,
+    onExamSolver,
     tags = [],
     onDragStart: onDragStartProp,
     onDragEnd: onDragEndProp,
@@ -111,16 +114,18 @@ export const DeckCard: React.FC<DeckCardProps> = ({
     
     /**
      * Gestisce l'inizio del drag & drop del deck.
-     * 
+     *
      * Crea un'anteprima personalizzata che segue il cursore durante il drag,
      * impostando i dati necessari per il drop e notificando il componente padre.
-     * 
+     *
      * L'anteprima viene creata dinamicamente e rimossa dopo il drag per
      * evitare memory leak.
-     * 
+     *
+     * Memoizzato con useCallback per stabilizzare il riferimento.
+     *
      * @param e - L'evento di drag start
      */
-    const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    const handleDragStart = useCallback((e: React.DragEvent<HTMLDivElement>) => {
         // Imposta l'effetto del drag (solo spostamento, non copia)
         e.dataTransfer.effectAllowed = 'move';
         
@@ -172,37 +177,41 @@ export const DeckCard: React.FC<DeckCardProps> = ({
                 document.body.removeChild(dragPreview);
             }
         }, 0);
-    };
+    }, [deck.id, deck.title, onDragStartProp]);
 
     /**
      * Gestisce la fine del drag & drop del deck.
-     * 
+     *
      * Resetta lo stato locale e notifica il componente padre che il drag
      * è terminato, permettendo di aggiornare l'UI di conseguenza.
+     *
+     * Memoizzato con useCallback per stabilizzare il riferimento.
      */
-    const handleDragEnd = () => {
+    const handleDragEnd = useCallback(() => {
         setIsDragging(false);
         onDragEndProp?.();
-    };
+    }, [onDragEndProp]);
 
     /**
      * Gestisce il click destro del mouse per aprire il menu contestuale.
-     * 
+     *
      * Previene il menu di default del browser e apre invece il nostro
      * menu personalizzato con tutte le azioni disponibili per il deck.
-     * 
+     *
+     * Memoizzato con useCallback per stabilizzare il riferimento.
+     *
      * @param event - L'evento del context menu (click destro)
      */
-    const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    const handleContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
         // Previene il menu di default del browser
         event.preventDefault();
         event.stopPropagation();
-        
+
         // Calcola la posizione del click per posizionare il menu
         // Per ora apriamo il menu nella posizione standard (top-left)
         // ma potremmo migliorarlo in futuro per posizionarlo vicino al click
         setShowMenu(true);
-    };
+    }, []);
 
     return (
         <motion.div
@@ -260,6 +269,7 @@ export const DeckCard: React.FC<DeckCardProps> = ({
                 deck={deck}
                 totalCards={totalCards}
                 showMenu={showMenu}
+                onExamSolver={onExamSolver}
                 onToggleMenu={() => setShowMenu(!showMenu)}
                 onViewDetail={onViewDetail}
                 onMagicGenerate={onMagicGenerate}
@@ -299,3 +309,14 @@ export const DeckCard: React.FC<DeckCardProps> = ({
         </motion.div>
     );
 };
+
+/**
+ * DeckCard memoizzato per prevenire re-render non necessari.
+ *
+ * Viene eseguito un re-render solo se:
+ * - L'ID del deck cambia
+ * - Il contenuto del deck cambia (titolo, carte, ecc.)
+ * - Le funzioni callback cambiano riferimento
+ * - I tags cambiano
+ */
+export const DeckCard = React.memo(DeckCardComponent);

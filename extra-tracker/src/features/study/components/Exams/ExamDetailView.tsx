@@ -24,6 +24,7 @@ interface ExamDetailViewProps {
     onViewDetail: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
+    onExamSolver?: (deckId: string) => void;
     onViewFolder?: (folderId: string) => void;
     onTogglePin?: (deck: Deck) => void;
     viewMode?: 'grid' | 'horizontal' | 'compact';
@@ -46,6 +47,7 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
     onViewDetail,
     onDelete,
     onUpdate,
+    onExamSolver,
     onViewFolder,
     onTogglePin,
     viewMode = 'grid',
@@ -80,6 +82,7 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                     onViewDetail={onViewDetail}
                     onDelete={onDelete}
                     onUpdate={onUpdate}
+                    onExamSolver={onExamSolver}
                     isFolderSelected={false}
                     onTogglePin={onTogglePin}
                 />

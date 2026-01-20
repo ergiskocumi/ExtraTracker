@@ -127,6 +127,12 @@ export interface TutorReply {
     reply: string;
 }
 
+export interface ExamAnswer {
+    answer: string;
+    foundInContext: boolean;
+    relatedTopics: string[] | null;
+}
+
 export interface DeckSettings {
     algorithm?: 'sm2' | 'fsrs' | 'leitner' | 'anki';
     aiSettings?: {
@@ -335,6 +341,15 @@ class StudyService {
     }
 
     /**
+     * Aggiorna solo la risposta (back) di una flashcard
+     */
+    async updateCardAnswer(deckId: string, cardId: string, answer: string): Promise<Deck> {
+        const response = await apiClient.patch<any>(`${this.baseUrl}/${deckId}/cards/${cardId}/answer`, { answer });
+        const raw = unwrap(response, 'Errore nell\'aggiornamento della risposta');
+        return normalizeDeck(raw);
+    }
+
+    /**
      * Elimina una carta da un mazzo
      */
     async deleteCard(deckId: string, cardId: string): Promise<Deck> {
@@ -503,6 +518,17 @@ class StudyService {
     }
 
     /**
+     * 📚 Tutor Accademico - Risponde a domande d'esame usando ESCLUSIVAMENTE il contesto fornito
+     */
+    async answerExamQuestion(deckId: string, question: string): Promise<ExamAnswer> {
+        const response = await apiClient.post<ExamAnswer>(`${this.baseUrl}/${deckId}/answer-question`, {
+            question,
+        });
+
+        return unwrap(response, 'Errore nella risposta alla domanda');
+    }
+
+    /**
      * Aggiorna le impostazioni del deck (algoritmo e AI)
      */
     async updateDeckSettings(deckId: string, settings: DeckSettings): Promise<Deck> {
@@ -555,6 +581,141 @@ class StudyService {
     async generateRecoveryQuestions(examId: string, difficulties: string[]): Promise<{ decksAffected: number; totalGenerated: number; generatedByDeck: Array<{ deckId: string; deckTitle: string; count: number }> }> {
         const response = await apiClient.post<any>(`${this.baseUrl}/exam/${examId}/generate-recovery-questions`, { difficulties });
         return unwrap(response, 'Errore nella generazione delle domande AI');
+    }
+
+    /**
+     * 📋 Estrae domande da un documento (Livello 1 - Preview)
+     * @param questionsFile - File con le domande (PDF o TXT)
+     * @returns Array di domande estratte
+     */
+    async extractExamQuestions(questionsFile: File): Promise<{ questions: string[] }> {
+        console.log('📤 Uploading questions file for extraction...');
+
+        const formData = new FormData();
+        formData.append('questionsFile', questionsFile);
+
+        const response = await fetch(`/api${this.baseUrl}/exam-solver/extract-questions`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+                errorData.error?.message || 
+                errorData.message || 
+                `Errore ${response.status}: estrazione domande fallita`
+            );
+        }
+
+        const result = await response.json();
+        return result.data || { questions: [] };
+    }
+
+    /**
+     * 🤖 Genera risposte per domande selezionate (Livello 1 - Preview)
+     * @param sourceFile - File PDF con il materiale di studio
+     * @param selectedQuestions - Array di domande selezionate dall'utente
+     * @param options - Opzioni { deckId?, title?, goalId? }
+     * @returns Deck, flashcard con ID e statistiche
+     */
+    async generateExamAnswers(
+        sourceFile: File,
+        selectedQuestions: string[],
+        options: { deckId?: string; title?: string; goalId?: string } = {}
+    ): Promise<{ 
+        deck: Deck; 
+        flashcards: Array<{ id: string; front: string; back: string; found: boolean }>;
+        stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number } 
+    }> {
+        console.log('📤 Uploading source file and generating answers...');
+
+        const formData = new FormData();
+        formData.append('sourceFile', sourceFile);
+        formData.append('selectedQuestions', JSON.stringify(selectedQuestions));
+        
+        if (options.deckId) {
+            formData.append('deckId', options.deckId);
+        }
+        if (options.title) {
+            formData.append('title', options.title);
+        }
+        if (options.goalId) {
+            formData.append('goalId', options.goalId);
+        }
+
+        const response = await fetch(`/api${this.baseUrl}/exam-solver/generate-answers`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+                errorData.error?.message || 
+                errorData.message || 
+                `Errore ${response.status}: generazione risposte fallita`
+            );
+        }
+
+        const result = await response.json();
+        const data = result.data || result;
+
+        return {
+            deck: normalizeDeck(data.deck),
+            flashcards: data.flashcards || [],
+            stats: data.stats || {
+                questionsExtracted: 0,
+                answersFound: 0,
+                answersNotFound: 0,
+                totalFlashcards: 0,
+                processingTimeMs: 0,
+            },
+        };
+    }
+
+    /**
+     * 🎯 Exam Solver - Estrae domande da un documento e genera risposte da un altro (LEGACY)
+     * @param formData - FormData con questionsFile, sourceFile, deckId (opzionale), title (opzionale), goalId (opzionale)
+     * @returns Deck e statistiche
+     */
+    async examSolver(formData: FormData): Promise<{ deck: Deck; stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number } }> {
+        console.log('📤 Uploading files for Exam Solver...');
+
+        // Chiamata API con FormData
+        const response = await fetch(`/api${this.baseUrl}/exam-solver`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include', // Include cookies per auth
+        });
+
+        console.log('📥 Response status:', response.status);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('❌ Error response:', errorData);
+            throw new Error(
+                errorData.error?.message || 
+                errorData.message || 
+                `Errore ${response.status}: risoluzione esame fallita`
+            );
+        }
+
+        const result = await response.json();
+        const data = result.data || result;
+
+        return {
+            deck: normalizeDeck(data.deck),
+            stats: data.stats || {
+                questionsExtracted: 0,
+                answersFound: 0,
+                answersNotFound: 0,
+                totalFlashcards: 0,
+                processingTimeMs: 0,
+            },
+        };
     }
 }
 

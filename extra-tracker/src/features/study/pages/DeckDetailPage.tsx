@@ -23,7 +23,8 @@ import {
     FiSearch,
     FiAlertCircle,
     FiBarChart2,
-    FiSettings
+    FiSettings,
+    FiFileText
 } from 'react-icons/fi';
 import { studyService, type Deck, type Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
@@ -32,6 +33,7 @@ import { DeckAnalytics } from '../components/Deck/DeckAnalytics';
 import { DeckSettings } from '../components/Deck/DeckSettings';
 import { DeckNotifications } from '../components/Deck/DeckNotifications';
 import { FlashcardList } from '../components/Flashcard/FlashcardList';
+import { ExamSolverModal, type ExamSolverStats } from '../components/Modals/ExamSolver';
 
 // ============================================
 // FILTER TABS
@@ -96,6 +98,7 @@ export const DeckDetailPage: React.FC = () => {
 
     // Modal state
     const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
+    const [isExamSolverOpen, setIsExamSolverOpen] = useState(false);
 
     // Load deck
     const loadDeck = useCallback(async () => {
@@ -222,15 +225,26 @@ export const DeckDetailPage: React.FC = () => {
                                 <p className="text-sm text-white/50 mt-0.5">{deck.description}</p>
                             )}
                         </div>
-                        <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => navigate(`/study/${id}`)}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-lg shadow-primary-500/25 transition-all"
-                        >
-                            <FiPlay className="w-4 h-4" />
-                            <span className="hidden sm:inline">Studia il mazzo</span>
-                        </motion.button>
+                        <div className="flex items-center gap-2">
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => setIsExamSolverOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-medium shadow-lg shadow-amber-500/30 transition-all"
+                            >
+                                <FiFileText className="w-4 h-4" />
+                                <span className="hidden sm:inline">Exam Solver</span>
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => navigate(`/study/${id}`)}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-lg shadow-primary-500/25 transition-all"
+                            >
+                                <FiPlay className="w-4 h-4" />
+                                <span className="hidden sm:inline">Studia il mazzo</span>
+                            </motion.button>
+                        </div>
                     </div>
 
                     {/* Stats Row */}
@@ -362,6 +376,21 @@ export const DeckDetailPage: React.FC = () => {
                     destructive
                     onConfirm={handleDeleteCard}
                     onCancel={() => setDeletingCardId(null)}
+                />
+
+                <ExamSolverModal
+                    isOpen={isExamSolverOpen}
+                    onClose={() => setIsExamSolverOpen(false)}
+                    onSuccess={async (deckId, stats) => {
+                        await loadDeck();
+                        emitToast.success(
+                            `✅ Exam Solver completato! ${stats.totalFlashcards} flashcard generate (${stats.answersFound} risposte trovate, ${stats.answersNotFound} non trovate)`,
+                            { title: 'Exam Solver', duration: 5000 }
+                        );
+                    }}
+                    existingDecks={deck ? [{ id: deck.id, title: deck.title }] : []}
+                    goalId={deck?.goalId}
+                    preselectedDeckId={deck?.id}
                 />
             </div>
         </div>

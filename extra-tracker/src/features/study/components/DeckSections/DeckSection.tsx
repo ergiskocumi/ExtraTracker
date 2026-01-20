@@ -33,6 +33,7 @@ interface DeckSectionProps {
     onViewDetail: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
+    onExamSolver?: (deckId: string) => void;
     onViewFolder?: (folderId: string) => void;
     onTogglePin?: (deck: Deck) => void;
 }
@@ -59,6 +60,7 @@ export const DeckSection: React.FC<DeckSectionProps> = ({
     onViewDetail,
     onDelete,
     onUpdate,
+    onExamSolver,
     onViewFolder,
     onTogglePin,
 }) => {
@@ -148,6 +150,7 @@ export const DeckSection: React.FC<DeckSectionProps> = ({
                                             onViewDetail={onViewDetail}
                                             onDelete={onDelete}
                                             onUpdate={onUpdate}
+                                            onExamSolver={onExamSolver}
                                             tags={tags}
                                             onTogglePin={onTogglePin}
                                         />
@@ -172,6 +175,7 @@ export const DeckSection: React.FC<DeckSectionProps> = ({
                                             onViewDetail={onViewDetail}
                                             onDelete={onDelete}
                                             onUpdate={onUpdate}
+                                            onExamSolver={onExamSolver}
                                             tags={tags}
                                             onTogglePin={onTogglePin}
                                         />
@@ -196,6 +200,7 @@ export const DeckSection: React.FC<DeckSectionProps> = ({
                                             onViewDetail={onViewDetail}
                                             onDelete={onDelete}
                                             onUpdate={onUpdate}
+                                            onExamSolver={onExamSolver}
                                             tags={tags}
                                             onTogglePin={onTogglePin}
                                         />
@@ -220,6 +225,7 @@ export const DeckSection: React.FC<DeckSectionProps> = ({
                                             onViewDetail={onViewDetail}
                                             onDelete={onDelete}
                                             onUpdate={onUpdate}
+                                            onExamSolver={onExamSolver}
                                             tags={tags}
                                             onTogglePin={onTogglePin}
                                         />

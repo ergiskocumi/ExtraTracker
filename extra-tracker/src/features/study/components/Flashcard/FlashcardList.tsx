@@ -37,7 +37,7 @@ import { SortableItem } from './SortableItem';
 import { FlashcardInlineForm } from './FlashcardInlineForm';
 import { DeleteCardModal } from './DeleteCardModal';
 import { DRAG_AND_DROP, VIEW_MODE, TEXT_CONTENT, CONTENT_STYLES, GRID_STYLES, LIST_STYLES } from './FlashcardList.constants';
-import { haveCardIdsChanged, calculateReorderResult, calculateInsertPosition, findCardById } from './FlashcardList.utils';
+import { haveCardIdsChanged, haveCardsChanged, calculateReorderResult, calculateInsertPosition, findCardById } from './FlashcardList.utils';
 import type { FlashcardListProps } from './FlashcardList.types';
 import { InsertButton } from './FlashcardList.InsertButton';
 import { Header } from './FlashcardList.Header';
@@ -91,11 +91,13 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
 
     /**
      * Syncs local state when deck or filteredCards change (but not during drag).
+     * Now also checks for content changes, not just ID changes.
      */
     useEffect(() => {
         const newCards = filteredCards || deck.cards || [];
         
-        if (haveCardIdsChanged(items, newCards) && !activeId) {
+        // Check if cards have changed (IDs, content, or order) and we're not dragging
+        if (haveCardsChanged(items, newCards) && !activeId) {
             setItems(newCards);
         }
     }, [deck.cards, filteredCards, activeId, items]);

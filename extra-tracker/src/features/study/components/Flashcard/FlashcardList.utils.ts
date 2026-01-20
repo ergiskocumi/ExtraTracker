@@ -27,6 +27,40 @@ export function haveCardIdsChanged(currentCards: Card[], newCards: Card[]): bool
     return currentIds !== newIds;
 }
 
+/**
+ * Checks if cards have changed (IDs, content, or order).
+ * This includes checking if card content (front/back) has been updated.
+ * 
+ * @param currentCards - Current card array
+ * @param newCards - New card array
+ * @returns True if cards have changed in any way
+ */
+export function haveCardsChanged(currentCards: Card[], newCards: Card[]): boolean {
+    // First check if IDs changed (cards added/removed)
+    if (haveCardIdsChanged(currentCards, newCards)) {
+        return true;
+    }
+
+    // Create a map of current cards by ID for quick lookup
+    const currentCardsMap = new Map(currentCards.map(c => [c.id, c]));
+
+    // Check if any card content has changed
+    for (const newCard of newCards) {
+        const currentCard = currentCardsMap.get(newCard.id);
+        if (!currentCard) {
+            // Card not found in current - this shouldn't happen if IDs match, but check anyway
+            return true;
+        }
+
+        // Check if front or back has changed
+        if (currentCard.front !== newCard.front || currentCard.back !== newCard.back) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // ============================================
 // REORDERING LOGIC
 // ============================================
