@@ -10,21 +10,19 @@
  * - Gamification aggiornata
  * - Design moderno e accattivante
  */
-import React, { lazy, Suspense, useRef, useMemo } from 'react';
+import React, { useRef } from 'react';
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
     Brain,
     Target,
     Clock,
-    ChevronRight,
     Zap,
     Trophy,
     Flame,
     Play,
     Plus,
-    TrendingUp,
     ArrowRight,
     CheckCircle2,
     AlertCircle,
@@ -33,8 +31,6 @@ import {
     BookOpen,
     Activity,
     Award,
-    Star,
-    Coffee,
     Moon,
     Sun,
     Sunrise,
@@ -42,12 +38,7 @@ import {
 } from 'lucide-react';
 
 import { dashboardService, type DashboardSummary, type RecentItem } from '../services/dashboardService';
-import { analyticsService, type WeeklyAnalyticsResponse } from '../../analytics/services/analyticsService';
 import { LevelBadge } from '../../gamification/components/LevelBadge';
-
-// OTTIMIZZATO: Lazy load componenti pesanti (charts, AI widgets)
-const ProductivityChart = lazy(() => import('../../analytics/components/ProductivityChart').then(m => ({ default: m.ProductivityChart })));
-const AIInsightsWidget = lazy(() => import('../AIInsightsWidget').then(m => ({ default: m.AIInsightsWidget })));
 
 // =========================================
 // UTILITY FUNCTIONS
@@ -89,67 +80,6 @@ const getCurrentDate = () => {
  */
 const formatNumber = (num: number): string => {
     return new Intl.NumberFormat('it-IT').format(num);
-};
-
-// OTTIMIZZATO: Componente wrapper per lazy load con Intersection Observer
-const LazyAnalyticsChart = ({ data }: { data: any[] }) => {
-    const [shouldLoad, setShouldLoad] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!containerRef.current) return;
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting) {
-                    setShouldLoad(true);
-                    observer.disconnect();
-                }
-            },
-            { rootMargin: '100px' } // Carica 100px prima che sia visibile
-        );
-
-        observer.observe(containerRef.current);
-
-        return () => observer.disconnect();
-    }, []);
-
-    return (
-        <motion.div
-            ref={containerRef}
-            initial={{ opacity: 0, transform: 'translateY(20px)' }}
-            animate={{ opacity: 1, transform: 'translateY(0)' }}
-            transition={{ delay: 0.6 }}
-            style={{ willChange: 'transform, opacity' }}
-            className="relative overflow-hidden rounded-[28px] border border-white/15 bg-slate-900/60 backdrop-blur-2xl p-6 shadow-[0_24px_60px_-40px_rgba(8,14,28,0.9)]"
-        >
-            <div className="absolute -top-12 -right-16 h-36 w-36 rotate-12 rounded-[24px] bg-white/5 border border-white/10" />
-            <div className="absolute -bottom-16 -left-12 h-40 w-40 -rotate-12 rounded-[26px] bg-white/[0.04] border border-white/10" />
-            <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-primary-400" />
-                    Andamento Settimanale
-                </h3>
-                <span className="text-sm text-white/40 flex items-center gap-1">
-                    Storico timeline disabilitato
-                    <ChevronRight className="w-4 h-4" />
-                </span>
-            </div>
-            
-            <div className="h-64">
-                {shouldLoad ? (
-                    <Suspense fallback={<div className="h-full flex items-center justify-center text-white/50">Caricamento grafico...</div>}>
-                        <ProductivityChart
-                            data={data}
-                            isLoading={false}
-                        />
-                    </Suspense>
-                ) : (
-                    <div className="h-full flex items-center justify-center text-white/50">Caricamento grafico...</div>
-                )}
-            </div>
-        </motion.div>
-    );
 };
 
 // =========================================
@@ -895,7 +825,6 @@ export const DashboardPage = () => {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [analyticsData, setAnalyticsData] = useState<WeeklyAnalyticsResponse | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -906,14 +835,10 @@ export const DashboardPage = () => {
             setError(null);
 
             try {
-                const [summaryData, analytics] = await Promise.all([
-                    dashboardService.getSummary(),
-                    analyticsService.getWeekly().catch(() => null)
-                ]);
+                const summaryData = await dashboardService.getSummary();
 
                 if (!cancelled) {
                     setSummary(summaryData);
-                    setAnalyticsData(analytics);
                 }
             } catch (err) {
                 if (!cancelled) {
@@ -1205,14 +1130,6 @@ export const DashboardPage = () => {
                     {summary.recents.length > 0 && (
                         <RecentActivityList items={summary.recents} />
                     )}
-
-                    {/* Analytics Section */}
-                    {analyticsData && <LazyAnalyticsChart data={analyticsData.dailyActivity} />}
-
-                    {/* AI Insights */}
-                    <Suspense fallback={<div className="rounded-[28px] border border-white/10 bg-slate-900/50 p-6 animate-pulse h-32" />}>
-                        <AIInsightsWidget />
-                    </Suspense>
                 </div>
             )}
         </div>
