@@ -83,6 +83,14 @@ const getCurrentDate = () => {
     return new Date().toLocaleDateString('it-IT', options);
 };
 
+/**
+ * Formatta numeri con separatori di migliaia in formato italiano
+ * Es: 300448 -> "300.448"
+ */
+const formatNumber = (num: number): string => {
+    return new Intl.NumberFormat('it-IT').format(num);
+};
+
 // OTTIMIZZATO: Componente wrapper per lazy load con Intersection Observer
 const LazyAnalyticsChart = ({ data }: { data: any[] }) => {
     const [shouldLoad, setShouldLoad] = useState(false);
@@ -1029,12 +1037,12 @@ export const DashboardPage = () => {
                                         initial={{ opacity: 0, scale: 0.9 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: 0.5 }}
-                                        className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-br from-primary-500/20 to-indigo-500/20 border border-primary-500/30 backdrop-blur-sm"
+                                        className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 backdrop-blur-sm"
                                     >
-                                        <Star className="w-5 h-5 text-primary-300" />
+                                        <Award className="w-5 h-5 text-violet-300" />
                                         <div>
-                                            <p className="text-xs text-white/50">XP</p>
-                                            <p className="text-lg font-bold text-white">{summary.gamification.xp}/{summary.gamification.nextLevelXp}</p>
+                                            <p className="text-xs text-white/50">Progresso</p>
+                                            <p className="text-lg font-bold text-white">{summary.gamification.progress}%</p>
                                         </div>
                                     </motion.div>
                                 </div>
@@ -1160,8 +1168,8 @@ export const DashboardPage = () => {
                                     {/* XP Numbers */}
                                     <div className="text-right">
                                         <p className="text-3xl font-bold text-white">
-                                            {summary.gamification.xp}
-                                            <span className="text-lg text-white/50"> / {summary.gamification.nextLevelXp}</span>
+                                            {formatNumber(summary.gamification.xp)}
+                                            <span className="text-lg text-white/50"> / {formatNumber(summary.gamification.nextLevelXp)}</span>
                                         </p>
                                         <p className="text-sm text-white/60">XP totale</p>
                                     </div>
@@ -1183,7 +1191,7 @@ export const DashboardPage = () => {
 
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-white/60">
-                                        {summary.gamification.nextLevelXp - summary.gamification.xp} XP al prossimo livello
+                                        {formatNumber(summary.gamification.nextLevelXp - summary.gamification.xp)} XP al prossimo livello
                                     </span>
                                     <span className="text-amber-300 font-semibold">
                                         {summary.gamification.progress}% completato
