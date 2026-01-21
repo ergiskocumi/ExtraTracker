@@ -17,6 +17,7 @@ const User = require('../models/User');
 const Deck = require('../models/Deck');
 const WorkLog = require('../models/WorkLog');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { getXpForLevel } = require('../config/gamification');
 
 /**
  * Genera saluto dinamico basato sull'ora
@@ -67,9 +68,8 @@ const formatRelativeTime = (date) => {
  * - Ore lavorate oggi
  */
 exports.getSummary = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
+    const userId = req.user.id; // Middleware usa req.user.id, non _id
     const tenantScope = req.tenantScope;
-    const userName = req.user.firstName || req.user.displayName || 'Utente';
 
     // =========================================
     // AGGREGAZIONE PARALLELA (Promise.all)
@@ -103,9 +103,24 @@ exports.getSummary = asyncHandler(async (req, res) => {
             }
         }).lean(),
         
-        // 5. Dati utente per gamification
-        User.findById(userId).select('gamification').lean()
+        // 5. Dati utente per gamification (+ firstName per greeting)
+        User.findById(userId).select('profile gamification').lean()
     ]);
+
+    // Estrai nome utente dal DB (firstName è dentro profile)
+    const userName = user?.profile?.firstName || user?.profile?.displayName || 'Utente';
+    
+    // DEBUG: Verifica cosa viene letto dal DB
+    console.log('🔍 [DEBUG] User dal DB:', {
+        hasUser: !!user,
+        userId: user?._id,
+        profileFirstName: user?.profile?.firstName,
+        profileDisplayName: user?.profile?.displayName,
+        hasGamification: !!user?.gamification,
+        xp: user?.gamification?.xp,
+        level: user?.gamification?.level,
+        streak: user?.gamification?.streak?.current
+    });
 
     // =========================================
     // ELABORAZIONE DATI STUDIO
@@ -253,7 +268,17 @@ exports.getSummary = asyncHandler(async (req, res) => {
     const streak = gamification.streak?.current || 0;
     const level = gamification.level || 1;
     const xp = gamification.xp || 0;
-    const nextLevelXp = Math.max(100, Math.pow(level, 2) * 100);
+    
+    // Calcola XP richiesto per il PROSSIMO livello usando formula corretta
+    const nextLevelXp = getXpForLevel(level + 1);
+    
+    // XP current è quello del livello attuale
+    const currentLevelXp = getXpForLevel(level);
+    
+    // Progress: XP fino al livello attuale
+    const xpInCurrentLevel = xp - currentLevelXp;
+    const xpRequiredForCurrentLevel = nextLevelXp - currentLevelXp;
+    const progress = Math.max(0, Math.round((xpInCurrentLevel / xpRequiredForCurrentLevel) * 100));
 
     // =========================================
     // RESPONSE
@@ -300,7 +325,7 @@ exports.getSummary = asyncHandler(async (req, res) => {
                 level,
                 xp,
                 nextLevelXp,
-                progress: Math.round((xp / nextLevelXp) * 100)
+                progress
             }
         }
     });

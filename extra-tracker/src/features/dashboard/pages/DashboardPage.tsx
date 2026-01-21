@@ -891,6 +891,7 @@ export const DashboardPage = () => {
 
     useEffect(() => {
         let cancelled = false;
+        let refreshInterval: NodeJS.Timeout | null = null;
 
         const loadData = async () => {
             setLoading(true);
@@ -918,10 +919,17 @@ export const DashboardPage = () => {
             }
         };
 
+        // Carica dati inizialmente
         loadData();
+
+        // Refresh automatico ogni 30 secondi per dati in real-time
+        refreshInterval = setInterval(loadData, 30000);
 
         return () => {
             cancelled = true;
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
         };
     }, []);
 
