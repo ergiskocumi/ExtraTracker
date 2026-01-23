@@ -33,6 +33,13 @@ const userSchema = new mongoose.Schema(
             select: false,
         },
 
+        // Ruolo utente per permessi
+        role: {
+            type: String,
+            enum: ['user', 'admin'],
+            default: 'user',
+        },
+
         // ==========================================
         // PROFILO UTENTE
         // ==========================================

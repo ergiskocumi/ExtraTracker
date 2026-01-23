@@ -11,6 +11,7 @@ import { apiClient, type ApiResponse } from '../../../shared/services/apiClient'
 export interface User {
     id: string;
     email: string;
+    role?: 'user' | 'admin';
     firstName?: string;
     lastName?: string;
     displayName?: string;

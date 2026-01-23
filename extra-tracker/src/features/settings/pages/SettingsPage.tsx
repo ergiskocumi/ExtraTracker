@@ -6,13 +6,14 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    User, 
-    Settings, 
-    Shield, 
+import {
+    User,
+    Settings,
+    Shield,
     Trash2,
     Search,
-    Command
+    Command,
+    MessageSquare,
 } from 'lucide-react';
 import { useSettingsPage } from '../hooks/useSettings';
 import { ProfileSettings } from '../components/ProfileSettings';
@@ -20,7 +21,11 @@ import { PreferencesSettings } from '../components/PreferencesSettings';
 import { SecuritySettings } from '../components/SecuritySettings';
 import { AccountSettings } from '../components/AccountSettings/index';
 import { SettingsSearch } from '../components/SettingsSearch';
-import { SettingsLayout, type SettingsTab, type TabId } from '../components/layout/SettingsLayout';
+import { SettingsLayout, type SettingsTab } from '../components/layout/SettingsLayout';
+import { FeedbackSettings } from '../../feedback/components/FeedbackSettings';
+
+// Extended TabId to include feedback
+type TabId = 'profile' | 'preferences' | 'security' | 'account' | 'feedback';
 import { SettingsDrawer } from '../components/layout/SettingsDrawer';
 import { SettingsBottomNav } from '../components/layout/SettingsBottomNav';
 import { emitToast } from '../../../shared/components/toast';
@@ -49,14 +54,21 @@ const tabs: SettingsTab[] = [
         description: 'Password e autenticazione',
         color: 'from-emerald-500 to-teal-500'
     },
-    { 
-        id: 'account', 
-        label: 'Account', 
-        icon: Trash2, 
+    {
+        id: 'account',
+        label: 'Account',
+        icon: Trash2,
         description: 'Esporta dati e elimina account',
         color: 'from-rose-500 to-red-500'
     },
-];
+    {
+        id: 'feedback',
+        label: 'Feedback',
+        icon: MessageSquare,
+        description: 'Segnala problemi e suggerimenti',
+        color: 'from-cyan-500 to-blue-500'
+    },
+] as SettingsTab[];
 
 export const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState<TabId>('profile');
@@ -369,10 +381,10 @@ export const SettingsPage = () => {
                                                 return result;
                                             } catch (error: any) {
                                                 // Mostra messaggio di errore dettagliato
-                                                const errorMessage = error?.message || 
-                                                    error?.response?.data?.error?.message || 
+                                                const errorMessage = error?.message ||
+                                                    error?.response?.data?.error?.message ||
                                                     'Errore nell\'importazione dei dati';
-                                                emitToast.error(errorMessage, { 
+                                                emitToast.error(errorMessage, {
                                                     title: 'Errore importazione',
                                                     duration: 6000,
                                                 });
@@ -382,6 +394,10 @@ export const SettingsPage = () => {
                                         onDelete={handleDeleteAccount}
                                         status={statuses.accountStatus}
                                     />
+                                )}
+
+                                {activeTab === 'feedback' && (
+                                    <FeedbackSettings />
                                 )}
                             </motion.div>
                         </AnimatePresence>

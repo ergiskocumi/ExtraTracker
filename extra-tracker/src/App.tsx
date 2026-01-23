@@ -11,6 +11,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { GoalsProvider } from './features/goals/context/GoalsContext';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
 import { ProtectedRoute } from './features/auth/context/AuthContext';
+import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
 import { useSettings } from './features/settings/context/SettingsContext';
 
@@ -33,6 +34,9 @@ const CinemaPage = lazy(() => import('./features/study/pages/CinemaPage').then(m
 
 // Gamification Page - Lazy loaded
 const GamificationPage = lazy(() => import('./features/gamification/pages/GamificationPage').then(m => ({ default: m.GamificationPage })));
+
+// Admin Pages - Lazy loaded
+const AdminFeedbackPage = lazy(() => import('./features/feedback/pages/AdminFeedbackPage').then(m => ({ default: m.AdminFeedbackPage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -94,6 +98,16 @@ function App() {
 
                     {/* Gamification */}
                     <Route path="/gamification" element={<GamificationPage />} />
+
+                    {/* Admin Routes */}
+                    <Route
+                        path="/admin/feedback"
+                        element={
+                            <AdminRoute>
+                                <AdminFeedbackPage />
+                            </AdminRoute>
+                        }
+                    />
                 </Route>
             </Routes>
         </Suspense>
