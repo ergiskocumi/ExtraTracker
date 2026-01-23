@@ -64,10 +64,13 @@ const getMyFeedback = asyncHandler(async (req, res) => {
  * Ottieni lista di tutti i feedback (admin only)
  */
 const getAllFeedback = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 20, status, type, priority, search } = req.query;
+    const { page = 1, limit = 20, status, type, priority, search, assignee, labels } = req.query;
+    const parsedLabels = typeof labels === 'string' && labels.trim()
+        ? labels.split(',').map((label) => label.trim()).filter(Boolean)
+        : [];
 
     const result = await feedbackService.findAllAdmin(
-        { status, type, priority, search },
+        { status, type, priority, search, assignee, labels: parsedLabels },
         { page: parseInt(page, 10), limit: parseInt(limit, 10) }
     );
 
@@ -109,13 +112,13 @@ const getFeedbackById = asyncHandler(async (req, res) => {
  * Aggiorna feedback (admin only)
  */
 const updateFeedback = asyncHandler(async (req, res) => {
-    const { status, priority, adminNotes } = req.body;
+    const { status, priority, adminNotes, assignee, labels, comment } = req.body;
 
-    const feedback = await feedbackService.updateByAdmin(req.params.id, {
-        status,
-        priority,
-        adminNotes,
-    });
+    const feedback = await feedbackService.updateByAdmin(
+        req.params.id,
+        { status, priority, adminNotes, assignee, labels, comment },
+        { performedBy: req.user?.id }
+    );
 
     res.status(200).json({
         success: true,

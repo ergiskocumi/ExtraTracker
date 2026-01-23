@@ -11,6 +11,8 @@ import { memo } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
+import { FloatingFeedbackButton } from '../../features/feedback/components/FloatingFeedbackButton';
+import { GlobalFeedbackModal } from '../../features/feedback/components/GlobalFeedbackModal';
 
 // ============================================
 // HEADER COMPONENT
@@ -92,6 +94,10 @@ export const AppLayout = () => {
 
             {/* Footer */}
             <Footer />
+
+            {/* Global Feedback Components */}
+            <FloatingFeedbackButton />
+            <GlobalFeedbackModal />
         </div>
     );
 };

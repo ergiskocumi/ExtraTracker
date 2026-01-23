@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import type { AxiosError, AxiosResponse, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import { emitToast } from '../components/toast';
 
 /**
@@ -51,12 +51,19 @@ export interface ApiResponse<T> {
 // Configurazione base
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
     // CRITICO: Necessario per inviare/ricevere cookies cross-origin
     withCredentials: true,
     timeout: 60000, // 60 secondi timeout per richieste AI più lente
+});
+
+axiosInstance.interceptors.request.use((config) => {
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+        if (config.headers) {
+            delete (config.headers as any)['Content-Type'];
+            delete (config.headers as any)['content-type'];
+        }
+    }
+    return config;
 });
 
 // ==========================================
@@ -391,28 +398,28 @@ axiosInstance.interceptors.response.use(
 // ==========================================
 
 export const apiClient = {
-    async get<T>(url: string): Promise<ApiResponse<T>> {
-        const response = await axiosInstance.get<ApiResponse<T>>(url);
+    async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+        const response = await axiosInstance.get<ApiResponse<T>>(url, config);
         return response.data;
     },
 
-    async post<T>(url: string, data: unknown): Promise<ApiResponse<T>> {
-        const response = await axiosInstance.post<ApiResponse<T>>(url, data);
+    async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+        const response = await axiosInstance.post<ApiResponse<T>>(url, data, config);
         return response.data;
     },
 
-    async put<T>(url: string, data: unknown): Promise<ApiResponse<T>> {
-        const response = await axiosInstance.put<ApiResponse<T>>(url, data);
+    async put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+        const response = await axiosInstance.put<ApiResponse<T>>(url, data, config);
         return response.data;
     },
 
-    async patch<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
-        const response = await axiosInstance.patch<ApiResponse<T>>(url, data);
+    async patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+        const response = await axiosInstance.patch<ApiResponse<T>>(url, data, config);
         return response.data;
     },
 
-    async delete<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
-        const response = await axiosInstance.delete<ApiResponse<T>>(url, { data });
+    async delete<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+        const response = await axiosInstance.delete<ApiResponse<T>>(url, { ...config, data });
         return response.data;
     },
 };

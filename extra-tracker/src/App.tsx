@@ -10,6 +10,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { GoalsProvider } from './features/goals/context/GoalsContext';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
+import { FeedbackProvider } from './features/feedback/context/FeedbackContext';
 import { ProtectedRoute } from './features/auth/context/AuthContext';
 import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
@@ -76,9 +77,11 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <SettingsProvider>
-                                <GoalsProvider>
-                                    <AppLayout />
-                                </GoalsProvider>
+                                <FeedbackProvider>
+                                    <GoalsProvider>
+                                        <AppLayout />
+                                    </GoalsProvider>
+                                </FeedbackProvider>
                             </SettingsProvider>
                         </ProtectedRoute>
                     }

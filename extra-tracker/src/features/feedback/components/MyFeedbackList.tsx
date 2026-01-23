@@ -22,7 +22,7 @@ import {
     Inbox,
 } from 'lucide-react';
 import { feedbackService } from '../services/feedbackService';
-import type { Feedback, FeedbackType } from '../types';
+import type { Feedback, FeedbackComment, FeedbackType } from '../types';
 import {
     FEEDBACK_TYPE_LABELS,
     FEEDBACK_STATUS_LABELS,
@@ -98,6 +98,16 @@ export const MyFeedbackList: React.FC<MyFeedbackListProps> = ({ refreshTrigger }
             hour: '2-digit',
             minute: '2-digit',
         });
+    };
+
+    const getCommentAuthor = (comment: FeedbackComment): string => {
+        if (!comment.author) return 'Team Silvi';
+        if (typeof comment.author === 'string') return 'Team Silvi';
+        if (comment.author.profile?.displayName) return comment.author.profile.displayName;
+        if (comment.author.profile?.firstName || comment.author.profile?.lastName) {
+            return `${comment.author.profile.firstName || ''} ${comment.author.profile.lastName || ''}`.trim();
+        }
+        return comment.author.email;
     };
 
     const toggleExpand = (id: string) => {
@@ -235,12 +245,15 @@ export const MyFeedbackList: React.FC<MyFeedbackListProps> = ({ refreshTrigger }
                                                             <div className="flex flex-wrap gap-2">
                                                                 {feedback.attachments.map(
                                                                     (attachment, index) => (
-                                                                        <span
+                                                                        <a
                                                                             key={index}
-                                                                            className="px-2 py-1 text-xs rounded-lg bg-white/5 text-white/60"
+                                                                            href={`/uploads/feedback/${attachment.filename}`}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="px-2 py-1 text-xs rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
                                                                         >
                                                                             {attachment.originalName}
-                                                                        </span>
+                                                                        </a>
                                                                     )
                                                                 )}
                                                             </div>
@@ -252,6 +265,30 @@ export const MyFeedbackList: React.FC<MyFeedbackListProps> = ({ refreshTrigger }
                                                         <p className="mt-4 text-xs text-emerald-400/80">
                                                             Risolto il {formatDate(feedback.resolvedAt)}
                                                         </p>
+                                                    )}
+
+                                                    {/* Comments */}
+                                                    {(feedback.comments || []).length > 0 && (
+                                                        <div className="mt-4">
+                                                            <p className="text-xs text-white/40 mb-2">
+                                                                Aggiornamenti dal team:
+                                                            </p>
+                                                            <div className="space-y-2">
+                                                                {(feedback.comments || []).map((comment, index) => (
+                                                                    <div
+                                                                        key={`${comment.createdAt}-${index}`}
+                                                                        className="p-2 rounded-lg bg-white/5 border border-white/10"
+                                                                    >
+                                                                        <p className="text-xs text-white/70 whitespace-pre-wrap">
+                                                                            {comment.message}
+                                                                        </p>
+                                                                        <div className="mt-1 text-[10px] text-white/40">
+                                                                            {getCommentAuthor(comment)} • {formatDate(comment.createdAt)}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>

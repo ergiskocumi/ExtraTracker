@@ -80,6 +80,79 @@ const feedbackSchema = new mongoose.Schema(
             },
         }],
 
+        // Assegnatario del ticket (admin)
+        assignee: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            default: null,
+            index: true,
+        },
+
+        // Etichette (tag) per organizzazione
+        labels: {
+            type: [String],
+            default: [],
+        },
+
+        // Commenti pubblici (visibili all'utente)
+        comments: [{
+            author: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+                required: true,
+            },
+            message: {
+                type: String,
+                trim: true,
+                maxlength: [2000, 'Commento troppo lungo (max 2000 caratteri)'],
+                required: true,
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }],
+
+        // Storico attività ticket (audit trail)
+        activity: [{
+            type: {
+                type: String,
+                enum: [
+                    'created',
+                    'status_change',
+                    'priority_change',
+                    'assignee_change',
+                    'labels_update',
+                    'comment_added',
+                    'note_added',
+                    'note_updated',
+                    'note_cleared',
+                ],
+                required: true,
+            },
+            message: {
+                type: String,
+                trim: true,
+                maxlength: [500, 'Messaggio attività troppo lungo (max 500 caratteri)'],
+            },
+            from: {
+                type: String,
+                trim: true,
+            },
+            to: {
+                type: String,
+                trim: true,
+            },
+            performedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }],
+
         // Note dell'admin (visibili solo agli admin)
         adminNotes: {
             type: String,
@@ -112,6 +185,8 @@ const feedbackSchema = new mongoose.Schema(
 feedbackSchema.index({ user: 1, status: 1 });
 feedbackSchema.index({ status: 1, createdAt: -1 });
 feedbackSchema.index({ type: 1, status: 1 });
+feedbackSchema.index({ assignee: 1, status: 1 });
+feedbackSchema.index({ labels: 1 });
 
 // ==========================================
 // PRE-SAVE HOOKS
@@ -122,7 +197,7 @@ feedbackSchema.index({ type: 1, status: 1 });
  */
 feedbackSchema.pre('save', function (next) {
     if (this.isModified('status')) {
-        if (['resolved', 'closed'].includes(this.status) && !this.resolvedAt) {
+        if (['resolved', 'closed', 'wont_fix'].includes(this.status) && !this.resolvedAt) {
             this.resolvedAt = new Date();
         } else if (['open', 'in_progress'].includes(this.status)) {
             this.resolvedAt = null;

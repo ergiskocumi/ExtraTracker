@@ -246,6 +246,40 @@ const getPasswordChangedTemplate = (userName) => {
     `);
 };
 
+/**
+ * Email aggiornamento feedback
+ */
+const getFeedbackUpdateTemplate = ({ userName, issueKey, title, statusLabel, comment, feedbackUrl }) => {
+    const escapeHtml = (value) =>
+        String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+    const commentBlock = comment
+        ? `
+            <div class="warning">
+                <strong>Nuovo commento dal team:</strong><br>
+                ${escapeHtml(comment).replace(/\n/g, '<br>')}
+            </div>
+        `
+        : '';
+
+    return getBaseTemplate(`
+        <h2>Aggiornamento feedback</h2>
+        <p>Ciao${userName ? ` ${userName}` : ''}!</p>
+        <p>Il tuo ticket <strong>${issueKey}</strong> è stato aggiornato.</p>
+        <p><strong>${title}</strong></p>
+        <p>Stato attuale: <strong>${statusLabel}</strong></p>
+        ${commentBlock}
+        <a href="${feedbackUrl}" class="button">Apri i miei feedback</a>
+        <p style="font-size: 14px; color: #666;">
+            Se non riesci ad aprire il link, copia e incolla questo URL nel browser:<br>
+            <a href="${feedbackUrl}" style="color: #8b5cf6; word-break: break-all;">${feedbackUrl}</a>
+        </p>
+    `);
+};
+
 // ==========================================
 // SERVIZIO EMAIL
 // ==========================================
@@ -296,6 +330,37 @@ class EmailService {
             html: getPasswordChangedTemplate(),
         };
         
+        return this.sendEmail(mailOptions);
+    }
+
+    /**
+     * Invia email aggiornamento feedback
+     */
+    async sendFeedbackUpdateEmail({ to, userName, issueKey, title, status, comment }) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+        const feedbackUrl = `${frontendUrl}/settings?tab=feedback`;
+        const statusLabels = {
+            open: 'Aperto',
+            in_progress: 'In lavorazione',
+            resolved: 'Risolto',
+            closed: 'Chiuso',
+            wont_fix: 'Non verrà risolto',
+        };
+        const statusLabel = statusLabels[status] || status;
+        const mailOptions = {
+            from: `"Silvi" <${process.env.SMTP_FROM || 'noreply@silvi.com'}>`,
+            to,
+            subject: `Aggiornamento ticket ${issueKey} - Silvi`,
+            html: getFeedbackUpdateTemplate({
+                userName,
+                issueKey,
+                title,
+                statusLabel,
+                comment,
+                feedbackUrl,
+            }),
+        };
+
         return this.sendEmail(mailOptions);
     }
 

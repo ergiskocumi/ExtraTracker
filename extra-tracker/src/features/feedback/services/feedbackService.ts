@@ -12,6 +12,7 @@ import type {
     FeedbackStats,
     FeedbackStatsResponse,
     FeedbackFilters,
+    FeedbackUser,
     CreateFeedbackDTO,
     UpdateFeedbackDTO,
 } from '../types';
@@ -48,11 +49,7 @@ class FeedbackService {
             });
         }
 
-        return apiClient.post<Feedback>(this.baseUrl, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
+        return apiClient.post<Feedback>(this.baseUrl, formData);
     }
 
     /**
@@ -80,6 +77,10 @@ class FeedbackService {
         if (filters.type) params.type = filters.type;
         if (filters.priority) params.priority = filters.priority;
         if (filters.search) params.search = filters.search;
+        if (filters.assignee) params.assignee = filters.assignee;
+        if (filters.labels && filters.labels.length > 0) {
+            params.labels = filters.labels.join(',');
+        }
 
         return apiClient.get<Feedback[]>(this.adminUrl, { params });
     }
@@ -110,6 +111,15 @@ class FeedbackService {
      */
     async deleteFeedback(id: string): Promise<ApiResponse<void>> {
         return apiClient.delete<void>(`${this.adminUrl}/${id}`);
+    }
+
+    /**
+     * Lista utenti admin per assegnazione ticket
+     */
+    async getAdminUsers(): Promise<ApiResponse<FeedbackUser[]>> {
+        return apiClient.get<FeedbackUser[]>('/admin/users', {
+            params: { role: 'admin', limit: 50 },
+        });
     }
 }
 

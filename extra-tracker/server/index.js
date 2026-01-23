@@ -49,6 +49,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const sseRoutes = require('./routes/sse');
 const gamificationRoutes = require('./routes/gamification');
 const { userRoutes: feedbackUserRoutes, adminRoutes: feedbackAdminRoutes } = require('./routes/feedback');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = envConfig.server.port;
@@ -153,6 +154,7 @@ app.use('/api/sse', sseRoutes);
 app.use('/api/gamification', gamificationRoutes);
 app.use('/api/feedback', feedbackUserRoutes);
 app.use('/api/admin/feedback', feedbackAdminRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api', apiRoutes);
 app.use('/api', goalsRoutes);
 app.use('/api/study', studyRoutes);

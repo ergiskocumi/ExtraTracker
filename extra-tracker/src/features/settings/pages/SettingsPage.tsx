@@ -11,21 +11,19 @@ import {
     Settings,
     Shield,
     Trash2,
+    MessageSquare,
     Search,
     Command,
-    MessageSquare,
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { useSettingsPage } from '../hooks/useSettings';
 import { ProfileSettings } from '../components/ProfileSettings';
 import { PreferencesSettings } from '../components/PreferencesSettings';
 import { SecuritySettings } from '../components/SecuritySettings';
 import { AccountSettings } from '../components/AccountSettings/index';
-import { SettingsSearch } from '../components/SettingsSearch';
-import { SettingsLayout, type SettingsTab } from '../components/layout/SettingsLayout';
 import { FeedbackSettings } from '../../feedback/components/FeedbackSettings';
-
-// Extended TabId to include feedback
-type TabId = 'profile' | 'preferences' | 'security' | 'account' | 'feedback';
+import { SettingsSearch } from '../components/SettingsSearch';
+import { SettingsLayout, type SettingsTab, type TabId } from '../components/layout/SettingsLayout';
 import { SettingsDrawer } from '../components/layout/SettingsDrawer';
 import { SettingsBottomNav } from '../components/layout/SettingsBottomNav';
 import { emitToast } from '../../../shared/components/toast';
@@ -65,16 +63,17 @@ const tabs: SettingsTab[] = [
         id: 'feedback',
         label: 'Feedback',
         icon: MessageSquare,
-        description: 'Segnala problemi e suggerimenti',
-        color: 'from-cyan-500 to-blue-500'
+        description: 'Segnalazioni e stato ticket',
+        color: 'from-amber-500 to-orange-500'
     },
-] as SettingsTab[];
+];
 
 export const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState<TabId>('profile');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const location = useLocation();
 
     // Rileva dimensione schermo per mobile
     useEffect(() => {
@@ -85,6 +84,14 @@ export const SettingsPage = () => {
         window.addEventListener('resize', checkScreenSize);
         return () => window.removeEventListener('resize', checkScreenSize);
     }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+        if (tab && tabs.some((item) => item.id === tab)) {
+            setActiveTab(tab as TabId);
+        }
+    }, [location.search]);
     const {
         profile,
         preferences,

@@ -23,23 +23,28 @@ import {
     FiZap,
     FiTrendingUp,
     FiUser,
+    FiMessageSquare,
+    FiShield,
 } from 'react-icons/fi';
 import { useAuth } from '../../../features/auth/context/AuthContext';
 import { useSettings } from '../../../features/settings/context/SettingsContext';
 import { useGamificationStatus } from '../../../features/gamification/hooks/useGamificationStatus';
 import { RankBadge } from '../../../features/gamification/components/RankBadge';
 import { LevelBadge } from '../../../features/gamification/components/LevelBadge';
+import { useFeedback } from '../../../features/feedback/context/FeedbackContext';
 
 // ============================================
 // TYPES
 // ============================================
 
 interface MenuItem {
-    path: string;
+    path?: string;
     label: string;
     icon: React.ComponentType<{ size?: number; className?: string }>;
     description: string;
     badge?: string | number;
+    action?: () => void;
+    isAdminOnly?: boolean;
 }
 
 interface MenuCategory {
@@ -135,43 +140,66 @@ const MenuItemComponent = memo(({
     item: MenuItem;
     isActive: boolean;
     onClick: () => void;
-}) => (
-    <Link
-        to={item.path}
-        onClick={onClick}
-        className={`
-            group flex items-center gap-3.5 px-4 py-3 mx-2 rounded-2xl transition-all duration-150
-            ${isActive
-                ? 'bg-gradient-to-r from-primary-500/25 to-violet-500/15 text-white border border-primary-500/25 shadow-lg shadow-primary-500/10'
-                : 'text-white/70 hover:bg-white/[0.08] hover:text-white border border-transparent'
-            }
-        `}
-    >
-        <div
-            className={`
-                w-10 h-10 rounded-2xl flex items-center justify-center transition-all
-                ${isActive
-                    ? 'bg-gradient-to-br from-primary-500 to-violet-600 text-white shadow-lg shadow-primary-500/30'
-                    : 'bg-white/[0.06] group-hover:bg-white/[0.1]'
-                }
-            `}
-        >
-            <item.icon size={20} />
-        </div>
-        <div className="flex-1 min-w-0">
-            <p className="text-base font-medium">{item.label}</p>
-            <p className="text-xs text-white/50 truncate">{item.description}</p>
-        </div>
-        {item.badge && (
-            <span className="px-2 py-1 text-[11px] font-bold rounded-md bg-primary-500/20 text-primary-300">
-                {item.badge}
-            </span>
-        )}
-        {isActive && (
-            <div className="w-1 h-7 rounded-full bg-gradient-to-b from-primary-400 to-violet-500" />
-        )}
-    </Link>
-));
+}) => {
+    const handleClick = () => {
+        if (item.action) {
+            item.action();
+        }
+        onClick();
+    };
+
+    const className = `
+        group flex items-center gap-3.5 px-4 py-3 mx-2 rounded-2xl transition-all duration-150 cursor-pointer
+        ${isActive
+            ? 'bg-gradient-to-r from-primary-500/25 to-violet-500/15 text-white border border-primary-500/25 shadow-lg shadow-primary-500/10'
+            : 'text-white/70 hover:bg-white/[0.08] hover:text-white border border-transparent'
+        }
+    `;
+
+    const content = (
+        <>
+            <div
+                className={`
+                    w-10 h-10 rounded-2xl flex items-center justify-center transition-all
+                    ${isActive
+                        ? 'bg-gradient-to-br from-primary-500 to-violet-600 text-white shadow-lg shadow-primary-500/30'
+                        : 'bg-white/[0.06] group-hover:bg-white/[0.1]'
+                    }
+                `}
+            >
+                <item.icon size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="text-base font-medium">{item.label}</p>
+                <p className="text-xs text-white/50 truncate">{item.description}</p>
+            </div>
+            {item.badge && (
+                <span className="px-2 py-1 text-[11px] font-bold rounded-md bg-primary-500/20 text-primary-300">
+                    {item.badge}
+                </span>
+            )}
+            {isActive && (
+                <div className="w-1 h-7 rounded-full bg-gradient-to-b from-primary-400 to-violet-500" />
+            )}
+        </>
+    );
+
+    // If it has an action (no path), render as button
+    if (item.action && !item.path) {
+        return (
+            <button onClick={handleClick} className={className}>
+                {content}
+            </button>
+        );
+    }
+
+    // Otherwise render as Link
+    return (
+        <Link to={item.path || '/'} onClick={handleClick} className={className}>
+            {content}
+        </Link>
+    );
+});
 
 MenuItemComponent.displayName = 'MenuItemComponent';
 
@@ -184,6 +212,7 @@ export const UserMenuDropdown = memo(() => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { profile } = useSettings();
+    const { openFeedback } = useFeedback();
     const { status: gamification, isLoading: isGamificationLoading } = useGamificationStatus({
         enablePolling: true,
         refreshInterval: 60000,
@@ -191,6 +220,9 @@ export const UserMenuDropdown = memo(() => {
 
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    // Check if user is admin
+    const isAdmin = user?.role === 'admin';
 
     // User info
     const userInitials = (() => {
@@ -217,6 +249,12 @@ export const UserMenuDropdown = memo(() => {
     const streak = gamification?.streak?.current ?? user?.gamification?.streak?.current ?? 0;
     const multiplier = gamification?.multipliers?.total ?? 1;
 
+    // Handle feedback click
+    const handleFeedbackClick = () => {
+        setIsOpen(false);
+        openFeedback();
+    };
+
     // Menu categories
     const menuCategories: MenuCategory[] = [
         {
@@ -237,8 +275,17 @@ export const UserMenuDropdown = memo(() => {
             label: 'Account',
             items: [
                 { path: '/settings', label: 'Impostazioni', icon: FiSettings, description: 'Personalizza' },
+                { label: 'Segnala problema', icon: FiMessageSquare, description: 'Bug report & feedback', action: handleFeedbackClick },
             ],
         },
+        ...(isAdmin ? [
+            {
+                label: 'Admin',
+                items: [
+                    { path: '/admin/feedback', label: 'Feedbacks', icon: FiShield, description: 'Gestione feedback' },
+                ],
+            },
+        ] : []),
     ];
 
     const handleLogout = async () => {
@@ -386,11 +433,12 @@ export const UserMenuDropdown = memo(() => {
                                         {category.label}
                                     </p>
                                     {category.items.map((item) => {
-                                        const isActive = location.pathname === item.path ||
-                                            (item.path !== '/' && location.pathname.startsWith(item.path));
+                                        const itemKey = item.path || item.label;
+                                        const isActive = item.path ? (location.pathname === item.path ||
+                                            (item.path !== '/' && location.pathname.startsWith(item.path))) : false;
                                         return (
                                             <MenuItemComponent
-                                                key={item.path}
+                                                key={itemKey}
                                                 item={item}
                                                 isActive={isActive}
                                                 onClick={handleNavClick}

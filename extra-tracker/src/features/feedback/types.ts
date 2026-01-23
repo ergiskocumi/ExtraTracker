@@ -11,6 +11,16 @@
 export type FeedbackType = 'bug' | 'feature' | 'improvement' | 'question' | 'other';
 export type FeedbackPriority = 'low' | 'medium' | 'high' | 'critical';
 export type FeedbackStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | 'wont_fix';
+export type FeedbackActivityType =
+    | 'created'
+    | 'status_change'
+    | 'priority_change'
+    | 'assignee_change'
+    | 'labels_update'
+    | 'comment_added'
+    | 'note_added'
+    | 'note_updated'
+    | 'note_cleared';
 
 // ==========================================
 // MODELS
@@ -44,10 +54,29 @@ export interface Feedback {
     priority: FeedbackPriority;
     status: FeedbackStatus;
     attachments: FeedbackAttachment[];
+    assignee?: FeedbackUser | string | null;
+    labels?: string[];
+    comments?: FeedbackComment[];
     adminNotes?: string;
+    activity?: FeedbackActivity[];
     resolvedAt?: string;
     createdAt: string;
     updatedAt: string;
+}
+
+export interface FeedbackActivity {
+    type: FeedbackActivityType;
+    message?: string;
+    from?: string;
+    to?: string;
+    performedBy?: FeedbackUser | string;
+    createdAt: string;
+}
+
+export interface FeedbackComment {
+    author?: FeedbackUser | string;
+    message: string;
+    createdAt: string;
 }
 
 // ==========================================
@@ -65,6 +94,9 @@ export interface UpdateFeedbackDTO {
     status?: FeedbackStatus;
     priority?: FeedbackPriority;
     adminNotes?: string;
+    assignee?: string | null;
+    labels?: string[];
+    comment?: string;
 }
 
 // ==========================================
@@ -113,6 +145,8 @@ export interface FeedbackFilters {
     type?: FeedbackType;
     priority?: FeedbackPriority;
     search?: string;
+    assignee?: string;
+    labels?: string[];
     page?: number;
     limit?: number;
 }
