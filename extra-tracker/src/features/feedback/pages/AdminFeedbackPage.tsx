@@ -34,6 +34,8 @@ import {
     XCircle,
     AlertTriangle,
     ArrowLeft,
+    FileText,
+    Activity,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { feedbackService } from '../services/feedbackService';
@@ -66,6 +68,14 @@ const TYPE_ICONS: Record<FeedbackType, typeof Bug> = {
     improvement: Sparkles,
     question: HelpCircle,
     other: MoreHorizontal,
+};
+
+const TYPE_ACCENTS: Record<FeedbackType, string> = {
+    bug: 'bg-red-400/80',
+    feature: 'bg-purple-400/80',
+    improvement: 'bg-cyan-400/80',
+    question: 'bg-yellow-400/80',
+    other: 'bg-gray-400/70',
 };
 
 const STATUS_OPTIONS: { value: FeedbackStatus | ''; label: string }[] = [
@@ -482,59 +492,63 @@ export const AdminFeedbackPage: React.FC = () => {
     }, [feedbacks]);
 
     return (
-        <div className="min-h-screen p-4 md:p-6 lg:p-8">
+        <div className="min-h-screen px-4 md:px-6 lg:px-8 py-6 lg:py-10">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="max-w-7xl mx-auto space-y-6"
+                className="max-w-7xl mx-auto space-y-8"
             >
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
                     <div className="flex items-center gap-4">
                         <Link
                             to="/dashboard"
-                            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white"
+                            className="p-2.5 rounded-xl bg-white/[0.05] border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-colors"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </Link>
                         <div>
-                            <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                            <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+                                Centro Admin
+                            </p>
+                            <h1 className="text-3xl sm:text-4xl font-semibold text-white mt-1">
                                 Gestione Feedback
                             </h1>
-                            <p className="text-white/60 text-sm mt-1">
-                                Dashboard amministrazione ticket
+                            <p className="text-white/60 text-sm mt-2 max-w-xl">
+                                Assegna, aggiorna e chiudi i ticket con una vista piu ricca e
+                                operativa.
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5">
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                                className={`flex items-center gap-1.5 px-4 py-2 text-xs rounded-xl transition-colors ${
                                     viewMode === 'list'
                                         ? 'bg-white/10 text-white'
                                         : 'text-white/50 hover:text-white'
                                 }`}
                             >
-                                <List className="w-3.5 h-3.5" />
+                                <List className="w-4 h-4" />
                                 Lista
                             </button>
                             <button
                                 onClick={() => setViewMode('board')}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                                className={`flex items-center gap-1.5 px-4 py-2 text-xs rounded-xl transition-colors ${
                                     viewMode === 'board'
                                         ? 'bg-white/10 text-white'
                                         : 'text-white/50 hover:text-white'
                                 }`}
                             >
-                                <LayoutGrid className="w-3.5 h-3.5" />
+                                <LayoutGrid className="w-4 h-4" />
                                 Board
                             </button>
                         </div>
                         <button
                             onClick={handleRefresh}
                             disabled={isLoading}
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
                         >
                             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                             Aggiorna
@@ -543,145 +557,167 @@ export const AdminFeedbackPage: React.FC = () => {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="p-4 rounded-xl border border-white/10 bg-white/[0.03]">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-blue-500/15">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                        <div className="absolute -top-10 -right-10 h-24 w-24 rounded-full bg-blue-500/15 blur-2xl" />
+                        <div className="relative flex items-center gap-4">
+                            <div className="p-3 rounded-xl bg-blue-500/15">
                                 <MessageSquare className="w-5 h-5 text-blue-400" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold text-white">
+                                <p className="text-3xl font-semibold text-white">
                                     {isLoadingStats ? '-' : stats?.total || 0}
                                 </p>
-                                <p className="text-xs text-white/50">Totale</p>
+                                <p className="text-xs uppercase tracking-wider text-white/40">
+                                    Totale
+                                </p>
                             </div>
                         </div>
                     </div>
-                    <div className="p-4 rounded-xl border border-white/10 bg-white/[0.03]">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-yellow-500/15">
+                    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                        <div className="absolute -top-10 -right-10 h-24 w-24 rounded-full bg-yellow-500/15 blur-2xl" />
+                        <div className="relative flex items-center gap-4">
+                            <div className="p-3 rounded-xl bg-yellow-500/15">
                                 <Clock className="w-5 h-5 text-yellow-400" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold text-white">
+                                <p className="text-3xl font-semibold text-white">
                                     {isLoadingStats ? '-' : stats?.byStatus?.open || 0}
                                 </p>
-                                <p className="text-xs text-white/50">Aperti</p>
+                                <p className="text-xs uppercase tracking-wider text-white/40">
+                                    Aperti
+                                </p>
                             </div>
                         </div>
                     </div>
-                    <div className="p-4 rounded-xl border border-white/10 bg-white/[0.03]">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-purple-500/15">
+                    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                        <div className="absolute -top-10 -right-10 h-24 w-24 rounded-full bg-purple-500/15 blur-2xl" />
+                        <div className="relative flex items-center gap-4">
+                            <div className="p-3 rounded-xl bg-purple-500/15">
                                 <Loader2 className="w-5 h-5 text-purple-400" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold text-white">
+                                <p className="text-3xl font-semibold text-white">
                                     {isLoadingStats ? '-' : stats?.byStatus?.in_progress || 0}
                                 </p>
-                                <p className="text-xs text-white/50">In lavorazione</p>
+                                <p className="text-xs uppercase tracking-wider text-white/40">
+                                    In lavorazione
+                                </p>
                             </div>
                         </div>
                     </div>
-                    <div className="p-4 rounded-xl border border-white/10 bg-white/[0.03]">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-emerald-500/15">
+                    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                        <div className="absolute -top-10 -right-10 h-24 w-24 rounded-full bg-emerald-500/15 blur-2xl" />
+                        <div className="relative flex items-center gap-4">
+                            <div className="p-3 rounded-xl bg-emerald-500/15">
                                 <CheckCircle className="w-5 h-5 text-emerald-400" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold text-white">
+                                <p className="text-3xl font-semibold text-white">
                                     {isLoadingStats ? '-' : stats?.byStatus?.resolved || 0}
                                 </p>
-                                <p className="text-xs text-white/50">Risolti</p>
+                                <p className="text-xs uppercase tracking-wider text-white/40">
+                                    Risolti
+                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Filters */}
-                <div className="p-4 rounded-xl border border-white/10 bg-white/[0.03]">
-                    <div className="flex flex-wrap items-center gap-4">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 md:p-5 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2 text-white/60">
                             <Filter className="w-4 h-4" />
-                            <span className="text-sm font-medium">Filtri:</span>
+                            <span className="text-xs uppercase tracking-[0.2em]">Filtri</span>
+                        </div>
+                        <p className="text-xs text-white/40">{total} ticket</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[11px] uppercase text-white/40">Stato</label>
+                            <select
+                                value={filters.status || ''}
+                                onChange={(e) =>
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        status: (e.target.value as FeedbackStatus) || undefined,
+                                    }))
+                                }
+                                className="px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white"
+                            >
+                                {STATUS_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value} className="bg-dark-300">
+                                        {opt.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
-                        {/* Status Filter */}
-                        <select
-                            value={filters.status || ''}
-                            onChange={(e) =>
-                                setFilters((prev) => ({
-                                    ...prev,
-                                    status: (e.target.value as FeedbackStatus) || undefined,
-                                }))
-                            }
-                            className="px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white"
-                        >
-                            {STATUS_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value} className="bg-dark-300">
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[11px] uppercase text-white/40">Tipo</label>
+                            <select
+                                value={filters.type || ''}
+                                onChange={(e) =>
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        type: (e.target.value as FeedbackType) || undefined,
+                                    }))
+                                }
+                                className="px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white"
+                            >
+                                {TYPE_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value} className="bg-dark-300">
+                                        {opt.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                        {/* Type Filter */}
-                        <select
-                            value={filters.type || ''}
-                            onChange={(e) =>
-                                setFilters((prev) => ({
-                                    ...prev,
-                                    type: (e.target.value as FeedbackType) || undefined,
-                                }))
-                            }
-                            className="px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white"
-                        >
-                            {TYPE_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value} className="bg-dark-300">
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[11px] uppercase text-white/40">Priorita</label>
+                            <select
+                                value={filters.priority || ''}
+                                onChange={(e) =>
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        priority: (e.target.value as FeedbackPriority) || undefined,
+                                    }))
+                                }
+                                className="px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white"
+                            >
+                                {PRIORITY_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value} className="bg-dark-300">
+                                        {opt.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                        {/* Priority Filter */}
-                        <select
-                            value={filters.priority || ''}
-                            onChange={(e) =>
-                                setFilters((prev) => ({
-                                    ...prev,
-                                    priority: (e.target.value as FeedbackPriority) || undefined,
-                                }))
-                            }
-                            className="px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white"
-                        >
-                            {PRIORITY_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value} className="bg-dark-300">
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[11px] uppercase text-white/40">Assegnatario</label>
+                            <select
+                                value={filters.assignee || ''}
+                                onChange={(e) =>
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        assignee: e.target.value || undefined,
+                                    }))
+                                }
+                                className="px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white"
+                            >
+                                <option value="" className="bg-dark-300">Tutti</option>
+                                <option value="unassigned" className="bg-dark-300">Non assegnato</option>
+                                {adminUsers.map((admin) => (
+                                    <option key={admin._id} value={admin._id} className="bg-dark-300">
+                                        {getAssigneeLabel(admin)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                        {/* Assignee Filter */}
-                        <select
-                            value={filters.assignee || ''}
-                            onChange={(e) =>
-                                setFilters((prev) => ({
-                                    ...prev,
-                                    assignee: e.target.value || undefined,
-                                }))
-                            }
-                            className="px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white"
-                        >
-                            <option value="" className="bg-dark-300">Tutti gli assegnatari</option>
-                            <option value="unassigned" className="bg-dark-300">Non assegnato</option>
-                            {adminUsers.map((admin) => (
-                                <option key={admin._id} value={admin._id} className="bg-dark-300">
-                                    {getAssigneeLabel(admin)}
-                                </option>
-                            ))}
-                        </select>
-
-                        {/* Label Filter */}
-                        <div className="min-w-[160px]">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[11px] uppercase text-white/40">Etichetta</label>
                             <div className="relative">
                                 <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                                 <input
@@ -693,14 +729,14 @@ export const AdminFeedbackPage: React.FC = () => {
                                             labels: e.target.value ? [normalizeLabel(e.target.value)] : [],
                                         }))
                                     }
-                                    placeholder="Etichetta"
-                                    className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/40"
+                                    placeholder="es. ui"
+                                    className="w-full pl-9 pr-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white placeholder:text-white/40"
                                 />
                             </div>
                         </div>
 
-                        {/* Search */}
-                        <div className="flex-1 min-w-[200px]">
+                        <div className="flex flex-col gap-1 sm:col-span-2 xl:col-span-2">
+                            <label className="text-[11px] uppercase text-white/40">Cerca</label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                                 <input
@@ -709,387 +745,451 @@ export const AdminFeedbackPage: React.FC = () => {
                                     onChange={(e) =>
                                         setFilters((prev) => ({ ...prev, search: e.target.value }))
                                     }
-                                    placeholder="Cerca..."
-                                    className="w-full pl-10 pr-4 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/40"
+                                    placeholder="Titolo, descrizione o utente"
+                                    className="w-full pl-10 pr-4 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white placeholder:text-white/40"
                                 />
                             </div>
                         </div>
-
-                        <p className="text-sm text-white/40 ml-auto">{total} risultati</p>
                     </div>
                 </div>
 
                 {/* Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Feedback List */}
-                    <div className="lg:col-span-2 space-y-3">
-                        {viewMode === 'list' ? (
-                            <>
-                                {isLoading && feedbacks.length === 0 ? (
-                                    <div className="flex items-center justify-center py-12">
-                                        <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+                <div className="space-y-4">
+                    {viewMode === 'list' ? (
+                        <div className="space-y-4">
+                            {isLoading && feedbacks.length === 0 ? (
+                                <div className="flex items-center justify-center py-16">
+                                    <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+                                </div>
+                            ) : feedbacks.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-white/10 bg-white/[0.03]">
+                                    <div className="p-4 rounded-full bg-white/5 mb-4">
+                                        <Inbox className="w-8 h-8 text-white/30" />
                                     </div>
-                                ) : feedbacks.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-white/10 bg-white/[0.03]">
-                                        <div className="p-4 rounded-full bg-white/5 mb-4">
-                                            <Inbox className="w-8 h-8 text-white/30" />
-                                        </div>
-                                        <p className="text-white/60 font-medium">Nessun feedback trovato</p>
-                                        <p className="text-white/40 text-sm mt-1">
-                                            Prova a modificare i filtri
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {feedbacks.map((feedback) => {
-                                            const TypeIcon = TYPE_ICONS[feedback.type];
-                                            const isSelected = selectedFeedback?._id === feedback._id;
+                                    <p className="text-white/60 font-medium">Nessun feedback trovato</p>
+                                    <p className="text-white/40 text-sm mt-1">
+                                        Prova a modificare i filtri
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    {feedbacks.map((feedback) => {
+                                        const TypeIcon = TYPE_ICONS[feedback.type];
 
-                                            return (
-                                                <motion.div
-                                                    key={feedback._id}
-                                                    layout
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                                                        isSelected
-                                                            ? 'border-primary-500/50 bg-primary-500/10'
-                                                            : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.05]'
-                                                    }`}
-                                                    onClick={() => setSelectedFeedback(feedback)}
-                                                >
-                                                    <div className="flex items-start gap-3">
-                                                        <div
-                                                            className={`p-2 rounded-lg flex-shrink-0 ${FEEDBACK_TYPE_COLORS[feedback.type]}`}
-                                                        >
-                                                            <TypeIcon className="w-4 h-4" />
-                                                        </div>
-
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-start justify-between gap-2">
-                                                                <h4 className="font-medium text-white truncate">
-                                                                    {feedback.title}
-                                                                </h4>
-                                                                <span className="text-[10px] text-white/40">
+                                        return (
+                                            <motion.div
+                                                key={feedback._id}
+                                                layout
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-5 cursor-pointer transition-all hover:border-white/20 hover:bg-white/[0.05]"
+                                                onClick={() => setSelectedFeedback(feedback)}
+                                            >
+                                                <div className={`absolute inset-y-0 left-0 w-1 ${TYPE_ACCENTS[feedback.type]}`} />
+                                                <div className="space-y-4">
+                                                    <div className="flex items-start justify-between gap-4">
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center gap-2 text-xs text-white/50">
+                                                                <span className="font-mono tracking-wide">
                                                                     {formatIssueKey(feedback)}
                                                                 </span>
-                                                            </div>
-
-                                                            <div className="flex items-center gap-2 mt-1 text-xs text-white/50">
-                                                                <User className="w-3 h-3" />
-                                                                <span>
-                                                                    {getUserDisplayName(feedback.user)}
-                                                                </span>
-                                                                <span>•</span>
-                                                                <Clock className="w-3 h-3" />
+                                                                <span className="w-1 h-1 rounded-full bg-white/30" />
                                                                 <span>{formatDate(feedback.createdAt)}</span>
                                                             </div>
-
-                                                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                                                                <span
-                                                                    className={`px-2 py-0.5 text-xs rounded-full border ${FEEDBACK_STATUS_COLORS[feedback.status]}`}
-                                                                >
-                                                                    {FEEDBACK_STATUS_LABELS[feedback.status]}
+                                                            <h4 className="text-lg font-semibold text-white">
+                                                                {feedback.title}
+                                                            </h4>
+                                                            <div className="flex flex-wrap items-center gap-3 text-xs text-white/55">
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <User className="w-3.5 h-3.5" />
+                                                                    {getUserDisplayName(feedback.user)}
                                                                 </span>
-                                                                <span
-                                                                    className={`px-2 py-0.5 text-xs rounded-full border ${FEEDBACK_PRIORITY_COLORS[feedback.priority]}`}
-                                                                >
-                                                                    {FEEDBACK_PRIORITY_LABELS[feedback.priority]}
-                                                                </span>
-                                                                {feedback.attachments?.length > 0 && (
-                                                                    <span className="flex items-center gap-1 text-xs text-white/40">
-                                                                        <Paperclip className="w-3 h-3" />
-                                                                        {feedback.attachments.length}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-white/50">
-                                                                <span className="flex items-center gap-1">
-                                                                    <User className="w-3 h-3" />
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <User className="w-3.5 h-3.5" />
                                                                     {getAssigneeLabel(feedback.assignee)}
                                                                 </span>
-                                                                {(feedback.labels || []).map((label) => (
-                                                                    <span
-                                                                        key={`${feedback._id}-${label}`}
-                                                                        className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/60"
-                                                                    >
-                                                                        {label}
-                                                                    </span>
-                                                                ))}
                                                             </div>
                                                         </div>
+                                                        <div className="flex flex-col items-end gap-2">
+                                                            <span
+                                                                className={`px-3 py-1 text-xs rounded-full border ${FEEDBACK_STATUS_COLORS[feedback.status]}`}
+                                                            >
+                                                                {FEEDBACK_STATUS_LABELS[feedback.status]}
+                                                            </span>
+                                                            <span
+                                                                className={`px-3 py-1 text-xs rounded-full border ${FEEDBACK_PRIORITY_COLORS[feedback.priority]}`}
+                                                            >
+                                                                {FEEDBACK_PRIORITY_LABELS[feedback.priority]}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                </motion.div>
+
+                                                    <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
+                                                        <span
+                                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border ${FEEDBACK_TYPE_COLORS[feedback.type]}`}
+                                                        >
+                                                            <TypeIcon className="w-3.5 h-3.5" />
+                                                            {FEEDBACK_TYPE_LABELS[feedback.type]}
+                                                        </span>
+                                                        {feedback.attachments?.length > 0 && (
+                                                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-white/10 bg-white/5">
+                                                                <Paperclip className="w-3.5 h-3.5" />
+                                                                {feedback.attachments.length} allegati
+                                                            </span>
+                                                        )}
+                                                        {(feedback.labels || []).map((label) => (
+                                                            <span
+                                                                key={`${feedback._id}-${label}`}
+                                                                className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/60"
+                                                            >
+                                                                {label}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
+
+                                    {hasMore && (
+                                        <div className="flex justify-center pt-2">
+                                            <button
+                                                onClick={handleLoadMore}
+                                                disabled={isLoading}
+                                                className="flex items-center gap-2 px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
+                                            >
+                                                {isLoading ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                        Caricamento...
+                                                    </>
+                                                ) : (
+                                                    'Carica altri'
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {isLoading && feedbacks.length === 0 ? (
+                                <div className="flex items-center justify-center py-16">
+                                    <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                                        {STATUS_FLOW.map((status) => {
+                                            const items = feedbackByStatus[status] || [];
+                                            const isDragOver = dragOverStatus === status;
+
+                                            return (
+                                                <div
+                                                    key={status}
+                                                    onDragOver={(event) => {
+                                                        event.preventDefault();
+                                                        setDragOverStatus(status);
+                                                    }}
+                                                    onDragLeave={() => setDragOverStatus(null)}
+                                                    onDrop={(event) => handleDropOnStatus(event, status)}
+                                                    className={`rounded-2xl border bg-white/[0.02] ${
+                                                        isDragOver
+                                                            ? 'border-primary-500/40 bg-primary-500/10'
+                                                            : 'border-white/10'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                                                        <span className="text-xs font-semibold uppercase tracking-wide text-white/70">
+                                                            {FEEDBACK_STATUS_LABELS[status]}
+                                                        </span>
+                                                        <span className="text-xs text-white/40">{items.length}</span>
+                                                    </div>
+                                                    <div className="p-4 space-y-3 min-h-[140px]">
+                                                        {items.length === 0 ? (
+                                                            <p className="text-xs text-white/30">Nessun ticket</p>
+                                                        ) : (
+                                                            items.map((feedback) => (
+                                                                <div
+                                                                    key={feedback._id}
+                                                                    draggable
+                                                                    onDragStart={(event) => handleDragStart(event, feedback._id)}
+                                                                    onDragEnd={handleDragEnd}
+                                                                    onClick={() => setSelectedFeedback(feedback)}
+                                                                    className={`rounded-xl border px-3 py-3 bg-white/[0.03] cursor-pointer transition-all ${
+                                                                        draggingId === feedback._id
+                                                                            ? 'opacity-50 border-primary-500/30'
+                                                                            : 'border-white/10 hover:border-primary-500/30 hover:bg-white/[0.06]'
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center gap-2 text-xs text-white/40">
+                                                                        <span className={`h-2 w-2 rounded-full ${TYPE_ACCENTS[feedback.type]}`} />
+                                                                        {formatIssueKey(feedback)}
+                                                                    </div>
+                                                                    <p className="text-sm font-semibold text-white mt-2">
+                                                                        {feedback.title}
+                                                                    </p>
+                                                                    <div className="flex items-center gap-2 text-xs text-white/50 mt-2">
+                                                                        <User className="w-3 h-3" />
+                                                                        <span>{getAssigneeLabel(feedback.assignee)}</span>
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-1 mt-2">
+                                                                        <span
+                                                                            className={`px-2 py-0.5 text-[10px] rounded-full border ${FEEDBACK_PRIORITY_COLORS[feedback.priority]}`}
+                                                                        >
+                                                                            {FEEDBACK_PRIORITY_LABELS[feedback.priority]}
+                                                                        </span>
+                                                                        {(feedback.labels || []).slice(0, 3).map((label) => (
+                                                                            <span
+                                                                                key={`${feedback._id}-${label}`}
+                                                                                className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-white/60"
+                                                                            >
+                                                                                {label}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </div>
                                             );
                                         })}
-
-                                        {hasMore && (
-                                            <div className="flex justify-center pt-2">
-                                                <button
-                                                    onClick={handleLoadMore}
-                                                    disabled={isLoading}
-                                                    className="flex items-center gap-2 px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
-                                                >
-                                                    {isLoading ? (
-                                                        <>
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                            Caricamento...
-                                                        </>
-                                                    ) : (
-                                                        'Carica altri'
-                                                    )}
-                                                </button>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </>
-                        ) : (
-                            <>
-                                {isLoading && feedbacks.length === 0 ? (
-                                    <div className="flex items-center justify-center py-12">
-                                        <Loader2 className="w-6 h-6 animate-spin text-white/40" />
                                     </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-                                            {STATUS_FLOW.map((status) => {
-                                                const items = feedbackByStatus[status] || [];
-                                                const isDragOver = dragOverStatus === status;
+                                    {hasMore && (
+                                        <p className="text-xs text-white/40">
+                                            Mostrati {feedbacks.length} di {total} ticket. Affina i filtri o passa
+                                            alla lista per caricare altro.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </motion.div>
 
-                                                return (
-                                                    <div
-                                                        key={status}
-                                                        onDragOver={(event) => {
-                                                            event.preventDefault();
-                                                            setDragOverStatus(status);
-                                                        }}
-                                                        onDragLeave={() => setDragOverStatus(null)}
-                                                        onDrop={(event) => handleDropOnStatus(event, status)}
-                                                        className={`rounded-xl border bg-white/[0.02] ${
-                                                            isDragOver ? 'border-primary-500/40 bg-primary-500/10' : 'border-white/10'
-                                                        }`}
-                                                    >
-                                                        <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
-                                                            <span className="text-xs font-semibold text-white/70">
-                                                                {FEEDBACK_STATUS_LABELS[status]}
-                                                            </span>
-                                                            <span className="text-xs text-white/40">{items.length}</span>
-                                                        </div>
-                                                        <div className="p-3 space-y-3 min-h-[120px]">
-                                                            {items.length === 0 ? (
-                                                                <p className="text-xs text-white/30">Nessun ticket</p>
-                                                            ) : (
-                                                                items.map((feedback) => (
-                                                                    <div
-                                                                        key={feedback._id}
-                                                                        draggable
-                                                                        onDragStart={(event) => handleDragStart(event, feedback._id)}
-                                                                        onDragEnd={handleDragEnd}
-                                                                        onClick={() => setSelectedFeedback(feedback)}
-                                                                        className={`rounded-lg border px-3 py-2 bg-white/[0.03] cursor-pointer transition-all ${
-                                                                            draggingId === feedback._id
-                                                                                ? 'opacity-50 border-primary-500/30'
-                                                                                : 'border-white/10 hover:border-primary-500/30 hover:bg-white/[0.05]'
-                                                                        }`}
-                                                                    >
-                                                                        <div className="flex items-center justify-between gap-2">
-                                                                            <span className="text-[10px] text-white/40">
-                                                                                {formatIssueKey(feedback)}
-                                                                            </span>
-                                                                            <span
-                                                                                className={`px-2 py-0.5 text-[10px] rounded-full border ${FEEDBACK_PRIORITY_COLORS[feedback.priority]}`}
-                                                                            >
-                                                                                {FEEDBACK_PRIORITY_LABELS[feedback.priority]}
-                                                                            </span>
-                                                                        </div>
-                                                                        <p className="text-sm font-medium text-white mt-1">
-                                                                            {feedback.title}
-                                                                        </p>
-                                                                        <div className="flex items-center gap-2 text-xs text-white/50 mt-2">
-                                                                            <User className="w-3 h-3" />
-                                                                            <span>{getAssigneeLabel(feedback.assignee)}</span>
-                                                                        </div>
-                                                                        {(feedback.labels || []).length > 0 && (
-                                                                            <div className="flex flex-wrap gap-1 mt-2">
-                                                                                {(feedback.labels || []).slice(0, 3).map((label) => (
-                                                                                    <span
-                                                                                        key={`${feedback._id}-${label}`}
-                                                                                        className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-white/60"
-                                                                                    >
-                                                                                        {label}
-                                                                                    </span>
-                                                                                ))}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                ))
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        {hasMore && (
-                                            <p className="text-xs text-white/40">
-                                                Mostrati {feedbacks.length} di {total} ticket. Affina i filtri o passa alla lista per caricare altro.
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
+            <AnimatePresence>
+                {selectedFeedback && (
+                    <motion.div
+                        key={selectedFeedback._id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    >
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                            onClick={() => setSelectedFeedback(null)}
+                        />
 
-                    {/* Detail Panel */}
-                    <div className="lg:col-span-1">
-                        <AnimatePresence mode="wait">
-                            {selectedFeedback ? (
-                                <motion.div
-                                    key={selectedFeedback._id}
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 20 }}
-                                    className="sticky top-4 p-5 rounded-xl border border-white/10 bg-white/[0.03] space-y-5"
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] uppercase tracking-wide text-white/40">
+                        <motion.div
+                            initial={{ scale: 0.96, y: 20, opacity: 0 }}
+                            animate={{ scale: 1, y: 0, opacity: 1 }}
+                            exit={{ scale: 0.96, y: 20, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+                            role="dialog"
+                            aria-modal="true"
+                            className="relative w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 bg-dark-400/95 shadow-2xl flex flex-col"
+                        >
+                            <div className="p-6 border-b border-white/10 bg-white/[0.04]">
+                                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                                    <div>
+                                        <div className="flex items-center gap-2 text-xs text-white/50">
+                                            <span className="font-mono tracking-wide">
                                                 {formatIssueKey(selectedFeedback)}
-                                            </p>
-                                            <h3 className="font-semibold text-white break-words">
-                                                {selectedFeedback.title}
-                                            </h3>
+                                            </span>
+                                            <span className="w-1 h-1 rounded-full bg-white/30" />
+                                            <span>{formatDate(selectedFeedback.createdAt)}</span>
                                         </div>
-                                        <button
-                                            onClick={() => setSelectedFeedback(null)}
-                                            className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white"
-                                        >
-                                            <XCircle className="w-4 h-4" />
-                                        </button>
+                                        <h2 className="text-2xl sm:text-3xl font-semibold text-white mt-1">
+                                            {selectedFeedback.title}
+                                        </h2>
                                     </div>
-
-                                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <span
-                                            className={`px-2 py-0.5 rounded-full border ${FEEDBACK_STATUS_COLORS[selectedFeedback.status]}`}
+                                            className={`px-3 py-1 text-xs rounded-full border ${FEEDBACK_STATUS_COLORS[selectedFeedback.status]}`}
                                         >
                                             {FEEDBACK_STATUS_LABELS[selectedFeedback.status]}
                                         </span>
                                         <span
-                                            className={`px-2 py-0.5 rounded-full border ${FEEDBACK_PRIORITY_COLORS[selectedFeedback.priority]}`}
+                                            className={`px-3 py-1 text-xs rounded-full border ${FEEDBACK_PRIORITY_COLORS[selectedFeedback.priority]}`}
                                         >
                                             {FEEDBACK_PRIORITY_LABELS[selectedFeedback.priority]}
                                         </span>
                                         <span
-                                            className={`px-2 py-0.5 rounded-full border ${FEEDBACK_TYPE_COLORS[selectedFeedback.type]}`}
+                                            className={`px-3 py-1 text-xs rounded-full border ${FEEDBACK_TYPE_COLORS[selectedFeedback.type]}`}
                                         >
                                             {FEEDBACK_TYPE_LABELS[selectedFeedback.type]}
                                         </span>
+                                        <button
+                                            onClick={() => setSelectedFeedback(null)}
+                                            className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors"
+                                        >
+                                            <XCircle className="w-5 h-5" />
+                                        </button>
                                     </div>
+                                </div>
+                            </div>
 
-                                    {/* Meta */}
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex items-center gap-2 text-white/60">
-                                            <User className="w-4 h-4" />
-                                            <span>{getUserDisplayName(selectedFeedback.user)}</span>
+                            <div className="flex-1 overflow-y-auto p-6">
+                                <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-6">
+                                    <div className="space-y-6">
+                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
+                                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
+                                                <FileText className="w-4 h-4" />
+                                                Dettagli
+                                            </div>
+                                            <p className="text-sm text-white/70 whitespace-pre-wrap">
+                                                {selectedFeedback.description}
+                                            </p>
+                                            <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+                                                <span className="flex items-center gap-1.5">
+                                                    <User className="w-3.5 h-3.5" />
+                                                    {getUserDisplayName(selectedFeedback.user)}
+                                                </span>
+                                                <span className="flex items-center gap-1.5">
+                                                    <Clock className="w-3.5 h-3.5" />
+                                                    {formatDate(selectedFeedback.createdAt)}
+                                                </span>
+                                                {selectedFeedback.resolvedAt && (
+                                                    <span className="flex items-center gap-1.5 text-emerald-400/80">
+                                                        <CheckCircle className="w-3.5 h-3.5" />
+                                                        Risolto il {formatDate(selectedFeedback.resolvedAt)}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2 text-white/60">
-                                            <Clock className="w-4 h-4" />
-                                            <span>{formatDate(selectedFeedback.createdAt)}</span>
-                                        </div>
-                                        {selectedFeedback.resolvedAt && (
-                                            <div className="flex items-center gap-2 text-white/60">
-                                                <CheckCircle className="w-4 h-4 text-emerald-400" />
-                                                <span>Risolto il {formatDate(selectedFeedback.resolvedAt)}</span>
+
+                                        {selectedFeedback.attachments?.length > 0 && (
+                                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+                                                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
+                                                    <Paperclip className="w-4 h-4" />
+                                                    Allegati
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {selectedFeedback.attachments.map((att, i) => (
+                                                        <a
+                                                            key={i}
+                                                            href={`/uploads/feedback/${att.filename}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="flex items-center gap-2 px-3 py-2 text-xs rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                                                        >
+                                                            <Paperclip className="w-3.5 h-3.5" />
+                                                            {att.originalName}
+                                                        </a>
+                                                    ))}
+                                                </div>
                                             </div>
                                         )}
-                                    </div>
 
-                                    {/* Workflow */}
-                                    <div className="pt-2 border-t border-white/10">
-                                        <p className="text-xs text-white/40 mb-2">Workflow</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {STATUS_FLOW.map((status) => {
-                                                const isActive = selectedFeedback.status === status;
-                                                return (
-                                                    <button
-                                                        key={status}
-                                                        type="button"
-                                                        disabled={isUpdating || isActive}
-                                                        onClick={() =>
-                                                            handleUpdateFeedback(
-                                                                selectedFeedback._id,
-                                                                { status },
-                                                                'Stato aggiornato'
-                                                            )
-                                                        }
-                                                        className={`px-2.5 py-1 rounded-full text-[11px] border transition-colors ${
-                                                            isActive
-                                                                ? 'bg-primary-500/20 text-primary-300 border-primary-500/30'
-                                                                : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
-                                                        } ${isUpdating ? 'opacity-60' : ''}`}
-                                                    >
-                                                        {FEEDBACK_STATUS_LABELS[status]}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    {/* Description */}
-                                    <div className="pt-2 border-t border-white/10">
-                                        <p className="text-sm text-white/70 whitespace-pre-wrap">
-                                            {selectedFeedback.description}
-                                        </p>
-                                    </div>
-
-                                    {/* Public Comments */}
-                                    {commentList.length > 0 && (
-                                        <div className="pt-2 border-t border-white/10">
-                                            <p className="text-xs text-white/40 mb-2">Commenti pubblici</p>
-                                            <div className="space-y-2">
-                                                {commentList.map((comment, index) => (
-                                                    <div
-                                                        key={`${comment.createdAt}-${index}`}
-                                                        className="p-2 rounded-lg bg-white/5 border border-white/10"
-                                                    >
-                                                        <p className="text-xs text-white/70 whitespace-pre-wrap">
-                                                            {comment.message}
-                                                        </p>
-                                                        <div className="mt-1 text-[10px] text-white/40">
-                                                            {getCommentAuthor(comment)} • {formatDate(comment.createdAt)}
+                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+                                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
+                                                <MessageSquare className="w-4 h-4" />
+                                                Commenti pubblici
+                                            </div>
+                                            {commentList.length === 0 ? (
+                                                <p className="text-xs text-white/40">
+                                                    Nessun commento ancora.
+                                                </p>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {commentList.map((comment, index) => (
+                                                        <div
+                                                            key={`${comment.createdAt}-${index}`}
+                                                            className="p-3 rounded-xl bg-white/5 border border-white/10"
+                                                        >
+                                                            <p className="text-xs text-white/70 whitespace-pre-wrap">
+                                                                {comment.message}
+                                                            </p>
+                                                            <div className="mt-2 text-[10px] text-white/40">
+                                                                {getCommentAuthor(comment)} • {formatDate(comment.createdAt)}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+                                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
+                                                <Activity className="w-4 h-4" />
+                                                Attivita
+                                            </div>
+                                            <div className="space-y-3">
+                                                {activityItems.map((activity, index) => {
+                                                    const ActivityIcon = ACTIVITY_ICONS[activity.type] || Clock;
+                                                    return (
+                                                        <div
+                                                            key={`${activity.type}-${activity.createdAt}-${index}`}
+                                                            className="flex items-start gap-3"
+                                                        >
+                                                            <div className="p-2 rounded-lg bg-white/5 text-white/50">
+                                                                <ActivityIcon className="w-3.5 h-3.5" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-xs text-white/70">
+                                                                    {getActivityMessage(activity)}
+                                                                </p>
+                                                                <div className="flex items-center gap-2 text-[10px] text-white/40 mt-1">
+                                                                    <span>{getActivityActor(activity, selectedFeedback)}</span>
+                                                                    <span>•</span>
+                                                                    <span>
+                                                                        {formatDate(
+                                                                            activity.createdAt || selectedFeedback.createdAt
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
-                                    )}
+                                    </div>
 
-                                    {/* Attachments */}
-                                    {selectedFeedback.attachments?.length > 0 && (
-                                        <div className="pt-2 border-t border-white/10">
-                                            <p className="text-xs text-white/40 mb-2">Allegati:</p>
-                                            <div className="space-y-1">
-                                                {selectedFeedback.attachments.map((att, i) => (
-                                                    <a
-                                                        key={i}
-                                                        href={`/uploads/feedback/${att.filename}`}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                                                    >
-                                                        <Paperclip className="w-3 h-3" />
-                                                        {att.originalName}
-                                                    </a>
-                                                ))}
+                                    <div className="space-y-6">
+                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+                                            <div className="text-xs uppercase tracking-[0.2em] text-white/40">
+                                                Workflow
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {STATUS_FLOW.map((status) => {
+                                                    const isActive = selectedFeedback.status === status;
+                                                    return (
+                                                        <button
+                                                            key={status}
+                                                            type="button"
+                                                            disabled={isUpdating || isActive}
+                                                            onClick={() =>
+                                                                handleUpdateFeedback(
+                                                                    selectedFeedback._id,
+                                                                    { status },
+                                                                    'Stato aggiornato'
+                                                                )
+                                                            }
+                                                            className={`px-3 py-1.5 rounded-full text-[11px] border transition-colors ${
+                                                                isActive
+                                                                    ? 'bg-primary-500/20 text-primary-300 border-primary-500/30'
+                                                                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
+                                                            } ${isUpdating ? 'opacity-60' : ''}`}
+                                                        >
+                                                            {FEEDBACK_STATUS_LABELS[status]}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
-                                    )}
 
-                                    {/* Actions */}
-                                    <div className="pt-3 border-t border-white/10 space-y-3">
-                                        <div className="grid gap-3">
+                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
+                                            <div className="text-xs uppercase tracking-[0.2em] text-white/40">
+                                                Gestione
+                                            </div>
                                             <div>
                                                 <label className="block text-xs text-white/40 mb-1">
                                                     Assegnatario
@@ -1104,7 +1204,7 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         )
                                                     }
                                                     disabled={isUpdating || isLoadingAdmins}
-                                                    className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white disabled:opacity-50"
+                                                    className="w-full px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white disabled:opacity-50"
                                                 >
                                                     <option value="" className="bg-dark-300">Non assegnato</option>
                                                     {adminUsers.map((admin) => (
@@ -1129,7 +1229,7 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         )
                                                     }
                                                     disabled={isUpdating}
-                                                    className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white disabled:opacity-50"
+                                                    className="w-full px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white disabled:opacity-50"
                                                 >
                                                     {STATUS_OPTIONS.filter((o) => o.value).map((opt) => (
                                                         <option
@@ -1145,7 +1245,7 @@ export const AdminFeedbackPage: React.FC = () => {
 
                                             <div>
                                                 <label className="block text-xs text-white/40 mb-1">
-                                                    Priorità
+                                                    Priorita
                                                 </label>
                                                 <select
                                                     value={selectedFeedback.priority}
@@ -1153,11 +1253,11 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         handleUpdateFeedback(
                                                             selectedFeedback._id,
                                                             { priority: e.target.value as FeedbackPriority },
-                                                            'Priorità aggiornata'
+                                                            'Priorita aggiornata'
                                                         )
                                                     }
                                                     disabled={isUpdating}
-                                                    className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white disabled:opacity-50"
+                                                    className="w-full px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white disabled:opacity-50"
                                                 >
                                                     {PRIORITY_OPTIONS.filter((o) => o.value).map((opt) => (
                                                         <option
@@ -1172,12 +1272,12 @@ export const AdminFeedbackPage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-xs text-white/40 mb-1">
+                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+                                            <div className="text-xs uppercase tracking-[0.2em] text-white/40">
                                                 Etichette
-                                            </label>
+                                            </div>
                                             {labelList.length > 0 && (
-                                                <div className="flex flex-wrap gap-2 mb-2">
+                                                <div className="flex flex-wrap gap-2">
                                                     {labelList.map((label) => (
                                                         <button
                                                             key={label}
@@ -1204,38 +1304,38 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         }
                                                     }}
                                                     placeholder="Aggiungi etichetta"
-                                                    className="flex-1 px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white"
+                                                    className="flex-1 px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white"
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={handleAddLabel}
                                                     disabled={!labelDraft.trim() || isUpdating}
-                                                    className="px-3 py-2 text-xs rounded-lg bg-white/10 text-white/70 hover:bg-white/20 hover:text-white disabled:opacity-50 transition-colors"
+                                                    className="px-3 py-2 text-xs rounded-xl bg-white/10 text-white/70 hover:bg-white/20 hover:text-white disabled:opacity-50 transition-colors"
                                                 >
                                                     Aggiungi
                                                 </button>
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-xs text-white/40 mb-1">
+                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+                                            <div className="text-xs uppercase tracking-[0.2em] text-white/40">
                                                 Commento pubblico
-                                            </label>
+                                            </div>
                                             <textarea
                                                 value={commentDraft}
                                                 onChange={(e) => setCommentDraft(e.target.value)}
                                                 rows={3}
                                                 maxLength={2000}
-                                                className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white resize-none"
+                                                className="w-full px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white resize-none"
                                                 placeholder="Scrivi un aggiornamento per l'utente..."
                                             />
-                                            <div className="flex items-center justify-between text-[10px] text-white/40 mt-1">
+                                            <div className="flex items-center justify-between text-[10px] text-white/40">
                                                 <span>{commentDraft.length}/2000</span>
                                                 <button
                                                     type="button"
                                                     onClick={handleSubmitComment}
                                                     disabled={!commentDraft.trim() || isUpdating}
-                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/10 text-white/70 hover:bg-white/20 hover:text-white disabled:opacity-50 transition-colors"
+                                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white/10 text-white/70 hover:bg-white/20 hover:text-white disabled:opacity-50 transition-colors"
                                                 >
                                                     <Send className="w-3 h-3" />
                                                     Invia commento
@@ -1243,19 +1343,19 @@ export const AdminFeedbackPage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-xs text-white/40 mb-1">
+                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+                                            <div className="text-xs uppercase tracking-[0.2em] text-white/40">
                                                 Note interne
-                                            </label>
+                                            </div>
                                             <textarea
                                                 value={noteDraft}
                                                 onChange={(e) => setNoteDraft(e.target.value)}
                                                 rows={3}
                                                 maxLength={2000}
-                                                className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white resize-none"
+                                                className="w-full px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white resize-none"
                                                 placeholder="Aggiungi dettagli tecnici, passi fatti, decisioni..."
                                             />
-                                            <div className="flex items-center justify-between text-[10px] text-white/40 mt-1">
+                                            <div className="flex items-center justify-between text-[10px] text-white/40">
                                                 <span>{noteDraft.length}/2000</span>
                                                 <button
                                                     type="button"
@@ -1267,76 +1367,29 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         )
                                                     }
                                                     disabled={!isNoteDirty || isUpdating}
-                                                    className="px-2.5 py-1 rounded-md bg-white/10 text-white/70 hover:bg-white/20 hover:text-white disabled:opacity-50 transition-colors"
+                                                    className="px-2.5 py-1.5 rounded-md bg-white/10 text-white/70 hover:bg-white/20 hover:text-white disabled:opacity-50 transition-colors"
                                                 >
                                                     Salva note
                                                 </button>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {/* Activity */}
-                                    <div className="pt-3 border-t border-white/10">
-                                        <p className="text-xs text-white/40 mb-2">Attività</p>
-                                        <div className="space-y-3">
-                                            {activityItems.map((activity, index) => {
-                                                const ActivityIcon = ACTIVITY_ICONS[activity.type] || Clock;
-                                                return (
-                                                    <div
-                                                        key={`${activity.type}-${activity.createdAt}-${index}`}
-                                                        className="flex items-start gap-3"
-                                                    >
-                                                        <div className="p-1.5 rounded-lg bg-white/5 text-white/50">
-                                                            <ActivityIcon className="w-3.5 h-3.5" />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-xs text-white/70">
-                                                                {getActivityMessage(activity)}
-                                                            </p>
-                                                            <div className="flex items-center gap-2 text-[10px] text-white/40 mt-1">
-                                                                <span>{getActivityActor(activity, selectedFeedback)}</span>
-                                                                <span>•</span>
-                                                                <span>
-                                                                    {formatDate(
-                                                                        activity.createdAt || selectedFeedback.createdAt
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
+                                        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
+                                            <button
+                                                onClick={() => handleDelete(selectedFeedback._id)}
+                                                className="flex items-center justify-center gap-2 w-full px-3 py-2 text-sm rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                Elimina feedback
+                                            </button>
                                         </div>
                                     </div>
-
-                                    <div className="pt-3 border-t border-white/10">
-                                        <button
-                                            onClick={() => handleDelete(selectedFeedback._id)}
-                                            className="flex items-center justify-center gap-2 w-full px-3 py-2 text-sm rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                            Elimina feedback
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            ) : (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="sticky top-4 p-8 rounded-xl border border-white/10 bg-white/[0.03] text-center"
-                                >
-                                    <div className="p-4 rounded-full bg-white/5 inline-block mb-3">
-                                        <MessageSquare className="w-6 h-6 text-white/30" />
-                                    </div>
-                                    <p className="text-white/50 text-sm">
-                                        Seleziona un feedback per vedere i dettagli
-                                    </p>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                </div>
-            </motion.div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
