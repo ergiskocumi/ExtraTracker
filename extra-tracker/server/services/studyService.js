@@ -47,18 +47,22 @@ const QUIZ_FALLBACK_OPTIONS = [
 ];
 
 // =========================================
-// 🆕 SMART GENERATION V2 - CONFIGURATION
+// 🆕 SMART GENERATION V3 - OPTIMIZED CONFIGURATION
 // =========================================
 
-// Micro-chunking: chunk PIÙ PICCOLI = domande PIÙ PRECISE
-const MICRO_CHUNK_SIZE = 6000;        // 6k caratteri (era 40-50k!)
-const MICRO_CHUNK_OVERLAP = 200;      // Overlap ridotto
-const MIN_CHUNK_LENGTH = 400;         // Ignora chunk troppo corti (indici, titoli)
+// Semantic chunking: chunk PIÙ GRANDI per batch processing
+const SEMANTIC_CHUNK_SIZE = 12000;    // 12k caratteri (era 6k)
+const SEMANTIC_CHUNK_OVERLAP = 500;   // Overlap su confini paragrafo (era 200)
+const MIN_SEMANTIC_CHUNK = 300;       // Minimo basso per non perdere pagine introduttive
+const MIN_CHUNK_LENGTH = 200;         // Ignora solo chunk vuoti/titoli
 
-// Target dinamico basato sulla densità del contenuto
-const MIN_CARDS_PER_CHUNK = 3;        // Minimo 3 card per chunk
-const MAX_CARDS_PER_CHUNK = 12;       // Massimo 12 card per singola chiamata
-const MAX_TOTAL_CARDS = 100;          // Cap totale per evitare mazzi enormi
+// Batch processing: 2 chunk per chiamata API
+const BATCH_SIZE = 2;
+
+// Target dinamico - qualità > quantità
+const MIN_CARDS_PER_CHUNK = 2;        // Minimo 2 card per chunk (qualità)
+const MAX_CARDS_PER_CHUNK = 10;       // Massimo 10 card per singola chiamata
+const MAX_TOTAL_CARDS = 80;           // Cap totale (meno card ma migliori)
 
 // Deduplica semantica - soglia più aggressiva per rimuovere più duplicati
 const SIMILARITY_THRESHOLD = 0.50;    // Soglia Jaccard (più bassa = più aggressiva)
@@ -956,72 +960,99 @@ class StudyService extends BaseService {
             console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
         }
 
-        // 5. 🆕 MICRO-CHUNKING SEMANTICO
-        console.log('📦 FASE 2: Micro-chunking semantico...');
-        const microChunks = this._createSemanticMicroChunks(normalizedText);
-        console.log(`📊 Creati ${microChunks.length} micro-chunk da ~${MICRO_CHUNK_SIZE} caratteri`);
+        // 5. 🆕 SEMANTIC CHUNKING V3
+        console.log('📦 FASE 2: Semantic chunking...');
+        const semanticChunks = this._createSemanticChunks(normalizedText);
+        console.log(`📊 Creati ${semanticChunks.length} chunk semantici da ~${SEMANTIC_CHUNK_SIZE} caratteri`);
         
-        sseManager.sendToUser(userId, 'pdf-progress', { 
-            step: 'chunking', 
-            totalChunks: microChunks.length,
-            message: `Diviso in ${microChunks.length} sezioni` 
+        sseManager.sendToUser(userId, 'pdf-progress', {
+            step: 'chunking',
+            totalChunks: semanticChunks.length,
+            message: `Diviso in ${semanticChunks.length} sezioni`
         });
 
-        // 6. 🆕 ESTRAZIONE CONCETTI CHIAVE (Pre-pass per evitare duplicati)
-        console.log('🔑 FASE 3: Estrazione concetti chiave...');
+        // 6. 🆕 ESTRAZIONE CONCETTI LOCALE (senza AI)
+        console.log('🔑 FASE 3: Estrazione concetti (locale)...');
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'concepts', message: 'Estraggo concetti chiave...' });
-        
-        const globalConcepts = await this._extractKeyConcepts(normalizedText, blueprint);
-        console.log(`🎯 Estratti ${globalConcepts.length} concetti chiave`);
 
-        // 7. 🆕 GENERAZIONE MULTI-TIPO
-        console.log('✨ FASE 4: Generazione flashcard...');
+        const globalConcepts = this._extractConceptsLocally(normalizedText);
+        console.log(`🎯 Estratti ${globalConcepts.length} concetti chiave (locale)`);
+
+        // 7. 🆕 BATCH GENERATION V3 - Process chunks in batches
+        console.log('✨ FASE 4: Generazione flashcard (batch)...');
         let allGeneratedCards = [];
-        const usedConcepts = new Set(); // Traccia concetti già usati
-        
-        for (let i = 0; i < microChunks.length; i++) {
-            const chunk = microChunks[i];
-            
-            // Calcola target dinamico basato su lunghezza chunk
-            const targetCards = this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
-            
-            console.log(`🔄 Chunk ${i + 1}/${microChunks.length}: ${chunk.text.length} chars, target ${targetCards} cards`);
-            
+        const usedConcepts = new Set(globalConcepts.slice(0, 10)); // Pre-popola con top 10 concetti
+
+        // Crea batches di BATCH_SIZE chunks
+        const batches = [];
+        for (let i = 0; i < semanticChunks.length; i += BATCH_SIZE) {
+            batches.push(semanticChunks.slice(i, i + BATCH_SIZE));
+        }
+
+        console.log(`📦 Creati ${batches.length} batch da ${BATCH_SIZE} chunk ciascuno`);
+
+        for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+            const batch = batches[batchIdx];
+            const batchStartChunk = batchIdx * BATCH_SIZE;
+
+            // Calcola target cards per questo batch
+            const totalBatchChars = batch.reduce((sum, c) => sum + c.text.length, 0);
+            const targetCards = this._calculateBatchTarget(batch);
+
+            console.log(`🔄 Batch ${batchIdx + 1}/${batches.length}: ${batch.length} chunk, ${totalBatchChars} chars, target ${targetCards} cards`);
+
             sseManager.sendToUser(userId, 'pdf-progress', {
                 step: 'generating',
-                currentChunk: i + 1,
-                totalChunks: microChunks.length,
+                currentChunk: batchStartChunk + 1,
+                totalChunks: semanticChunks.length,
                 generatedSoFar: allGeneratedCards.length,
-                message: `Elaboro sezione ${i + 1}/${microChunks.length}...`
+                message: `Elaboro batch ${batchIdx + 1}/${batches.length}...`
             });
 
             try {
-                const chunkCards = await this._generateCardsV2(
-                    chunk.text,
+                const batchCards = await this._generateCardsBatch(
+                    batch,
                     blueprint,
                     targetCards,
                     usedConcepts,
-                    i,
-                    microChunks.length
+                    batchIdx,
+                    batches.length
                 );
-                
+
                 // Aggiungi concetti usati al set globale
-                chunkCards.forEach(card => {
+                batchCards.forEach(card => {
                     const conceptKey = this._extractConceptKey(card.front);
                     if (conceptKey) usedConcepts.add(conceptKey);
                 });
-                
-                allGeneratedCards.push(...chunkCards);
-                console.log(`✅ Chunk ${i + 1}: Generate ${chunkCards.length} card (totale: ${allGeneratedCards.length})`);
-                
+
+                allGeneratedCards.push(...batchCards);
+                console.log(`✅ Batch ${batchIdx + 1}: Generate ${batchCards.length} card (totale: ${allGeneratedCards.length})`);
+
             } catch (err) {
-                console.error(`❌ Errore chunk ${i + 1}:`, err.message);
-                // Continua con altri chunk
+                console.error(`❌ Errore batch ${batchIdx + 1}:`, err.message);
+                // Fallback: processa chunk singolarmente
+                for (let i = 0; i < batch.length; i++) {
+                    try {
+                        const chunk = batch[i];
+                        const singleTarget = this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
+                        const singleCards = await this._generateCardsSingle(
+                            chunk,
+                            blueprint,
+                            singleTarget,
+                            usedConcepts,
+                            batchStartChunk + i,
+                            semanticChunks.length
+                        );
+                        allGeneratedCards.push(...singleCards);
+                    } catch (singleErr) {
+                        console.error(`❌ Fallback singolo fallito:`, singleErr.message);
+                    }
+                }
             }
 
             // Rate limiting: pausa tra chiamate API
-            if (i < microChunks.length - 1) {
-                await this._sleep(500);
+            if (batchIdx < batches.length - 1) {
+                await this._sleep(300);
             }
         }
 
@@ -1088,7 +1119,8 @@ class StudyService extends BaseService {
             deck: deck.toJSON(),
             generatedCount: validCards.length,
             stats: {
-                totalChunks: microChunks.length,
+                totalChunks: semanticChunks.length,
+                totalBatches: batches.length,
                 duplicatesRemoved: removedCount,
                 conceptsExtracted: globalConcepts.length,
             }
@@ -1100,113 +1132,143 @@ class StudyService extends BaseService {
     // =========================================
 
     /**
-     * 🔪 Micro-Chunking Semantico
-     * Divide il testo in chunk piccoli rispettando i confini semantici
+     * 🔪 Semantic Chunking V3 - Ottimizzato
+     * Divide il testo in chunk semantici rispettando confini naturali
+     * - Mai taglia a metà frase
+     * - Priorità: pagina > sezione > paragrafo > frase
+     * - Estrae numero pagina per ogni chunk
      */
-    _createSemanticMicroChunks(text) {
-        if (!text || text.length <= MICRO_CHUNK_SIZE) {
-            return [{ text, hasTitles: this._detectTitles(text) }];
+    _createSemanticChunks(text) {
+        if (!text || text.length <= SEMANTIC_CHUNK_SIZE) {
+            return [{
+                text,
+                hasTitles: this._detectTitles(text),
+                pageNumbers: this._extractPageNumbers(text),
+            }];
         }
 
         const chunks = [];
         let start = 0;
+        let iterations = 0;
+        const MAX_ITERATIONS = 100; // Safeguard contro loop infiniti
 
-        while (start < text.length) {
-            let end = Math.min(start + MICRO_CHUNK_SIZE, text.length);
+        while (start < text.length && iterations < MAX_ITERATIONS) {
+            iterations++;
+            let end = Math.min(start + SEMANTIC_CHUNK_SIZE, text.length);
 
-            // Trova punto di interruzione naturale
+            // Trova il miglior punto di interruzione (solo se non siamo alla fine)
             if (end < text.length) {
-                const searchZone = text.slice(Math.max(start, end - 1000), end);
-                
-                // Priorità: 1. Marker pagina (nuovo formato), 2. Marker pagina (vecchio formato), 3. Doppio a capo, 4. Punto finale
-                const pageMarkerNew = searchZone.lastIndexOf('--- PAGE');
-                const pageMarkerOld = searchZone.lastIndexOf('--- Pagina');
-                const pageMarker = pageMarkerNew > pageMarkerOld ? pageMarkerNew : pageMarkerOld;
-                const doubleLine = searchZone.lastIndexOf('\n\n');
-                const period = searchZone.lastIndexOf('. ');
+                const searchStart = Math.max(start, end - 2000);
+                const searchZone = text.slice(searchStart, end);
 
+                // Priorità: 1. Marker pagina, 2. Doppio a capo, 3. Fine frase, 4. Punto
                 let bestBreak = -1;
-                if (pageMarker > searchZone.length * 0.5) {
-                    bestBreak = pageMarker;
-                } else if (doubleLine > searchZone.length * 0.5) {
-                    bestBreak = doubleLine + 2;
-                } else if (period > searchZone.length * 0.3) {
-                    bestBreak = period + 2;
+
+                // 1. Marker di pagina
+                const pageIdx = Math.max(
+                    searchZone.lastIndexOf('--- PAGE'),
+                    searchZone.lastIndexOf('--- Pagina')
+                );
+                if (pageIdx > 100) {
+                    bestBreak = pageIdx;
+                }
+
+                // 2. Doppio a capo (paragrafo)
+                if (bestBreak === -1) {
+                    const doubleNewline = searchZone.lastIndexOf('\n\n');
+                    if (doubleNewline > 100) {
+                        bestBreak = doubleNewline + 2;
+                    }
+                }
+
+                // 3. Fine frase (punto + spazio + maiuscola)
+                if (bestBreak === -1) {
+                    const sentenceEnd = searchZone.lastIndexOf('. ');
+                    if (sentenceEnd > 100) {
+                        bestBreak = sentenceEnd + 2;
+                    }
                 }
 
                 if (bestBreak > 0) {
-                    end = Math.max(start, end - 1000) + bestBreak;
+                    end = searchStart + bestBreak;
                 }
             }
 
+            // Assicurati che end > start (evita chunk vuoti)
+            if (end <= start) {
+                end = Math.min(start + SEMANTIC_CHUNK_SIZE, text.length);
+            }
+
             const chunkText = text.slice(start, end).trim();
-            
-            // Ignora chunk troppo corti
-            if (chunkText.length >= MIN_CHUNK_LENGTH) {
+
+            // Aggiungi chunk se ha contenuto sufficiente
+            if (chunkText.length >= MIN_SEMANTIC_CHUNK) {
                 chunks.push({
                     text: chunkText,
                     hasTitles: this._detectTitles(chunkText),
+                    pageNumbers: this._extractPageNumbers(chunkText),
                 });
             }
 
-            // Avanza con overlap minimo
-            start = end - MICRO_CHUNK_OVERLAP;
-            if (start >= text.length - MIN_CHUNK_LENGTH) break;
+            // IMPORTANTE: Avanza sempre di almeno (SEMANTIC_CHUNK_SIZE - OVERLAP)
+            // per evitare loop infiniti
+            const minAdvance = SEMANTIC_CHUNK_SIZE - SEMANTIC_CHUNK_OVERLAP;
+            const newStart = end - SEMANTIC_CHUNK_OVERLAP;
+
+            // Assicurati di avanzare sempre di almeno minAdvance caratteri
+            start = Math.max(newStart, start + minAdvance);
+
+            // Se siamo vicini alla fine, esci
+            if (start >= text.length - MIN_SEMANTIC_CHUNK) {
+                break;
+            }
         }
 
-        return chunks;
+        if (iterations >= MAX_ITERATIONS) {
+            console.warn('⚠️ Chunking: raggiunto limite iterazioni, potrebbe esserci un problema');
+        }
+
+        return chunks.length > 0 ? chunks : [{
+            text,
+            hasTitles: this._detectTitles(text),
+            pageNumbers: this._extractPageNumbers(text),
+        }];
+    }
+
+    /**
+     * 📄 Estrae numeri di pagina dal testo del chunk
+     */
+    _extractPageNumbers(text) {
+        if (!text) return [];
+
+        const pageNumbers = [];
+        const pageRegex = /--- PAGE (\d+) ---/g;
+        const pageRegexOld = /--- Pagina (\d+) ---/g;
+
+        let match;
+        while ((match = pageRegex.exec(text)) !== null) {
+            const pageNum = parseInt(match[1], 10);
+            if (!pageNumbers.includes(pageNum)) {
+                pageNumbers.push(pageNum);
+            }
+        }
+        while ((match = pageRegexOld.exec(text)) !== null) {
+            const pageNum = parseInt(match[1], 10);
+            if (!pageNumbers.includes(pageNum)) {
+                pageNumbers.push(pageNum);
+            }
+        }
+
+        return pageNumbers.sort((a, b) => a - b);
     }
 
     /**
      * 🔑 Estrazione Concetti Chiave (per evitare duplicati cross-chunk)
-     * Versione migliorata con fallback locale
+     * @deprecated V3: Ora usa solo estrazione locale (TF-IDF) per risparmiare API calls
      */
-    async _extractKeyConcepts(text, blueprint) {
-        try {
-            const sampleText = this._truncateText(text, 20000);
-            const globalContext = blueprint?.globalContext || 'Documento accademico';
-
-            const completion = await openai.chat.completions.create({
-                model: ACTIVE_AI_MODEL,
-                messages: [
-                    {
-                        role: 'system',
-                        content: `Sei un analista esperto. Estrai i 20-30 CONCETTI CHIAVE più importanti dal testo.
-Ogni concetto deve essere una parola o frase breve (2-4 parole max).
-
-Contesto del documento: ${globalContext}
-
-Restituisci SOLO JSON valido:
-{ "concepts": ["concetto1", "concetto2", "concetto3", ...] }`
-                    },
-                    { role: 'user', content: `Analizza questo testo ed estrai i concetti chiave:\n\n${sampleText}` }
-                ],
-                temperature: 0.3,
-                max_completion_tokens: 800,
-                response_format: { type: 'json_object' },
-            });
-
-            const rawResponse = completion.choices[0]?.message?.content || '{}';
-            console.log('📝 Raw concept extraction response length:', rawResponse.length);
-            
-            const cleaned = this._cleanJSON(rawResponse);
-            const parsed = JSON.parse(cleaned);
-            
-            const concepts = Array.isArray(parsed.concepts) ? parsed.concepts : [];
-            console.log(`🔑 Estratti ${concepts.length} concetti via AI`);
-            
-            // Se AI fallisce, estrai concetti localmente
-            if (concepts.length === 0) {
-                console.log('⚠️ AI non ha estratto concetti, uso estrazione locale...');
-                return this._extractConceptsLocally(sampleText);
-            }
-            
-            return concepts;
-        } catch (err) {
-            console.warn('⚠️ Concept extraction error:', err.message);
-            // Fallback: estrazione locale
-            return this._extractConceptsLocally(text);
-        }
+    _extractKeyConcepts(text, _blueprint) {
+        // V3: Usa solo estrazione locale (elimina 1 chiamata AI per PDF)
+        return this._extractConceptsLocally(text);
     }
 
     /**
@@ -1255,131 +1317,18 @@ Restituisci SOLO JSON valido:
     /**
      * ✨ Generazione Flashcard V2 - Prompt Migliorato
      */
+    /**
+     * @deprecated Usa _generateCardsBatch o _generateCardsSingle
+     * Mantenuto per backward compatibility
+     */
     async _generateCardsV2(chunkText, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks) {
-        const globalContext = blueprint?.globalContext || 'Documento accademico';
-        const documentType = blueprint?.documentType || 'other';
-
-        // Costruisci lista concetti già usati (per evitare ripetizioni)
-        const avoidList = usedConcepts.size > 0 
-            ? `\n\n⚠️ EVITA domande su questi concetti già trattati: ${[...usedConcepts].slice(-20).join(', ')}`
-            : '';
-
-        // Seleziona tipi di domande per questo chunk (varietà)
-        const questionTypesForChunk = this._selectQuestionTypes(chunkIndex, totalChunks);
-
-        const systemPrompt = `Sei un ESPERTO CREATORE DI FLASHCARD per lo studio universitario.
-Il tuo obiettivo è creare flashcard PRECISE, UNICHE e UTILI per la memorizzazione attiva.
-
-📚 CONTESTO DOCUMENTO: "${globalContext}"
-📄 TIPO: ${documentType}
-📍 SEZIONE: ${chunkIndex + 1} di ${totalChunks}
-
-🎯 CREA ESATTAMENTE ${targetCount} FLASHCARD seguendo queste regole:
-
-TIPI DI DOMANDE DA INCLUDERE:
-${questionTypesForChunk}
-
-📏 FORMATO OBBLIGATORIO:
-- DOMANDA (front): Specifica, chiara, che richieda ragionamento. MIN 10 parole.
-- RISPOSTA (back): Completa ma concisa. Includi il "perché" quando rilevante. MIN 20 parole.
-${avoidList}
-
-❌ EVITA:
-- Domande troppo generiche ("Cos'è X?" senza contesto)
-- Domande che si possono rispondere con sì/no
-- Ripetizioni dello stesso concetto con parole diverse
-- Informazioni non presenti nel testo
-
-✅ PREFERISCI:
-- Domande che collegano concetti
-- Domande che richiedono spiegazione del "perché"
-- Domande su processi e sequenze
-- Domande che testano comprensione profonda
-
-📌 CRITICAL: SOURCE GROUNDING (OBBLIGATORIO)
-Il testo fornito contiene marker di pagina nel formato:
---- PAGE {n} ---
-{contenuto della pagina}
---- END PAGE {n} ---
-
-Per OGNI flashcard generata, DEVI includere:
-1. page_number: Il numero della pagina (intero) trovato nel marker "--- PAGE {n} ---" da cui hai estratto l'informazione
-2. original_quote: La CITAZIONE ESATTA (verbatim) dal testo originale che hai usato per generare la risposta
-
-⚠️ REGOLA VERBATIM STRINGENTE:
-- original_quote DEVE essere una copia ESATTA (carattere per carattere) di una frase o paragrafo presente nel testo
-- NON parafrasare, NON riassumere, NON modificare
-- Se non trovi una citazione esatta nel testo, NON generare la flashcard
-- La citazione deve essere sufficientemente lunga da essere univoca (minimo 20 caratteri)
-- Verifica che la citazione esista letteralmente nel testo prima di includerla
-
-FORMATO JSON OUTPUT (STRICT):
-{
-  "cards": [
-    {
-      "front": "Domanda completa e specifica...",
-      "back": "Risposta esaustiva con spiegazione...",
-      "source_metadata": {
-        "page_number": 5,
-        "original_quote": "La citazione ESATTA dal testo originale, senza modifiche."
-      }
-    }
-  ]
-}
-
-ESEMPIO:
-Se nel testo vedi:
---- PAGE 3 ---
-La fotosintesi è il processo mediante il quale le piante convertono la luce solare in energia chimica.
---- END PAGE 3 ---
-
-E generi una flashcard su questo concetto, DEVI includere:
-{
-  "front": "Come le piante convertono la luce solare in energia?",
-  "back": "Le piante convertono la luce solare in energia chimica attraverso il processo chiamato fotosintesi.",
-  "source_metadata": {
-    "page_number": 3,
-    "original_quote": "La fotosintesi è il processo mediante il quale le piante convertono la luce solare in energia chimica."
-  }
-}
-
-NOTA: original_quote deve essere IDENTICA al testo tra i marker di pagina.`;
-
-        const MAX_RETRIES = 2;
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            try {
-                const completion = await openai.chat.completions.create({
-                    model: ACTIVE_AI_MODEL,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: `TESTO DA ANALIZZARE:\n\n${chunkText}` }
-                    ],
-                    temperature: attempt === 1 ? 0.6 : 0.4,
-                    max_completion_tokens: 3500,
-                    response_format: { type: 'json_object' },
-                });
-
-                const response = completion.choices[0]?.message?.content;
-                if (!response) {
-                    if (attempt === MAX_RETRIES) return [];
-                    continue;
-                }
-
-                const cleaned = this._cleanJSON(response);
-                const parsed = JSON.parse(cleaned);
-                const cards = this._extractGeneratedCards(parsed);
-
-                return cards
-                    .map(c => this._normalizeGeneratedCard(c))
-                    .filter(c => c.front && c.back);
-
-            } catch (err) {
-                console.error(`❌ Generation attempt ${attempt} failed:`, err.message);
-                if (attempt === MAX_RETRIES) return [];
-                await this._sleep(1000);
-            }
-        }
-        return [];
+        // Redirect to optimized single chunk method
+        const chunk = {
+            text: chunkText,
+            hasTitles: this._detectTitles(chunkText),
+            pageNumbers: this._extractPageNumbers(chunkText),
+        };
+        return this._generateCardsSingle(chunk, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks);
     }
 
     /**
@@ -1405,14 +1354,209 @@ NOTA: original_quote deve essere IDENTICA al testo tra i marker di pagina.`;
      * 📊 Calcola target card per chunk basato su lunghezza e contenuto
      */
     _calculateChunkTarget(chunkLength, hasTitles) {
-        // Base: 1 card ogni 600 caratteri (densità aumentata)
-        let target = Math.ceil(chunkLength / 600);
-        
+        // Base: 1 card ogni 1200 caratteri (qualità > quantità)
+        let target = Math.ceil(chunkLength / 1200);
+
         // Bonus se ha titoli (contenuto più strutturato)
-        if (hasTitles) target = Math.ceil(target * 1.2);
-        
+        if (hasTitles) target = Math.ceil(target * 1.1);
+
         // Applica limiti
         return Math.max(MIN_CARDS_PER_CHUNK, Math.min(MAX_CARDS_PER_CHUNK, target));
+    }
+
+    /**
+     * 📊 Calcola target card per batch di chunk
+     */
+    _calculateBatchTarget(batch) {
+        let totalTarget = 0;
+        for (const chunk of batch) {
+            totalTarget += this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
+        }
+        // Cap a MAX_CARDS_PER_CHUNK * 2 per batch di 2 chunk
+        return Math.min(totalTarget, MAX_CARDS_PER_CHUNK * BATCH_SIZE);
+    }
+
+    /**
+     * ✨ Generazione Flashcard BATCH V3 - Ottimizzato
+     * Processa 2 chunk in una singola chiamata API
+     */
+    async _generateCardsBatch(chunks, blueprint, targetCount, usedConcepts, batchIndex, totalBatches) {
+        const globalContext = blueprint?.globalContext || 'Documento accademico';
+        const documentType = blueprint?.documentType || 'other';
+
+        // Costruisci avoid list
+        const avoidList = usedConcepts.size > 0
+            ? `\n⚠️ EVITA domande su questi concetti già trattati: ${[...usedConcepts].slice(-20).join(', ')}`
+            : '';
+
+        // Seleziona tipi di domande per varietà
+        const questionTypes = this._selectQuestionTypes(batchIndex, totalBatches);
+
+        // Combina testo dei chunk con separatori
+        const combinedText = chunks.map((chunk, idx) => {
+            const pageInfo = chunk.pageNumbers?.length > 0
+                ? `[Pagine: ${chunk.pageNumbers.join(', ')}]`
+                : '';
+            return `=== SEZIONE ${idx + 1} ${pageInfo} ===\n${chunk.text}`;
+        }).join('\n\n');
+
+        // Prompt QUALITÀ V4 - Copertura completa + Elenchi
+        const systemPrompt = `Sei un ESPERTO CREATORE DI FLASHCARD per studenti universitari che devono RIPASSARE per un esame.
+Lo studente deve memorizzare TUTTO il contenuto del documento. Ogni concetto importante deve avere almeno una flashcard.
+
+📚 CONTESTO DOCUMENTO: "${globalContext}"
+📄 TIPO: ${documentType}
+
+🎯 CREA ${targetCount} FLASHCARD seguendo queste REGOLE FONDAMENTALI:
+
+⚠️ REGOLA COPERTURA COMPLETA:
+- Devi coprire TUTTE le pagine del testo, incluse le prime pagine introduttive
+- NON saltare nessuna sezione importante
+- Ogni definizione, concetto chiave, processo deve avere una flashcard
+
+⚠️ REGOLA ELENCHI/LISTE:
+- Quando nel testo c'è un ELENCO (es: "I 5 tipi di X sono: A, B, C, D, E"), crea UNA flashcard che chiede TUTTI gli elementi
+- Esempio corretto: "Quali sono i 5 tipi di X?" → "I 5 tipi sono: A, B, C, D, E"
+- NON creare 5 domande separate per ogni elemento dell'elenco
+
+TIPI DI DOMANDE (varietà obbligatoria):
+${questionTypes}
+
+📏 FORMATO:
+- FRONT: Domanda specifica, min 10 parole. Deve testare COMPRENSIONE, non memoria superficiale.
+- BACK: Risposta COMPLETA con tutti i dettagli rilevanti. Min 20 parole. Se è un elenco, includi TUTTI i punti.
+${avoidList}
+
+❌ EVITA ASSOLUTAMENTE:
+- Domande su siti web, link, bibliografia, numeri pagina
+- Domande generiche "Cos'è X?" senza contesto
+- Domande sì/no
+- Domande su dettagli irrilevanti (date pubblicazione, autori citati)
+- Due domande sullo stesso concetto
+- Chiedere UN SOLO elemento di un elenco invece di tutti
+
+✅ PRIVILEGIA:
+- "Quali sono tutti i tipi/elementi/fasi di X?" - elenchi completi
+- "Perché X causa Y?" - causa-effetto
+- "Qual è la differenza tra X e Y?" - confronti
+- "Come funziona il processo di X?" - meccanismi
+- "Quali sono le caratteristiche principali di X?" - definizioni complete
+
+📌 SOURCE METADATA (obbligatorio):
+Per ogni flashcard: page_number (intero) + original_quote (citazione ESATTA min 20 char).
+
+OUTPUT JSON:
+{"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"citazione verbatim"}}]}`;
+
+        const MAX_RETRIES = 2;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                const completion = await openai.chat.completions.create({
+                    model: ACTIVE_AI_MODEL,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: combinedText }
+                    ],
+                    temperature: attempt === 1 ? 0.5 : 0.3,
+                    max_completion_tokens: 4000,
+                    response_format: { type: 'json_object' },
+                });
+
+                // Log token usage per monitoraggio costi
+                if (completion.usage) {
+                    console.log(`📊 Batch ${batchIndex + 1} tokens: in=${completion.usage.prompt_tokens}, out=${completion.usage.completion_tokens}`);
+                }
+
+                const response = completion.choices[0]?.message?.content;
+                if (!response) {
+                    if (attempt === MAX_RETRIES) return [];
+                    continue;
+                }
+
+                const cleaned = this._cleanJSON(response);
+                const parsed = JSON.parse(cleaned);
+                const cards = this._extractGeneratedCards(parsed);
+
+                return cards
+                    .map(c => this._normalizeGeneratedCard(c))
+                    .filter(c => c.front && c.back);
+
+            } catch (err) {
+                console.error(`❌ Batch generation attempt ${attempt} failed:`, err.message);
+                if (attempt === MAX_RETRIES) throw err; // Throw per attivare fallback
+                await this._sleep(1000);
+            }
+        }
+        return [];
+    }
+
+    /**
+     * ✨ Generazione Flashcard SINGOLA - Fallback
+     * Usa prompt di qualità per singolo chunk
+     */
+    async _generateCardsSingle(chunk, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks) {
+        const globalContext = blueprint?.globalContext || 'Documento accademico';
+        const documentType = blueprint?.documentType || 'other';
+
+        const avoidList = usedConcepts.size > 0
+            ? `\n⚠️ EVITA domande su questi concetti già trattati: ${[...usedConcepts].slice(-20).join(', ')}`
+            : '';
+
+        // Seleziona tipi di domande per varietà
+        const questionTypes = this._selectQuestionTypes(chunkIndex, totalChunks);
+
+        // Prompt QUALITÀ V4 - Copertura completa + Elenchi
+        const systemPrompt = `Sei un ESPERTO CREATORE DI FLASHCARD per studenti che devono RIPASSARE per un esame.
+Lo studente deve memorizzare TUTTO. Ogni concetto importante deve avere almeno una flashcard.
+
+📚 CONTESTO: "${globalContext}"
+📄 TIPO: ${documentType} | SEZIONE: ${chunkIndex + 1}/${totalChunks}
+
+🎯 CREA ${targetCount} FLASHCARD seguendo queste REGOLE:
+
+⚠️ REGOLA ELENCHI: Se c'è un ELENCO (es: "I tipi di X sono: A, B, C"), crea UNA flashcard che chiede TUTTI gli elementi, non domande separate.
+
+TIPI DI DOMANDE:
+${questionTypes}
+
+📏 FORMATO:
+- FRONT: Domanda specifica, min 10 parole.
+- BACK: Risposta COMPLETA con tutti i dettagli. Min 20 parole. Se è un elenco, includi TUTTI i punti.
+${avoidList}
+
+❌ EVITA: siti web, link, bibliografia, domande generiche, sì/no, dettagli irrilevanti, chiedere UN SOLO elemento di un elenco.
+
+✅ PRIVILEGIA: "Quali sono tutti i tipi/fasi di X?", causa-effetto, confronti, meccanismi.
+
+OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"..."}}]}`;
+
+        try {
+            const completion = await openai.chat.completions.create({
+                model: ACTIVE_AI_MODEL,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: chunk.text }
+                ],
+                temperature: 0.5,
+                max_completion_tokens: 2500,
+                response_format: { type: 'json_object' },
+            });
+
+            const response = completion.choices[0]?.message?.content;
+            if (!response) return [];
+
+            const cleaned = this._cleanJSON(response);
+            const parsed = JSON.parse(cleaned);
+            const cards = this._extractGeneratedCards(parsed);
+
+            return cards
+                .map(c => this._normalizeGeneratedCard(c))
+                .filter(c => c.front && c.back);
+
+        } catch (err) {
+            console.error(`❌ Single generation failed:`, err.message);
+            return [];
+        }
     }
 
     /**
@@ -2936,7 +3080,11 @@ Genera una risposta per OGNI domanda nella lista.`;
         return cleaned.trim();
     }
 
-    async _analyzeDocumentStructure(extractedText) {
+    /**
+     * 🏗️ Analisi Struttura Documento - LOCALE (senza AI)
+     * Usa pattern matching per identificare tipo documento e contesto
+     */
+    _analyzeDocumentStructure(extractedText) {
         const defaultBlueprint = {
             documentType: 'other',
             densityScore: 0.5,
@@ -2944,63 +3092,312 @@ Genera una risposta per OGNI domanda nella lista.`;
             mainTopics: [],
         };
 
-        try {
-            if (!extractedText || typeof extractedText !== 'string') {
-                return defaultBlueprint;
-            }
-
-            const sampleText = this._truncateText(extractedText, 25000);
-            if (!sampleText || sampleText.trim().length === 0) {
-                return defaultBlueprint;
-            }
-
-            const systemPrompt = `Analizza il testo e restituisci SOLO JSON:
-{
-  "documentType": "textbook" | "slide_deck" | "research_paper" | "exam_text" | "notes" | "other",
-  "globalContext": "Frase riassuntiva concisa (max 20 parole)",
-  "mainTopics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"],
-  "densityScore": 0.0 to 1.0
-}`;
-
-            const completion = await openai.chat.completions.create({
-                model: ACTIVE_AI_MODEL,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: `Testo:\n\n${sampleText}` },
-                ],
-                temperature: 0.2,
-                max_completion_tokens: 500,
-                response_format: { type: 'json_object' },
-            });
-
-            const aiResponse = completion.choices[0]?.message?.content;
-            if (!aiResponse) return defaultBlueprint;
-
-            const cleanedJSON = this._cleanJSON(aiResponse);
-            if (!cleanedJSON) return defaultBlueprint;
-
-            const parsed = JSON.parse(cleanedJSON);
-
-            const allowedTypes = new Set(['textbook', 'slide_deck', 'research_paper', 'exam_text', 'notes', 'other']);
-            const documentType = allowedTypes.has(parsed?.documentType) ? parsed.documentType : 'other';
-            
-            const globalContext = typeof parsed?.globalContext === 'string' 
-                ? parsed.globalContext.split(/\s+/).slice(0, 20).join(' ')
-                : 'Documento generico';
-
-            const mainTopics = Array.isArray(parsed?.mainTopics)
-                ? parsed.mainTopics.filter(t => typeof t === 'string').slice(0, 5)
-                : [];
-
-            const densityScore = Number.isFinite(Number(parsed?.densityScore))
-                ? Math.max(0, Math.min(1, Number(parsed.densityScore)))
-                : 0.5;
-
-            return { documentType, globalContext, mainTopics, densityScore };
-        } catch (err) {
-            console.warn('⚠️ Document analysis fallback:', err.message);
+        if (!extractedText || typeof extractedText !== 'string') {
             return defaultBlueprint;
         }
+
+        const sampleText = this._truncateText(extractedText, 25000);
+        if (!sampleText || sampleText.trim().length === 0) {
+            return defaultBlueprint;
+        }
+
+        // 1. Rileva tipo documento tramite pattern matching
+        const documentType = this._detectDocumentType(sampleText);
+
+        // 2. Estrai contesto globale dai primi header/titoli
+        const globalContext = this._extractGlobalContext(sampleText);
+
+        // 3. Estrai topic principali dagli header
+        const mainTopics = this._extractMainTopics(sampleText);
+
+        // 4. Calcola densità contenuto
+        const densityScore = this._calculateDensityScore(sampleText);
+
+        console.log(`📋 Blueprint locale: ${documentType}, density: ${densityScore.toFixed(2)}`);
+
+        return { documentType, globalContext, mainTopics, densityScore };
+    }
+
+    /**
+     * 📄 Rileva tipo documento tramite pattern
+     */
+    _detectDocumentType(text) {
+        const patterns = {
+            textbook: [
+                /capitolo\s+\d+/gi,
+                /chapter\s+\d+/gi,
+                /sezione\s+\d+/gi,
+                /eserciz[io]/gi,
+                /definizione/gi,
+                /teorema/gi,
+                /dimostrazione/gi,
+                /corollario/gi,
+                /lemma/gi,
+            ],
+            slide_deck: [
+                /slide\s+\d+/gi,
+                /\bppt\b/gi,
+                /•\s+/g, // Bullet points frequenti
+                /→|⇒|➔/g, // Frecce frequenti
+            ],
+            research_paper: [
+                /abstract/gi,
+                /introduction/gi,
+                /methodology/gi,
+                /results/gi,
+                /conclusion/gi,
+                /references/gi,
+                /bibliography/gi,
+                /et al\./gi,
+                /\[\d+\]/g, // Citations [1], [2]
+            ],
+            exam_text: [
+                /esame/gi,
+                /exam/gi,
+                /domand[ae]/gi,
+                /question/gi,
+                /risposta/gi,
+                /answer/gi,
+                /punti:/gi,
+                /points:/gi,
+                /voto/gi,
+                /grade/gi,
+            ],
+            notes: [
+                /appunt[io]/gi,
+                /notes/gi,
+                /lezione/gi,
+                /lecture/gi,
+                /corso/gi,
+                /course/gi,
+            ],
+        };
+
+        const scores = {};
+        for (const [type, typePatterns] of Object.entries(patterns)) {
+            let count = 0;
+            for (const pattern of typePatterns) {
+                const matches = text.match(pattern);
+                if (matches) count += matches.length;
+            }
+            scores[type] = count;
+        }
+
+        // Trova il tipo con più match (soglia minima 3)
+        const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+        if (sorted[0][1] >= 3) {
+            return sorted[0][0];
+        }
+
+        return 'other';
+    }
+
+    /**
+     * 📝 Estrai contesto globale COMPLETO dal documento
+     * Crea un riassunto dettagliato per dare contesto all'AI
+     */
+    _extractGlobalContext(text) {
+        // Limita testo per evitare problemi di memoria
+        const sampleText = text.slice(0, 50000);
+        const contextParts = [];
+
+        // 1. Cerca titolo principale (prima riga significativa o header)
+        const titlePatterns = [
+            /^#\s+(.+)$/m,
+            /^([A-Z][A-Z\s]{5,60})$/m, // Titolo in maiuscolo
+            /^(Capitolo|Chapter)\s+\d+[:\s-]+(.+)$/im,
+            /^(Corso|Course|Materia|Subject)[:\s]+(.+)$/im,
+        ];
+
+        let mainTitle = '';
+        for (const pattern of titlePatterns) {
+            const match = sampleText.match(pattern);
+            if (match) {
+                mainTitle = (match[2] || match[1]).trim();
+                if (mainTitle.length > 5) break;
+            }
+        }
+        if (mainTitle) contextParts.push(mainTitle);
+
+        // 2. Estrai TUTTI i titoli/sezioni per capire la struttura
+        const sectionTitles = [];
+        const sectionPatterns = [
+            /^#+\s+(.{5,80})$/gm,
+            /^(\d+\.[\d.]*)\s+([A-Z][^\n]{5,60})$/gm,
+            /^(•|▪|➤|-)\s*([A-Z][^\n]{10,60})$/gm,
+        ];
+
+        for (const pattern of sectionPatterns) {
+            let match;
+            pattern.lastIndex = 0; // Reset regex
+            while ((match = pattern.exec(sampleText)) !== null && sectionTitles.length < 10) {
+                const title = (match[2] || match[1]).trim();
+                if (title.length > 5 && !sectionTitles.includes(title)) {
+                    sectionTitles.push(title);
+                }
+            }
+        }
+        if (sectionTitles.length > 0) {
+            contextParts.push(`Argomenti trattati: ${sectionTitles.join(', ')}`);
+        }
+
+        // 3. Estrai parole chiave tecniche dal testo (frequenza alta)
+        const technicalTerms = this._extractTechnicalTerms(sampleText);
+        if (technicalTerms.length > 0) {
+            contextParts.push(`Termini chiave: ${technicalTerms.slice(0, 15).join(', ')}`);
+        }
+
+        // 4. Identifica il campo/materia dal contenuto
+        const field = this._identifyField(sampleText);
+        if (field) {
+            contextParts.push(`Campo: ${field}`);
+        }
+
+        // Combina tutto in un contesto ricco
+        const fullContext = contextParts.join('. ');
+        return fullContext.length > 10 ? fullContext : 'Documento di studio';
+    }
+
+    /**
+     * 🔬 Estrai termini tecnici dal testo (con limite memoria)
+     */
+    _extractTechnicalTerms(text) {
+        // Limita testo per evitare problemi di memoria
+        const sampleText = text.slice(0, 50000);
+
+        // Stopwords italiane e inglesi
+        const stopwords = new Set([
+            'il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'di', 'a', 'da',
+            'in', 'con', 'su', 'per', 'tra', 'fra', 'che', 'non', 'come', 'anche',
+            'più', 'dove', 'quando', 'essere', 'avere', 'fare', 'dire', 'questo',
+            'quello', 'suo', 'loro', 'tutto', 'ogni', 'altro', 'molto', 'poco',
+            'nel', 'nella', 'dello', 'della', 'degli', 'delle', 'sono', 'sia',
+            'hanno', 'può', 'deve', 'quindi', 'perché', 'page', 'end', 'the', 'and',
+            'that', 'with', 'from', 'this', 'which', 'about', 'into', 'through',
+            'dell', 'all', 'alla', 'alle', 'agli', 'agli', 'nei', 'nelle', 'sui',
+            'sulla', 'sulle', 'dagli', 'dalle', 'quali', 'quale', 'quanto', 'quanti',
+            'stata', 'stato', 'stati', 'state', 'viene', 'vengono', 'fatto', 'fatta',
+            'essere', 'stata', 'stato', 'come', 'così', 'dopo', 'prima', 'ancora',
+            'sempre', 'solo', 'senza', 'verso', 'oltre', 'sotto', 'sopra', 'mentre'
+        ]);
+
+        // Conta frequenza parole significative (4+ caratteri, non stopword)
+        const wordFreq = {};
+        const words = sampleText.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/);
+
+        for (const word of words) {
+            if (word.length >= 4 && !stopwords.has(word) && !/^\d+$/.test(word)) {
+                wordFreq[word] = (wordFreq[word] || 0) + 1;
+            }
+        }
+
+        // Ordina per frequenza e prendi i top termini (min 3 occorrenze)
+        return Object.entries(wordFreq)
+            .filter(([_, count]) => count >= 3)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20)
+            .map(([word]) => word);
+    }
+
+    /**
+     * 🎓 Identifica il campo/materia del documento
+     */
+    _identifyField(text) {
+        // Limita testo per evitare problemi di memoria
+        const lowerText = text.slice(0, 50000).toLowerCase();
+
+        const fieldIndicators = {
+            'Economia e Finanza': ['bilancio', 'economia', 'finanza', 'mercato', 'investimento', 'capitale', 'debito', 'credito', 'banca', 'fiscale', 'tributario', 'imposta'],
+            'Diritto': ['legge', 'norma', 'giuridico', 'contratto', 'diritto', 'costituzione', 'codice', 'sentenza', 'tribunale', 'giudice'],
+            'Medicina e Biologia': ['cellula', 'organismo', 'malattia', 'sintomo', 'diagnosi', 'terapia', 'farmaco', 'anatomia', 'fisiologia', 'patologia'],
+            'Informatica': ['algoritmo', 'programmazione', 'software', 'database', 'rete', 'sistema operativo', 'codice', 'variabile', 'funzione'],
+            'Ingegneria': ['progettazione', 'struttura', 'materiale', 'meccanica', 'elettronica', 'circuito', 'sistema', 'energia'],
+            'Matematica': ['teorema', 'dimostrazione', 'funzione', 'equazione', 'derivata', 'integrale', 'matrice', 'vettore'],
+            'Fisica': ['forza', 'energia', 'massa', 'velocità', 'accelerazione', 'campo', 'onda', 'particella'],
+            'Chimica': ['molecola', 'atomo', 'reazione', 'elemento', 'composto', 'soluzione', 'acido', 'base'],
+            'Scienze Politiche': ['stato', 'governo', 'parlamento', 'democrazia', 'politica', 'elezione', 'partito', 'pubblico', 'amministrazione'],
+            'Psicologia': ['comportamento', 'cognizione', 'emozione', 'personalità', 'sviluppo', 'apprendimento', 'memoria'],
+        };
+
+        let bestField = '';
+        let maxScore = 0;
+
+        for (const [field, keywords] of Object.entries(fieldIndicators)) {
+            let score = 0;
+            for (const keyword of keywords) {
+                const regex = new RegExp(keyword, 'gi');
+                const matches = lowerText.match(regex);
+                if (matches) score += matches.length;
+            }
+            if (score > maxScore) {
+                maxScore = score;
+                bestField = field;
+            }
+        }
+
+        return maxScore >= 5 ? bestField : '';
+    }
+
+    /**
+     * 📚 Estrai topic principali dagli header - MIGLIORATO
+     */
+    _extractMainTopics(text) {
+        const topics = [];
+
+        // Pattern per trovare titoli e sezioni
+        const headerPatterns = [
+            /^#+\s+(.{5,80})$/gm,                          // Markdown headers
+            /^(\d+\.[\d.]*)\s+([^\n]{5,60})$/gm,           // Numbered sections
+            /^(Capitolo|Chapter)\s+\d+[:\s-]+(.+)$/gim,
+            /^(Sezione|Section)\s+[\d.]+[:\s-]+(.+)$/gim,
+            /^([A-Z][A-Z\s]{5,50}):?\s*$/gm,               // ALL CAPS titles
+            /^(•|▪|➤|►)\s*([A-Z][^\n]{10,60})$/gm,        // Bullet points
+        ];
+
+        for (const pattern of headerPatterns) {
+            let match;
+            pattern.lastIndex = 0; // Reset regex
+            while ((match = pattern.exec(text)) !== null && topics.length < 15) {
+                const topic = (match[2] || match[1]).trim();
+                if (topic.length > 5 && topic.length < 80) {
+                    const cleaned = topic.replace(/^[\d.\s:•▪➤►-]+/, '').trim();
+                    if (cleaned.length > 5 && !topics.some(t => t.toLowerCase() === cleaned.toLowerCase())) {
+                        topics.push(cleaned);
+                    }
+                }
+            }
+        }
+
+        return topics.slice(0, 10);
+    }
+
+    /**
+     * 📊 Calcola densità contenuto
+     */
+    _calculateDensityScore(text) {
+        // Fattori che aumentano la densità:
+        // - Presenza di definizioni, teoremi, formule
+        // - Rapporto parole/caratteri
+        // - Presenza di terminologia tecnica
+
+        const definitionCount = (text.match(/definizione|teorema|lemma|corollario|propriet[àa]/gi) || []).length;
+        const formulaCount = (text.match(/[=+\-*/^√∫∑∏]/g) || []).length;
+        const wordCount = text.split(/\s+/).length;
+        const charCount = text.length;
+
+        // Rapporto definizioni per 1000 parole
+        const defDensity = Math.min(1, (definitionCount / wordCount) * 100);
+
+        // Rapporto formule per 1000 caratteri
+        const formulaDensity = Math.min(1, (formulaCount / charCount) * 50);
+
+        // Densità media parole (più corte = più dense)
+        const avgWordLength = charCount / Math.max(1, wordCount);
+        const wordDensity = avgWordLength > 6 ? 0.7 : avgWordLength > 5 ? 0.5 : 0.3;
+
+        // Score finale
+        const score = (defDensity * 0.4) + (formulaDensity * 0.3) + (wordDensity * 0.3);
+        return Math.max(0.2, Math.min(1, score));
     }
 
     _sanitizeTutorHistory(history) {
