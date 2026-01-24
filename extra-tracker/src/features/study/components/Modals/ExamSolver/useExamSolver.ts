@@ -152,6 +152,36 @@ export const useExamSolver = ({
     const startTimeRef = useRef<number | null>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+    const currentStepRef = useRef<Step>(currentStep);
+    const objectUrlRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        currentStepRef.current = currentStep;
+    }, [currentStep]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+            }
+            if (objectUrlRef.current) {
+                URL.revokeObjectURL(objectUrlRef.current);
+                objectUrlRef.current = null;
+            }
+        }
+
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+            }
+            if (objectUrlRef.current) {
+                URL.revokeObjectURL(objectUrlRef.current);
+                objectUrlRef.current = null;
+            }
+        };
+    }, [isOpen]);
 
     // ============================================
     // LOCALSTORAGE CACHE
@@ -306,6 +336,10 @@ export const useExamSolver = ({
         setCreatedDeckId('');
         setGeneratedFlashcards([]);
         setSourceFileUrl(null);
+        if (objectUrlRef.current) {
+            URL.revokeObjectURL(objectUrlRef.current);
+            objectUrlRef.current = null;
+        }
         startTimeRef.current = null;
         setShowRestorePrompt(false);
         setCachedSession(null);
@@ -390,34 +424,6 @@ export const useExamSolver = ({
             loadGoals();
         }
     }, [isOpen, deckMode, goals.length, loadGoals]);
-
-    // ============================================
-    // TIMER LOGIC
-    // ============================================
-
-    useEffect(() => {
-        if (['extracting', 'analyzing', 'generating'].includes(progressStep)) {
-            if (!startTimeRef.current) {
-                startTimeRef.current = Date.now();
-            }
-            timerRef.current = setInterval(() => {
-                if (startTimeRef.current) {
-                    const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-                    // Timer visibile nel progress step (se necessario in futuro)
-                }
-            }, 1000);
-        } else {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-                timerRef.current = null;
-            }
-        }
-        return () => {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-            }
-        };
-    }, [progressStep]);
 
     // ============================================
     // ACTIONS
@@ -551,6 +557,9 @@ export const useExamSolver = ({
                     return response;
 
                 } catch (err: any) {
+                    if (err?.name === 'AbortError') {
+                        throw err;
+                    }
                     retryCount++;
                     const isLastAttempt = retryCount >= MAX_RETRIES;
 
@@ -630,7 +639,7 @@ export const useExamSolver = ({
                                     setGeneratedFlashcards(prev => [...prev, flashcardWithId]);
 
                                     // Auto-transizione a review quando arriva la prima flashcard
-                                    if (currentStep === 'progress') {
+                                    if (currentStepRef.current === 'progress') {
                                         setTimeout(() => {
                                             setCurrentStep('review');
                                             setProgressStep('completed');
@@ -654,18 +663,21 @@ export const useExamSolver = ({
                                 
                                 // Estrai sourceFileUrl dal deck (pdfUrl)
                                 const deckPdfUrl = data.deck?.pdfUrl;
+                                if (objectUrlRef.current) {
+                                    URL.revokeObjectURL(objectUrlRef.current);
+                                    objectUrlRef.current = null;
+                                }
                                 if (deckPdfUrl && typeof deckPdfUrl === 'string') {
                                     // Se è un path relativo, aggiungi il prefisso API se necessario
                                     const pdfUrl = deckPdfUrl.startsWith('http') 
                                         ? deckPdfUrl 
                                         : `/api${deckPdfUrl.startsWith('/') ? '' : '/'}${deckPdfUrl}`;
                                     setSourceFileUrl(pdfUrl);
-                                } else {
+                                } else if (sourceFile) {
                                     // Fallback: crea URL dal sourceFile se disponibile
-                                    if (sourceFile) {
-                                        const objectUrl = URL.createObjectURL(sourceFile);
-                                        setSourceFileUrl(objectUrl);
-                                    }
+                                    const objectUrl = URL.createObjectURL(sourceFile);
+                                    objectUrlRef.current = objectUrl;
+                                    setSourceFileUrl(objectUrl);
                                 }
                                 
                                 // Piccolo delay per assicurarsi che lo stato sia aggiornato

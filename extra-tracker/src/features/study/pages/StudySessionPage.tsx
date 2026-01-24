@@ -490,6 +490,9 @@ export const StudySessionPage: React.FC = () => {
             emitToast.error(err.message || 'Errore nel completamento della sessione');
             // Se fallisce, resetta il flag per permettere retry
             isSessionCompleteRef.current = false;
+            if (sessionKey) {
+                globalCompletedSessions.delete(sessionKey);
+            }
         } finally {
             setIsFinalizing(false);
         }
@@ -501,18 +504,26 @@ export const StudySessionPage: React.FC = () => {
             return;
         }
 
+        let intervalId: number | null = null;
         const tick = () => {
             const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
             const remaining = Math.max(0, timeLimitSeconds - elapsed);
             setTimeLeftSeconds(remaining);
             if (remaining === 0) {
                 finalizeSession(elapsed);
+                if (intervalId !== null) {
+                    window.clearInterval(intervalId);
+                }
             }
         };
 
         tick();
-        const intervalId = window.setInterval(tick, 1000);
-        return () => window.clearInterval(intervalId);
+        intervalId = window.setInterval(tick, 1000);
+        return () => {
+            if (intervalId !== null) {
+                window.clearInterval(intervalId);
+            }
+        };
     }, [timeLimitSeconds, session, finalizeSession]);
 
     // ============================================
