@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { studyService, type Deck, type CreateDeckPayload, type AddCardPayload } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
-import type { StudyMode } from '../components/Modals/StudyModeSelector';
+import type { StudyStartConfig } from '../components/Modals/StudyModeSelector';
 
 interface UseDeckHandlersProps {
     decks: Deck[];
@@ -80,12 +80,21 @@ export const useDeckHandlers = ({
         setExamSolverDeckId(null);
     }, [loadDecks]);
 
-    const handleStartSession = useCallback((config: { mode: StudyMode; shuffle: boolean; reverse: boolean }) => {
+    const handleStartSession = useCallback((config: StudyStartConfig) => {
         if (!studyDeck) return;
         const params = new URLSearchParams();
         params.set('mode', config.mode);
-        params.set('shuffle', config.shuffle ? 'true' : 'false');
-        params.set('reverse', config.reverse ? 'true' : 'false');
+        params.set('focus', config.focus);
+        params.set('length', config.length);
+        if (config.direction) {
+            params.set('direction', config.direction);
+        }
+        if (config.timeLimitMinutes) {
+            params.set('time', String(config.timeLimitMinutes));
+        }
+        if (config.questionCount) {
+            params.set('questions', String(config.questionCount));
+        }
         navigate(`/study/${studyDeck.id}/session?${params.toString()}`);
         setIsStudyModeOpen(false);
         setStudyDeck(null);

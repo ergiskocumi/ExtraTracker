@@ -3,7 +3,7 @@ import { CreateDeckModal } from '../Modals/CreateDeckModal';
 import { AddCardModal } from '../AddCardModal';
 import { MagicGenerateModal } from '../Modals/MagicGenerateModal';
 import { ExamSolverModal, type ExamSolverStats } from '../Modals/ExamSolver';
-import { StudyModeSelector, type StudyMode } from '../Modals/StudyModeSelector';
+import { StudyModeSelector, type StudyStartConfig } from '../Modals/StudyModeSelector';
 import { ConfirmationModal } from '../../../../shared/components/ConfirmationModal';
 import type { Deck, CreateDeckPayload, AddCardPayload } from '../../services/studyService';
 
@@ -37,7 +37,7 @@ interface DashboardModalsProps {
     isStudyModeOpen: boolean;
     studyDeck: Deck | null;
     onStudyModeClose: () => void;
-    onStartSession: (config: { mode: StudyMode; shuffle: boolean; reverse: boolean }) => void;
+    onStartSession: (config: StudyStartConfig) => void;
 
     // Delete Confirmation Modal
     deletingDeck: Deck | null;

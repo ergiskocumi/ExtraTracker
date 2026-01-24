@@ -7,7 +7,10 @@ export type { Tag } from './tagsService';
 
 export type ReviewRating = 1 | 3 | 5;
 export type CardStatus = 'new' | 'learning' | 'review' | 'mastered';
-export type StudyMode = 'flashcard' | 'quiz' | 'typing';
+export type StudyMode = 'flashcard' | 'quiz' | 'typing' | 'mix' | 'sprint' | 'focus' | 'exam';
+export type SessionFocus = 'smart' | 'due' | 'weak' | 'all';
+export type SessionLength = 'short' | 'standard' | 'deep';
+export type SessionDirection = 'front' | 'back' | 'mixed';
 export type ChatRole = 'user' | 'assistant';
 
 export interface Card {
@@ -59,6 +62,14 @@ export interface StudySession {
     remaining: number;
     total: number;
     mode?: StudyMode;
+    cardModes?: Record<string, StudyMode>;
+    meta?: {
+        focus?: SessionFocus;
+        limit?: number;
+        timeLimitMinutes?: number;
+        questionCount?: number;
+        direction?: SessionDirection;
+    };
 }
 
 export interface ReviewPayload {
@@ -91,6 +102,15 @@ export interface SessionCompletePayload {
         wrong: number;
         timeSeconds: number;
     };
+}
+
+export interface SessionRequestOptions {
+    mode?: StudyMode;
+    focus?: SessionFocus;
+    limit?: number;
+    timeLimitMinutes?: number;
+    questionCount?: number;
+    direction?: SessionDirection;
 }
 
 export interface SessionCompleteResult {
@@ -265,6 +285,12 @@ const normalizeSession = (payload: any): StudySession => {
     const cards = Array.isArray(payload?.cards)
         ? payload.cards.map(normalizeCard)
         : deck.cards;
+    const cardModes = payload?.cardModes && typeof payload.cardModes === 'object'
+        ? payload.cardModes as Record<string, StudyMode>
+        : undefined;
+    const meta = payload?.meta && typeof payload.meta === 'object'
+        ? payload.meta as StudySession['meta']
+        : undefined;
 
     return {
         deck,
@@ -272,6 +298,8 @@ const normalizeSession = (payload: any): StudySession => {
         remaining: safeNumber(payload?.remaining, cards.length),
         total: safeNumber(payload?.total, deck.totalCards || cards.length),
         mode: payload?.mode,
+        cardModes,
+        meta,
     };
 };
 
@@ -389,8 +417,17 @@ class StudyService {
      * Carica una sessione di studio per un mazzo specifico
      * Recupera i dati freschi dal backend (risolve il problema del refresh)
      */
-    async getSession(deckId: string, mode: StudyMode = 'flashcard'): Promise<StudySession> {
-        const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/session?mode=${mode}`);
+    async getSession(deckId: string, options: SessionRequestOptions = {}): Promise<StudySession> {
+        const params = new URLSearchParams();
+        if (options.mode) params.set('mode', options.mode);
+        if (options.focus) params.set('focus', options.focus);
+        if (options.limit) params.set('limit', String(options.limit));
+        if (options.timeLimitMinutes) params.set('time', String(options.timeLimitMinutes));
+        if (options.questionCount) params.set('questions', String(options.questionCount));
+        if (options.direction) params.set('direction', options.direction);
+
+        const query = params.toString();
+        const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/session${query ? `?${query}` : ''}`);
         const raw = unwrap(response, 'Errore nel recupero della sessione');
         return normalizeSession(raw);
     }

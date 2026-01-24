@@ -549,8 +549,9 @@ class StudyService extends BaseService {
     // STUDY SESSION (invariato)
     // =========================================
 
-    async getStudySession(tenantScope, deckId, mode = 'flashcard') {
+    async getStudySession(tenantScope, deckId, options = {}) {
         const userId = this._getUserId(tenantScope);
+        const config = typeof options === 'string' ? { mode: options } : (options || {});
 
         const deck = await Deck.findOne({
             _id: deckId,
@@ -565,24 +566,54 @@ class StudyService extends BaseService {
         const cards = Array.isArray(deckJson.cards) ? deckJson.cards : [];
         const now = new Date();
 
+        const mode = this._normalizeStudyMode(config.mode);
+        const normalizedFocus = this._normalizeSessionFocus(config.focus);
+        const focus = mode === 'exam' ? 'all' : mode === 'focus' ? 'weak' : normalizedFocus;
+        const direction = this._normalizeSessionDirection(config.direction);
+        const requestedLimit = this._toNumber(config.limit, 0);
+        const requestedQuestions = this._toNumber(config.questionCount, 0);
+        const timeLimitMinutes = this._toNumber(config.timeLimitMinutes, 0);
+
         const dueCards = cards.filter(card => {
             const nextReview = new Date(card.nextReviewDate);
             return nextReview <= now;
         });
 
-        const sessionCards = dueCards.length > 0 ? dueCards : cards;
+        const defaultLimit = this._getDefaultSessionLimit(mode);
+        const sessionLimit = Math.min(
+            requestedLimit > 0
+                ? requestedLimit
+                : mode === 'exam' && requestedQuestions > 0
+                    ? requestedQuestions
+                    : defaultLimit,
+            cards.length
+        );
 
-        let enrichedCards = sessionCards;
-        if (mode === 'quiz') {
-            const allAnswers = cards
-                .map(card => card.back)
-                .filter(answer => typeof answer === 'string' && answer.trim().length > 0);
+        const sessionCards = this._selectSessionCards({
+            cards,
+            dueCards,
+            mode,
+            focus,
+            limit: sessionLimit,
+            now,
+        });
 
-            enrichedCards = sessionCards.map(card => ({
-                ...card,
-                options: this._buildQuizOptions(card.back, allAnswers),
-            }));
-        }
+        const cardModes = this._buildCardModes(mode, sessionCards);
+        const allAnswers = cards
+            .map(card => card.back)
+            .filter(answer => typeof answer === 'string' && answer.trim().length > 0);
+
+        const enrichedCards = sessionCards.map(card => {
+            const cardId = this._resolveCardId(card);
+            const cardMode = cardModes?.[cardId] || mode;
+            if (cardMode === 'quiz') {
+                return {
+                    ...card,
+                    options: this._buildQuizOptions(card.back, allAnswers),
+                };
+            }
+            return card;
+        });
 
         return {
             deck: {
@@ -594,6 +625,14 @@ class StudyService extends BaseService {
             remaining: sessionCards.length,
             total: cards.length,
             mode,
+            cardModes,
+            meta: {
+                focus,
+                limit: sessionLimit || cards.length,
+                timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : undefined,
+                questionCount: mode === 'exam' ? sessionLimit : undefined,
+                direction,
+            },
         };
     }
 
@@ -3093,6 +3132,174 @@ Genera una risposta per OGNI domanda nella lista.`;
         if (!Number.isFinite(maxLength) || maxLength <= 0) return '';
         if (text.length <= maxLength) return text;
         return text.slice(0, maxLength) + (typeof suffix === 'string' ? suffix : '');
+    }
+
+    _normalizeStudyMode(value) {
+        const normalized = typeof value === 'string' ? value.toLowerCase() : 'flashcard';
+        const allowed = ['flashcard', 'quiz', 'typing', 'mix', 'sprint', 'focus', 'exam'];
+        return allowed.includes(normalized) ? normalized : 'flashcard';
+    }
+
+    _normalizeSessionFocus(value) {
+        const normalized = typeof value === 'string' ? value.toLowerCase() : 'smart';
+        const allowed = ['smart', 'due', 'weak', 'all'];
+        return allowed.includes(normalized) ? normalized : 'smart';
+    }
+
+    _normalizeSessionDirection(value) {
+        const normalized = typeof value === 'string' ? value.toLowerCase() : 'front';
+        const allowed = ['front', 'back', 'mixed'];
+        return allowed.includes(normalized) ? normalized : 'front';
+    }
+
+    _getDefaultSessionLimit(mode) {
+        const defaults = {
+            flashcard: 20,
+            quiz: 20,
+            typing: 20,
+            mix: 30,
+            sprint: 15,
+            focus: 20,
+            exam: 30,
+        };
+        return defaults[mode] || 20;
+    }
+
+    _resolveCardId(card) {
+        if (!card) return '';
+        return String(card.id || card._id || '');
+    }
+
+    _calculateCardDifficulty(card, now) {
+        const ease = Number.isFinite(Number(card?.easinessFactor)) ? Number(card.easinessFactor) : 2.5;
+        const interval = Number.isFinite(Number(card?.interval)) ? Number(card.interval) : 0;
+        const repetitions = Number.isFinite(Number(card?.repetitions)) ? Number(card.repetitions) : 0;
+        const status = typeof card?.status === 'string' ? card.status : 'review';
+
+        const nowTs = now instanceof Date ? now.getTime() : Date.now();
+        const nextReviewTs = card?.nextReviewDate ? new Date(card.nextReviewDate).getTime() : 0;
+        const overdueDays = nextReviewTs > 0 ? Math.max(0, (nowTs - nextReviewTs) / 86400000) : 0;
+
+        const easePenalty = Math.max(0, 2.6 - ease) * 1.2;
+        const intervalPenalty = interval > 0 ? Math.min(1.2, 1 / interval) : 0.9;
+        const repetitionPenalty = repetitions < 2 ? 0.8 : repetitions < 4 ? 0.4 : 0;
+        const statusBonus = status === 'learning' ? 0.6 : status === 'new' ? 0.4 : 0;
+        const overdueBonus = Math.min(2, overdueDays * 0.15);
+
+        return easePenalty + intervalPenalty + repetitionPenalty + statusBonus + overdueBonus;
+    }
+
+    _buildSmartSelection(cards, dueCards, now) {
+        const sortedDue = [...dueCards].sort((a, b) => {
+            const aTime = new Date(a.nextReviewDate).getTime();
+            const bTime = new Date(b.nextReviewDate).getTime();
+            return aTime - bTime;
+        });
+        const dueIds = new Set(sortedDue.map(card => this._resolveCardId(card)));
+        const remaining = cards.filter(card => !dueIds.has(this._resolveCardId(card)));
+        const scored = remaining
+            .map(card => ({ card, score: this._calculateCardDifficulty(card, now) }))
+            .sort((a, b) => b.score - a.score)
+            .map(item => item.card);
+        return [...sortedDue, ...scored];
+    }
+
+    _buildExamSelection(cards, limit) {
+        const buckets = {
+            new: [],
+            learning: [],
+            review: [],
+            mastered: [],
+        };
+
+        for (const card of cards) {
+            const status = typeof card.status === 'string' ? card.status : 'review';
+            if (buckets[status]) {
+                buckets[status].push(card);
+            } else {
+                buckets.review.push(card);
+            }
+        }
+
+        const order = [
+            { key: 'learning', weight: 3 },
+            { key: 'review', weight: 3 },
+            { key: 'new', weight: 2 },
+            { key: 'mastered', weight: 1 },
+        ];
+
+        const shuffledBuckets = Object.fromEntries(
+            Object.entries(buckets).map(([key, items]) => [key, this._shuffleArray(items)])
+        );
+
+        const selection = [];
+        let progressMade = true;
+
+        while (selection.length < limit && progressMade) {
+            progressMade = false;
+            for (const bucket of order) {
+                for (let i = 0; i < bucket.weight; i += 1) {
+                    if (selection.length >= limit) break;
+                    const items = shuffledBuckets[bucket.key];
+                    if (items.length > 0) {
+                        selection.push(items.pop());
+                        progressMade = true;
+                    }
+                }
+                if (selection.length >= limit) break;
+            }
+        }
+
+        if (selection.length < limit) {
+            const selectedIds = new Set(selection.map(card => this._resolveCardId(card)));
+            const remaining = cards.filter(card => !selectedIds.has(this._resolveCardId(card)));
+            const filler = this._shuffleArray(remaining);
+            for (const card of filler) {
+                if (selection.length >= limit) break;
+                selection.push(card);
+            }
+        }
+
+        return selection;
+    }
+
+    _buildCardModes(mode, cards) {
+        if (mode !== 'mix' && mode !== 'exam') return undefined;
+        const cycle = mode === 'exam'
+            ? ['quiz', 'typing', 'quiz', 'flashcard', 'typing']
+            : ['quiz', 'typing', 'flashcard'];
+        return cards.reduce((acc, card, index) => {
+            acc[this._resolveCardId(card)] = cycle[index % cycle.length];
+            return acc;
+        }, {});
+    }
+
+    _selectSessionCards({ cards, dueCards, mode, focus, limit, now }) {
+        let selection = [];
+
+        if (mode === 'exam') {
+            selection = this._buildExamSelection(cards, limit || cards.length);
+        } else if (focus === 'due') {
+            const sortedDue = [...dueCards].sort((a, b) => {
+                const aTime = new Date(a.nextReviewDate).getTime();
+                const bTime = new Date(b.nextReviewDate).getTime();
+                return aTime - bTime;
+            });
+            selection = sortedDue.length > 0 ? sortedDue : cards;
+        } else if (focus === 'weak') {
+            selection = [...cards]
+                .map(card => ({ card, score: this._calculateCardDifficulty(card, now) }))
+                .sort((a, b) => b.score - a.score)
+                .map(item => item.card);
+        } else if (focus === 'all') {
+            selection = [...cards];
+        } else {
+            selection = this._buildSmartSelection(cards, dueCards, now);
+        }
+
+        const trimmed = limit > 0 ? selection.slice(0, limit) : selection;
+        const shouldShuffle = ['quiz', 'mix', 'sprint'].includes(mode) && focus !== 'due';
+        return shouldShuffle ? this._shuffleArray(trimmed) : trimmed;
     }
 
     _buildQuizOptions(correctAnswer, allAnswers = []) {

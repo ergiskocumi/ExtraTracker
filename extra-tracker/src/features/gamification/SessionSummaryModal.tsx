@@ -26,6 +26,7 @@ import {
     FiX,
 } from 'react-icons/fi';
 import { LevelBadge } from './components/LevelBadge';
+import type { StudyMode } from '../study/services/studyService';
 
 export interface SessionSummary {
     correctCount: number;
@@ -43,6 +44,11 @@ export interface SessionSummary {
         xp: number;
         nextLevelXp: number;
     };
+    mode?: StudyMode;
+    score?: number;
+    passed?: boolean;
+    questionsTarget?: number;
+    timeLimitSeconds?: number;
     // Statistiche aggiuntive (opzionali)
     stats?: {
         hard?: number;
@@ -178,6 +184,10 @@ export const SessionSummaryModal: React.FC<SessionSummaryModalProps> = ({
     const progress = summary.level
         ? Math.min(1, summary.level.xp / Math.max(summary.level.nextLevelXp, 1))
         : 1;
+    const isExamMode = summary.mode === 'exam';
+    const examScore = summary.score ?? successRate;
+    const examPassed = summary.passed ?? examScore >= 70;
+    const examQuestions = summary.questionsTarget ?? totalCards;
 
     // Statistiche per rating (se disponibili)
     const hardCount = summary.stats?.hard || 0;
@@ -252,6 +262,36 @@ export const SessionSummaryModal: React.FC<SessionSummaryModalProps> = ({
 
                             {/* Content */}
                             <div className="px-6 sm:px-8 pb-6 sm:pb-8 space-y-6">
+                                {isExamMode && (
+                                    <div className={`rounded-2xl border p-4 sm:p-5 ${examPassed ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-rose-500/30 bg-rose-500/10'}`}>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs uppercase tracking-[0.25em] text-white/50">Esame</p>
+                                                <h3 className="mt-2 text-lg sm:text-xl font-semibold text-white">
+                                                    Score {examScore}%
+                                                </h3>
+                                            </div>
+                                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                                examPassed
+                                                    ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40'
+                                                    : 'bg-rose-500/20 text-rose-200 border border-rose-500/40'
+                                            }`}>
+                                                {examPassed ? 'Superato' : 'Non superato'}
+                                            </span>
+                                        </div>
+                                        <div className="mt-4 grid gap-3 sm:grid-cols-2 text-sm text-white/70">
+                                            <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                                                Domande: <span className="text-white/90 font-semibold">{examQuestions}</span>
+                                            </div>
+                                            {summary.timeLimitSeconds && (
+                                                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                                                    Tempo: <span className="text-white/90 font-semibold">{formatDuration(summary.timeLimitSeconds)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Statistiche Principali */}
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                                     <StatCard

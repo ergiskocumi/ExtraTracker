@@ -11,7 +11,7 @@ export { FlashcardCarousel } from './Flashcard/FlashcardCarousel';
 // Modals
 export { CreateDeckModal } from './Modals/CreateDeckModal';
 export { MagicGenerateModal } from './Modals/MagicGenerateModal';
-export { StudyModeSelector, type StudyMode } from './Modals/StudyModeSelector';
+export { StudyModeSelector, type StudyMode, type StudyStartConfig } from './Modals/StudyModeSelector';
 
 // Study components
 export { StudySidebar, CardModal } from './Study/StudySidebar';

@@ -63,18 +63,30 @@ const getDeckById = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/study/:id/session
- * Recupera una sessione di studio (flashcard | quiz | typing)
+ * Recupera una sessione di studio (flashcard | quiz | typing | mix | sprint | focus | exam)
  */
 const getSession = asyncHandler(async (req, res) => {
     const requestedMode = String(req.query.mode || 'flashcard').toLowerCase();
-    const mode = ['flashcard', 'quiz', 'typing'].includes(requestedMode)
+    const mode = ['flashcard', 'quiz', 'typing', 'mix', 'sprint', 'focus', 'exam'].includes(requestedMode)
         ? requestedMode
         : 'flashcard';
+    const focus = String(req.query.focus || 'smart').toLowerCase();
+    const limitValue = Number(req.query.limit);
+    const timeValue = Number(req.query.time);
+    const questionsValue = Number(req.query.questions);
+    const direction = String(req.query.direction || 'front').toLowerCase();
 
     const session = await studyService.getStudySession(
         req.tenantScope,
         req.params.id,
-        mode
+        {
+            mode,
+            focus,
+            limit: Number.isFinite(limitValue) ? limitValue : undefined,
+            timeLimitMinutes: Number.isFinite(timeValue) ? timeValue : undefined,
+            questionCount: Number.isFinite(questionsValue) ? questionsValue : undefined,
+            direction,
+        }
     );
 
     res.json({ success: true, data: session });
