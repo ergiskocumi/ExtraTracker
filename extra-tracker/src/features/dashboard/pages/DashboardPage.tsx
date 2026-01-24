@@ -53,11 +53,8 @@ const getGreetingInfo = () => {
         return { text: 'Buongiorno', icon: Sunrise, color: 'from-amber-500 to-orange-500' };
     } else if (hour >= 12 && hour < 18) {
         return { text: 'Buon pomeriggio', icon: Sun, color: 'from-yellow-500 to-orange-500' };
-    } else if (hour >= 18 && hour < 22) {
+    } else
         return { text: 'Buonasera', icon: Sunset, color: 'from-orange-500 to-rose-500' };
-    } else {
-        return { text: 'Buonanotte', icon: Moon, color: 'from-indigo-500 to-purple-500' };
-    }
 };
 
 /**
@@ -116,10 +113,6 @@ const RecentItemSkeleton = () => (
     </div>
 );
 
-// =========================================
-// NUOVE CARD - Design Migliorato
-// =========================================
-
 /**
  * Card: Statistiche di Oggi
  * Mostra attività della giornata corrente
@@ -148,7 +141,7 @@ const TodayStatsCard: React.FC<TodayStatsCardProps> = React.memo(
                         Oggi
                     </h3>
                     <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-200">
-                        In tempo reale
+                        Adesso
                     </span>
                 </div>
 
@@ -159,7 +152,7 @@ const TodayStatsCard: React.FC<TodayStatsCardProps> = React.memo(
                             <div className="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
                                 <Brain className="w-5 h-5 text-violet-300" />
                             </div>
-                            <span className="text-white/70 text-sm">Carte ripassate</span>
+                            <span className="text-white/70 text-sm">Carte Studiate Oggi</span>
                         </div>
                         <span className="text-xl font-bold text-white">{studiedToday}</span>
                     </div>
@@ -170,7 +163,7 @@ const TodayStatsCard: React.FC<TodayStatsCardProps> = React.memo(
                             <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
                                 <CheckCircle2 className="w-5 h-5 text-amber-300" />
                             </div>
-                            <span className="text-white/70 text-sm">Obiettivi completati</span>
+                            <span className="text-white/70 text-sm">Obiettivi Completati Oggi</span>
                         </div>
                         <span className="text-xl font-bold text-white">{goalsCompletedToday}</span>
                     </div>
@@ -215,11 +208,11 @@ const UpcomingTasksCard: React.FC<UpcomingTasksCardProps> = React.memo(
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-bold text-white flex items-center gap-2">
                             <BookOpen className="w-6 h-6 text-violet-400" />
-                            Prossimi Task
+                            Studio / Obiettivi
                         </h3>
                         {(dueCards > 0 || overdueCount > 0) && (
                             <span className="text-xs px-3 py-1.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-200">
-                                {dueCards + overdueCount} urgenti
+                                {dueCards + overdueCount} da ripassare
                             </span>
                         )}
                     </div>
@@ -301,14 +294,14 @@ const QuickActionsCard: React.FC = React.memo(() => {
     const actions = [
         {
             icon: Brain,
-            label: 'Studia',
+            label: 'Flashcards',
             bgColor: 'bg-violet-500/10',
             borderColor: 'border-violet-500/30',
             onClick: () => navigate('/study')
         },
         {
             icon: Target,
-            label: 'Obiettivi',
+            label: 'Goals',
             bgColor: 'bg-emerald-500/10',
             borderColor: 'border-emerald-500/30',
             onClick: () => navigate('/goals')
@@ -324,10 +317,9 @@ const QuickActionsCard: React.FC = React.memo(() => {
         >
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-[28px] blur-3xl" />
 
-            <div className="relative">
+            <div className="flex flex-col items-center justify-center">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    <Zap className="w-6 h-6 text-amber-400" />
-                    Quick Actions
+                    Azioni Rapide
                 </h3>
 
                 <div className="grid grid-cols-3 gap-3">
@@ -403,11 +395,11 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
             <div className="absolute -bottom-16 -left-12 h-40 w-40 -rotate-12 rounded-[26px] bg-white/[0.04] border border-white/10" />
             <div className="flex items-center justify-between mb-5">
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-amber-400" />
-                    Riprendi da dove eri
+                    <Clock className="w-5 h-5 text-amber-400" />
+                    Riprendi Da Dove Hai Lasciato
                 </h3>
                 <span className="text-sm text-white/50">
-                    {items.length} recenti
+                    {items.length} Cose Lasciate
                 </span>
             </div>
 
