@@ -1086,7 +1086,7 @@ class StudyService extends BaseService {
                     Number.isFinite(card.sourceMetadata.pageNumber) &&
                     card.sourceMetadata.pageNumber > 0 &&
                     typeof card.sourceMetadata.originalText === 'string' &&
-                    card.sourceMetadata.originalText.trim().length >= 20) {
+                    card.sourceMetadata.originalText.trim().length >= 150) {
                     cardData.sourceMetadata = {
                         pageNumber: card.sourceMetadata.pageNumber,
                         originalText: card.sourceMetadata.originalText.trim(),
@@ -1442,11 +1442,14 @@ ${avoidList}
 - "Come funziona il processo di X?" - meccanismi
 - "Quali sono le caratteristiche principali di X?" - definizioni complete
 
-📌 SOURCE METADATA (obbligatorio):
-Per ogni flashcard: page_number (intero) + original_quote (citazione ESATTA min 20 char).
+📌 SOURCE METADATA (obbligatorio per ogni flashcard):
+- page_number: numero pagina (intero)
+- original_quote: CITAZIONE LUNGA dal testo originale (MINIMO 150-250 caratteri, circa 1-2 righe complete)
+  DEVE essere un PARAGRAFO COMPLETO o più FRASI CONSECUTIVE che contengano il concetto.
+  L'utente userà questa citazione per trovare il passaggio nel PDF, quindi deve essere abbastanza lunga.
 
 OUTPUT JSON:
-{"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"citazione verbatim"}}]}`;
+{"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"paragrafo completo di 150-250 caratteri..."}}]}`;
 
         const MAX_RETRIES = 2;
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -1528,7 +1531,9 @@ ${avoidList}
 
 ✅ PRIVILEGIA: "Quali sono tutti i tipi/fasi di X?", causa-effetto, confronti, meccanismi.
 
-OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"..."}}]}`;
+📌 SOURCE: Per ogni card includi page_number + original_quote (PARAGRAFO COMPLETO, min 150-250 char = 1-2 righe del PDF).
+
+OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"paragrafo di 150-250 caratteri..."}}]}`;
 
         try {
             const completion = await openai.chat.completions.create({
@@ -3049,8 +3054,8 @@ Genera una risposta per OGNI domanda nella lista.`;
                     ? sourceMeta.original_quote.trim() 
                     : (typeof sourceMeta.originalQuote === 'string' ? sourceMeta.originalQuote.trim() : null);
 
-                // Valida che abbiamo almeno page_number e original_quote
-                if (pageNumber !== null && pageNumber > 0 && originalQuote && originalQuote.length >= 20) {
+                // Valida che abbiamo almeno page_number e original_quote (min 150 char = 1-2 righe)
+                if (pageNumber !== null && pageNumber > 0 && originalQuote && originalQuote.length >= 150) {
                     normalized.sourceMetadata = {
                         pageNumber: pageNumber,
                         originalText: originalQuote,

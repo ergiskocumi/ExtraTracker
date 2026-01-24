@@ -9,7 +9,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, FileText, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, Search } from 'lucide-react';
+import { X, FileText, Search } from 'lucide-react';
 import PDFReader, { type PDFReaderRef } from '../../../PDF/PDFReader';
 
 // ============================================
@@ -44,17 +44,17 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
     // Quando il PDF è caricato, salta alla pagina e evidenzia il testo
     useEffect(() => {
         if (isLoaded && pdfReaderRef.current && pageNumber) {
-            // Piccolo delay per assicurarsi che il PDF sia renderizzato
+            // Delay minimo per rendering
             const timer = setTimeout(() => {
-                if (highlightText && highlightText.length > 20) {
-                    // Se abbiamo il testo, salta e evidenzia
+                if (highlightText && highlightText.length >= 100) {
+                    // Se abbiamo testo sufficiente (1-2 righe), salta e evidenzia
                     pdfReaderRef.current?.jumpToPageAndHighlight(pageNumber, highlightText);
                 } else {
                     // Altrimenti salta solo alla pagina
                     pdfReaderRef.current?.jumpToPage(pageNumber - 1); // 0-based
                 }
-            }, 500);
-            
+            }, 200);
+
             return () => clearTimeout(timer);
         }
     }, [isLoaded, pageNumber, highlightText]);
@@ -130,14 +130,14 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
                     )}
 
                     {/* Highlight Preview */}
-                    {highlightText && (
-                        <div className="px-6 py-3 border-b border-white/5 bg-emerald-500/5">
+                    {highlightText && highlightText.length >= 100 && (
+                        <div className="px-6 py-3 border-b border-white/5 bg-violet-500/5">
                             <div className="flex items-center gap-2 mb-1">
-                                <Search className="w-3.5 h-3.5 text-emerald-400" />
-                                <p className="text-xs text-white/50">Testo evidenziato:</p>
+                                <Search className="w-3.5 h-3.5 text-violet-400" />
+                                <p className="text-xs text-white/50">Testo evidenziato nel PDF:</p>
                             </div>
-                            <p className="text-sm text-emerald-300 italic line-clamp-2">
-                                "{highlightText.substring(0, 150)}{highlightText.length > 150 ? '...' : ''}"
+                            <p className="text-sm text-violet-300 italic line-clamp-4">
+                                "{highlightText.substring(0, 300)}{highlightText.length > 300 ? '...' : ''}"
                             </p>
                         </div>
                     )}

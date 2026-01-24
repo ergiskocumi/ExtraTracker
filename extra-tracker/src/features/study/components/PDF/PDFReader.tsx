@@ -320,62 +320,22 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
         },
         highlightText: (text: string, options?: { caseSensitive?: boolean; wholeWords?: boolean }) => {
             try {
-                // The search plugin API: use keyword property and clearHighlights/highlight methods
                 const plugin = searchPluginInstance as any;
-                
+
                 // Clear previous highlights
                 if (typeof plugin.clearHighlights === 'function') {
                     plugin.clearHighlights();
                 }
-                
-                // Normalize text for robust search (handle whitespace differences)
-                const normalizeText = (str: string): string => {
-                    return str
-                        .replace(/\s+/g, ' ') // Replace multiple spaces/newlines with single space
-                        .replace(/\n+/g, ' ') // Replace newlines with space
-                        .replace(/\r+/g, ' ') // Replace carriage returns with space
-                        .replace(/\t+/g, ' ') // Replace tabs with space
-                        .trim();
-                };
-                
-                const normalizedText = normalizeText(text);
-                
-                // Set keyword (this triggers the search automatically in some versions)
-                // For @react-pdf-viewer/search, we need to use the keyword setter
-                if (plugin.keyword !== normalizedText) {
-                    if (typeof plugin.setKeyword === 'function') {
-                        plugin.setKeyword(normalizedText);
-                    } else if (plugin.keyword !== undefined) {
-                        plugin.keyword = normalizedText;
-                    }
-                }
-                
-                // Set match case and whole words - use flexible options for robust search
-                // Default: case insensitive, not whole words (to handle partial matches)
-                const matchCase = options?.caseSensitive ?? false;
-                const wholeWords = options?.wholeWords ?? false;
-                
-                if (typeof plugin.setMatchCase === 'function') {
-                    plugin.setMatchCase(matchCase);
-                } else if (plugin.matchCase !== undefined) {
-                    plugin.matchCase = matchCase;
-                }
-                
-                if (typeof plugin.setWholeWords === 'function') {
-                    plugin.setWholeWords(wholeWords);
-                } else if (plugin.wholeWords !== undefined) {
-                    plugin.wholeWords = wholeWords;
-                }
-                
-                // Trigger highlight/search
+
+                const normalizedText = text.replace(/\s+/g, ' ').trim();
+                if (!normalizedText) return;
+
+                // Try highlight method
                 if (typeof plugin.highlight === 'function') {
                     plugin.highlight(normalizedText);
-                } else if (typeof plugin.search === 'function') {
-                    plugin.search(normalizedText);
                 }
             } catch (err) {
                 console.error('[PDFReader] Error highlighting text:', err);
-                onSearchError?.('Errore durante la ricerca del testo');
             }
         },
         jumpToPageAndHighlight: (pageNumber: number, text: string) => {
@@ -386,109 +346,36 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                 if (typeof jumpToPage === 'function') {
                     jumpToPage(pageIndex);
                 }
-                
-                // Normalize text for robust search
-                const normalizeText = (str: string): string => {
-                    return str
-                        .replace(/\s+/g, ' ') // Replace multiple spaces/newlines with single space
-                        .replace(/\n+/g, ' ') // Replace newlines with space
-                        .replace(/\r+/g, ' ') // Replace carriage returns with space
-                        .replace(/\t+/g, ' ') // Replace tabs with space
-                        .trim();
-                };
-                
-                const normalizedText = normalizeText(text);
-                
-                // Strategy: Try multiple search approaches with increasing flexibility
-                let fallbackTimeout: number | null = null;
-                const attemptHighlight = (searchText: string, attempt: number = 0) => {
-                    // Clear any pending fallback
-                    if (fallbackTimeout) {
-                        clearTimeout(fallbackTimeout);
-                        fallbackTimeout = null;
-                    }
-                    
+
+                // Normalize and get first part of text
+                const searchText = text
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .substring(0, 50)
+                    .trim();
+
+                if (!searchText || searchText.length < 5) return;
+
+                // Delay to allow page to render, then highlight
+                setTimeout(() => {
                     try {
                         const plugin = searchPluginInstance as any;
-                        
+
                         // Clear previous highlights
                         if (typeof plugin.clearHighlights === 'function') {
                             plugin.clearHighlights();
                         }
-                        
-                        // Set keyword
-                        if (typeof plugin.setKeyword === 'function') {
-                            plugin.setKeyword(searchText);
-                        } else if (plugin.keyword !== undefined) {
-                            plugin.keyword = searchText;
-                        }
-                        
-                        // Set flexible search options (case insensitive, not whole words)
-                        if (typeof plugin.setMatchCase === 'function') {
-                            plugin.setMatchCase(false);
-                        } else if (plugin.matchCase !== undefined) {
-                            plugin.matchCase = false;
-                        }
-                        
-                        if (typeof plugin.setWholeWords === 'function') {
-                            plugin.setWholeWords(false);
-                        } else if (plugin.wholeWords !== undefined) {
-                            plugin.wholeWords = false;
-                        }
-                        
-                        // Trigger highlight/search
+
+                        // Use highlight with string (simpler API)
                         if (typeof plugin.highlight === 'function') {
                             plugin.highlight(searchText);
-                        } else if (typeof plugin.search === 'function') {
-                            plugin.search(searchText);
                         }
-                        
-                        // Schedule fallback only if this is the first attempt and text is long enough
-                        // The fallback will try progressively shorter substrings
-                        if (attempt === 0 && searchText.length > 40) {
-                            fallbackTimeout = setTimeout(() => {
-                                // Try with first 30 chars + last 30 chars (handles line breaks)
-                                const firstPart = searchText.substring(0, 30).trim();
-                                const lastPart = searchText.substring(searchText.length - 30).trim();
-                                const fallbackText = `${firstPart} ${lastPart}`;
-                                attemptHighlight(fallbackText, 1);
-                            }, 1500); // Give initial search time to work
-                        } else if (attempt === 1 && searchText.length > 20) {
-                            fallbackTimeout = setTimeout(() => {
-                                // Try with just first 20 chars
-                                const shortText = searchText.substring(0, 20).trim();
-                                attemptHighlight(shortText, 2);
-                            }, 1500);
-                        } else if (attempt === 2) {
-                            // Final fallback - notify user after a delay
-                            fallbackTimeout = setTimeout(() => {
-                                onSearchError?.('Impossibile localizzare la frase esatta nel testo');
-                            }, 2000);
-                        }
-                    } catch (err) {
-                        console.error(`[PDFReader] Error highlighting (attempt ${attempt}):`, err);
-                        if (attempt === 0 && normalizedText.length > 40) {
-                            // Try fallback on first error
-                            const firstPart = normalizedText.substring(0, 30).trim();
-                            const lastPart = normalizedText.substring(normalizedText.length - 30).trim();
-                            const fallbackText = `${firstPart} ${lastPart}`;
-                            setTimeout(() => attemptHighlight(fallbackText, 1), 300);
-                        } else if (attempt === 1 && normalizedText.length > 20) {
-                            const shortText = normalizedText.substring(0, 20).trim();
-                            setTimeout(() => attemptHighlight(shortText, 2), 300);
-                        } else {
-                            onSearchError?.('Impossibile localizzare la frase esatta nel testo');
-                        }
+                    } catch (innerErr) {
+                        // Silent fail
                     }
-                };
-                
-                // Wait for page to render, then attempt highlight
-                setTimeout(() => {
-                    attemptHighlight(normalizedText, 0);
-                }, 600); // Increased delay to ensure page is fully rendered
+                }, 500);
             } catch (err) {
                 console.error('[PDFReader] Error in jumpToPageAndHighlight:', err);
-                onSearchError?.('Errore durante la navigazione al testo');
             }
         },
     }), [pageNavigationPluginInstance, searchPluginInstance]);
@@ -641,6 +528,10 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                         ]}
                         theme={isDarkMode ? 'dark' : undefined}
                         withCredentials={true}
+                        characterMap={{
+                            isCompressed: true,
+                            url: `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/cmaps/`,
+                        }}
                         renderLoader={(percentages) => (
                             <PDFLoadingState progress={typeof percentages === 'number' ? percentages : undefined} />
                         )}
@@ -768,6 +659,60 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                 }
                 .pdf-reader-light .rpv-core__page-layer {
                     --page-bg: #f5f5f5;
+                }
+
+                /* ===== SEARCH HIGHLIGHT STYLES - VIOLET ===== */
+                /* Main highlight styling - visible violet background */
+                .rpv-search__highlight {
+                    background-color: rgba(139, 92, 246, 0.45) !important;
+                    border-radius: 2px !important;
+                    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3) !important;
+                }
+
+                /* Current/active highlight - brighter */
+                .rpv-search__highlight--current {
+                    background-color: rgba(139, 92, 246, 0.7) !important;
+                    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.5), 0 2px 8px rgba(139, 92, 246, 0.4) !important;
+                }
+
+                /* Alternative class names that the library might use */
+                .rpv-search__highlights {
+                    pointer-events: none;
+                }
+
+                .rpv-search__highlights > div {
+                    background-color: rgba(139, 92, 246, 0.45) !important;
+                    border-radius: 2px !important;
+                }
+
+                /* Dark mode specific - slightly brighter for visibility */
+                .pdf-reader-dark .rpv-search__highlight {
+                    background-color: rgba(139, 92, 246, 0.55) !important;
+                    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.4) !important;
+                }
+
+                .pdf-reader-dark .rpv-search__highlight--current {
+                    background-color: rgba(139, 92, 246, 0.8) !important;
+                    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.6), 0 2px 10px rgba(139, 92, 246, 0.5) !important;
+                }
+
+                .pdf-reader-dark .rpv-search__highlights > div {
+                    background-color: rgba(139, 92, 246, 0.55) !important;
+                }
+
+                /* Light mode - ensure contrast */
+                .pdf-reader-light .rpv-search__highlight {
+                    background-color: rgba(139, 92, 246, 0.4) !important;
+                    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25) !important;
+                }
+
+                .pdf-reader-light .rpv-search__highlight--current {
+                    background-color: rgba(139, 92, 246, 0.6) !important;
+                    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.4), 0 2px 8px rgba(139, 92, 246, 0.3) !important;
+                }
+
+                .pdf-reader-light .rpv-search__highlights > div {
+                    background-color: rgba(139, 92, 246, 0.4) !important;
                 }
             `}</style>
         </div>

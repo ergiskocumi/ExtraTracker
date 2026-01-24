@@ -151,7 +151,7 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
         }
 
         const { pageNumber, originalText } = card.sourceMetadata;
-        
+
         // Validate sourceMetadata
         if (!pageNumber || pageNumber < 1 || !originalText || originalText.trim().length < 20) {
             emitToast.error('I dati della fonte non sono validi', {
@@ -160,13 +160,13 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
             });
             return;
         }
-        
+
         // Set active card for visual feedback
         setActiveSourceCardId(card.id);
-        
+
         // Jump to page and highlight text
         pdfReaderRef.current.jumpToPageAndHighlight(pageNumber, originalText);
-        
+
         // Clear active state after 3 seconds
         setTimeout(() => {
             setActiveSourceCardId(null);
