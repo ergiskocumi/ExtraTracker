@@ -13,6 +13,7 @@ import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { FloatingFeedbackButton } from '../../features/feedback/components/FloatingFeedbackButton';
 import { GlobalFeedbackModal } from '../../features/feedback/components/GlobalFeedbackModal';
+import { TutorialManager } from '../components/Tutorial/TutorialManager';
 
 // ============================================
 // HEADER COMPONENT
@@ -67,7 +68,9 @@ const Header = memo(() => {
                     </Link>
 
                     {/* RIGHT: User Menu */}
-                    <UserMenuDropdown />
+                    <div data-tutorial="user-menu">
+                        <UserMenuDropdown />
+                    </div>
                 </div>
             </div>
 
@@ -114,6 +117,9 @@ export const AppLayout = () => {
             {/* Global Feedback Components */}
             <FloatingFeedbackButton />
             <GlobalFeedbackModal />
+            
+            {/* Tutorial Manager */}
+            <TutorialManager />
         </div>
     );
 };

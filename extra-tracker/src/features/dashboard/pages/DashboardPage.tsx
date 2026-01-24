@@ -13,6 +13,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTutorial } from '../../../shared/context/TutorialContext';
+import { dashboardTutorial } from '../tutorials/dashboardTutorial';
+import { TutorialButton } from '../../../shared/components/Tutorial/TutorialButton';
+import { TutorialDebug } from '../../../shared/components/Tutorial/TutorialDebug';
 import {
     Brain,
     Target,
@@ -445,10 +449,17 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
 // =========================================
 
 export const DashboardPage = () => {
+    const { registerTutorial } = useTutorial();
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const isInitialLoadRef = useRef(true);
+
+    // Registra il tutorial quando il componente si monta
+    useEffect(() => {
+        console.log('🎓 DashboardPage: Registrazione tutorial...');
+        registerTutorial(dashboardTutorial);
+    }, [registerTutorial]);
 
     useEffect(() => {
         let isCancelled = false;
@@ -494,7 +505,9 @@ export const DashboardPage = () => {
     }, []);
 
     return (
-        <div className="relative space-y-8 pb-12">
+        <>
+            <TutorialDebug />
+            <div className="relative space-y-8 pb-12">
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
                 <div className="absolute -top-32 -right-24 h-72 w-72 rotate-12 rounded-[36px] bg-gradient-to-br from-primary-500/20 via-indigo-500/10 to-transparent blur-3xl" />
                 <div className="absolute top-40 -left-20 h-56 w-56 -rotate-12 rounded-[32px] bg-gradient-to-br from-emerald-400/15 via-cyan-500/10 to-transparent blur-3xl" />
@@ -531,7 +544,7 @@ export const DashboardPage = () => {
                                         <GreetingIcon className="w-10 h-10 text-white" />
                                     </motion.div>
 
-                                    <div>
+                                    <div data-tutorial="greeting">
                                         <motion.h1
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
@@ -552,8 +565,18 @@ export const DashboardPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Right: Quick Stats */}
+                                {/* Right: Quick Stats + Tutorial Button */}
                                 <div className="flex flex-wrap items-center gap-3">
+                                    {/* Tutorial Button - Solo se non completato */}
+                                    {!loading && (
+                                        <TutorialButton
+                                            tutorialId="dashboard-tutorial"
+                                            label="Tour"
+                                            variant="minimal"
+                                            className="mr-2"
+                                        />
+                                    )}
+                                    
                                     <motion.div
                                         initial={{ opacity: 0, scale: 0.9 }}
                                         animate={{ opacity: 1, scale: 1 }}
@@ -657,11 +680,13 @@ export const DashboardPage = () => {
                     {/* Nuove Card Informative */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {/* Statistiche di Oggi */}
-                        <TodayStatsCard
-                            studiedToday={summary.study.cardsStudiedToday}
-                            goalsCompletedToday={summary.goals.completedToday}
-                            todayFormatted={summary.work.todayFormatted}
-                        />
+                        <div data-tutorial="stats">
+                            <TodayStatsCard
+                                studiedToday={summary.study.cardsStudiedToday}
+                                goalsCompletedToday={summary.goals.completedToday}
+                                todayFormatted={summary.work.todayFormatted}
+                            />
+                        </div>
 
                         {/* Prossimi Task */}
                         <UpcomingTasksCard
@@ -672,7 +697,9 @@ export const DashboardPage = () => {
                         />
 
                         {/* Quick Actions */}
-                        <QuickActionsCard />
+                        <div data-tutorial="quick-actions">
+                            <QuickActionsCard />
+                        </div>
                     </div>
 
                     {/* Progresso XP e Livello - Fullwidth */}
@@ -757,5 +784,6 @@ export const DashboardPage = () => {
                 </div>
             )}
         </div>
+        </>
     );
 };
