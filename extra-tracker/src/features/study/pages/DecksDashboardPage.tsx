@@ -9,7 +9,8 @@
  * - Visual hierarchy chiara
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useDashboardCalculations, type FilterType } from '../hooks/useDashboardCalculations';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useDeckHandlers } from '../hooks/useDeckHandlers';
@@ -39,6 +40,7 @@ import { emitToast } from '../../../shared/components/toast';
 // ============================================
 
 export const DecksDashboardPage: React.FC = () => {
+    const location = useLocation();
     // Organization state
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -353,6 +355,17 @@ export const DecksDashboardPage: React.FC = () => {
             console.error('Errore nel caricamento dell\'esame:', err);
         }
     };
+
+    const hasAppliedExamState = useRef(false);
+    const examIdFromState = (location.state as { examId?: string } | null)?.examId ?? null;
+
+    useEffect(() => {
+        if (hasAppliedExamState.current) return;
+        if (examIdFromState) {
+            handleExamSelect(examIdFromState);
+        }
+        hasAppliedExamState.current = true;
+    }, [examIdFromState, handleExamSelect]);
 
     const handleTagToggle = (tagName: string) => {
         setSelectedTags((prev: string[]) => {

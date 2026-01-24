@@ -1,5 +1,5 @@
 /**
- * 🎮 CONTROLLER AUTENTICAZIONE
+ * CONTROLLER AUTENTICAZIONE
  * 
  * Responsabilità:
  * 1. Gestire request/response HTTP

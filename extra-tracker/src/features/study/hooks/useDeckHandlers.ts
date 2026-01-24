@@ -42,8 +42,10 @@ export const useDeckHandlers = ({
     }, [navigate]);
 
     const handleRead = useCallback((deckId: string) => {
-        navigate(`/study/deck/${deckId}/cinema`);
-    }, [navigate]);
+        const deck = decks.find(d => d.id === deckId);
+        const state = deck?.goalId ? { examId: deck.goalId } : undefined;
+        navigate(`/study/deck/${deckId}/cinema`, state ? { state } : undefined);
+    }, [decks, navigate]);
 
     const handleAddCard = useCallback((deckId: string) => {
         const deck = decks.find(d => d.id === deckId);

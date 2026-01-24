@@ -10,9 +10,9 @@
  * - Callback memoizzati
  */
 
-import React, { memo, useMemo, useCallback, useRef, useState } from 'react';
+import React, { memo, useCallback, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft } from 'react-icons/fi';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { PDFReader, type PDFReaderRef } from '../components/PDF/PDFReader';
 import { StudySidebar } from '../components/Study/StudySidebar';
@@ -75,19 +75,14 @@ const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef, onSearchError }) =
     const normalizedPdfSrc = (pdfSrc && typeof pdfSrc === 'string') ? pdfSrc : null;
 
     return (
-        <div className="h-full w-full overflow-hidden p-4">
-            <div className="h-full w-full rounded-3xl overflow-hidden border border-white/[0.08] backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative scrollbar-macos"
-                style={{
-                    background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
-                }}
-            >
-                {/* Always render PDFReader - it handles null pdfUrl internally */}
-                <PDFReader 
-                    ref={pdfReaderRef} 
-                    pdfUrl={normalizedPdfSrc}
-                    onSearchError={onSearchError}
-                />
-            </div>
+        <div className="h-full w-full">
+            {/* Always render PDFReader - it handles null pdfUrl internally */}
+            <PDFReader 
+                ref={pdfReaderRef} 
+                pdfUrl={normalizedPdfSrc}
+                onSearchError={onSearchError}
+                className="scrollbar-pdf"
+            />
         </div>
     );
 });
@@ -111,8 +106,6 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
     const pdfReaderRef = useRef<PDFReaderRef>(null);
     const [activeSourceCardId, setActiveSourceCardId] = useState<string | null>(null);
 
-    // Memoize deck title per evitare re-render inutili
-    const deckTitle = useMemo(() => deck.title, [deck.title]);
 
     /**
      * Handler per tornare al dettaglio del mazzo corrente
@@ -191,86 +184,25 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
     }, []);
 
     return (
-        <div className="fixed inset-0 h-screen w-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-[#050505] to-black text-white overflow-hidden flex flex-col">
-            {/* Header - Stile moderno con backdrop blur */}
-            {/* 
-                sticky top-0: mantiene l'header sempre visibile in cima durante lo scroll
-                z-[100]: z-index molto alto per assicurarsi che l'header sia sempre sopra il contenuto
-                Questo previene che il pulsante indietro venga nascosto da altri elementi (PDF viewer, modali, etc.)
-            */}
-            <header className="
-                sticky top-0
-                h-14 
-                border-b border-white/[0.08] 
-                flex-none flex items-center justify-between px-4 sm:px-6 
-                backdrop-blur-2xl
-                z-[100]
-                bg-gradient-to-r from-slate-900/95 via-[#050505]/95 to-black/95
-                shadow-lg shadow-black/20
-            ">
-                {/* Pulsante Indietro - Sempre visibile con contrasto migliorato */}
-                <button
-                    onClick={handleNavigateBack}
-                    className="
-                        flex items-center justify-center gap-2 
-                        text-white hover:text-white 
-                        transition-all duration-200 
-                        px-3 py-2 rounded-lg 
-                        bg-white/10 hover:bg-white/20 active:bg-white/25
-                        border border-white/20 hover:border-white/30
-                        shadow-md hover:shadow-lg
-                        min-w-[44px] min-h-[44px]
-                        flex-shrink-0
-                        group
-                    "
-                    aria-label="Torna al mazzo"
-                    title="Torna al dettaglio del mazzo"
-                >
-                    <FiArrowLeft className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                    <span className="hidden sm:inline text-sm font-semibold">Torna al mazzo</span>
-                </button>
-
-                {/* Titolo del mazzo - Centrato */}
-                <h1 className="
-                    text-sm font-semibold text-white 
-                    relative z-10 
-                    flex items-center gap-2.5
-                    flex-1 justify-center
-                    px-4
-                    truncate
-                ">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgb(139,92,246,0.5)] animate-pulse flex-shrink-0" />
-                    <span className="text-white/90 bg-clip-text bg-gradient-to-r from-violet-300 to-violet-500 truncate">
-                        {deckTitle}
-                    </span>
-                </h1>
-
-                {/* Spacer per bilanciare il layout - Stessa larghezza del pulsante */}
-                <div className="w-[44px] sm:w-[180px] flex-shrink-0" />
-            </header>
-
+        <div
+            className="fixed left-0 right-0 bottom-0 bg-[#0a0a0f] text-white overflow-hidden flex flex-col"
+            style={{ top: 'var(--app-header-height, 56px)' }}
+        >
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.12),_transparent_55%),radial-gradient(ellipse_at_bottom,_rgba(99,102,241,0.08),_transparent_60%)]" />
             {/* Main Body - Container principale con stile moderno */}
-            <div className="flex-1 w-full h-full p-4 md:p-6 lg:p-8 overflow-hidden">
-                {/* Wrapper dell'Area di Lavoro - Container moderno con gradiente radiale */}
-                <div className="
-                    h-full w-full 
-                    rounded-3xl 
-                    border border-white/[0.08]
-                    backdrop-blur-2xl
-                    overflow-hidden 
-                    shadow-[0_8px_30px_rgb(0,0,0,0.12)]
-                    relative
-                "
-                style={{
-                    background: 'radial-gradient(ellipse at top right, rgba(139, 92, 246, 0.1) 0%, rgba(0, 0, 0, 0.3) 50%, rgba(0, 0, 0, 0.5) 100%)',
-                }}
+            <div className="flex-1 w-full h-full overflow-hidden">
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                    className="h-full w-full px-2 sm:px-3 pb-2 sm:pb-3"
                 >
                     <Group orientation="horizontal" className="h-full w-full">
                         {/* Pannello Sinistro - PDF Viewer */}
                         <Panel 
                             defaultSize={PANEL_SIZES.LEFT_DEFAULT} 
                             minSize={PANEL_SIZES.LEFT_MIN} 
-                            className="h-full w-full overflow-hidden"
+                            className="h-full w-full overflow-hidden min-w-0"
                         >
                             <PDFPanel 
                                 pdfSrc={pdfSrc} 
@@ -280,28 +212,15 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                         </Panel>
 
                         {/* Resize Handle - Stile moderno discreto */}
-                        <Separator className="
-                            w-3 
-                            opacity-0 hover:opacity-100 
-                            bg-transparent hover:bg-white/[0.05] 
-                            transition-all duration-300 
-                            cursor-col-resize 
-                            group relative
-                        ">
-                            <div className="
-                                absolute inset-y-0 left-1/2 -translate-x-1/2 
-                                w-0.5 
-                                bg-violet-400/0 group-hover:bg-violet-400/40 
-                                transition-all duration-300
-                                shadow-lg shadow-violet-400/30
-                            " />
+                        <Separator className="w-2 bg-transparent cursor-col-resize relative group">
+                            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-white/10 group-hover:bg-violet-400/60 transition-colors" />
                         </Separator>
 
                         {/* Pannello Destro - Tools (Flashcards & Chat) */}
                         <Panel 
                             defaultSize={PANEL_SIZES.RIGHT_DEFAULT} 
                             minSize={PANEL_SIZES.RIGHT_MIN} 
-                            className="h-full overflow-hidden border-l border-white/[0.08]"
+                            className="h-full overflow-hidden min-w-0"
                         >
                             <StudySidebar
                                 deck={deck}
@@ -316,7 +235,7 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                             />
                         </Panel>
                     </Group>
-                </div>
+                </motion.div>
             </div>
         </div>
     );

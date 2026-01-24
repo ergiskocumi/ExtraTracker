@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { motion } from 'framer-motion';
 import { FiPlus, FiArrowLeft } from 'react-icons/fi';
 import { HEADER_STYLES, TEXT_CONTENT, ICON_SIZES } from './FlashcardList.constants';
 import type { HeaderProps } from './FlashcardList.types';
@@ -34,33 +35,44 @@ export const Header: React.FC<HeaderProps> = ({
     const addButtonClasses = `${HEADER_STYLES.addButton.layout} ${HEADER_STYLES.addButton.padding} ${HEADER_STYLES.addButton.fontSize} ${HEADER_STYLES.addButton.fontWeight} ${HEADER_STYLES.addButton.text} ${HEADER_STYLES.addButton.shadow} ${HEADER_STYLES.addButton.borderRadius} ${HEADER_STYLES.addButton.background} ${HEADER_STYLES.addButton.hover.background} ${HEADER_STYLES.addButton.transition} ${HEADER_STYLES.addButton.active}`;
 
     return (
-        <div className={`${HEADER_STYLES.container.padding} ${HEADER_STYLES.container.border} ${HEADER_STYLES.container.backdrop} ${HEADER_STYLES.container.layout} ${HEADER_STYLES.container.gap}`}>
-            <span className={`${HEADER_STYLES.badge.display} ${HEADER_STYLES.badge.padding} ${HEADER_STYLES.badge.borderRadius} ${HEADER_STYLES.badge.background} ${HEADER_STYLES.badge.border} ${HEADER_STYLES.badge.text}`}>
-                {TEXT_CONTENT.header.cardCount(cardCount)}
-            </span>
-            <div className={`${HEADER_STYLES.container.layout} ${HEADER_STYLES.container.gap}`}>
-                {showBackButton && onNavigateBack && (
-                    <button
-                        onClick={onNavigateBack}
-                        className={backButtonClasses}
-                        aria-label={TEXT_CONTENT.ariaLabels.back}
-                        title={TEXT_CONTENT.buttons.back}
-                    >
-                        <FiArrowLeft className={ICON_SIZES.small} />
-                        <span className="hidden sm:inline">{TEXT_CONTENT.buttons.back}</span>
-                    </button>
-                )}
-                {showAddButton && (
-                    <button
-                        onClick={onAddCard}
-                        className={addButtonClasses}
-                        aria-label={TEXT_CONTENT.ariaLabels.addCard}
-                        title={TEXT_CONTENT.buttons.addCard}
-                    >
-                        <FiPlus className={ICON_SIZES.small} />
-                    </button>
-                )}
+        <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="flex flex-col"
+        >
+            <div className={`${HEADER_STYLES.container.padding} ${HEADER_STYLES.container.border} ${HEADER_STYLES.container.backdrop} ${HEADER_STYLES.container.layout} ${HEADER_STYLES.container.gap}`}>
+                <div className="flex items-center gap-3">
+                    <span className={`${HEADER_STYLES.badge.display} ${HEADER_STYLES.badge.padding} ${HEADER_STYLES.badge.borderRadius} ${HEADER_STYLES.badge.background} ${HEADER_STYLES.badge.border} ${HEADER_STYLES.badge.text}`}>
+                        {TEXT_CONTENT.header.cardCount(cardCount)}
+                    </span>
+                    <span className="text-[11px] text-white/40 uppercase tracking-[0.2em] hidden sm:inline">Focus & Flow</span>
+                </div>
+                <div className={`${HEADER_STYLES.container.layout} ${HEADER_STYLES.container.gap}`}>
+                    {showBackButton && onNavigateBack && (
+                        <button
+                            onClick={onNavigateBack}
+                            className={backButtonClasses}
+                            aria-label={TEXT_CONTENT.ariaLabels.back}
+                            title={TEXT_CONTENT.buttons.back}
+                        >
+                            <FiArrowLeft className={ICON_SIZES.small} />
+                            <span className="hidden sm:inline">{TEXT_CONTENT.buttons.back}</span>
+                        </button>
+                    )}
+                    {showAddButton && (
+                        <button
+                            onClick={onAddCard}
+                            className={addButtonClasses}
+                            aria-label={TEXT_CONTENT.ariaLabels.addCard}
+                            title={TEXT_CONTENT.buttons.addCard}
+                        >
+                            <FiPlus className={ICON_SIZES.small} />
+                        </button>
+                    )}
+                </div>
             </div>
-        </div>
+            <div className="mx-4 mt-2 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent opacity-60" />
+        </motion.div>
     );
 };

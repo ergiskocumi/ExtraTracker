@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FiAlertCircle, FiArrowLeft } from 'react-icons/fi';
 import { studyService, type Deck } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
@@ -65,6 +65,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ error, onNavigateBack }) => (
 export const CinemaPage: React.FC = () => {
     const { deckId } = useParams<{ deckId: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [deck, setDeck] = useState<Deck | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -170,23 +171,30 @@ export const CinemaPage: React.FC = () => {
     // Memoize pdfSrc per evitare re-render inutili
     const pdfSrc = useMemo(() => deck?.pdfUrl || null, [deck?.pdfUrl]);
 
+    const examIdFromState = (location.state as { examId?: string } | null)?.examId ?? null;
+    const examId = deck?.goalId ?? examIdFromState;
+
     /**
-     * Handler per tornare al dettaglio del mazzo corrente
+     * Handler per tornare ai mazzi dell'esame (se disponibile) o al dettaglio del mazzo
      * 
-     * Naviga al dettaglio del mazzo che si sta visualizzando in Cinema Mode invece della dashboard principale.
-     * Questo permette all'utente di continuare a lavorare sul mazzo senza perdere il contesto.
+     * Se il deck è legato a un esame, torna alla lista dei mazzi dell'esame.
+     * Altrimenti mantiene il comportamento precedente (dettaglio mazzo o dashboard).
      * 
      * @returns {void}
      */
     const handleNavigateBack = useCallback(() => {
-        if (deckId) {
-            // Naviga al dettaglio del mazzo corrente
-            navigate(`/study/deck/${deckId}`);
-        } else {
-            // Fallback alla dashboard se deckId non è disponibile
-            navigate('/study');
+        if (examId) {
+            navigate('/study', { state: { examId } });
+            return;
         }
-    }, [navigate, deckId]);
+
+        if (deckId) {
+            navigate(`/study/deck/${deckId}`);
+            return;
+        }
+
+        navigate('/study');
+    }, [navigate, deckId, examId]);
 
     // ========== RENDER ==========
 

@@ -7,7 +7,7 @@
  * - Animazioni fluide e performanti
  */
 
-import { memo } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
@@ -21,9 +21,25 @@ import { GlobalFeedbackModal } from '../../features/feedback/components/GlobalFe
 const Header = memo(() => {
     const APP_NAME = 'Silvi';
     const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '';
+    const headerRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        const updateHeaderHeight = () => {
+            if (!headerRef.current) return;
+            const height = headerRef.current.getBoundingClientRect().height || 64;
+            document.documentElement.style.setProperty('--app-header-height', `${height}px`);
+        };
+
+        updateHeaderHeight();
+        window.addEventListener('resize', updateHeaderHeight);
+
+        return () => {
+            window.removeEventListener('resize', updateHeaderHeight);
+        };
+    }, []);
 
     return (
-        <header className="sticky top-0 z-50">
+        <header ref={headerRef} className="sticky top-0 z-50">
             {/* Background with blur and gradient */}
             <div
                 className="absolute inset-0 border-b border-white/[0.06]"

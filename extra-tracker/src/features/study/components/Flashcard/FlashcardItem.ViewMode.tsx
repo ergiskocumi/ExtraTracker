@@ -124,11 +124,11 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
             </div>
 
             {/* Answer Section */}
-            <div className={`flex items-start gap-3 ${LAYOUT.spacing.paddingTop} ${LAYOUT.divider.border}`}>
+            <div className={`flex items-start gap-3 ${LAYOUT.spacing.paddingTop} ${LAYOUT.divider.border} min-w-0`}>
                 <div className={`${BADGE_STYLES.answer.size} ${BADGE_STYLES.answer.borderRadius} ${BADGE_STYLES.answer.background} ${BADGE_STYLES.answer.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.answer.text} flex-shrink-0 ${BADGE_STYLES.answer.shadow}`}>
                     A
                 </div>
-                <p className={LAYOUT.text.answer + ' break-words'}>
+                <p className={LAYOUT.text.answer + ' break-words min-w-0'}>
                     {card.back}
                 </p>
             </div>

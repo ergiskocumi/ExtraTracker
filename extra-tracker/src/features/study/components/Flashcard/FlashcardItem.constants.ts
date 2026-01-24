@@ -39,42 +39,42 @@ export const ANIMATION_CONFIG = {
 
 export const CARD_STYLES = {
     base: {
-        borderRadius: 'rounded-2xl md:rounded-3xl',
-        padding: 'p-4 md:p-5',
-        border: 'border backdrop-blur-xl',
-        transition: 'transition-all duration-300',
+        borderRadius: 'rounded-xl',
+        padding: 'p-3.5 md:p-4',
+        border: 'border border-white/[0.05]',
+        transition: 'transition-colors duration-200',
         hover: {
-            border: 'hover:border-white/[0.15]',
-            shadow: 'hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]',
+            border: 'hover:border-white/[0.12]',
+            shadow: 'hover:shadow-[0_6px_18px_rgba(0,0,0,0.22)]',
         },
     },
     sourceActive: {
-        border: 'border-violet-500/50',
-        shadow: 'shadow-[0_0_20px_rgba(139,92,246,0.3)]',
-        background: 'linear-gradient(145deg, rgba(139,92,246,0.1) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 100%)',
+        border: 'border-violet-500/40',
+        shadow: 'shadow-[0_0_16px_rgba(139,92,246,0.25)]',
+        background: 'bg-violet-500/10',
     },
     default: {
-        border: 'border-white/[0.08]',
-        background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 100%)',
+        border: 'border-white/[0.05]',
+        background: 'bg-white/[0.02]',
     },
 } as const;
 
 export const BADGE_STYLES = {
     question: {
-        size: 'w-8 h-8 md:w-10 md:h-10',
-        borderRadius: 'rounded-xl',
-        background: 'bg-violet-500/10',
-        border: 'border border-violet-500/20',
-        text: 'text-xs font-semibold text-violet-400',
-        shadow: 'shadow-[0_0_10px_rgb(139,92,246,0.2)]',
+        size: 'w-7 h-7 md:w-8 md:h-8',
+        borderRadius: 'rounded-full',
+        background: 'bg-violet-500/15',
+        border: 'border border-violet-500/30',
+        text: 'text-[10px] font-semibold text-violet-200',
+        shadow: '',
     },
     answer: {
-        size: 'w-8 h-8 md:w-10 md:h-10',
-        borderRadius: 'rounded-xl',
+        size: 'w-7 h-7 md:w-8 md:h-8',
+        borderRadius: 'rounded-full',
         background: 'bg-amber-500/10',
-        border: 'border border-amber-500/20',
-        text: 'text-xs font-semibold text-amber-400',
-        shadow: 'shadow-[0_0_10px_rgb(245,158,11,0.2)]',
+        border: 'border border-amber-500/25',
+        text: 'text-[10px] font-semibold text-amber-200',
+        shadow: '',
     },
 } as const;
 

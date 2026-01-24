@@ -1,5 +1,5 @@
 /**
- * 📊 DASHBOARD CONTROLLER - Command Center Aggregation
+ * DASHBOARD CONTROLLER - Command Center Aggregation
  * ====================================================
  * 
  * Endpoint unico ultra-veloce che aggrega tutti i dati
@@ -32,11 +32,10 @@ const getGreeting = (name) => {
         greeting = 'Buon pomeriggio';
     } else if (hour >= 18 && hour < 22) {
         greeting = 'Buonasera';
-    } else {
-        greeting = 'Buonanotte';
-    }
-    
-    return `${greeting}, ${name} 👋`;
+    } 
+
+
+    return `${greeting}, ${name}!`;
 };
 
 /**

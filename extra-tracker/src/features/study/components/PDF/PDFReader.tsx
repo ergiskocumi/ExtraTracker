@@ -14,11 +14,12 @@
  * before any conditional returns.
  */
 
-import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Worker, Viewer } from '@react-pdf-viewer/core';
 import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
 import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation';
 import { searchPlugin } from '@react-pdf-viewer/search';
+import localWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
 // Import CSS required (CRITICAL for dark mode and text layer)
 import '@react-pdf-viewer/core/lib/styles/index.css';
@@ -107,7 +108,8 @@ const PDFJS_VERSION = '3.11.174';
  * 
  * 5. **Bundle Size**: Keeping worker external reduces main bundle size and improves initial load.
  */
-const WORKER_URL = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`;
+const LOCAL_WORKER_URL = localWorkerUrl;
+const CDN_WORKER_URL = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`;
 
 // ============================================
 // HOOKS
@@ -164,6 +166,90 @@ const useTheme = (): 'dark' | 'light' => {
 };
 
 // ============================================
+// UI HELPERS
+// ============================================
+
+const isWorkerError = (error: Error): boolean => {
+    const message = (error.message || '').toLowerCase();
+    return (
+        message.includes('worker') ||
+        message.includes('mime') ||
+        message.includes('failed to fetch') ||
+        message.includes('load') ||
+        message.includes('network')
+    );
+};
+
+interface PDFLoadingStateProps {
+    progress?: number;
+}
+
+const PDFLoadingState: React.FC<PDFLoadingStateProps> = ({ progress }) => (
+    <div className="h-full w-full flex items-center justify-center text-white/60">
+        <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-2 border-white/20 border-t-violet-400 rounded-full animate-spin" />
+            <p className="text-xs sm:text-sm">
+                {typeof progress === 'number' ? `Caricamento PDF... ${Math.round(progress)}%` : 'Caricamento PDF...'}
+            </p>
+        </div>
+    </div>
+);
+
+interface PDFErrorStateProps {
+    error: Error;
+    onRetry: () => void;
+    onSwitchWorker?: () => void;
+    canSwitchWorker: boolean;
+    onReportError?: (error: Error) => void;
+}
+
+const PDFErrorState: React.FC<PDFErrorStateProps> = ({
+    error,
+    onRetry,
+    onSwitchWorker,
+    canSwitchWorker,
+    onReportError,
+}) => {
+    useEffect(() => {
+        onReportError?.(error);
+    }, [error, onReportError]);
+
+    const showWorkerSwitch = canSwitchWorker && isWorkerError(error);
+
+    return (
+        <div className="h-full w-full flex items-center justify-center text-white/70 px-6">
+            <div className="max-w-md text-center space-y-4">
+                <div className="w-12 h-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center mx-auto">
+                    <span className="text-lg">⚠️</span>
+                </div>
+                <div className="space-y-2">
+                    <p className="text-sm font-semibold text-white">Errore nel caricamento del PDF</p>
+                    <p className="text-xs text-white/50 break-words">
+                        {error.message || 'Errore sconosciuto'}
+                    </p>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                    <button
+                        onClick={onRetry}
+                        className="px-3 py-2 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 transition"
+                    >
+                        Riprova
+                    </button>
+                    {showWorkerSwitch && onSwitchWorker && (
+                        <button
+                            onClick={onSwitchWorker}
+                            className="px-3 py-2 rounded-lg text-xs font-semibold bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 hover:border-violet-500/50 transition"
+                        >
+                            Usa worker esterno
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ============================================
 // COMPONENT
 // ============================================
 
@@ -204,6 +290,19 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
     const isDarkMode = useTheme() === 'dark';
     const containerRef = useRef<HTMLDivElement>(null);
     const zoomTimeoutRef = useRef<number | null>(null);
+    const [workerUrl, setWorkerUrl] = useState(LOCAL_WORKER_URL);
+    const [viewerKey, setViewerKey] = useState(0);
+
+    const handleRetry = useCallback(() => {
+        setViewerKey((prev) => prev + 1);
+    }, []);
+
+    const handleSwitchWorker = useCallback(() => {
+        setWorkerUrl(CDN_WORKER_URL);
+        setViewerKey((prev) => prev + 1);
+    }, []);
+
+    const canSwitchWorker = workerUrl !== CDN_WORKER_URL;
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
@@ -524,7 +623,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
             ref={containerRef}
             className={`h-full w-full ${themeClass} ${className}`}
         >
-            <Worker workerUrl={WORKER_URL}>
+            <Worker workerUrl={workerUrl}>
                 <div
                     className="h-full w-full rpv-core__viewer"
                     style={{
@@ -533,6 +632,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                     }}
                 >
                     <Viewer
+                        key={`pdf-viewer-${viewerKey}`}
                         fileUrl={pdfUrl}
                         plugins={[
                             defaultLayoutPluginInstance,
@@ -540,8 +640,23 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                             searchPluginInstance,
                         ]}
                         theme={isDarkMode ? 'dark' : undefined}
+                        withCredentials={true}
+                        renderLoader={(percentages) => (
+                            <PDFLoadingState progress={typeof percentages === 'number' ? percentages : undefined} />
+                        )}
+                        renderError={(error) => (
+                            <PDFErrorState
+                                error={error as Error}
+                                onRetry={handleRetry}
+                                onSwitchWorker={canSwitchWorker ? handleSwitchWorker : undefined}
+                                canSwitchWorker={canSwitchWorker}
+                                onReportError={onError}
+                            />
+                        )}
                         onDocumentLoad={(e) => {
-                            console.log('[PDFReader] PDF caricato:', e.doc.numPages, 'pagine');
+                            if (import.meta.env.DEV) {
+                                console.log('[PDFReader] PDF caricato:', e.doc.numPages, 'pagine');
+                            }
                             onLoadSuccess?.();
                         }}
                     />

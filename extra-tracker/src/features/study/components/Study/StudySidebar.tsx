@@ -69,7 +69,7 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
     // Compact mode: just render the content
     if (compactMode) {
         return (
-            <div className={`h-full ${className}`}>
+            <div className={`h-full min-w-0 overflow-hidden ${className}`}>
                 {currentTab === 'flashcards' ? (
                     <FlashcardList
                         deck={deck}
@@ -95,7 +95,7 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
 
     // Full mode with tabs
     return (
-        <div className={`h-full flex flex-col ${className}`}>
+        <div className={`h-full flex flex-col min-w-0 overflow-hidden ${className}`}>
             {/* Tab Header - Stile moderno */}
             <div className="px-5 py-4 border-b border-white/[0.08] backdrop-blur-sm flex-shrink-0">
                 <div className="flex items-center justify-between gap-3">
