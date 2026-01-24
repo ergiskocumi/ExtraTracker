@@ -20,6 +20,28 @@
     font-feature-settings: 'cv11', 'ss01';
   }
 
+  /* Scroll lock per menu sidebar - previene inversione colori */
+  html.menu-sidebar-open,
+  body.menu-sidebar-open {
+    position: fixed !important;
+    top: var(--scroll-y, 0) !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    /* Mantieni i colori originali */
+    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0f0f22 100%) !important;
+    color: #ffffff !important;
+  }
+  
+  /* Assicura che il body::before mantenga i colori corretti */
+  body.menu-sidebar-open::before {
+    background: 
+      radial-gradient(ellipse at 20% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 40%),
+      radial-gradient(ellipse at 40% 80%, rgba(167, 139, 250, 0.08) 0%, transparent 40%) !important;
+  }
+
   /* Aggiungi un effetto mesh gradient di sottofondo */
   body::before {
     content: '';

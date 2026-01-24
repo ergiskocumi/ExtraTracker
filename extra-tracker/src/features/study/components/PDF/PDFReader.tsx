@@ -714,6 +714,90 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                 .pdf-reader-light .rpv-search__highlights > div {
                     background-color: rgba(139, 92, 246, 0.4) !important;
                 }
+
+                /* ===== MENU DROPDOWN STYLES - FIX LIGHT MODE VISIBILITY ===== */
+                /* Menu dropdown dark mode - mantiene stile scuro */
+                .pdf-reader-dark .rpv-default-layout__menu,
+                .pdf-reader-dark .rpv-menu,
+                .pdf-reader-dark .rpv-menu__body,
+                .pdf-reader-dark [class*="rpv-menu"],
+                .pdf-reader-dark [class*="menu"] {
+                    background-color: #1a1a1a !important;
+                    color: #ffffff !important;
+                    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                }
+                .pdf-reader-dark .rpv-menu__item,
+                .pdf-reader-dark [class*="menu__item"] {
+                    color: #ffffff !important;
+                }
+                .pdf-reader-dark .rpv-menu__item:hover,
+                .pdf-reader-dark [class*="menu__item"]:hover {
+                    background-color: rgba(255, 255, 255, 0.1) !important;
+                }
+
+                /* Menu dropdown light mode - CRITICAL: sfondo chiaro e testo scuro */
+                .pdf-reader-light .rpv-default-layout__menu,
+                .pdf-reader-light .rpv-menu,
+                .pdf-reader-light .rpv-menu__body,
+                .pdf-reader-light [class*="rpv-menu"],
+                .pdf-reader-light [class*="menu"],
+                /* Popup/Overlay che contiene il menu */
+                .pdf-reader-light .rpv-popup__body,
+                .pdf-reader-light [class*="popup__body"],
+                .pdf-reader-light .rpv-core__display--block,
+                .pdf-reader-light [class*="display--block"] {
+                    background-color: #ffffff !important;
+                    color: #1f2937 !important;
+                    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+                }
+                .pdf-reader-light .rpv-menu__item,
+                .pdf-reader-light [class*="menu__item"],
+                .pdf-reader-light .rpv-menu__item-label,
+                .pdf-reader-light [class*="menu__item-label"],
+                .pdf-reader-light .rpv-popup__body *,
+                .pdf-reader-light [class*="popup__body"] * {
+                    color: #1f2937 !important;
+                }
+                .pdf-reader-light .rpv-menu__item:hover,
+                .pdf-reader-light [class*="menu__item"]:hover {
+                    background-color: rgba(0, 0, 0, 0.05) !important;
+                    color: #111827 !important;
+                }
+                .pdf-reader-light .rpv-menu__item--checked,
+                .pdf-reader-light [class*="menu__item--checked"] {
+                    background-color: rgba(139, 92, 246, 0.1) !important;
+                    color: #6b21a8 !important;
+                }
+                /* Icone nel menu light mode */
+                .pdf-reader-light .rpv-menu__icon,
+                .pdf-reader-light [class*="menu__icon"],
+                .pdf-reader-light .rpv-core__icon,
+                .pdf-reader-light .rpv-popup__body .rpv-core__icon,
+                .pdf-reader-light [class*="popup__body"] .rpv-core__icon {
+                    color: #1f2937 !important;
+                }
+                .pdf-reader-light .rpv-menu__icon svg,
+                .pdf-reader-light [class*="menu__icon"] svg,
+                .pdf-reader-light .rpv-popup__body svg,
+                .pdf-reader-light [class*="popup__body"] svg {
+                    fill: #1f2937 !important;
+                    stroke: #1f2937 !important;
+                }
+                /* Separatori nel menu */
+                .pdf-reader-light .rpv-menu__separator,
+                .pdf-reader-light [class*="menu__separator"] {
+                    border-color: rgba(0, 0, 0, 0.1) !important;
+                }
+                /* Testo generico nei popup/menu */
+                .pdf-reader-light .rpv-popup__body,
+                .pdf-reader-light [class*="popup__body"] {
+                    background-color: #ffffff !important;
+                }
+                .pdf-reader-light .rpv-popup__body *,
+                .pdf-reader-light [class*="popup__body"] * {
+                    color: #1f2937 !important;
+                }
             `}</style>
         </div>
     );

@@ -430,6 +430,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                 <span className="flex-1 text-left">Elimina Mazzo</span>
                             </button>
                         </motion.div>
+                        )}
                         </>
                     )}
                 </AnimatePresence>,
