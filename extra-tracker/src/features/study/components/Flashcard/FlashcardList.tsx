@@ -485,7 +485,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                         {viewMode === VIEW_MODE.grid ? renderGridView() : renderListView()}
 
                         <DragOverlay
-                            style={{ zIndex: DRAG_AND_DROP.dragOverlayZIndex }}
+                            style={{ zIndex: DRAG_AND_DROP.dragOverlayZIndex, willChange: 'transform' }}
                             dropAnimation={{
                                 duration: 120,
                                 easing: 'linear',

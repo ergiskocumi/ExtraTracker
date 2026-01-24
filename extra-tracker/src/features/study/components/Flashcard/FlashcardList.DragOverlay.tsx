@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { FlashcardItem } from './FlashcardItem';
-import { DRAG_OVERLAY_STYLES, ANIMATION_CONFIG } from './FlashcardList.constants';
+import { DRAG_OVERLAY_STYLES } from './FlashcardList.constants';
 import type { DragOverlayContentProps } from './FlashcardList.types';
 
 // ============================================
