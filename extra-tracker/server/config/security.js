@@ -177,6 +177,22 @@ module.exports = {
     },
 
     // ==========================================
+    // CSRF Configuration
+    // ==========================================
+    csrf: {
+        cookieName: envConfig.csrf.cookieName,
+        headerName: envConfig.csrf.headerName,
+        tokenBytes: envConfig.csrf.tokenBytes,
+        cookieOptions: {
+            httpOnly: false,
+            secure: getSecureCookie(),
+            sameSite: getSameSitePolicy(),
+            path: '/',
+            maxAge: envConfig.csrf.cookieMaxAge,
+        },
+    },
+
+    // ==========================================
     // Rate Limiting Configuration
     // ==========================================
     rateLimit: {

@@ -82,11 +82,6 @@ async function exportUserData(userId) {
             exportDate: new Date().toISOString(),
             data: {
                 goals: cleanGoals,
-                projects: cleanProjects,
-                workLogs: cleanWorkLogs,
-                decks: cleanDecks,
-                folders: cleanFolders,
-                tags: cleanTags,
                 workLogs: cleanWorkLogs,
                 decks: cleanDecks,
                 folders: cleanFolders,

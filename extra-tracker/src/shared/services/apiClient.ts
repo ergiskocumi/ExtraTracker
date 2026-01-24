@@ -34,6 +34,17 @@ import { emitToast } from '../components/toast';
 // Preferisci same-origin per evitare problemi di cookie/CORS (soprattutto da mobile).
 // In dev, Vite proxy inoltra /api al backend.
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const CSRF_COOKIE_NAME = import.meta.env.VITE_CSRF_COOKIE_NAME || 'csrfToken';
+const CSRF_HEADER_NAME = import.meta.env.VITE_CSRF_HEADER_NAME || 'X-CSRF-Token';
+const isSameOriginApi = (() => {
+    if (typeof window === 'undefined') return true;
+    if (API_BASE_URL.startsWith('/')) return true;
+    try {
+        return new URL(API_BASE_URL).origin === window.location.origin;
+    } catch {
+        return false;
+    }
+})();
 
 export interface ApiError {
     message: string;
@@ -56,7 +67,73 @@ const axiosInstance = axios.create({
     timeout: 60000, // 60 secondi timeout per richieste AI più lente
 });
 
-axiosInstance.interceptors.request.use((config) => {
+let cachedCsrfToken: string | null = null;
+let csrfFetchPromise: Promise<void> | null = null;
+
+const getCookieValue = (name: string): string | null => {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith(`${name}=`));
+    if (!match) return null;
+    return decodeURIComponent(match.split('=').slice(1).join('='));
+};
+
+const syncCsrfFromCookie = () => {
+    const token = getCookieValue(CSRF_COOKIE_NAME);
+    if (token) {
+        cachedCsrfToken = token;
+        return;
+    }
+
+    if (isSameOriginApi) {
+        cachedCsrfToken = null;
+    }
+};
+
+const ensureCsrfToken = async () => {
+    syncCsrfFromCookie();
+    if (cachedCsrfToken) return;
+
+    if (!csrfFetchPromise) {
+        csrfFetchPromise = axiosInstance
+            .get<ApiResponse<{ csrfToken: string }>>('/auth/csrf')
+            .then((response) => {
+                const token = response.data?.data?.csrfToken;
+                if (token) {
+                    cachedCsrfToken = token;
+                }
+                syncCsrfFromCookie();
+            })
+            .catch(() => {
+                // Fail open: il backend gestirà eventuali errori CSRF
+            })
+            .finally(() => {
+                csrfFetchPromise = null;
+            });
+    }
+
+    await csrfFetchPromise;
+};
+
+export const getCsrfHeader = async (): Promise<Record<string, string>> => {
+    await ensureCsrfToken();
+    if (!cachedCsrfToken) return {};
+    return { [CSRF_HEADER_NAME]: cachedCsrfToken };
+};
+
+axiosInstance.interceptors.request.use(async (config) => {
+    const method = (config.method || 'get').toUpperCase();
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+        await ensureCsrfToken();
+        if (cachedCsrfToken) {
+            config.headers = {
+                ...(config.headers || {}),
+                [CSRF_HEADER_NAME]: cachedCsrfToken,
+            };
+        }
+    }
+
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
         if (config.headers) {
             delete (config.headers as any)['Content-Type'];
@@ -121,7 +198,14 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 
 // URL che NON devono triggerare il refresh automatico
 // Includiamo anche /auth/check perché è un endpoint di verifica sessione (utente anonimo è normale)
-const NO_REFRESH_URLS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout', '/auth/check'];
+const NO_REFRESH_URLS = [
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/logout',
+    '/auth/check',
+    '/auth/csrf',
+];
 
 axiosInstance.interceptors.response.use(
     // Risposta OK: passa attraverso

@@ -13,6 +13,7 @@
 const authService = require('../services/authService');
 const { getDeviceInfo } = require('../services/authService');
 const securityConfig = require('../config/security');
+const { setCsrfCookie } = require('../middleware/csrf');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { emailService, generateToken, hashToken } = require('../services/emailService');
 const AppError = require('../utils/AppError');
@@ -240,6 +241,21 @@ const checkAuth = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * GET /api/auth/csrf
+ * Restituisce il CSRF token corrente (e assicura il cookie)
+ */
+const getCsrfToken = asyncHandler(async (req, res) => {
+    const csrfToken = req.csrfToken || setCsrfCookie(res);
+
+    res.status(200).json({
+        success: true,
+        data: {
+            csrfToken,
+        },
+    });
+});
+
 // ==========================================
 // VERIFICA EMAIL
 // ==========================================
@@ -454,6 +470,7 @@ module.exports = {
     getProfile,
     changePassword,
     checkAuth,
+    getCsrfToken,
     verifyEmail,
     resendVerification,
     forgotPassword,

@@ -1,4 +1,4 @@
-import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
+import { apiClient, type ApiResponse, getCsrfHeader } from '../../../shared/services/apiClient';
 export type { Tag } from './tagsService';
 
 // ============================================
@@ -502,10 +502,12 @@ class StudyService {
         // Chiamata API con FormData
         // NOTA: withCredentials: true per inviare cookies HttpOnly (auth)
         // NOTA: NON impostare Content-Type manualmente, il browser lo fa con boundary
+        const csrfHeader = await getCsrfHeader();
         const response = await fetch(`/api${this.baseUrl}/${deckId}/generate-pdf`, {
             method: 'POST',
             body: formData,
             credentials: 'include', // Include cookies per auth
+            headers: csrfHeader,
         });
 
         console.log('📥 Response status:', response.status);
@@ -631,10 +633,12 @@ class StudyService {
         const formData = new FormData();
         formData.append('questionsFile', questionsFile);
 
+        const csrfHeader = await getCsrfHeader();
         const response = await fetch(`/api${this.baseUrl}/exam-solver/extract-questions`, {
             method: 'POST',
             body: formData,
             credentials: 'include',
+            headers: csrfHeader,
         });
 
         if (!response.ok) {
@@ -682,10 +686,12 @@ class StudyService {
             formData.append('goalId', options.goalId);
         }
 
+        const csrfHeader = await getCsrfHeader();
         const response = await fetch(`/api${this.baseUrl}/exam-solver/generate-answers`, {
             method: 'POST',
             body: formData,
             credentials: 'include',
+            headers: csrfHeader,
         });
 
         if (!response.ok) {
@@ -722,10 +728,12 @@ class StudyService {
         console.log('📤 Uploading files for Exam Solver...');
 
         // Chiamata API con FormData
+        const csrfHeader = await getCsrfHeader();
         const response = await fetch(`/api${this.baseUrl}/exam-solver`, {
             method: 'POST',
             body: formData,
             credentials: 'include', // Include cookies per auth
+            headers: csrfHeader,
         });
 
         console.log('📥 Response status:', response.status);

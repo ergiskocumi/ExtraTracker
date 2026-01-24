@@ -29,6 +29,7 @@ const { initRedis, closeRedis } = require('./config/redis');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const { errorHandler } = require('./middleware/errorHandler');
 const requestLogger = require('./middleware/requestLogger');
+const { ensureCsrfCookie, requireCsrf } = require('./middleware/csrf');
 const logger = require('./utils/logger');
 
 // Subscribers (Pattern Observer)
@@ -109,6 +110,10 @@ app.use(express.json({ limit: envConfig.bodyParser.jsonLimit }));
 app.use(express.urlencoded({ extended: true, limit: envConfig.bodyParser.urlencodedLimit }));
 
 app.use(cookieParser());
+
+// CSRF: set cookie if missing + validate state-changing requests
+app.use('/api', ensureCsrfCookie);
+app.use('/api', requireCsrf);
 
 // ==========================================
 // 5. RATE LIMITING

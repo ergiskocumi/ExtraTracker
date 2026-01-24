@@ -12,6 +12,10 @@ const User = require('../models/User');
 const { asyncHandler } = require('../middleware/errorHandler');
 const AppError = require('../utils/AppError');
 const { exportUserData, importUserData } = require('../services/dataExportImportService');
+const authService = require('../services/authService');
+const { encryptFields, decryptFields } = require('../utils/encryption');
+
+const PROFILE_SENSITIVE_FIELDS = ['phone', 'bio', 'company', 'jobTitle', 'location', 'website'];
 
 // ==========================================
 // PROFILO UTENTE
@@ -31,7 +35,10 @@ const getProfile = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         data: {
-            profile: user.profile || {},
+            profile: decryptFields(
+                user.profile?.toObject?.() || user.profile || {},
+                PROFILE_SENSITIVE_FIELDS
+            ),
             email: user.email,
             isEmailVerified: user.isEmailVerified,
             createdAt: user.createdAt,
@@ -58,10 +65,11 @@ const updateProfile = asyncHandler(async (req, res) => {
     ];
 
     // Filtra solo i campi permessi
+    const encryptedBody = encryptFields(req.body || {}, PROFILE_SENSITIVE_FIELDS);
     const updates = {};
     for (const field of allowedFields) {
-        if (req.body[field] !== undefined) {
-            updates[`profile.${field}`] = req.body[field];
+        if (encryptedBody[field] !== undefined) {
+            updates[`profile.${field}`] = encryptedBody[field];
         }
     }
 
@@ -79,7 +87,10 @@ const updateProfile = asyncHandler(async (req, res) => {
         success: true,
         message: 'Profilo aggiornato con successo',
         data: {
-            profile: user.profile,
+            profile: decryptFields(
+                user.profile?.toObject?.() || user.profile || {},
+                PROFILE_SENSITIVE_FIELDS
+            ),
         },
     });
 });
@@ -278,7 +289,10 @@ const getAllSettings = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         data: {
-            profile: user.profile || {},
+            profile: decryptFields(
+                user.profile?.toObject?.() || user.profile || {},
+                PROFILE_SENSITIVE_FIELDS
+            ),
             preferences: user.preferences || {},
             notifications: user.notifications || {},
             account: {
@@ -422,8 +436,7 @@ const deleteAccount = asyncHandler(async (req, res) => {
         throw new AppError('Utente non trovato', 404, 'USER_NOT_FOUND');
     }
 
-    const bcrypt = require('bcrypt');
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = await authService.verifyPassword(user.password, password);
 
     if (!isValidPassword) {
         throw new AppError('Password non corretta', 401, 'INVALID_PASSWORD');
@@ -437,6 +450,8 @@ const deleteAccount = asyncHandler(async (req, res) => {
     const Folder = require('../models/Folder');
     const Tag = require('../models/Tag');
     const WorkTodo = require('../models/WorkTodo');
+    const UserActivity = require('../models/UserActivity');
+    const Feedback = require('../models/Feedback');
 
     await Promise.all([
         WorkLog.deleteMany({ user: req.user.id }),
@@ -446,6 +461,8 @@ const deleteAccount = asyncHandler(async (req, res) => {
         Folder.deleteMany({ user: req.user.id }),
         Tag.deleteMany({ user: req.user.id }),
         WorkTodo.deleteMany({ user: req.user.id }),
+        UserActivity.deleteMany({ user: req.user.id }),
+        Feedback.deleteMany({ user: req.user.id }),
         User.findByIdAndDelete(req.user.id),
     ]);
 

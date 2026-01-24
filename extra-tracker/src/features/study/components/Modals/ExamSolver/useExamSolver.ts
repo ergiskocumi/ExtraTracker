@@ -7,6 +7,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
+import { getCsrfHeader } from '../../../../../shared/services/apiClient';
 import goalsService from '../../../../goals/services/goalsService';
 import type { Goal } from '../../../../goals/types';
 import type { 
@@ -538,10 +539,12 @@ export const useExamSolver = ({
                     // Crea nuovo AbortController per questo fetch
                     abortControllerRef.current = new AbortController();
 
+                    const csrfHeader = await getCsrfHeader();
                     const response = await fetch('/api/study/exam-solver/generate-answers', {
                         method: 'POST',
                         body: formData,
                         credentials: 'include',
+                        headers: csrfHeader,
                         signal: abortControllerRef.current.signal,
                     });
 
@@ -747,10 +750,12 @@ export const useExamSolver = ({
         formData.append('selectedQuestions', JSON.stringify([question]));
         formData.append('deckId', createdDeckId);
 
+        const csrfHeader = await getCsrfHeader();
         const response = await fetch('/api/study/exam-solver/generate-answers', {
             method: 'POST',
             body: formData,
             credentials: 'include',
+            headers: csrfHeader,
         });
 
         if (!response.ok) {
