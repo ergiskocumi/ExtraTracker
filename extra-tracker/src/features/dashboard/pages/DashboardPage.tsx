@@ -10,8 +10,7 @@
  * - Gamification aggiornata
  * - Design moderno e accattivante
  */
-import React, { useRef } from 'react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -21,11 +20,8 @@ import {
     Zap,
     Trophy,
     Flame,
-    Play,
-    Plus,
     ArrowRight,
     CheckCircle2,
-    AlertCircle,
     Sparkles,
     Calendar,
     BookOpen,
@@ -38,7 +34,6 @@ import {
 } from 'lucide-react';
 
 import { dashboardService, type DashboardSummary, type RecentItem } from '../services/dashboardService';
-import { LevelBadge } from '../../gamification/components/LevelBadge';
 
 // =========================================
 // UTILITY FUNCTIONS
@@ -72,6 +67,11 @@ const getCurrentDate = () => {
         day: 'numeric'
     };
     return new Date().toLocaleDateString('it-IT', options);
+};
+
+const getUserNameFromGreeting = (greeting: string) => {
+    const name = greeting.split(',')[1]?.replace(/[!👋]/g, '').trim();
+    return name || 'Utente';
 };
 
 /**
@@ -121,15 +121,13 @@ const RecentItemSkeleton = () => (
  * Mostra attività della giornata corrente
  */
 interface TodayStatsCardProps {
-    dueCards: number;
     studiedToday: number;
     goalsCompletedToday: number;
-    todayMinutes: number;
     todayFormatted: string;
 }
 
 const TodayStatsCard: React.FC<TodayStatsCardProps> = React.memo(
-    ({ dueCards, studiedToday, goalsCompletedToday, todayMinutes, todayFormatted }) => (
+    ({ studiedToday, goalsCompletedToday, todayFormatted }) => (
         <motion.div
             initial={{ opacity: 0, transform: 'translateY(20px)' }}
             animate={{ opacity: 1, transform: 'translateY(0)' }}
@@ -151,17 +149,6 @@ const TodayStatsCard: React.FC<TodayStatsCardProps> = React.memo(
                 </div>
 
                 <div className="space-y-4">
-                    {/* Ore lavorate */}
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center">
-                                <Clock className="w-5 h-5 text-sky-300" />
-                            </div>
-                            <span className="text-white/70 text-sm">Ore lavorate</span>
-                        </div>
-                        <span className="text-xl font-bold text-white">{todayFormatted}</span>
-                    </div>
-
                     {/* Carte studiate */}
                     <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
                         <div className="flex items-center gap-3">
@@ -311,7 +298,6 @@ const QuickActionsCard: React.FC = React.memo(() => {
         {
             icon: Brain,
             label: 'Studia',
-            color: 'from-violet-500 to-indigo-500',
             bgColor: 'bg-violet-500/10',
             borderColor: 'border-violet-500/30',
             onClick: () => navigate('/study')
@@ -319,18 +305,9 @@ const QuickActionsCard: React.FC = React.memo(() => {
         {
             icon: Target,
             label: 'Obiettivi',
-            color: 'from-emerald-500 to-teal-500',
             bgColor: 'bg-emerald-500/10',
             borderColor: 'border-emerald-500/30',
             onClick: () => navigate('/goals')
-        },
-        {
-            icon: Clock,
-            label: 'Tracker',
-            color: 'from-sky-500 to-blue-500',
-            bgColor: 'bg-sky-500/10',
-            borderColor: 'border-sky-500/30',
-            onClick: () => navigate('/dashboard')
         }
     ];
 
@@ -369,288 +346,6 @@ const QuickActionsCard: React.FC = React.memo(() => {
                         );
                     })}
                 </div>
-            </div>
-        </motion.div>
-    );
-});
-
-// =========================================
-// VECCHIE ACTION CARDS (da rimuovere dopo)
-// =========================================
-
-interface StudyActionCardProps {
-    dueCards: number;
-    nextDeck: { id: string; title: string; dueCards: number } | null;
-    allDone: boolean;
-    totalDecks: number;
-}
-
-const StudyActionCard: React.FC<StudyActionCardProps> = React.memo(({ dueCards, nextDeck, allDone, totalDecks }) => {
-    const navigate = useNavigate();
-
-    const handleStudy = () => {
-        if (nextDeck) {
-            navigate(`/study/${nextDeck.id}/session?mode=flashcard`);
-        } else {
-            navigate('/study');
-        }
-    };
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, transform: 'translateY(20px)' }}
-            animate={{ opacity: 1, transform: 'translateY(0)' }}
-            transition={{ delay: 0.1 }}
-            style={{ willChange: 'transform, opacity' }}
-            className="relative rounded-[28px] border border-violet-400/25 bg-gradient-to-br from-slate-950/80 via-violet-950/40 to-slate-950/60 p-6 overflow-hidden group shadow-[0_24px_60px_-40px_rgba(71,48,180,0.6)]"
-        >
-            {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-44 h-44 bg-violet-500/15 rounded-[28px] blur-3xl rotate-12" />
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-indigo-500/10 rounded-[24px] blur-2xl -rotate-12" />
-            <div
-                className="absolute inset-0 opacity-[0.05]"
-                style={{
-                    backgroundImage:
-                        'linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
-                    backgroundSize: '24px 24px',
-                }}
-            />
-            
-            <div className="relative">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center shadow-lg shadow-violet-500/20">
-                        <Brain className="w-7 h-7 text-violet-300" />
-                    </div>
-                    {dueCards > 0 && (
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-500/20 border border-violet-500/30 text-violet-200 text-sm font-medium">
-                            <Zap className="w-4 h-4" />
-                            {dueCards} da fare
-                        </span>
-                    )}
-                </div>
-
-                {/* Content */}
-                <div className="mb-6">
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                        {allDone ? 'Tutto completato!' : 'Flashcards'}
-                    </h3>
-                    <p className="text-white/60 text-sm">
-                        {allDone 
-                            ? 'Ottimo lavoro! Hai ripassato tutte le carte 🎉'
-                            : nextDeck 
-                                ? `Continua con "${nextDeck.title}"`
-                                : totalDecks > 0 
-                                    ? `${totalDecks} mazzi pronti per lo studio`
-                                    : 'Crea il tuo primo mazzo'
-                        }
-                    </p>
-                </div>
-
-                {/* Action Button */}
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleStudy}
-                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl font-semibold transition-all ${
-                        dueCards > 0
-                            ? 'bg-gradient-to-r from-violet-500 via-indigo-500 to-violet-600 text-white shadow-lg shadow-violet-500/30 hover:from-violet-400 hover:to-violet-500 hover:shadow-violet-500/40'
-                            : 'bg-white/[0.06] text-white/80 hover:bg-white/[0.12] border border-white/[0.12]'
-                    }`}
-                >
-                    {dueCards > 0 ? (
-                        <>
-                            <Play className="w-4 h-4" />
-                            Studia Ora
-                        </>
-                    ) : totalDecks > 0 ? (
-                        <>
-                            <Brain className="w-4 h-4" />
-                            Vai ai Mazzi
-                        </>
-                    ) : (
-                        <>
-                            <Plus className="w-4 h-4" />
-                            Crea Mazzo
-                        </>
-                    )}
-                </motion.button>
-            </div>
-        </motion.div>
-    );
-});
-
-interface GoalActionCardProps {
-    activeCount: number;
-    overdueCount: number;
-    topPriority: {
-        id: string;
-        title: string;
-        category: string;
-        isOverdue: boolean;
-        progress: number;
-    } | null;
-}
-
-const GoalActionCard: React.FC<GoalActionCardProps> = React.memo(({ activeCount, overdueCount, topPriority }) => {
-    const navigate = useNavigate();
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, transform: 'translateY(20px)' }}
-            animate={{ opacity: 1, transform: 'translateY(0)' }}
-            transition={{ delay: 0.2 }}
-            style={{ willChange: 'transform, opacity' }}
-            className="relative rounded-[28px] border border-emerald-400/25 bg-gradient-to-br from-slate-950/80 via-emerald-950/40 to-slate-950/60 p-6 overflow-hidden shadow-[0_24px_60px_-40px_rgba(16,185,129,0.5)]"
-        >
-            {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-44 h-44 bg-emerald-500/12 rounded-[28px] blur-3xl rotate-12" />
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-teal-500/10 rounded-[24px] blur-2xl -rotate-12" />
-            <div
-                className="absolute inset-0 opacity-[0.05]"
-                style={{
-                    backgroundImage:
-                        'linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
-                    backgroundSize: '24px 24px',
-                }}
-            />
-            
-            <div className="relative">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                        <Target className="w-7 h-7 text-emerald-300" />
-                    </div>
-                    {overdueCount > 0 && (
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-200 text-sm font-medium">
-                            <AlertCircle className="w-4 h-4" />
-                            {overdueCount} in ritardo
-                        </span>
-                    )}
-                </div>
-
-                {/* Content */}
-                <div className="mb-6">
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                        {topPriority ? topPriority.title : 'Obiettivi'}
-                    </h3>
-                    <p className="text-white/60 text-sm">
-                        {topPriority 
-                            ? `${topPriority.category} • ${Math.round(topPriority.progress)}% completato`
-                            : activeCount > 0 
-                                ? `${activeCount} obiettivi attivi`
-                                : 'Inizia a tracciare i tuoi traguardi'
-                        }
-                    </p>
-                    
-                    {topPriority && (
-                        <div className="mt-4">
-                            <div className="h-2 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${topPriority.progress}%` }}
-                                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-500/30"
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Action Button */}
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate(topPriority ? `/goals/${topPriority.id}` : '/goals')}
-                    className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl font-semibold transition-all ${
-                        overdueCount > 0
-                            ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-500/40'
-                            : 'bg-white/[0.06] text-white/80 hover:bg-white/[0.12] border border-white/[0.12]'
-                    }`}
-                >
-                    {topPriority ? (
-                        <>
-                            <CheckCircle2 className="w-4 h-4" />
-                            Check-in Veloce
-                        </>
-                    ) : (
-                        <>
-                            <Plus className="w-4 h-4" />
-                            Nuovo Obiettivo
-                        </>
-                    )}
-                </motion.button>
-            </div>
-        </motion.div>
-    );
-});
-
-interface WorkActionCardProps {
-    todayFormatted: string;
-    todayMinutes: number;
-    sessionsToday: number;
-}
-
-const WorkActionCard: React.FC<WorkActionCardProps> = React.memo(({ todayFormatted, todayMinutes, sessionsToday }) => {
-    const navigate = useNavigate();
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, transform: 'translateY(20px)' }}
-            animate={{ opacity: 1, transform: 'translateY(0)' }}
-            transition={{ delay: 0.3 }}
-            style={{ willChange: 'transform, opacity' }}
-            className="relative rounded-[28px] border border-sky-400/25 bg-gradient-to-br from-slate-950/80 via-sky-950/40 to-slate-950/60 p-6 overflow-hidden shadow-[0_24px_60px_-40px_rgba(59,130,246,0.5)]"
-        >
-            {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-44 h-44 bg-sky-500/12 rounded-[28px] blur-3xl rotate-12" />
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/10 rounded-[24px] blur-2xl -rotate-12" />
-            <div
-                className="absolute inset-0 opacity-[0.05]"
-                style={{
-                    backgroundImage:
-                        'linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
-                    backgroundSize: '24px 24px',
-                }}
-            />
-            
-            <div className="relative">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center shadow-lg shadow-sky-500/20">
-                        <Clock className="w-7 h-7 text-sky-300" />
-                    </div>
-                    {todayMinutes > 0 && (
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/20 border border-sky-500/30 text-sky-200 text-sm font-medium">
-                            <TrendingUp className="w-4 h-4" />
-                            {todayFormatted}
-                        </span>
-                    )}
-                </div>
-
-                {/* Content */}
-                <div className="mb-6">
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                        Work Tracker
-                    </h3>
-                    <p className="text-white/60 text-sm">
-                        {todayMinutes > 0 
-                            ? `${sessionsToday} ${sessionsToday === 1 ? 'sessione' : 'sessioni'} registrate oggi`
-                            : 'Nessuna sessione registrata oggi'
-                        }
-                    </p>
-                </div>
-
-                {/* Action Button */}
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('/dashboard')}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-white/[0.06] text-white/80 hover:bg-white/[0.12] border border-white/[0.12] font-semibold transition-all"
-                >
-                    <Plus className="w-4 h-4" />
-                    Apri Tracker
-                </motion.button>
             </div>
         </motion.div>
     );
@@ -746,78 +441,6 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
 };
 
 // =========================================
-// GAMIFICATION WIDGET
-// =========================================
-
-interface GamificationWidgetProps {
-    streak: number;
-    level: number;
-    xp: number;
-    nextLevelXp: number;
-    progress: number;
-}
-
-const GamificationWidget: React.FC<GamificationWidgetProps> = React.memo(
-    ({ streak, level, xp, nextLevelXp, progress }) => (
-        <motion.div
-            initial={{ opacity: 0, transform: 'translateY(20px)' }}
-            animate={{ opacity: 1, transform: 'translateY(0)' }}
-            transition={{ delay: 0.35 }}
-            style={{ willChange: 'transform, opacity' }}
-            className="relative rounded-[28px] border border-amber-400/25 bg-gradient-to-br from-slate-950/80 via-amber-950/40 to-slate-950/60 p-6 overflow-hidden shadow-[0_24px_60px_-40px_rgba(245,158,11,0.45)]"
-        >
-            {/* Background decoration */}
-            <div className="absolute -top-10 -right-10 w-44 h-44 bg-amber-500/12 rounded-[28px] blur-3xl rotate-12" />
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-orange-500/10 rounded-[24px] blur-2xl -rotate-12" />
-            <div
-                className="absolute inset-0 opacity-[0.05]"
-                style={{
-                    backgroundImage:
-                        'linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
-                    backgroundSize: '24px 24px',
-                }}
-            />
-            <div className="relative flex items-center gap-6">
-                {/* Level Badge */}
-                <div className="relative">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 ring-2 ring-amber-500/20">
-                        <Trophy className="w-8 h-8 text-white" />
-                    </div>
-                    <div className="absolute -bottom-2 -right-2">
-                        <LevelBadge level={level} size="sm" variant="icon" />
-                    </div>
-                </div>
-
-                {/* Stats */}
-                <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-white font-medium">Livello {level}</span>
-                        <div className="flex items-center gap-1.5 text-orange-300">
-                            <Flame className="w-4 h-4" />
-                            <span className="text-sm font-semibold">{streak} giorni</span>
-                        </div>
-                    </div>
-
-                    <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-2 ring-1 ring-white/10">
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            transition={{ duration: 0.8, ease: 'easeOut' }}
-                            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 shadow-lg shadow-amber-500/30"
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-white/60">
-                        <span>{xp} XP</span>
-                        <span>{nextLevelXp} XP</span>
-                    </div>
-                </div>
-            </div>
-        </motion.div>
-    )
-);
-
-// =========================================
 // MAIN COMPONENT
 // =========================================
 
@@ -825,43 +448,47 @@ export const DashboardPage = () => {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const isInitialLoadRef = useRef(true);
 
     useEffect(() => {
-        let cancelled = false;
-        let refreshInterval: NodeJS.Timeout | null = null;
+        let isCancelled = false;
+        let refreshTimerId: NodeJS.Timeout | null = null;
 
-        const loadData = async () => {
-            setLoading(true);
+        const fetchSummary = async () => {
+            if (isInitialLoadRef.current) {
+                setLoading(true);
+            }
             setError(null);
 
             try {
                 const summaryData = await dashboardService.getSummary();
 
-                if (!cancelled) {
+                if (!isCancelled) {
                     setSummary(summaryData);
                 }
             } catch (err) {
-                if (!cancelled) {
+                if (!isCancelled) {
                     setError('Impossibile caricare i dati della dashboard');
                     console.error('Dashboard load error:', err);
                 }
             } finally {
-                if (!cancelled) {
+                if (!isCancelled) {
                     setLoading(false);
+                    isInitialLoadRef.current = false;
                 }
             }
         };
 
         // Carica dati inizialmente
-        loadData();
+        fetchSummary();
 
         // Refresh automatico ogni 30 secondi per dati in real-time
-        refreshInterval = setInterval(loadData, 30000);
+        refreshTimerId = setInterval(fetchSummary, 30000);
 
         return () => {
-            cancelled = true;
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
+            isCancelled = true;
+            if (refreshTimerId) {
+                clearInterval(refreshTimerId);
             }
         };
     }, []);
@@ -884,8 +511,7 @@ export const DashboardPage = () => {
                 {!loading && summary && (() => {
                     const greetingInfo = getGreetingInfo();
                     const GreetingIcon = greetingInfo.icon;
-                    // Estrae il nome dal greeting del backend (es. "Buongiorno, Mario 👋" -> "Mario")
-                    const userName = summary.greeting.split(',')[1]?.trim().replace('👋', '').trim() || 'Utente';
+                    const userName = getUserNameFromGreeting(summary.greeting);
 
                     return (
                         <div className="relative overflow-hidden rounded-[32px] border border-white/15 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-950/90 backdrop-blur-2xl p-8 shadow-[0_24px_60px_-40px_rgba(8,14,28,0.9)]">
@@ -1032,10 +658,8 @@ export const DashboardPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {/* Statistiche di Oggi */}
                         <TodayStatsCard
-                            dueCards={summary.study.dueCards}
-                            studiedToday={0} // TODO: Aggiungere dal backend
-                            goalsCompletedToday={0} // TODO: Aggiungere dal backend
-                            todayMinutes={summary.work.todayMinutes}
+                            studiedToday={summary.study.cardsStudiedToday}
+                            goalsCompletedToday={summary.goals.completedToday}
                             todayFormatted={summary.work.todayFormatted}
                         />
 

@@ -1,4 +1,6 @@
 export const timeToMinutes = (time: string): number => {
+    const trimmedTime = time.trim();
+
     // 1. Validazione Formato (HH:MM)
     // Regex rigorosa: 
     // ^       = inizio stringa
@@ -8,11 +10,11 @@ export const timeToMinutes = (time: string): number => {
     // $       = fine stringa
     const timeRegex = /^\d{2}:\d{2}$/;
     
-    if (!timeRegex.test(time)) {
+    if (!timeRegex.test(trimmedTime)) {
         throw new Error("Formato non valido. Usa HH:MM (es. 09:30)");
     }
 
-    const [hoursStr, minutesStr] = time.split(':');
+    const [hoursStr, minutesStr] = trimmedTime.split(':');
     const hours = Number(hoursStr);
     const minutes = Number(minutesStr);
 
@@ -25,9 +27,6 @@ export const timeToMinutes = (time: string): number => {
     }
 
     return hours * 60 + minutes;
-
-    //TODO: aggiungere un trim per rimuovere spazi bianchi all'inizio e alla fine della stringa e pulire l'output in maniera che 
-    // anche se l'utente inserisce spazi bianchi non dia errore ma lo faccia proseguire normalmente
 }
 
 

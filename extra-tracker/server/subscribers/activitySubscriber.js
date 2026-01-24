@@ -44,7 +44,7 @@ async function handleWorkLogCreated(data) {
 
     const tags = Array.isArray(workLog.tags) ? workLog.tags : [];
     const timeOfDay = getTimeOfDayLabel(new Date());
-    const charCount = workLog.notes?.length || 0;
+    const charCount = workLog.description?.length || 0;
 
     // Determina tipo di attività per analytics
     const activityType = (workLog.startTime && workLog.endTime)

@@ -24,6 +24,7 @@ export interface StudySummary {
     totalDecks: number;
     nextDeck: DeckInfo | null;
     allDone: boolean;
+    cardsStudiedToday: number;
 }
 
 export interface GoalInfo {
@@ -40,6 +41,7 @@ export interface GoalsSummary {
     overdueCount: number;
     highPriorityCount: number;
     topPriority: GoalInfo | null;
+    completedToday: number;
 }
 
 export interface WorkSummary {

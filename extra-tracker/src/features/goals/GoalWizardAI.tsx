@@ -12,7 +12,7 @@
  * 4. Accetta Sfida (Salva nel DB)
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGoals } from './context/GoalsContext';
 import { GOAL_CATEGORIES } from './types';
@@ -68,6 +68,21 @@ const INTENSITY_OPTIONS: { value: Intensity; label: string; emoji: string; descr
     { value: 'normal', label: 'Normale', emoji: '🚶', description: 'Equilibrio perfetto' },
     { value: 'hardcore', label: 'Hardcore', emoji: '🔥', description: 'Sfida intensa!' },
 ];
+
+const WIZARD_STEP_KEYS: WizardStep[] = ['category', 'intent', 'blueprint'];
+const WIZARD_STEP_LABELS = ['Categoria', 'Intento', 'Blueprint'] as const;
+
+const formatMilestoneDate = (dateStr: string) => {
+    try {
+        return new Date(dateStr).toLocaleDateString('it-IT', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+        });
+    } catch {
+        return 'Data non valida';
+    }
+};
 
 // =========================================
 // SUB-COMPONENTS
@@ -152,12 +167,12 @@ interface MilestoneItemProps {
     milestone: AIMilestone;
     index: number;
     isExpanded: boolean;
-    onToggle: () => void;
-    onDelete: () => void;
-    onUpdate: (updates: Partial<AIMilestone>) => void;
+    onToggle: (index: number) => void;
+    onDelete: (index: number) => void;
+    onUpdate: (index: number, updates: Partial<AIMilestone>) => void;
 }
 
-const MilestoneItem: React.FC<MilestoneItemProps> = ({
+const MilestoneItem = React.memo<MilestoneItemProps>(({
     milestone,
     index,
     isExpanded,
@@ -170,21 +185,9 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
 
     const handleSaveTitle = () => {
         if (editTitle.trim()) {
-            onUpdate({ title: editTitle.trim() });
+            onUpdate(index, { title: editTitle.trim() });
         }
         setIsEditing(false);
-    };
-
-    const formatDate = (dateStr: string) => {
-        try {
-            return new Date(dateStr).toLocaleDateString('it-IT', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-            });
-        } catch {
-            return 'Data non valida';
-        }
     };
 
     return (
@@ -199,7 +202,7 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
             {/* Header - Always visible */}
             <div
                 className="flex items-center justify-between p-4 transition-all cursor-pointer hover:bg-white/[0.05]"
-                onClick={onToggle}
+                onClick={() => onToggle(index)}
             >
                 <div className="flex items-center flex-1 min-w-0 space-x-3">
                     <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 text-sm font-semibold border rounded-lg bg-primary-500/20 text-primary-400 border-primary-500/30">
@@ -225,7 +228,7 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
                 <div className="flex items-center flex-shrink-0 space-x-3">
                     <div className="flex items-center px-2 py-1 space-x-1 text-xs text-white/60 rounded-md bg-white/[0.05]">
                         <FiCalendar className="w-3 h-3" />
-                        <span>{formatDate(milestone.deadline)}</span>
+                        <span>{formatMilestoneDate(milestone.deadline)}</span>
                     </div>
                     
                     <motion.div
@@ -312,7 +315,7 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        onDelete();
+                                        onDelete(index);
                                     }}
                                     className="flex items-center px-3 py-1.5 space-x-1 text-xs transition-all rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10"
                                 >
@@ -326,6 +329,92 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
             </AnimatePresence>
         </motion.div>
     );
+});
+
+// =========================================
+// HELPERS
+// =========================================
+
+const normalizeActionSteps = (steps: Array<string | Partial<ActionStep>> | undefined): ActionStep[] => {
+    if (!steps) return [];
+
+    return steps
+        .map((step) => {
+            if (typeof step === 'string') {
+                return { title: step, isCompleted: false };
+            }
+
+            return {
+                title: typeof step.title === 'string' ? step.title : '',
+                isCompleted: Boolean(step.isCompleted),
+            };
+        })
+        .filter((step) => step.title.trim().length > 0);
+};
+
+const buildGoalPayload = (
+    plan: AIGoalPlanResponse,
+    category: GoalCategory,
+    title: string,
+    description: string
+): CreateGoalDTO => ({
+    title: title || plan.title,
+    description: description || plan.description,
+    category,
+    type: plan.type,
+    targetValue: plan.targetValue || undefined,
+    unit: plan.unit || undefined,
+    frequency: plan.frequency || undefined,
+    deadline: plan.deadline,
+    milestones: plan.milestones.map((milestone) => ({
+        title: milestone.title,
+        weight: milestone.weight,
+        deadline: milestone.deadline,
+        reasoning: milestone.reasoning,
+        actionSteps: normalizeActionSteps(milestone.actionSteps),
+        resources: milestone.resources,
+    })),
+});
+
+// =========================================
+// SHARED UI
+// =========================================
+
+const ProgressSteps: React.FC<{ step: WizardStep }> = ({ step }) => {
+    const currentIndex = WIZARD_STEP_KEYS.indexOf(step);
+
+    return (
+        <div className="px-6 py-3 border-b border-dark-700">
+            <div className="flex items-center justify-between">
+                {WIZARD_STEP_LABELS.map((label, index) => {
+                    const isActive = index === currentIndex;
+                    const isCompleted = index < currentIndex;
+
+                    return (
+                        <div key={label} className="flex items-center">
+                            <div className={`
+                                w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
+                                ${isCompleted 
+                                    ? 'bg-green-500 text-white' 
+                                    : isActive 
+                                        ? 'bg-primary-500 text-white' 
+                                        : 'bg-dark-600 text-gray-500'
+                                }
+                            `}>
+                                {isCompleted ? <FiCheck className="w-4 h-4" /> : index + 1}
+                            </div>
+                            <span className={`ml-2 text-sm hidden sm:block ${isActive ? 'text-white' : 'text-gray-500'}`}>
+                                {label}
+                            </span>
+                            {index < WIZARD_STEP_LABELS.length - 1 && (
+                                <div className={`w-12 sm:w-20 h-0.5 mx-2 ${isCompleted ? 'bg-green-500' : 'bg-dark-600'}`} />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
 };
 
 // =========================================
@@ -337,11 +426,15 @@ interface GoalWizardAIEmbeddedProps {
     onSwitchToManual?: () => void;
 }
 
+interface GoalWizardFlowProps extends GoalWizardAIEmbeddedProps {
+    variant: 'embedded' | 'modal';
+}
+
 // =========================================
-// EMBEDDED COMPONENT (Without modal wrapper)
+// SHARED FLOW
 // =========================================
 
-export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onClose, onSwitchToManual }) => {
+const GoalWizardAIFlow: React.FC<GoalWizardFlowProps> = ({ onClose, onSwitchToManual, variant }) => {
     const { addGoal } = useGoals();
 
     // Step navigation
@@ -351,22 +444,24 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
     const [selectedCategory, setSelectedCategory] = useState<GoalCategory | null>(null);
     
     // Step 2: Intent
-    const [userQuery, setUserQuery] = useState('');
+    const [intentText, setIntentText] = useState('');
     const [intensity, setIntensity] = useState<Intensity>('normal');
     
     // Step 3: Blueprint
     const [plan, setPlan] = useState<AIGoalPlanResponse | null>(null);
-    const [expandedMilestone, setExpandedMilestone] = useState<number | null>(0);
+    const [expandedMilestoneIndex, setExpandedMilestoneIndex] = useState<number | null>(0);
     
     // UI State
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
-    const [error, setError] = useState<string | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Editable fields
-    const [editedTitle, setEditedTitle] = useState('');
-    const [editedDescription, setEditedDescription] = useState('');
+    const [goalTitle, setGoalTitle] = useState('');
+    const [goalDescription, setGoalDescription] = useState('');
+
+    const contentHeightClass = variant === 'embedded' ? 'max-h-[65vh]' : 'max-h-[70vh]';
 
     // =========================================
     // HANDLERS
@@ -378,10 +473,10 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
     };
 
     const handleGeneratePlan = async () => {
-        if (!selectedCategory || !userQuery.trim()) return;
+        if (!selectedCategory || !intentText.trim()) return;
 
         setIsLoading(true);
-        setError(null);
+        setErrorMessage(null);
         setLoadingMessageIndex(0);
 
         const messageInterval = setInterval(() => {
@@ -391,23 +486,23 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
         try {
             const result = await goalsService.generateAIGoalPlan(
                 selectedCategory,
-                userQuery.trim(),
+                intentText.trim(),
                 intensity
             );
 
             setPlan(result);
-            setEditedTitle(result.title);
-            setEditedDescription(result.description);
+            setGoalTitle(result.title);
+            setGoalDescription(result.description);
             setStep('blueprint');
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Errore nella generazione del piano');
+            setErrorMessage(err instanceof Error ? err.message : 'Errore nella generazione del piano');
         } finally {
             clearInterval(messageInterval);
             setIsLoading(false);
         }
     };
 
-    const handleDeleteMilestone = (index: number) => {
+    const handleDeleteMilestone = useCallback((index: number) => {
         if (!plan || plan.milestones.length <= 1) return;
         
         setPlan({
@@ -415,65 +510,47 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
             milestones: plan.milestones.filter((_, i) => i !== index),
         });
         
-        if (expandedMilestone === index) {
-            setExpandedMilestone(null);
-        } else if (expandedMilestone !== null && expandedMilestone > index) {
-            setExpandedMilestone(expandedMilestone - 1);
-        }
-    };
+        setExpandedMilestoneIndex((currentIndex) => {
+            if (currentIndex === null) return currentIndex;
+            if (currentIndex === index) return null;
+            if (currentIndex > index) return currentIndex - 1;
+            return currentIndex;
+        });
+    }, [plan]);
 
-    const handleUpdateMilestone = (index: number, updates: Partial<AIMilestone>) => {
+    const handleUpdateMilestone = useCallback((index: number, updates: Partial<AIMilestone>) => {
         if (!plan) return;
 
         setPlan({
             ...plan,
-            milestones: plan.milestones.map((m, i) => 
-                i === index ? { ...m, ...updates } : m
+            milestones: plan.milestones.map((milestone, milestoneIndex) => 
+                milestoneIndex === index ? { ...milestone, ...updates } : milestone
             ),
         });
-    };
+    }, [plan]);
+
+    const handleToggleMilestone = useCallback((index: number) => {
+        setExpandedMilestoneIndex((currentIndex) => (currentIndex === index ? null : index));
+    }, []);
+
+    const handleToggleAllMilestones = useCallback(() => {
+        setExpandedMilestoneIndex((currentIndex) => (currentIndex === null ? 0 : null));
+    }, []);
 
     const handleAcceptChallenge = async () => {
         if (!plan || !selectedCategory) return;
 
-        setIsSubmitting(true);
-        setError(null);
+        setIsSaving(true);
+        setErrorMessage(null);
 
         try {
-            const goalData: CreateGoalDTO = {
-                title: editedTitle || plan.title,
-                description: editedDescription || plan.description,
-                category: selectedCategory,
-                type: plan.type,
-                targetValue: plan.targetValue || undefined,
-                unit: plan.unit || undefined,
-                frequency: plan.frequency || undefined,
-                deadline: plan.deadline,
-                milestones: plan.milestones.map((m) => ({
-                    title: m.title,
-                    weight: m.weight,
-                    deadline: m.deadline,
-                    reasoning: m.reasoning,
-                    actionSteps: (m.actionSteps || [])
-                        .map((s: string | Partial<ActionStep>) => {
-                            if (typeof s === 'string') {
-                                return { title: s, isCompleted: false } satisfies ActionStep;
-                            }
-                            return {
-                                title: typeof s.title === 'string' ? s.title : '',
-                                isCompleted: Boolean(s.isCompleted),
-                            } satisfies ActionStep;
-                        })
-                        .filter((s) => typeof s.title === 'string' && s.title.trim().length > 0),
-                    resources: m.resources,
-                })),
-            };
+            const goalData = buildGoalPayload(plan, selectedCategory, goalTitle, goalDescription);
 
             await addGoal(goalData);
             onClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Errore nel salvataggio');
-            setIsSubmitting(false);
+            setErrorMessage(err instanceof Error ? err.message : 'Errore nel salvataggio');
+            setIsSaving(false);
         }
     };
 
@@ -564,19 +641,19 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
             {/* Magic Input */}
             <div className="relative">
                 <textarea
-                    value={userQuery}
-                    onChange={(e) => setUserQuery(e.target.value)}
+                    value={intentText}
+                    onChange={(e) => setIntentText(e.target.value)}
                     placeholder="Es: Voglio imparare a suonare la chitarra, partendo da zero, fino a poter suonare le mie canzoni preferite..."
                     className="w-full p-4 text-base leading-relaxed text-white transition-all duration-200 border resize-none h-28 placeholder-white/40 bg-white/5 border-white/10 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:bg-white/10"
                     maxLength={500}
                 />
                 <div className="absolute bottom-3 right-3">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded bg-black/30 ${
-                        userQuery.length > 450 ? 'text-orange-400' : 
-                        userQuery.length > 400 ? 'text-yellow-400' : 
+                        intentText.length > 450 ? 'text-orange-400' : 
+                        intentText.length > 400 ? 'text-yellow-400' : 
                         'text-white/50'
                     }`}>
-                        {userQuery.length}/500
+                        {intentText.length}/500
                     </span>
                 </div>
             </div>
@@ -621,20 +698,20 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
             </div>
 
             {/* Error Message */}
-            {error && (
+            {errorMessage && (
                 <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="p-3 text-sm text-red-400 border rounded-lg bg-red-500/10 border-red-500/30"
                 >
-                    {error}
+                    {errorMessage}
                 </motion.div>
             )}
 
             {/* Generate Button */}
             <button
                 onClick={handleGeneratePlan}
-                disabled={!userQuery.trim() || userQuery.length < 10 || isLoading}
+                disabled={!intentText.trim() || intentText.length < 10 || isLoading}
                 className="flex items-center justify-center w-full py-3 space-x-2 font-semibold text-white transition-all border-2 shadow-lg rounded-xl bg-primary-600 border-primary-500 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-primary-500/25"
             >
                 <FiZap className="w-5 h-5" />
@@ -687,14 +764,14 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
                         <div className="flex-1 space-y-2">
                             <input
                                 type="text"
-                                value={editedTitle}
-                                onChange={(e) => setEditedTitle(e.target.value)}
+                                value={goalTitle}
+                                onChange={(e) => setGoalTitle(e.target.value)}
                                 className="w-full pb-1 text-lg font-semibold text-white bg-transparent border-b border-dark-600 focus:outline-none focus:border-primary-500"
                                 placeholder="Titolo obiettivo"
                             />
                             <textarea
-                                value={editedDescription}
-                                onChange={(e) => setEditedDescription(e.target.value)}
+                                value={goalDescription}
+                                onChange={(e) => setGoalDescription(e.target.value)}
                                 className="w-full text-sm text-gray-400 bg-transparent border-none resize-none focus:outline-none"
                                 placeholder="Descrizione"
                                 rows={2}
@@ -726,10 +803,10 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
                         </h3>
                         {plan.milestones.length > 1 && (
                             <button
-                                onClick={() => setExpandedMilestone(expandedMilestone === null ? 0 : null)}
+                                onClick={handleToggleAllMilestones}
                                 className="text-xs text-primary-400 hover:text-primary-300"
                             >
-                                {expandedMilestone === null ? 'Espandi tutto' : 'Comprimi tutto'}
+                                {expandedMilestoneIndex === null ? 'Espandi tutto' : 'Comprimi tutto'}
                             </button>
                         )}
                     </div>
@@ -741,12 +818,10 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
                                     key={`${milestone.title}-${index}`}
                                     milestone={milestone}
                                     index={index}
-                                    isExpanded={expandedMilestone === index}
-                                    onToggle={() => setExpandedMilestone(
-                                        expandedMilestone === index ? null : index
-                                    )}
-                                    onDelete={() => handleDeleteMilestone(index)}
-                                    onUpdate={(updates) => handleUpdateMilestone(index, updates)}
+                                    isExpanded={expandedMilestoneIndex === index}
+                                    onToggle={handleToggleMilestone}
+                                    onDelete={handleDeleteMilestone}
+                                    onUpdate={handleUpdateMilestone}
                                 />
                             ))}
                         </AnimatePresence>
@@ -754,519 +829,23 @@ export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onCl
                 </div>
 
                 {/* Error */}
-                {error && (
+                {errorMessage && (
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="p-3 text-sm text-red-400 border rounded-lg bg-red-500/10 border-red-500/30"
                     >
-                        {error}
+                        {errorMessage}
                     </motion.div>
                 )}
 
                 {/* Accept Button */}
                 <button
                     onClick={handleAcceptChallenge}
-                    disabled={isSubmitting || !editedTitle.trim()}
+                    disabled={isSaving || !goalTitle.trim()}
                     className="flex items-center justify-center w-full py-4 space-x-2 font-semibold text-white transition-all bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isSubmitting ? (
-                        <>
-                            <FiLoader className="w-5 h-5 animate-spin" />
-                            <span>Salvataggio...</span>
-                        </>
-                    ) : (
-                        <>
-                            <FiCheck className="w-5 h-5" />
-                            <span>Accetta Sfida 🚀</span>
-                        </>
-                    )}
-                </button>
-            </motion.div>
-        );
-    };
-
-    // =========================================
-    // MAIN RENDER (Embedded - no modal wrapper)
-    // =========================================
-
-    return (
-        <>
-            {/* Progress Steps */}
-            <div className="px-6 py-3 border-b border-dark-700">
-                <div className="flex items-center justify-between">
-                    {['Categoria', 'Intento', 'Blueprint'].map((label, index) => {
-                        const stepKeys: WizardStep[] = ['category', 'intent', 'blueprint'];
-                        const currentIndex = stepKeys.indexOf(step);
-                        const isActive = index === currentIndex;
-                        const isCompleted = index < currentIndex;
-
-                        return (
-                            <div key={label} className="flex items-center">
-                                <div className={`
-                                    w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
-                                    ${isCompleted 
-                                        ? 'bg-green-500 text-white' 
-                                        : isActive 
-                                            ? 'bg-primary-500 text-white' 
-                                            : 'bg-dark-600 text-gray-500'
-                                    }
-                                `}>
-                                    {isCompleted ? <FiCheck className="w-4 h-4" /> : index + 1}
-                                </div>
-                                <span className={`ml-2 text-sm hidden sm:block ${isActive ? 'text-white' : 'text-gray-500'}`}>
-                                    {label}
-                                </span>
-                                {index < 2 && (
-                                    <div className={`w-12 sm:w-20 h-0.5 mx-2 ${isCompleted ? 'bg-green-500' : 'bg-dark-600'}`} />
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Back Button (floating) */}
-            {step !== 'category' && (
-                <button
-                    onClick={handleBack}
-                    disabled={isLoading}
-                    className="absolute p-2 text-gray-400 transition-colors rounded-lg left-4 top-20 hover:text-white hover:bg-dark-700 disabled:opacity-50"
-                >
-                    <FiArrowLeft className="w-5 h-5" />
-                </button>
-            )}
-
-            {/* Content */}
-            <div className="p-6 max-h-[65vh] overflow-y-auto">
-                <AnimatePresence mode="wait">
-                    {isLoading ? (
-                        <LoadingState key="loading" messageIndex={loadingMessageIndex} />
-                    ) : step === 'category' ? (
-                        renderCategoryStep()
-                    ) : step === 'intent' ? (
-                        renderIntentStep()
-                    ) : step === 'blueprint' ? (
-                        renderBlueprintStep()
-                    ) : null}
-                </AnimatePresence>
-            </div>
-        </>
-    );
-};
-
-// =========================================
-// MAIN COMPONENT (With modal wrapper - standalone use)
-// =========================================
-
-export const GoalWizardAI: React.FC<GoalWizardAIProps> = ({ onClose }) => {
-    const { addGoal } = useGoals();
-
-    // Step navigation
-    const [step, setStep] = useState<WizardStep>('category');
-    
-    // Step 1: Category
-    const [selectedCategory, setSelectedCategory] = useState<GoalCategory | null>(null);
-    
-    // Step 2: Intent
-    const [userQuery, setUserQuery] = useState('');
-    const [intensity, setIntensity] = useState<Intensity>('normal');
-    
-    // Step 3: Blueprint
-    const [plan, setPlan] = useState<AIGoalPlanResponse | null>(null);
-    const [expandedMilestone, setExpandedMilestone] = useState<number | null>(0);
-    
-    // UI State
-    const [isLoading, setIsLoading] = useState(false);
-    const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
-    const [error, setError] = useState<string | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // Editable fields
-    const [editedTitle, setEditedTitle] = useState('');
-    const [editedDescription, setEditedDescription] = useState('');
-
-    // =========================================
-    // HANDLERS
-    // =========================================
-
-    const handleCategorySelect = (category: GoalCategory) => {
-        setSelectedCategory(category);
-        setTimeout(() => setStep('intent'), 300);
-    };
-
-    const handleGeneratePlan = async () => {
-        if (!selectedCategory || !userQuery.trim()) return;
-
-        setIsLoading(true);
-        setError(null);
-        setLoadingMessageIndex(0);
-
-        // Cycle through loading messages
-        const messageInterval = setInterval(() => {
-            setLoadingMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
-        }, 2000);
-
-        try {
-            const result = await goalsService.generateAIGoalPlan(
-                selectedCategory,
-                userQuery.trim(),
-                intensity
-            );
-
-            setPlan(result);
-            setEditedTitle(result.title);
-            setEditedDescription(result.description);
-            setStep('blueprint');
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Errore nella generazione del piano');
-        } finally {
-            clearInterval(messageInterval);
-            setIsLoading(false);
-        }
-    };
-
-    const handleDeleteMilestone = (index: number) => {
-        if (!plan || plan.milestones.length <= 1) return;
-        
-        setPlan({
-            ...plan,
-            milestones: plan.milestones.filter((_, i) => i !== index),
-        });
-        
-        // Reset expanded if deleted
-        if (expandedMilestone === index) {
-            setExpandedMilestone(null);
-        } else if (expandedMilestone !== null && expandedMilestone > index) {
-            setExpandedMilestone(expandedMilestone - 1);
-        }
-    };
-
-    const handleUpdateMilestone = (index: number, updates: Partial<AIMilestone>) => {
-        if (!plan) return;
-
-        setPlan({
-            ...plan,
-            milestones: plan.milestones.map((m, i) => 
-                i === index ? { ...m, ...updates } : m
-            ),
-        });
-    };
-
-    const handleAcceptChallenge = async () => {
-        if (!plan || !selectedCategory) return;
-
-        setIsSubmitting(true);
-        setError(null);
-
-        try {
-            const goalData: CreateGoalDTO = {
-                title: editedTitle || plan.title,
-                description: editedDescription || plan.description,
-                category: selectedCategory,
-                type: plan.type,
-                targetValue: plan.targetValue || undefined,
-                unit: plan.unit || undefined,
-                frequency: plan.frequency || undefined,
-                deadline: plan.deadline,
-                milestones: plan.milestones.map((m) => ({
-                    title: m.title,
-                    weight: m.weight,
-                    deadline: m.deadline,
-                    reasoning: m.reasoning,
-                    actionSteps: (m.actionSteps || [])
-                        .map((s: string | Partial<ActionStep>) => {
-                            if (typeof s === 'string') {
-                                return { title: s, isCompleted: false } satisfies ActionStep;
-                            }
-                            return {
-                                title: typeof s.title === 'string' ? s.title : '',
-                                isCompleted: Boolean(s.isCompleted),
-                            } satisfies ActionStep;
-                        })
-                        .filter((s) => typeof s.title === 'string' && s.title.trim().length > 0),
-                    resources: m.resources,
-                })),
-            };
-
-            await addGoal(goalData);
-            onClose();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Errore nel salvataggio');
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleBack = () => {
-        if (step === 'intent') setStep('category');
-        else if (step === 'blueprint') setStep('intent');
-    };
-
-    // =========================================
-    // RENDER STEPS
-    // =========================================
-
-    const renderCategoryStep = () => (
-        <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
-        >
-            <div className="space-y-2 text-center">
-                <h2 className="text-2xl font-bold text-white">
-                    🎯 Scegli la categoria
-                </h2>
-                <p className="text-white/60">
-                    In quale area vuoi migliorare?
-                </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {(Object.entries(GOAL_CATEGORIES) as [GoalCategory, typeof GOAL_CATEGORIES[GoalCategory]][]).map(([key, cat]) => {
-                    const Icon = cat.icon;
-                    const isSelected = selectedCategory === key;
-
-                    return (
-                        <motion.button
-                            key={key}
-                            onClick={() => handleCategorySelect(key)}
-                            className={`
-                                flex flex-col items-center justify-center p-4 rounded-xl
-                                border transition-all duration-200
-                                ${isSelected 
-                                    ? 'bg-primary-500/20 border-primary-500 shadow-lg shadow-primary-500/20' 
-                                    : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
-                                }
-                            `}
-                            whileHover={{ scale: 1.03, y: -2 }}
-                            whileTap={{ scale: 0.97 }}
-                        >
-                            <Icon className={`w-7 h-7 mb-2 ${isSelected ? 'text-primary-400' : 'text-white/60'}`} />
-                            <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-white/80'}`}>
-                                {cat.label}
-                            </span>
-                        </motion.button>
-                    );
-                })}
-            </div>
-        </motion.div>
-    );
-
-    const renderIntentStep = () => (
-        <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
-        >
-            <div className="space-y-2 text-center">
-                <h2 className="text-2xl font-bold text-white">
-                    ✨ Esprimi il tuo desiderio
-                </h2>
-                <p className="text-white/60">
-                    Descrivi cosa vuoi raggiungere. L'AI creerà un piano strategico per te.
-                </p>
-            </div>
-
-            {/* Magic Input */}
-            <div className="relative">
-                <textarea
-                    value={userQuery}
-                    onChange={(e) => setUserQuery(e.target.value)}
-                    placeholder="Es: Voglio imparare a suonare la chitarra, partendo da zero, fino a poter suonare le mie canzoni preferite..."
-                    className="w-full p-4 text-base leading-relaxed text-white transition-all duration-200 border resize-none h-28 placeholder-white/40 bg-white/5 border-white/10 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:bg-white/10"
-                    maxLength={500}
-                />
-                <div className="absolute bottom-3 right-3">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded bg-black/30 ${
-                        userQuery.length > 450 ? 'text-orange-400' : 
-                        userQuery.length > 400 ? 'text-yellow-400' : 
-                        'text-white/50'
-                    }`}>
-                        {userQuery.length}/500
-                    </span>
-                </div>
-            </div>
-
-            {/* Intensity Cards */}
-            <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm font-semibold text-white/80">
-                    <span>⚡</span> Intensità del piano
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                    {INTENSITY_OPTIONS.map((option) => {
-                        const isSelected = intensity === option.value;
-                        
-                        return (
-                            <button
-                                key={option.value}
-                                onClick={() => setIntensity(option.value)}
-                                className={`
-                                    relative flex flex-col items-center p-4 rounded-xl border transition-all duration-200
-                                    ${isSelected
-                                        ? 'bg-primary-500/20 border-primary-500 shadow-lg shadow-primary-500/20'
-                                        : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
-                                    }
-                                `}
-                            >
-                                <div className={`mb-2 text-2xl ${isSelected ? 'scale-110' : ''} transition-transform`}>
-                                    {option.emoji}
-                                </div>
-                                <span className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-white/80'}`}>
-                                    {option.label}
-                                </span>
-                                <span className={`text-xs text-center leading-tight mt-1 ${isSelected ? 'text-white/70' : 'text-white/50'}`}>
-                                    {option.description}
-                                </span>
-                                {isSelected && (
-                                    <div className="absolute w-2 h-2 rounded-full top-2 right-2 bg-primary-400" />
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3 text-sm text-red-400 border rounded-lg bg-red-500/10 border-red-500/30"
-                >
-                    {error}
-                </motion.div>
-            )}
-
-            {/* Generate Button */}
-            <button
-                onClick={handleGeneratePlan}
-                disabled={!userQuery.trim() || userQuery.length < 10 || isLoading}
-                className="flex items-center justify-center w-full py-3 space-x-2 font-semibold text-white transition-all border-2 shadow-lg rounded-xl bg-primary-600 border-primary-500 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-primary-500/25"
-            >
-                <FiZap className="w-5 h-5" />
-                <span>Genera Piano Strategico ✨</span>
-            </button>
-        </motion.div>
-    );
-
-    const renderBlueprintStep = () => {
-        if (!plan) return null;
-
-        const CategoryIcon = selectedCategory ? GOAL_CATEGORIES[selectedCategory].icon : FiTarget;
-
-        return (
-            <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
-            >
-                {/* Header */}
-                <div className="space-y-2 text-center">
-                    <div className="flex items-center justify-center space-x-2 text-primary-400">
-                        <FiStar className="w-5 h-5" />
-                        <span className="text-sm font-medium">Piano generato dall'AI</span>
-                    </div>
-                    <h2 className="text-2xl font-bold text-white">
-                        🎯 Il tuo Blueprint
-                    </h2>
-                </div>
-
-                {/* Editable Title & Description */}
-                <div className="p-4 space-y-4 border bg-dark-700/50 rounded-xl border-dark-600">
-                    <div className="flex items-start space-x-3">
-                        <div className={`p-2 rounded-lg ${selectedCategory ? GOAL_CATEGORIES[selectedCategory].bgColor : 'bg-dark-600'}`}>
-                            <CategoryIcon className={`w-5 h-5 ${selectedCategory ? GOAL_CATEGORIES[selectedCategory].color : 'text-gray-400'}`} />
-                        </div>
-                        <div className="flex-1 space-y-2">
-                            <input
-                                type="text"
-                                value={editedTitle}
-                                onChange={(e) => setEditedTitle(e.target.value)}
-                                className="w-full pb-1 text-lg font-semibold text-white bg-transparent border-b border-dark-600 focus:outline-none focus:border-primary-500"
-                                placeholder="Titolo obiettivo"
-                            />
-                            <textarea
-                                value={editedDescription}
-                                onChange={(e) => setEditedDescription(e.target.value)}
-                                className="w-full text-sm text-gray-400 bg-transparent border-none resize-none focus:outline-none"
-                                placeholder="Descrizione"
-                                rows={2}
-                            />
-                        </div>
-                    </div>
-                    
-                    {/* Meta info */}
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-dark-600">
-                        <span className="px-2 py-1 text-xs text-gray-400 rounded bg-dark-600">
-                            Tipo: {plan.type}
-                        </span>
-                        <span className="px-2 py-1 text-xs text-gray-400 rounded bg-dark-600">
-                            Deadline: {new Date(plan.deadline).toLocaleDateString('it-IT')}
-                        </span>
-                        {plan.targetValue && (
-                            <span className="px-2 py-1 text-xs text-gray-400 rounded bg-dark-600">
-                                Target: {plan.targetValue} {plan.unit}
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                {/* Timeline / Milestones */}
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold tracking-wide text-gray-300 uppercase">
-                            📋 Timeline ({plan.milestones.length} milestone)
-                        </h3>
-                        {plan.milestones.length > 1 && (
-                            <button
-                                onClick={() => setExpandedMilestone(expandedMilestone === null ? 0 : null)}
-                                className="text-xs text-primary-400 hover:text-primary-300"
-                            >
-                                {expandedMilestone === null ? 'Espandi tutto' : 'Comprimi tutto'}
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
-                        <AnimatePresence>
-                            {plan.milestones.map((milestone, index) => (
-                                <MilestoneItem
-                                    key={`${milestone.title}-${index}`}
-                                    milestone={milestone}
-                                    index={index}
-                                    isExpanded={expandedMilestone === index}
-                                    onToggle={() => setExpandedMilestone(
-                                        expandedMilestone === index ? null : index
-                                    )}
-                                    onDelete={() => handleDeleteMilestone(index)}
-                                    onUpdate={(updates) => handleUpdateMilestone(index, updates)}
-                                />
-                            ))}
-                        </AnimatePresence>
-                    </div>
-                </div>
-
-                {/* Error */}
-                {error && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-3 text-sm text-red-400 border rounded-lg bg-red-500/10 border-red-500/30"
-                    >
-                        {error}
-                    </motion.div>
-                )}
-
-                {/* Accept Button */}
-                <button
-                    onClick={handleAcceptChallenge}
-                    disabled={isSubmitting || !editedTitle.trim()}
-                    className="flex items-center justify-center w-full py-4 space-x-2 font-semibold text-white transition-all bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isSubmitting ? (
+                    {isSaving ? (
                         <>
                             <FiLoader className="w-5 h-5 animate-spin" />
                             <span>Salvataggio...</span>
@@ -1287,14 +866,8 @@ export const GoalWizardAI: React.FC<GoalWizardAIProps> = ({ onClose }) => {
     // =========================================
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="relative w-full max-w-2xl overflow-hidden border shadow-2xl bg-dark-800 rounded-2xl border-dark-700"
-            >
-                {/* Header */}
+        <>
+            {variant === 'modal' && (
                 <div className="flex items-center justify-between px-6 py-4 border-b border-dark-700">
                     <div className="flex items-center space-x-3">
                         {step !== 'category' && (
@@ -1318,58 +891,62 @@ export const GoalWizardAI: React.FC<GoalWizardAIProps> = ({ onClose }) => {
                         <FiX className="w-5 h-5" />
                     </button>
                 </div>
+            )}
 
-                {/* Progress Steps */}
-                <div className="px-6 py-3 border-b border-dark-700">
-                    <div className="flex items-center justify-between">
-                        {['Categoria', 'Intento', 'Blueprint'].map((label, index) => {
-                            const stepKeys: WizardStep[] = ['category', 'intent', 'blueprint'];
-                            const currentIndex = stepKeys.indexOf(step);
-                            const isActive = index === currentIndex;
-                            const isCompleted = index < currentIndex;
+            <ProgressSteps step={step} />
 
-                            return (
-                                <div key={label} className="flex items-center">
-                                    <div className={`
-                                        w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
-                                        ${isCompleted 
-                                            ? 'bg-green-500 text-white' 
-                                            : isActive 
-                                                ? 'bg-primary-500 text-white' 
-                                                : 'bg-dark-600 text-gray-500'
-                                        }
-                                    `}>
-                                        {isCompleted ? <FiCheck className="w-4 h-4" /> : index + 1}
-                                    </div>
-                                    <span className={`ml-2 text-sm hidden sm:block ${isActive ? 'text-white' : 'text-gray-500'}`}>
-                                        {label}
-                                    </span>
-                                    {index < 2 && (
-                                        <div className={`w-12 sm:w-20 h-0.5 mx-2 ${isCompleted ? 'bg-green-500' : 'bg-dark-600'}`} />
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
+            {/* Back Button (floating) */}
+            {variant === 'embedded' && step !== 'category' && (
+                <button
+                    onClick={handleBack}
+                    disabled={isLoading}
+                    className="absolute p-2 text-gray-400 transition-colors rounded-lg left-4 top-20 hover:text-white hover:bg-dark-700 disabled:opacity-50"
+                >
+                    <FiArrowLeft className="w-5 h-5" />
+                </button>
+            )}
 
-                {/* Content */}
-                <div className="p-6 max-h-[70vh] overflow-y-auto">
-                    <AnimatePresence mode="wait">
-                        {isLoading ? (
-                            <LoadingState key="loading" messageIndex={loadingMessageIndex} />
-                        ) : step === 'category' ? (
-                            renderCategoryStep()
-                        ) : step === 'intent' ? (
-                            renderIntentStep()
-                        ) : step === 'blueprint' ? (
-                            renderBlueprintStep()
-                        ) : null}
-                    </AnimatePresence>
-                </div>
-            </motion.div>
-        </div>
+            {/* Content */}
+            <div className={`p-6 ${contentHeightClass} overflow-y-auto`}>
+                <AnimatePresence mode="wait">
+                    {isLoading ? (
+                        <LoadingState key="loading" messageIndex={loadingMessageIndex} />
+                    ) : step === 'category' ? (
+                        renderCategoryStep()
+                    ) : step === 'intent' ? (
+                        renderIntentStep()
+                    ) : step === 'blueprint' ? (
+                        renderBlueprintStep()
+                    ) : null}
+                </AnimatePresence>
+            </div>
+        </>
     );
 };
+
+// =========================================
+// EMBEDDED COMPONENT (Without modal wrapper)
+// =========================================
+
+export const GoalWizardAIEmbedded: React.FC<GoalWizardAIEmbeddedProps> = ({ onClose, onSwitchToManual }) => (
+    <GoalWizardAIFlow variant="embedded" onClose={onClose} onSwitchToManual={onSwitchToManual} />
+);
+
+// =========================================
+// MAIN COMPONENT (With modal wrapper - standalone use)
+// =========================================
+
+export const GoalWizardAI: React.FC<GoalWizardAIProps> = ({ onClose }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="relative w-full max-w-2xl overflow-hidden border shadow-2xl bg-dark-800 rounded-2xl border-dark-700"
+        >
+            <GoalWizardAIFlow variant="modal" onClose={onClose} />
+        </motion.div>
+    </div>
+);
 
 export default GoalWizardAI;
