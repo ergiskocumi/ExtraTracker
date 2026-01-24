@@ -238,24 +238,57 @@ export const MyFeedbackList: React.FC<MyFeedbackListProps> = ({ refreshTrigger }
 
                                                     {/* Attachments */}
                                                     {feedback.attachments?.length > 0 && (
-                                                        <div className="mt-4">
+                                                        <div className="mt-4 space-y-3">
                                                             <p className="text-xs text-white/40 mb-2">
                                                                 Allegati:
                                                             </p>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {feedback.attachments.map(
-                                                                    (attachment, index) => (
-                                                                        <a
-                                                                            key={index}
-                                                                            href={`/uploads/feedback/${attachment.filename}`}
-                                                                            target="_blank"
-                                                                            rel="noreferrer"
-                                                                            className="px-2 py-1 text-xs rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                                                                        >
-                                                                            {attachment.originalName}
-                                                                        </a>
-                                                                    )
-                                                                )}
+                                                            <div className="space-y-3">
+                                                                {feedback.attachments.map((attachment, index) => {
+                                                                    const isImage = attachment.mimetype?.startsWith('image/') || 
+                                                                                   /\.(png|jpg|jpeg|gif|webp)$/i.test(attachment.originalName);
+                                                                    const imageUrl = `/uploads/feedback/${attachment.filename}`;
+                                                                    
+                                                                    return (
+                                                                        <div key={index} className="space-y-2">
+                                                                            {isImage ? (
+                                                                                <div className="space-y-2">
+                                                                                    <a
+                                                                                        href={imageUrl}
+                                                                                        target="_blank"
+                                                                                        rel="noreferrer"
+                                                                                        className="block group"
+                                                                                    >
+                                                                                        <img
+                                                                                            src={imageUrl}
+                                                                                            alt={attachment.originalName}
+                                                                                            className="w-full max-w-xl rounded-lg border border-white/10 bg-white/5 object-contain max-h-64 cursor-pointer hover:opacity-90 transition-opacity"
+                                                                                            loading="lazy"
+                                                                                        />
+                                                                                    </a>
+                                                                                    <a
+                                                                                        href={imageUrl}
+                                                                                        target="_blank"
+                                                                                        rel="noreferrer"
+                                                                                        className="inline-flex items-center gap-2 px-2 py-1 text-xs rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                                                                                    >
+                                                                                        <Paperclip className="w-3 h-3" />
+                                                                                        {attachment.originalName}
+                                                                                    </a>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <a
+                                                                                    href={imageUrl}
+                                                                                    target="_blank"
+                                                                                    rel="noreferrer"
+                                                                                    className="inline-flex items-center gap-2 px-2 py-1 text-xs rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                                                                                >
+                                                                                    <Paperclip className="w-3 h-3" />
+                                                                                    {attachment.originalName}
+                                                                                </a>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
                                                         </div>
                                                     )}

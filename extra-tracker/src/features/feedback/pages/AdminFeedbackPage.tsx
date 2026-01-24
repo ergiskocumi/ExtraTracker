@@ -112,6 +112,12 @@ const STATUS_FLOW: FeedbackStatus[] = [
     'wont_fix',
 ];
 
+// Stati attivi (da mostrare di default nella board)
+const ACTIVE_STATUSES: FeedbackStatus[] = ['open', 'in_progress'];
+
+// Stati completati (da nascondere di default)
+const COMPLETED_STATUSES: FeedbackStatus[] = ['resolved', 'closed', 'wont_fix'];
+
 const ACTIVITY_ICONS: Record<FeedbackActivityType, typeof MessageSquare> = {
     created: MessageSquare,
     status_change: CheckCircle,
@@ -139,7 +145,7 @@ export const AdminFeedbackPage: React.FC = () => {
     const [labelDraft, setLabelDraft] = useState('');
     const [adminUsers, setAdminUsers] = useState<FeedbackUser[]>([]);
     const [isLoadingAdmins, setIsLoadingAdmins] = useState(false);
-    const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'board'>('board');
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const [dragOverStatus, setDragOverStatus] = useState<FeedbackStatus | null>(null);
 
@@ -186,17 +192,34 @@ export const AdminFeedbackPage: React.FC = () => {
             try {
                 setIsLoading(true);
                 const pageLimit = viewMode === 'board' ? 100 : 20;
+                
+                // Se non c'è un filtro esplicito per status, escludi i ticket risolti/chiusi di default
+                const effectiveFilters = { ...filters };
+                if (!effectiveFilters.status) {
+                    // Non passiamo un filtro status, ma filtriamo lato frontend dopo il caricamento
+                    // Oppure potremmo usare un filtro negativo se il backend lo supporta
+                    // Per ora filtriamo lato frontend
+                }
+                
                 const response = await feedbackService.getAllFeedback({
-                    ...filters,
+                    ...effectiveFilters,
                     page: pageNum,
                     limit: pageLimit,
                 });
 
                 if (response.success && response.data) {
+                    // Filtra lato frontend per escludere resolved/closed/wont_fix se non c'è filtro esplicito
+                    let filteredData = response.data;
+                    if (!filters.status) {
+                        filteredData = response.data.filter(
+                            (f) => !COMPLETED_STATUSES.includes(f.status)
+                        );
+                    }
+                    
                     if (append) {
-                        setFeedbacks((prev) => [...prev, ...response.data!]);
+                        setFeedbacks((prev) => [...prev, ...filteredData]);
                     } else {
-                        setFeedbacks(response.data);
+                        setFeedbacks(filteredData);
                     }
                     setHasMore(response.meta?.hasMore ?? false);
                     setTotal(response.meta?.total ?? 0);
@@ -474,6 +497,16 @@ export const AdminFeedbackPage: React.FC = () => {
             ? selectedFeedback.assignee
             : selectedFeedback.assignee?._id || '')
         : '';
+
+    // Determina quali colonne mostrare nella board
+    const visibleStatuses = useMemo(() => {
+        // Se c'è un filtro esplicito per uno stato completato, mostra tutte le colonne
+        if (filters.status && COMPLETED_STATUSES.includes(filters.status)) {
+            return STATUS_FLOW;
+        }
+        // Altrimenti mostra solo gli stati attivi
+        return ACTIVE_STATUSES;
+    }, [filters.status]);
 
     const feedbackByStatus = useMemo(() => {
         const grouped: Record<FeedbackStatus, Feedback[]> = {
@@ -782,57 +815,57 @@ export const AdminFeedbackPage: React.FC = () => {
                                                 layout
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-5 cursor-pointer transition-all hover:border-white/20 hover:bg-white/[0.05]"
+                                                className="relative overflow-hidden rounded-xl border border-white/20 bg-white/[0.08] shadow-md shadow-black/5 p-5 cursor-pointer transition-all hover:border-white/30 hover:bg-white/[0.12] hover:shadow-lg hover:shadow-black/10 group"
                                                 onClick={() => setSelectedFeedback(feedback)}
                                             >
-                                                <div className={`absolute inset-y-0 left-0 w-1 ${TYPE_ACCENTS[feedback.type]}`} />
-                                                <div className="space-y-4">
+                                                <div className={`absolute inset-y-0 left-0 w-1.5 ${TYPE_ACCENTS[feedback.type]} group-hover:w-2 transition-all`} />
+                                                <div className="space-y-4 pl-1">
                                                     <div className="flex items-start justify-between gap-4">
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center gap-2 text-xs text-white/50">
-                                                                <span className="font-mono tracking-wide">
+                                                        <div className="space-y-2.5 flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 text-xs text-white/60">
+                                                                <span className="font-mono font-semibold tracking-wide text-white/80">
                                                                     {formatIssueKey(feedback)}
                                                                 </span>
-                                                                <span className="w-1 h-1 rounded-full bg-white/30" />
+                                                                <span className="w-1 h-1 rounded-full bg-white/40" />
                                                                 <span>{formatDate(feedback.createdAt)}</span>
                                                             </div>
-                                                            <h4 className="text-lg font-semibold text-white">
+                                                            <h4 className="text-base font-bold text-white leading-snug group-hover:text-white/95 transition-colors">
                                                                 {feedback.title}
                                                             </h4>
-                                                            <div className="flex flex-wrap items-center gap-3 text-xs text-white/55">
+                                                            <div className="flex flex-wrap items-center gap-3 text-xs text-white/60">
                                                                 <span className="flex items-center gap-1.5">
-                                                                    <User className="w-3.5 h-3.5" />
+                                                                    <User className="w-3.5 h-3.5 text-white/50" />
                                                                     {getUserDisplayName(feedback.user)}
                                                                 </span>
                                                                 <span className="flex items-center gap-1.5">
-                                                                    <User className="w-3.5 h-3.5" />
+                                                                    <User className="w-3.5 h-3.5 text-white/50" />
                                                                     {getAssigneeLabel(feedback.assignee)}
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <div className="flex flex-col items-end gap-2">
+                                                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
                                                             <span
-                                                                className={`px-3 py-1 text-xs rounded-full border ${FEEDBACK_STATUS_COLORS[feedback.status]}`}
+                                                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border shadow-sm ${FEEDBACK_STATUS_COLORS[feedback.status]}`}
                                                             >
                                                                 {FEEDBACK_STATUS_LABELS[feedback.status]}
                                                             </span>
                                                             <span
-                                                                className={`px-3 py-1 text-xs rounded-full border ${FEEDBACK_PRIORITY_COLORS[feedback.priority]}`}
+                                                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border shadow-sm ${FEEDBACK_PRIORITY_COLORS[feedback.priority]}`}
                                                             >
                                                                 {FEEDBACK_PRIORITY_LABELS[feedback.priority]}
                                                             </span>
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
+                                                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
                                                         <span
-                                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border ${FEEDBACK_TYPE_COLORS[feedback.type]}`}
+                                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border shadow-sm ${FEEDBACK_TYPE_COLORS[feedback.type]}`}
                                                         >
                                                             <TypeIcon className="w-3.5 h-3.5" />
-                                                            {FEEDBACK_TYPE_LABELS[feedback.type]}
+                                                            <span className="text-xs font-medium">{FEEDBACK_TYPE_LABELS[feedback.type]}</span>
                                                         </span>
                                                         {feedback.attachments?.length > 0 && (
-                                                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-white/10 bg-white/5">
+                                                            <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white/70 text-xs font-medium">
                                                                 <Paperclip className="w-3.5 h-3.5" />
                                                                 {feedback.attachments.length} allegati
                                                             </span>
@@ -840,7 +873,7 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         {(feedback.labels || []).map((label) => (
                                                             <span
                                                                 key={`${feedback._id}-${label}`}
-                                                                className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/60"
+                                                                className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white/70 text-xs font-medium"
                                                             >
                                                                 {label}
                                                             </span>
@@ -852,11 +885,11 @@ export const AdminFeedbackPage: React.FC = () => {
                                     })}
 
                                     {hasMore && (
-                                        <div className="flex justify-center pt-2">
+                                        <div className="flex justify-center pt-4">
                                             <button
                                                 onClick={handleLoadMore}
                                                 disabled={isLoading}
-                                                className="flex items-center gap-2 px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
+                                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg bg-white/10 border border-white/20 text-white/80 hover:text-white hover:bg-white/15 hover:border-white/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
                                             >
                                                 {isLoading ? (
                                                     <>
@@ -880,8 +913,43 @@ export const AdminFeedbackPage: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-                                        {STATUS_FLOW.map((status) => {
+                                    {/* Indicatore colonne nascoste / Filtro attivo */}
+                                    {visibleStatuses.length < STATUS_FLOW.length && !filters.status && (
+                                        <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-white/8 border border-white/20 text-xs text-white/70">
+                                            <span className="flex items-center gap-2">
+                                                <span>📋 Mostrando solo ticket attivi (Aperto, In lavorazione)</span>
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => setFilters((prev) => ({ ...prev, status: 'resolved' }))}
+                                                    className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 text-white/80 hover:bg-white/15 hover:text-white transition-colors"
+                                                >
+                                                    Mostra Risolti
+                                                </button>
+                                                <button
+                                                    onClick={() => setFilters((prev) => ({ ...prev, status: 'closed' }))}
+                                                    className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 text-white/80 hover:bg-white/15 hover:text-white transition-colors"
+                                                >
+                                                    Mostra Chiusi
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {filters.status && COMPLETED_STATUSES.includes(filters.status) && (
+                                        <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs text-white/80">
+                                            <span className="flex items-center gap-2">
+                                                <span>🔍 Filtro attivo: {FEEDBACK_STATUS_LABELS[filters.status]}</span>
+                                            </span>
+                                            <button
+                                                onClick={() => setFilters((prev) => ({ ...prev, status: undefined }))}
+                                                className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 text-white/80 hover:bg-white/15 hover:text-white transition-colors"
+                                            >
+                                                Rimuovi filtro
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
+                                        {visibleStatuses.map((status) => {
                                             const items = feedbackByStatus[status] || [];
                                             const isDragOver = dragOverStatus === status;
 
@@ -894,63 +962,79 @@ export const AdminFeedbackPage: React.FC = () => {
                                                     }}
                                                     onDragLeave={() => setDragOverStatus(null)}
                                                     onDrop={(event) => handleDropOnStatus(event, status)}
-                                                    className={`rounded-2xl border bg-white/[0.02] ${
+                                                    className={`rounded-xl border bg-white/[0.08] shadow-lg shadow-black/10 transition-all ${
                                                         isDragOver
-                                                            ? 'border-primary-500/40 bg-primary-500/10'
-                                                            : 'border-white/10'
+                                                            ? 'border-primary-500/50 bg-primary-500/15 shadow-primary-500/20'
+                                                            : 'border-white/20 hover:border-white/30'
                                                     }`}
                                                 >
-                                                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                                                        <span className="text-xs font-semibold uppercase tracking-wide text-white/70">
+                                                    {/* Header colonna migliorato */}
+                                                    <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/20 bg-white/[0.12] rounded-t-xl">
+                                                        <span className="text-xs font-bold uppercase tracking-[0.1em] text-white/90">
                                                             {FEEDBACK_STATUS_LABELS[status]}
                                                         </span>
-                                                        <span className="text-xs text-white/40">{items.length}</span>
+                                                        <span className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-white/20 border border-white/30 text-white/80">
+                                                            {items.length}
+                                                        </span>
                                                     </div>
-                                                    <div className="p-4 space-y-3 min-h-[140px]">
+                                                    <div className="p-4 space-y-3 min-h-[200px] bg-gradient-to-b from-white/[0.04] to-transparent">
                                                         {items.length === 0 ? (
-                                                            <p className="text-xs text-white/30">Nessun ticket</p>
+                                                            <div className="flex items-center justify-center py-8">
+                                                                <p className="text-xs text-white/40 italic">Nessun ticket</p>
+                                                            </div>
                                                         ) : (
-                                                            items.map((feedback) => (
-                                                                <div
-                                                                    key={feedback._id}
-                                                                    draggable
-                                                                    onDragStart={(event) => handleDragStart(event, feedback._id)}
-                                                                    onDragEnd={handleDragEnd}
-                                                                    onClick={() => setSelectedFeedback(feedback)}
-                                                                    className={`rounded-xl border px-3 py-3 bg-white/[0.03] cursor-pointer transition-all ${
-                                                                        draggingId === feedback._id
-                                                                            ? 'opacity-50 border-primary-500/30'
-                                                                            : 'border-white/10 hover:border-primary-500/30 hover:bg-white/[0.06]'
-                                                                    }`}
-                                                                >
-                                                                    <div className="flex items-center gap-2 text-xs text-white/40">
-                                                                        <span className={`h-2 w-2 rounded-full ${TYPE_ACCENTS[feedback.type]}`} />
-                                                                        {formatIssueKey(feedback)}
-                                                                    </div>
-                                                                    <p className="text-sm font-semibold text-white mt-2">
-                                                                        {feedback.title}
-                                                                    </p>
-                                                                    <div className="flex items-center gap-2 text-xs text-white/50 mt-2">
-                                                                        <User className="w-3 h-3" />
-                                                                        <span>{getAssigneeLabel(feedback.assignee)}</span>
-                                                                    </div>
-                                                                    <div className="flex flex-wrap gap-1 mt-2">
-                                                                        <span
-                                                                            className={`px-2 py-0.5 text-[10px] rounded-full border ${FEEDBACK_PRIORITY_COLORS[feedback.priority]}`}
-                                                                        >
-                                                                            {FEEDBACK_PRIORITY_LABELS[feedback.priority]}
-                                                                        </span>
-                                                                        {(feedback.labels || []).slice(0, 3).map((label) => (
-                                                                            <span
-                                                                                key={`${feedback._id}-${label}`}
-                                                                                className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-white/60"
-                                                                            >
-                                                                                {label}
+                                                            items.map((feedback) => {
+                                                                const TypeIcon = TYPE_ICONS[feedback.type];
+                                                                return (
+                                                                    <div
+                                                                        key={feedback._id}
+                                                                        draggable
+                                                                        onDragStart={(event) => handleDragStart(event, feedback._id)}
+                                                                        onDragEnd={handleDragEnd}
+                                                                        onClick={() => setSelectedFeedback(feedback)}
+                                                                        className={`rounded-lg border bg-white/[0.12] shadow-md shadow-black/5 p-3.5 cursor-pointer transition-all group ${
+                                                                            draggingId === feedback._id
+                                                                                ? 'opacity-50 border-primary-500/40 scale-95'
+                                                                                : 'border-white/20 hover:border-primary-500/40 hover:bg-white/[0.18] hover:shadow-lg hover:shadow-primary-500/10 hover:scale-[1.02]'
+                                                                        }`}
+                                                                    >
+                                                                        <div className="flex items-center gap-2 mb-2">
+                                                                            <span className={`h-2.5 w-2.5 rounded-full ${TYPE_ACCENTS[feedback.type]} flex-shrink-0`} />
+                                                                            <span className="font-mono text-[10px] font-semibold text-white/70 tracking-wide">
+                                                                                {formatIssueKey(feedback)}
                                                                             </span>
-                                                                        ))}
+                                                                        </div>
+                                                                        <p className="text-sm font-bold text-white leading-snug mb-2.5 line-clamp-2 group-hover:text-white/95 transition-colors">
+                                                                            {feedback.title}
+                                                                        </p>
+                                                                        <div className="flex items-center gap-1.5 text-xs text-white/60 mb-2.5">
+                                                                            <User className="w-3 h-3 text-white/50" />
+                                                                            <span className="truncate">{getAssigneeLabel(feedback.assignee)}</span>
+                                                                        </div>
+                                                                        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/10">
+                                                                            <span
+                                                                                className={`px-2 py-1 text-[10px] font-semibold rounded-md border shadow-sm ${FEEDBACK_PRIORITY_COLORS[feedback.priority]}`}
+                                                                            >
+                                                                                {FEEDBACK_PRIORITY_LABELS[feedback.priority]}
+                                                                            </span>
+                                                                            <span
+                                                                                className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md border shadow-sm ${FEEDBACK_TYPE_COLORS[feedback.type]}`}
+                                                                            >
+                                                                                <TypeIcon className="w-2.5 h-2.5" />
+                                                                                {FEEDBACK_TYPE_LABELS[feedback.type]}
+                                                                            </span>
+                                                                            {(feedback.labels || []).slice(0, 2).map((label) => (
+                                                                                <span
+                                                                                    key={`${feedback._id}-${label}`}
+                                                                                    className="px-2 py-1 rounded-md bg-white/10 border border-white/20 text-[10px] text-white/70 font-medium"
+                                                                                >
+                                                                                    {label}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            ))
+                                                                );
+                                                            })
                                                         )}
                                                     </div>
                                                 </div>
@@ -996,39 +1080,40 @@ export const AdminFeedbackPage: React.FC = () => {
                             aria-modal="true"
                             className="relative w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 bg-dark-400/95 shadow-2xl flex flex-col"
                         >
-                            <div className="p-6 border-b border-white/10 bg-white/[0.04]">
+                            {/* Header migliorato in stile JIRA */}
+                            <div className="p-6 border-b border-white/20 bg-white/[0.06] shadow-sm">
                                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                                    <div>
-                                        <div className="flex items-center gap-2 text-xs text-white/50">
-                                            <span className="font-mono tracking-wide">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 text-xs text-white/60 mb-2">
+                                            <span className="font-mono font-semibold tracking-wide text-white/80">
                                                 {formatIssueKey(selectedFeedback)}
                                             </span>
-                                            <span className="w-1 h-1 rounded-full bg-white/30" />
+                                            <span className="w-1 h-1 rounded-full bg-white/40" />
                                             <span>{formatDate(selectedFeedback.createdAt)}</span>
                                         </div>
-                                        <h2 className="text-2xl sm:text-3xl font-semibold text-white mt-1">
+                                        <h2 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
                                             {selectedFeedback.title}
                                         </h2>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span
-                                            className={`px-3 py-1 text-xs rounded-full border ${FEEDBACK_STATUS_COLORS[selectedFeedback.status]}`}
+                                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border shadow-sm ${FEEDBACK_STATUS_COLORS[selectedFeedback.status]}`}
                                         >
                                             {FEEDBACK_STATUS_LABELS[selectedFeedback.status]}
                                         </span>
                                         <span
-                                            className={`px-3 py-1 text-xs rounded-full border ${FEEDBACK_PRIORITY_COLORS[selectedFeedback.priority]}`}
+                                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border shadow-sm ${FEEDBACK_PRIORITY_COLORS[selectedFeedback.priority]}`}
                                         >
                                             {FEEDBACK_PRIORITY_LABELS[selectedFeedback.priority]}
                                         </span>
                                         <span
-                                            className={`px-3 py-1 text-xs rounded-full border ${FEEDBACK_TYPE_COLORS[selectedFeedback.type]}`}
+                                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border shadow-sm ${FEEDBACK_TYPE_COLORS[selectedFeedback.type]}`}
                                         >
                                             {FEEDBACK_TYPE_LABELS[selectedFeedback.type]}
                                         </span>
                                         <button
                                             onClick={() => setSelectedFeedback(null)}
-                                            className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors"
+                                            className="p-2 rounded-lg hover:bg-white/15 text-white/60 hover:text-white transition-colors border border-transparent hover:border-white/20"
                                         >
                                             <XCircle className="w-5 h-5" />
                                         </button>
@@ -1039,15 +1124,18 @@ export const AdminFeedbackPage: React.FC = () => {
                             <div className="flex-1 overflow-y-auto p-6">
                                 <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-6">
                                     <div className="space-y-6">
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
-                                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
-                                                <FileText className="w-4 h-4" />
-                                                Dettagli
+                                        {/* DETTAGLI - Sezione principale con più contrasto */}
+                                        <div className="rounded-xl border border-white/20 bg-white/[0.08] shadow-lg shadow-black/10 p-6 space-y-4">
+                                            <div className="flex items-center gap-2 pb-2 border-b border-white/10">
+                                                <FileText className="w-4 h-4 text-white/70" />
+                                                <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-white/80">
+                                                    Dettagli
+                                                </h3>
                                             </div>
-                                            <p className="text-sm text-white/70 whitespace-pre-wrap">
+                                            <p className="text-sm leading-relaxed text-white/90 whitespace-pre-wrap">
                                                 {selectedFeedback.description}
                                             </p>
-                                            <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+                                            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-white/5 text-xs text-white/60">
                                                 <span className="flex items-center gap-1.5">
                                                     <User className="w-3.5 h-3.5" />
                                                     {getUserDisplayName(selectedFeedback.user)}
@@ -1057,7 +1145,7 @@ export const AdminFeedbackPage: React.FC = () => {
                                                     {formatDate(selectedFeedback.createdAt)}
                                                 </span>
                                                 {selectedFeedback.resolvedAt && (
-                                                    <span className="flex items-center gap-1.5 text-emerald-400/80">
+                                                    <span className="flex items-center gap-1.5 text-emerald-400/90">
                                                         <CheckCircle className="w-3.5 h-3.5" />
                                                         Risolto il {formatDate(selectedFeedback.resolvedAt)}
                                                     </span>
@@ -1065,49 +1153,89 @@ export const AdminFeedbackPage: React.FC = () => {
                                             </div>
                                         </div>
 
+                                        {/* ALLEGATI - Sezione principale con più contrasto */}
                                         {selectedFeedback.attachments?.length > 0 && (
-                                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-                                                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
-                                                    <Paperclip className="w-4 h-4" />
-                                                    Allegati
+                                            <div className="rounded-xl border border-white/20 bg-white/[0.08] shadow-lg shadow-black/10 p-6 space-y-4">
+                                                <div className="flex items-center gap-2 pb-2 border-b border-white/10">
+                                                    <Paperclip className="w-4 h-4 text-white/70" />
+                                                    <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-white/80">
+                                                        Allegati
+                                                    </h3>
                                                 </div>
-                                                <div className="space-y-2">
-                                                    {selectedFeedback.attachments.map((att, i) => (
-                                                        <a
-                                                            key={i}
-                                                            href={`/uploads/feedback/${att.filename}`}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="flex items-center gap-2 px-3 py-2 text-xs rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                                                        >
-                                                            <Paperclip className="w-3.5 h-3.5" />
-                                                            {att.originalName}
-                                                        </a>
-                                                    ))}
+                                                <div className="space-y-3">
+                                                    {selectedFeedback.attachments.map((att, i) => {
+                                                        const isImage = att.mimetype?.startsWith('image/') || 
+                                                                       /\.(png|jpg|jpeg|gif|webp)$/i.test(att.originalName);
+                                                        const imageUrl = `/uploads/feedback/${att.filename}`;
+                                                        
+                                                        return (
+                                                            <div key={i} className="space-y-2">
+                                                                {isImage ? (
+                                                                    <div className="space-y-2">
+                                                                        <a
+                                                                            href={imageUrl}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="block group rounded-lg overflow-hidden border border-white/20 bg-white/5 shadow-md hover:shadow-lg transition-all"
+                                                                        >
+                                                                            <img
+                                                                                src={imageUrl}
+                                                                                alt={att.originalName}
+                                                                                className="w-full max-w-2xl object-contain max-h-96 cursor-pointer group-hover:opacity-95 transition-opacity"
+                                                                                loading="lazy"
+                                                                            />
+                                                                        </a>
+                                                                        <a
+                                                                            href={imageUrl}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="flex items-center gap-2 px-3 py-2 text-xs rounded-lg bg-white/10 border border-white/20 text-white/70 hover:text-white hover:bg-white/15 hover:border-white/30 transition-all w-fit"
+                                                                        >
+                                                                            <Paperclip className="w-3.5 h-3.5" />
+                                                                            {att.originalName}
+                                                                        </a>
+                                                                    </div>
+                                                                ) : (
+                                                                    <a
+                                                                        href={imageUrl}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="flex items-center gap-2 px-3 py-2 text-xs rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                                                                    >
+                                                                        <Paperclip className="w-3.5 h-3.5" />
+                                                                        {att.originalName}
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         )}
 
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-                                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
-                                                <MessageSquare className="w-4 h-4" />
-                                                Commenti pubblici
+                                        {/* COMMENTI PUBBLICI - Sezione principale */}
+                                        <div className="rounded-xl border border-white/20 bg-white/[0.08] shadow-lg shadow-black/10 p-6 space-y-4">
+                                            <div className="flex items-center gap-2 pb-2 border-b border-white/10">
+                                                <MessageSquare className="w-4 h-4 text-white/70" />
+                                                <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-white/80">
+                                                    Commenti pubblici
+                                                </h3>
                                             </div>
                                             {commentList.length === 0 ? (
-                                                <p className="text-xs text-white/40">
+                                                <p className="text-xs text-white/50 italic">
                                                     Nessun commento ancora.
                                                 </p>
                                             ) : (
-                                                <div className="space-y-2">
+                                                <div className="space-y-3">
                                                     {commentList.map((comment, index) => (
                                                         <div
                                                             key={`${comment.createdAt}-${index}`}
-                                                            className="p-3 rounded-xl bg-white/5 border border-white/10"
+                                                            className="p-4 rounded-lg bg-white/[0.04] border border-white/10 shadow-sm"
                                                         >
-                                                            <p className="text-xs text-white/70 whitespace-pre-wrap">
+                                                            <p className="text-sm text-white/85 whitespace-pre-wrap leading-relaxed">
                                                                 {comment.message}
                                                             </p>
-                                                            <div className="mt-2 text-[10px] text-white/40">
+                                                            <div className="mt-3 pt-2 border-t border-white/5 text-[11px] text-white/50">
                                                                 {getCommentAuthor(comment)} • {formatDate(comment.createdAt)}
                                                             </div>
                                                         </div>
@@ -1116,10 +1244,13 @@ export const AdminFeedbackPage: React.FC = () => {
                                             )}
                                         </div>
 
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-                                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
-                                                <Activity className="w-4 h-4" />
-                                                Attivita
+                                        {/* ATTIVITÀ - Sezione principale */}
+                                        <div className="rounded-xl border border-white/20 bg-white/[0.08] shadow-lg shadow-black/10 p-6 space-y-4">
+                                            <div className="flex items-center gap-2 pb-2 border-b border-white/10">
+                                                <Activity className="w-4 h-4 text-white/70" />
+                                                <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-white/80">
+                                                    Attività
+                                                </h3>
                                             </div>
                                             <div className="space-y-3">
                                                 {activityItems.map((activity, index) => {
@@ -1127,16 +1258,16 @@ export const AdminFeedbackPage: React.FC = () => {
                                                     return (
                                                         <div
                                                             key={`${activity.type}-${activity.createdAt}-${index}`}
-                                                            className="flex items-start gap-3"
+                                                            className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors"
                                                         >
-                                                            <div className="p-2 rounded-lg bg-white/5 text-white/50">
+                                                            <div className="p-2 rounded-lg bg-white/10 border border-white/10 text-white/60 flex-shrink-0">
                                                                 <ActivityIcon className="w-3.5 h-3.5" />
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-xs text-white/70">
+                                                                <p className="text-sm text-white/80 leading-relaxed">
                                                                     {getActivityMessage(activity)}
                                                                 </p>
-                                                                <div className="flex items-center gap-2 text-[10px] text-white/40 mt-1">
+                                                                <div className="flex items-center gap-2 text-[11px] text-white/50 mt-1.5">
                                                                     <span>{getActivityActor(activity, selectedFeedback)}</span>
                                                                     <span>•</span>
                                                                     <span>
@@ -1154,9 +1285,12 @@ export const AdminFeedbackPage: React.FC = () => {
                                     </div>
 
                                     <div className="space-y-6">
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-                                            <div className="text-xs uppercase tracking-[0.2em] text-white/40">
-                                                Workflow
+                                        {/* WORKFLOW - Sidebar con stile distintivo */}
+                                        <div className="rounded-xl border border-white/20 bg-white/[0.08] shadow-lg shadow-black/10 p-5 space-y-4">
+                                            <div className="pb-2 border-b border-white/10">
+                                                <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-white/80">
+                                                    Workflow
+                                                </h3>
                                             </div>
                                             <div className="flex flex-wrap gap-2">
                                                 {STATUS_FLOW.map((status) => {
@@ -1173,11 +1307,11 @@ export const AdminFeedbackPage: React.FC = () => {
                                                                     'Stato aggiornato'
                                                                 )
                                                             }
-                                                            className={`px-3 py-1.5 rounded-full text-[11px] border transition-colors ${
+                                                            className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
                                                                 isActive
-                                                                    ? 'bg-primary-500/20 text-primary-300 border-primary-500/30'
-                                                                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
-                                                            } ${isUpdating ? 'opacity-60' : ''}`}
+                                                                    ? 'bg-primary-500/25 text-primary-200 border-primary-500/40 shadow-md shadow-primary-500/20'
+                                                                    : 'bg-white/8 text-white/70 border-white/15 hover:bg-white/15 hover:text-white hover:border-white/25 hover:shadow-sm'
+                                                            } ${isUpdating ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                                                         >
                                                             {FEEDBACK_STATUS_LABELS[status]}
                                                         </button>
@@ -1186,12 +1320,15 @@ export const AdminFeedbackPage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
-                                            <div className="text-xs uppercase tracking-[0.2em] text-white/40">
-                                                Gestione
+                                        {/* GESTIONE - Sidebar con stile distintivo */}
+                                        <div className="rounded-xl border border-white/20 bg-white/[0.08] shadow-lg shadow-black/10 p-5 space-y-4">
+                                            <div className="pb-2 border-b border-white/10">
+                                                <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-white/80">
+                                                    Gestione
+                                                </h3>
                                             </div>
                                             <div>
-                                                <label className="block text-xs text-white/40 mb-1">
+                                                <label className="block text-xs font-medium text-white/70 mb-2">
                                                     Assegnatario
                                                 </label>
                                                 <select
@@ -1204,7 +1341,7 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         )
                                                     }
                                                     disabled={isUpdating || isLoadingAdmins}
-                                                    className="w-full px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white disabled:opacity-50"
+                                                    className="w-full px-3 py-2.5 text-sm rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:border-white/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500/30"
                                                 >
                                                     <option value="" className="bg-dark-300">Non assegnato</option>
                                                     {adminUsers.map((admin) => (
@@ -1216,7 +1353,7 @@ export const AdminFeedbackPage: React.FC = () => {
                                             </div>
 
                                             <div>
-                                                <label className="block text-xs text-white/40 mb-1">
+                                                <label className="block text-xs font-medium text-white/70 mb-2">
                                                     Cambia stato
                                                 </label>
                                                 <select
@@ -1229,7 +1366,7 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         )
                                                     }
                                                     disabled={isUpdating}
-                                                    className="w-full px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white disabled:opacity-50"
+                                                    className="w-full px-3 py-2.5 text-sm rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:border-white/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500/30"
                                                 >
                                                     {STATUS_OPTIONS.filter((o) => o.value).map((opt) => (
                                                         <option
@@ -1244,8 +1381,8 @@ export const AdminFeedbackPage: React.FC = () => {
                                             </div>
 
                                             <div>
-                                                <label className="block text-xs text-white/40 mb-1">
-                                                    Priorita
+                                                <label className="block text-xs font-medium text-white/70 mb-2">
+                                                    Priorità
                                                 </label>
                                                 <select
                                                     value={selectedFeedback.priority}
@@ -1257,7 +1394,7 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         )
                                                     }
                                                     disabled={isUpdating}
-                                                    className="w-full px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white disabled:opacity-50"
+                                                    className="w-full px-3 py-2.5 text-sm rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:border-white/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500/30"
                                                 >
                                                     {PRIORITY_OPTIONS.filter((o) => o.value).map((opt) => (
                                                         <option
@@ -1272,9 +1409,12 @@ export const AdminFeedbackPage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-                                            <div className="text-xs uppercase tracking-[0.2em] text-white/40">
-                                                Etichette
+                                        {/* ETICHETTE - Sidebar */}
+                                        <div className="rounded-xl border border-white/20 bg-white/[0.08] shadow-lg shadow-black/10 p-5 space-y-4">
+                                            <div className="pb-2 border-b border-white/10">
+                                                <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-white/80">
+                                                    Etichette
+                                                </h3>
                                             </div>
                                             {labelList.length > 0 && (
                                                 <div className="flex flex-wrap gap-2">
@@ -1283,11 +1423,11 @@ export const AdminFeedbackPage: React.FC = () => {
                                                             key={label}
                                                             type="button"
                                                             onClick={() => handleRemoveLabel(label)}
-                                                            className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-white/60 hover:text-white hover:border-white/30 transition-colors"
+                                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/20 text-xs text-white/70 hover:text-white hover:bg-white/15 hover:border-white/30 transition-all"
                                                         >
                                                             <Tag className="w-3 h-3" />
                                                             {label}
-                                                            <span className="text-white/40">×</span>
+                                                            <span className="text-white/50 hover:text-white">×</span>
                                                         </button>
                                                     ))}
                                                 </div>
@@ -1304,58 +1444,64 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         }
                                                     }}
                                                     placeholder="Aggiungi etichetta"
-                                                    className="flex-1 px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white"
+                                                    className="flex-1 px-3 py-2.5 text-sm rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/40 hover:bg-white/15 hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-colors"
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={handleAddLabel}
                                                     disabled={!labelDraft.trim() || isUpdating}
-                                                    className="px-3 py-2 text-xs rounded-xl bg-white/10 text-white/70 hover:bg-white/20 hover:text-white disabled:opacity-50 transition-colors"
+                                                    className="px-4 py-2.5 text-xs font-medium rounded-lg bg-white/15 border border-white/20 text-white/80 hover:bg-white/25 hover:text-white hover:border-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                                 >
                                                     Aggiungi
                                                 </button>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-                                            <div className="text-xs uppercase tracking-[0.2em] text-white/40">
-                                                Commento pubblico
+                                        {/* COMMENTO PUBBLICO - Sidebar */}
+                                        <div className="rounded-xl border border-white/20 bg-white/[0.08] shadow-lg shadow-black/10 p-5 space-y-3">
+                                            <div className="pb-2 border-b border-white/10">
+                                                <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-white/80">
+                                                    Commento pubblico
+                                                </h3>
                                             </div>
                                             <textarea
                                                 value={commentDraft}
                                                 onChange={(e) => setCommentDraft(e.target.value)}
                                                 rows={3}
                                                 maxLength={2000}
-                                                className="w-full px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white resize-none"
+                                                className="w-full px-3 py-2.5 text-sm rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/40 resize-none hover:bg-white/15 hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-colors"
                                                 placeholder="Scrivi un aggiornamento per l'utente..."
                                             />
-                                            <div className="flex items-center justify-between text-[10px] text-white/40">
+                                            <div className="flex items-center justify-between text-[11px] text-white/50">
                                                 <span>{commentDraft.length}/2000</span>
                                                 <button
                                                     type="button"
                                                     onClick={handleSubmitComment}
                                                     disabled={!commentDraft.trim() || isUpdating}
-                                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white/10 text-white/70 hover:bg-white/20 hover:text-white disabled:opacity-50 transition-colors"
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 border border-white/20 text-white/80 hover:bg-white/25 hover:text-white hover:border-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                                 >
-                                                    <Send className="w-3 h-3" />
-                                                    Invia commento
+                                                    <Send className="w-3.5 h-3.5" />
+                                                    Invia
                                                 </button>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-                                            <div className="text-xs uppercase tracking-[0.2em] text-white/40">
-                                                Note interne
+                                        {/* NOTE INTERNE - Sidebar */}
+                                        <div className="rounded-xl border border-white/20 bg-white/[0.08] shadow-lg shadow-black/10 p-5 space-y-3">
+                                            <div className="pb-2 border-b border-white/10">
+                                                <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-white/80">
+                                                    Note interne
+                                                </h3>
                                             </div>
                                             <textarea
                                                 value={noteDraft}
                                                 onChange={(e) => setNoteDraft(e.target.value)}
                                                 rows={3}
                                                 maxLength={2000}
-                                                className="w-full px-3 py-2 text-sm rounded-xl bg-dark-400/70 border border-white/10 text-white resize-none"
+                                                className="w-full px-3 py-2.5 text-sm rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/40 resize-none hover:bg-white/15 hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-colors"
                                                 placeholder="Aggiungi dettagli tecnici, passi fatti, decisioni..."
                                             />
-                                            <div className="flex items-center justify-between text-[10px] text-white/40">
+                                            <div className="flex items-center justify-between text-[11px] text-white/50">
                                                 <span>{noteDraft.length}/2000</span>
                                                 <button
                                                     type="button"
@@ -1367,17 +1513,18 @@ export const AdminFeedbackPage: React.FC = () => {
                                                         )
                                                     }
                                                     disabled={!isNoteDirty || isUpdating}
-                                                    className="px-2.5 py-1.5 rounded-md bg-white/10 text-white/70 hover:bg-white/20 hover:text-white disabled:opacity-50 transition-colors"
+                                                    className="px-3 py-1.5 rounded-lg bg-white/15 border border-white/20 text-white/80 hover:bg-white/25 hover:text-white hover:border-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-medium"
                                                 >
                                                     Salva note
                                                 </button>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
+                                        {/* ELIMINA - Sidebar con stile distintivo per azione pericolosa */}
+                                        <div className="rounded-xl border border-red-500/30 bg-red-500/10 shadow-lg shadow-red-500/10 p-4">
                                             <button
                                                 onClick={() => handleDelete(selectedFeedback._id)}
-                                                className="flex items-center justify-center gap-2 w-full px-3 py-2 text-sm rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+                                                className="flex items-center justify-center gap-2 w-full px-3 py-2.5 text-sm font-medium rounded-lg bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 hover:text-red-200 hover:border-red-500/50 transition-all"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                                 Elimina feedback

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MoreHorizontal, Eye, Sparkles, BarChart2, Trash2, Star, BookOpen, FileText } from 'lucide-react';
 import type { Deck } from '../../services/studyService';
@@ -218,23 +219,26 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
     /**
      * Gestisce l'apertura del menu.
      * 
-     * Calcola la posizione del menu prima di aprirlo per assicurarsi
-     * che appaia nella posizione corretta sopra la card.
+     * Apre il menu. La posizione viene calcolata nell'useEffect
+     * quando showMenu diventa true.
      */
     const handleOpenMenu = () => {
-        calculateMenuPosition();
         onToggleMenu();
     };
 
     /**
-     * Effetto che ricalcola la posizione del menu quando si apre.
+     * Effetto che calcola la posizione del menu quando si apre.
      * 
      * Questo assicura che il menu sia sempre posizionato correttamente,
      * anche se la pagina viene scrollata o ridimensionata mentre è aperto.
      */
     useEffect(() => {
         if (showMenu) {
-            calculateMenuPosition();
+            // Calcola la posizione quando il menu si apre
+            // Usa requestAnimationFrame per assicurarsi che il DOM sia aggiornato
+            requestAnimationFrame(() => {
+                calculateMenuPosition();
+            });
             
             // Ricalcola la posizione quando la finestra viene ridimensionata o scrollata
             const handleResize = () => calculateMenuPosition();
@@ -266,56 +270,72 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                 <MoreHorizontal className="w-5 h-5 sm:w-5 sm:h-5" />
             </button>
 
-            {/* Dropdown Menu */}
-            <AnimatePresence>
-                {showMenu && menuPosition && (
-                    <>
-                        {/* Backdrop - Copre tutto lo schermo per chiudere il menu quando si clicca fuori */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[9998]"
-                            onClick={onToggleMenu}
-                        />
-                        
-                        {/* Menu Dropdown - Posizionato in modo fixed sopra tutto */}
-                        {/* 
-                            POSIZIONAMENTO FIXED:
-                            - Usa fixed invece di absolute per evitare problemi di overflow
-                            - La posizione viene calcolata dinamicamente basandosi sul pulsante
-                            - z-[9999]: z-index molto alto per apparire sopra tutti gli elementi
+            {/* Dropdown Menu - Renderizzato tramite Portal per evitare problemi di stacking context */}
+            {typeof window !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {showMenu && (
+                        <>
+                            {/* Backdrop - Copre tutto lo schermo per chiudere il menu quando si clicca fuori */}
+                            <motion.div
+                                key="menu-backdrop"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-[99998]"
+                                onClick={onToggleMenu}
+                                style={{ pointerEvents: 'auto' }}
+                            />
                             
-                            LARGHEZZA:
-                            - min-w-[200px]: larghezza minima per garantire leggibilità
-                            - max-w-[280px]: larghezza massima per evitare che diventi troppo largo
-                            - w-auto: si adatta al contenuto tra min e max
-                            
-                            OVERFLOW:
-                            - max-h-[90vh]: massima altezza per evitare che esca dallo schermo
-                            - overflow-y-auto: scroll verticale se il contenuto è troppo lungo
-                            
-                            VANTAGGI DEL FIXED:
-                            - Non viene tagliato dai container parent con overflow-hidden
-                            - Appare sempre sopra tutti gli altri elementi
-                            - Posizione precisa calcolata dinamicamente
-                        */}
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                            style={{
-                                position: 'fixed',
-                                top: `${menuPosition.top}px`,
-                                left: `${menuPosition.left}px`,
-                            }}
-                            className="z-[9999] 
-                                       min-w-[200px] max-w-[280px] w-auto 
-                                       py-2 rounded-xl 
-                                       bg-zinc-900 border border-white/10 
-                                       shadow-2xl
-                                       max-h-[90vh] overflow-y-auto"
-                        >
+                            {/* Menu Dropdown - Posizionato in modo fixed sopra tutto */}
+                            {/* 
+                                PORTAL:
+                                - Usa React Portal per renderizzare il menu direttamente nel body
+                                - Questo evita completamente i problemi di stacking context
+                                - Il menu appare sempre sopra qualsiasi altro elemento
+                                
+                                POSIZIONAMENTO FIXED:
+                                - Usa fixed invece di absolute per evitare problemi di overflow
+                                - La posizione viene calcolata dinamicamente basandosi sul pulsante
+                                - z-[99999]: z-index estremamente alto per apparire sopra tutti gli elementi
+                                
+                                LARGHEZZA:
+                                - min-w-[200px]: larghezza minima per garantire leggibilità
+                                - max-w-[280px]: larghezza massima per evitare che diventi troppo largo
+                                - w-auto: si adatta al contenuto tra min e max
+                                
+                                OVERFLOW:
+                                - max-h-[90vh]: massima altezza per evitare che esca dallo schermo
+                                - overflow-y-auto: scroll verticale se il contenuto è troppo lungo
+                                
+                                VANTAGGI DEL PORTAL:
+                                - Non viene tagliato dai container parent con overflow-hidden
+                                - Non è limitato da stacking context creati da transform/opacity
+                                - Appare sempre sopra tutti gli altri elementi
+                                - Posizione precisa calcolata dinamicamente
+                                
+                                Z-INDEX MOLTO ALTO:
+                                - z-[99999] assicura che il menu appaia sopra qualsiasi altro elemento
+                                - Anche sopra modali e altri overlay se necessario
+                            */}
+                            {menuPosition && (
+                                <motion.div
+                                    key="menu-dropdown"
+                                    initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                                    style={{
+                                        position: 'fixed',
+                                        top: `${menuPosition.top}px`,
+                                        left: `${menuPosition.left}px`,
+                                        zIndex: 99999,
+                                    }}
+                                    className="min-w-[200px] max-w-[280px] w-auto 
+                                               py-2 rounded-xl 
+                                               bg-zinc-900 border border-white/10 
+                                               shadow-2xl
+                                               max-h-[90vh] overflow-y-auto"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                             {/* 
                                 Ogni pulsante del menu ha:
                                 - whitespace-nowrap: previene il wrapping del testo
@@ -410,9 +430,11 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                 <span className="flex-1 text-left">Elimina Mazzo</span>
                             </button>
                         </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
+                        </>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
             
             {/* Modal per cambiare l'esame associato */}
             {onUpdate && (
