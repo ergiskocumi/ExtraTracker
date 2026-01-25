@@ -18,6 +18,8 @@ export interface GamificationStatus {
     xp: number;
     xpForCurrentLevel: number;
     xpForNextLevel: number;
+    xpInCurrentLevel: number;
+    xpNeededForNext: number;
     totalXp: number;
     streak: {
         current: number;
@@ -245,6 +247,8 @@ export const getGamificationStatus = async (): Promise<GamificationStatus> => {
         xp: data.xp,
         xpForCurrentLevel: data.progression?.currentLevelXp || 0,
         xpForNextLevel: data.progression?.nextLevelXp || 100,
+        xpInCurrentLevel: data.progression?.xpInCurrentLevel || 0,
+        xpNeededForNext: data.progression?.xpNeededForNext || 100,
         totalXp: data.xp,
         streak: {
             current: data.streak?.current || 0,

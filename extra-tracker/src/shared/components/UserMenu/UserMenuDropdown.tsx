@@ -23,8 +23,6 @@ import {
     FiAward,
     FiZap,
     FiTrendingUp,
-    FiUser,
-    FiMessageSquare,
     FiShield,
 } from 'react-icons/fi';
 import { useAuth } from '../../../features/auth/context/AuthContext';
@@ -32,7 +30,6 @@ import { useSettings } from '../../../features/settings/context/SettingsContext'
 import { useGamificationStatus } from '../../../features/gamification/hooks/useGamificationStatus';
 import { RankBadge } from '../../../features/gamification/components/RankBadge';
 import { LevelBadge } from '../../../features/gamification/components/LevelBadge';
-import { useFeedback } from '../../../features/feedback/context/FeedbackContext';
 
 // ============================================
 // TYPES
@@ -58,23 +55,21 @@ interface MenuCategory {
 // ============================================
 
 const XpProgressBar = memo(({
-    currentXp,
-    currentLevelXp,
-    nextLevelXp,
+    xpInLevel,
+    xpNeeded,
 }: {
-    currentXp: number;
-    currentLevelXp: number;
-    nextLevelXp: number;
+    xpInLevel: number;
+    xpNeeded: number;
 }) => {
-    const xpInLevel = currentXp - currentLevelXp;
-    const xpNeeded = nextLevelXp - currentLevelXp;
-    const progress = Math.min(100, (xpInLevel / xpNeeded) * 100);
+    const safeXpInLevel = Math.max(0, xpInLevel);
+    const safeXpNeeded = Math.max(1, xpNeeded);
+    const progress = Math.max(0, Math.min(100, (safeXpInLevel / safeXpNeeded) * 100));
 
     return (
         <div className="w-full">
             <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[11px] text-white/70 font-medium">
-                    {xpInLevel.toLocaleString()} / {xpNeeded.toLocaleString()} XP
+                    {safeXpInLevel.toLocaleString()} / {safeXpNeeded.toLocaleString()} XP
                 </span>
                 <span className="text-[11px] text-primary-300 font-semibold">
                     {progress.toFixed(0)}%
@@ -213,8 +208,7 @@ export const UserMenuDropdown = memo(() => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { profile } = useSettings();
-    const { openFeedback } = useFeedback();
-    const { status: gamification, isLoading: isGamificationLoading } = useGamificationStatus({
+    const { status: gamification } = useGamificationStatus({
         enablePolling: true,
         refreshInterval: 60000,
     });
@@ -245,16 +239,10 @@ export const UserMenuDropdown = memo(() => {
     const title = gamification?.title ?? 'Principiante';
     const rank = gamification?.rank ?? user?.gamification?.rank ?? 'Unranked';
     const xp = gamification?.xp ?? user?.gamification?.xp ?? 0;
-    const xpForCurrentLevel = gamification?.xpForCurrentLevel ?? 0;
-    const xpForNextLevel = gamification?.xpForNextLevel ?? 100;
+    const xpInCurrentLevel = gamification?.xpInCurrentLevel ?? 0;
+    const xpNeededForNext = gamification?.xpNeededForNext ?? 100;
     const streak = gamification?.streak?.current ?? user?.gamification?.streak?.current ?? 0;
     const multiplier = gamification?.multipliers?.total ?? 1;
-
-    // Handle feedback click
-    const handleFeedbackClick = () => {
-        setIsOpen(false);
-        openFeedback();
-    };
 
     // Menu categories
     const menuCategories: MenuCategory[] = [
@@ -276,7 +264,6 @@ export const UserMenuDropdown = memo(() => {
             label: 'Account',
             items: [
                 { path: '/settings', label: 'Impostazioni', icon: FiSettings, description: 'Personalizza' },
-                { label: 'Segnala problema', icon: FiMessageSquare, description: 'Bug report & feedback', action: handleFeedbackClick },
             ],
         },
         ...(isAdmin ? [
@@ -445,8 +432,8 @@ export const UserMenuDropdown = memo(() => {
                                         </button>
                                     </div>
 
-                                    {/* Scrollable Content */}
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                    {/* Content */}
+                                    <div className="flex-1 overflow-hidden">
                                         {/* ===== USER PROFILE SECTION ===== */}
                                         <div className="relative p-5 overflow-hidden">
                                             {/* Background geometric shapes */}
@@ -482,9 +469,8 @@ export const UserMenuDropdown = memo(() => {
                                                 {/* XP Progress */}
                                                 <div className="mb-4">
                                                     <XpProgressBar
-                                                        currentXp={xp}
-                                                        currentLevelXp={xpForCurrentLevel}
-                                                        nextLevelXp={xpForNextLevel}
+                                                        xpInLevel={xpInCurrentLevel}
+                                                        xpNeeded={xpNeededForNext}
                                                     />
                                                 </div>
 

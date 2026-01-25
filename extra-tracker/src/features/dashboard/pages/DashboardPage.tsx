@@ -1,478 +1,382 @@
 /**
- * 📊 DASHBOARD PAGE - Nuovo Design Completo
- * =========================================
- *
- * Dashboard completamente rinnovata con:
- * - Saluto personalizzato dinamico basato sull'ora
- * - Statistiche giornaliere e settimanali
- * - Card informative con dati in tempo reale
- * - Quick actions per navigazione veloce
- * - Gamification aggiornata
- * - Design moderno e accattivante
+ * DASHBOARD PAGE - Design Moderno
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useTutorial } from '../../../shared/context/TutorialContext';
-import { dashboardTutorial } from '../tutorials/dashboardTutorial';
-import { TutorialButton } from '../../../shared/components/Tutorial/TutorialButton';
-import { TutorialDebug } from '../../../shared/components/Tutorial/TutorialDebug';
+import { useSettings } from '../../settings/context/SettingsContext';
 import {
     Brain,
     Target,
-    Clock,
-    Zap,
-    Trophy,
     Flame,
+    Trophy,
     ArrowRight,
-    CheckCircle2,
     Sparkles,
     Calendar,
     BookOpen,
-    Activity,
+    Zap,
+    ChevronRight,
+    Play,
     Award,
-    Moon,
-    Sun,
-    Sunrise,
-    Sunset
+    Clock,
+    CheckCircle2,
+    AlertCircle
 } from 'lucide-react';
-
-import { dashboardService, type DashboardSummary, type RecentItem } from '../services/dashboardService';
+import { dashboardService, type DashboardSummary } from '../services/dashboardService';
 
 // =========================================
-// UTILITY FUNCTIONS
+// UTILITIES
 // =========================================
 
-/**
- * Ottiene il saluto e l'icona appropriati in base all'ora
- */
-const getGreetingInfo = () => {
+const getGreeting = () => {
     const hour = new Date().getHours();
-
-    if (hour >= 5 && hour < 12) {
-        return { text: 'Buongiorno', icon: Sunrise, color: 'from-amber-500 to-orange-500' };
-    } else if (hour >= 12 && hour < 18) {
-        return { text: 'Buon pomeriggio', icon: Sun, color: 'from-yellow-500 to-orange-500' };
-    } else
-        return { text: 'Buonasera', icon: Sunset, color: 'from-orange-500 to-rose-500' };
+    if (hour >= 5 && hour < 12) return 'Buongiorno';
+    if (hour >= 12 && hour < 18) return 'Buon pomeriggio';
+    return 'Buonasera';
 };
 
-/**
- * Formatta la data corrente in modo leggibile
- */
-const getCurrentDate = () => {
-    const options: Intl.DateTimeFormatOptions = {
+const formatDate = () => {
+    return new Date().toLocaleDateString('it-IT', {
         weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    };
-    return new Date().toLocaleDateString('it-IT', options);
+        day: 'numeric',
+        month: 'long'
+    });
 };
 
-const getUserNameFromGreeting = (greeting: string) => {
-    const name = greeting.split(',')[1]?.replace(/[!👋]/g, '').trim();
-    return name || 'Utente';
-};
-
-/**
- * Formatta numeri con separatori di migliaia in formato italiano
- * Es: 300448 -> "300.448"
- */
 const formatNumber = (num: number): string => {
     return new Intl.NumberFormat('it-IT').format(num);
 };
 
 // =========================================
-// SKELETON LOADERS
+// QUICK ACTION CARD
 // =========================================
 
-const ActionCardSkeleton = () => (
-    <div className="rounded-[28px] border border-white/10 bg-slate-900/50 p-6 animate-pulse">
-        <div className="flex items-start justify-between mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-white/10" />
-            <div className="w-20 h-6 rounded-full bg-white/10" />
-        </div>
-        <div className="space-y-3">
-            <div className="h-6 w-3/4 rounded bg-white/10" />
-            <div className="h-4 w-1/2 rounded bg-white/10" />
-        </div>
-        <div className="mt-6 h-12 rounded-xl bg-white/10" />
-    </div>
-);
-
-const RecentItemSkeleton = () => (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-4 animate-pulse">
-        <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-white/10" />
-            <div className="flex-1 space-y-2">
-                <div className="h-4 w-3/4 rounded bg-white/10" />
-                <div className="h-3 w-1/2 rounded bg-white/10" />
-            </div>
-        </div>
-    </div>
-);
-
-/**
- * Card: Statistiche di Oggi
- * Mostra attività della giornata corrente
- */
-interface TodayStatsCardProps {
-    studiedToday: number;
-    goalsCompletedToday: number;
-    todayFormatted: string;
+interface QuickActionProps {
+    icon: React.ElementType;
+    title: string;
+    subtitle: string;
+    badge?: string | number;
+    bgGradient: string;
+    iconBg: string;
+    onClick: () => void;
 }
 
-const TodayStatsCard: React.FC<TodayStatsCardProps> = React.memo(
-    ({ studiedToday, goalsCompletedToday, todayFormatted }) => (
-        <motion.div
-            initial={{ opacity: 0, transform: 'translateY(20px)' }}
-            animate={{ opacity: 1, transform: 'translateY(0)' }}
-            transition={{ delay: 0.1 }}
-            className="relative rounded-[28px] border border-emerald-400/25 bg-gradient-to-br from-slate-950/80 via-emerald-950/30 to-slate-950/60 p-6 overflow-hidden shadow-[0_24px_60px_-40px_rgba(16,185,129,0.4)]"
-        >
-            {/* Background */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-[28px] blur-3xl" />
-
-            <div className="relative">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Activity className="w-6 h-6 text-emerald-400" />
-                        Oggi
-                    </h3>
-                    <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-200">
-                        Adesso
-                    </span>
-                </div>
-
-                <div className="space-y-4">
-                    {/* Carte studiate */}
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
-                                <Brain className="w-5 h-5 text-violet-300" />
-                            </div>
-                            <span className="text-white/70 text-sm">Carte Studiate Oggi</span>
-                        </div>
-                        <span className="text-xl font-bold text-white">{studiedToday}</span>
-                    </div>
-
-                    {/* Obiettivi */}
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
-                                <CheckCircle2 className="w-5 h-5 text-amber-300" />
-                            </div>
-                            <span className="text-white/70 text-sm">Obiettivi Completati Oggi</span>
-                        </div>
-                        <span className="text-xl font-bold text-white">{goalsCompletedToday}</span>
-                    </div>
-                </div>
+const QuickAction = ({ icon: Icon, title, subtitle, badge, bgGradient, iconBg, onClick }: QuickActionProps) => (
+    <motion.button
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ scale: 1.02, y: -2 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={onClick}
+        className={`
+            group relative w-full overflow-hidden rounded-2xl p-5 text-left
+            ${bgGradient}
+            border border-white/10 hover:border-white/20
+            transition-all duration-300
+        `}
+    >
+        <div className="flex items-start gap-4">
+            {/* Icon */}
+            <div className={`
+                w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0
+                ${iconBg}
+            `}>
+                <Icon className="w-6 h-6 text-white" />
             </div>
-        </motion.div>
-    )
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-lg font-semibold text-white">{title}</h3>
+                    {badge !== undefined && badge !== 0 && (
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-white/20 text-white">
+                            {badge}
+                        </span>
+                    )}
+                </div>
+                <p className="text-sm text-white/70">{subtitle}</p>
+            </div>
+
+            {/* Arrow */}
+            <ArrowRight className="w-5 h-5 text-white/50 group-hover:text-white group-hover:translate-x-1 transition-all" />
+        </div>
+    </motion.button>
 );
 
-/**
- * Card: Prossimi Task
- * Mostra mazzi da ripassare e obiettivi in scadenza
- */
-interface UpcomingTasksCardProps {
-    dueCards: number;
-    nextDeck: { id: string; title: string; dueCards: number } | null;
-    overdueCount: number;
-    topPriority: {
+// =========================================
+// STAT CARD
+// =========================================
+
+interface StatCardProps {
+    icon: React.ElementType;
+    label: string;
+    value: string | number;
+    iconColor: string;
+}
+
+const StatCard = ({ icon: Icon, label, value, iconColor }: StatCardProps) => (
+    <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="rounded-xl p-4 bg-slate-800/50 border border-slate-700/50"
+    >
+        <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${iconColor}`}>
+                <Icon className="w-5 h-5 text-white" />
+            </div>
+            <div>
+                <p className="text-2xl font-bold text-white">{value}</p>
+                <p className="text-xs text-slate-400">{label}</p>
+            </div>
+        </div>
+    </motion.div>
+);
+
+// =========================================
+// XP PROGRESS SECTION
+// =========================================
+
+interface XpSectionProps {
+    level: number;
+    xp: number;
+    nextLevelXp: number;
+    progress: number;
+    streak: number;
+}
+
+const XpSection = ({ level, xp, nextLevelXp, progress, streak }: XpSectionProps) => (
+    <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl p-6 bg-gradient-to-br from-amber-900/40 to-orange-900/20 border border-amber-700/30"
+    >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            {/* Left - Level Badge */}
+            <div className="flex items-center gap-4">
+                <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                        <Trophy className="w-8 h-8 text-white" />
+                    </div>
+                    {streak > 0 && (
+                        <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center ring-2 ring-slate-900">
+                            <Flame className="w-3 h-3 text-white" />
+                        </div>
+                    )}
+                </div>
+                <div>
+                    <p className="text-sm text-amber-300/70">Livello</p>
+                    <p className="text-3xl font-bold text-white">{level}</p>
+                </div>
+            </div>
+
+            {/* Center - XP Info */}
+            <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-slate-300">{formatNumber(xp)} XP</span>
+                    <span className="text-sm text-amber-400">{formatNumber(nextLevelXp)} XP</span>
+                </div>
+                <div className="h-3 rounded-full bg-slate-700/50 overflow-hidden">
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        transition={{ duration: 1, ease: 'easeOut' }}
+                        className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
+                    />
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
+                    {formatNumber(nextLevelXp - xp)} XP per il prossimo livello ({progress}%)
+                </p>
+            </div>
+
+            {/* Right - Streak */}
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50">
+                <Flame className="w-6 h-6 text-orange-400" />
+                <div>
+                    <p className="text-xl font-bold text-white">{streak}</p>
+                    <p className="text-xs text-slate-400">giorni streak</p>
+                </div>
+            </div>
+        </div>
+    </motion.div>
+);
+
+// =========================================
+// NEXT DECK CARD
+// =========================================
+
+interface NextDeckProps {
+    deck: { id: string; title: string; dueCards: number } | null;
+    totalDue: number;
+    onStudy: (id: string) => void;
+    onViewAll: () => void;
+}
+
+const NextDeck = ({ deck, totalDue, onStudy, onViewAll }: NextDeckProps) => (
+    <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl p-5 bg-slate-800/50 border border-slate-700/50"
+    >
+        <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-violet-400" />
+            <h3 className="font-semibold text-white">Da ripassare</h3>
+            {totalDue > 0 && (
+                <span className="ml-auto px-2 py-0.5 text-xs rounded-full bg-violet-500/20 text-violet-300">
+                    {totalDue} carte
+                </span>
+            )}
+        </div>
+
+        {deck ? (
+            <>
+                <button
+                    onClick={() => onStudy(deck.id)}
+                    className="w-full p-4 rounded-xl bg-slate-700/50 hover:bg-slate-700 border border-slate-600/50 transition-colors group text-left"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                            <BookOpen className="w-5 h-5 text-violet-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-medium text-white truncate">{deck.title}</p>
+                            <p className="text-xs text-slate-400">{deck.dueCards} carte da ripassare</p>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Play className="w-4 h-4 text-violet-400 ml-0.5" />
+                        </div>
+                    </div>
+                </button>
+                <button
+                    onClick={onViewAll}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2 text-sm text-slate-400 hover:text-white transition-colors"
+                >
+                    Vedi tutti i mazzi
+                    <ChevronRight className="w-4 h-4" />
+                </button>
+            </>
+        ) : (
+            <div className="py-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                </div>
+                <p className="text-white font-medium">Tutto fatto!</p>
+                <p className="text-sm text-slate-400">Nessun mazzo da ripassare</p>
+            </div>
+        )}
+    </motion.div>
+);
+
+// =========================================
+// PRIORITY GOAL
+// =========================================
+
+interface PriorityGoalProps {
+    goal: {
         id: string;
         title: string;
         category: string;
         isOverdue: boolean;
         progress: number;
-    } | null;
+    };
+    onClick: () => void;
 }
 
-const UpcomingTasksCard: React.FC<UpcomingTasksCardProps> = React.memo(
-    ({ dueCards, nextDeck, overdueCount, topPriority }) => {
-        const navigate = useNavigate();
+const PriorityGoal = ({ goal, onClick }: PriorityGoalProps) => (
+    <motion.button
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        onClick={onClick}
+        className="w-full rounded-2xl p-5 bg-slate-800/50 border border-slate-700/50 hover:border-emerald-500/30 transition-colors text-left group"
+    >
+        <div className="flex items-center gap-2 mb-3">
+            <Target className="w-5 h-5 text-emerald-400" />
+            <h3 className="font-semibold text-white">Obiettivo prioritario</h3>
+            {goal.isOverdue && (
+                <span className="ml-auto px-2 py-0.5 text-xs rounded-full bg-rose-500/20 text-rose-300">
+                    In ritardo
+                </span>
+            )}
+        </div>
 
-        return (
-            <motion.div
-                initial={{ opacity: 0, transform: 'translateY(20px)' }}
-                animate={{ opacity: 1, transform: 'translateY(0)' }}
-                transition={{ delay: 0.2 }}
-                className="relative rounded-[28px] border border-violet-400/25 bg-gradient-to-br from-slate-950/80 via-violet-950/30 to-slate-950/60 p-6 overflow-hidden shadow-[0_24px_60px_-40px_rgba(139,92,246,0.4)]"
-            >
-                {/* Background */}
-                <div className="absolute -top-10 -right-10 w-40 h-40 bg-violet-500/10 rounded-[28px] blur-3xl" />
+        <h4 className="text-lg font-medium text-white mb-2 group-hover:text-emerald-300 transition-colors">
+            {goal.title}
+        </h4>
 
-                <div className="relative">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                            <BookOpen className="w-6 h-6 text-violet-400" />
-                            Studio / Obiettivi
-                        </h3>
-                        {(dueCards > 0 || overdueCount > 0) && (
-                            <span className="text-xs px-3 py-1.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-200">
-                                {dueCards + overdueCount} da ripassare
-                            </span>
-                        )}
-                    </div>
+        <div className="flex items-center gap-3 mb-2">
+            <div className="flex-1 h-2 rounded-full bg-slate-700/50 overflow-hidden">
+                <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${goal.progress}%` }}
+                    transition={{ duration: 0.8 }}
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                />
+            </div>
+            <span className="text-sm text-slate-300">{Math.round(goal.progress)}%</span>
+        </div>
 
-                    <div className="space-y-3">
-                        {/* Flashcards */}
-                        {nextDeck && (
-                            <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => navigate(`/study/${nextDeck.id}/session?mode=flashcard`)}
-                                className="w-full p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-left"
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-white font-medium">{nextDeck.title}</span>
-                                    <span className="px-2 py-1 text-xs rounded-full bg-violet-500/20 text-violet-200">
-                                        {nextDeck.dueCards} carte
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs text-white/50">
-                                    <Brain className="w-3 h-3" />
-                                    Mazzo da ripassare
-                                </div>
-                            </motion.button>
-                        )}
-
-                        {/* Top Priority Goal */}
-                        {topPriority && (
-                            <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => navigate(`/goals/${topPriority.id}`)}
-                                className="w-full p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-left"
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-white font-medium truncate">{topPriority.title}</span>
-                                    {topPriority.isOverdue && (
-                                        <span className="px-2 py-1 text-xs rounded-full bg-rose-500/20 text-rose-200">
-                                            In ritardo
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="flex-1 h-1.5 rounded-full bg-white/10">
-                                        <div
-                                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                                            style={{ width: `${topPriority.progress}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-xs text-white/60">{Math.round(topPriority.progress)}%</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs text-white/50">
-                                    <Target className="w-3 h-3" />
-                                    {topPriority.category}
-                                </div>
-                            </motion.button>
-                        )}
-
-                        {!nextDeck && !topPriority && (
-                            <div className="p-6 text-center text-white/50">
-                                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-400" />
-                                <p className="text-sm">Tutto completato!</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </motion.div>
-        );
-    }
+        <p className="text-sm text-slate-400">{goal.category}</p>
+    </motion.button>
 );
 
-/**
- * Card: Quick Actions
- * Azioni rapide per navigazione veloce
- */
-const QuickActionsCard: React.FC = React.memo(() => {
-    const navigate = useNavigate();
-
-    const actions = [
-        {
-            icon: Brain,
-            label: 'Flashcards',
-            bgColor: 'bg-violet-500/10',
-            borderColor: 'border-violet-500/30',
-            onClick: () => navigate('/study')
-        },
-        {
-            icon: Target,
-            label: 'Goals',
-            bgColor: 'bg-emerald-500/10',
-            borderColor: 'border-emerald-500/30',
-            onClick: () => navigate('/goals')
-        }
-    ];
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, transform: 'translateY(20px)' }}
-            animate={{ opacity: 1, transform: 'translateY(0)' }}
-            transition={{ delay: 0.3 }}
-            className="relative rounded-[28px] border border-white/15 bg-slate-900/60 backdrop-blur-2xl p-6 overflow-hidden shadow-[0_24px_60px_-40px_rgba(8,14,28,0.9)]"
-        >
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-[28px] blur-3xl" />
-
-            <div className="flex flex-col items-center justify-center">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    Azioni Rapide
-                </h3>
-
-                <div className="grid grid-cols-3 gap-3">
-                    {actions.map((action, index) => {
-                        const Icon = action.icon;
-                        return (
-                            <motion.button
-                                key={action.label}
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: 0.4 + index * 0.1 }}
-                                whileHover={{ scale: 1.05, y: -2 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={action.onClick}
-                                className={`p-4 rounded-2xl ${action.bgColor} border ${action.borderColor} hover:bg-opacity-20 transition-all`}
-                            >
-                                <Icon className="w-8 h-8 mx-auto mb-2 text-white" />
-                                <p className="text-sm font-medium text-white">{action.label}</p>
-                            </motion.button>
-                        );
-                    })}
-                </div>
-            </div>
-        </motion.div>
-    );
-});
-
 // =========================================
-// RECENT ACTIVITY LIST
+// SKELETON LOADERS
 // =========================================
 
-interface RecentActivityListProps {
-    items: RecentItem[];
-}
-
-const RecentActivityList: React.FC<RecentActivityListProps> = ({ items }) => {
-    const navigate = useNavigate();
-
-    if (items.length === 0) return null;
-
-    const handleClick = (item: RecentItem) => {
-        switch (item.type) {
-            case 'deck':
-                navigate(`/study/${item.id}/session?mode=flashcard`);
-                break;
-            case 'goal':
-                navigate(`/goals/${item.id}`);
-                break;
-            case 'worklog':
-                navigate('/dashboard');
-                break;
-        }
-    };
-
-    const getItemStyles = (type: string) => {
-        switch (type) {
-            case 'deck': return 'border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10';
-            case 'goal': return 'border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10';
-            case 'worklog': return 'border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10';
-            default: return 'border-white/10 bg-white/5 hover:bg-white/10';
-        }
-    };
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, transform: 'translateY(20px)' }}
-            animate={{ opacity: 1, transform: 'translateY(0)' }}
-            transition={{ delay: 0.4 }}
-            style={{ willChange: 'transform, opacity' }}
-            className="relative overflow-hidden rounded-[28px] border border-white/15 bg-slate-900/60 backdrop-blur-2xl p-6 shadow-[0_24px_60px_-40px_rgba(8,14,28,0.9)]"
-        >
-            <div className="absolute -top-12 -right-16 h-36 w-36 rotate-12 rounded-[24px] bg-white/5 border border-white/10" />
-            <div className="absolute -bottom-16 -left-12 h-40 w-40 -rotate-12 rounded-[26px] bg-white/[0.04] border border-white/10" />
-            <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-amber-400" />
-                    Riprendi Da Dove Hai Lasciato
-                </h3>
-                <span className="text-sm text-white/50">
-                    {items.length} Cose Lasciate
-                </span>
+const QuickActionSkeleton = () => (
+    <div className="rounded-2xl p-5 bg-slate-800/30 border border-slate-700/30 animate-pulse">
+        <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-slate-700/50" />
+            <div className="flex-1">
+                <div className="h-5 w-24 rounded bg-slate-700/50 mb-2" />
+                <div className="h-4 w-32 rounded bg-slate-700/30" />
             </div>
+        </div>
+    </div>
+);
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 relative z-10">
-                {items.map((item, index) => {
-                    const styles = getItemStyles(item.type);
-                    return (
-                        <motion.button
-                            key={`${item.type}-${item.id}-${index}`}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 0.5 + index * 0.05 }}
-                            whileHover={{ scale: 1.03, transform: 'translateY(-2px)' }}
-                            whileTap={{ scale: 0.98 }}
-                            style={{ willChange: 'transform, opacity' }}
-                            onClick={() => handleClick(item)}
-                            className={`relative text-left p-4 rounded-2xl border ${styles} transition-all group hover:-translate-y-0.5`}
-                        >
-                            <div className="flex items-center gap-3 mb-2">
-                                <span className="text-2xl">{item.icon}</span>
-                                <ArrowRight className="w-4 h-4 text-white/30 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
-                            </div>
-                            <p className="text-sm font-medium text-white truncate">
-                                {item.title}
-                            </p>
-                            <p className="text-xs text-white/50 mt-1">
-                                {item.lastAction}
-                            </p>
-                        </motion.button>
-                    );
-                })}
+const StatSkeleton = () => (
+    <div className="rounded-xl p-4 bg-slate-800/30 border border-slate-700/30 animate-pulse">
+        <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-slate-700/50" />
+            <div>
+                <div className="h-6 w-12 rounded bg-slate-700/50 mb-1" />
+                <div className="h-3 w-20 rounded bg-slate-700/30" />
             </div>
-        </motion.div>
-    );
-};
+        </div>
+    </div>
+);
 
 // =========================================
 // MAIN COMPONENT
 // =========================================
 
 export const DashboardPage = () => {
-    const { registerTutorial } = useTutorial();
+    const navigate = useNavigate();
+    const { profile } = useSettings();
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const isInitialLoadRef = useRef(true);
 
-    // Registra il tutorial quando il componente si monta
-    useEffect(() => {
-        console.log('🎓 DashboardPage: Registrazione tutorial...');
-        registerTutorial(dashboardTutorial);
-    }, [registerTutorial]);
+    const userName = profile?.firstName || 'Utente';
 
     useEffect(() => {
         let isCancelled = false;
-        let refreshTimerId: NodeJS.Timeout | null = null;
+        let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
         const fetchSummary = async () => {
-            if (isInitialLoadRef.current) {
-                setLoading(true);
-            }
-            setError(null);
+            if (isInitialLoadRef.current) setLoading(true);
 
             try {
-                const summaryData = await dashboardService.getSummary();
-
+                const data = await dashboardService.getSummary();
                 if (!isCancelled) {
-                    setSummary(summaryData);
+                    setSummary(data);
+                    setError(null);
                 }
             } catch (err) {
+                console.error('Dashboard load error:', err);
                 if (!isCancelled) {
-                    setError('Impossibile caricare i dati della dashboard');
-                    console.error('Dashboard load error:', err);
+                    setError('Impossibile caricare i dati');
                 }
             } finally {
                 if (!isCancelled) {
@@ -482,300 +386,188 @@ export const DashboardPage = () => {
             }
         };
 
-        // Carica dati inizialmente
         fetchSummary();
-
-        // Refresh automatico ogni 30 secondi per dati in real-time
-        refreshTimerId = setInterval(fetchSummary, 30000);
+        refreshTimer = setInterval(fetchSummary, 60000);
 
         return () => {
             isCancelled = true;
-            if (refreshTimerId) {
-                clearInterval(refreshTimerId);
-            }
+            if (refreshTimer) clearInterval(refreshTimer);
         };
     }, []);
 
     return (
-        <>
-            <TutorialDebug />
-            <div className="relative space-y-8 pb-12">
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="absolute -top-32 -right-24 h-72 w-72 rotate-12 rounded-[36px] bg-gradient-to-br from-primary-500/20 via-indigo-500/10 to-transparent blur-3xl" />
-                <div className="absolute top-40 -left-20 h-56 w-56 -rotate-12 rounded-[32px] bg-gradient-to-br from-emerald-400/15 via-cyan-500/10 to-transparent blur-3xl" />
-                <div className="absolute bottom-0 right-0 h-80 w-80 rounded-[40px] bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-transparent blur-3xl" />
-            </div>
-
-            {/* Header - Nuovo Design con Saluto Personalizzato */}
+        <div className="space-y-8 pb-8">
+            {/* Header */}
             <motion.div
-                initial={{ opacity: 0, transform: 'translateY(-20px)' }}
-                animate={{ opacity: 1, transform: 'translateY(0)' }}
-                style={{ willChange: 'transform, opacity' }}
-                className="relative z-10"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-2 mb-2"
             >
-                {!loading && summary && (() => {
-                    const greetingInfo = getGreetingInfo();
-                    const GreetingIcon = greetingInfo.icon;
-                    const userName = getUserNameFromGreeting(summary.greeting);
-
-                    return (
-                        <div className="relative overflow-hidden rounded-[32px] border border-white/15 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-950/90 backdrop-blur-2xl p-8 shadow-[0_24px_60px_-40px_rgba(8,14,28,0.9)]">
-                            {/* Background Decoration */}
-                            <div className={`absolute -top-20 -right-20 w-72 h-72 bg-gradient-to-br ${greetingInfo.color} opacity-20 rounded-full blur-3xl`} />
-                            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/5 rounded-[28px] blur-2xl" />
-
-                            <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                                {/* Left: Greeting */}
-                                <div className="flex items-center gap-6">
-                                    <motion.div
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                                        className={`w-20 h-20 rounded-3xl bg-gradient-to-br ${greetingInfo.color} flex items-center justify-center shadow-2xl ring-4 ring-white/10`}
-                                    >
-                                        <GreetingIcon className="w-10 h-10 text-white" />
-                                    </motion.div>
-
-                                    <div data-tutorial="greeting">
-                                        <motion.h1
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: 0.1 }}
-                                            className="text-4xl sm:text-5xl font-bold text-white mb-2"
-                                        >
-                                            {greetingInfo.text}, {userName}
-                                        </motion.h1>
-                                        <motion.p
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: 0.2 }}
-                                            className="text-white/60 text-sm flex items-center gap-2"
-                                        >
-                                            <Calendar className="w-4 h-4" />
-                                            {getCurrentDate()}
-                                        </motion.p>
-                                    </div>
-                                </div>
-
-                                {/* Right: Quick Stats + Tutorial Button */}
-                                <div className="flex flex-wrap items-center gap-3">
-                                    {/* Tutorial Button - Solo se non completato */}
-                                    {!loading && (
-                                        <TutorialButton
-                                            tutorialId="dashboard-tutorial"
-                                            label="Tour"
-                                            variant="minimal"
-                                            className="mr-2"
-                                        />
-                                    )}
-                                    
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: 0.3 }}
-                                        className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <Flame className="w-5 h-5 text-orange-400" />
-                                            <div>
-                                                <p className="text-xs text-white/50">Streak</p>
-                                                <p className="text-lg font-bold text-white">{summary.gamification.streak}</p>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: 0.4 }}
-                                        className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Trophy className="w-5 h-5 text-amber-400" />
-                                            <div>
-                                                <p className="text-xs text-white/50">Livello</p>
-                                                <p className="text-lg font-bold text-white">{summary.gamification.level}</p>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: 0.5 }}
-                                        className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 backdrop-blur-sm"
-                                    >
-                                        <Award className="w-5 h-5 text-violet-300" />
-                                        <div>
-                                            <p className="text-xs text-white/50">Progresso</p>
-                                            <p className="text-lg font-bold text-white">{summary.gamification.progress}%</p>
-                                        </div>
-                                    </motion.div>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })()}
-
-                {loading && (
-                    <div className="rounded-[32px] border border-white/10 bg-slate-900/50 p-8 animate-pulse">
-                        <div className="flex items-center gap-6">
-                            <div className="w-20 h-20 rounded-3xl bg-white/10" />
-                            <div className="flex-1 space-y-3">
-                                <div className="h-8 w-64 rounded bg-white/10" />
-                                <div className="h-4 w-48 rounded bg-white/10" />
-                            </div>
-                        </div>
-                    </div>
-                )}
+                <div className="flex items-center gap-2 text-slate-400 text-sm">
+                    <Calendar className="w-4 h-4" />
+                    <span className="capitalize">{formatDate()}</span>
+                </div>
+                <h1 className="text-4xl md:text-5xl font-bold text-white">
+                    {getGreeting()},{' '}
+                    <span className="bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">
+                        {userName}
+                    </span>
+                </h1>
+                <p className="text-slate-400 text-lg">Ecco il tuo riepilogo di oggi</p>
             </motion.div>
 
             {/* Error State */}
-            {error && (
+            {error && !loading && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="relative z-10 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-rose-300 text-sm"
+                    className="flex items-center gap-3 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300"
                 >
-                    {error}
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    <p>{error}</p>
                 </motion.div>
             )}
 
             {/* Loading State */}
             {loading && (
-                <div className="relative z-10 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <ActionCardSkeleton />
-                        <ActionCardSkeleton />
-                        <ActionCardSkeleton />
-                        <div className="rounded-[28px] border border-white/10 bg-slate-900/50 p-6 animate-pulse">
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-2xl bg-white/10" />
-                                <div className="flex-1 space-y-2">
-                                    <div className="h-4 w-1/2 rounded bg-white/10" />
-                                    <div className="h-2 rounded-full bg-white/10" />
-                                </div>
-                            </div>
-                        </div>
+                <div className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <QuickActionSkeleton />
+                        <QuickActionSkeleton />
+                        <QuickActionSkeleton />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                        {[...Array(5)].map((_, i) => (
-                            <RecentItemSkeleton key={i} />
-                        ))}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <StatSkeleton />
+                        <StatSkeleton />
+                        <StatSkeleton />
+                        <StatSkeleton />
                     </div>
                 </div>
             )}
 
             {/* Main Content */}
             {!loading && summary && (
-                <div className="relative z-10 space-y-8">
-                    {/* Nuove Card Informative */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {/* Statistiche di Oggi */}
-                        <div data-tutorial="stats">
-                            <TodayStatsCard
-                                studiedToday={summary.study.cardsStudiedToday}
-                                goalsCompletedToday={summary.goals.completedToday}
-                                todayFormatted={summary.work.todayFormatted}
-                            />
-                        </div>
-
-                        {/* Prossimi Task */}
-                        <UpcomingTasksCard
-                            dueCards={summary.study.dueCards}
-                            nextDeck={summary.study.nextDeck}
-                            overdueCount={summary.goals.overdueCount}
-                            topPriority={summary.goals.topPriority}
+                <div className="space-y-8">
+                    {/* Quick Actions */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <QuickAction
+                            icon={Brain}
+                            title="Flashcards"
+                            subtitle="Studia i tuoi mazzi"
+                            badge={summary.study.dueCards > 0 ? summary.study.dueCards : undefined}
+                            bgGradient="bg-gradient-to-br from-violet-600/30 to-purple-700/20"
+                            iconBg="bg-violet-500"
+                            onClick={() => navigate('/study')}
                         />
 
-                        {/* Quick Actions */}
-                        <div data-tutorial="quick-actions">
-                            <QuickActionsCard />
-                        </div>
+                        <QuickAction
+                            icon={Target}
+                            title="Obiettivi"
+                            subtitle="Traccia i tuoi progressi"
+                            badge={summary.goals.activeCount > 0 ? summary.goals.activeCount : undefined}
+                            bgGradient="bg-gradient-to-br from-emerald-600/30 to-teal-700/20"
+                            iconBg="bg-emerald-500"
+                            onClick={() => navigate('/goals')}
+                        />
+
+                        <QuickAction
+                            icon={Award}
+                            title="Progressi"
+                            subtitle="Livelli e achievements"
+                            badge={`Lv ${summary.gamification.level}`}
+                            bgGradient="bg-gradient-to-br from-amber-600/30 to-orange-700/20"
+                            iconBg="bg-amber-500"
+                            onClick={() => navigate('/gamification')}
+                        />
                     </div>
 
-                    {/* Progresso XP e Livello - Fullwidth */}
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+                        <StatCard
+                            icon={BookOpen}
+                            label="Studiate oggi"
+                            value={summary.study.cardsStudiedToday}
+                            iconColor="bg-violet-500/20"
+                        />
+                        <StatCard
+                            icon={CheckCircle2}
+                            label="Completati oggi"
+                            value={summary.goals.completedToday}
+                            iconColor="bg-emerald-500/20"
+                        />
+                        <StatCard
+                            icon={Flame}
+                            label="Streak"
+                            value={summary.gamification.streak}
+                            iconColor="bg-orange-500/20"
+                        />
+                        <StatCard
+                            icon={Zap}
+                            label="XP Totali"
+                            value={formatNumber(summary.gamification.xp)}
+                            iconColor="bg-amber-500/20"
+                        />
+                    </div>
+
+                    {/* XP Progress */}
+                    <XpSection
+                        level={summary.gamification.level}
+                        xp={summary.gamification.xp}
+                        nextLevelXp={summary.gamification.nextLevelXp}
+                        progress={summary.gamification.progress}
+                        streak={summary.gamification.streak}
+                    />
+
+                    {/* Bottom Row */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        {/* Next Deck */}
+                        <NextDeck
+                            deck={summary.study.nextDeck}
+                            totalDue={summary.study.dueCards}
+                            onStudy={(id) => navigate(`/study/${id}/session?mode=flashcard`)}
+                            onViewAll={() => navigate('/study')}
+                        />
+
+                        {/* Priority Goal */}
+                        {summary.goals.topPriority ? (
+                            <PriorityGoal
+                                goal={summary.goals.topPriority}
+                                onClick={() => navigate(`/goals/${summary.goals.topPriority!.id}`)}
+                            />
+                        ) : (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="rounded-2xl p-5 bg-slate-800/50 border border-slate-700/50 flex flex-col items-center justify-center py-10"
+                            >
+                                <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3">
+                                    <Target className="w-6 h-6 text-emerald-400" />
+                                </div>
+                                <p className="text-white font-medium">Nessun obiettivo attivo</p>
+                                <button
+                                    onClick={() => navigate('/goals')}
+                                    className="mt-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+                                >
+                                    Crea il tuo primo obiettivo
+                                </button>
+                            </motion.div>
+                        )}
+                    </div>
+
+                    {/* Footer */}
                     <motion.div
-                        initial={{ opacity: 0, transform: 'translateY(20px)' }}
-                        animate={{ opacity: 1, transform: 'translateY(0)' }}
-                        transition={{ delay: 0.35 }}
-                        className="relative overflow-hidden rounded-[28px] border border-amber-400/25 bg-gradient-to-br from-slate-950/80 via-amber-950/20 to-slate-950/60 p-6 shadow-[0_24px_60px_-40px_rgba(245,158,11,0.3)]"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex items-center justify-center gap-3 pt-4 text-slate-500"
                     >
-                        {/* Background */}
-                        <div className="absolute -top-10 -right-10 w-60 h-60 bg-amber-500/10 rounded-full blur-3xl" />
-                        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-orange-500/10 rounded-full blur-3xl" />
-
-                        <div className="relative">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-                                <div>
-                                    <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-                                        <Award className="w-7 h-7 text-amber-400" />
-                                        Progresso e Livello
-                                    </h3>
-                                    <p className="text-white/60 text-sm">
-                                        Continua così per sbloccare il livello {summary.gamification.level + 1}
-                                    </p>
-                                </div>
-
-                                <div className="flex items-center gap-4">
-                                    {/* Livello Badge Grande */}
-                                    <div className="relative">
-                                        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-2xl ring-4 ring-amber-500/20">
-                                            <div className="text-center">
-                                                <Trophy className="w-8 h-8 text-white mx-auto" />
-                                                <p className="text-xs font-bold text-white mt-1">LV {summary.gamification.level}</p>
-                                            </div>
-                                        </div>
-                                        {summary.gamification.streak > 0 && (
-                                            <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center ring-2 ring-slate-950">
-                                                <Flame className="w-4 h-4 text-white" />
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* XP Numbers */}
-                                    <div className="text-right">
-                                        <p className="text-3xl font-bold text-white">
-                                            {formatNumber(summary.gamification.xp)}
-                                            <span className="text-lg text-white/50"> / {formatNumber(summary.gamification.nextLevelXp)}</span>
-                                        </p>
-                                        <p className="text-sm text-white/60">XP totale</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Progress Bar */}
-                            <div className="space-y-2">
-                                <div className="h-4 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${summary.gamification.progress}%` }}
-                                        transition={{ duration: 1, ease: 'easeOut', delay: 0.5 }}
-                                        className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 shadow-lg shadow-amber-500/50 relative"
-                                    >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-                                    </motion.div>
-                                </div>
-
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-white/60">
-                                        {formatNumber(summary.gamification.nextLevelXp - summary.gamification.xp)} XP al prossimo livello
-                                    </span>
-                                    <span className="text-amber-300 font-semibold">
-                                        {summary.gamification.progress}% completato
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                        <Sparkles className="w-4 h-4" />
+                        <p className="text-sm">Continua così, stai facendo un ottimo lavoro!</p>
+                        <Sparkles className="w-4 h-4" />
                     </motion.div>
-
-                    {/* Jump Back In - Recent Activities */}
-                    {summary.recents.length > 0 && (
-                        <RecentActivityList items={summary.recents} />
-                    )}
                 </div>
             )}
         </div>
-        </>
     );
 };
+
+export default DashboardPage;
