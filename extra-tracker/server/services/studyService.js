@@ -14,7 +14,7 @@
 
 const BaseService = require('./BaseService');
 const Deck = require('../models/Deck');
-const Goal = require('../models/Goal');
+const Exam = require('../models/Exam');
 const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
 const sseManager = require('../utils/SSEManager');
@@ -102,19 +102,17 @@ class StudyService extends BaseService {
     // =========================================
 
     async createDeck(tenantScope, data = {}) {
-        const { goalId, title, description, tags } = data;
-
-        if (!goalId) {
-            throw AppError.validation('Il goal associato e\' obbligatorio');
-        }
+        const { examId, title, description, tags } = data;
         if (!title || typeof title !== 'string') {
             throw AppError.validation('Il titolo del mazzo e\' obbligatorio');
         }
 
-        await this._validateGoalOwnership(tenantScope, goalId);
+        if (examId) {
+            await this._validateExamOwnership(tenantScope, examId);
+        }
 
         return this.create(tenantScope, {
-            goalId,
+            examId: examId || null,
             title,
             description,
             tags,
@@ -385,30 +383,24 @@ class StudyService extends BaseService {
             }
         }
         
-        // Gestione del cambio di esame (goalId)
-        if (updates.goalId !== undefined) {
-            console.log('[StudyService] updateDeck: Updating goalId', {
-                currentGoalId: deck.goalId ? deck.goalId.toString() : null,
-                newGoalId: updates.goalId,
+        // Gestione del cambio di esame (examId)
+        if (updates.examId !== undefined) {
+            console.log('[StudyService] updateDeck: Updating examId', {
+                currentExamId: deck.examId ? deck.examId.toString() : null,
+                newExamId: updates.examId,
             });
             
-            // Verifica che l'esame (goal) esista e appartenga all'utente (se non è null)
-            if (updates.goalId !== null && updates.goalId !== '') {
-                const Goal = require('../models/Goal');
-                const goal = await Goal.findOne({ _id: updates.goalId, user: userId });
-                if (!goal) {
+            if (updates.examId !== null && updates.examId !== '') {
+                const exam = await Exam.findOne({ _id: updates.examId, user: userId });
+                if (!exam) {
                     throw AppError.notFound('Esame non trovato');
                 }
-                // Verifica che sia un esame (category === 'learning')
-                if (goal.category !== 'learning') {
-                    throw AppError.badRequest('Il goal selezionato non è un esame (category deve essere "learning")');
-                }
-                deck.goalId = updates.goalId;
-                console.log('[StudyService] updateDeck: Goal verified, setting goalId');
+                deck.examId = updates.examId;
+                console.log('[StudyService] updateDeck: Exam verified, setting examId');
             } else {
-                // Se goalId è null o stringa vuota, non possiamo rimuoverlo perché è required
-                // Ma possiamo permettere di cambiarlo con un altro esame
-                throw AppError.badRequest('Un mazzo deve essere associato a un esame. Seleziona un esame valido.');
+                // Se examId è null o stringa vuota, rimuovi il riferimento
+                deck.examId = null;
+                console.log('[StudyService] updateDeck: Setting examId to null');
             }
         }
 
@@ -2077,14 +2069,14 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
      * @param {object} tenantScope - Scope del tenant
      * @param {string} sourceFilePath - Path al file con il materiale di studio (PDF)
      * @param {string[]} selectedQuestions - Array di domande selezionate dall'utente
-     * @param {object} options - Opzioni { deckId?, title?, goalId? }
+     * @param {object} options - Opzioni { deckId?, title?, examId? }
      * @param {function} onProgress - Callback opzionale per inviare progress: (progress) => void
      * @returns {Promise<object>} - Deck e statistiche
      */
     async generateExamAnswers(tenantScope, sourceFilePath, selectedQuestions, options = {}, onProgress = null) {
         const startTime = Date.now();
         const userId = this._getUserId(tenantScope);
-        const { deckId, title, goalId } = options;
+        const { deckId, title, examId } = options;
 
         if (!Array.isArray(selectedQuestions) || selectedQuestions.length === 0) {
             throw AppError.validation('Devi selezionare almeno una domanda');
@@ -2413,13 +2405,11 @@ Genera una risposta per OGNI domanda nella lista.`;
             if (!title || typeof title !== 'string') {
                 throw AppError.validation('Il titolo del mazzo è obbligatorio per creare un nuovo deck');
             }
-            if (!goalId) {
-                throw AppError.validation('Il goalId è obbligatorio per creare un nuovo deck');
+            if (examId) {
+                await this._validateExamOwnership(tenantScope, examId);
             }
-
-            await this._validateGoalOwnership(tenantScope, goalId);
             deck = await this.create(tenantScope, {
-                goalId,
+                examId: examId || null,
                 title,
                 description: `Generato automaticamente da Exam Solver - ${new Date().toLocaleDateString('it-IT')}`,
                 tags: [],
@@ -2498,13 +2488,13 @@ Genera una risposta per OGNI domanda nella lista.`;
      * @param {object} tenantScope - Scope del tenant
      * @param {string} questionsFilePath - Path al file con le domande (PDF o TXT)
      * @param {string} sourceFilePath - Path al file con il materiale di studio (PDF)
-     * @param {object} options - Opzioni { deckId?, title?, goalId? }
+     * @param {object} options - Opzioni { deckId?, title?, examId? }
      * @returns {Promise<object>} - Deck e statistiche
      */
     async examSolver(tenantScope, questionsFilePath, sourceFilePath, options = {}) {
         const startTime = Date.now();
         const userId = this._getUserId(tenantScope);
-        const { deckId, title, goalId } = options;
+        const { deckId, title, examId } = options;
 
         // Validazione input
         if (!questionsFilePath || typeof questionsFilePath !== 'string') {
@@ -2758,13 +2748,11 @@ Genera una risposta per OGNI domanda nella lista.`;
             if (!title || typeof title !== 'string') {
                 throw AppError.validation('Il titolo del mazzo è obbligatorio per creare un nuovo deck');
             }
-            if (!goalId) {
-                throw AppError.validation('Il goalId è obbligatorio per creare un nuovo deck');
+            if (examId) {
+                await this._validateExamOwnership(tenantScope, examId);
             }
-
-            await this._validateGoalOwnership(tenantScope, goalId);
             deck = await this.create(tenantScope, {
-                goalId,
+                examId: examId || null,
                 title,
                 description: `Generato automaticamente da Exam Solver - ${new Date().toLocaleDateString('it-IT')}`,
                 tags: [],
@@ -2865,11 +2853,11 @@ Genera una risposta per OGNI domanda nella lista.`;
     // PRIVATE HELPERS
     // =========================================
 
-    async _validateGoalOwnership(tenantScope, goalId) {
+    async _validateExamOwnership(tenantScope, examId) {
         const userId = this._getUserId(tenantScope);
-        const goal = await Goal.findOne({ _id: goalId, user: userId });
-        if (!goal) {
-            throw AppError.notFound('Obiettivo');
+        const exam = await Exam.findOne({ _id: examId, user: userId });
+        if (!exam) {
+            throw AppError.notFound('Esame non trovato');
         }
     }
 
@@ -3686,7 +3674,7 @@ Genera una risposta per OGNI domanda nella lista.`;
     /**
      * Resetta le carte di tutti i deck associati a un esame
      * @param {object} tenantScope - Scope del tenant
-     * @param {string} examId - ID dell'esame (Goal)
+     * @param {string} examId - ID dell'esame
      * @param {string} type - 'all' per reset completo, 'hard-only' per solo carte difficili
      * @returns {Promise<object>} - Statistiche del reset
      */
@@ -3696,15 +3684,15 @@ Genera una risposta per OGNI domanda nella lista.`;
         console.log('[StudyService] userId:', userId);
 
         // Verifica che l'esame esista e appartenga all'utente
-        const goal = await Goal.findOne({ _id: examId, user: userId });
-        if (!goal) {
+        const exam = await Exam.findOne({ _id: examId, user: userId });
+        if (!exam) {
             console.error('[StudyService] Esame non trovato:', { examId, userId });
             throw AppError.notFound('Esame non trovato');
         }
-        console.log('[StudyService] Esame trovato:', goal.title);
+        console.log('[StudyService] Esame trovato:', exam.title);
 
         // Trova tutti i deck associati a questo esame
-        const decks = await Deck.find({ goalId: examId, user: userId });
+        const decks = await Deck.find({ examId, user: userId });
         console.log('[StudyService] Trovati', decks.length, 'deck per l\'esame');
         if (decks.length === 0) {
             console.warn('[StudyService] Nessun mazzo trovato per esame:', examId);
@@ -3764,7 +3752,7 @@ Genera una risposta per OGNI domanda nella lista.`;
     /**
      * Genera domande AI di approfondimento basate sulle difficoltà segnalate
      * @param {object} tenantScope - Scope del tenant
-     * @param {string} examId - ID dell'esame (Goal)
+     * @param {string} examId - ID dell'esame
      * @param {string[]} difficulties - Array di difficoltà segnalate (es. ['concepts', 'time'])
      * @returns {Promise<object>} - Statistiche della generazione
      */
@@ -3774,15 +3762,15 @@ Genera una risposta per OGNI domanda nella lista.`;
         console.log('[StudyService] userId:', userId);
 
         // Verifica che l'esame esista e appartenga all'utente
-        const goal = await Goal.findOne({ _id: examId, user: userId });
-        if (!goal) {
+        const exam = await Exam.findOne({ _id: examId, user: userId });
+        if (!exam) {
             console.error('[StudyService] Esame non trovato:', { examId, userId });
             throw AppError.notFound('Esame non trovato');
         }
-        console.log('[StudyService] Esame trovato:', goal.title);
+        console.log('[StudyService] Esame trovato:', exam.title);
 
         // Trova tutti i deck associati a questo esame
-        const decks = await Deck.find({ goalId: examId, user: userId });
+        const decks = await Deck.find({ examId, user: userId });
         console.log('[StudyService] Trovati', decks.length, 'deck per l\'esame');
         if (decks.length === 0) {
             console.warn('[StudyService] Nessun mazzo trovato per esame:', examId);
@@ -3823,8 +3811,8 @@ Genera una risposta per OGNI domanda nella lista.`;
 
 ${contextPrompt}
 
-CONTESTO ESAME: "${goal.title}"
-${goal.description ? `DESCRIZIONE: ${goal.description}` : ''}
+CONTESTO ESAME: "${exam.title}"
+${exam.description ? `DESCRIZIONE: ${exam.description}` : ''}
 
 ARGOMENTI ESISTENTI NEL MAZZO:
 ${topics || 'Nessun argomento specifico'}

@@ -1,24 +1,13 @@
 import { useMemo, useState } from 'react';
-import { useGoals } from '../../goals/context/GoalsContext';
 import { useWorkLog } from '../../tracker/context/WorkLogContext';
 import { useAuth } from '../../auth/context/AuthContext';
 import { useFilterMonth } from '../../../shared/hooks/useFilterMonth';
 import { calculateDurationInHours } from '../../../shared/utils/dateUtils';
 import type { WorkLog, WorkLogFormMode } from '../../tracker/type';
-import type { GoalWithProgress } from '../../goals/types';
 
 interface DashboardStats {
     totalHours: number;
-    completedGoals: number;
-    activeGoals: number;
     totalLogs: number;
-}
-
-interface UpcomingGoal {
-    id: string;
-    title: string;
-    deadline: string;
-    status: GoalWithProgress['status'];
 }
 
 interface RecentActivityItem {
@@ -30,7 +19,6 @@ interface RecentActivityItem {
 
 export const useDashboard = () => {
     const { user } = useAuth();
-    const { goals, stats: goalStats } = useGoals();
     const { logs, addWorkLog, deleteLog, updateLog } = useWorkLog();
     const { selectedMonth, setSelectedMonth, filteredLogs } = useFilterMonth(logs);
 
@@ -74,15 +62,6 @@ export const useDashboard = () => {
         [filteredLogs]
     );
 
-    const upcomingGoals = useMemo<UpcomingGoal[]>(() => {
-        const today = new Date().toISOString().split('T')[0];
-        return goals
-            .filter(goal => goal.deadline && goal.deadline >= today && goal.status !== 'completed')
-            .map(goal => ({ id: goal.id, title: goal.title, deadline: goal.deadline, status: goal.status }))
-            .sort((a, b) => a.deadline.localeCompare(b.deadline))
-            .slice(0, 3);
-    }, [goals]);
-
     const recentActivity = useMemo<RecentActivityItem[]>(() => {
         return filteredLogs
             .slice()
@@ -99,11 +78,9 @@ export const useDashboard = () => {
     const stats: DashboardStats = useMemo(
         () => ({
             totalHours,
-            completedGoals: goalStats.completedGoals,
-            activeGoals: goalStats.activeGoals,
             totalLogs: filteredLogs.length,
         }),
-        [totalHours, goalStats.completedGoals, goalStats.activeGoals, filteredLogs.length]
+        [totalHours, filteredLogs.length]
     );
 
     const greeting = useMemo(() => {
@@ -118,11 +95,8 @@ export const useDashboard = () => {
         // data
         logs,
         filteredLogs,
-        goals,
-        goalStats,
         selectedMonth,
         stats,
-        upcomingGoals,
         recentActivity,
         greeting,
 

@@ -172,7 +172,7 @@ export const CinemaPage: React.FC = () => {
     const pdfSrc = useMemo(() => deck?.pdfUrl || null, [deck?.pdfUrl]);
 
     const examIdFromState = (location.state as { examId?: string } | null)?.examId ?? null;
-    const examId = deck?.goalId ?? examIdFromState;
+    const examId = deck?.examId ?? examIdFromState;
 
     /**
      * Handler per tornare ai mazzi dell'esame (se disponibile) o al dettaglio del mazzo

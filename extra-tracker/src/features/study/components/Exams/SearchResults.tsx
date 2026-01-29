@@ -10,7 +10,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Layers } from 'lucide-react';
-import type { Goal } from '../../../goals/types';
+import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
 import type { Tag } from '../../services/tagsService';
 import { ExamCard } from './ExamCard';
@@ -23,7 +23,7 @@ import { DeckGrid } from '../Deck/DeckGrid';
 
 interface SearchResultsProps {
     /** Esami trovati nella ricerca */
-    exams: Goal[];
+    exams: Exam[];
     
     /** Mazzi trovati nella ricerca */
     decks: Deck[];

@@ -6,7 +6,7 @@
  *
  * RELAZIONI:
  * - Appartiene a un User (multi-tenancy)
- * - Appartiene a un Goal (referenza)
+ * - Appartiene a un Exam (referenza opzionale)
  */
 
 const mongoose = require('mongoose');
@@ -108,10 +108,10 @@ const normalizeTags = (tags) => {
 };
 
 const deckSchema = new mongoose.Schema({
-    goalId: {
+    examId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Goal',
-        required: [true, 'Il goal associato e\' obbligatorio'],
+        ref: 'Exam',
+        default: null,
         index: true,
     },
     title: {
@@ -189,7 +189,7 @@ const deckSchema = new mongoose.Schema({
 // INDEXES
 // =========================================
 
-deckSchema.index({ user: 1, goalId: 1 });
+deckSchema.index({ user: 1, examId: 1 });
 deckSchema.index({ user: 1, folderId: 1 });
 deckSchema.index({ user: 1, tags: 1 });
 deckSchema.index({ user: 1, 'cards.nextReviewDate': 1 });

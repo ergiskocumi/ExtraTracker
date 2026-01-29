@@ -7,7 +7,7 @@
  * - Tooltip informativi con descrizioni
  * - Navigazione tra gli step
  * - Salvataggio progresso in localStorage
- * - Supporto per tutorial multipli (Dashboard, Study, Goals, ecc.)
+ * - Supporto per tutorial multipli (Dashboard, Study, ecc.)
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';

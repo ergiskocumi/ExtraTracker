@@ -125,8 +125,6 @@ const getPreferences = asyncHandler(async (req, res) => {
         defaultView: 'dashboard',
         weekStartsOn: 1,
         workingDays: [1, 2, 3, 4, 5],
-        dailyGoalHours: 8,
-        weeklyGoalHours: 40,
     };
 
     res.status(200).json({
@@ -159,8 +157,6 @@ const updatePreferences = asyncHandler(async (req, res) => {
         'defaultView',
         'weekStartsOn',
         'workingDays',
-        'dailyGoalHours',
-        'weeklyGoalHours',
     ];
 
     // Filtra solo i campi permessi
@@ -210,7 +206,6 @@ const getNotifications = asyncHandler(async (req, res) => {
         email: {
             enabled: true,
             weeklyReport: true,
-            goalReminders: true,
         },
         push: {
             enabled: false,
@@ -242,7 +237,6 @@ const updateNotifications = asyncHandler(async (req, res) => {
     if (email) {
         if (email.enabled !== undefined) updates['notifications.email.enabled'] = email.enabled;
         if (email.weeklyReport !== undefined) updates['notifications.email.weeklyReport'] = email.weeklyReport;
-        if (email.goalReminders !== undefined) updates['notifications.email.goalReminders'] = email.goalReminders;
     }
 
     // Aggiorna preferenze push
@@ -444,8 +438,7 @@ const deleteAccount = asyncHandler(async (req, res) => {
 
     // Elimina tutti i dati dell'utente
     const WorkLog = require('../models/WorkLog');
-    const Goal = require('../models/Goal');
-    const CheckIn = require('../models/CheckIn');
+    const Exam = require('../models/Exam');
     const Deck = require('../models/Deck');
     const Folder = require('../models/Folder');
     const Tag = require('../models/Tag');
@@ -454,8 +447,7 @@ const deleteAccount = asyncHandler(async (req, res) => {
 
     await Promise.all([
         WorkLog.deleteMany({ user: req.user.id }),
-        Goal.deleteMany({ user: req.user.id }),
-        CheckIn.deleteMany({ user: req.user.id }),
+        Exam.deleteMany({ user: req.user.id }),
         Deck.deleteMany({ user: req.user.id }),
         Folder.deleteMany({ user: req.user.id }),
         Tag.deleteMany({ user: req.user.id }),

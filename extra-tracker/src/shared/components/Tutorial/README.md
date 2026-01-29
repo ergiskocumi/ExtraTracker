@@ -163,6 +163,5 @@ const {
 
 ## 🔮 Prossimi Tutorial da Creare
 
-- Tutorial per Goals/Obiettivi
 - Tutorial per Study Session
 - Tutorial per Exam Solver

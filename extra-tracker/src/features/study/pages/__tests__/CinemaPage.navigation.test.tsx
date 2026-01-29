@@ -52,7 +52,7 @@ describe('CinemaPage - Navigation Tests', () => {
             id: 'test-deck-id',
             title: 'Test Deck',
             cards: [],
-            goalId: 'exam-123',
+            examId: 'exam-123',
             pdfUrl: 'https://example.com/test.pdf',
         });
     });

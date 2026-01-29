@@ -3,12 +3,11 @@
  * 
  * Sistema di routing:
  * - /login, /register, /forgot-password, /reset-password, /verify-email → Pagine pubbliche (AuthLayout)
- * - /, /goals, /settings, /study → Pagine protette (AppLayout)
+ * - /, /settings, /study → Pagine protette (AppLayout)
  */
 
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { GoalsProvider } from './features/goals/context/GoalsContext';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
 import { FeedbackProvider } from './features/feedback/context/FeedbackContext';
 import { ProtectedRoute } from './features/auth/context/AuthContext';
@@ -19,8 +18,6 @@ import { useSettings } from './features/settings/context/SettingsContext';
 // OTTIMIZZATO: Lazy loading per tutte le pagine (code splitting)
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const SettingsPage = lazy(() => import('./features/settings/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
-const GoalsPage = lazy(() => import('./features/goals/pages/GoalsPage').then(m => ({ default: m.GoalsPage })));
-const GoalDetailPage = lazy(() => import('./features/goals/pages/GoalDetailPage').then(m => ({ default: m.GoalDetailPage })));
 const LoginPage = lazy(() => import('./features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('./features/auth/pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
@@ -49,9 +46,7 @@ const HomeRedirect = () => {
     // Evita redirect "a caso" prima di aver caricato le preferenze reali dal backend.
     if (!hasLoaded) return null;
 
-    const to = preferences.defaultView === 'goals'
-        ? '/goals'
-        : '/dashboard';
+    const to = '/dashboard';
 
     return <Navigate to={to} replace />;
 };
@@ -75,9 +70,7 @@ function App() {
                         <ProtectedRoute>
                             <SettingsProvider>
                                 <FeedbackProvider>
-                                    <GoalsProvider>
-                                        <AppLayout />
-                                    </GoalsProvider>
+                                    <AppLayout />
                                 </FeedbackProvider>
                             </SettingsProvider>
                         </ProtectedRoute>
@@ -85,8 +78,6 @@ function App() {
                 >
                     <Route path="/" element={<HomeRedirect />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/goals" element={<GoalsPage />} />
-                    <Route path="/goals/:id" element={<GoalDetailPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
 
                     {/* Study / Flashcards */}

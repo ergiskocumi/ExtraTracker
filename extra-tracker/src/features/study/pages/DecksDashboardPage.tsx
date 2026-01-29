@@ -27,11 +27,10 @@ import { ExamsView } from '../components/Exams/ExamsView';
 import { ExamDetailView } from '../components/Exams/ExamDetailView';
 import { ExamDeckToggle, type ViewType } from '../components/ViewToggle/ExamDeckToggle';
 import { DashboardModals } from '../components/DashboardModals';
-import { HybridGoalWizard } from '../../goals/components/HybridGoalWizard';
 import { ExamCompletionModal } from '../components/Exams/ExamCompletionModal';
 import type { ViewMode } from '../components/ViewToggle/ViewToggle';
-import type { Goal, ExamOutcome } from '../../goals/types';
-import goalsService from '../../goals/services/goalsService';
+import type { Exam, ExamOutcome } from '../types/exam';
+import examService from '../services/examService';
 import { studyService } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 
@@ -50,10 +49,9 @@ export const DecksDashboardPage: React.FC = () => {
     const [viewMode, setViewMode] = useState<'grid' | 'list' | 'compact'>('grid');
     const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
     const [viewType, setViewType] = useState<ViewType>('exams'); // Mostra esami per default
-    const [showCreateExamModal, setShowCreateExamModal] = useState(false);
-    const [selectedExam, setSelectedExam] = useState<Goal | null>(null);
+    const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
     const [examsRefreshKey, setExamsRefreshKey] = useState(0); // Key per forzare refresh ExamsView
-    const [exams, setExams] = useState<Goal[]>([]); // Esami caricati
+    const [exams, setExams] = useState<Exam[]>([]); // Esami caricati
     const [showCompletionModal, setShowCompletionModal] = useState(false);
 
     // Data loading
@@ -70,12 +68,11 @@ export const DecksDashboardPage: React.FC = () => {
         refreshAll,
     } = useDashboardData();
 
-    // Carica esami (goals con category='learning' - tutti gli status)
+    // Carica esami
     const loadExams = useCallback(async () => {
         try {
-            const allGoals = await goalsService.getAll();
-            const learningGoals = allGoals.filter(g => g.category === 'learning');
-            setExams(learningGoals);
+            const allExams = await examService.getAll();
+            setExams(allExams);
         } catch (err) {
             console.error('Errore nel caricamento degli esami:', err);
         }
@@ -102,13 +99,13 @@ export const DecksDashboardPage: React.FC = () => {
                 date: outcome.date ? new Date(outcome.date).toISOString() : new Date().toISOString(),
             };
             
-            console.log('[DecksDashboardPage] Aggiornando goal con status:', newStatus);
-            await goalsService.update(examId, {
+            console.log('[DecksDashboardPage] Aggiornando esame con status:', newStatus);
+            await examService.update(examId, {
                 status: newStatus,
                 outcome: outcomeForBackend, // Invia outcome al backend
             });
             
-            console.log('[DecksDashboardPage] Goal aggiornato con successo');
+            console.log('[DecksDashboardPage] Esame aggiornato con successo');
             
             // Aggiorna lo stato locale
             if (selectedExam) {
@@ -133,7 +130,7 @@ export const DecksDashboardPage: React.FC = () => {
         try {
             console.log('[DecksDashboardPage] handleResetCards chiamato:', { examId, type });
             
-            const examDecks = decks.filter(d => d.goalId === examId);
+            const examDecks = decks.filter(d => d.examId === examId);
             
             if (examDecks.length === 0) {
                 console.warn('[DecksDashboardPage] Nessun mazzo trovato per esame:', examId);
@@ -176,7 +173,7 @@ export const DecksDashboardPage: React.FC = () => {
             console.log('[DecksDashboardPage] handleReactivateExam chiamato:', { examId });
             
             // Riattiva l'esame cambiando lo status a 'active' e resettando l'outcome
-            await goalsService.update(examId, {
+            await examService.update(examId, {
                 status: 'active',
                 outcome: null, // Reset outcome quando si riattiva
             });
@@ -197,8 +194,8 @@ export const DecksDashboardPage: React.FC = () => {
             
             // Se l'esame era selezionato, aggiorna lo stato locale
             if (selectedExam && selectedExam.id === examId) {
-                const allGoals = await goalsService.getAll();
-                const updatedExam = allGoals.find((g: Goal) => g.id === examId);
+                const allExams = await examService.getAll();
+                const updatedExam = allExams.find((g: Exam) => g.id === examId);
                 if (updatedExam) {
                     setSelectedExam(updatedExam);
                 }
@@ -216,7 +213,7 @@ export const DecksDashboardPage: React.FC = () => {
         try {
             console.log('[DecksDashboardPage] handleGenerateAIQuestions chiamato:', { examId, topics });
             
-            const examDecks = decks.filter(d => d.goalId === examId);
+            const examDecks = decks.filter(d => d.examId === examId);
             
             if (examDecks.length === 0) {
                 console.warn('[DecksDashboardPage] Nessun mazzo trovato per esame:', examId);
@@ -283,7 +280,7 @@ export const DecksDashboardPage: React.FC = () => {
     const activeDueCardCount = useMemo(() => {
         // Filtra i deck degli esami completati
         const activeDecks = decks.filter(deck => 
-            !deck.goalId || !completedExamIds.includes(deck.goalId)
+            !deck.examId || !completedExamIds.includes(deck.examId)
         );
         // Calcola il totale delle carte da ripassare solo per i deck attivi
         return activeDecks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
@@ -293,7 +290,6 @@ export const DecksDashboardPage: React.FC = () => {
     const {
         folderStats,
         todayPriorityDecks,
-        calculateMentalState,
         filteredDecks,
         totalCards,
         masteredDecks,
@@ -310,7 +306,7 @@ export const DecksDashboardPage: React.FC = () => {
     // Organized Decks (per sezioni) - escludi deck degli esami completati
     const activeDecksForOrganization = useMemo(() => {
         return decks.filter(deck => 
-            !deck.goalId || !completedExamIds.includes(deck.goalId)
+            !deck.examId || !completedExamIds.includes(deck.examId)
         );
     }, [decks, completedExamIds]);
     const organizedDecks = useOrganizedDecks(activeDecksForOrganization, folders);
@@ -344,8 +340,8 @@ export const DecksDashboardPage: React.FC = () => {
 
         try {
             // Carica l'esame completo
-            const allGoals = await goalsService.getAll();
-            const exam = allGoals.find((g: Goal) => g.id === examId);
+            const allExams = await examService.getAll();
+            const exam = allExams.find((g: Exam) => g.id === examId);
             if (exam) {
                 setSelectedExam(exam);
                 setSelectedExamId(examId);
@@ -406,7 +402,7 @@ export const DecksDashboardPage: React.FC = () => {
             onRefresh={handleRefreshOrganization}
             onCreateDeck={() => handlers.setIsCreateModalOpen(true)}
             onExamSolver={() => handlers.handleExamSolver()}
-            onCreateExam={() => setShowCreateExamModal(true)}
+            onCreateExam={() => handlers.setIsCreateModalOpen(true)}
             selectedExamName={selectedExam?.title || null}
             onBackToExams={() => {
                 setSelectedExamId(null);
@@ -418,11 +414,10 @@ export const DecksDashboardPage: React.FC = () => {
             {!isLoading && decks.length > 0 && !selectedFolderId && !selectedExamId && (
                 <>
                     <DashboardHero
-                        totalDecks={decks.filter(d => !d.goalId || !completedExamIds.includes(d.goalId)).length}
+                        totalDecks={decks.filter(d => !d.examId || !completedExamIds.includes(d.examId)).length}
                         totalCards={totalCards}
                         dueCards={activeDueCardCount}
                         masteredDecks={completedExamsCount}
-                        mentalState={calculateMentalState}
                     />
                     {/* Separatore */}
                     <div className="my-8 border-t border-white/10"></div>
@@ -456,7 +451,7 @@ export const DecksDashboardPage: React.FC = () => {
                                 onFilterChange={setFilter}
                                 searchQuery={searchQuery}
                                 onSearchChange={setSearchQuery}
-                                dueCount={decks.filter(d => !d.goalId || !completedExamIds.includes(d.goalId)).filter(d => (d.dueCount ?? 0) > 0).length}
+                                dueCount={decks.filter(d => !d.examId || !completedExamIds.includes(d.examId)).filter(d => (d.dueCount ?? 0) > 0).length}
                                 viewMode={viewMode}
                                 onViewModeChange={(view) => setViewMode(view as ViewMode)}
                             />
@@ -509,11 +504,11 @@ export const DecksDashboardPage: React.FC = () => {
                     key={examsRefreshKey} // Force re-render quando cambia
                     decks={decks}
                     tags={tags}
-                    onCreateExam={() => setShowCreateExamModal(true)}
+                    onCreateExam={() => handlers.setIsCreateModalOpen(true)}
                     onExamClick={async (examId) => {
                         try {
-                            const allGoals = await goalsService.getAll();
-                            const exam = allGoals.find((g: Goal) => g.id === examId);
+                            const allExams = await examService.getAll();
+                            const exam = allExams.find((g: Exam) => g.id === examId);
                             if (exam) {
                                 setSelectedExam(exam);
                                 setSelectedExamId(examId);
@@ -594,19 +589,6 @@ export const DecksDashboardPage: React.FC = () => {
                 <DragDropZone
                     folders={folders}
                     onDrop={handlers.handleDeckDrop}
-                />
-            )}
-
-            {/* ═══ CREATE EXAM MODAL ═══ */}
-            {showCreateExamModal && (
-                <HybridGoalWizard
-                    onClose={() => {
-                        setShowCreateExamModal(false);
-                        // Ricarica gli esami dopo la creazione
-                        if (decks.length > 0) {
-                            // Trigger refresh
-                        }
-                    }}
                 />
             )}
 

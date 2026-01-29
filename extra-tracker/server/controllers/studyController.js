@@ -19,7 +19,7 @@ const { validatePdfFile } = require('../utils/pdfValidator');
  */
 const createDeck = asyncHandler(async (req, res) => {
     const deck = await studyService.createDeck(req.tenantScope, {
-        goalId: req.body.goalId,
+        examId: req.body.examId,
         title: req.body.title,
         description: req.body.description,
         tags: req.body.tags,
@@ -38,7 +38,7 @@ const updateDeck = asyncHandler(async (req, res) => {
         description: req.body.description,
         tags: req.body.tags,
         folderId: req.body.folderId,
-        goalId: req.body.goalId,
+        examId: req.body.examId,
     });
     res.json({ success: true, data: deck });
 });
@@ -512,7 +512,7 @@ const extractQuestions = asyncHandler(async (req, res) => {
  *   - selectedQuestions: JSON array di domande selezionate
  *   - deckId: (opzionale) ID deck esistente da aggiornare
  *   - title: (opzionale) Titolo per nuovo deck
- *   - goalId: (opzionale) ID goal per nuovo deck
+ *   - examId: (opzionale) ID esame per nuovo deck
  */
 const generateAnswers = asyncHandler(async (req, res) => {
     console.log('🤖 generateAnswers called (SSE mode)');
@@ -574,13 +574,13 @@ const generateAnswers = asyncHandler(async (req, res) => {
 
     const deckId = req.body?.deckId || null;
     const title = req.body?.title || null;
-    const goalId = req.body?.goalId || null;
+    const examId = req.body?.examId || null;
 
-    if (!deckId && (!title || !goalId)) {
+    if (!deckId && !title) {
         return res.status(400).json({
             success: false,
             error: { 
-                message: 'Se non specifichi deckId, devi fornire sia title che goalId per creare un nuovo deck' 
+                message: 'Se non specifichi deckId, devi fornire title per creare un nuovo deck' 
             }
         });
     }
@@ -602,7 +602,7 @@ const generateAnswers = asyncHandler(async (req, res) => {
             req.tenantScope,
             sourceFile.path,
             selectedQuestions,
-            { deckId, title, goalId },
+            { deckId, title, examId },
             (event) => {
                 // Callback per inviare eventi SSE (progress o flashcard)
                 if (event.type === 'flashcard') {
@@ -647,7 +647,7 @@ const generateAnswers = asyncHandler(async (req, res) => {
  *   - sourceFile: PDF con il materiale di studio
  *   - deckId: (opzionale) ID deck esistente da aggiornare
  *   - title: (opzionale) Titolo per nuovo deck
- *   - goalId: (opzionale) ID goal per nuovo deck
+ *   - examId: (opzionale) ID esame per nuovo deck
  */
 const examSolver = asyncHandler(async (req, res) => {
     console.log('🎯 examSolver called');
@@ -710,14 +710,14 @@ const examSolver = asyncHandler(async (req, res) => {
     // Opzioni
     const deckId = req.body?.deckId || null;
     const title = req.body?.title || null;
-    const goalId = req.body?.goalId || null;
+    const examId = req.body?.examId || null;
 
     // Validazione opzioni
-    if (!deckId && (!title || !goalId)) {
+    if (!deckId && !title) {
         return res.status(400).json({
             success: false,
             error: { 
-                message: 'Se non specifichi deckId, devi fornire sia title che goalId per creare un nuovo deck' 
+                message: 'Se non specifichi deckId, devi fornire title per creare un nuovo deck' 
             }
         });
     }
@@ -727,7 +727,7 @@ const examSolver = asyncHandler(async (req, res) => {
             req.tenantScope,
             questionsFile.path,
             sourceFile.path,
-            { deckId, title, goalId }
+            { deckId, title, examId }
         );
 
         console.log('✅ examSolver completato:', {

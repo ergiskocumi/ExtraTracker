@@ -370,7 +370,7 @@ export const DeckDetailPage: React.FC = () => {
                         );
                     }}
                     existingDecks={deck ? [{ id: deck.id, title: deck.title }] : []}
-                    goalId={deck?.goalId}
+                    examId={deck?.examId}
                     preselectedDeckId={deck?.id}
                 />
             </div>

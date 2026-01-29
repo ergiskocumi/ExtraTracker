@@ -2,20 +2,14 @@
  * 📦 DATA EXPORT/IMPORT SERVICE
  * =============================
  * 
- * Servizio per esportare e importare i dati utente in modo sicuro.
- * 
- * SICUREZZA:
- * - Export: Solo dati "lavoro" (no email, password, tokens)
- * - Import: Validazione rigorosa, non permette modifiche a dati sensibili
- * - Relazioni: Mantiene integrità referenziale
+ * Esporta e importa i dati utente in modo sicuro.
  */
 
-const Goal = require('../models/Goal');
+const Exam = require('../models/Exam');
 const WorkLog = require('../models/WorkLog');
 const Deck = require('../models/Deck');
 const Folder = require('../models/Folder');
 const Tag = require('../models/Tag');
-const CheckIn = require('../models/CheckIn');
 const WorkTodo = require('../models/WorkTodo');
 const AppError = require('../utils/AppError');
 
@@ -23,27 +17,20 @@ const AppError = require('../utils/AppError');
 // EXPORT DATA
 // =========================================
 
-/**
- * Esporta tutti i dati "lavoro" dell'utente
- * NON include: email, password, tokens
- */
 async function exportUserData(userId) {
     try {
-        // Raccogli tutti i dati in parallelo
-        const [goals, workLogs, decks, folders, tags, checkIns, workTodos] = await Promise.all([
-            Goal.find({ user: userId }).lean(),
+        const [exams, workLogs, decks, folders, tags, workTodos] = await Promise.all([
+            Exam.find({ user: userId }).lean(),
             WorkLog.find({ user: userId }).lean(),
             Deck.find({ user: userId }).lean(),
             Folder.find({ user: userId }).lean(),
             Tag.find({ user: userId }).lean(),
-            CheckIn.find({ user: userId }).lean(),
             WorkTodo.find({ user: userId }).lean(),
         ]);
 
-        // Rimuovi campi sensibili e non necessari
-        const cleanGoals = goals.map(goal => {
-            const { user, __v, ...cleanGoal } = goal;
-            return cleanGoal;
+        const cleanExams = exams.map(exam => {
+            const { user, __v, ...cleanExam } = exam;
+            return cleanExam;
         });
 
         const cleanWorkLogs = workLogs.map(log => {
@@ -66,38 +53,29 @@ async function exportUserData(userId) {
             return cleanTag;
         });
 
-        const cleanCheckIns = checkIns.map(checkIn => {
-            const { user, __v, ...cleanCheckIn } = checkIn;
-            return cleanCheckIn;
-        });
-
         const cleanWorkTodos = workTodos.map(todo => {
             const { user, __v, ...cleanTodo } = todo;
             return cleanTodo;
         });
 
-        // Struttura dati esportati
-        const exportData = {
+        return {
             version: '1.0.0',
             exportDate: new Date().toISOString(),
             data: {
-                goals: cleanGoals,
+                exams: cleanExams,
                 workLogs: cleanWorkLogs,
                 decks: cleanDecks,
                 folders: cleanFolders,
                 tags: cleanTags,
-                checkIns: cleanCheckIns,
                 workTodos: cleanWorkTodos,
             },
             metadata: {
                 counts: {
-                    goals: cleanGoals.length,
+                    exams: cleanExams.length,
                     workTodos: cleanWorkTodos.length,
                 },
             },
         };
-
-        return exportData;
     } catch (error) {
         throw new AppError(
             `Errore durante l'esportazione: ${error.message}`,
@@ -111,9 +89,6 @@ async function exportUserData(userId) {
 // IMPORT DATA - VALIDATION
 // =========================================
 
-/**
- * Valida la struttura del file di import
- */
 function validateImportData(data) {
     if (!data || typeof data !== 'object') {
         throw new AppError('File di import non valido: formato JSON non riconosciuto', 400, 'INVALID_FORMAT');
@@ -128,9 +103,7 @@ function validateImportData(data) {
     }
 
     const { data: importData } = data;
-
-    // Valida che ogni sezione sia un array
-    const requiredSections = ['goals', 'workLogs', 'decks', 'folders', 'tags', 'checkIns', 'workTodos'];
+    const requiredSections = ['exams', 'workLogs', 'decks', 'folders', 'tags', 'workTodos'];
     for (const section of requiredSections) {
         if (!Array.isArray(importData[section])) {
             throw new AppError(
@@ -144,34 +117,20 @@ function validateImportData(data) {
     return true;
 }
 
-/**
- * Valida i dati di un singolo documento
- */
 function validateDocument(doc, type) {
     if (!doc || typeof doc !== 'object') {
         return { valid: false, error: 'Documento non valido' };
     }
 
-    // Validazioni base per ogni tipo
     switch (type) {
-        case 'goal':
-            if (!doc.title || !doc.category || !doc.type || !doc.deadline) {
-                return { valid: false, error: 'Goal: campi obbligatori mancanti' };
-            }
-            break;
-        case 'project':
-            if (!doc.name) {
-                return { valid: false, error: 'Project: nome mancante' };
+        case 'exam':
+            if (!doc.title || !doc.deadline) {
+                return { valid: false, error: 'Exam: campi obbligatori mancanti' };
             }
             break;
         case 'deck':
-            if (!doc.title || !doc.goalId) {
-                return { valid: false, error: 'Folder: nome mancante' };
-            }
-            break;
-        case 'checkIn':
-            if (!doc.goalId || doc.value === undefined) {
-                return { valid: false, error: 'CheckIn: goalId o value mancante' };
+            if (!doc.title) {
+                return { valid: false, error: 'Deck: titolo mancante' };
             }
             break;
         case 'workLog':
@@ -193,110 +152,64 @@ function validateDocument(doc, type) {
 // IMPORT DATA - COMPARISON & VALIDATION
 // =========================================
 
-/**
- * Confronta i dati esistenti con quelli da importare
- * Restituisce informazioni su differenze e potenziali problemi
- */
 async function compareImportData(userId, importData) {
-    validateImportData(importData);
-
-    // Raccogli dati esistenti
-    const [existingGoals, existingWorkLogs, existingDecks, existingFolders, existingTags, existingCheckIns, existingWorkTodos] = await Promise.all([
-        Goal.find({ user: userId }).lean(),
+    const [existingExams, existingWorkLogs, existingDecks, existingFolders, existingTags, existingWorkTodos] = await Promise.all([
+        Exam.find({ user: userId }).lean(),
         WorkLog.find({ user: userId }).lean(),
         Deck.find({ user: userId }).lean(),
         Folder.find({ user: userId }).lean(),
         Tag.find({ user: userId }).lean(),
-        CheckIn.find({ user: userId }).lean(),
         WorkTodo.find({ user: userId }).lean(),
     ]);
 
     const existing = {
-        goals: existingGoals.length,
+        exams: existingExams.length,
         workLogs: existingWorkLogs.length,
         decks: existingDecks.length,
         folders: existingFolders.length,
         tags: existingTags.length,
-        checkIns: existingCheckIns.length,
         workTodos: existingWorkTodos.length,
     };
 
     const importing = {
-        goals: importData.data.goals.length,
+        exams: importData.data.exams.length,
         workLogs: importData.data.workLogs.length,
         decks: importData.data.decks.length,
         folders: importData.data.folders.length,
         tags: importData.data.tags.length,
-        checkIns: importData.data.checkIns.length,
         workTodos: importData.data.workTodos.length,
     };
 
-    // Verifica se i dati sono identici (stesso numero di elementi per tipo)
-    const isIdentical = 
-        existing.goals === importing.goals &&
-        existing.workLogs === importing.workLogs &&
-        existing.decks === importing.decks &&
-        existing.folders === importing.folders &&
-        existing.tags === importing.tags &&
-        existing.checkIns === importing.checkIns &&
-        existing.workTodos === importing.workTodos;
+    const isIdentical = Object.keys(existing).every((key) => existing[key] === importing[key]);
 
-    // Verifica se i dati importati sono minori (almeno un tipo ha meno elementi)
-    const hasLessData = 
-        importing.goals < existing.goals ||
-        importing.workLogs < existing.workLogs ||
-        importing.decks < existing.decks ||
-        importing.folders < existing.folders ||
-        importing.tags < existing.tags ||
-        importing.checkIns < existing.checkIns ||
-        importing.workTodos < existing.workTodos;
+    const hasLessData = importing.exams < existing.exams ||
+                        importing.workLogs < existing.workLogs ||
+                        importing.decks < existing.decks ||
+                        importing.folders < existing.folders ||
+                        importing.tags < existing.tags ||
+                        importing.workTodos < existing.workTodos;
 
-    // Calcola differenze per tipo
     const differences = {
-        goals: importing.goals - existing.goals,
+        exams: importing.exams - existing.exams,
         workLogs: importing.workLogs - existing.workLogs,
         decks: importing.decks - existing.decks,
         folders: importing.folders - existing.folders,
         tags: importing.tags - existing.tags,
-        checkIns: importing.checkIns - existing.checkIns,
         workTodos: importing.workTodos - existing.workTodos,
     };
 
-    return {
-        isIdentical,
-        hasLessData,
-        existing,
-        importing,
-        differences,
-    };
+    return { existing, importing, isIdentical, hasLessData, differences };
 }
 
 // =========================================
 // IMPORT DATA
 // =========================================
 
-/**
- * Importa dati utente in modo sicuro
- * 
- * STRATEGIA:
- * 1. Valida struttura file
- * 2. Confronta con dati esistenti
- * 3. Valida ogni documento
- * 4. Crea mapping ID vecchi -> nuovi
- * 5. Importa in ordine: folders, tags, goals, decks, workLogs, checkIns, workTodos
- * 6. Aggiorna riferimenti (goalId, folderId)
- */
-async function importUserData(userId, importData, options = {}) {
-    const { merge = false, force = false } = options; // force: true = ignora warning
-
-    // 1. Valida struttura
+async function importUserData(userId, importData, force = false) {
     validateImportData(importData);
 
-    // 2. Confronta con dati esistenti
     const comparison = await compareImportData(userId, importData);
-
-    // 2.1 Blocca se dati identici
-    if (comparison.isIdentical && !force) {
+    if (comparison.isIdentical) {
         throw new AppError(
             'I dati da importare sono identici a quelli già presenti nel tuo account. Non è necessario importarli.',
             400,
@@ -304,9 +217,7 @@ async function importUserData(userId, importData, options = {}) {
         );
     }
 
-    // 2.2 Avvisa se dati minori (ma permette se force=true)
     if (comparison.hasLessData && !force) {
-        // Lancia errore speciale che il controller gestirà
         throw new AppError(
             'I dati da importare contengono meno elementi di quelli attualmente presenti. Vuoi continuare?',
             400,
@@ -316,24 +227,19 @@ async function importUserData(userId, importData, options = {}) {
     }
 
     const { data } = importData;
-
-    // 2. Mapping ID vecchi -> nuovi (per mantenere relazioni)
     const idMappings = {
-        goals: new Map(),
+        exams: new Map(),
         folders: new Map(),
         tags: new Map(),
     };
 
-    // 3. Valida tutti i documenti
     const validationErrors = [];
-    
-    data.goals.forEach((goal, index) => {
-        const validation = validateDocument(goal, 'goal');
+    data.exams.forEach((exam, index) => {
+        const validation = validateDocument(exam, 'exam');
         if (!validation.valid) {
-            validationErrors.push(`Goal ${index}: ${validation.error}`);
+            validationErrors.push(`Exam ${index}: ${validation.error}`);
         }
     });
-
     data.decks.forEach((deck, index) => {
         const validation = validateDocument(deck, 'deck');
         if (!validation.valid) {
@@ -349,12 +255,7 @@ async function importUserData(userId, importData, options = {}) {
         );
     }
 
-    // 4. Se merge=false, elimina dati esistenti (opzionale, per ora non lo facciamo per sicurezza)
-    // In futuro potremmo aggiungere questa opzione
-
-    // 5. Importa in ordine di dipendenze
-    
-    // 5.1 Folders (nessuna dipendenza)
+    // 1. Folders
     const importedFolders = [];
     for (const folder of data.folders) {
         const { _id, ...folderData } = folder;
@@ -368,11 +269,10 @@ async function importUserData(userId, importData, options = {}) {
         importedFolders.push(newFolder);
     }
 
-    // 5.2 Tags (nessuna dipendenza)
+    // 2. Tags
     const importedTags = [];
     for (const tag of data.tags) {
         const { _id, ...tagData } = tag;
-        // Controlla se tag esiste già (per nome)
         const existingTag = await Tag.findOne({ user: userId, name: tagData.name });
         if (existingTag) {
             if (_id) {
@@ -391,66 +291,62 @@ async function importUserData(userId, importData, options = {}) {
         }
     }
 
-    // 5.3 Goals (dipende da nulla, ma referenziato da decks e checkIns)
-    const importedGoals = [];
-    for (const goal of data.goals) {
-        const { _id, ...goalData } = goal;
-        const newGoal = await Goal.create({
-            ...goalData,
+    // 3. Exams
+    const importedExams = [];
+    for (const exam of data.exams) {
+        const { _id, ...examData } = exam;
+        const newExam = await Exam.create({
+            ...examData,
             user: userId,
         });
         if (_id) {
-            idMappings.goals.set(_id.toString(), newGoal._id);
+            idMappings.exams.set(_id.toString(), newExam._id);
         }
-        importedGoals.push(newGoal);
+        importedExams.push(newExam);
     }
 
-    // 5.4 Decks (dipende da goals e folders)
+    // 4. Decks
     const importedDecks = [];
     for (const deck of data.decks) {
-        const { _id, goalId, folderId, ...deckData } = deck;
-        
-        // Mappa goalId
-        let newGoalId = goalId;
-        if (goalId && idMappings.goals.has(goalId.toString())) {
-            newGoalId = idMappings.goals.get(goalId.toString());
-        } else if (goalId) {
-            // Se goalId non esiste nel mapping, verifica che esista nel DB
-            const goalExists = await Goal.findOne({ _id: goalId, user: userId });
-            if (!goalExists) {
+        const { _id, examId, folderId, ...deckData } = deck;
+
+        let newExamId = examId || null;
+        if (examId && idMappings.exams.has(examId.toString())) {
+            newExamId = idMappings.exams.get(examId.toString());
+        } else if (examId) {
+            const examExists = await Exam.findOne({ _id: examId, user: userId });
+            if (!examExists) {
                 throw new AppError(
-                    `Deck "${deckData.title}": goalId non valido`,
+                    `Deck "${deckData.title}": examId non valido`,
                     400,
                     'INVALID_REFERENCE'
                 );
             }
         }
 
-        // Mappa folderId (opzionale)
         let newFolderId = folderId || null;
         if (folderId && idMappings.folders.has(folderId.toString())) {
             newFolderId = idMappings.folders.get(folderId.toString());
         } else if (folderId) {
             const folderExists = await Folder.findOne({ _id: folderId, user: userId });
             if (!folderExists) {
-                newFolderId = null; // Se folder non esiste, rimuovi riferimento
+                newFolderId = null;
             }
         }
 
         const newDeck = await Deck.create({
             ...deckData,
-            goalId: newGoalId,
+            examId: newExamId,
             folderId: newFolderId,
             user: userId,
         });
         importedDecks.push(newDeck);
     }
 
-    // 5.5 WorkLogs (non ha dipendenze esterne dopo rimozione di Project)
+    // 5. WorkLogs
     const importedWorkLogs = [];
     for (const workLog of data.workLogs) {
         const { _id, ...workLogData } = workLog;
-        
         const newWorkLog = await WorkLog.create({
             ...workLogData,
             user: userId,
@@ -458,39 +354,10 @@ async function importUserData(userId, importData, options = {}) {
         importedWorkLogs.push(newWorkLog);
     }
 
-    // 5.6 CheckIns (dipende da goals)
-    const importedCheckIns = [];
-    for (const checkIn of data.checkIns) {
-        const { _id, goalId, ...checkInData } = checkIn;
-        
-        // Mappa goalId
-        let newGoalId = goalId;
-        if (goalId && idMappings.goals.has(goalId.toString())) {
-            newGoalId = idMappings.goals.get(goalId.toString());
-        } else if (goalId) {
-            const goalExists = await Goal.findOne({ _id: goalId, user: userId });
-            if (!goalExists) {
-                throw new AppError(
-                    `CheckIn: goalId non valido`,
-                    400,
-                    'INVALID_REFERENCE'
-                );
-            }
-        }
-
-        const newCheckIn = await CheckIn.create({
-            ...checkInData,
-            goalId: newGoalId,
-            user: userId,
-        });
-        importedCheckIns.push(newCheckIn);
-    }
-
-    // 5.7 WorkTodos (non ha dipendenze esterne dopo rimozione di Project)
+    // 6. WorkTodos
     const importedWorkTodos = [];
     for (const workTodo of data.workTodos) {
         const { _id, ...workTodoData } = workTodo;
-        
         const newWorkTodo = await WorkTodo.create({
             ...workTodoData,
             user: userId,
@@ -501,12 +368,11 @@ async function importUserData(userId, importData, options = {}) {
     return {
         success: true,
         imported: {
-            goals: importedGoals.length,
+            exams: importedExams.length,
             workLogs: importedWorkLogs.length,
             decks: importedDecks.length,
             folders: importedFolders.length,
             tags: importedTags.length,
-            checkIns: importedCheckIns.length,
             workTodos: importedWorkTodos.length,
         },
     };

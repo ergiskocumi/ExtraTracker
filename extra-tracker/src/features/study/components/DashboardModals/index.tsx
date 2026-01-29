@@ -31,7 +31,7 @@ interface DashboardModalsProps {
     onExamSolverClose: () => void;
     onExamSolverSuccess: (deckId: string, stats: ExamSolverStats) => Promise<void>;
     existingDecks?: Array<{ id: string; title: string }>;
-    goalId?: string;
+    examId?: string;
 
     // Study Mode Selector
     isStudyModeOpen: boolean;
@@ -62,7 +62,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = ({
     onExamSolverClose,
     onExamSolverSuccess,
     existingDecks = [],
-    goalId,
+    examId,
     isStudyModeOpen,
     studyDeck,
     onStudyModeClose,
@@ -101,7 +101,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = ({
                 onClose={onExamSolverClose}
                 onSuccess={onExamSolverSuccess}
                 existingDecks={existingDecks}
-                goalId={goalId}
+                examId={examId}
                 preselectedDeckId={examSolverDeckId || undefined}
             />
 

@@ -37,7 +37,7 @@ export interface Card {
 
 export interface Deck {
     id: string;
-    goalId?: string;
+    examId?: string;
     title: string;
     description?: string;
     pdfUrl?: string | null;
@@ -124,7 +124,7 @@ export interface SessionCompleteResult {
 }
 
 export interface CreateDeckPayload {
-    goalId: string;
+    examId?: string;
     title: string;
     description?: string;
     tags?: string[];
@@ -214,7 +214,7 @@ const normalizeDeck = (raw: any): Deck => {
     const cards = Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [];
     return {
         id: raw.id || raw._id?.toString() || raw._id,
-        goalId: raw.goalId?.toString() || raw.goalId,
+        examId: raw.examId?.toString() || raw.examId,
         title: raw.title || 'Senza titolo',
         description: raw.description,
         pdfUrl: typeof raw.pdfUrl === 'string' && raw.pdfUrl.length > 0 ? raw.pdfUrl : null,
@@ -556,9 +556,9 @@ class StudyService {
     }
 
     /**
-     * Aggiorna folderId, goalId e/o tags di un deck
+     * Aggiorna folderId, examId e/o tags di un deck
      */
-    async updateDeckOrganization(deckId: string, updates: { folderId?: string | null; goalId?: string | null; tags?: string[] }): Promise<Deck> {
+    async updateDeckOrganization(deckId: string, updates: { folderId?: string | null; examId?: string | null; tags?: string[] }): Promise<Deck> {
         const response = await apiClient.patch<any>(`${this.baseUrl}/${deckId}`, updates);
         const raw = unwrap(response, 'Errore nell\'aggiornamento');
         return normalizeDeck(raw);
@@ -566,7 +566,7 @@ class StudyService {
 
     /**
      * Resetta le carte di tutti i deck associati a un esame
-     * @param examId - ID dell'esame (Goal)
+     * @param examId - ID dell'esame
      * @param type - 'all' per reset completo, 'hard-only' per solo carte difficili
      */
     async resetExamCards(examId: string, type: 'all' | 'hard-only'): Promise<{ decksAffected: number; cardsReset: number; type: string }> {
@@ -576,7 +576,7 @@ class StudyService {
 
     /**
      * Genera domande AI di approfondimento basate sulle difficoltà segnalate
-     * @param examId - ID dell'esame (Goal)
+     * @param examId - ID dell'esame
      * @param difficulties - Array di difficoltà segnalate (es. ['concepts', 'time'])
      */
     async generateRecoveryQuestions(examId: string, difficulties: string[]): Promise<{ decksAffected: number; totalGenerated: number; generatedByDeck: Array<{ deckId: string; deckTitle: string; count: number }> }> {
@@ -620,13 +620,13 @@ class StudyService {
      * 🤖 Genera risposte per domande selezionate (Livello 1 - Preview)
      * @param sourceFile - File PDF con il materiale di studio
      * @param selectedQuestions - Array di domande selezionate dall'utente
-     * @param options - Opzioni { deckId?, title?, goalId? }
+     * @param options - Opzioni { deckId?, title?, examId? }
      * @returns Deck, flashcard con ID e statistiche
      */
     async generateExamAnswers(
         sourceFile: File,
         selectedQuestions: string[],
-        options: { deckId?: string; title?: string; goalId?: string } = {}
+        options: { deckId?: string; title?: string; examId?: string } = {}
     ): Promise<{ 
         deck: Deck; 
         flashcards: Array<{ id: string; front: string; back: string; found: boolean }>;
@@ -644,8 +644,8 @@ class StudyService {
         if (options.title) {
             formData.append('title', options.title);
         }
-        if (options.goalId) {
-            formData.append('goalId', options.goalId);
+        if (options.examId) {
+            formData.append('examId', options.examId);
         }
 
         const csrfHeader = await getCsrfHeader();
@@ -683,7 +683,7 @@ class StudyService {
 
     /**
      * 🎯 Exam Solver - Estrae domande da un documento e genera risposte da un altro (LEGACY)
-     * @param formData - FormData con questionsFile, sourceFile, deckId (opzionale), title (opzionale), goalId (opzionale)
+     * @param formData - FormData con questionsFile, sourceFile, deckId (opzionale), title (opzionale), examId (opzionale)
      * @returns Deck e statistiche
      */
     async examSolver(formData: FormData): Promise<{ deck: Deck; stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number } }> {

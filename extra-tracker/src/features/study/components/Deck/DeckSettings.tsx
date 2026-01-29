@@ -17,8 +17,8 @@ import {
 } from 'react-icons/fi';
 import { studyService, type Deck, type DeckSettings as DeckSettingsConfig } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
-import goalsService from '../../../goals/services/goalsService';
-import type { Goal } from '../../../goals/types';
+import examService from '../../services/examService';
+import type { Exam } from '../../types/exam';
 
 interface DeckSettingsProps {
     deck: Deck;
@@ -37,8 +37,8 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
     const [saving, setSaving] = useState(false);
     
     // Stato per la gestione dell'esame associato
-    const [exams, setExams] = useState<Goal[]>([]);
-    const [selectedExamId, setSelectedExamId] = useState<string | null>(deck.goalId || null);
+    const [exams, setExams] = useState<Exam[]>([]);
+    const [selectedExamId, setSelectedExamId] = useState<string | null>(deck.examId || null);
     const [loadingExams, setLoadingExams] = useState(false);
     const [savingExam, setSavingExam] = useState(false);
 
@@ -46,12 +46,9 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
     const loadExams = useCallback(async () => {
         try {
             setLoadingExams(true);
-            const allGoals = await goalsService.getAll();
-            // Filtra solo gli esami (goals con category='learning' e status='active')
-            const learningGoals = allGoals.filter(
-                g => g.category === 'learning' && g.status === 'active'
-            );
-            setExams(learningGoals);
+            const allExams = await examService.getAll();
+            const activeExams = allExams.filter(e => e.status === 'active');
+            setExams(activeExams);
         } catch (err: any) {
             console.error('Errore nel caricamento degli esami:', err);
             emitToast.error('Errore nel caricamento degli esami');
@@ -81,11 +78,11 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
         }
         
         // Aggiorna l'esame selezionato quando cambia il deck
-        setSelectedExamId(deck.goalId || null);
+        setSelectedExamId(deck.examId || null);
         
         // Carica gli esami disponibili
         loadExams();
-    }, [deck.id, deck.goalId, loadExams]); // Ricarica solo se cambia il deck ID o goalId
+    }, [deck.id, deck.examId, loadExams]); // Ricarica solo se cambia il deck ID o examId
 
     const handleSave = async () => {
         try {
@@ -104,7 +101,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
      * Gestisce il cambio di esame associato al mazzo
      * 
      * Quando l'utente cambia l'esame, il mazzo viene spostato
-     * dal vecchio esame al nuovo, aggiornando il goalId.
+     * dal vecchio esame al nuovo, aggiornando il examId.
      */
     const handleExamChange = async () => {
         if (!selectedExamId || selectedExamId.trim() === '') {
@@ -113,7 +110,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
         }
 
         // Se l'esame selezionato è lo stesso di quello corrente, non fare nulla
-        if (selectedExamId === deck.goalId) {
+        if (selectedExamId === deck.examId) {
             emitToast.info('L\'esame selezionato è già quello corrente');
             return;
         }
@@ -121,7 +118,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
         try {
             setSavingExam(true);
             const updated = await studyService.updateDeckOrganization(deck.id, {
-                goalId: selectedExamId,
+                examId: selectedExamId,
             });
             onUpdate(updated);
             emitToast.success('Esame associato aggiornato', { 
@@ -130,7 +127,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
         } catch (err: any) {
             emitToast.error(err.message || 'Errore nell\'aggiornamento dell\'esame');
             // Ripristina il valore precedente in caso di errore
-            setSelectedExamId(deck.goalId || null);
+            setSelectedExamId(deck.examId || null);
         } finally {
             setSavingExam(false);
         }
@@ -151,7 +148,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
     };
 
     // Trova l'esame corrente per mostrarlo
-    const currentExam = exams.find(e => e.id === deck.goalId);
+    const currentExam = exams.find(e => e.id === deck.examId);
 
     return (
         <div className="space-y-6">
@@ -201,7 +198,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                             </div>
                         )}
                         
-                        {selectedExamId && selectedExamId !== deck.goalId && (
+                        {selectedExamId && selectedExamId !== deck.examId && (
                             <motion.button
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}

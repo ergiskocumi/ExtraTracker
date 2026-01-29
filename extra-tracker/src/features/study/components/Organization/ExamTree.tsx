@@ -20,7 +20,7 @@ import {
     Calendar,
     CheckCircle,
 } from 'lucide-react';
-import type { Goal } from '../../../goals/types';
+import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
 import { getExamIcon, getExamColors } from '../Exams/utils/examIcons';
 
@@ -32,7 +32,7 @@ interface ExamStats {
 }
 
 interface ExamTreeProps {
-    exams: Goal[];
+    exams: Exam[];
     decks: Deck[];
     selectedExamId: string | null;
     onExamSelect: (examId: string | null) => void;
@@ -41,7 +41,7 @@ interface ExamTreeProps {
 }
 
 interface ExamItemProps {
-    exam: Goal;
+    exam: Exam;
     decks: Deck[];
     stats: ExamStats;
     isExpanded: boolean;
@@ -61,7 +61,7 @@ const ExamItem: React.FC<ExamItemProps> = ({
     onSelect,
     onDeckClick,
 }) => {
-    const examDecks = decks.filter(d => d.goalId === exam.id);
+    const examDecks = decks.filter(d => d.examId === exam.id);
     const ExamIcon = getExamIcon(exam.title, exam.description);
     const examColors = getExamColors(exam.title, exam.description);
 
@@ -308,7 +308,7 @@ export const ExamTree: React.FC<ExamTreeProps> = ({
         const statsMap = new Map<string, ExamStats>();
         
         exams.forEach(exam => {
-            const examDecks = decks.filter(d => d.goalId === exam.id);
+            const examDecks = decks.filter(d => d.examId === exam.id);
             const totalCards = examDecks.reduce((sum, deck) => 
                 sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0
             );

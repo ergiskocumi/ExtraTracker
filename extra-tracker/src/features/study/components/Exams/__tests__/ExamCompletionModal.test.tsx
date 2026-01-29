@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ExamCompletionModal } from '../ExamCompletionModal';
-import type { Goal } from '../../../../goals/types';
+import type { Exam } from '../../../types/exam';
 
 // Mock canvas-confetti
 vi.mock('canvas-confetti', () => ({
@@ -23,15 +23,12 @@ vi.mock('../../../../../shared/components/toast', () => ({
     },
 }));
 
-const mockExam: Goal = {
+const mockExam: Exam = {
     id: 'exam-1',
     title: 'Test Exam',
-    category: 'learning',
-    type: 'milestone',
     deadline: new Date().toISOString(),
     status: 'active',
     description: 'Test description',
-    milestones: [],
     createdAt: new Date().toISOString(),
 };
 

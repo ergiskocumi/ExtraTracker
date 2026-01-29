@@ -8,8 +8,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
 import { getCsrfHeader } from '../../../../../shared/services/apiClient';
-import goalsService from '../../../../goals/services/goalsService';
-import type { Goal } from '../../../../goals/types';
+import examService from '../../../services/examService';
+import type { Exam } from '../../../types/exam';
 import type { 
     ExamSolverStats, 
     Step, 
@@ -23,7 +23,7 @@ export type { Step, ProgressStep, FlashcardWithId };
 export interface UseExamSolverProps {
     isOpen: boolean;
     existingDecks: Array<{ id: string; title: string }>;
-    goalId?: string;
+    examId?: string;
     preselectedDeckId?: string;
     onSuccess: (deckId: string, stats: ExamSolverStats) => void;
     onClose: () => void;
@@ -54,10 +54,10 @@ export interface UseExamSolverReturn {
     setDeckTitle: (title: string) => void;
     selectedDeckId: string;
     setSelectedDeckId: (id: string) => void;
-    selectedGoalId: string;
-    setSelectedGoalId: (id: string) => void;
-    goals: Goal[];
-    isLoadingGoals: boolean;
+    selectedExamId: string;
+    setSelectedExamId: (id: string) => void;
+    exams: Exam[];
+    isLoadingExams: boolean;
     
     // Progress
     progressStep: ProgressStep;
@@ -107,7 +107,7 @@ export interface UseExamSolverReturn {
 export const useExamSolver = ({
     isOpen,
     existingDecks,
-    goalId,
+    examId,
     preselectedDeckId,
     onSuccess,
     onClose,
@@ -127,9 +127,9 @@ export const useExamSolver = ({
     const [deckMode, setDeckMode] = useState<'new' | 'existing'>('new');
     const [deckTitle, setDeckTitle] = useState('');
     const [selectedDeckId, setSelectedDeckId] = useState<string>('');
-    const [goals, setGoals] = useState<Goal[]>([]);
-    const [selectedGoalId, setSelectedGoalId] = useState<string>('');
-    const [isLoadingGoals, setIsLoadingGoals] = useState(false);
+    const [exams, setExams] = useState<Exam[]>([]);
+    const [selectedExamId, setSelectedExamId] = useState<string>('');
+    const [isLoadingExams, setIsLoadingExams] = useState(false);
 
     // Progress
     const [progressStep, setProgressStep] = useState<ProgressStep>('idle');
@@ -203,7 +203,7 @@ export const useExamSolver = ({
         deckMode: 'new' | 'existing';
         deckTitle: string;
         selectedDeckId: string;
-        selectedGoalId: string;
+        selectedExamId: string;
         generatedFlashcards?: FlashcardWithId[];
         createdDeckId?: string;
     }
@@ -228,7 +228,7 @@ export const useExamSolver = ({
                 deckMode,
                 deckTitle,
                 selectedDeckId,
-                selectedGoalId,
+                selectedExamId,
                 generatedFlashcards: currentStep === 'review' ? generatedFlashcards : undefined,
                 createdDeckId: createdDeckId || undefined,
             };
@@ -248,7 +248,7 @@ export const useExamSolver = ({
         deckMode,
         deckTitle,
         selectedDeckId,
-        selectedGoalId,
+        selectedExamId,
         generatedFlashcards,
         createdDeckId,
     ]);
@@ -325,8 +325,8 @@ export const useExamSolver = ({
             setSelectedDeckId('');
         }
 
-        setGoals([]);
-        setSelectedGoalId(goalId || '');
+        setExams([]);
+        setSelectedExamId(examId || '');
         setProgressStep('idle');
         setProgressMessage('');
         setProgressCurrent(0);
@@ -344,7 +344,7 @@ export const useExamSolver = ({
         startTimeRef.current = null;
         setShowRestorePrompt(false);
         setCachedSession(null);
-    }, [preselectedDeckId, existingDecks, goalId]);
+    }, [preselectedDeckId, existingDecks, examId]);
 
     // Restore from cache
     const restoreFromCache = useCallback((cache: ExamSolverCache) => {
@@ -354,7 +354,7 @@ export const useExamSolver = ({
         setDeckMode(cache.deckMode || 'new');
         setDeckTitle(cache.deckTitle || '');
         setSelectedDeckId(cache.selectedDeckId || '');
-        setSelectedGoalId(cache.selectedGoalId || goalId || '');
+        setSelectedExamId(cache.selectedExamId || examId || '');
 
         if (cache.generatedFlashcards) {
             setGeneratedFlashcards(cache.generatedFlashcards);
@@ -368,7 +368,7 @@ export const useExamSolver = ({
 
         emitToast.success('Sessione ripristinata!');
         console.log('✅ Sessione ripristinata da cache');
-    }, [goalId]);
+    }, [examId]);
 
     // Auto-save after state changes
     useEffect(() => {
@@ -383,7 +383,7 @@ export const useExamSolver = ({
         deckMode,
         deckTitle,
         selectedDeckId,
-        selectedGoalId,
+                selectedExamId,
         generatedFlashcards,
         saveCache,
     ]);
@@ -396,35 +396,34 @@ export const useExamSolver = ({
     }, [progressStep, createdDeckId, clearCache]);
 
     // ============================================
-    // LOAD GOALS
+    // LOAD EXAMS
     // ============================================
 
-    const loadGoals = useCallback(async () => {
+    const loadExams = useCallback(async () => {
         try {
-            setIsLoadingGoals(true);
-            const allGoals = await goalsService.getAll();
-            const activeGoals = allGoals.filter(g => g.status === 'active');
-            setGoals(activeGoals);
+            setIsLoadingExams(true);
+            const allExams = await examService.getAll();
+            const activeExams = allExams.filter(e => e.status === 'active');
+            setExams(activeExams);
             
-            // Auto-seleziona se c'è solo un goal o se goalId prop è disponibile
-            if (goalId && activeGoals.some(g => g.id === goalId)) {
-                setSelectedGoalId(goalId);
-            } else if (activeGoals.length === 1) {
-                setSelectedGoalId(activeGoals[0].id);
+            if (examId && activeExams.some(e => e.id === examId)) {
+                setSelectedExamId(examId);
+            } else if (activeExams.length === 1) {
+                setSelectedExamId(activeExams[0].id);
             }
         } catch (err) {
-            console.error('Failed to load goals:', err);
+            console.error('Failed to load exams:', err);
             emitToast.error('Errore nel caricamento degli esami');
         } finally {
-            setIsLoadingGoals(false);
+            setIsLoadingExams(false);
         }
-    }, [goalId]);
+    }, [examId]);
 
     useEffect(() => {
-        if (isOpen && deckMode === 'new' && goals.length === 0) {
-            loadGoals();
+        if (isOpen && deckMode === 'new' && exams.length === 0) {
+            loadExams();
         }
-    }, [isOpen, deckMode, goals.length, loadGoals]);
+    }, [isOpen, deckMode, exams.length, loadExams]);
 
     // ============================================
     // ACTIONS
@@ -471,10 +470,6 @@ export const useExamSolver = ({
         if (deckMode === 'new') {
             if (!deckTitle.trim()) {
                 setError('Inserisci un titolo per il nuovo mazzo');
-                return;
-            }
-            if (!selectedGoalId) {
-                setError('Seleziona un esame/obiettivo per il nuovo mazzo');
                 return;
             }
         }
@@ -531,8 +526,8 @@ export const useExamSolver = ({
                         if (deckTitle.trim()) {
                             formData.append('title', deckTitle.trim());
                         }
-                        if (selectedGoalId) {
-                            formData.append('goalId', selectedGoalId);
+                        if (selectedExamId) {
+                            formData.append('examId', selectedExamId);
                         }
                     }
 
@@ -718,7 +713,7 @@ export const useExamSolver = ({
         deckMode,
         deckTitle,
         selectedDeckId,
-        selectedGoalId,
+        selectedExamId,
         selectedQuestions,
         extractedQuestions,
         onSuccess,
@@ -878,13 +873,13 @@ export const useExamSolver = ({
                 return selectedQuestions.size > 0;
             case 'config':
                 if (deckMode === 'new') {
-                    return deckTitle.trim().length > 0 && selectedGoalId.length > 0;
+                    return deckTitle.trim().length > 0;
                 }
                 return selectedDeckId.length > 0;
             default:
                 return false;
         }
-    }, [currentStep, questionsFile, sourceFile, selectedQuestions, deckMode, deckTitle, selectedGoalId, selectedDeckId]);
+    }, [currentStep, questionsFile, sourceFile, selectedQuestions, deckMode, deckTitle, selectedDeckId]);
 
     const canGoBack = currentStep !== 'upload' && currentStep !== 'progress' && currentStep !== 'review';
 
@@ -921,10 +916,10 @@ export const useExamSolver = ({
         setDeckTitle,
         selectedDeckId,
         setSelectedDeckId,
-        selectedGoalId,
-        setSelectedGoalId,
-        goals,
-        isLoadingGoals,
+        selectedExamId,
+        setSelectedExamId,
+        exams,
+        isLoadingExams,
         
         // Progress
         progressStep,

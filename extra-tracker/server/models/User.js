@@ -150,7 +150,7 @@ const userSchema = new mongoose.Schema(
             },
             defaultView: {
                 type: String,
-                enum: ['dashboard', 'timeline', 'goals'],
+                enum: ['dashboard', 'timeline'],
                 default: 'dashboard',
             },
             
@@ -164,18 +164,6 @@ const userSchema = new mongoose.Schema(
                 type: [Number],
                 default: [1, 2, 3, 4, 5], // Lun-Ven
             },
-            dailyGoalHours: {
-                type: Number,
-                min: 0,
-                max: 24,
-                default: 8,
-            },
-            weeklyGoalHours: {
-                type: Number,
-                min: 0,
-                max: 168,
-                default: 40,
-            },
         },
 
         // ==========================================
@@ -188,10 +176,6 @@ const userSchema = new mongoose.Schema(
                     default: true,
                 },
                 weeklyReport: {
-                    type: Boolean,
-                    default: true,
-                },
-                goalReminders: {
                     type: Boolean,
                     default: true,
                 },

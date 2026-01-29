@@ -31,10 +31,11 @@ const { errorHandler } = require('./middleware/errorHandler');
 const requestLogger = require('./middleware/requestLogger');
 const { ensureCsrfCookie, requireCsrf } = require('./middleware/csrf');
 const logger = require('./utils/logger');
+const { migrateExamsFromGoals } = require('./utils/migrateExamsFromGoals');
 
 // Routes
 const apiRoutes = require('./routes/api');
-const goalsRoutes = require('./routes/goals');
+const examsRoutes = require('./routes/exams');
 const studyRoutes = require('./routes/study');
 const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
@@ -150,7 +151,7 @@ app.use('/api/feedback', feedbackUserRoutes);
 app.use('/api/admin/feedback', feedbackAdminRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api', apiRoutes);
-app.use('/api', goalsRoutes);
+app.use('/api/exams', examsRoutes);
 app.use('/api/study', studyRoutes);
 
 app.get('/', (req, res) => {
@@ -194,6 +195,7 @@ const connectDB = async () => {
             serverSelectionTimeoutMS: envConfig.database.serverSelectionTimeoutMS,
         });
         logger.success('Server', 'Connesso al database MongoDB');
+        await migrateExamsFromGoals();
     } catch (err) {
         logger.error('Server', 'Errore connessione database', err);
         if (isProduction) process.exit(1);

@@ -7,7 +7,6 @@ import { motion } from 'framer-motion';
 import { useSettings } from '../../settings/context/SettingsContext';
 import {
     Brain,
-    Target,
     ArrowRight,
     Sparkles,
     Calendar,
@@ -191,58 +190,6 @@ const NextDeck = ({ deck, totalDue, onStudy, onViewAll }: NextDeckProps) => (
 );
 
 // =========================================
-// PRIORITY GOAL
-// =========================================
-
-interface PriorityGoalProps {
-    goal: {
-        id: string;
-        title: string;
-        category: string;
-        isOverdue: boolean;
-        progress: number;
-    };
-    onClick: () => void;
-}
-
-const PriorityGoal = ({ goal, onClick }: PriorityGoalProps) => (
-    <motion.button
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        onClick={onClick}
-        className="w-full rounded-2xl p-5 bg-slate-800/50 border border-slate-700/50 hover:border-emerald-500/30 transition-colors text-left group"
-    >
-        <div className="flex items-center gap-2 mb-3">
-            <Target className="w-5 h-5 text-emerald-400" />
-            <h3 className="font-semibold text-white">Obiettivo prioritario</h3>
-            {goal.isOverdue && (
-                <span className="ml-auto px-2 py-0.5 text-xs rounded-full bg-rose-500/20 text-rose-300">
-                    In ritardo
-                </span>
-            )}
-        </div>
-
-        <h4 className="text-lg font-medium text-white mb-2 group-hover:text-emerald-300 transition-colors">
-            {goal.title}
-        </h4>
-
-        <div className="flex items-center gap-3 mb-2">
-            <div className="flex-1 h-2 rounded-full bg-slate-700/50 overflow-hidden">
-                <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${goal.progress}%` }}
-                    transition={{ duration: 0.8 }}
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
-                />
-            </div>
-            <span className="text-sm text-slate-300">{Math.round(goal.progress)}%</span>
-        </div>
-
-        <p className="text-sm text-slate-400">{goal.category}</p>
-    </motion.button>
-);
-
-// =========================================
 // SKELETON LOADERS
 // =========================================
 
@@ -373,7 +320,7 @@ export const DashboardPage = () => {
             {!loading && summary && (
                 <div className="space-y-8">
                     {/* Quick Actions */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <QuickAction
                             icon={Brain}
                             title="Flashcards"
@@ -383,69 +330,16 @@ export const DashboardPage = () => {
                             iconBg="bg-violet-500"
                             onClick={() => navigate('/study')}
                         />
-
-                        <QuickAction
-                            icon={Target}
-                            title="Obiettivi"
-                            subtitle="Traccia i tuoi progressi"
-                            badge={summary.goals.activeCount > 0 ? summary.goals.activeCount : undefined}
-                            bgGradient="bg-gradient-to-br from-emerald-600/30 to-teal-700/20"
-                            iconBg="bg-emerald-500"
-                            onClick={() => navigate('/goals')}
-                        />
-
-                    </div>
-
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-2 gap-4 md:gap-5">
-                        <StatCard
-                            icon={BookOpen}
-                            label="Studiate oggi"
-                            value={summary.study.cardsStudiedToday}
-                            iconColor="bg-violet-500/20"
-                        />
-                        <StatCard
-                            icon={CheckCircle2}
-                            label="Completati oggi"
-                            value={summary.goals.completedToday}
-                            iconColor="bg-emerald-500/20"
-                        />
                     </div>
 
                     {/* Bottom Row */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                        {/* Next Deck */}
+                    <div className="grid grid-cols-1 gap-5">
                         <NextDeck
                             deck={summary.study.nextDeck}
                             totalDue={summary.study.dueCards}
                             onStudy={(id) => navigate(`/study/${id}/session?mode=flashcard`)}
                             onViewAll={() => navigate('/study')}
                         />
-
-                        {/* Priority Goal */}
-                        {summary.goals.topPriority ? (
-                            <PriorityGoal
-                                goal={summary.goals.topPriority}
-                                onClick={() => navigate(`/goals/${summary.goals.topPriority!.id}`)}
-                            />
-                        ) : (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="rounded-2xl p-5 bg-slate-800/50 border border-slate-700/50 flex flex-col items-center justify-center py-10"
-                            >
-                                <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3">
-                                    <Target className="w-6 h-6 text-emerald-400" />
-                                </div>
-                                <p className="text-white font-medium">Nessun obiettivo attivo</p>
-                                <button
-                                    onClick={() => navigate('/goals')}
-                                    className="mt-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
-                                >
-                                    Crea il tuo primo obiettivo
-                                </button>
-                            </motion.div>
-                        )}
                     </div>
 
                     {/* Footer */}

@@ -234,7 +234,7 @@ router.post('/exam-solver/generate-answers', examSolverLimiter, (req, res, next)
  *   - sourceFile: PDF con il materiale di studio
  *   - deckId: (opzionale) ID deck esistente da aggiornare
  *   - title: (opzionale) Titolo per nuovo deck
- *   - goalId: (opzionale) ID goal per nuovo deck
+ *   - examId: (opzionale) ID esame per nuovo deck
  * 
  * Rate limited: 5 chiamate per ora (operazione pesante)
  */

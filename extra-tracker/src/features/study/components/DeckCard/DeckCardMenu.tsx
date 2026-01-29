@@ -142,7 +142,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
      * tramite il callback onUpdate, permettendo di aggiornare
      * lo stato locale senza dover ricaricare tutti i dati.
      * 
-     * @param updatedDeck - Il deck aggiornato con il nuovo goalId
+     * @param updatedDeck - Il deck aggiornato con il nuovo examId
      */
     const handleExamChanged = (updatedDeck: Deck) => {
         // Notifica il componente padre del cambio

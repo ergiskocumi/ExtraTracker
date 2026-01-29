@@ -18,7 +18,6 @@ export interface FolderSection {
 }
 
 export interface OrganizedDecks {
-    recentSessions: Deck[];      // Ultimi 3-4 mazzi aperti
     priorityDecks: Deck[];       // Con dueCount > 0
     pinnedDecks: Deck[];         // Da implementare (campo `pinned: boolean`)
     folders: FolderSection[];    // Organizzati per cartella
@@ -67,29 +66,12 @@ export const useOrganizedDecks = (
     folders: Folder[]
 ): OrganizedDecks => {
     return useMemo(() => {
-        const now = Date.now();
-        const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
-
-        // 1. Recent Sessions (ultimi 3-4 aperti, ordinati per updatedAt)
-        const recentSessions = decks
-            .filter(d => {
-                if (!d.updatedAt) return false;
-                const updatedTime = new Date(d.updatedAt).getTime();
-                return updatedTime > oneWeekAgo;
-            })
-            .sort((a, b) => {
-                const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-                const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-                return bTime - aTime;
-            })
-            .slice(0, 4);
-
-        // 2. Priority Decks (con carte da ripassare)
+        // 1. Priority Decks (con carte da ripassare)
         const priorityDecks = decks
             .filter(d => (d.dueCount ?? 0) > 0)
             .sort((a, b) => (b.dueCount || 0) - (a.dueCount || 0));
 
-        // 3. Pinned Decks (preferiti)
+        // 2. Pinned Decks (preferiti)
         const pinnedDecks = decks
             .filter(d => d.pinned === true)
             .sort((a, b) => {
@@ -101,17 +83,16 @@ export const useOrganizedDecks = (
                 return bTime - aTime;
             });
 
-        // 4. Organizzati per Cartella
+        // 3. Organizzati per Cartella
         const foldersMap = new Map<string, Deck[]>();
         const uncategorized: Deck[] = [];
 
         decks.forEach(deck => {
             // Escludi i deck già nelle sezioni speciali
-            const isInRecent = recentSessions.some(d => d.id === deck.id);
             const isInPriority = priorityDecks.some(d => d.id === deck.id);
             const isPinned = pinnedDecks.some(d => d.id === deck.id);
 
-            if (isInRecent || isInPriority || isPinned) {
+            if (isInPriority || isPinned) {
                 return; // Skip, già in una sezione speciale
             }
 
@@ -151,7 +132,6 @@ export const useOrganizedDecks = (
         });
 
         return {
-            recentSessions,
             priorityDecks,
             pinnedDecks,
             folders: folderSections,

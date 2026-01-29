@@ -9,7 +9,6 @@
  * restituisce tutto in una sola risposta.
  */
 
-const goalService = require('../services/goalService');
 const User = require('../models/User');
 const Deck = require('../models/Deck');
 const WorkLog = require('../models/WorkLog');
@@ -55,27 +54,23 @@ exports.getSummary = asyncHandler(async (req, res) => {
     
     const [
         decks,
-        activeGoals,
         todayWorkLogs,
         user
     ] = await Promise.all([
         // 1. Tutti i mazzi con carte da ripassare
         Deck.find({ user: userId }).select('title cards.nextReviewDate').lean(),
         
-        // 2. Obiettivi attivi
-        goalService.findActive(tenantScope),
-        
-        // 3. WorkLog di oggi per ore lavorate
+        // 2. WorkLog di oggi per ore lavorate
         WorkLog.find({ user: userId, date: todayDateStr }).lean(),
         
-        // 4. Dati utente (+ firstName per greeting)
+        // 3. Dati utente (+ firstName per greeting)
         User.findById(userId).select('profile').lean()
     ]);
 
     // Estrai nome utente dal DB (firstName è dentro profile)
     const userName = user?.profile?.firstName || user?.profile?.displayName || 'Utente';
 
-    const todayStats = { cardsStudiedToday: 0, goalsCompletedToday: 0 };
+    const todayStats = { cardsStudiedToday: 0 };
 
     // =========================================
     // ELABORAZIONE DATI STUDIO
@@ -113,34 +108,6 @@ exports.getSummary = asyncHandler(async (req, res) => {
     }
 
     // =========================================
-    // ELABORAZIONE OBIETTIVI
-    // =========================================
-    
-    const overdueGoals = [];
-    const highPriorityGoals = [];
-    const upcomingGoals = [];
-    
-    for (const goal of activeGoals) {
-        const deadline = goal.deadline ? new Date(goal.deadline) : null;
-        const isOverdue = deadline && deadline < now;
-        const isHighPriority = goal.priority === 'high';
-        const isUpcoming = deadline && (deadline - now) < 7 * 24 * 60 * 60 * 1000; // 7 giorni
-        
-        if (isOverdue) {
-            overdueGoals.push(goal);
-        } else if (isHighPriority) {
-            highPriorityGoals.push(goal);
-        } else if (isUpcoming) {
-            upcomingGoals.push(goal);
-        }
-    }
-    
-    // Top priority goal da mostrare
-    const topPriorityGoal = overdueGoals[0] || highPriorityGoals[0] || upcomingGoals[0] || activeGoals[0];
-
-    const recents = [];
-
-    // =========================================
     // ELABORAZIONE LAVORO DI OGGI
     // =========================================
     
@@ -165,21 +132,6 @@ exports.getSummary = asyncHandler(async (req, res) => {
                 cardsStudiedToday: todayStats.cardsStudiedToday
             },
             
-            goals: {
-                activeCount: activeGoals.length,
-                overdueCount: overdueGoals.length,
-                highPriorityCount: highPriorityGoals.length,
-                topPriority: topPriorityGoal ? {
-                    id: topPriorityGoal._id,
-                    title: topPriorityGoal.title,
-                    category: topPriorityGoal.category,
-                    deadline: topPriorityGoal.deadline,
-                    isOverdue: overdueGoals.includes(topPriorityGoal),
-                    progress: topPriorityGoal.progress || 0
-                } : null,
-                completedToday: todayStats.goalsCompletedToday
-            },
-            
             work: {
                 todayMinutes,
                 todayFormatted: todayMinutes > 0 
@@ -188,7 +140,6 @@ exports.getSummary = asyncHandler(async (req, res) => {
                 sessionsToday: todayWorkLogs.length
             },
             
-            recents
         }
     });
 });
@@ -225,16 +176,6 @@ exports.getQuickActions = asyncHandler(async (req, res) => {
         icon: 'clock',
         color: 'blue',
         link: '/dashboard'
-    });
-    
-    // Quick action: Nuovo obiettivo
-    actions.push({
-        id: 'goal',
-        label: 'Nuovo obiettivo',
-        description: 'Crea un traguardo',
-        icon: 'target',
-        color: 'emerald',
-        link: '/goals/new'
     });
     
     res.json({

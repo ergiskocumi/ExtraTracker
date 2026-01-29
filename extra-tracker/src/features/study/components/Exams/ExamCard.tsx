@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, TrendingUp, ArrowRight, Layers, FileText, Target, MoreVertical, Trash2, RotateCcw } from 'lucide-react';
-import type { Goal } from '../../../goals/types';
+import type { Exam } from '../../types/exam';
 import { getExamIcon, getExamColors } from './utils/examIcons';
 
 // ============================================
@@ -9,7 +9,7 @@ import { getExamIcon, getExamColors } from './utils/examIcons';
 // ============================================
 
 interface ExamCardProps {
-    exam: Goal;
+    exam: Exam;
     deckCount: number;
     totalCards: number;
     dueCards: number;

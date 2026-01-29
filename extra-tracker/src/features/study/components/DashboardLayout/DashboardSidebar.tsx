@@ -6,7 +6,7 @@ import { ExamTree } from '../Organization/ExamTree';
 import { TagCloud } from '../Organization/TagCloud';
 import { CreateFolderModal } from '../Modals/CreateFolderModal';
 import type { Folder, Tag } from '../../services/foldersService';
-import type { Goal } from '../../../goals/types';
+import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
 import { foldersService } from '../../services/foldersService';
 import { emitToast } from '../../../../shared/components/toast';
@@ -17,7 +17,7 @@ interface DashboardSidebarProps {
     onToggle?: () => void;
     folders: Folder[];
     tags: Tag[];
-    exams?: Goal[]; // Esami (goals con category='learning')
+    exams?: Exam[];
     decks?: Deck[]; // Mazzi per calcolare statistiche
     selectedFolderId: string | null;
     selectedExamId?: string | null;

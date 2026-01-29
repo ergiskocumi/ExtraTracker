@@ -1,11 +1,11 @@
 /**
  * UnassignedDecksSection - Sezione per mazzi senza esame associato
  * 
- * Questo componente mostra tutti i mazzi che non hanno un esame (goalId) associato,
+ * Questo componente mostra tutti i mazzi che non hanno un esame (examId) associato,
  * permettendo all'utente di visualizzarli e associarli a un esame esistente.
  * 
  * FUNZIONALITÀ:
- * - Mostra tutti i mazzi senza goalId
+ * - Mostra tutti i mazzi senza examId
  * - Permette di associare un esame a ciascun mazzo
  * - Mostra statistiche dei mazzi non associati
  * - Integra ChangeExamModal per l'associazione
@@ -17,7 +17,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, BookOpen, Plus } from 'lucide-react';
 import type { Deck } from '../../services/studyService';
-import type { Goal } from '../../../goals/types';
+import type { Exam } from '../../types/exam';
 import { DeckCard } from '../DeckCard';
 import { DeckGrid } from '../Deck/DeckGrid';
 import { ChangeExamModal } from '../Deck/ChangeExamModal';
@@ -32,7 +32,7 @@ interface UnassignedDecksSectionProps {
     decks: Deck[];
     
     /** Lista di tutti gli esami disponibili */
-    exams: Goal[];
+    exams: Exam[];
     
     /** Lista di tutti i tag */
     tags: Tag[];
@@ -109,10 +109,10 @@ export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
     
     /**
      * Filtra i mazzi che non hanno un esame associato.
-     * Un mazzo è considerato "non associato" se goalId è null, undefined, o stringa vuota.
+     * Un mazzo è considerato "non associato" se examId è null, undefined, o stringa vuota.
      */
     const unassignedDecks = useMemo(() => {
-        return decks.filter(deck => !deck.goalId || deck.goalId.trim() === '');
+        return decks.filter(deck => !deck.examId || deck.examId.trim() === '');
     }, [decks]);
 
     /**
@@ -167,7 +167,7 @@ export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
     /**
      * Gestisce il completamento dell'associazione di un esame a un mazzo.
      * 
-     * @param updatedDeck - Il mazzo aggiornato con il nuovo goalId
+     * @param updatedDeck - Il mazzo aggiornato con il nuovo examId
      */
     const handleExamChanged = (updatedDeck: Deck) => {
         onDeckUpdate(updatedDeck);

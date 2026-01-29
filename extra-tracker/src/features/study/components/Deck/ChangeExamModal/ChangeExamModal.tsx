@@ -26,8 +26,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, BookOpen, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { studyService, type Deck } from '../../../services/studyService';
-import goalsService from '../../../../goals/services/goalsService';
-import type { Goal } from '../../../../goals/types';
+import examService from '../../../services/examService';
+import type { Exam } from '../../../types/exam';
 import { emitToast } from '../../../../../shared/components/toast';
 import type { ChangeExamModalProps } from './types';
 import { USER_MESSAGES, ANIMATION_CONFIG } from './constants';
@@ -72,14 +72,14 @@ export function ChangeExamModal({
      * Inizializzato con l'esame corrente del deck.
      */
     const [selectedExamId, setSelectedExamId] = useState<string | null>(
-        deck.goalId || null
+        deck.examId || null
     );
     
     /**
      * Lista degli esami disponibili per la selezione.
-     * Viene popolata caricando tutti i goal con category='learning'.
+     * Viene popolata caricando tutti gli esami attivi.
      */
-    const [availableExams, setAvailableExams] = useState<Goal[]>([]);
+    const [availableExams, setAvailableExams] = useState<Exam[]>([]);
     
     /**
      * Flag per indicare se gli esami sono in fase di caricamento.
@@ -106,9 +106,7 @@ export function ChangeExamModal({
     /**
      * Carica tutti gli esami disponibili dal backend.
      * 
-     * Gli esami sono goal con:
-     * - category === 'learning'
-     * - status === 'active'
+     * Gli esami sono filtrati per status 'active'
      * 
      * Questa funzione viene chiamata quando il modal si apre
      * per assicurarsi di avere sempre i dati più aggiornati.
@@ -118,18 +116,12 @@ export function ChangeExamModal({
             setIsLoadingExams(true);
             setError(null);
             
-            // Carica tutti i goal dell'utente
-            const allGoals = await goalsService.getAll();
+            const allExams = await examService.getAll();
+            const activeExams = allExams.filter((exam) => exam.status === 'active');
             
-            // Filtra solo gli esami attivi (learning goals)
-            const learningGoals = allGoals.filter(
-                (goal) => goal.category === 'learning' && goal.status === 'active'
-            );
+            setAvailableExams(activeExams);
             
-            setAvailableExams(learningGoals);
-            
-            // Se non ci sono esami disponibili, mostra un messaggio informativo
-            if (learningGoals.length === 0) {
+            if (activeExams.length === 0) {
                 setError(USER_MESSAGES.NO_EXAMS_AVAILABLE);
             }
         } catch (err: any) {
@@ -154,13 +146,13 @@ export function ChangeExamModal({
     useEffect(() => {
         if (isOpen) {
             // Reset dello stato quando il modal si apre
-            setSelectedExamId(deck.goalId || null);
+            setSelectedExamId(deck.examId || null);
             setError(null);
             
             // Carica gli esami disponibili
             loadAvailableExams();
         }
-    }, [isOpen, deck.goalId, loadAvailableExams]);
+    }, [isOpen, deck.examId, loadAvailableExams]);
 
     // ============================================
     // EVENT HANDLERS
@@ -188,7 +180,7 @@ export function ChangeExamModal({
      * - L'esame selezionato sia diverso da quello corrente
      * 
      * Se la validazione passa, chiama il backend per aggiornare
-     * il goalId del deck e notifica il componente padre tramite
+     * l'examId del deck e notifica il componente padre tramite
      * il callback onExamChanged.
      */
     const handleSave = async () => {
@@ -200,7 +192,7 @@ export function ChangeExamModal({
         }
 
         // Validazione: verifica che l'esame selezionato sia diverso da quello corrente
-        if (selectedExamId === deck.goalId) {
+        if (selectedExamId === deck.examId) {
             setError(USER_MESSAGES.SAME_EXAM);
             emitToast.info(USER_MESSAGES.SAME_EXAM);
             return;
@@ -210,9 +202,9 @@ export function ChangeExamModal({
             setIsSaving(true);
             setError(null);
 
-            // Chiama il backend per aggiornare il goalId del deck
+            // Chiama il backend per aggiornare l'examId del deck
             const updatedDeck = await studyService.updateDeckOrganization(deck.id, {
-                goalId: selectedExamId,
+                examId: selectedExamId,
             });
 
             // Notifica il componente padre del cambio
@@ -241,7 +233,7 @@ export function ChangeExamModal({
      * Resetta lo stato e chiama il callback onClose se fornito.
      */
     const handleClose = () => {
-        setSelectedExamId(deck.goalId || null);
+        setSelectedExamId(deck.examId || null);
         setError(null);
         onClose?.();
     };
@@ -254,9 +246,9 @@ export function ChangeExamModal({
      * Trova l'esame corrente per mostrarlo all'utente.
      * 
      * Cerca nell'array degli esami disponibili quello che corrisponde
-     * al goalId del deck corrente.
+     * all'examId del deck corrente.
      */
-    const currentExam = availableExams.find((exam) => exam.id === deck.goalId);
+    const currentExam = availableExams.find((exam) => exam.id === deck.examId);
 
     /**
      * Determina se il pulsante di salvataggio deve essere abilitato.
@@ -268,7 +260,7 @@ export function ChangeExamModal({
      */
     const isSaveEnabled =
         selectedExamId !== null &&
-        selectedExamId !== deck.goalId &&
+        selectedExamId !== deck.examId &&
         !isSaving;
 
     // ============================================

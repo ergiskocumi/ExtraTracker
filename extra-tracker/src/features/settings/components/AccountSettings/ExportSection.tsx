@@ -63,7 +63,7 @@ export function ExportSection({ isLoading, onExport }: ExportSectionProps) {
                         Esporta dati
                     </h3>
                     <p className="text-[15px] text-white/65 leading-relaxed mb-6 max-w-2xl">
-                        Scarica una copia completa dei tuoi dati in formato JSON. Include tutti i tuoi obiettivi, 
+                        Scarica una copia completa dei tuoi dati in formato JSON. Include tutti i tuoi esami, 
                         progetti, flashcard e attività registrate.
                     </p>
                     

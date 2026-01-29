@@ -14,7 +14,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiLayout,
-    FiTarget,
     FiSettings,
     FiLogOut,
     FiChevronDown,
@@ -160,7 +159,6 @@ export const UserMenuDropdown = memo(() => {
         {
             label: 'Produttività',
             items: [
-                { path: '/goals', label: 'Obiettivi', icon: FiTarget, description: 'I tuoi traguardi' },
                 { path: '/study', label: 'Flashcards', icon: FiBookOpen, description: 'Studio intelligente' },
             ],
         },

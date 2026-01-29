@@ -27,45 +27,16 @@ export interface StudySummary {
     cardsStudiedToday: number;
 }
 
-export interface GoalInfo {
-    id: string;
-    title: string;
-    category: string;
-    deadline: string | null;
-    isOverdue: boolean;
-    progress: number;
-}
-
-export interface GoalsSummary {
-    activeCount: number;
-    overdueCount: number;
-    highPriorityCount: number;
-    topPriority: GoalInfo | null;
-    completedToday: number;
-}
-
 export interface WorkSummary {
     todayMinutes: number;
     todayFormatted: string;
     sessionsToday: number;
 }
 
-export interface RecentItem {
-    type: 'deck' | 'worklog' | 'goal';
-    id: string;
-    title: string;
-    icon: string;
-    action: string;
-    lastAction: string;
-    metadata?: Record<string, unknown>;
-}
-
 export interface DashboardSummary {
     greeting: string;
     study: StudySummary;
-    goals: GoalsSummary;
     work: WorkSummary;
-    recents: RecentItem[];
 }
 
 export interface QuickAction {

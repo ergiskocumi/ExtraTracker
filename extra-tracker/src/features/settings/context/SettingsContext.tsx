@@ -55,13 +55,12 @@ interface SettingsContextValue extends SettingsState {
     importData: (file: File, force?: boolean) => Promise<{
         success: boolean;
         imported: {
-            goals: number;
+            exams: number;
             projects: number;
             workLogs: number;
             decks: number;
             folders: number;
             tags: number;
-            checkIns: number;
             workTodos: number;
         };
     } | null>;
@@ -87,15 +86,12 @@ const defaultPreferences: UserPreferences = {
     defaultView: 'dashboard',
     weekStartsOn: 1,
     workingDays: [1, 2, 3, 4, 5],
-    dailyGoalHours: 8,
-    weeklyGoalHours: 40,
 };
 
 const defaultNotifications: UserNotifications = {
     email: {
         enabled: true,
         weeklyReport: true,
-        goalReminders: true,
         projectUpdates: false,
     },
     push: {
@@ -142,9 +138,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             if (response.success && response.data) {
                 const data = response.data as AllSettingsData;
                 const normalizedPreferences = { ...defaultPreferences, ...data.preferences };
-                normalizedPreferences.defaultView = normalizedPreferences.defaultView === 'goals'
-                    ? 'goals'
-                    : 'dashboard';
                 setState({
                     profile: data.profile || {},
                     preferences: normalizedPreferences,
@@ -340,13 +333,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     const importData = useCallback(async (file: File, force = false): Promise<{
         success: boolean;
         imported: {
-            goals: number;
+            exams: number;
             projects: number;
             workLogs: number;
             decks: number;
             folders: number;
             tags: number;
-            checkIns: number;
             workTodos: number;
         };
     } | null> => {
