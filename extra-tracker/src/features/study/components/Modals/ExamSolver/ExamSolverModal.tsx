@@ -32,7 +32,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
     onClose,
     onSuccess,
     existingDecks = [],
-    goalId,
+    examId,
     preselectedDeckId,
 }) => {
     // Use custom hook for all logic
@@ -52,10 +52,10 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
         setDeckTitle,
         selectedDeckId,
         setSelectedDeckId,
-        selectedGoalId,
-        setSelectedGoalId,
-        goals,
-        isLoadingGoals,
+        selectedExamId,
+        setSelectedExamId,
+        exams,
+        isLoadingExams,
         progressStep,
         progressMessage,
         progressCurrent,
@@ -85,7 +85,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
     } = useExamSolver({
         isOpen,
         existingDecks,
-        goalId,
+        examId,
         preselectedDeckId,
         onSuccess,
         onClose,
@@ -289,17 +289,17 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                 setDeckTitle={setDeckTitle}
                                 selectedDeckId={selectedDeckId}
                                 setSelectedDeckId={setSelectedDeckId}
-                                selectedGoalId={selectedGoalId}
-                                setSelectedGoalId={setSelectedGoalId}
-                                goals={goals}
-                                isLoadingGoals={isLoadingGoals}
+                                selectedExamId={selectedExamId}
+                                setSelectedExamId={setSelectedExamId}
+                                exams={exams}
+                                isLoadingExams={isLoadingExams}
                                 existingDecks={existingDecks}
                                 error={error}
                                 onBack={() => goToStep('preview')}
                                 onGenerate={generateAnswers}
                                 canGenerate={
                                     !!(
-                                        (deckMode === 'new' && deckTitle.trim() && selectedGoalId) ||
+                                        (deckMode === 'new' && deckTitle.trim()) ||
                                         (deckMode === 'existing' && selectedDeckId)
                                     )
                                 }

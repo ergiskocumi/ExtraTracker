@@ -1,6 +1,6 @@
 import React from 'react';
 import { Filter, Calendar, TrendingUp, Search, X, Clock } from 'lucide-react';
-import type { Goal } from '../../../goals/types';
+import type { Exam } from '../../types/exam';
 import { FILTER_STYLES, FILTER_BASE_STYLES } from './ExamsFilters.constants';
 
 // ============================================
@@ -17,7 +17,7 @@ interface ExamsFiltersProps {
     onSortChange: (sort: ExamSortOption) => void;
     filter: ExamFilterOption;
     onFilterChange: (filter: ExamFilterOption) => void;
-    exams: Goal[];
+    exams: Exam[];
 }
 
 // ============================================
@@ -47,7 +47,12 @@ export const ExamsFilters: React.FC<ExamsFiltersProps> = ({
         return daysUntil > 7;
     }).length;
 
-    const completedCount = exams.filter(exam => exam.status === 'completed').length;
+    const completedCount = exams.filter(exam =>
+        exam.status === 'completed' ||
+        exam.status === 'passed' ||
+        exam.status === 'failed' ||
+        exam.status === 'archived'
+    ).length;
 
     const filters: { key: ExamFilterOption; label: string; count?: number }[] = [
         { key: 'all', label: 'Tutti' },

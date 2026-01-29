@@ -7,7 +7,8 @@
  */
 
 import React, { memo } from 'react';
-import { FiEdit2, FiTrash2, FiTarget } from 'react-icons/fi';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FileSearch } from 'lucide-react';
 import type { Card } from '../../services/studyService';
 import { BADGE_STYLES, BUTTON_STYLES, TEXT_CONTENT, ICON_SIZES, LAYOUT } from './FlashcardItem.constants';
 import type { ButtonState } from './FlashcardItem.types';
@@ -88,9 +89,8 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
                                     ? TEXT_CONTENT.buttons.showSource
                                     : TEXT_CONTENT.buttons.showSourceDisabled
                             }
-                            style={{ zIndex: 9999, position: 'relative' }}
                         >
-                            <FiTarget className={ICON_SIZES.medium} />
+                            <FileSearch className={ICON_SIZES.medium} />
                         </button>
                     )}
 
@@ -124,11 +124,11 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
             </div>
 
             {/* Answer Section */}
-            <div className={`flex items-start gap-3 ${LAYOUT.spacing.paddingTop} ${LAYOUT.divider.border}`}>
+            <div className={`flex items-start gap-3 ${LAYOUT.spacing.paddingTop} ${LAYOUT.divider.border} min-w-0`}>
                 <div className={`${BADGE_STYLES.answer.size} ${BADGE_STYLES.answer.borderRadius} ${BADGE_STYLES.answer.background} ${BADGE_STYLES.answer.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.answer.text} flex-shrink-0 ${BADGE_STYLES.answer.shadow}`}>
                     A
                 </div>
-                <p className={LAYOUT.text.answer + ' break-words'}>
+                <p className={LAYOUT.text.answer + ' break-words min-w-0'}>
                     {card.back}
                 </p>
             </div>

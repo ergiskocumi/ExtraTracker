@@ -14,7 +14,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { StudySessionPage } from '../StudySessionPage';
 import * as studyService from '../../services/studyService';
 import { useAuth } from '../../../auth/context/AuthContext';
@@ -28,15 +28,6 @@ vi.mock('../../../shared/components/toast', () => ({
         error: vi.fn(),
         success: vi.fn(),
     },
-}));
-vi.mock('../../gamification/SessionSummaryModal', () => ({
-    SessionSummaryModal: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => (
-        isOpen ? (
-            <div data-testid="session-summary-modal">
-                <button onClick={onClose}>Chiudi</button>
-            </div>
-        ) : null
-    ),
 }));
 
 // Mock useNavigate
@@ -175,23 +166,4 @@ describe('StudySessionPage - Navigation Tests', () => {
         });
     });
 
-    it('should navigate to deck detail when session summary is closed', async () => {
-        render(
-            <BrowserRouter>
-                <StudySessionPage />
-            </BrowserRouter>
-        );
-
-        // Wait for component to load
-        await waitFor(() => {
-            expect(screen.queryByText(/caricamento/i)).not.toBeInTheDocument();
-        });
-
-        // Simulate session completion (this would normally happen after completing cards)
-        // For this test, we'll directly check the summary modal close handler
-        // In a real scenario, the summary would appear after completing all cards
-        
-        // The test verifies that when summary modal closes, it navigates to deck detail
-        // This is tested through the onClose prop of SessionSummaryModal
-    });
 });

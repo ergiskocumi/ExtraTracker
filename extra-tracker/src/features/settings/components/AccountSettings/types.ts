@@ -41,13 +41,12 @@ export interface ImportResult {
     
     /** Conteggio degli elementi importati per categoria */
     imported: {
-        goals: number;
+        exams: number;
         projects: number;
         workLogs: number;
         decks: number;
         folders: number;
         tags: number;
-        checkIns: number;
         workTodos: number;
     };
 }
@@ -120,12 +119,11 @@ export interface AccountSettingsState {
  * Converte le chiavi tecniche in etichette user-friendly in italiano.
  */
 export const DATA_CATEGORY_LABELS: Record<string, string> = {
-    goals: 'Obiettivi',
+    exams: 'Esami',
     projects: 'Progetti',
     workLogs: 'Work Logs',
     decks: 'Mazzi',
     folders: 'Cartelle',
     tags: 'Tag',
-    checkIns: 'Check-in',
     workTodos: 'Todo',
 } as const;

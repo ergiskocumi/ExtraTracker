@@ -1,5 +1,5 @@
 /**
- * 📊 DASHBOARD CONTROLLER - Command Center Aggregation
+ * DASHBOARD CONTROLLER - Command Center Aggregation
  * ====================================================
  * 
  * Endpoint unico ultra-veloce che aggrega tutti i dati
@@ -9,10 +9,6 @@
  * restituisce tutto in una sola risposta.
  */
 
-const studyService = require('../services/studyService');
-const goalService = require('../services/goalService');
-const activityService = require('../services/activityService');
-const UserActivity = require('../models/UserActivity');
 const User = require('../models/User');
 const Deck = require('../models/Deck');
 const WorkLog = require('../models/WorkLog');
@@ -34,25 +30,8 @@ const getGreeting = (name) => {
     } else {
         greeting = 'Buonanotte';
     }
-    
-    return `${greeting}, ${name} 👋`;
-};
 
-/**
- * Formatta il tempo relativo in modo leggibile
- */
-const formatRelativeTime = (date) => {
-    const now = new Date();
-    const diff = now - new Date(date);
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Adesso';
-    if (minutes < 60) return `${minutes} min fa`;
-    if (hours < 24) return `${hours} ${hours === 1 ? 'ora' : 'ore'} fa`;
-    if (days < 7) return `${days} ${days === 1 ? 'giorno' : 'giorni'} fa`;
-    return new Date(date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    return `${greeting}, ${name}!`;
 };
 
 /**
@@ -62,14 +41,12 @@ const formatRelativeTime = (date) => {
  * - Saluto personalizzato
  * - Flashcards da ripassare
  * - Obiettivi attivi e in scadenza
- * - Attività recenti per "Jump Back In"
- * - Statistiche gamification
  * - Ore lavorate oggi
  */
 exports.getSummary = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
+    const userId = req.user.id; // Middleware usa req.user.id, non _id
     const tenantScope = req.tenantScope;
-    const userName = req.user.firstName || req.user.displayName || 'Utente';
+    const todayDateStr = new Date().toISOString().split('T')[0];
 
     // =========================================
     // AGGREGAZIONE PARALLELA (Promise.all)
@@ -77,35 +54,23 @@ exports.getSummary = asyncHandler(async (req, res) => {
     
     const [
         decks,
-        activeGoals,
-        recentActivities,
         todayWorkLogs,
         user
     ] = await Promise.all([
         // 1. Tutti i mazzi con carte da ripassare
-        Deck.find({ user: userId }).select('title cards dueCount lastStudied').lean(),
+        Deck.find({ user: userId }).select('title cards.nextReviewDate').lean(),
         
-        // 2. Obiettivi attivi
-        goalService.findActive(tenantScope),
+        // 2. WorkLog di oggi per ore lavorate
+        WorkLog.find({ user: userId, date: todayDateStr }).lean(),
         
-        // 3. Ultime 10 attività per "Jump Back In"
-        UserActivity.find({ user: userId })
-            .sort({ createdAt: -1 })
-            .limit(10)
-            .lean(),
-        
-        // 4. WorkLog di oggi per ore lavorate
-        WorkLog.find({
-            user: userId,
-            date: {
-                $gte: new Date(new Date().setHours(0, 0, 0, 0)),
-                $lt: new Date(new Date().setHours(23, 59, 59, 999))
-            }
-        }).lean(),
-        
-        // 5. Dati utente per gamification
-        User.findById(userId).select('gamification').lean()
+        // 3. Dati utente (+ firstName per greeting)
+        User.findById(userId).select('profile').lean()
     ]);
+
+    // Estrai nome utente dal DB (firstName è dentro profile)
+    const userName = user?.profile?.firstName || user?.profile?.displayName || 'Utente';
+
+    const todayStats = { cardsStudiedToday: 0 };
 
     // =========================================
     // ELABORAZIONE DATI STUDIO
@@ -120,13 +85,16 @@ exports.getSummary = asyncHandler(async (req, res) => {
         
         if (deck.cards && deck.cards.length > 0) {
             for (const card of deck.cards) {
-                if (!card.nextReview || new Date(card.nextReview) <= now) {
+                const reviewDate = card?.nextReviewDate ? new Date(card.nextReviewDate) : null;
+                if (!reviewDate || reviewDate <= now) {
                     deckDueCount++;
                 }
             }
         }
         
         totalDueCards += deckDueCount;
+
+        deck.dueCount = deckDueCount;
         
         // Seleziona il primo mazzo con carte da fare
         if (deckDueCount > 0 && !nextDeck) {
@@ -140,120 +108,12 @@ exports.getSummary = asyncHandler(async (req, res) => {
     }
 
     // =========================================
-    // ELABORAZIONE OBIETTIVI
-    // =========================================
-    
-    const overdueGoals = [];
-    const highPriorityGoals = [];
-    const upcomingGoals = [];
-    
-    for (const goal of activeGoals) {
-        const deadline = goal.deadline ? new Date(goal.deadline) : null;
-        const isOverdue = deadline && deadline < now;
-        const isHighPriority = goal.priority === 'high';
-        const isUpcoming = deadline && (deadline - now) < 7 * 24 * 60 * 60 * 1000; // 7 giorni
-        
-        if (isOverdue) {
-            overdueGoals.push(goal);
-        } else if (isHighPriority) {
-            highPriorityGoals.push(goal);
-        } else if (isUpcoming) {
-            upcomingGoals.push(goal);
-        }
-    }
-    
-    // Top priority goal da mostrare
-    const topPriorityGoal = overdueGoals[0] || highPriorityGoals[0] || upcomingGoals[0] || activeGoals[0];
-
-    // =========================================
-    // ELABORAZIONE "JUMP BACK IN" (Recents)
-    // =========================================
-    
-    const recents = [];
-    const seenEntities = new Set();
-    
-    for (const activity of recentActivities) {
-        // Evita duplicati
-        const entityKey = `${activity.type}_${activity.entityId}`;
-        if (seenEntities.has(entityKey) || !activity.entityId) continue;
-        seenEntities.add(entityKey);
-        
-        let recentItem = null;
-        
-        if (activity.type === 'SESSION_COMPLETE') {
-            // Era una sessione di studio
-            const deck = decks.find(d => d._id.toString() === activity.entityId?.toString());
-            if (deck) {
-                recentItem = {
-                    type: 'deck',
-                    id: deck._id,
-                    title: deck.title,
-                    icon: '🧠',
-                    action: 'Riprendi studio',
-                    lastAction: formatRelativeTime(activity.createdAt),
-                    metadata: {
-                        totalCards: deck.cards?.length || 0,
-                        dueCards: deck.dueCount || 0
-                    }
-                };
-            }
-        } else if (activity.type === 'WORK_SESSION_LOGGED') {
-            // Era un log di lavoro
-            recentItem = {
-                type: 'worklog',
-                id: activity.entityId,
-                title: activity.metadata?.projectName || 'Progetto',
-                icon: '⏱️',
-                action: 'Continua lavoro',
-                lastAction: formatRelativeTime(activity.createdAt),
-                metadata: {
-                    hours: activity.metadata?.hours || 0
-                }
-            };
-        } else if (activity.type === 'GOAL_CREATED' || activity.type === 'HABIT_CHECKIN') {
-            // Era un check-in su obiettivo
-            const goal = activeGoals.find(g => g._id.toString() === activity.entityId?.toString());
-            if (goal) {
-                recentItem = {
-                    type: 'goal',
-                    id: goal._id,
-                    title: goal.title,
-                    icon: '🎯',
-                    action: 'Check-in',
-                    lastAction: formatRelativeTime(activity.createdAt),
-                    metadata: {
-                        category: goal.category,
-                        progress: goal.progress || 0
-                    }
-                };
-            }
-        }
-        
-        if (recentItem) {
-            recents.push(recentItem);
-        }
-        
-        // Massimo 5 recenti
-        if (recents.length >= 5) break;
-    }
-
-    // =========================================
     // ELABORAZIONE LAVORO DI OGGI
     // =========================================
     
-    const todayMinutes = todayWorkLogs.reduce((sum, log) => sum + (log.minutes || 0), 0);
+    const todayMinutes = todayWorkLogs.reduce((sum, log) => sum + (log.durationMinutes || 0), 0);
     const todayHours = Math.floor(todayMinutes / 60);
     const remainingMinutes = todayMinutes % 60;
-
-    // =========================================
-    // GAMIFICATION
-    // =========================================
-    
-    const gamification = user?.gamification || {};
-    const streak = gamification.streak?.current || 0;
-    const level = gamification.level || 1;
-    const xp = gamification.xp || 0;
-    const nextLevelXp = Math.max(100, Math.pow(level, 2) * 100);
 
     // =========================================
     // RESPONSE
@@ -268,21 +128,8 @@ exports.getSummary = asyncHandler(async (req, res) => {
                 dueCards: totalDueCards,
                 totalDecks: decks.length,
                 nextDeck,
-                allDone: totalDueCards === 0 && decks.length > 0
-            },
-            
-            goals: {
-                activeCount: activeGoals.length,
-                overdueCount: overdueGoals.length,
-                highPriorityCount: highPriorityGoals.length,
-                topPriority: topPriorityGoal ? {
-                    id: topPriorityGoal._id,
-                    title: topPriorityGoal.title,
-                    category: topPriorityGoal.category,
-                    deadline: topPriorityGoal.deadline,
-                    isOverdue: overdueGoals.includes(topPriorityGoal),
-                    progress: topPriorityGoal.progress || 0
-                } : null
+                allDone: totalDueCards === 0 && decks.length > 0,
+                cardsStudiedToday: todayStats.cardsStudiedToday
             },
             
             work: {
@@ -293,15 +140,6 @@ exports.getSummary = asyncHandler(async (req, res) => {
                 sessionsToday: todayWorkLogs.length
             },
             
-            recents,
-            
-            gamification: {
-                streak,
-                level,
-                xp,
-                nextLevelXp,
-                progress: Math.round((xp / nextLevelXp) * 100)
-            }
         }
     });
 });
@@ -338,16 +176,6 @@ exports.getQuickActions = asyncHandler(async (req, res) => {
         icon: 'clock',
         color: 'blue',
         link: '/dashboard'
-    });
-    
-    // Quick action: Nuovo obiettivo
-    actions.push({
-        id: 'goal',
-        label: 'Nuovo obiettivo',
-        description: 'Crea un traguardo',
-        icon: 'target',
-        color: 'emerald',
-        link: '/goals/new'
     });
     
     res.json({

@@ -2,11 +2,11 @@
  * 🧪 TEST: CinemaPage Navigation
  * 
  * Verifica che il pulsante "indietro" in Cinema Mode navighi correttamente
- * al dettaglio del mazzo invece della dashboard principale.
+ * ai mazzi dell'esame quando disponibile.
  * 
  * Test Cases:
- * 1. Il pulsante "Torna al mazzo" naviga a /study/deck/:deckId
- * 2. In caso di errore, naviga al dettaglio mazzo se deckId disponibile
+ * 1. Il pulsante "Torna al mazzo" naviga a /study con examId nello state
+ * 2. In caso di errore, usa examId dallo state se disponibile
  * 3. Se deckId non disponibile, fallback alla dashboard
  */
 
@@ -27,13 +27,16 @@ vi.mock('../../../shared/components/toast', () => ({
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
+let mockDeckId: string | undefined = 'test-deck-id';
+let mockLocationState: { examId?: string } | null = null;
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
-        useParams: () => ({ deckId: 'test-deck-id' }),
+        useParams: () => ({ deckId: mockDeckId }),
+        useLocation: () => ({ state: mockLocationState }),
     };
 });
 
@@ -41,17 +44,20 @@ describe('CinemaPage - Navigation Tests', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockNavigate.mockClear();
+        mockDeckId = 'test-deck-id';
+        mockLocationState = null;
 
         // Default mock implementation
         (studyService.studyService.getDeckById as any) = vi.fn().mockResolvedValue({
             id: 'test-deck-id',
             title: 'Test Deck',
             cards: [],
+            examId: 'exam-123',
             pdfUrl: 'https://example.com/test.pdf',
         });
     });
 
-    it('should navigate to deck detail when back button is clicked', async () => {
+    it('should navigate to exam decks when back button is clicked', async () => {
         render(
             <BrowserRouter>
                 <CinemaPage />
@@ -70,10 +76,11 @@ describe('CinemaPage - Navigation Tests', () => {
         fireEvent.click(backButton);
 
         // Verify navigation
-        expect(mockNavigate).toHaveBeenCalledWith('/study/deck/test-deck-id');
+        expect(mockNavigate).toHaveBeenCalledWith('/study', { state: { examId: 'exam-123' } });
     });
 
-    it('should navigate to deck detail on error if deckId is available', async () => {
+    it('should navigate to exam decks on error when examId is available', async () => {
+        mockLocationState = { examId: 'exam-555' };
         // Mock error scenario
         (studyService.studyService.getDeckById as any) = vi.fn().mockRejectedValue(
             new Error('Deck not found')
@@ -94,21 +101,12 @@ describe('CinemaPage - Navigation Tests', () => {
         const errorButton = screen.getByText(/torna ai mazzi/i);
         fireEvent.click(errorButton);
 
-        // Verify navigation to deck detail (even though it says "Torna ai mazzi", 
-        // the handler should navigate to deck detail)
-        expect(mockNavigate).toHaveBeenCalledWith('/study/deck/test-deck-id');
+        // Verify navigation to exam decks from location state
+        expect(mockNavigate).toHaveBeenCalledWith('/study', { state: { examId: 'exam-555' } });
     });
 
     it('should navigate to dashboard if deckId is not available', async () => {
-        // Mock scenario without deckId
-        vi.mock('react-router-dom', async () => {
-            const actual = await vi.importActual('react-router-dom');
-            return {
-                ...actual,
-                useNavigate: () => mockNavigate,
-                useParams: () => ({ deckId: undefined }),
-            };
-        });
+        mockDeckId = undefined;
 
         (studyService.studyService.getDeckById as any) = vi.fn().mockRejectedValue(
             new Error('Invalid deck ID')

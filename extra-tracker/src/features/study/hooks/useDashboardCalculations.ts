@@ -1,8 +1,7 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { AlertCircle, Sparkles, Play, Plus, BookOpen } from 'lucide-react';
 import type { Deck } from '../services/studyService';
 import type { Folder } from '../services/foldersService';
-import { analyticsService } from '../../analytics/services/analyticsService';
 
 export type FilterType = 'all' | 'due' | 'mastered' | 'recent';
 
@@ -28,28 +27,8 @@ export const useDashboardCalculations = ({
     // Filtra i deck escludendo quelli degli esami completati
     const activeDecks = useMemo(() => {
         if (completedExamIds.length === 0) return decks;
-        return decks.filter(deck => !deck.goalId || !completedExamIds.includes(deck.goalId));
+        return decks.filter(deck => !deck.examId || !completedExamIds.includes(deck.examId));
     }, [decks, completedExamIds]);
-    // Stato per le ore di studio
-    const [studyHours, setStudyHours] = useState<number>(0);
-    
-    // Carica le ore di studio dagli ultimi 7 giorni
-    useEffect(() => {
-        const loadStudyHours = async () => {
-            try {
-                const analytics = await analyticsService.getWeekly();
-                // Somma tutte le ore di studio degli ultimi 7 giorni (in secondi, convertiamo in ore)
-                const totalSeconds = analytics.dailyActivity.reduce((sum, day) => sum + (day.study || 0), 0);
-                const hours = totalSeconds / 3600; // Converti secondi in ore
-                setStudyHours(Math.round(hours * 10) / 10); // Arrotonda a 1 decimale
-            } catch (error) {
-                console.error('[useDashboardCalculations] Errore nel caricamento delle ore di studio:', error);
-                setStudyHours(0);
-            }
-        };
-        
-        loadStudyHours();
-    }, []);
     // Calcola statistiche per cartella
     const folderStats = useMemo(() => {
         const statsMap = new Map<string, {
@@ -183,129 +162,6 @@ export const useDashboardCalculations = ({
 
         return weekData;
     }, [activeDecks]);
-
-    // Calcola lo stato mentale (algoritmo migliorato con ore di studio)
-    const calculateMentalState = useMemo(() => {
-        const totalCards = activeDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
-        const dueCards = activeDecks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
-        const masteredCards = activeDecks.reduce((sum, deck) => {
-            const mastered = deck.cards?.filter(c => c.status === 'mastered').length ?? 0;
-            return sum + mastered;
-        }, 0);
-        
-        if (totalCards === 0) {
-            return {
-                percentage: 100,
-                state: 'fresco' as const,
-                message: 'Pronto per iniziare!',
-                color: 'emerald' as const,
-                suggestion: 'Crea il tuo primo mazzo e inizia a studiare',
-                studyHours: 0,
-            };
-        }
-        
-        // Fattori di stress e recupero
-        const dueRatio = totalCards > 0 ? dueCards / totalCards : 0;
-        const stressFromDue = Math.min(100, dueRatio * 100);
-        const masteryRatio = totalCards > 0 ? masteredCards / totalCards : 0;
-        const recoveryFromMastery = masteryRatio * 30;
-        const activeDecksCount = activeDecks.filter(d => (d.totalCards ?? 0) > 0).length;
-        const cognitiveLoad = Math.min(20, activeDecksCount * 2);
-        
-        // Fattore basato sulle ore di studio degli ultimi 7 giorni
-        // Basato su studi psicologici sulla concentrazione e apprendimento:
-        // - 0-1h: bonus leggero (pratico costante ma leggero)
-        // - 1-2h: neutro/leggero bonus (ritmo ottimale per mantenere concentrazione)
-        // - 2-3h: neutro (buon ritmo, ma inizia a essere intenso)
-        // - 3-4h: leggero stress (intenso ma sostenibile)
-        // - 4-5h: stress moderato (troppo intenso, concentrazione cala)
-        // - 5h+: stress significativo (controproducente, bisogno di riposo)
-        let fatigueFromStudy = 0;
-        if (studyHours > 5) {
-            // Oltre 5h: stress significativo (max 35 punti)
-            fatigueFromStudy = Math.min(35, 20 + (studyHours - 5) * 5);
-        } else if (studyHours > 4) {
-            // 4-5h: stress moderato (15-20 punti)
-            fatigueFromStudy = 15 + (studyHours - 4) * 5;
-        } else if (studyHours > 3) {
-            // 3-4h: leggero stress (5-15 punti)
-            fatigueFromStudy = 5 + (studyHours - 3) * 10;
-        } else if (studyHours > 2) {
-            // 2-3h: neutro (0-5 punti)
-            fatigueFromStudy = (studyHours - 2) * 5;
-        } else if (studyHours > 1) {
-            // 1-2h: neutro/leggero bonus (ritmo ottimale)
-            fatigueFromStudy = 0;
-        } else if (studyHours > 0) {
-            // 0-1h: bonus leggero per pratica costante ma non eccessiva
-            fatigueFromStudy = -3;
-        }
-        
-        let mentalState = 100;
-        mentalState -= stressFromDue * 0.5;
-        mentalState += recoveryFromMastery;
-        mentalState -= cognitiveLoad;
-        mentalState -= fatigueFromStudy; // Applica la stanchezza da studio
-        mentalState = Math.max(0, Math.min(100, mentalState));
-        
-        let state: 'fresco' | 'attivo' | 'stanco' | 'esaurito';
-        let message: string;
-        let color: 'emerald' | 'blue' | 'amber' | 'rose';
-        let suggestion: string;
-        
-        if (mentalState >= 75) {
-            state = 'fresco';
-            message = studyHours > 0 
-                ? `Pronto e concentrato (${studyHours}h questa settimana)`
-                : 'Pronto e concentrato';
-            color = 'emerald';
-            suggestion = studyHours < 1 
-                ? 'Ottimo momento per studiare! Mantieni il ritmo costante.'
-                : studyHours < 2
-                ? 'Ottimo momento per studiare! Stai mantenendo un ritmo ottimale.'
-                : 'Ottimo momento per studiare!';
-        } else if (mentalState >= 50) {
-            state = 'attivo';
-            message = studyHours > 0 
-                ? `Buona forma mentale (${studyHours}h questa settimana)`
-                : 'Buona forma mentale';
-            color = 'blue';
-            suggestion = studyHours > 4 
-                ? 'Hai studiato intensamente questa settimana. Considera una pausa per recuperare la concentrazione.'
-                : studyHours > 3
-                ? 'Continua così, ma fai attenzione ai segnali di stanchezza. Considera una pausa.'
-                : 'Continua così, ma fai attenzione ai segnali di stanchezza';
-        } else if (mentalState >= 25) {
-            state = 'stanco';
-            message = studyHours > 0 
-                ? `Inizia a sentire la fatica (${studyHours}h questa settimana)`
-                : 'Inizia a sentire la fatica';
-            color = 'amber';
-            suggestion = studyHours > 5 
-                ? 'Hai studiato molto questa settimana. Fai una pausa lunga (30+ minuti) o riposa per oggi.'
-                : studyHours > 4
-                ? 'Hai studiato intensamente. Fai una pausa (20-30 minuti) per recuperare.'
-                : 'Considera una pausa breve (10-15 minuti)';
-        } else {
-            state = 'esaurito';
-            message = studyHours > 0 
-                ? `Hai bisogno di riposo (${studyHours}h questa settimana)`
-                : 'Hai bisogno di riposo';
-            color = 'rose';
-            suggestion = studyHours > 5 
-                ? 'Hai superato il limite ottimale di studio. Riposa oggi e riprendi domani con energia.'
-                : 'Fai una pausa lunga (30+ minuti) o riposa per oggi';
-        }
-        
-        return {
-            percentage: Math.round(mentalState),
-            state,
-            message,
-            color,
-            suggestion,
-            studyHours,
-        };
-    }, [activeDecks, studyHours]);
 
     // Calcola i prossimi passi guidati
     const nextSteps = useMemo(() => {
@@ -514,7 +370,6 @@ export const useDashboardCalculations = ({
         folderStats,
         todayPriorityDecks,
         weeklyStudyPlan,
-        calculateMentalState,
         nextSteps,
         filteredDecks,
         totalCards,

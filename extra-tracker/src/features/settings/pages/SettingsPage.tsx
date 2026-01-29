@@ -6,19 +6,22 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    User, 
-    Settings, 
-    Shield, 
+import {
+    User,
+    Settings,
+    Shield,
     Trash2,
+    MessageSquare,
     Search,
-    Command
+    Command,
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { useSettingsPage } from '../hooks/useSettings';
 import { ProfileSettings } from '../components/ProfileSettings';
 import { PreferencesSettings } from '../components/PreferencesSettings';
 import { SecuritySettings } from '../components/SecuritySettings';
 import { AccountSettings } from '../components/AccountSettings/index';
+import { FeedbackSettings } from '../../feedback/components/FeedbackSettings';
 import { SettingsSearch } from '../components/SettingsSearch';
 import { SettingsLayout, type SettingsTab, type TabId } from '../components/layout/SettingsLayout';
 import { SettingsDrawer } from '../components/layout/SettingsDrawer';
@@ -49,12 +52,19 @@ const tabs: SettingsTab[] = [
         description: 'Password e autenticazione',
         color: 'from-emerald-500 to-teal-500'
     },
-    { 
-        id: 'account', 
-        label: 'Account', 
-        icon: Trash2, 
+    {
+        id: 'account',
+        label: 'Account',
+        icon: Trash2,
         description: 'Esporta dati e elimina account',
         color: 'from-rose-500 to-red-500'
+    },
+    {
+        id: 'feedback',
+        label: 'Feedback',
+        icon: MessageSquare,
+        description: 'Segnalazioni e stato ticket',
+        color: 'from-amber-500 to-orange-500'
     },
 ];
 
@@ -63,6 +73,7 @@ export const SettingsPage = () => {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const location = useLocation();
 
     // Rileva dimensione schermo per mobile
     useEffect(() => {
@@ -73,6 +84,14 @@ export const SettingsPage = () => {
         window.addEventListener('resize', checkScreenSize);
         return () => window.removeEventListener('resize', checkScreenSize);
     }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+        if (tab && tabs.some((item) => item.id === tab)) {
+            setActiveTab(tab as TabId);
+        }
+    }, [location.search]);
     const {
         profile,
         preferences,
@@ -369,10 +388,10 @@ export const SettingsPage = () => {
                                                 return result;
                                             } catch (error: any) {
                                                 // Mostra messaggio di errore dettagliato
-                                                const errorMessage = error?.message || 
-                                                    error?.response?.data?.error?.message || 
+                                                const errorMessage = error?.message ||
+                                                    error?.response?.data?.error?.message ||
                                                     'Errore nell\'importazione dei dati';
-                                                emitToast.error(errorMessage, { 
+                                                emitToast.error(errorMessage, {
                                                     title: 'Errore importazione',
                                                     duration: 6000,
                                                 });
@@ -382,6 +401,10 @@ export const SettingsPage = () => {
                                         onDelete={handleDeleteAccount}
                                         status={statuses.accountStatus}
                                     />
+                                )}
+
+                                {activeTab === 'feedback' && (
+                                    <FeedbackSettings />
                                 )}
                             </motion.div>
                         </AnimatePresence>

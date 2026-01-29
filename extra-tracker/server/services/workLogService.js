@@ -15,7 +15,6 @@
 const BaseService = require('./BaseService');
 const WorkLog = require('../models/WorkLog');
 const AppError = require('../utils/AppError');
-const eventBus = require('../utils/eventBus');
 
 class WorkLogService extends BaseService {
     constructor() {
@@ -299,56 +298,23 @@ class WorkLogService extends BaseService {
     }
 
     /**
-     * Override create per gestire logica ibrida e registrare attività.
-     * 
+     * Override create per gestire logica ibrida.
+     *
      * Gestisce sia inserimenti "Timer" (con orari) che "Journal" (solo testo).
      * - Se ci sono startTime e endTime: valida e calcola durata (Model lo fa automaticamente)
      * - Se non ci sono orari: permette creazione come nota/journal (durationMinutes = 0)
-     * 
-     * Pattern Observer: emette evento invece di chiamare direttamente ActivityService.
-     * Questo decoupling permette:
-     * - Fire and forget: non blocca la risposta HTTP
-     * - Gestione errori in background (subscriber)
-     * - Facile aggiungere altri subscriber per altri eventi
      */
     async create(tenantScope, data) {
         // La validazione è già fatta in beforeCreate()
         // Il Model calcola durationMinutes automaticamente se orari presenti
         
-        const created = await super.create(tenantScope, data);
-        const userId = this._getUserId(tenantScope);
-
-        // Emetti evento per activity tracking (Pattern Observer)
-        // Il subscriber gestirà la chiamata a ActivityService in background
-        // Non blocca la risposta HTTP al client
-        eventBus.emit('worklog.created', {
-            userId,
-            workLog: created,
-        });
-
-        return created;
+        return super.create(tenantScope, data);
     }
 
-    /**
-     * Override update per emettere evento worklog.updated
-     */
     async update(tenantScope, id, data, options = {}) {
         // Recupera il worklog precedente per confronto
-        const previous = await this.findById(tenantScope, id, { throwIfNotFound: true });
-        
-        // Esegui update normale
-        const updated = await super.update(tenantScope, id, data, options);
-        
-        const userId = this._getUserId(tenantScope);
-        
-        // Emetti evento per activity tracking (Pattern Observer)
-        eventBus.emit('worklog.updated', {
-            userId,
-            workLog: updated,
-            previousWorkLog: previous,
-        });
-
-        return updated;
+        await this.findById(tenantScope, id, { throwIfNotFound: true });
+        return super.update(tenantScope, id, data, options);
     }
 
     /**

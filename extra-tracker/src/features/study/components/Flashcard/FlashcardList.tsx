@@ -461,7 +461,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     // ============================================
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-w-0 overflow-hidden">
             {showHeader && (
                 <Header
                     cardCount={cardCount}
@@ -485,7 +485,11 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                         {viewMode === VIEW_MODE.grid ? renderGridView() : renderListView()}
 
                         <DragOverlay
-                            style={{ zIndex: DRAG_AND_DROP.dragOverlayZIndex }}
+                            style={{ zIndex: DRAG_AND_DROP.dragOverlayZIndex, willChange: 'transform' }}
+                            dropAnimation={{
+                                duration: 120,
+                                easing: 'linear',
+                            }}
                         >
                             {activeCard ? (
                                 <DragOverlayContent

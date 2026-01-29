@@ -22,14 +22,12 @@ import {
     FiBookOpen,
     FiSearch,
     FiAlertCircle,
-    FiBarChart2,
     FiSettings,
     FiFileText
 } from 'react-icons/fi';
 import { studyService, type Deck, type Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
-import { DeckAnalytics } from '../components/Deck/DeckAnalytics';
 import { DeckSettings } from '../components/Deck/DeckSettings';
 import { DeckNotifications } from '../components/Deck/DeckNotifications';
 import { FlashcardList } from '../components/Flashcard/FlashcardList';
@@ -94,7 +92,7 @@ export const DeckDetailPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterType>('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState<'cards' | 'analytics' | 'settings'>('cards');
+    const [activeTab, setActiveTab] = useState<'cards' | 'settings'>('cards');
 
     // Modal state
     const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
@@ -283,17 +281,6 @@ export const DeckDetailPage: React.FC = () => {
                             Carte
                         </button>
                         <button
-                            onClick={() => setActiveTab('analytics')}
-                            className={`px-4 py-2 text-sm font-medium transition-all border-b-2 flex items-center gap-2 ${
-                                activeTab === 'analytics'
-                                    ? 'border-primary-500 text-primary-400'
-                                    : 'border-transparent text-white/50 hover:text-white/70'
-                            }`}
-                        >
-                            <FiBarChart2 className="w-4 h-4" />
-                            Analytics
-                        </button>
-                        <button
                             onClick={() => setActiveTab('settings')}
                             className={`px-4 py-2 text-sm font-medium transition-all border-b-2 flex items-center gap-2 ${
                                 activeTab === 'settings'
@@ -347,12 +334,6 @@ export const DeckDetailPage: React.FC = () => {
                             </div>
                 )}
 
-                {activeTab === 'analytics' && id && (
-                    <div className="max-w-5xl mx-auto">
-                        <DeckAnalytics deckId={id} />
-                    </div>
-                )}
-
                 {activeTab === 'settings' && deck && (
                     <div className="max-w-3xl mx-auto">
                         <DeckSettings 
@@ -389,7 +370,7 @@ export const DeckDetailPage: React.FC = () => {
                         );
                     }}
                     existingDecks={deck ? [{ id: deck.id, title: deck.title }] : []}
-                    goalId={deck?.goalId}
+                    examId={deck?.examId}
                     preselectedDeckId={deck?.id}
                 />
             </div>

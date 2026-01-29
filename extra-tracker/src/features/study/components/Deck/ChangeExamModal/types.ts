@@ -6,7 +6,7 @@
  */
 
 import type { Deck } from '../../../services/studyService';
-import type { Goal } from '../../../../goals/types';
+import type { Exam } from '../../../types/exam';
 
 /**
  * Props del componente ChangeExamModal
@@ -17,7 +17,7 @@ import type { Goal } from '../../../../goals/types';
 export interface ChangeExamModalProps {
     /** 
      * Il deck per cui cambiare l'esame associato.
-     * Deve contenere almeno l'id e il goalId corrente.
+     * Deve contenere almeno l'id e l'examId corrente.
      */
     deck: Deck;
     
@@ -57,7 +57,7 @@ export interface ChangeExamModalState {
      * Lista degli esami disponibili per la selezione.
      * Viene caricata all'apertura del modal.
      */
-    availableExams: Goal[];
+    availableExams: Exam[];
     
     /** 
      * Indica se gli esami sono in fase di caricamento.

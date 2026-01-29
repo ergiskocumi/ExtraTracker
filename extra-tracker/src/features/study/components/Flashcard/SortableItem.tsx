@@ -74,18 +74,18 @@ export const SortableItem: React.FC<SortableItemProps> = ({
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition: isDragging ? 'all 200ms ease-out' : transition,
+        transition: isDragging ? 'transform 120ms linear' : transition,
     };
 
     // iOS-style ghost placeholder: fade out and scale down when dragging
     const ghostStyles = isDragging
-        ? 'opacity-30 scale-95 transition-all duration-200 ease-out'
-        : 'opacity-100 scale-100 transition-all duration-200 ease-out';
+        ? 'opacity-50 scale-[0.98] transition-transform duration-100 ease-linear'
+        : 'opacity-100 scale-100 transition-transform duration-100 ease-linear';
 
     // Disable drag cursor and interactions when editing
     const containerClasses = isEditing
         ? `${ghostStyles}` // No cursor-grab when editing
-        : `group relative cursor-grab active:cursor-grabbing ${ghostStyles}`;
+        : `group relative cursor-grab active:cursor-grabbing ${ghostStyles} ${isDragging ? 'will-change-transform' : ''}`;
 
     // Conditionally apply drag listeners only when not editing
     const dragProps = isEditing

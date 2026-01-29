@@ -62,6 +62,21 @@ COOKIE_REFRESH_TOKEN_MAX_AGE=604800000
 COOKIE_REFRESH_TOKEN_PATH=/api/auth/refresh
 
 # ==========================================
+# 🧪 CSRF CONFIGURATION
+# ==========================================
+CSRF_COOKIE_NAME=csrfToken
+CSRF_HEADER_NAME=X-CSRF-Token
+CSRF_TOKEN_BYTES=32
+CSRF_COOKIE_MAX_AGE=604800000
+
+# ==========================================
+# 🔐 DATA ENCRYPTION CONFIGURATION
+# ==========================================
+# 32 byte key (hex o base64). Esempio:
+# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+DATA_ENCRYPTION_KEY=
+
+# ==========================================
 # 🚦 RATE LIMITING CONFIGURATION
 # ==========================================
 # General Rate Limiter (Opzionale - DISABILITATO di default)

@@ -1,5 +1,5 @@
 /**
- * 🎮 CONTROLLER AUTENTICAZIONE
+ * CONTROLLER AUTENTICAZIONE
  * 
  * Responsabilità:
  * 1. Gestire request/response HTTP
@@ -13,6 +13,7 @@
 const authService = require('../services/authService');
 const { getDeviceInfo } = require('../services/authService');
 const securityConfig = require('../config/security');
+const { setCsrfCookie } = require('../middleware/csrf');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { emailService, generateToken, hashToken } = require('../services/emailService');
 const AppError = require('../utils/AppError');
@@ -95,7 +96,7 @@ const register = asyncHandler(async (req, res) => {
             user: {
                 id: user._id,
                 email: user.email,
-                gamification: user.gamification,
+                role: user.role,
             },
         },
     });
@@ -119,7 +120,7 @@ const login = asyncHandler(async (req, res) => {
             user: {
                 id: user._id,
                 email: user.email,
-                gamification: user.gamification,
+                role: user.role,
             },
         },
     });
@@ -189,9 +190,9 @@ const getProfile = asyncHandler(async (req, res) => {
             user: {
                 id: user._id,
                 email: user.email,
+                role: user.role,
                 isEmailVerified: user.isEmailVerified,
                 createdAt: user.createdAt,
-                gamification: user.gamification,
             },
         },
     });
@@ -230,8 +231,23 @@ const checkAuth = asyncHandler(async (req, res) => {
             user: {
                 id: user._id,
                 email: user.email,
-                gamification: user.gamification,
+                role: user.role,
             },
+        },
+    });
+});
+
+/**
+ * GET /api/auth/csrf
+ * Restituisce il CSRF token corrente (e assicura il cookie)
+ */
+const getCsrfToken = asyncHandler(async (req, res) => {
+    const csrfToken = req.csrfToken || setCsrfCookie(res);
+
+    res.status(200).json({
+        success: true,
+        data: {
+            csrfToken,
         },
     });
 });
@@ -450,6 +466,7 @@ module.exports = {
     getProfile,
     changePassword,
     checkAuth,
+    getCsrfToken,
     verifyEmail,
     resendVerification,
     forgotPassword,

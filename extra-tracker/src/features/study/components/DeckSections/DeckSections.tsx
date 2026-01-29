@@ -71,26 +71,7 @@ export const DeckSections: React.FC<DeckSectionsProps> = ({
 
     return (
         <div className="space-y-8">
-            {/* Sezione 1: Continua a Studiare (Recenti) */}
-            {organizedDecks.recentSessions.length > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                >
-                    <DeckSection
-                        title="Continua a Studiare"
-                        subtitle="I tuoi mazzi recenti"
-                        decks={organizedDecks.recentSessions}
-                        layout={getLayout('horizontal')}
-                        maxVisible={4}
-                        tags={tags}
-                        {...handlers}
-                    />
-                </motion.div>
-            )}
-
-            {/* Sezione 2: Da Ripassare (Priority) */}
+            {/* Sezione 1: Da Ripassare (Priority) */}
             {organizedDecks.priorityDecks.length > 0 && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -110,7 +91,7 @@ export const DeckSections: React.FC<DeckSectionsProps> = ({
                 </motion.div>
             )}
 
-            {/* Sezione 3: Preferiti (Pinned) - Opzionale */}
+            {/* Sezione 2: Preferiti (Pinned) - Opzionale */}
             {organizedDecks.pinnedDecks.length > 0 && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -127,7 +108,7 @@ export const DeckSections: React.FC<DeckSectionsProps> = ({
                 </motion.div>
             )}
 
-            {/* Sezione 4: Per Cartella */}
+            {/* Sezione 3: Per Cartella */}
             {organizedDecks.folders.map((folderSection, index) => (
                 <motion.div
                     key={folderSection.folder.id}
@@ -150,7 +131,7 @@ export const DeckSections: React.FC<DeckSectionsProps> = ({
                 </motion.div>
             ))}
 
-            {/* Sezione 5: Non Categorizzati */}
+            {/* Sezione 4: Non Categorizzati */}
             {organizedDecks.uncategorized.length > 0 && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -171,8 +152,7 @@ export const DeckSections: React.FC<DeckSectionsProps> = ({
             )}
 
             {/* Empty State - Se non ci sono deck in nessuna sezione */}
-            {organizedDecks.recentSessions.length === 0 &&
-                organizedDecks.priorityDecks.length === 0 &&
+            {organizedDecks.priorityDecks.length === 0 &&
                 organizedDecks.pinnedDecks.length === 0 &&
                 organizedDecks.folders.length === 0 &&
                 organizedDecks.uncategorized.length === 0 && (

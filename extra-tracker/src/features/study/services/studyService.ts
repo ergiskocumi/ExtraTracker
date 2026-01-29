@@ -1,4 +1,4 @@
-import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
+import { apiClient, type ApiResponse, getCsrfHeader } from '../../../shared/services/apiClient';
 export type { Tag } from './tagsService';
 
 // ============================================
@@ -7,7 +7,10 @@ export type { Tag } from './tagsService';
 
 export type ReviewRating = 1 | 3 | 5;
 export type CardStatus = 'new' | 'learning' | 'review' | 'mastered';
-export type StudyMode = 'flashcard' | 'quiz' | 'typing';
+export type StudyMode = 'flashcard' | 'quiz' | 'typing' | 'mix' | 'sprint' | 'focus' | 'exam';
+export type SessionFocus = 'smart' | 'due' | 'weak' | 'all';
+export type SessionLength = 'short' | 'standard' | 'deep';
+export type SessionDirection = 'front' | 'back' | 'mixed';
 export type ChatRole = 'user' | 'assistant';
 
 export interface Card {
@@ -34,7 +37,7 @@ export interface Card {
 
 export interface Deck {
     id: string;
-    goalId?: string;
+    examId?: string;
     title: string;
     description?: string;
     pdfUrl?: string | null;
@@ -59,6 +62,14 @@ export interface StudySession {
     remaining: number;
     total: number;
     mode?: StudyMode;
+    cardModes?: Record<string, StudyMode>;
+    meta?: {
+        focus?: SessionFocus;
+        limit?: number;
+        timeLimitMinutes?: number;
+        questionCount?: number;
+        direction?: SessionDirection;
+    };
 }
 
 export interface ReviewPayload {
@@ -93,21 +104,27 @@ export interface SessionCompletePayload {
     };
 }
 
+export interface SessionRequestOptions {
+    mode?: StudyMode;
+    focus?: SessionFocus;
+    limit?: number;
+    timeLimitMinutes?: number;
+    questionCount?: number;
+    direction?: SessionDirection;
+}
+
 export interface SessionCompleteResult {
-    xpEarned: number;
-    leveledUp: boolean;
-    newLevel: number;
-    xpBreakdown?: {
-        base: number;
-        correct: number;
-        speedBonus: number;
-        streakBonus: number;
-        total: number;
+    stats?: {
+        correctCount?: number;
+        wrongCount?: number;
+        timeSpentSeconds?: number;
+        totalCards?: number;
+        mode?: string;
     };
 }
 
 export interface CreateDeckPayload {
-    goalId: string;
+    examId?: string;
     title: string;
     description?: string;
     tags?: string[];
@@ -139,33 +156,6 @@ export interface DeckSettings {
         style?: 'comprehensive' | 'conceptual' | 'factual' | 'application';
         difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
         questionTypes?: string[];
-    };
-}
-
-export interface DeckAnalytics {
-    stats: {
-        totalCards: number;
-        newCards: number;
-        learningCards: number;
-        reviewCards: number;
-        masteredCards: number;
-        dueCards: number;
-        averageEasinessFactor: number;
-        averageRepetitions: number;
-    };
-    analytics: {
-        totalReviews: number;
-        averageTimePerCard: number;
-        retentionRate: number;
-        retentionRatePercent: number;
-        lastStudied: string | null;
-        studyStreak: number;
-    };
-    algorithm: string;
-    aiSettings: {
-        style: string;
-        difficulty: string;
-        questionTypes: string[];
     };
 }
 
@@ -224,7 +214,7 @@ const normalizeDeck = (raw: any): Deck => {
     const cards = Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [];
     return {
         id: raw.id || raw._id?.toString() || raw._id,
-        goalId: raw.goalId?.toString() || raw.goalId,
+        examId: raw.examId?.toString() || raw.examId,
         title: raw.title || 'Senza titolo',
         description: raw.description,
         pdfUrl: typeof raw.pdfUrl === 'string' && raw.pdfUrl.length > 0 ? raw.pdfUrl : null,
@@ -265,6 +255,12 @@ const normalizeSession = (payload: any): StudySession => {
     const cards = Array.isArray(payload?.cards)
         ? payload.cards.map(normalizeCard)
         : deck.cards;
+    const cardModes = payload?.cardModes && typeof payload.cardModes === 'object'
+        ? payload.cardModes as Record<string, StudyMode>
+        : undefined;
+    const meta = payload?.meta && typeof payload.meta === 'object'
+        ? payload.meta as StudySession['meta']
+        : undefined;
 
     return {
         deck,
@@ -272,6 +268,8 @@ const normalizeSession = (payload: any): StudySession => {
         remaining: safeNumber(payload?.remaining, cards.length),
         total: safeNumber(payload?.total, deck.totalCards || cards.length),
         mode: payload?.mode,
+        cardModes,
+        meta,
     };
 };
 
@@ -389,8 +387,17 @@ class StudyService {
      * Carica una sessione di studio per un mazzo specifico
      * Recupera i dati freschi dal backend (risolve il problema del refresh)
      */
-    async getSession(deckId: string, mode: StudyMode = 'flashcard'): Promise<StudySession> {
-        const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/session?mode=${mode}`);
+    async getSession(deckId: string, options: SessionRequestOptions = {}): Promise<StudySession> {
+        const params = new URLSearchParams();
+        if (options.mode) params.set('mode', options.mode);
+        if (options.focus) params.set('focus', options.focus);
+        if (options.limit) params.set('limit', String(options.limit));
+        if (options.timeLimitMinutes) params.set('time', String(options.timeLimitMinutes));
+        if (options.questionCount) params.set('questions', String(options.questionCount));
+        if (options.direction) params.set('direction', options.direction);
+
+        const query = params.toString();
+        const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/session${query ? `?${query}` : ''}`);
         const raw = unwrap(response, 'Errore nel recupero della sessione');
         return normalizeSession(raw);
     }
@@ -425,7 +432,7 @@ class StudyService {
     }
 
     /**
-     * Finalizza la sessione e assegna XP (gamification).
+     * Finalizza la sessione.
      */
     async completeSession(deckId: string, payload: SessionCompletePayload): Promise<SessionCompleteResult> {
         const response = await apiClient.post<SessionCompleteResult>(
@@ -465,10 +472,12 @@ class StudyService {
         // Chiamata API con FormData
         // NOTA: withCredentials: true per inviare cookies HttpOnly (auth)
         // NOTA: NON impostare Content-Type manualmente, il browser lo fa con boundary
+        const csrfHeader = await getCsrfHeader();
         const response = await fetch(`/api${this.baseUrl}/${deckId}/generate-pdf`, {
             method: 'POST',
             body: formData,
             credentials: 'include', // Include cookies per auth
+            headers: csrfHeader,
         });
 
         console.log('📥 Response status:', response.status);
@@ -547,25 +556,17 @@ class StudyService {
     }
 
     /**
-     * Aggiorna folderId, goalId e/o tags di un deck
+     * Aggiorna folderId, examId e/o tags di un deck
      */
-    async updateDeckOrganization(deckId: string, updates: { folderId?: string | null; goalId?: string | null; tags?: string[] }): Promise<Deck> {
+    async updateDeckOrganization(deckId: string, updates: { folderId?: string | null; examId?: string | null; tags?: string[] }): Promise<Deck> {
         const response = await apiClient.patch<any>(`${this.baseUrl}/${deckId}`, updates);
         const raw = unwrap(response, 'Errore nell\'aggiornamento');
         return normalizeDeck(raw);
     }
 
     /**
-     * Ottiene analytics dettagliate per un deck
-     */
-    async getDeckAnalytics(deckId: string): Promise<DeckAnalytics> {
-        const response = await apiClient.get<DeckAnalytics>(`${this.baseUrl}/${deckId}/analytics`);
-        return unwrap(response, 'Errore nel recupero delle analytics');
-    }
-
-    /**
      * Resetta le carte di tutti i deck associati a un esame
-     * @param examId - ID dell'esame (Goal)
+     * @param examId - ID dell'esame
      * @param type - 'all' per reset completo, 'hard-only' per solo carte difficili
      */
     async resetExamCards(examId: string, type: 'all' | 'hard-only'): Promise<{ decksAffected: number; cardsReset: number; type: string }> {
@@ -575,7 +576,7 @@ class StudyService {
 
     /**
      * Genera domande AI di approfondimento basate sulle difficoltà segnalate
-     * @param examId - ID dell'esame (Goal)
+     * @param examId - ID dell'esame
      * @param difficulties - Array di difficoltà segnalate (es. ['concepts', 'time'])
      */
     async generateRecoveryQuestions(examId: string, difficulties: string[]): Promise<{ decksAffected: number; totalGenerated: number; generatedByDeck: Array<{ deckId: string; deckTitle: string; count: number }> }> {
@@ -594,10 +595,12 @@ class StudyService {
         const formData = new FormData();
         formData.append('questionsFile', questionsFile);
 
+        const csrfHeader = await getCsrfHeader();
         const response = await fetch(`/api${this.baseUrl}/exam-solver/extract-questions`, {
             method: 'POST',
             body: formData,
             credentials: 'include',
+            headers: csrfHeader,
         });
 
         if (!response.ok) {
@@ -617,13 +620,13 @@ class StudyService {
      * 🤖 Genera risposte per domande selezionate (Livello 1 - Preview)
      * @param sourceFile - File PDF con il materiale di studio
      * @param selectedQuestions - Array di domande selezionate dall'utente
-     * @param options - Opzioni { deckId?, title?, goalId? }
+     * @param options - Opzioni { deckId?, title?, examId? }
      * @returns Deck, flashcard con ID e statistiche
      */
     async generateExamAnswers(
         sourceFile: File,
         selectedQuestions: string[],
-        options: { deckId?: string; title?: string; goalId?: string } = {}
+        options: { deckId?: string; title?: string; examId?: string } = {}
     ): Promise<{ 
         deck: Deck; 
         flashcards: Array<{ id: string; front: string; back: string; found: boolean }>;
@@ -641,14 +644,16 @@ class StudyService {
         if (options.title) {
             formData.append('title', options.title);
         }
-        if (options.goalId) {
-            formData.append('goalId', options.goalId);
+        if (options.examId) {
+            formData.append('examId', options.examId);
         }
 
+        const csrfHeader = await getCsrfHeader();
         const response = await fetch(`/api${this.baseUrl}/exam-solver/generate-answers`, {
             method: 'POST',
             body: formData,
             credentials: 'include',
+            headers: csrfHeader,
         });
 
         if (!response.ok) {
@@ -678,17 +683,19 @@ class StudyService {
 
     /**
      * 🎯 Exam Solver - Estrae domande da un documento e genera risposte da un altro (LEGACY)
-     * @param formData - FormData con questionsFile, sourceFile, deckId (opzionale), title (opzionale), goalId (opzionale)
+     * @param formData - FormData con questionsFile, sourceFile, deckId (opzionale), title (opzionale), examId (opzionale)
      * @returns Deck e statistiche
      */
     async examSolver(formData: FormData): Promise<{ deck: Deck; stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number } }> {
         console.log('📤 Uploading files for Exam Solver...');
 
         // Chiamata API con FormData
+        const csrfHeader = await getCsrfHeader();
         const response = await fetch(`/api${this.baseUrl}/exam-solver`, {
             method: 'POST',
             body: formData,
             credentials: 'include', // Include cookies per auth
+            headers: csrfHeader,
         });
 
         console.log('📥 Response status:', response.status);

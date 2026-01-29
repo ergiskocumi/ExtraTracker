@@ -17,10 +17,10 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
     setDeckTitle,
     selectedDeckId,
     setSelectedDeckId,
-    selectedGoalId,
-    setSelectedGoalId,
-    goals,
-    isLoadingGoals,
+    selectedExamId,
+    setSelectedExamId,
+    exams,
+    isLoadingExams,
     existingDecks,
     error,
     onBack,
@@ -67,7 +67,7 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                     )}
                 </div>
 
-                {/* Input titolo e goal (nuovo mazzo) */}
+                {/* Input titolo e esame (nuovo mazzo) */}
                 {deckMode === 'new' && (
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
@@ -89,28 +89,28 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                         
                         <div className="space-y-2">
                             <label className="block text-sm font-medium text-white/80">
-                                Esame / Obiettivo <span className="text-red-400">*</span>
+                                Esame associato
                             </label>
-                            {isLoadingGoals ? (
+                            {isLoadingExams ? (
                                 <div className="px-4 py-3 rounded-xl bg-zinc-900/60 border border-white/10 flex items-center gap-2">
                                     <Loader2 className="w-4 h-4 text-white/60 animate-spin" />
                                     <span className="text-sm text-white/60">Caricamento esami...</span>
                                 </div>
                             ) : (
                                 <select
-                                    value={selectedGoalId}
-                                    onChange={(e) => setSelectedGoalId(e.target.value)}
+                                    value={selectedExamId}
+                                    onChange={(e) => setSelectedExamId(e.target.value)}
                                     className="w-full px-4 py-3 rounded-xl bg-zinc-900/60 border border-white/10 text-white focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
                                 >
                                     <option value="">Seleziona un esame...</option>
-                                    {goals.map((goal) => (
-                                        <option key={goal.id} value={goal.id}>
-                                            {goal.title}
+                                    {exams.map((exam) => (
+                                        <option key={exam.id} value={exam.id}>
+                                            {exam.title}
                                         </option>
                                     ))}
                                 </select>
                             )}
-                            {goals.length === 0 && !isLoadingGoals && (
+                            {exams.length === 0 && !isLoadingExams && (
                                 <p className="text-xs text-white/50">
                                     Nessun esame attivo trovato. Crea un esame dalla dashboard.
                                 </p>

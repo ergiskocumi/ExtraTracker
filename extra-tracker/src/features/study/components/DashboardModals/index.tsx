@@ -3,7 +3,7 @@ import { CreateDeckModal } from '../Modals/CreateDeckModal';
 import { AddCardModal } from '../AddCardModal';
 import { MagicGenerateModal } from '../Modals/MagicGenerateModal';
 import { ExamSolverModal, type ExamSolverStats } from '../Modals/ExamSolver';
-import { StudyModeSelector, type StudyMode } from '../Modals/StudyModeSelector';
+import { StudyModeSelector, type StudyStartConfig } from '../Modals/StudyModeSelector';
 import { ConfirmationModal } from '../../../../shared/components/ConfirmationModal';
 import type { Deck, CreateDeckPayload, AddCardPayload } from '../../services/studyService';
 
@@ -31,13 +31,13 @@ interface DashboardModalsProps {
     onExamSolverClose: () => void;
     onExamSolverSuccess: (deckId: string, stats: ExamSolverStats) => Promise<void>;
     existingDecks?: Array<{ id: string; title: string }>;
-    goalId?: string;
+    examId?: string;
 
     // Study Mode Selector
     isStudyModeOpen: boolean;
     studyDeck: Deck | null;
     onStudyModeClose: () => void;
-    onStartSession: (config: { mode: StudyMode; shuffle: boolean; reverse: boolean }) => void;
+    onStartSession: (config: StudyStartConfig) => void;
 
     // Delete Confirmation Modal
     deletingDeck: Deck | null;
@@ -62,7 +62,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = ({
     onExamSolverClose,
     onExamSolverSuccess,
     existingDecks = [],
-    goalId,
+    examId,
     isStudyModeOpen,
     studyDeck,
     onStudyModeClose,
@@ -101,7 +101,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = ({
                 onClose={onExamSolverClose}
                 onSuccess={onExamSolverSuccess}
                 existingDecks={existingDecks}
-                goalId={goalId}
+                examId={examId}
                 preselectedDeckId={examSolverDeckId || undefined}
             />
 

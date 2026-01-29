@@ -29,24 +29,20 @@ const { initRedis, closeRedis } = require('./config/redis');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const { errorHandler } = require('./middleware/errorHandler');
 const requestLogger = require('./middleware/requestLogger');
+const { ensureCsrfCookie, requireCsrf } = require('./middleware/csrf');
 const logger = require('./utils/logger');
-
-// Subscribers (Pattern Observer)
-const { initializeSubscribers } = require('./subscribers/activitySubscriber');
-
-// Queue e Metriche
-const { initializeQueue, closeQueue } = require('./queues/activityQueue');
-const eventMetrics = require('./utils/eventMetrics');
+const { migrateExamsFromGoals } = require('./utils/migrateExamsFromGoals');
 
 // Routes
 const apiRoutes = require('./routes/api');
-const goalsRoutes = require('./routes/goals');
+const examsRoutes = require('./routes/exams');
 const studyRoutes = require('./routes/study');
 const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
-const analyticsRoutes = require('./routes/analytics');
 const dashboardRoutes = require('./routes/dashboard');
 const sseRoutes = require('./routes/sse');
+const { userRoutes: feedbackUserRoutes, adminRoutes: feedbackAdminRoutes } = require('./routes/feedback');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = envConfig.server.port;
@@ -107,6 +103,10 @@ app.use(express.urlencoded({ extended: true, limit: envConfig.bodyParser.urlenco
 
 app.use(cookieParser());
 
+// CSRF: set cookie if missing + validate state-changing requests
+app.use('/api', ensureCsrfCookie);
+app.use('/api', requireCsrf);
+
 // ==========================================
 // 5. RATE LIMITING
 // ==========================================
@@ -145,11 +145,13 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
-app.use('/api/analytics', analyticsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/sse', sseRoutes);
+app.use('/api/feedback', feedbackUserRoutes);
+app.use('/api/admin/feedback', feedbackAdminRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api', apiRoutes);
-app.use('/api', goalsRoutes);
+app.use('/api/exams', examsRoutes);
 app.use('/api/study', studyRoutes);
 
 app.get('/', (req, res) => {
@@ -193,6 +195,7 @@ const connectDB = async () => {
             serverSelectionTimeoutMS: envConfig.database.serverSelectionTimeoutMS,
         });
         logger.success('Server', 'Connesso al database MongoDB');
+        await migrateExamsFromGoals();
     } catch (err) {
         logger.error('Server', 'Errore connessione database', err);
         if (isProduction) process.exit(1);
@@ -206,9 +209,6 @@ const connectDB = async () => {
 const gracefulShutdown = async (signal) => {
     logger.warn('Server', `Ricevuto ${signal}. Chiusura graceful...`);
     try {
-        // Chiudi queue gracefulmente
-        await closeQueue();
-        
         // Chiudi Redis
         await closeRedis();
         
@@ -237,31 +237,10 @@ const startServer = async () => {
     // Connetti a MongoDB
     await connectDB();
     
-    // Inizializza activity queue (con retry automatico)
-    // Deve essere fatto dopo la connessione a Redis
-    initializeQueue();
-    
-    // Inizializza subscribers (Pattern Observer)
-    // Deve essere fatto dopo la connessione al DB
-    initializeSubscribers();
-    
-    // Log metriche (configurabile)
-    if (envConfig.monitoring.enableEventMetricsLogging) {
-        setInterval(() => {
-            const summary = eventMetrics.getSummary();
-            logger.debug('EventMetrics', 'Summary', summary);
-        }, envConfig.monitoring.eventMetricsInterval);
-    }
-    
     app.listen(PORT, () => {
         logger.success('Server', `Server in ascolto sulla porta ${PORT}`);
         logger.info('Server', `Environment: ${envConfig.server.nodeEnv}`);
         logger.info('Server', 'Security: Helmet, CORS, Rate Limiting attivi');
-        logger.info('Server', 'Event Bus: Pattern Observer attivo');
-        logger.info('Server', 'Activity Queue: Retry automatico attivo');
-        if (envConfig.monitoring.enableEventMetricsLogging) {
-            logger.info('Server', 'Event Metrics: Monitoring attivo');
-        }
     });
 };
 

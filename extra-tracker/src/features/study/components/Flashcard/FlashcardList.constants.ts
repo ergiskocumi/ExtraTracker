@@ -53,11 +53,11 @@ export const ANIMATION_CONFIG = {
         },
     },
     dragOverlay: {
-        scale: 1.1,
-        rotate: 3,
+        scale: 1.02,
+        rotate: 0,
         transition: {
-            duration: 0.2,
-            ease: 'easeOut' as const,
+            duration: 0.12,
+            ease: 'linear' as const,
         },
     },
 } as const;
@@ -68,19 +68,19 @@ export const ANIMATION_CONFIG = {
 
 export const HEADER_STYLES = {
     container: {
-        padding: 'px-4 py-3',
-        border: 'border-b border-white/[0.08]',
-        backdrop: 'backdrop-blur-sm',
+        padding: 'px-4 pt-4 pb-2',
+        border: '',
+        backdrop: '',
         layout: 'flex items-center justify-between flex-shrink-0',
-        gap: 'gap-2',
+        gap: 'gap-3',
     },
     badge: {
         display: 'inline-block',
         padding: 'px-2.5 py-1',
         borderRadius: 'rounded-full',
-        background: 'bg-violet-500/10',
-        border: 'border border-violet-500/20',
-        text: 'text-violet-400 text-[10px] font-medium',
+        background: 'bg-violet-500/15',
+        border: 'border border-violet-500/30',
+        text: 'text-violet-200 text-[10px] font-semibold uppercase tracking-wider',
     },
     backButton: {
         layout: 'flex items-center gap-2',
@@ -90,13 +90,13 @@ export const HEADER_STYLES = {
         text: 'text-white/80',
         hover: {
             text: 'hover:text-white',
-            background: 'hover:bg-white/20',
-            border: 'hover:border-white/30',
+            background: 'hover:bg-white/10',
+            border: 'hover:border-white/20',
         },
-        shadow: 'shadow-lg',
+        shadow: 'shadow-[0_6px_20px_rgba(0,0,0,0.25)]',
         borderRadius: 'rounded-xl',
-        background: 'bg-white/10',
-        border: 'border border-white/20',
+        background: 'bg-white/5',
+        border: 'border border-white/10',
         transition: 'transition-all duration-300',
         active: 'active:scale-95',
     },
@@ -106,9 +106,9 @@ export const HEADER_STYLES = {
         fontSize: 'text-sm',
         fontWeight: 'font-medium',
         text: 'text-white',
-        shadow: 'shadow-lg shadow-violet-500/20',
+        shadow: 'shadow-lg shadow-violet-500/25',
         borderRadius: 'rounded-xl',
-        background: 'bg-gradient-to-r from-violet-500 to-fuchsia-500',
+        background: 'bg-gradient-to-r from-violet-500/80 to-fuchsia-500/80',
         hover: {
             background: 'hover:from-violet-400 hover:to-fuchsia-400',
         },
@@ -165,13 +165,13 @@ export const EMPTY_STATE_STYLES = {
 
 export const DRAG_OVERLAY_STYLES = {
     container: {
-        scale: 'scale-110',
-        rotate: 'rotate-3',
-        shadow: 'shadow-2xl',
+        scale: 'scale-[1.02]',
+        rotate: '',
+        shadow: 'shadow-[0_12px_30px_rgba(0,0,0,0.25)]',
         cursor: 'cursor-grabbing',
-        transition: 'transition-all duration-200 ease-out',
-        boxShadow: '0 25px 50px -12px rgba(139, 92, 246, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-        filter: 'drop-shadow(0 30px 60px -15px rgba(0, 0, 0, 0.4))',
+        transition: 'transition-transform duration-100 ease-linear',
+        boxShadow: '0 12px 30px rgba(0, 0, 0, 0.25)',
+        filter: 'drop-shadow(0 10px 30px rgba(0, 0, 0, 0.35))',
     },
     listView: {
         layout: 'flex items-start gap-3',
@@ -208,9 +208,9 @@ export const LIST_STYLES = {
 
 export const CONTENT_STYLES = {
     container: {
-        flex: 'flex-1',
+        flex: 'flex-1 min-w-0',
         padding: 'p-3 md:p-4',
-        overflow: 'overflow-y-auto overscroll-contain',
+        overflow: 'overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-macos',
     },
 } as const;
 

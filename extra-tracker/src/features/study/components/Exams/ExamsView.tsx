@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Plus, Loader2, CheckCircle } from 'lucide-react';
-import type { Goal } from '../../../goals/types';
+import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
 import { ExamCard } from './ExamCard';
 import { ExamsFilters, type ExamSortOption, type ExamFilterOption } from './ExamsFilters';
 import { UnassignedDecksSection } from './UnassignedDecksSection';
 import { SearchResults } from './SearchResults';
-import goalsService from '../../../goals/services/goalsService';
+import examService from '../../services/examService';
 import type { Tag } from '../../services/tagsService';
 import { ConfirmationModal } from '../../../../shared/components/ConfirmationModal';
 import { emitToast } from '../../../../shared/components/toast';
@@ -55,7 +55,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
     onTogglePin,
     onReactivateExam,
 }) => {
-    const [exams, setExams] = useState<Goal[]>([]);
+    const [exams, setExams] = useState<Exam[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -70,11 +70,8 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
         try {
             setIsLoading(true);
             setError(null);
-            const allGoals = await goalsService.getAll();
-            // Filtra solo gli esami (goals con category='learning')
-            // Ora includiamo tutti gli status, non solo 'active'
-            const learningGoals = allGoals.filter(g => g.category === 'learning');
-            setExams(learningGoals);
+            const allExams = await examService.getAll();
+            setExams(allExams);
         } catch (err: any) {
             setError(err.message || 'Errore nel caricamento degli esami');
         } finally {
@@ -114,7 +111,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             setExams(prev => prev.filter(exam => exam.id !== pendingDeleteExamId));
             
             // Chiama l'API
-            await goalsService.delete(pendingDeleteExamId);
+            await examService.delete(pendingDeleteExamId);
             
             // Toast di successo
             emitToast.success('Esame eliminato correttamente');
@@ -135,12 +132,12 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
 
     const pendingDeleteExam = exams.find(exam => exam.id === pendingDeleteExamId);
     const pendingDeleteExamTitle = pendingDeleteExam?.title || 'questo esame';
-    const pendingDeleteExamDecks = pendingDeleteExam ? decks.filter(d => d.goalId === pendingDeleteExamId) : [];
+    const pendingDeleteExamDecks = pendingDeleteExam ? decks.filter(d => d.examId === pendingDeleteExamId) : [];
     const pendingDeleteExamCards = pendingDeleteExamDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
 
     // Calcola statistiche per ogni esame
     const getExamStats = (examId: string) => {
-        const examDecks = decks.filter(d => d.goalId === examId);
+        const examDecks = decks.filter(d => d.examId === examId);
         const totalCards = examDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
         const dueCards = examDecks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
         

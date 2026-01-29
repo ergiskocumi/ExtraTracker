@@ -141,7 +141,7 @@ export function DeleteAccountSection({
                     </h3>
                     <p className="text-[15px] text-white/70 leading-relaxed">
                         Eliminare il tuo account è un'azione permanente e irreversibile. Tutti i tuoi dati, 
-                        obiettivi, progetti e attività verranno eliminati definitivamente.
+                        esami, progetti e attività verranno eliminati definitivamente.
                     </p>
                 </div>
             </div>

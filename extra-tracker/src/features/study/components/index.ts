@@ -11,7 +11,7 @@ export { FlashcardCarousel } from './Flashcard/FlashcardCarousel';
 // Modals
 export { CreateDeckModal } from './Modals/CreateDeckModal';
 export { MagicGenerateModal } from './Modals/MagicGenerateModal';
-export { StudyModeSelector, type StudyMode } from './Modals/StudyModeSelector';
+export { StudyModeSelector, type StudyMode, type StudyStartConfig } from './Modals/StudyModeSelector';
 
 // Study components
 export { StudySidebar, CardModal } from './Study/StudySidebar';
@@ -22,11 +22,9 @@ export { TypingView } from './Study/TypingView';
 export { PDFChat } from './PDF/PDFChat';
 
 // Deck components
-export { DeckAnalytics } from './Deck/DeckAnalytics';
 export { DeckGrid } from './Deck/DeckGrid';
 export { DeckSettings } from './Deck/DeckSettings';
 export { DeckNotifications } from './Deck/DeckNotifications';
-export { PerformanceCharts } from './Deck/PerformanceCharts';
 
 // Organization components
 export { FolderTree } from './Organization/FolderTree';

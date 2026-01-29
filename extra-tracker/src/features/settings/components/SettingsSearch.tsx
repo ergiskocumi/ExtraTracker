@@ -12,7 +12,7 @@ interface SearchableItem {
     id: string;
     label: string;
     description: string;
-    category: 'profile' | 'preferences' | 'security' | 'account';
+    category: 'profile' | 'preferences' | 'security' | 'account' | 'feedback';
     keywords: string[];
 }
 
@@ -38,6 +38,10 @@ const searchableItems: SearchableItem[] = [
     // Account
     { id: 'export', label: 'Esporta dati', description: 'Scarica i tuoi dati', category: 'account', keywords: ['export', 'esporta', 'dati', 'data'] },
     { id: 'delete', label: 'Elimina account', description: 'Rimuovi account permanentemente', category: 'account', keywords: ['delete', 'elimina', 'rimuovi', 'account'] },
+
+    // Feedback
+    { id: 'feedback-list', label: 'I miei feedback', description: 'Stato delle segnalazioni', category: 'feedback', keywords: ['feedback', 'ticket', 'segnalazioni', 'bug'] },
+    { id: 'feedback-new', label: 'Nuovo feedback', description: 'Invia una nuova segnalazione', category: 'feedback', keywords: ['nuovo', 'segnala', 'problema', 'idea'] },
 ];
 
 interface SettingsSearchProps {
@@ -149,6 +153,7 @@ export const SettingsSearch = ({ onSelect, isOpen, onClose }: SettingsSearchProp
                                         {category === 'preferences' && 'Preferenze'}
                                         {category === 'security' && 'Sicurezza'}
                                         {category === 'account' && 'Account'}
+                                        {category === 'feedback' && 'Feedback'}
                                     </p>
                                     {items.map((item) => {
                                         const globalIndex = filteredItems.indexOf(item);

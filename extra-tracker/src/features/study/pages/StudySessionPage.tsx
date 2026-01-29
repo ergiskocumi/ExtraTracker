@@ -22,9 +22,8 @@ import { FiArrowLeft, FiX } from 'react-icons/fi';
 import { Flashcard, FlashcardSkeleton } from '../components/Flashcard/Flashcard';
 import { QuizView } from '../components/Study/QuizView';
 import { TypingView } from '../components/Study/TypingView';
-import { studyService, type StudySession, type ReviewRating, type StudyMode, type Card } from '../services/studyService';
+import { studyService, type StudySession, type ReviewRating, type StudyMode, type Card, type SessionFocus, type SessionLength, type SessionDirection } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
-import { SessionSummaryModal, type SessionSummary } from '../../gamification/SessionSummaryModal';
 import { useAuth } from '../../auth/context/AuthContext';
 
 // ============================================
@@ -99,15 +98,6 @@ const RatingButton: React.FC<RatingButtonProps> = ({
 // UTILITIES
 // ============================================
 
-const shuffleArray = <T,>(values: T[]): T[] => {
-    const arr = [...values];
-    for (let i = arr.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-};
-
 const normalizeAnswer = (value: string) => {
     return value
         .toLowerCase()
@@ -172,27 +162,48 @@ const calculateSimilarity = (userAnswer: string, realAnswer: string) => {
     return { correct: similarity >= 0.85, similarity };
 };
 
-const SESSION_BASE_XP = 10;
+const STUDY_MODES: StudyMode[] = ['flashcard', 'quiz', 'typing', 'mix', 'sprint', 'focus', 'exam'];
+const FOCUS_OPTIONS: SessionFocus[] = ['smart', 'due', 'weak', 'all'];
+const LENGTH_OPTIONS: SessionLength[] = ['short', 'standard', 'deep'];
+const DIRECTION_OPTIONS: SessionDirection[] = ['front', 'back', 'mixed'];
 
-const calculateSessionXpBreakdown = (
-    correctCount: number,
-    wrongCount: number,
-    timeSpentSeconds: number
-) => {
-    const totalCards = correctCount + wrongCount;
-    const timePerCard = totalCards > 0 ? timeSpentSeconds / totalCards : 0;
-    const speedBonus = timePerCard > 0
-        ? Math.max(0, Math.round(10 - timePerCard / 3))
-        : 0;
-    const correctXp = correctCount * 2;
+const LENGTH_TO_LIMIT: Record<SessionLength, number> = {
+    short: 10,
+    standard: 20,
+    deep: 35,
+};
 
-    return {
-        base: SESSION_BASE_XP,
-        correct: correctXp,
-        speedBonus,
-        streakBonus: 0,
-        total: SESSION_BASE_XP + correctXp + speedBonus,
-    };
+const hashString = (value: string) => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+        hash = (hash * 31 + value.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+};
+
+const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const buildFallbackCardModes = (cards: Card[], mode: StudyMode): Record<string, StudyMode> | undefined => {
+    if (mode !== 'mix' && mode !== 'exam') return undefined;
+    const cycle: StudyMode[] = ['quiz', 'typing', 'flashcard'];
+    return cards.reduce<Record<string, StudyMode>>((acc, card, index) => {
+        acc[card.id] = cycle[index % cycle.length];
+        return acc;
+    }, {});
+};
+
+const MODE_LABELS: Record<StudyMode, string> = {
+    flashcard: 'Flashcards',
+    quiz: 'Quiz',
+    typing: 'Typing',
+    mix: 'Mix',
+    sprint: 'Sprint',
+    focus: 'Focus',
+    exam: 'Esame',
 };
 
 // ============================================
@@ -212,12 +223,38 @@ export const StudySessionPage: React.FC = () => {
     const { checkAuth } = useAuth();
     const [searchParams] = useSearchParams();
     const requestedMode = (searchParams.get('mode') || 'flashcard').toLowerCase();
-    const mode: StudyMode = ['flashcard', 'quiz', 'typing'].includes(requestedMode)
+    const mode: StudyMode = STUDY_MODES.includes(requestedMode as StudyMode)
         ? (requestedMode as StudyMode)
         : 'flashcard';
-    const shuffle = searchParams.get('shuffle') === 'true';
-    const reverse = searchParams.get('reverse') === 'true';
-    const effectiveReverse = mode === 'quiz' ? false : reverse;
+    const focusParam = (searchParams.get('focus') || 'smart').toLowerCase();
+    const baseFocus: SessionFocus = FOCUS_OPTIONS.includes(focusParam as SessionFocus)
+        ? (focusParam as SessionFocus)
+        : 'smart';
+    const focus: SessionFocus = mode === 'exam'
+        ? 'all'
+        : mode === 'focus'
+            ? 'weak'
+            : baseFocus;
+    const lengthParam = (searchParams.get('length') || 'standard').toLowerCase();
+    const length: SessionLength = LENGTH_OPTIONS.includes(lengthParam as SessionLength)
+        ? (lengthParam as SessionLength)
+        : 'standard';
+    const directionParam = (searchParams.get('direction') || 'front').toLowerCase();
+    const direction: SessionDirection = DIRECTION_OPTIONS.includes(directionParam as SessionDirection)
+        ? (directionParam as SessionDirection)
+        : 'front';
+    const questionCountParam = Number(searchParams.get('questions') ?? 0);
+    const questionCount = Number.isFinite(questionCountParam) && questionCountParam > 0
+        ? questionCountParam
+        : mode === 'exam'
+            ? 30
+            : 0;
+    const timeLimitMinutesParam = Number(searchParams.get('time') ?? 0);
+    const timeLimitMinutes = Number.isFinite(timeLimitMinutesParam) && timeLimitMinutesParam > 0
+        ? timeLimitMinutesParam
+        : 0;
+    const limit = mode === 'exam' ? questionCount : LENGTH_TO_LIMIT[length];
+    const timeLimitSeconds = timeLimitMinutes > 0 ? timeLimitMinutes * 60 : null;
 
     // State
     const [session, setSession] = useState<StudySession | null>(null);
@@ -228,6 +265,7 @@ export const StudySessionPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [startTime, setStartTime] = useState(Date.now());
+    const [timeLeftSeconds, setTimeLeftSeconds] = useState<number | null>(null);
 
     // Stats per la sessione
     const [sessionStats, setSessionStats] = useState({
@@ -239,15 +277,16 @@ export const StudySessionPage: React.FC = () => {
     });
     const sessionStatsRef = useRef(sessionStats);
     
-    // Summary state
-    const [summary, setSummary] = useState<SessionSummary | null>(null);
-    const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [isFinalizing, setIsFinalizing] = useState(false);
 
     // REFACTOR: Usa ref locale + globale per tracciare completamento
     const isSessionCompleteRef = useRef(false);
     const hasLoadedSessionRef = useRef(false);
-    const sessionKey = deckId ? `${deckId}-${mode}` : null;
+    const hasStudiedAnyCardRef = useRef(false); // Traccia se l'utente ha studiato almeno una carta
+    const sessionKey = deckId
+        ? `${deckId}-${mode}-${focus}-${length}-${questionCount}-${timeLimitMinutes}-${direction}`
+        : null;
+    const startTimeRef = useRef(Date.now()); // Ref per startTime (non cambia durante la sessione)
 
     const updateSessionStats = useCallback((updater: (prev: typeof sessionStats) => typeof sessionStats) => {
         const next = updater(sessionStatsRef.current);
@@ -261,10 +300,9 @@ export const StudySessionPage: React.FC = () => {
 
             // Se la sessione è già completa (globale o locale), non ricaricare MAI
             if (isSessionCompleteRef.current || globalCompletedSessions.has(sessionKey)) {
-                // Se la sessione è completata ma non abbiamo summary, naviga al dettaglio mazzo (evita loop)
-                if (!summary && deckId) {
+                if (deckId) {
                     setTimeout(() => navigate(`/study/deck/${deckId}`), 100);
-                } else if (!summary) {
+                } else {
                     setTimeout(() => navigate('/study'), 100);
                 }
                 return;
@@ -285,7 +323,14 @@ export const StudySessionPage: React.FC = () => {
             try {
                 setIsLoading(true);
                 setError(null);
-                const data = await studyService.getSession(deckId, mode);
+                const data = await studyService.getSession(deckId, {
+                    mode,
+                    focus,
+                    limit,
+                    timeLimitMinutes: timeLimitMinutes || undefined,
+                    questionCount: questionCount || undefined,
+                    direction,
+                });
 
                 if (data.cards.length === 0) {
                     emitToast.info('Nessuna carta da studiare in questo mazzo!');
@@ -294,12 +339,17 @@ export const StudySessionPage: React.FC = () => {
                     return;
                 }
 
-                const orderedCards = shuffle ? shuffleArray(data.cards) : data.cards;
-                setSession({ ...data, cards: orderedCards });
+                const orderedCards = data.cards;
+                const cardModes = data.cardModes ?? buildFallbackCardModes(orderedCards, mode);
+                setSession({ ...data, cards: orderedCards, cardModes });
                 setCurrentCardIndex(0);
                 setIsFlipped(false);
                 setExitDirection(null);
-                setStartTime(Date.now());
+                const now = Date.now();
+                setStartTime(now);
+                startTimeRef.current = now;
+                setTimeLeftSeconds(timeLimitSeconds);
+                hasStudiedAnyCardRef.current = false;
                 updateSessionStats(() => ({
                     total: orderedCards.length,
                     hard: 0,
@@ -317,16 +367,24 @@ export const StudySessionPage: React.FC = () => {
         };
 
         loadSession();
-    }, [deckId, mode, shuffle, sessionKey]); // Rimosso navigate e updateSessionStats dalle dipendenze
+    }, [deckId, mode, focus, length, questionCount, timeLimitMinutes, direction, sessionKey]); // Rimosso navigate e updateSessionStats dalle dipendenze
 
     // Carta corrente
     const currentCard = session?.cards[currentCardIndex] ?? null;
+    const baseMode: StudyMode = mode === 'sprint' || mode === 'focus' ? 'flashcard' : mode;
+    const currentCardMode: StudyMode = currentCard
+        ? (session?.cardModes?.[currentCard.id] ?? (mode === 'mix' || mode === 'exam' ? 'flashcard' : baseMode))
+        : baseMode;
+    const isFlashcardMode = currentCardMode === 'flashcard';
+    const isQuizMode = currentCardMode === 'quiz';
+    const isTypingMode = currentCardMode === 'typing';
+    const isExamMode = mode === 'exam';
+    const shouldReverse = direction === 'back'
+        || (direction === 'mixed' && currentCard ? hashString(currentCard.id) % 2 === 1 : false);
+    const effectiveReverse = (isFlashcardMode || isTypingMode) && shouldReverse;
     const displayCard: Card | null = currentCard && effectiveReverse
         ? { ...currentCard, front: currentCard.back, back: currentCard.front }
         : currentCard;
-    const isFlashcardMode = mode === 'flashcard';
-    const isQuizMode = mode === 'quiz';
-    const isTypingMode = mode === 'typing';
 
     // REFACTOR: finalizeSession non chiama più checkAuth in modo sincrono
     const finalizeSession = useCallback(async (durationSeconds: number) => {
@@ -340,49 +398,30 @@ export const StudySessionPage: React.FC = () => {
         const statsSnapshot = sessionStatsRef.current;
         const correctCount = statsSnapshot.good + statsSnapshot.easy;
         const wrongCount = statsSnapshot.hard;
+        const totalCards = statsSnapshot.total || session.cards.length;
+        const unanswered = Math.max(0, totalCards - (correctCount + wrongCount));
+        const finalWrongCount = isExamMode ? wrongCount + unanswered : wrongCount;
 
         setIsFinalizing(true);
         isSessionCompleteRef.current = true; // Marca come completata IMMEDIATAMENTE (locale)
         globalCompletedSessions.add(sessionKey); // Marca come completata GLOBALMENTE (persiste tra remount)
 
         try {
-            const result = await studyService.completeSession(deckId, {
+            await studyService.completeSession(deckId, {
                 mode,
                 stats: {
                     correct: correctCount,
-                    wrong: wrongCount,
+                    wrong: finalWrongCount,
                     timeSeconds: durationSeconds,
                 },
             });
 
-            const fallbackBreakdown = calculateSessionXpBreakdown(
-                correctCount,
-                wrongCount,
-                durationSeconds
-            );
-            const breakdown = result.xpBreakdown ?? fallbackBreakdown;
-            const totalXp = Number.isFinite(result.xpEarned) ? result.xpEarned : breakdown.total;
-
-            setSummary({
-                correctCount,
-                wrongCount,
-                timeSpentSeconds: durationSeconds,
-                xp: {
-                    base: breakdown.base,
-                    correct: breakdown.correct,
-                    speedBonus: breakdown.speedBonus,
-                    streakBonus: breakdown.streakBonus,
-                    total: totalXp,
-                },
-                // Aggiungi statistiche dettagliate per il summary
-                stats: {
-                    hard: statsSnapshot.hard,
-                    good: statsSnapshot.good,
-                    easy: statsSnapshot.easy,
-                    totalCards: statsSnapshot.total,
-                },
-            });
-            setIsSummaryOpen(true);
+            emitToast.success('Sessione completata');
+            if (deckId) {
+                navigate(`/study/deck/${deckId}`);
+            } else {
+                navigate('/study');
+            }
 
             // REFACTOR: checkAuth chiamato in modo asincrono non bloccante
             // Non aspetta il risultato, così non causa re-render che triggerano useEffect
@@ -394,10 +433,150 @@ export const StudySessionPage: React.FC = () => {
             emitToast.error(err.message || 'Errore nel completamento della sessione');
             // Se fallisce, resetta il flag per permettere retry
             isSessionCompleteRef.current = false;
+            if (sessionKey) {
+                globalCompletedSessions.delete(sessionKey);
+            }
         } finally {
             setIsFinalizing(false);
         }
-    }, [deckId, session, isFinalizing, mode, checkAuth]);
+    }, [deckId, session, isFinalizing, mode, checkAuth, isExamMode, navigate]);
+
+    useEffect(() => {
+        if (!timeLimitSeconds || !session) {
+            setTimeLeftSeconds(null);
+            return;
+        }
+
+        let intervalId: number | null = null;
+        const tick = () => {
+            const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+            const remaining = Math.max(0, timeLimitSeconds - elapsed);
+            setTimeLeftSeconds(remaining);
+            if (remaining === 0) {
+                finalizeSession(elapsed);
+                if (intervalId !== null) {
+                    window.clearInterval(intervalId);
+                }
+            }
+        };
+
+        tick();
+        intervalId = window.setInterval(tick, 1000);
+        return () => {
+            if (intervalId !== null) {
+                window.clearInterval(intervalId);
+            }
+        };
+    }, [timeLimitSeconds, session, finalizeSession]);
+
+    // ============================================
+    // EARLY EXIT HANDLER - Salva sessione quando utente esce
+    // ============================================
+    useEffect(() => {
+        // Funzione per salvare la sessione quando l'utente esce
+        const saveSessionOnExit = async () => {
+            // Non salvare se:
+            // - Sessione già completata
+            // - Nessuna carta studiata
+            // - Nessun deckId valido
+            // - Sessione già marcata globalmente come completata
+            if (
+                isSessionCompleteRef.current ||
+                !hasStudiedAnyCardRef.current ||
+                !deckId ||
+                (sessionKey && globalCompletedSessions.has(sessionKey))
+            ) {
+                return;
+            }
+
+            const statsSnapshot = sessionStatsRef.current;
+            const cardsStudied = statsSnapshot.hard + statsSnapshot.good + statsSnapshot.easy;
+
+            // Se non ha studiato nessuna carta, non salvare
+            if (cardsStudied === 0) {
+                return;
+            }
+
+            const durationSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+            const correctCount = statsSnapshot.good + statsSnapshot.easy;
+            const wrongCount = statsSnapshot.hard;
+
+            // Marca come completata per evitare doppio salvataggio
+            isSessionCompleteRef.current = true;
+            if (sessionKey) {
+                globalCompletedSessions.add(sessionKey);
+            }
+
+            try {
+                // Usa sendBeacon per garantire che la richiesta venga completata anche se la pagina si chiude
+                const payload = {
+                    mode,
+                    stats: {
+                        correct: correctCount,
+                        wrong: wrongCount,
+                        timeSeconds: durationSeconds,
+                    },
+                };
+
+                // Prova prima con fetch normale (più affidabile per dati di risposta)
+                await studyService.completeSession(deckId, payload);
+                console.log('[StudySession] Sessione parziale salvata con successo');
+            } catch (err) {
+                console.error('[StudySession] Errore nel salvataggio sessione parziale:', err);
+                // Resetta i flag per permettere retry se l'utente torna
+                isSessionCompleteRef.current = false;
+                if (sessionKey) {
+                    globalCompletedSessions.delete(sessionKey);
+                }
+            }
+        };
+
+        // Handler per beforeunload (chiusura tab/browser)
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (
+                !isSessionCompleteRef.current &&
+                hasStudiedAnyCardRef.current &&
+                deckId
+            ) {
+                const statsSnapshot = sessionStatsRef.current;
+                const cardsStudied = statsSnapshot.hard + statsSnapshot.good + statsSnapshot.easy;
+
+                if (cardsStudied > 0) {
+                    const durationSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+                    const correctCount = statsSnapshot.good + statsSnapshot.easy;
+                    const wrongCount = statsSnapshot.hard;
+
+                    // Usa sendBeacon per inviare dati anche quando la pagina si chiude
+                    const payload = JSON.stringify({
+                        mode,
+                        stats: {
+                            correct: correctCount,
+                            wrong: wrongCount,
+                            timeSeconds: durationSeconds,
+                        },
+                    });
+
+                    navigator.sendBeacon(
+                        `/api/study/${deckId}/session-complete`,
+                        new Blob([payload], { type: 'application/json' })
+                    );
+
+                    // Mostra avviso (opzionale, alcuni browser lo ignorano)
+                    e.preventDefault();
+                    e.returnValue = 'Hai una sessione in corso. Sei sicuro di voler uscire?';
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        // Cleanup: salva sessione quando componente viene smontato (navigazione interna)
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            // Salva sessione in modo asincrono quando si esce dalla pagina
+            saveSessionOnExit();
+        };
+    }, [deckId, mode, sessionKey]);
 
     const advanceCard = useCallback(() => {
         if (!session || isSessionCompleteRef.current) return;
@@ -439,6 +618,9 @@ export const StudySessionPage: React.FC = () => {
                 good: prev.good + (rating === 3 ? 1 : 0),
                 easy: prev.easy + (rating === 5 ? 1 : 0),
             }));
+
+            // Marca che l'utente ha studiato almeno una carta
+            hasStudiedAnyCardRef.current = true;
 
             return true;
         } catch (err: any) {
@@ -514,7 +696,6 @@ export const StudySessionPage: React.FC = () => {
      * @returns {void}
      */
     const handleBackToDeck = useCallback(() => {
-        setIsSummaryOpen(false);
         if (deckId) {
             // Naviga al dettaglio del mazzo corrente
             navigate(`/study/deck/${deckId}`);
@@ -578,6 +759,11 @@ export const StudySessionPage: React.FC = () => {
     const progressPercent = session.cards.length > 0
         ? ((currentCardIndex + 1) / session.cards.length) * 100
         : 0;
+    const modeLabel = MODE_LABELS[mode];
+    const cardModeLabel = MODE_LABELS[currentCardMode];
+    const showCardMode = (mode === 'mix' || mode === 'exam') && currentCardMode !== mode;
+    const showTimer = timeLeftSeconds !== null;
+    const timerWarning = timeLeftSeconds !== null && timeLeftSeconds <= 60;
 
     return (
         <div className="fixed inset-0 z-50 bg-slate-950 overflow-hidden overflow-x-hidden">
@@ -595,12 +781,35 @@ export const StudySessionPage: React.FC = () => {
 
                 <div className="flex-1 mx-4 sm:mx-8">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-white/80">
-                            {session.deck.title}
-                        </span>
-                        <span className="text-xs text-white/40">
-                            {currentCardIndex + 1} / {session.cards.length}
-                        </span>
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-semibold text-white/80 truncate">
+                                {session.deck.title}
+                            </span>
+                            <span className="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/70">
+                                {modeLabel}
+                            </span>
+                            {showCardMode && (
+                                <span className="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/70">
+                                    {cardModeLabel}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-white/40">
+                            {showTimer && (
+                                <span
+                                    className={`rounded-full border px-2.5 py-1 text-[11px] ${
+                                        timerWarning
+                                            ? 'border-rose-400/40 bg-rose-500/15 text-rose-200'
+                                            : 'border-white/10 bg-white/5 text-white/70'
+                                    }`}
+                                >
+                                    {formatTimer(timeLeftSeconds ?? 0)}
+                                </span>
+                            )}
+                            <span>
+                                {currentCardIndex + 1} / {session.cards.length}
+                            </span>
+                        </div>
                     </div>
                     <div className="h-1.5 bg-white/[0.08] rounded-full overflow-hidden">
                         <motion.div
@@ -732,15 +941,6 @@ export const StudySessionPage: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            {/* Summary Modal */}
-            {summary && (
-                <SessionSummaryModal
-                    isOpen={isSummaryOpen}
-                    title={session?.deck.title ? `Sessione completata • ${session.deck.title}` : 'Sessione completata'}
-                    summary={summary}
-                    onClose={handleBackToDeck}
-                />
-            )}
         </div>
     );
 };

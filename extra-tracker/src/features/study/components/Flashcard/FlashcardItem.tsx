@@ -167,7 +167,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     const handleShowSource = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault();
-        
+
         if (onShowSource && card.sourceMetadata) {
             onShowSource(card);
         }

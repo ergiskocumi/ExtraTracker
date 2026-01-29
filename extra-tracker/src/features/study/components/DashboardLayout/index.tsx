@@ -2,7 +2,7 @@ import React from 'react';
 import { DashboardSidebar } from './DashboardSidebar';
 import { DashboardHeader } from './DashboardHeader';
 import type { Folder, Tag } from '../../services/foldersService';
-import type { Goal } from '../../../goals/types';
+import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
 
 interface DashboardLayoutProps {
@@ -11,7 +11,7 @@ interface DashboardLayoutProps {
     onSidebarToggle?: () => void;
     folders: Folder[];
     tags: Tag[];
-    exams?: Goal[]; // Esami (goals con category='learning')
+    exams?: Exam[];
     decks?: Deck[]; // Mazzi per calcolare statistiche
     selectedFolderId: string | null;
     selectedExamId?: string | null;

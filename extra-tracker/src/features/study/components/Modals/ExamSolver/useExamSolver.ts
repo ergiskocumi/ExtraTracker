@@ -7,8 +7,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
-import goalsService from '../../../../goals/services/goalsService';
-import type { Goal } from '../../../../goals/types';
+import { getCsrfHeader } from '../../../../../shared/services/apiClient';
+import examService from '../../../services/examService';
+import type { Exam } from '../../../types/exam';
 import type { 
     ExamSolverStats, 
     Step, 
@@ -22,7 +23,7 @@ export type { Step, ProgressStep, FlashcardWithId };
 export interface UseExamSolverProps {
     isOpen: boolean;
     existingDecks: Array<{ id: string; title: string }>;
-    goalId?: string;
+    examId?: string;
     preselectedDeckId?: string;
     onSuccess: (deckId: string, stats: ExamSolverStats) => void;
     onClose: () => void;
@@ -53,10 +54,10 @@ export interface UseExamSolverReturn {
     setDeckTitle: (title: string) => void;
     selectedDeckId: string;
     setSelectedDeckId: (id: string) => void;
-    selectedGoalId: string;
-    setSelectedGoalId: (id: string) => void;
-    goals: Goal[];
-    isLoadingGoals: boolean;
+    selectedExamId: string;
+    setSelectedExamId: (id: string) => void;
+    exams: Exam[];
+    isLoadingExams: boolean;
     
     // Progress
     progressStep: ProgressStep;
@@ -106,7 +107,7 @@ export interface UseExamSolverReturn {
 export const useExamSolver = ({
     isOpen,
     existingDecks,
-    goalId,
+    examId,
     preselectedDeckId,
     onSuccess,
     onClose,
@@ -126,9 +127,9 @@ export const useExamSolver = ({
     const [deckMode, setDeckMode] = useState<'new' | 'existing'>('new');
     const [deckTitle, setDeckTitle] = useState('');
     const [selectedDeckId, setSelectedDeckId] = useState<string>('');
-    const [goals, setGoals] = useState<Goal[]>([]);
-    const [selectedGoalId, setSelectedGoalId] = useState<string>('');
-    const [isLoadingGoals, setIsLoadingGoals] = useState(false);
+    const [exams, setExams] = useState<Exam[]>([]);
+    const [selectedExamId, setSelectedExamId] = useState<string>('');
+    const [isLoadingExams, setIsLoadingExams] = useState(false);
 
     // Progress
     const [progressStep, setProgressStep] = useState<ProgressStep>('idle');
@@ -152,6 +153,36 @@ export const useExamSolver = ({
     const startTimeRef = useRef<number | null>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+    const currentStepRef = useRef<Step>(currentStep);
+    const objectUrlRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        currentStepRef.current = currentStep;
+    }, [currentStep]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+            }
+            if (objectUrlRef.current) {
+                URL.revokeObjectURL(objectUrlRef.current);
+                objectUrlRef.current = null;
+            }
+        }
+
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+            }
+            if (objectUrlRef.current) {
+                URL.revokeObjectURL(objectUrlRef.current);
+                objectUrlRef.current = null;
+            }
+        };
+    }, [isOpen]);
 
     // ============================================
     // LOCALSTORAGE CACHE
@@ -172,7 +203,7 @@ export const useExamSolver = ({
         deckMode: 'new' | 'existing';
         deckTitle: string;
         selectedDeckId: string;
-        selectedGoalId: string;
+        selectedExamId: string;
         generatedFlashcards?: FlashcardWithId[];
         createdDeckId?: string;
     }
@@ -197,7 +228,7 @@ export const useExamSolver = ({
                 deckMode,
                 deckTitle,
                 selectedDeckId,
-                selectedGoalId,
+                selectedExamId,
                 generatedFlashcards: currentStep === 'review' ? generatedFlashcards : undefined,
                 createdDeckId: createdDeckId || undefined,
             };
@@ -217,7 +248,7 @@ export const useExamSolver = ({
         deckMode,
         deckTitle,
         selectedDeckId,
-        selectedGoalId,
+        selectedExamId,
         generatedFlashcards,
         createdDeckId,
     ]);
@@ -294,8 +325,8 @@ export const useExamSolver = ({
             setSelectedDeckId('');
         }
 
-        setGoals([]);
-        setSelectedGoalId(goalId || '');
+        setExams([]);
+        setSelectedExamId(examId || '');
         setProgressStep('idle');
         setProgressMessage('');
         setProgressCurrent(0);
@@ -306,10 +337,14 @@ export const useExamSolver = ({
         setCreatedDeckId('');
         setGeneratedFlashcards([]);
         setSourceFileUrl(null);
+        if (objectUrlRef.current) {
+            URL.revokeObjectURL(objectUrlRef.current);
+            objectUrlRef.current = null;
+        }
         startTimeRef.current = null;
         setShowRestorePrompt(false);
         setCachedSession(null);
-    }, [preselectedDeckId, existingDecks, goalId]);
+    }, [preselectedDeckId, existingDecks, examId]);
 
     // Restore from cache
     const restoreFromCache = useCallback((cache: ExamSolverCache) => {
@@ -319,7 +354,7 @@ export const useExamSolver = ({
         setDeckMode(cache.deckMode || 'new');
         setDeckTitle(cache.deckTitle || '');
         setSelectedDeckId(cache.selectedDeckId || '');
-        setSelectedGoalId(cache.selectedGoalId || goalId || '');
+        setSelectedExamId(cache.selectedExamId || examId || '');
 
         if (cache.generatedFlashcards) {
             setGeneratedFlashcards(cache.generatedFlashcards);
@@ -333,7 +368,7 @@ export const useExamSolver = ({
 
         emitToast.success('Sessione ripristinata!');
         console.log('✅ Sessione ripristinata da cache');
-    }, [goalId]);
+    }, [examId]);
 
     // Auto-save after state changes
     useEffect(() => {
@@ -348,7 +383,7 @@ export const useExamSolver = ({
         deckMode,
         deckTitle,
         selectedDeckId,
-        selectedGoalId,
+                selectedExamId,
         generatedFlashcards,
         saveCache,
     ]);
@@ -361,63 +396,34 @@ export const useExamSolver = ({
     }, [progressStep, createdDeckId, clearCache]);
 
     // ============================================
-    // LOAD GOALS
+    // LOAD EXAMS
     // ============================================
 
-    const loadGoals = useCallback(async () => {
+    const loadExams = useCallback(async () => {
         try {
-            setIsLoadingGoals(true);
-            const allGoals = await goalsService.getAll();
-            const activeGoals = allGoals.filter(g => g.status === 'active');
-            setGoals(activeGoals);
+            setIsLoadingExams(true);
+            const allExams = await examService.getAll();
+            const activeExams = allExams.filter(e => e.status === 'active');
+            setExams(activeExams);
             
-            // Auto-seleziona se c'è solo un goal o se goalId prop è disponibile
-            if (goalId && activeGoals.some(g => g.id === goalId)) {
-                setSelectedGoalId(goalId);
-            } else if (activeGoals.length === 1) {
-                setSelectedGoalId(activeGoals[0].id);
+            if (examId && activeExams.some(e => e.id === examId)) {
+                setSelectedExamId(examId);
+            } else if (activeExams.length === 1) {
+                setSelectedExamId(activeExams[0].id);
             }
         } catch (err) {
-            console.error('Failed to load goals:', err);
+            console.error('Failed to load exams:', err);
             emitToast.error('Errore nel caricamento degli esami');
         } finally {
-            setIsLoadingGoals(false);
+            setIsLoadingExams(false);
         }
-    }, [goalId]);
+    }, [examId]);
 
     useEffect(() => {
-        if (isOpen && deckMode === 'new' && goals.length === 0) {
-            loadGoals();
+        if (isOpen && deckMode === 'new' && exams.length === 0) {
+            loadExams();
         }
-    }, [isOpen, deckMode, goals.length, loadGoals]);
-
-    // ============================================
-    // TIMER LOGIC
-    // ============================================
-
-    useEffect(() => {
-        if (['extracting', 'analyzing', 'generating'].includes(progressStep)) {
-            if (!startTimeRef.current) {
-                startTimeRef.current = Date.now();
-            }
-            timerRef.current = setInterval(() => {
-                if (startTimeRef.current) {
-                    const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-                    // Timer visibile nel progress step (se necessario in futuro)
-                }
-            }, 1000);
-        } else {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-                timerRef.current = null;
-            }
-        }
-        return () => {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-            }
-        };
-    }, [progressStep]);
+    }, [isOpen, deckMode, exams.length, loadExams]);
 
     // ============================================
     // ACTIONS
@@ -464,10 +470,6 @@ export const useExamSolver = ({
         if (deckMode === 'new') {
             if (!deckTitle.trim()) {
                 setError('Inserisci un titolo per il nuovo mazzo');
-                return;
-            }
-            if (!selectedGoalId) {
-                setError('Seleziona un esame/obiettivo per il nuovo mazzo');
                 return;
             }
         }
@@ -524,18 +526,20 @@ export const useExamSolver = ({
                         if (deckTitle.trim()) {
                             formData.append('title', deckTitle.trim());
                         }
-                        if (selectedGoalId) {
-                            formData.append('goalId', selectedGoalId);
+                        if (selectedExamId) {
+                            formData.append('examId', selectedExamId);
                         }
                     }
 
                     // Crea nuovo AbortController per questo fetch
                     abortControllerRef.current = new AbortController();
 
+                    const csrfHeader = await getCsrfHeader();
                     const response = await fetch('/api/study/exam-solver/generate-answers', {
                         method: 'POST',
                         body: formData,
                         credentials: 'include',
+                        headers: csrfHeader,
                         signal: abortControllerRef.current.signal,
                     });
 
@@ -551,6 +555,9 @@ export const useExamSolver = ({
                     return response;
 
                 } catch (err: any) {
+                    if (err?.name === 'AbortError') {
+                        throw err;
+                    }
                     retryCount++;
                     const isLastAttempt = retryCount >= MAX_RETRIES;
 
@@ -630,7 +637,7 @@ export const useExamSolver = ({
                                     setGeneratedFlashcards(prev => [...prev, flashcardWithId]);
 
                                     // Auto-transizione a review quando arriva la prima flashcard
-                                    if (currentStep === 'progress') {
+                                    if (currentStepRef.current === 'progress') {
                                         setTimeout(() => {
                                             setCurrentStep('review');
                                             setProgressStep('completed');
@@ -654,18 +661,21 @@ export const useExamSolver = ({
                                 
                                 // Estrai sourceFileUrl dal deck (pdfUrl)
                                 const deckPdfUrl = data.deck?.pdfUrl;
+                                if (objectUrlRef.current) {
+                                    URL.revokeObjectURL(objectUrlRef.current);
+                                    objectUrlRef.current = null;
+                                }
                                 if (deckPdfUrl && typeof deckPdfUrl === 'string') {
                                     // Se è un path relativo, aggiungi il prefisso API se necessario
                                     const pdfUrl = deckPdfUrl.startsWith('http') 
                                         ? deckPdfUrl 
                                         : `/api${deckPdfUrl.startsWith('/') ? '' : '/'}${deckPdfUrl}`;
                                     setSourceFileUrl(pdfUrl);
-                                } else {
+                                } else if (sourceFile) {
                                     // Fallback: crea URL dal sourceFile se disponibile
-                                    if (sourceFile) {
-                                        const objectUrl = URL.createObjectURL(sourceFile);
-                                        setSourceFileUrl(objectUrl);
-                                    }
+                                    const objectUrl = URL.createObjectURL(sourceFile);
+                                    objectUrlRef.current = objectUrl;
+                                    setSourceFileUrl(objectUrl);
                                 }
                                 
                                 // Piccolo delay per assicurarsi che lo stato sia aggiornato
@@ -703,7 +713,7 @@ export const useExamSolver = ({
         deckMode,
         deckTitle,
         selectedDeckId,
-        selectedGoalId,
+        selectedExamId,
         selectedQuestions,
         extractedQuestions,
         onSuccess,
@@ -735,10 +745,12 @@ export const useExamSolver = ({
         formData.append('selectedQuestions', JSON.stringify([question]));
         formData.append('deckId', createdDeckId);
 
+        const csrfHeader = await getCsrfHeader();
         const response = await fetch('/api/study/exam-solver/generate-answers', {
             method: 'POST',
             body: formData,
             credentials: 'include',
+            headers: csrfHeader,
         });
 
         if (!response.ok) {
@@ -861,13 +873,13 @@ export const useExamSolver = ({
                 return selectedQuestions.size > 0;
             case 'config':
                 if (deckMode === 'new') {
-                    return deckTitle.trim().length > 0 && selectedGoalId.length > 0;
+                    return deckTitle.trim().length > 0;
                 }
                 return selectedDeckId.length > 0;
             default:
                 return false;
         }
-    }, [currentStep, questionsFile, sourceFile, selectedQuestions, deckMode, deckTitle, selectedGoalId, selectedDeckId]);
+    }, [currentStep, questionsFile, sourceFile, selectedQuestions, deckMode, deckTitle, selectedDeckId]);
 
     const canGoBack = currentStep !== 'upload' && currentStep !== 'progress' && currentStep !== 'review';
 
@@ -904,10 +916,10 @@ export const useExamSolver = ({
         setDeckTitle,
         selectedDeckId,
         setSelectedDeckId,
-        selectedGoalId,
-        setSelectedGoalId,
-        goals,
-        isLoadingGoals,
+        selectedExamId,
+        setSelectedExamId,
+        exams,
+        isLoadingExams,
         
         // Progress
         progressStep,

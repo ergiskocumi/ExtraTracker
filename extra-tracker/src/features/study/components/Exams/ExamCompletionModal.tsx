@@ -11,7 +11,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Trophy, AlertCircle, RotateCcw, Sparkles, RefreshCw, X } from 'lucide-react';
-import type { Goal, ExamOutcome } from '../../../goals/types';
+import type { Exam, ExamOutcome } from '../../types/exam';
 import { emitToast } from '../../../../shared/components/toast';
 
 // Dynamic import per canvas-confetti (opzionale)
@@ -34,7 +34,7 @@ const loadConfetti = async () => {
 
 interface ExamCompletionModalProps {
     isOpen: boolean;
-    exam: Goal;
+    exam: Exam;
     onClose: () => void;
     onComplete: (examId: string, outcome: ExamOutcome, status: 'passed' | 'failed') => Promise<void>;
     onResetCards?: (examId: string, type: 'all' | 'hard-only') => Promise<void>;

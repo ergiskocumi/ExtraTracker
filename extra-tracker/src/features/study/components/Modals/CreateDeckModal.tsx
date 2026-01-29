@@ -2,8 +2,8 @@
  * 🎴 CREATE DECK MODAL - Modale Premium per creazione mazzi
  * 
  * Features:
- * - Selezione goal esistente con dropdown elegante
- * - Creazione goal inline se non esistono
+ * - Selezione esame esistente con dropdown elegante
+ * - Creazione esame inline se non esistono
  * - Form validato con feedback visivo
  * - Animazioni fluide con framer-motion
  * - Design glassmorphism
@@ -22,8 +22,8 @@ import {
     FiTag,
     FiLayers
 } from 'react-icons/fi';
-import type { Goal } from '../../../goals/types';
-import goalsService from '../../../goals/services/goalsService';
+import type { Exam } from '../../types/exam';
+import examService from '../../services/examService';
 import type { CreateDeckPayload } from '../../services/studyService';
 
 // ============================================
@@ -37,7 +37,7 @@ interface CreateDeckModalProps {
     onExamCreated?: () => void; // Callback quando viene creato un nuovo esame
 }
 
-interface QuickGoalForm {
+interface QuickExamForm {
     title: string;
     deadline: string; // Data di scadenza in formato YYYY-MM-DD
 }
@@ -52,15 +52,15 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
     onSubmit,
     onExamCreated,
 }) => {
-    // Goal state
-    const [goals, setGoals] = useState<Goal[]>([]);
-    const [isLoadingGoals, setIsLoadingGoals] = useState(true);
-    const [selectedGoalId, setSelectedGoalId] = useState('');
-    const [isGoalDropdownOpen, setIsGoalDropdownOpen] = useState(false);
+    // Exam state
+    const [exams, setExams] = useState<Exam[]>([]);
+    const [isLoadingExams, setIsLoadingExams] = useState(true);
+    const [selectedExamId, setSelectedExamId] = useState('');
+    const [isExamDropdownOpen, setIsExamDropdownOpen] = useState(false);
 
-    // Quick goal creation
-    const [showQuickGoalForm, setShowQuickGoalForm] = useState(false);
-    const [quickGoal, setQuickGoal] = useState<QuickGoalForm>({ 
+    // Quick exam creation
+    const [showQuickExamForm, setShowQuickExamForm] = useState(false);
+    const [quickExam, setQuickExam] = useState<QuickExamForm>({ 
         title: '',
         deadline: (() => {
             // Default: 1 mese da oggi
@@ -69,7 +69,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
             return date.toISOString().split('T')[0];
         })()
     });
-    const [isCreatingGoal, setIsCreatingGoal] = useState(false);
+    const [isCreatingExam, setIsCreatingExam] = useState(false);
 
     // Deck form state
     const [title, setTitle] = useState('');
@@ -78,37 +78,35 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Load goals on mount
+    // Load exams on mount
     useEffect(() => {
         if (isOpen) {
-            loadGoals();
+            loadExams();
         }
     }, [isOpen]);
 
-    const loadGoals = async () => {
+    const loadExams = async () => {
         try {
-            setIsLoadingGoals(true);
-            const allGoals = await goalsService.getAll();
-            // Filter active goals, prioritize learning category
-            const activeGoals = allGoals.filter(g => g.status === 'active');
-            setGoals(activeGoals);
+            setIsLoadingExams(true);
+            const allExams = await examService.getAll();
+            const activeExams = allExams.filter(e => e.status === 'active');
+            setExams(activeExams);
             
-            // Auto-select if only one goal
-            if (activeGoals.length === 1) {
-                setSelectedGoalId(activeGoals[0].id);
+            if (activeExams.length === 1) {
+                setSelectedExamId(activeExams[0].id);
             }
         } catch (err) {
-            console.error('Failed to load goals:', err);
+            console.error('Failed to load exams:', err);
         } finally {
-            setIsLoadingGoals(false);
+            setIsLoadingExams(false);
         }
     };
 
-    const handleCreateQuickGoal = async () => {
-        if (!quickGoal.title.trim()) return;
+    const handleCreateQuickExam = async () => {
+        if (!quickExam.title.trim()) return;
 
         // Validazione data
-        const deadlineDate = new Date(quickGoal.deadline);
+        const deadlineDate = new Date(quickExam.deadline);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
@@ -117,27 +115,23 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
             return;
         }
 
-        setIsCreatingGoal(true);
+        setIsCreatingExam(true);
         setError(null);
 
         try {
-            // Create a learning goal (exam) with user-selected deadline
-            const deadline = new Date(quickGoal.deadline);
+            const deadline = new Date(quickExam.deadline);
             deadline.setHours(23, 59, 59, 999); // Fine della giornata
 
-            const newGoal = await goalsService.create({
-                title: quickGoal.title.trim(),
-                category: 'learning',
-                type: 'milestone',
+            const newExam = await examService.create({
+                title: quickExam.title.trim(),
                 deadline: deadline.toISOString(),
                 description: 'Esame creato per studio con Flashcards',
             });
 
-            // Add to list and select it
-            setGoals(prev => [...prev, newGoal]);
-            setSelectedGoalId(newGoal.id);
-            setShowQuickGoalForm(false);
-            setQuickGoal({ 
+            setExams(prev => [...prev, newExam]);
+            setSelectedExamId(newExam.id);
+            setShowQuickExamForm(false);
+            setQuickExam({ 
                 title: '',
                 deadline: (() => {
                     const date = new Date();
@@ -153,20 +147,20 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
         } catch (err: any) {
             setError(err.message || 'Errore nella creazione dell\'esame');
         } finally {
-            setIsCreatingGoal(false);
+            setIsCreatingExam(false);
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim() || !selectedGoalId) return;
+        if (!title.trim()) return;
 
         setIsSubmitting(true);
         setError(null);
 
         try {
             await onSubmit({
-                goalId: selectedGoalId,
+                examId: selectedExamId || undefined,
                 title: title.trim(),
                 description: description.trim() || undefined,
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -186,9 +180,9 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
         setTitle('');
         setDescription('');
         setTags('');
-        setSelectedGoalId('');
-        setShowQuickGoalForm(false);
-        setQuickGoal({ 
+        setSelectedExamId('');
+        setShowQuickExamForm(false);
+        setQuickExam({ 
             title: '',
             deadline: (() => {
                 const date = new Date();
@@ -204,7 +198,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
         onClose();
     };
 
-    const selectedGoal = goals.find(g => g.id === selectedGoalId);
+    const selectedExam = exams.find(g => g.id === selectedExamId);
 
     // ============================================
     // RENDER
@@ -280,25 +274,24 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                 )}
                             </AnimatePresence>
 
-                            {/* Goal Selection */}
+                            {/* Exam Selection */}
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-sm font-medium text-white/70">
                                     <FiTarget className="w-4 h-4" />
                                     Esame associato
-                                    <span className="text-red-400">*</span>
                                 </label>
 
-                                {isLoadingGoals ? (
+                                {isLoadingExams ? (
                                     <div className="h-14 rounded-xl bg-white/[0.03] animate-pulse" />
                                 ) : (
                                     <div className="relative">
                                         {/* Custom Dropdown */}
                                         <button
                                             type="button"
-                                            onClick={() => setIsGoalDropdownOpen(!isGoalDropdownOpen)}
+                                            onClick={() => setIsExamDropdownOpen(!isExamDropdownOpen)}
                                             className={`
                                                 w-full px-4 py-3.5 rounded-xl text-left transition-all flex items-center justify-between
-                                                ${selectedGoal
+                                                ${selectedExam
                                                     ? 'bg-primary-500/10 border-primary-500/30 text-white'
                                                     : 'bg-white/[0.03] border-white/[0.08] text-white/50'
                                                 }
@@ -306,14 +299,14 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                             `}
                                         >
                                             <span className="truncate">
-                                                {selectedGoal ? selectedGoal.title : 'Seleziona un esame...'}
+                                                {selectedExam ? selectedExam.title : 'Seleziona un esame...'}
                                             </span>
-                                            <FiChevronDown className={`w-5 h-5 transition-transform ${isGoalDropdownOpen ? 'rotate-180' : ''}`} />
+                                            <FiChevronDown className={`w-5 h-5 transition-transform ${isExamDropdownOpen ? 'rotate-180' : ''}`} />
                                         </button>
 
                                         {/* Dropdown Menu */}
                                         <AnimatePresence>
-                                            {isGoalDropdownOpen && (
+                                            {isExamDropdownOpen && (
                                                 <motion.div
                                                     initial={{ opacity: 0, y: -10 }}
                                                     animate={{ opacity: 1, y: 0 }}
@@ -325,27 +318,27 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                         boxShadow: '0 15px 40px -10px rgba(0,0,0,0.5)'
                                                     }}
                                                 >
-                                                    {goals.length > 0 ? (
+                                                    {exams.length > 0 ? (
                                                         <div className="max-h-48 overflow-y-auto">
-                                                            {goals.map(goal => (
+                                                            {exams.map(exam => (
                                                                 <button
-                                                                    key={goal.id}
+                                                                    key={exam.id}
                                                                     type="button"
                                                                     onClick={() => {
-                                                                        setSelectedGoalId(goal.id);
-                                                                        setIsGoalDropdownOpen(false);
+                                                                        setSelectedExamId(exam.id);
+                                                                        setIsExamDropdownOpen(false);
                                                                     }}
                                                                     className={`
                                                                         w-full px-4 py-3 text-left flex items-center gap-3 transition-colors
-                                                                        ${selectedGoalId === goal.id
+                                                                        ${selectedExamId === exam.id
                                                                             ? 'bg-primary-500/20 text-white'
                                                                             : 'text-white/70 hover:bg-white/[0.06]'
                                                                         }
                                                                     `}
                                                                 >
-                                                                    <FiTarget className={`w-4 h-4 ${selectedGoalId === goal.id ? 'text-primary-400' : 'text-white/40'}`} />
-                                                                    <span className="flex-1 truncate">{goal.title}</span>
-                                                                    {selectedGoalId === goal.id && (
+                                                                    <FiTarget className={`w-4 h-4 ${selectedExamId === exam.id ? 'text-primary-400' : 'text-white/40'}`} />
+                                                                    <span className="flex-1 truncate">{exam.title}</span>
+                                                                    {selectedExamId === exam.id && (
                                                                         <FiCheck className="w-4 h-4 text-primary-400" />
                                                                     )}
                                                                 </button>
@@ -354,17 +347,17 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                     ) : (
                                                         <div className="px-4 py-6 text-center text-white/40 text-sm">
                                                             <FiTarget className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                                            Nessun obiettivo trovato
+                                                            Nessun esame trovato
                                                         </div>
                                                     )}
 
-                                                    {/* Create Goal Button */}
+                                                    {/* Create Exam Button */}
                                                     <div className="border-t border-white/[0.08] mt-2 pt-2 px-2">
                                                         <button
                                                             type="button"
                                                             onClick={() => {
-                                                                setShowQuickGoalForm(true);
-                                                                setIsGoalDropdownOpen(false);
+                                                                setShowQuickExamForm(true);
+                                                                setIsExamDropdownOpen(false);
                                                             }}
                                                             className="w-full px-4 py-3 rounded-lg flex items-center gap-3 text-primary-400 hover:bg-primary-500/10 transition-colors text-sm font-medium"
                                                         >
@@ -378,9 +371,9 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                     </div>
                                 )}
 
-                                {/* Quick Goal Creation Form */}
+                                {/* Quick Exam Creation Form */}
                                 <AnimatePresence>
-                                    {showQuickGoalForm && (
+                                    {showQuickExamForm && (
                                         <motion.div
                                             initial={{ opacity: 0, height: 0 }}
                                             animate={{ opacity: 1, height: 'auto' }}
@@ -399,8 +392,8 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                     </label>
                                                     <input
                                                         type="text"
-                                                        value={quickGoal.title}
-                                                        onChange={e => setQuickGoal({ ...quickGoal, title: e.target.value })}
+                                                        value={quickExam.title}
+                                                        onChange={e => setQuickExam({ ...quickExam, title: e.target.value })}
                                                         placeholder="es. Analisi Matematica I"
                                                         className="w-full px-3 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/30 text-sm focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
                                                         autoFocus
@@ -414,8 +407,8 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                     </label>
                                                     <input
                                                         type="date"
-                                                        value={quickGoal.deadline}
-                                                        onChange={e => setQuickGoal({ ...quickGoal, deadline: e.target.value })}
+                                                        value={quickExam.deadline}
+                                                        onChange={e => setQuickExam({ ...quickExam, deadline: e.target.value })}
                                                         min={new Date().toISOString().split('T')[0]}
                                                         className="w-full px-3 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white text-sm focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all
                                                                    [color-scheme:dark]"
@@ -436,11 +429,11 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                 <div className="flex items-center gap-2 pt-2">
                                                     <button
                                                         type="button"
-                                                        onClick={handleCreateQuickGoal}
-                                                        disabled={!quickGoal.title.trim() || !quickGoal.deadline || isCreatingGoal}
+                                                        onClick={handleCreateQuickExam}
+                                                        disabled={!quickExam.title.trim() || !quickExam.deadline || isCreatingExam}
                                                         className="flex-1 px-4 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors"
                                                     >
-                                                        {isCreatingGoal ? (
+                                                        {isCreatingExam ? (
                                                             <motion.div
                                                                 animate={{ rotate: 360 }}
                                                                 transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
@@ -454,9 +447,9 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            setShowQuickGoalForm(false);
+                                                            setShowQuickExamForm(false);
                                                             setError(null);
-                                                            setQuickGoal({ 
+                                                            setQuickExam({ 
                                                                 title: '',
                                                                 deadline: (() => {
                                                                     const date = new Date();
@@ -532,7 +525,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                 </button>
                                 <motion.button
                                     type="submit"
-                                    disabled={!title.trim() || !selectedGoalId || isSubmitting}
+                                    disabled={!title.trim() || isSubmitting}
                                     whileHover={{ scale: 1.01 }}
                                     whileTap={{ scale: 0.99 }}
                                     className="flex-1 px-5 py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold shadow-lg shadow-primary-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all flex items-center justify-center gap-2"

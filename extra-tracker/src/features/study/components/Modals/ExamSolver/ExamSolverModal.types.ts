@@ -42,7 +42,7 @@ export interface ExamSolverModalProps {
     onClose: () => void;
     onSuccess: (deckId: string, stats: ExamSolverStats) => void;
     existingDecks?: Array<{ id: string; title: string }>;
-    goalId?: string; // ID goal per nuovo deck (opzionale)
+    examId?: string; // ID esame per nuovo deck (opzionale)
     preselectedDeckId?: string; // ID deck pre-selezionato (opzionale)
 }
 
@@ -121,10 +121,10 @@ export interface DeckConfigFormProps {
     setDeckTitle: (title: string) => void;
     selectedDeckId: string;
     setSelectedDeckId: (id: string) => void;
-    selectedGoalId: string;
-    setSelectedGoalId: (id: string) => void;
-    goals: Array<{ id: string; title: string }>;
-    isLoadingGoals: boolean;
+    selectedExamId: string;
+    setSelectedExamId: (id: string) => void;
+    exams: Array<{ id: string; title: string }>;
+    isLoadingExams: boolean;
     existingDecks: Array<{ id: string; title: string }>;
     error: string | null;
     onBack: () => void;

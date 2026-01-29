@@ -16,6 +16,7 @@ const AppError = require('../utils/AppError');
 const securityConfig = require('../config/security');
 const { MAX_ACTIVE_SESSIONS } = require('../config/security');
 const { getRedisClient, getRedisAvailable } = require('../config/redis');
+const { encryptString, decryptString } = require('../utils/encryption');
 
 // Durata grace period per race condition (30 secondi)
 const GRACE_PERIOD_MS = 30 * 1000;
@@ -325,8 +326,8 @@ class AuthService {
         const sessionData = {
             hash,
             device: deviceInfo.device || 'Unknown',
-            userAgent: deviceInfo.userAgent || 'Unknown',
-            ip: deviceInfo.ip || 'Unknown',
+            userAgent: encryptString(deviceInfo.userAgent || 'Unknown'),
+            ip: encryptString(deviceInfo.ip || 'Unknown'),
             createdAt: new Date(),
             lastUsedAt: new Date(),
         };
@@ -607,11 +608,14 @@ class AuthService {
 
         // Genera nuovi token (rotation) - mantieni stesso device info
         const newAccessToken = this.generateAccessToken(user);
+        const sessionUserAgent = decryptString(session.userAgent);
+        const sessionIp = decryptString(session.ip);
+
         const { token: newRefreshToken, sessionData: newSessionData } = 
             await this.generateRefreshToken(user, {
                 device: session.device,
-                userAgent: deviceInfo.userAgent || session.userAgent,
-                ip: deviceInfo.ip || session.ip,
+                userAgent: deviceInfo.userAgent || sessionUserAgent,
+                ip: deviceInfo.ip || sessionIp,
             });
 
         // IMPORTANTE: Aggiungi vecchio token al grace period PRIMA di rimuoverlo

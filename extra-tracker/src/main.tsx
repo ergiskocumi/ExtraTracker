@@ -7,6 +7,7 @@ import { AuthProvider } from "./features/auth/context/AuthContext.tsx";
 import { ToastProvider } from "./shared/components/toast";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ScrollToTop } from "./shared/components/ScrollToTop";
+import { TutorialProvider } from "./shared/context/TutorialContext.tsx";
 // Silenzia tutti i log nel browser - i log devono essere gestiti solo dal backend
 import "./shared/utils/logger";
 
@@ -48,9 +49,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           maxToasts: 5,
           defaultDuration: 5000,
         }}>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
+          <TutorialProvider>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </TutorialProvider>
         </ToastProvider>
       </QueryClientProvider>
     </BrowserRouter>

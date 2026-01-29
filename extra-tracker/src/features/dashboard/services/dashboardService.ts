@@ -24,22 +24,7 @@ export interface StudySummary {
     totalDecks: number;
     nextDeck: DeckInfo | null;
     allDone: boolean;
-}
-
-export interface GoalInfo {
-    id: string;
-    title: string;
-    category: string;
-    deadline: string | null;
-    isOverdue: boolean;
-    progress: number;
-}
-
-export interface GoalsSummary {
-    activeCount: number;
-    overdueCount: number;
-    highPriorityCount: number;
-    topPriority: GoalInfo | null;
+    cardsStudiedToday: number;
 }
 
 export interface WorkSummary {
@@ -48,31 +33,10 @@ export interface WorkSummary {
     sessionsToday: number;
 }
 
-export interface RecentItem {
-    type: 'deck' | 'worklog' | 'goal';
-    id: string;
-    title: string;
-    icon: string;
-    action: string;
-    lastAction: string;
-    metadata?: Record<string, unknown>;
-}
-
-export interface GamificationSummary {
-    streak: number;
-    level: number;
-    xp: number;
-    nextLevelXp: number;
-    progress: number;
-}
-
 export interface DashboardSummary {
     greeting: string;
     study: StudySummary;
-    goals: GoalsSummary;
     work: WorkSummary;
-    recents: RecentItem[];
-    gamification: GamificationSummary;
 }
 
 export interface QuickAction {

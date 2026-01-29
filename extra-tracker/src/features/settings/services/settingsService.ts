@@ -56,13 +56,11 @@ export interface UserPreferences {
     // Dashboard
     dashboardLayout: 'default' | 'compact' | 'expanded';
     showMotivationalMessages: boolean;
-    defaultView: 'dashboard' | 'goals';
+    defaultView: 'dashboard';
     
     // Lavoro
     weekStartsOn: 0 | 1;
     workingDays: number[];
-    dailyGoalHours: number;
-    weeklyGoalHours: number;
 }
 
 export interface PreferencesData {
@@ -76,7 +74,6 @@ export interface PreferencesData {
 export interface EmailNotifications {
     enabled: boolean;
     weeklyReport: boolean;
-    goalReminders: boolean;
     projectUpdates: boolean;
 }
 
@@ -275,13 +272,12 @@ class SettingsService {
     async importData(file: File, force = false): Promise<ApiResponse<{
         success: boolean;
         imported: {
-            goals: number;
+            exams: number;
             projects: number;
             workLogs: number;
             decks: number;
             folders: number;
             tags: number;
-            checkIns: number;
             workTodos: number;
         };
     }>> {
@@ -304,13 +300,12 @@ class SettingsService {
                     const response = await apiClient.post<{
                         success: boolean;
                         imported: {
-                            goals: number;
+                            exams: number;
                             projects: number;
                             workLogs: number;
                             decks: number;
                             folders: number;
                             tags: number;
-                            checkIns: number;
                             workTodos: number;
                         };
                     }>(`${this.baseUrl}/import`, {

@@ -33,6 +33,13 @@ const userSchema = new mongoose.Schema(
             select: false,
         },
 
+        // Ruolo utente per permessi
+        role: {
+            type: String,
+            enum: ['user', 'admin'],
+            default: 'user',
+        },
+
         // ==========================================
         // PROFILO UTENTE
         // ==========================================
@@ -143,7 +150,7 @@ const userSchema = new mongoose.Schema(
             },
             defaultView: {
                 type: String,
-                enum: ['dashboard', 'timeline', 'goals'],
+                enum: ['dashboard', 'timeline'],
                 default: 'dashboard',
             },
             
@@ -157,18 +164,6 @@ const userSchema = new mongoose.Schema(
                 type: [Number],
                 default: [1, 2, 3, 4, 5], // Lun-Ven
             },
-            dailyGoalHours: {
-                type: Number,
-                min: 0,
-                max: 24,
-                default: 8,
-            },
-            weeklyGoalHours: {
-                type: Number,
-                min: 0,
-                max: 168,
-                default: 40,
-            },
         },
 
         // ==========================================
@@ -181,10 +176,6 @@ const userSchema = new mongoose.Schema(
                     default: true,
                 },
                 weeklyReport: {
-                    type: Boolean,
-                    default: true,
-                },
-                goalReminders: {
                     type: Boolean,
                     default: true,
                 },
@@ -205,48 +196,6 @@ const userSchema = new mongoose.Schema(
                 reminderTime: {
                     type: String,
                     default: '09:00',
-                },
-            },
-        },
-
-        // ==========================================
-        // GAMIFICATION & STATS
-        // ==========================================
-        gamification: {
-            xp: {
-                type: Number,
-                default: 0,
-            },
-            level: {
-                type: Number,
-                default: 1,
-            },
-            streak: {
-                current: {
-                    type: Number,
-                    default: 0,
-                },
-                lastActivityDate: {
-                    type: Date,
-                    default: null,
-                },
-                best: {
-                    type: Number,
-                    default: 0,
-                },
-            },
-            stats: {
-                totalStudySessions: {
-                    type: Number,
-                    default: 0,
-                },
-                totalFlashcardsReviewed: {
-                    type: Number,
-                    default: 0,
-                },
-                correctAnswers: {
-                    type: Number,
-                    default: 0,
                 },
             },
         },

@@ -48,6 +48,16 @@ router.post(
 );
 
 /**
+ * @route   GET /api/auth/csrf
+ * @desc    Ottieni CSRF token
+ * @access  Public
+ */
+router.get(
+    '/csrf',
+    authController.getCsrfToken
+);
+
+/**
  * @route   POST /api/auth/login
  * @desc    Login utente
  * @access  Public

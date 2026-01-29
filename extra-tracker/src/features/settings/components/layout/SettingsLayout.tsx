@@ -15,7 +15,7 @@ import { SettingsBottomNav } from './SettingsBottomNav';
 import { SettingsBackButton } from './SettingsBackButton';
 import { useSwipeGestures } from '../../hooks/useSwipeGestures';
 
-export type TabId = 'profile' | 'preferences' | 'security' | 'account';
+export type TabId = 'profile' | 'preferences' | 'security' | 'account' | 'feedback';
 
 export interface SettingsTab {
     id: TabId;

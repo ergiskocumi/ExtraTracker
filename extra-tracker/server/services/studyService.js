@@ -14,10 +14,9 @@
 
 const BaseService = require('./BaseService');
 const Deck = require('../models/Deck');
-const Goal = require('../models/Goal');
+const Exam = require('../models/Exam');
 const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
-const eventBus = require('../utils/eventBus');
 const sseManager = require('../utils/SSEManager');
 const OpenAI = require('openai');
 const pdfParse = require('pdf-parse');
@@ -26,7 +25,6 @@ const fs = require('fs/promises');
 const path = require('path');
 const vectorStoreService = require('./vectorStoreService');
 const { AlgorithmFactory } = require('./spacedRepetitionAlgorithms');
-const activityService = require('./activityService');
 
 // =========================================
 // COSTANTI BASE
@@ -38,7 +36,6 @@ const MAX_TUTOR_CONTEXT_LENGTH = 50000;
 const MAX_TUTOR_MESSAGE_LENGTH = 2000;
 const MAX_TUTOR_HISTORY_MESSAGES = 12;
 const MAX_TUTOR_HISTORY_MESSAGE_LENGTH = 1000;
-const SESSION_BASE_XP = 10;
 const QUIZ_FALLBACK_OPTIONS = [
     'Nessuna delle precedenti',
     'Altro',
@@ -47,18 +44,22 @@ const QUIZ_FALLBACK_OPTIONS = [
 ];
 
 // =========================================
-// 🆕 SMART GENERATION V2 - CONFIGURATION
+// 🆕 SMART GENERATION V3 - OPTIMIZED CONFIGURATION
 // =========================================
 
-// Micro-chunking: chunk PIÙ PICCOLI = domande PIÙ PRECISE
-const MICRO_CHUNK_SIZE = 6000;        // 6k caratteri (era 40-50k!)
-const MICRO_CHUNK_OVERLAP = 200;      // Overlap ridotto
-const MIN_CHUNK_LENGTH = 400;         // Ignora chunk troppo corti (indici, titoli)
+// Semantic chunking: chunk PIÙ GRANDI per batch processing
+const SEMANTIC_CHUNK_SIZE = 12000;    // 12k caratteri (era 6k)
+const SEMANTIC_CHUNK_OVERLAP = 500;   // Overlap su confini paragrafo (era 200)
+const MIN_SEMANTIC_CHUNK = 300;       // Minimo basso per non perdere pagine introduttive
+const MIN_CHUNK_LENGTH = 200;         // Ignora solo chunk vuoti/titoli
 
-// Target dinamico basato sulla densità del contenuto
-const MIN_CARDS_PER_CHUNK = 3;        // Minimo 3 card per chunk
-const MAX_CARDS_PER_CHUNK = 12;       // Massimo 12 card per singola chiamata
-const MAX_TOTAL_CARDS = 100;          // Cap totale per evitare mazzi enormi
+// Batch processing: 2 chunk per chiamata API
+const BATCH_SIZE = 2;
+
+// Target dinamico - qualità > quantità
+const MIN_CARDS_PER_CHUNK = 2;        // Minimo 2 card per chunk (qualità)
+const MAX_CARDS_PER_CHUNK = 10;       // Massimo 10 card per singola chiamata
+const MAX_TOTAL_CARDS = 80;           // Cap totale (meno card ma migliori)
 
 // Deduplica semantica - soglia più aggressiva per rimuovere più duplicati
 const SIMILARITY_THRESHOLD = 0.50;    // Soglia Jaccard (più bassa = più aggressiva)
@@ -101,19 +102,17 @@ class StudyService extends BaseService {
     // =========================================
 
     async createDeck(tenantScope, data = {}) {
-        const { goalId, title, description, tags } = data;
-
-        if (!goalId) {
-            throw AppError.validation('Il goal associato e\' obbligatorio');
-        }
+        const { examId, title, description, tags } = data;
         if (!title || typeof title !== 'string') {
             throw AppError.validation('Il titolo del mazzo e\' obbligatorio');
         }
 
-        await this._validateGoalOwnership(tenantScope, goalId);
+        if (examId) {
+            await this._validateExamOwnership(tenantScope, examId);
+        }
 
         return this.create(tenantScope, {
-            goalId,
+            examId: examId || null,
             title,
             description,
             tags,
@@ -384,30 +383,24 @@ class StudyService extends BaseService {
             }
         }
         
-        // Gestione del cambio di esame (goalId)
-        if (updates.goalId !== undefined) {
-            console.log('[StudyService] updateDeck: Updating goalId', {
-                currentGoalId: deck.goalId ? deck.goalId.toString() : null,
-                newGoalId: updates.goalId,
+        // Gestione del cambio di esame (examId)
+        if (updates.examId !== undefined) {
+            console.log('[StudyService] updateDeck: Updating examId', {
+                currentExamId: deck.examId ? deck.examId.toString() : null,
+                newExamId: updates.examId,
             });
             
-            // Verifica che l'esame (goal) esista e appartenga all'utente (se non è null)
-            if (updates.goalId !== null && updates.goalId !== '') {
-                const Goal = require('../models/Goal');
-                const goal = await Goal.findOne({ _id: updates.goalId, user: userId });
-                if (!goal) {
+            if (updates.examId !== null && updates.examId !== '') {
+                const exam = await Exam.findOne({ _id: updates.examId, user: userId });
+                if (!exam) {
                     throw AppError.notFound('Esame non trovato');
                 }
-                // Verifica che sia un esame (category === 'learning')
-                if (goal.category !== 'learning') {
-                    throw AppError.badRequest('Il goal selezionato non è un esame (category deve essere "learning")');
-                }
-                deck.goalId = updates.goalId;
-                console.log('[StudyService] updateDeck: Goal verified, setting goalId');
+                deck.examId = updates.examId;
+                console.log('[StudyService] updateDeck: Exam verified, setting examId');
             } else {
-                // Se goalId è null o stringa vuota, non possiamo rimuoverlo perché è required
-                // Ma possiamo permettere di cambiarlo con un altro esame
-                throw AppError.badRequest('Un mazzo deve essere associato a un esame. Seleziona un esame valido.');
+                // Se examId è null o stringa vuota, rimuovi il riferimento
+                deck.examId = null;
+                console.log('[StudyService] updateDeck: Setting examId to null');
             }
         }
 
@@ -468,62 +461,6 @@ class StudyService extends BaseService {
         return this._serializeDeck(deck);
     }
 
-    async getDeckAnalytics(tenantScope, deckId) {
-        const userId = this._getUserId(tenantScope);
-
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
-
-        const cards = Array.isArray(deck.cards) ? deck.cards : [];
-        const now = new Date();
-
-        const stats = {
-            totalCards: cards.length,
-            newCards: cards.filter(c => c.status === 'new').length,
-            learningCards: cards.filter(c => c.status === 'learning').length,
-            reviewCards: cards.filter(c => c.status === 'review').length,
-            masteredCards: cards.filter(c => c.status === 'mastered').length,
-            dueCards: cards.filter(c => {
-                const nextReview = new Date(c.nextReviewDate);
-                return nextReview <= now;
-            }).length,
-            averageEasinessFactor: cards.length > 0
-                ? cards.reduce((sum, c) => sum + (c.easinessFactor || 2.5), 0) / cards.length
-                : 2.5,
-            averageRepetitions: cards.length > 0
-                ? cards.reduce((sum, c) => sum + (c.repetitions || 0), 0) / cards.length
-                : 0,
-        };
-
-        const analytics = deck.analytics || {
-            totalReviews: 0,
-            averageTimePerCard: 0,
-            retentionRate: 0,
-            lastStudied: null,
-            studyStreak: 0,
-        };
-
-        return {
-            stats,
-            analytics: {
-                totalReviews: analytics.totalReviews || 0,
-                averageTimePerCard: analytics.averageTimePerCard || 0,
-                retentionRate: analytics.retentionRate || 0,
-                retentionRatePercent: Math.round((analytics.retentionRate || 0) * 100),
-                lastStudied: analytics.lastStudied,
-                studyStreak: analytics.studyStreak || 0,
-            },
-            algorithm: deck.algorithm || 'sm2',
-            aiSettings: deck.aiSettings || {
-                style: 'comprehensive',
-                difficulty: 'medium',
-                questionTypes: ['definition', 'concept', 'relationship'],
-            },
-        };
-    }
-
     async getDeckById(tenantScope, deckId) {
         const userId = this._getUserId(tenantScope);
 
@@ -549,8 +486,9 @@ class StudyService extends BaseService {
     // STUDY SESSION (invariato)
     // =========================================
 
-    async getStudySession(tenantScope, deckId, mode = 'flashcard') {
+    async getStudySession(tenantScope, deckId, options = {}) {
         const userId = this._getUserId(tenantScope);
+        const config = typeof options === 'string' ? { mode: options } : (options || {});
 
         const deck = await Deck.findOne({
             _id: deckId,
@@ -565,24 +503,54 @@ class StudyService extends BaseService {
         const cards = Array.isArray(deckJson.cards) ? deckJson.cards : [];
         const now = new Date();
 
+        const mode = this._normalizeStudyMode(config.mode);
+        const normalizedFocus = this._normalizeSessionFocus(config.focus);
+        const focus = mode === 'exam' ? 'all' : mode === 'focus' ? 'weak' : normalizedFocus;
+        const direction = this._normalizeSessionDirection(config.direction);
+        const requestedLimit = this._toNumber(config.limit, 0);
+        const requestedQuestions = this._toNumber(config.questionCount, 0);
+        const timeLimitMinutes = this._toNumber(config.timeLimitMinutes, 0);
+
         const dueCards = cards.filter(card => {
             const nextReview = new Date(card.nextReviewDate);
             return nextReview <= now;
         });
 
-        const sessionCards = dueCards.length > 0 ? dueCards : cards;
+        const defaultLimit = this._getDefaultSessionLimit(mode);
+        const sessionLimit = Math.min(
+            requestedLimit > 0
+                ? requestedLimit
+                : mode === 'exam' && requestedQuestions > 0
+                    ? requestedQuestions
+                    : defaultLimit,
+            cards.length
+        );
 
-        let enrichedCards = sessionCards;
-        if (mode === 'quiz') {
-            const allAnswers = cards
-                .map(card => card.back)
-                .filter(answer => typeof answer === 'string' && answer.trim().length > 0);
+        const sessionCards = this._selectSessionCards({
+            cards,
+            dueCards,
+            mode,
+            focus,
+            limit: sessionLimit,
+            now,
+        });
 
-            enrichedCards = sessionCards.map(card => ({
-                ...card,
-                options: this._buildQuizOptions(card.back, allAnswers),
-            }));
-        }
+        const cardModes = this._buildCardModes(mode, sessionCards);
+        const allAnswers = cards
+            .map(card => card.back)
+            .filter(answer => typeof answer === 'string' && answer.trim().length > 0);
+
+        const enrichedCards = sessionCards.map(card => {
+            const cardId = this._resolveCardId(card);
+            const cardMode = cardModes?.[cardId] || mode;
+            if (cardMode === 'quiz') {
+                return {
+                    ...card,
+                    options: this._buildQuizOptions(card.back, allAnswers),
+                };
+            }
+            return card;
+        });
 
         return {
             deck: {
@@ -594,6 +562,14 @@ class StudyService extends BaseService {
             remaining: sessionCards.length,
             total: cards.length,
             mode,
+            cardModes,
+            meta: {
+                focus,
+                limit: sessionLimit || cards.length,
+                timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : undefined,
+                questionCount: mode === 'exam' ? sessionLimit : undefined,
+                direction,
+            },
         };
     }
 
@@ -713,6 +689,10 @@ class StudyService extends BaseService {
         const timeSpentSeconds = this._toNumber(stats.timeSeconds ?? stats.timeSpentSeconds, 0);
         const totalCards = this._toNumber(stats.totalCards, correctCount + wrongCount);
 
+        // Calcola accuratezza
+        const accuracy = totalCards > 0 ? Math.round((correctCount / totalCards) * 100) : 0;
+        const avgTimePerCard = totalCards > 0 ? (timeSpentSeconds * 1000) / totalCards : 0;
+
         const metadata = {
             correctCount,
             wrongCount,
@@ -720,18 +700,11 @@ class StudyService extends BaseService {
             totalCards,
             deckId,
             mode,
+            accuracy,
+            avgTimePerCard,
         };
 
-        const xpBreakdown = this._calculateSessionXpBreakdown(metadata);
-        const result = await activityService.recordActivity(userId, 'SESSION_COMPLETE', {
-            entityId: deckId,
-            category: 'study',
-            metadata,
-        });
-
         return {
-            ...result,
-            xpBreakdown,
             stats: metadata,
         };
     }
@@ -804,21 +777,7 @@ class StudyService extends BaseService {
         });
         card.status = status;
 
-        this._updateDeckAnalytics(deck, quality, sessionMeta);
-
         await deck.save();
-
-        let gamification = null;
-        const shouldRecord = sessionMeta?.isComplete || sessionMeta?.completed;
-        if (shouldRecord) {
-            eventBus.emit('session.completed', {
-                userId,
-                session: {
-                    deckId,
-                    ...sessionMeta,
-                },
-            });
-        }
 
         const updatedCard = this._serializeCard(card);
 
@@ -833,7 +792,6 @@ class StudyService extends BaseService {
                 nextReviewDate: algorithmResult.nextReviewDate,
                 nextReviewInDays: algorithmResult.interval,
             },
-            gamification,
         };
     }
 
@@ -911,72 +869,99 @@ class StudyService extends BaseService {
             console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
         }
 
-        // 5. 🆕 MICRO-CHUNKING SEMANTICO
-        console.log('📦 FASE 2: Micro-chunking semantico...');
-        const microChunks = this._createSemanticMicroChunks(normalizedText);
-        console.log(`📊 Creati ${microChunks.length} micro-chunk da ~${MICRO_CHUNK_SIZE} caratteri`);
+        // 5. 🆕 SEMANTIC CHUNKING V3
+        console.log('📦 FASE 2: Semantic chunking...');
+        const semanticChunks = this._createSemanticChunks(normalizedText);
+        console.log(`📊 Creati ${semanticChunks.length} chunk semantici da ~${SEMANTIC_CHUNK_SIZE} caratteri`);
         
-        sseManager.sendToUser(userId, 'pdf-progress', { 
-            step: 'chunking', 
-            totalChunks: microChunks.length,
-            message: `Diviso in ${microChunks.length} sezioni` 
+        sseManager.sendToUser(userId, 'pdf-progress', {
+            step: 'chunking',
+            totalChunks: semanticChunks.length,
+            message: `Diviso in ${semanticChunks.length} sezioni`
         });
 
-        // 6. 🆕 ESTRAZIONE CONCETTI CHIAVE (Pre-pass per evitare duplicati)
-        console.log('🔑 FASE 3: Estrazione concetti chiave...');
+        // 6. 🆕 ESTRAZIONE CONCETTI LOCALE (senza AI)
+        console.log('🔑 FASE 3: Estrazione concetti (locale)...');
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'concepts', message: 'Estraggo concetti chiave...' });
-        
-        const globalConcepts = await this._extractKeyConcepts(normalizedText, blueprint);
-        console.log(`🎯 Estratti ${globalConcepts.length} concetti chiave`);
 
-        // 7. 🆕 GENERAZIONE MULTI-TIPO
-        console.log('✨ FASE 4: Generazione flashcard...');
+        const globalConcepts = this._extractConceptsLocally(normalizedText);
+        console.log(`🎯 Estratti ${globalConcepts.length} concetti chiave (locale)`);
+
+        // 7. 🆕 BATCH GENERATION V3 - Process chunks in batches
+        console.log('✨ FASE 4: Generazione flashcard (batch)...');
         let allGeneratedCards = [];
-        const usedConcepts = new Set(); // Traccia concetti già usati
-        
-        for (let i = 0; i < microChunks.length; i++) {
-            const chunk = microChunks[i];
-            
-            // Calcola target dinamico basato su lunghezza chunk
-            const targetCards = this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
-            
-            console.log(`🔄 Chunk ${i + 1}/${microChunks.length}: ${chunk.text.length} chars, target ${targetCards} cards`);
-            
+        const usedConcepts = new Set(globalConcepts.slice(0, 10)); // Pre-popola con top 10 concetti
+
+        // Crea batches di BATCH_SIZE chunks
+        const batches = [];
+        for (let i = 0; i < semanticChunks.length; i += BATCH_SIZE) {
+            batches.push(semanticChunks.slice(i, i + BATCH_SIZE));
+        }
+
+        console.log(`📦 Creati ${batches.length} batch da ${BATCH_SIZE} chunk ciascuno`);
+
+        for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+            const batch = batches[batchIdx];
+            const batchStartChunk = batchIdx * BATCH_SIZE;
+
+            // Calcola target cards per questo batch
+            const totalBatchChars = batch.reduce((sum, c) => sum + c.text.length, 0);
+            const targetCards = this._calculateBatchTarget(batch);
+
+            console.log(`🔄 Batch ${batchIdx + 1}/${batches.length}: ${batch.length} chunk, ${totalBatchChars} chars, target ${targetCards} cards`);
+
             sseManager.sendToUser(userId, 'pdf-progress', {
                 step: 'generating',
-                currentChunk: i + 1,
-                totalChunks: microChunks.length,
+                currentChunk: batchStartChunk + 1,
+                totalChunks: semanticChunks.length,
                 generatedSoFar: allGeneratedCards.length,
-                message: `Elaboro sezione ${i + 1}/${microChunks.length}...`
+                message: `Elaboro batch ${batchIdx + 1}/${batches.length}...`
             });
 
             try {
-                const chunkCards = await this._generateCardsV2(
-                    chunk.text,
+                const batchCards = await this._generateCardsBatch(
+                    batch,
                     blueprint,
                     targetCards,
                     usedConcepts,
-                    i,
-                    microChunks.length
+                    batchIdx,
+                    batches.length
                 );
-                
+
                 // Aggiungi concetti usati al set globale
-                chunkCards.forEach(card => {
+                batchCards.forEach(card => {
                     const conceptKey = this._extractConceptKey(card.front);
                     if (conceptKey) usedConcepts.add(conceptKey);
                 });
-                
-                allGeneratedCards.push(...chunkCards);
-                console.log(`✅ Chunk ${i + 1}: Generate ${chunkCards.length} card (totale: ${allGeneratedCards.length})`);
-                
+
+                allGeneratedCards.push(...batchCards);
+                console.log(`✅ Batch ${batchIdx + 1}: Generate ${batchCards.length} card (totale: ${allGeneratedCards.length})`);
+
             } catch (err) {
-                console.error(`❌ Errore chunk ${i + 1}:`, err.message);
-                // Continua con altri chunk
+                console.error(`❌ Errore batch ${batchIdx + 1}:`, err.message);
+                // Fallback: processa chunk singolarmente
+                for (let i = 0; i < batch.length; i++) {
+                    try {
+                        const chunk = batch[i];
+                        const singleTarget = this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
+                        const singleCards = await this._generateCardsSingle(
+                            chunk,
+                            blueprint,
+                            singleTarget,
+                            usedConcepts,
+                            batchStartChunk + i,
+                            semanticChunks.length
+                        );
+                        allGeneratedCards.push(...singleCards);
+                    } catch (singleErr) {
+                        console.error(`❌ Fallback singolo fallito:`, singleErr.message);
+                    }
+                }
             }
 
             // Rate limiting: pausa tra chiamate API
-            if (i < microChunks.length - 1) {
-                await this._sleep(500);
+            if (batchIdx < batches.length - 1) {
+                await this._sleep(300);
             }
         }
 
@@ -1010,7 +995,7 @@ class StudyService extends BaseService {
                     Number.isFinite(card.sourceMetadata.pageNumber) &&
                     card.sourceMetadata.pageNumber > 0 &&
                     typeof card.sourceMetadata.originalText === 'string' &&
-                    card.sourceMetadata.originalText.trim().length >= 20) {
+                    card.sourceMetadata.originalText.trim().length >= 150) {
                     cardData.sourceMetadata = {
                         pageNumber: card.sourceMetadata.pageNumber,
                         originalText: card.sourceMetadata.originalText.trim(),
@@ -1043,7 +1028,8 @@ class StudyService extends BaseService {
             deck: deck.toJSON(),
             generatedCount: validCards.length,
             stats: {
-                totalChunks: microChunks.length,
+                totalChunks: semanticChunks.length,
+                totalBatches: batches.length,
                 duplicatesRemoved: removedCount,
                 conceptsExtracted: globalConcepts.length,
             }
@@ -1055,113 +1041,143 @@ class StudyService extends BaseService {
     // =========================================
 
     /**
-     * 🔪 Micro-Chunking Semantico
-     * Divide il testo in chunk piccoli rispettando i confini semantici
+     * 🔪 Semantic Chunking V3 - Ottimizzato
+     * Divide il testo in chunk semantici rispettando confini naturali
+     * - Mai taglia a metà frase
+     * - Priorità: pagina > sezione > paragrafo > frase
+     * - Estrae numero pagina per ogni chunk
      */
-    _createSemanticMicroChunks(text) {
-        if (!text || text.length <= MICRO_CHUNK_SIZE) {
-            return [{ text, hasTitles: this._detectTitles(text) }];
+    _createSemanticChunks(text) {
+        if (!text || text.length <= SEMANTIC_CHUNK_SIZE) {
+            return [{
+                text,
+                hasTitles: this._detectTitles(text),
+                pageNumbers: this._extractPageNumbers(text),
+            }];
         }
 
         const chunks = [];
         let start = 0;
+        let iterations = 0;
+        const MAX_ITERATIONS = 100; // Safeguard contro loop infiniti
 
-        while (start < text.length) {
-            let end = Math.min(start + MICRO_CHUNK_SIZE, text.length);
+        while (start < text.length && iterations < MAX_ITERATIONS) {
+            iterations++;
+            let end = Math.min(start + SEMANTIC_CHUNK_SIZE, text.length);
 
-            // Trova punto di interruzione naturale
+            // Trova il miglior punto di interruzione (solo se non siamo alla fine)
             if (end < text.length) {
-                const searchZone = text.slice(Math.max(start, end - 1000), end);
-                
-                // Priorità: 1. Marker pagina (nuovo formato), 2. Marker pagina (vecchio formato), 3. Doppio a capo, 4. Punto finale
-                const pageMarkerNew = searchZone.lastIndexOf('--- PAGE');
-                const pageMarkerOld = searchZone.lastIndexOf('--- Pagina');
-                const pageMarker = pageMarkerNew > pageMarkerOld ? pageMarkerNew : pageMarkerOld;
-                const doubleLine = searchZone.lastIndexOf('\n\n');
-                const period = searchZone.lastIndexOf('. ');
+                const searchStart = Math.max(start, end - 2000);
+                const searchZone = text.slice(searchStart, end);
 
+                // Priorità: 1. Marker pagina, 2. Doppio a capo, 3. Fine frase, 4. Punto
                 let bestBreak = -1;
-                if (pageMarker > searchZone.length * 0.5) {
-                    bestBreak = pageMarker;
-                } else if (doubleLine > searchZone.length * 0.5) {
-                    bestBreak = doubleLine + 2;
-                } else if (period > searchZone.length * 0.3) {
-                    bestBreak = period + 2;
+
+                // 1. Marker di pagina
+                const pageIdx = Math.max(
+                    searchZone.lastIndexOf('--- PAGE'),
+                    searchZone.lastIndexOf('--- Pagina')
+                );
+                if (pageIdx > 100) {
+                    bestBreak = pageIdx;
+                }
+
+                // 2. Doppio a capo (paragrafo)
+                if (bestBreak === -1) {
+                    const doubleNewline = searchZone.lastIndexOf('\n\n');
+                    if (doubleNewline > 100) {
+                        bestBreak = doubleNewline + 2;
+                    }
+                }
+
+                // 3. Fine frase (punto + spazio + maiuscola)
+                if (bestBreak === -1) {
+                    const sentenceEnd = searchZone.lastIndexOf('. ');
+                    if (sentenceEnd > 100) {
+                        bestBreak = sentenceEnd + 2;
+                    }
                 }
 
                 if (bestBreak > 0) {
-                    end = Math.max(start, end - 1000) + bestBreak;
+                    end = searchStart + bestBreak;
                 }
             }
 
+            // Assicurati che end > start (evita chunk vuoti)
+            if (end <= start) {
+                end = Math.min(start + SEMANTIC_CHUNK_SIZE, text.length);
+            }
+
             const chunkText = text.slice(start, end).trim();
-            
-            // Ignora chunk troppo corti
-            if (chunkText.length >= MIN_CHUNK_LENGTH) {
+
+            // Aggiungi chunk se ha contenuto sufficiente
+            if (chunkText.length >= MIN_SEMANTIC_CHUNK) {
                 chunks.push({
                     text: chunkText,
                     hasTitles: this._detectTitles(chunkText),
+                    pageNumbers: this._extractPageNumbers(chunkText),
                 });
             }
 
-            // Avanza con overlap minimo
-            start = end - MICRO_CHUNK_OVERLAP;
-            if (start >= text.length - MIN_CHUNK_LENGTH) break;
+            // IMPORTANTE: Avanza sempre di almeno (SEMANTIC_CHUNK_SIZE - OVERLAP)
+            // per evitare loop infiniti
+            const minAdvance = SEMANTIC_CHUNK_SIZE - SEMANTIC_CHUNK_OVERLAP;
+            const newStart = end - SEMANTIC_CHUNK_OVERLAP;
+
+            // Assicurati di avanzare sempre di almeno minAdvance caratteri
+            start = Math.max(newStart, start + minAdvance);
+
+            // Se siamo vicini alla fine, esci
+            if (start >= text.length - MIN_SEMANTIC_CHUNK) {
+                break;
+            }
         }
 
-        return chunks;
+        if (iterations >= MAX_ITERATIONS) {
+            console.warn('⚠️ Chunking: raggiunto limite iterazioni, potrebbe esserci un problema');
+        }
+
+        return chunks.length > 0 ? chunks : [{
+            text,
+            hasTitles: this._detectTitles(text),
+            pageNumbers: this._extractPageNumbers(text),
+        }];
+    }
+
+    /**
+     * 📄 Estrae numeri di pagina dal testo del chunk
+     */
+    _extractPageNumbers(text) {
+        if (!text) return [];
+
+        const pageNumbers = [];
+        const pageRegex = /--- PAGE (\d+) ---/g;
+        const pageRegexOld = /--- Pagina (\d+) ---/g;
+
+        let match;
+        while ((match = pageRegex.exec(text)) !== null) {
+            const pageNum = parseInt(match[1], 10);
+            if (!pageNumbers.includes(pageNum)) {
+                pageNumbers.push(pageNum);
+            }
+        }
+        while ((match = pageRegexOld.exec(text)) !== null) {
+            const pageNum = parseInt(match[1], 10);
+            if (!pageNumbers.includes(pageNum)) {
+                pageNumbers.push(pageNum);
+            }
+        }
+
+        return pageNumbers.sort((a, b) => a - b);
     }
 
     /**
      * 🔑 Estrazione Concetti Chiave (per evitare duplicati cross-chunk)
-     * Versione migliorata con fallback locale
+     * @deprecated V3: Ora usa solo estrazione locale (TF-IDF) per risparmiare API calls
      */
-    async _extractKeyConcepts(text, blueprint) {
-        try {
-            const sampleText = this._truncateText(text, 20000);
-            const globalContext = blueprint?.globalContext || 'Documento accademico';
-
-            const completion = await openai.chat.completions.create({
-                model: ACTIVE_AI_MODEL,
-                messages: [
-                    {
-                        role: 'system',
-                        content: `Sei un analista esperto. Estrai i 20-30 CONCETTI CHIAVE più importanti dal testo.
-Ogni concetto deve essere una parola o frase breve (2-4 parole max).
-
-Contesto del documento: ${globalContext}
-
-Restituisci SOLO JSON valido:
-{ "concepts": ["concetto1", "concetto2", "concetto3", ...] }`
-                    },
-                    { role: 'user', content: `Analizza questo testo ed estrai i concetti chiave:\n\n${sampleText}` }
-                ],
-                temperature: 0.3,
-                max_completion_tokens: 800,
-                response_format: { type: 'json_object' },
-            });
-
-            const rawResponse = completion.choices[0]?.message?.content || '{}';
-            console.log('📝 Raw concept extraction response length:', rawResponse.length);
-            
-            const cleaned = this._cleanJSON(rawResponse);
-            const parsed = JSON.parse(cleaned);
-            
-            const concepts = Array.isArray(parsed.concepts) ? parsed.concepts : [];
-            console.log(`🔑 Estratti ${concepts.length} concetti via AI`);
-            
-            // Se AI fallisce, estrai concetti localmente
-            if (concepts.length === 0) {
-                console.log('⚠️ AI non ha estratto concetti, uso estrazione locale...');
-                return this._extractConceptsLocally(sampleText);
-            }
-            
-            return concepts;
-        } catch (err) {
-            console.warn('⚠️ Concept extraction error:', err.message);
-            // Fallback: estrazione locale
-            return this._extractConceptsLocally(text);
-        }
+    _extractKeyConcepts(text, _blueprint) {
+        // V3: Usa solo estrazione locale (elimina 1 chiamata AI per PDF)
+        return this._extractConceptsLocally(text);
     }
 
     /**
@@ -1210,131 +1226,18 @@ Restituisci SOLO JSON valido:
     /**
      * ✨ Generazione Flashcard V2 - Prompt Migliorato
      */
+    /**
+     * @deprecated Usa _generateCardsBatch o _generateCardsSingle
+     * Mantenuto per backward compatibility
+     */
     async _generateCardsV2(chunkText, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks) {
-        const globalContext = blueprint?.globalContext || 'Documento accademico';
-        const documentType = blueprint?.documentType || 'other';
-
-        // Costruisci lista concetti già usati (per evitare ripetizioni)
-        const avoidList = usedConcepts.size > 0 
-            ? `\n\n⚠️ EVITA domande su questi concetti già trattati: ${[...usedConcepts].slice(-20).join(', ')}`
-            : '';
-
-        // Seleziona tipi di domande per questo chunk (varietà)
-        const questionTypesForChunk = this._selectQuestionTypes(chunkIndex, totalChunks);
-
-        const systemPrompt = `Sei un ESPERTO CREATORE DI FLASHCARD per lo studio universitario.
-Il tuo obiettivo è creare flashcard PRECISE, UNICHE e UTILI per la memorizzazione attiva.
-
-📚 CONTESTO DOCUMENTO: "${globalContext}"
-📄 TIPO: ${documentType}
-📍 SEZIONE: ${chunkIndex + 1} di ${totalChunks}
-
-🎯 CREA ESATTAMENTE ${targetCount} FLASHCARD seguendo queste regole:
-
-TIPI DI DOMANDE DA INCLUDERE:
-${questionTypesForChunk}
-
-📏 FORMATO OBBLIGATORIO:
-- DOMANDA (front): Specifica, chiara, che richieda ragionamento. MIN 10 parole.
-- RISPOSTA (back): Completa ma concisa. Includi il "perché" quando rilevante. MIN 20 parole.
-${avoidList}
-
-❌ EVITA:
-- Domande troppo generiche ("Cos'è X?" senza contesto)
-- Domande che si possono rispondere con sì/no
-- Ripetizioni dello stesso concetto con parole diverse
-- Informazioni non presenti nel testo
-
-✅ PREFERISCI:
-- Domande che collegano concetti
-- Domande che richiedono spiegazione del "perché"
-- Domande su processi e sequenze
-- Domande che testano comprensione profonda
-
-📌 CRITICAL: SOURCE GROUNDING (OBBLIGATORIO)
-Il testo fornito contiene marker di pagina nel formato:
---- PAGE {n} ---
-{contenuto della pagina}
---- END PAGE {n} ---
-
-Per OGNI flashcard generata, DEVI includere:
-1. page_number: Il numero della pagina (intero) trovato nel marker "--- PAGE {n} ---" da cui hai estratto l'informazione
-2. original_quote: La CITAZIONE ESATTA (verbatim) dal testo originale che hai usato per generare la risposta
-
-⚠️ REGOLA VERBATIM STRINGENTE:
-- original_quote DEVE essere una copia ESATTA (carattere per carattere) di una frase o paragrafo presente nel testo
-- NON parafrasare, NON riassumere, NON modificare
-- Se non trovi una citazione esatta nel testo, NON generare la flashcard
-- La citazione deve essere sufficientemente lunga da essere univoca (minimo 20 caratteri)
-- Verifica che la citazione esista letteralmente nel testo prima di includerla
-
-FORMATO JSON OUTPUT (STRICT):
-{
-  "cards": [
-    {
-      "front": "Domanda completa e specifica...",
-      "back": "Risposta esaustiva con spiegazione...",
-      "source_metadata": {
-        "page_number": 5,
-        "original_quote": "La citazione ESATTA dal testo originale, senza modifiche."
-      }
-    }
-  ]
-}
-
-ESEMPIO:
-Se nel testo vedi:
---- PAGE 3 ---
-La fotosintesi è il processo mediante il quale le piante convertono la luce solare in energia chimica.
---- END PAGE 3 ---
-
-E generi una flashcard su questo concetto, DEVI includere:
-{
-  "front": "Come le piante convertono la luce solare in energia?",
-  "back": "Le piante convertono la luce solare in energia chimica attraverso il processo chiamato fotosintesi.",
-  "source_metadata": {
-    "page_number": 3,
-    "original_quote": "La fotosintesi è il processo mediante il quale le piante convertono la luce solare in energia chimica."
-  }
-}
-
-NOTA: original_quote deve essere IDENTICA al testo tra i marker di pagina.`;
-
-        const MAX_RETRIES = 2;
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            try {
-                const completion = await openai.chat.completions.create({
-                    model: ACTIVE_AI_MODEL,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: `TESTO DA ANALIZZARE:\n\n${chunkText}` }
-                    ],
-                    temperature: attempt === 1 ? 0.6 : 0.4,
-                    max_completion_tokens: 3500,
-                    response_format: { type: 'json_object' },
-                });
-
-                const response = completion.choices[0]?.message?.content;
-                if (!response) {
-                    if (attempt === MAX_RETRIES) return [];
-                    continue;
-                }
-
-                const cleaned = this._cleanJSON(response);
-                const parsed = JSON.parse(cleaned);
-                const cards = this._extractGeneratedCards(parsed);
-
-                return cards
-                    .map(c => this._normalizeGeneratedCard(c))
-                    .filter(c => c.front && c.back);
-
-            } catch (err) {
-                console.error(`❌ Generation attempt ${attempt} failed:`, err.message);
-                if (attempt === MAX_RETRIES) return [];
-                await this._sleep(1000);
-            }
-        }
-        return [];
+        // Redirect to optimized single chunk method
+        const chunk = {
+            text: chunkText,
+            hasTitles: this._detectTitles(chunkText),
+            pageNumbers: this._extractPageNumbers(chunkText),
+        };
+        return this._generateCardsSingle(chunk, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks);
     }
 
     /**
@@ -1360,14 +1263,214 @@ NOTA: original_quote deve essere IDENTICA al testo tra i marker di pagina.`;
      * 📊 Calcola target card per chunk basato su lunghezza e contenuto
      */
     _calculateChunkTarget(chunkLength, hasTitles) {
-        // Base: 1 card ogni 600 caratteri (densità aumentata)
-        let target = Math.ceil(chunkLength / 600);
-        
+        // Base: 1 card ogni 1200 caratteri (qualità > quantità)
+        let target = Math.ceil(chunkLength / 1200);
+
         // Bonus se ha titoli (contenuto più strutturato)
-        if (hasTitles) target = Math.ceil(target * 1.2);
-        
+        if (hasTitles) target = Math.ceil(target * 1.1);
+
         // Applica limiti
         return Math.max(MIN_CARDS_PER_CHUNK, Math.min(MAX_CARDS_PER_CHUNK, target));
+    }
+
+    /**
+     * 📊 Calcola target card per batch di chunk
+     */
+    _calculateBatchTarget(batch) {
+        let totalTarget = 0;
+        for (const chunk of batch) {
+            totalTarget += this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
+        }
+        // Cap a MAX_CARDS_PER_CHUNK * 2 per batch di 2 chunk
+        return Math.min(totalTarget, MAX_CARDS_PER_CHUNK * BATCH_SIZE);
+    }
+
+    /**
+     * ✨ Generazione Flashcard BATCH V3 - Ottimizzato
+     * Processa 2 chunk in una singola chiamata API
+     */
+    async _generateCardsBatch(chunks, blueprint, targetCount, usedConcepts, batchIndex, totalBatches) {
+        const globalContext = blueprint?.globalContext || 'Documento accademico';
+        const documentType = blueprint?.documentType || 'other';
+
+        // Costruisci avoid list
+        const avoidList = usedConcepts.size > 0
+            ? `\n⚠️ EVITA domande su questi concetti già trattati: ${[...usedConcepts].slice(-20).join(', ')}`
+            : '';
+
+        // Seleziona tipi di domande per varietà
+        const questionTypes = this._selectQuestionTypes(batchIndex, totalBatches);
+
+        // Combina testo dei chunk con separatori
+        const combinedText = chunks.map((chunk, idx) => {
+            const pageInfo = chunk.pageNumbers?.length > 0
+                ? `[Pagine: ${chunk.pageNumbers.join(', ')}]`
+                : '';
+            return `=== SEZIONE ${idx + 1} ${pageInfo} ===\n${chunk.text}`;
+        }).join('\n\n');
+
+        // Prompt QUALITÀ V4 - Copertura completa + Elenchi
+        const systemPrompt = `Sei un ESPERTO CREATORE DI FLASHCARD per studenti universitari che devono RIPASSARE per un esame.
+Lo studente deve memorizzare TUTTO il contenuto del documento. Ogni concetto importante deve avere almeno una flashcard.
+
+📚 CONTESTO DOCUMENTO: "${globalContext}"
+📄 TIPO: ${documentType}
+
+🎯 CREA ${targetCount} FLASHCARD seguendo queste REGOLE FONDAMENTALI:
+
+⚠️ REGOLA COPERTURA COMPLETA:
+- Devi coprire TUTTE le pagine del testo, incluse le prime pagine introduttive
+- NON saltare nessuna sezione importante
+- Ogni definizione, concetto chiave, processo deve avere una flashcard
+
+⚠️ REGOLA ELENCHI/LISTE:
+- Quando nel testo c'è un ELENCO (es: "I 5 tipi di X sono: A, B, C, D, E"), crea UNA flashcard che chiede TUTTI gli elementi
+- Esempio corretto: "Quali sono i 5 tipi di X?" → "I 5 tipi sono: A, B, C, D, E"
+- NON creare 5 domande separate per ogni elemento dell'elenco
+
+TIPI DI DOMANDE (varietà obbligatoria):
+${questionTypes}
+
+📏 FORMATO:
+- FRONT: Domanda specifica, min 10 parole. Deve testare COMPRENSIONE, non memoria superficiale.
+- BACK: Risposta COMPLETA con tutti i dettagli rilevanti. Min 20 parole. Se è un elenco, includi TUTTI i punti.
+${avoidList}
+
+❌ EVITA ASSOLUTAMENTE:
+- Domande su siti web, link, bibliografia, numeri pagina
+- Domande generiche "Cos'è X?" senza contesto
+- Domande sì/no
+- Domande su dettagli irrilevanti (date pubblicazione, autori citati)
+- Due domande sullo stesso concetto
+- Chiedere UN SOLO elemento di un elenco invece di tutti
+
+✅ PRIVILEGIA:
+- "Quali sono tutti i tipi/elementi/fasi di X?" - elenchi completi
+- "Perché X causa Y?" - causa-effetto
+- "Qual è la differenza tra X e Y?" - confronti
+- "Come funziona il processo di X?" - meccanismi
+- "Quali sono le caratteristiche principali di X?" - definizioni complete
+
+📌 SOURCE METADATA (obbligatorio per ogni flashcard):
+- page_number: numero pagina (intero)
+- original_quote: CITAZIONE LUNGA dal testo originale (MINIMO 150-250 caratteri, circa 1-2 righe complete)
+  DEVE essere un PARAGRAFO COMPLETO o più FRASI CONSECUTIVE che contengano il concetto.
+  L'utente userà questa citazione per trovare il passaggio nel PDF, quindi deve essere abbastanza lunga.
+
+OUTPUT JSON:
+{"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"paragrafo completo di 150-250 caratteri..."}}]}`;
+
+        const MAX_RETRIES = 2;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                const completion = await openai.chat.completions.create({
+                    model: ACTIVE_AI_MODEL,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: combinedText }
+                    ],
+                    temperature: attempt === 1 ? 0.5 : 0.3,
+                    max_completion_tokens: 4000,
+                    response_format: { type: 'json_object' },
+                });
+
+                // Log token usage per monitoraggio costi
+                if (completion.usage) {
+                    console.log(`📊 Batch ${batchIndex + 1} tokens: in=${completion.usage.prompt_tokens}, out=${completion.usage.completion_tokens}`);
+                }
+
+                const response = completion.choices[0]?.message?.content;
+                if (!response) {
+                    if (attempt === MAX_RETRIES) return [];
+                    continue;
+                }
+
+                const cleaned = this._cleanJSON(response);
+                const parsed = JSON.parse(cleaned);
+                const cards = this._extractGeneratedCards(parsed);
+
+                return cards
+                    .map(c => this._normalizeGeneratedCard(c))
+                    .filter(c => c.front && c.back);
+
+            } catch (err) {
+                console.error(`❌ Batch generation attempt ${attempt} failed:`, err.message);
+                if (attempt === MAX_RETRIES) throw err; // Throw per attivare fallback
+                await this._sleep(1000);
+            }
+        }
+        return [];
+    }
+
+    /**
+     * ✨ Generazione Flashcard SINGOLA - Fallback
+     * Usa prompt di qualità per singolo chunk
+     */
+    async _generateCardsSingle(chunk, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks) {
+        const globalContext = blueprint?.globalContext || 'Documento accademico';
+        const documentType = blueprint?.documentType || 'other';
+
+        const avoidList = usedConcepts.size > 0
+            ? `\n⚠️ EVITA domande su questi concetti già trattati: ${[...usedConcepts].slice(-20).join(', ')}`
+            : '';
+
+        // Seleziona tipi di domande per varietà
+        const questionTypes = this._selectQuestionTypes(chunkIndex, totalChunks);
+
+        // Prompt QUALITÀ V4 - Copertura completa + Elenchi
+        const systemPrompt = `Sei un ESPERTO CREATORE DI FLASHCARD per studenti che devono RIPASSARE per un esame.
+Lo studente deve memorizzare TUTTO. Ogni concetto importante deve avere almeno una flashcard.
+
+📚 CONTESTO: "${globalContext}"
+📄 TIPO: ${documentType} | SEZIONE: ${chunkIndex + 1}/${totalChunks}
+
+🎯 CREA ${targetCount} FLASHCARD seguendo queste REGOLE:
+
+⚠️ REGOLA ELENCHI: Se c'è un ELENCO (es: "I tipi di X sono: A, B, C"), crea UNA flashcard che chiede TUTTI gli elementi, non domande separate.
+
+TIPI DI DOMANDE:
+${questionTypes}
+
+📏 FORMATO:
+- FRONT: Domanda specifica, min 10 parole.
+- BACK: Risposta COMPLETA con tutti i dettagli. Min 20 parole. Se è un elenco, includi TUTTI i punti.
+${avoidList}
+
+❌ EVITA: siti web, link, bibliografia, domande generiche, sì/no, dettagli irrilevanti, chiedere UN SOLO elemento di un elenco.
+
+✅ PRIVILEGIA: "Quali sono tutti i tipi/fasi di X?", causa-effetto, confronti, meccanismi.
+
+📌 SOURCE: Per ogni card includi page_number + original_quote (PARAGRAFO COMPLETO, min 150-250 char = 1-2 righe del PDF).
+
+OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"paragrafo di 150-250 caratteri..."}}]}`;
+
+        try {
+            const completion = await openai.chat.completions.create({
+                model: ACTIVE_AI_MODEL,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: chunk.text }
+                ],
+                temperature: 0.5,
+                max_completion_tokens: 2500,
+                response_format: { type: 'json_object' },
+            });
+
+            const response = completion.choices[0]?.message?.content;
+            if (!response) return [];
+
+            const cleaned = this._cleanJSON(response);
+            const parsed = JSON.parse(cleaned);
+            const cards = this._extractGeneratedCards(parsed);
+
+            return cards
+                .map(c => this._normalizeGeneratedCard(c))
+                .filter(c => c.front && c.back);
+
+        } catch (err) {
+            console.error(`❌ Single generation failed:`, err.message);
+            return [];
+        }
     }
 
     /**
@@ -1966,14 +2069,14 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
      * @param {object} tenantScope - Scope del tenant
      * @param {string} sourceFilePath - Path al file con il materiale di studio (PDF)
      * @param {string[]} selectedQuestions - Array di domande selezionate dall'utente
-     * @param {object} options - Opzioni { deckId?, title?, goalId? }
+     * @param {object} options - Opzioni { deckId?, title?, examId? }
      * @param {function} onProgress - Callback opzionale per inviare progress: (progress) => void
      * @returns {Promise<object>} - Deck e statistiche
      */
     async generateExamAnswers(tenantScope, sourceFilePath, selectedQuestions, options = {}, onProgress = null) {
         const startTime = Date.now();
         const userId = this._getUserId(tenantScope);
-        const { deckId, title, goalId } = options;
+        const { deckId, title, examId } = options;
 
         if (!Array.isArray(selectedQuestions) || selectedQuestions.length === 0) {
             throw AppError.validation('Devi selezionare almeno una domanda');
@@ -2302,13 +2405,11 @@ Genera una risposta per OGNI domanda nella lista.`;
             if (!title || typeof title !== 'string') {
                 throw AppError.validation('Il titolo del mazzo è obbligatorio per creare un nuovo deck');
             }
-            if (!goalId) {
-                throw AppError.validation('Il goalId è obbligatorio per creare un nuovo deck');
+            if (examId) {
+                await this._validateExamOwnership(tenantScope, examId);
             }
-
-            await this._validateGoalOwnership(tenantScope, goalId);
             deck = await this.create(tenantScope, {
-                goalId,
+                examId: examId || null,
                 title,
                 description: `Generato automaticamente da Exam Solver - ${new Date().toLocaleDateString('it-IT')}`,
                 tags: [],
@@ -2387,13 +2488,13 @@ Genera una risposta per OGNI domanda nella lista.`;
      * @param {object} tenantScope - Scope del tenant
      * @param {string} questionsFilePath - Path al file con le domande (PDF o TXT)
      * @param {string} sourceFilePath - Path al file con il materiale di studio (PDF)
-     * @param {object} options - Opzioni { deckId?, title?, goalId? }
+     * @param {object} options - Opzioni { deckId?, title?, examId? }
      * @returns {Promise<object>} - Deck e statistiche
      */
     async examSolver(tenantScope, questionsFilePath, sourceFilePath, options = {}) {
         const startTime = Date.now();
         const userId = this._getUserId(tenantScope);
-        const { deckId, title, goalId } = options;
+        const { deckId, title, examId } = options;
 
         // Validazione input
         if (!questionsFilePath || typeof questionsFilePath !== 'string') {
@@ -2647,13 +2748,11 @@ Genera una risposta per OGNI domanda nella lista.`;
             if (!title || typeof title !== 'string') {
                 throw AppError.validation('Il titolo del mazzo è obbligatorio per creare un nuovo deck');
             }
-            if (!goalId) {
-                throw AppError.validation('Il goalId è obbligatorio per creare un nuovo deck');
+            if (examId) {
+                await this._validateExamOwnership(tenantScope, examId);
             }
-
-            await this._validateGoalOwnership(tenantScope, goalId);
             deck = await this.create(tenantScope, {
-                goalId,
+                examId: examId || null,
                 title,
                 description: `Generato automaticamente da Exam Solver - ${new Date().toLocaleDateString('it-IT')}`,
                 tags: [],
@@ -2754,11 +2853,11 @@ Genera una risposta per OGNI domanda nella lista.`;
     // PRIVATE HELPERS
     // =========================================
 
-    async _validateGoalOwnership(tenantScope, goalId) {
+    async _validateExamOwnership(tenantScope, examId) {
         const userId = this._getUserId(tenantScope);
-        const goal = await Goal.findOne({ _id: goalId, user: userId });
-        if (!goal) {
-            throw AppError.notFound('Obiettivo');
+        const exam = await Exam.findOne({ _id: examId, user: userId });
+        if (!exam) {
+            throw AppError.notFound('Esame non trovato');
         }
     }
 
@@ -2860,8 +2959,8 @@ Genera una risposta per OGNI domanda nella lista.`;
                     ? sourceMeta.original_quote.trim() 
                     : (typeof sourceMeta.originalQuote === 'string' ? sourceMeta.originalQuote.trim() : null);
 
-                // Valida che abbiamo almeno page_number e original_quote
-                if (pageNumber !== null && pageNumber > 0 && originalQuote && originalQuote.length >= 20) {
+                // Valida che abbiamo almeno page_number e original_quote (min 150 char = 1-2 righe)
+                if (pageNumber !== null && pageNumber > 0 && originalQuote && originalQuote.length >= 150) {
                     normalized.sourceMetadata = {
                         pageNumber: pageNumber,
                         originalText: originalQuote,
@@ -2891,7 +2990,11 @@ Genera una risposta per OGNI domanda nella lista.`;
         return cleaned.trim();
     }
 
-    async _analyzeDocumentStructure(extractedText) {
+    /**
+     * 🏗️ Analisi Struttura Documento - LOCALE (senza AI)
+     * Usa pattern matching per identificare tipo documento e contesto
+     */
+    _analyzeDocumentStructure(extractedText) {
         const defaultBlueprint = {
             documentType: 'other',
             densityScore: 0.5,
@@ -2899,63 +3002,312 @@ Genera una risposta per OGNI domanda nella lista.`;
             mainTopics: [],
         };
 
-        try {
-            if (!extractedText || typeof extractedText !== 'string') {
-                return defaultBlueprint;
-            }
-
-            const sampleText = this._truncateText(extractedText, 25000);
-            if (!sampleText || sampleText.trim().length === 0) {
-                return defaultBlueprint;
-            }
-
-            const systemPrompt = `Analizza il testo e restituisci SOLO JSON:
-{
-  "documentType": "textbook" | "slide_deck" | "research_paper" | "exam_text" | "notes" | "other",
-  "globalContext": "Frase riassuntiva concisa (max 20 parole)",
-  "mainTopics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"],
-  "densityScore": 0.0 to 1.0
-}`;
-
-            const completion = await openai.chat.completions.create({
-                model: ACTIVE_AI_MODEL,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: `Testo:\n\n${sampleText}` },
-                ],
-                temperature: 0.2,
-                max_completion_tokens: 500,
-                response_format: { type: 'json_object' },
-            });
-
-            const aiResponse = completion.choices[0]?.message?.content;
-            if (!aiResponse) return defaultBlueprint;
-
-            const cleanedJSON = this._cleanJSON(aiResponse);
-            if (!cleanedJSON) return defaultBlueprint;
-
-            const parsed = JSON.parse(cleanedJSON);
-
-            const allowedTypes = new Set(['textbook', 'slide_deck', 'research_paper', 'exam_text', 'notes', 'other']);
-            const documentType = allowedTypes.has(parsed?.documentType) ? parsed.documentType : 'other';
-            
-            const globalContext = typeof parsed?.globalContext === 'string' 
-                ? parsed.globalContext.split(/\s+/).slice(0, 20).join(' ')
-                : 'Documento generico';
-
-            const mainTopics = Array.isArray(parsed?.mainTopics)
-                ? parsed.mainTopics.filter(t => typeof t === 'string').slice(0, 5)
-                : [];
-
-            const densityScore = Number.isFinite(Number(parsed?.densityScore))
-                ? Math.max(0, Math.min(1, Number(parsed.densityScore)))
-                : 0.5;
-
-            return { documentType, globalContext, mainTopics, densityScore };
-        } catch (err) {
-            console.warn('⚠️ Document analysis fallback:', err.message);
+        if (!extractedText || typeof extractedText !== 'string') {
             return defaultBlueprint;
         }
+
+        const sampleText = this._truncateText(extractedText, 25000);
+        if (!sampleText || sampleText.trim().length === 0) {
+            return defaultBlueprint;
+        }
+
+        // 1. Rileva tipo documento tramite pattern matching
+        const documentType = this._detectDocumentType(sampleText);
+
+        // 2. Estrai contesto globale dai primi header/titoli
+        const globalContext = this._extractGlobalContext(sampleText);
+
+        // 3. Estrai topic principali dagli header
+        const mainTopics = this._extractMainTopics(sampleText);
+
+        // 4. Calcola densità contenuto
+        const densityScore = this._calculateDensityScore(sampleText);
+
+        console.log(`📋 Blueprint locale: ${documentType}, density: ${densityScore.toFixed(2)}`);
+
+        return { documentType, globalContext, mainTopics, densityScore };
+    }
+
+    /**
+     * 📄 Rileva tipo documento tramite pattern
+     */
+    _detectDocumentType(text) {
+        const patterns = {
+            textbook: [
+                /capitolo\s+\d+/gi,
+                /chapter\s+\d+/gi,
+                /sezione\s+\d+/gi,
+                /eserciz[io]/gi,
+                /definizione/gi,
+                /teorema/gi,
+                /dimostrazione/gi,
+                /corollario/gi,
+                /lemma/gi,
+            ],
+            slide_deck: [
+                /slide\s+\d+/gi,
+                /\bppt\b/gi,
+                /•\s+/g, // Bullet points frequenti
+                /→|⇒|➔/g, // Frecce frequenti
+            ],
+            research_paper: [
+                /abstract/gi,
+                /introduction/gi,
+                /methodology/gi,
+                /results/gi,
+                /conclusion/gi,
+                /references/gi,
+                /bibliography/gi,
+                /et al\./gi,
+                /\[\d+\]/g, // Citations [1], [2]
+            ],
+            exam_text: [
+                /esame/gi,
+                /exam/gi,
+                /domand[ae]/gi,
+                /question/gi,
+                /risposta/gi,
+                /answer/gi,
+                /punti:/gi,
+                /points:/gi,
+                /voto/gi,
+                /grade/gi,
+            ],
+            notes: [
+                /appunt[io]/gi,
+                /notes/gi,
+                /lezione/gi,
+                /lecture/gi,
+                /corso/gi,
+                /course/gi,
+            ],
+        };
+
+        const scores = {};
+        for (const [type, typePatterns] of Object.entries(patterns)) {
+            let count = 0;
+            for (const pattern of typePatterns) {
+                const matches = text.match(pattern);
+                if (matches) count += matches.length;
+            }
+            scores[type] = count;
+        }
+
+        // Trova il tipo con più match (soglia minima 3)
+        const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+        if (sorted[0][1] >= 3) {
+            return sorted[0][0];
+        }
+
+        return 'other';
+    }
+
+    /**
+     * 📝 Estrai contesto globale COMPLETO dal documento
+     * Crea un riassunto dettagliato per dare contesto all'AI
+     */
+    _extractGlobalContext(text) {
+        // Limita testo per evitare problemi di memoria
+        const sampleText = text.slice(0, 50000);
+        const contextParts = [];
+
+        // 1. Cerca titolo principale (prima riga significativa o header)
+        const titlePatterns = [
+            /^#\s+(.+)$/m,
+            /^([A-Z][A-Z\s]{5,60})$/m, // Titolo in maiuscolo
+            /^(Capitolo|Chapter)\s+\d+[:\s-]+(.+)$/im,
+            /^(Corso|Course|Materia|Subject)[:\s]+(.+)$/im,
+        ];
+
+        let mainTitle = '';
+        for (const pattern of titlePatterns) {
+            const match = sampleText.match(pattern);
+            if (match) {
+                mainTitle = (match[2] || match[1]).trim();
+                if (mainTitle.length > 5) break;
+            }
+        }
+        if (mainTitle) contextParts.push(mainTitle);
+
+        // 2. Estrai TUTTI i titoli/sezioni per capire la struttura
+        const sectionTitles = [];
+        const sectionPatterns = [
+            /^#+\s+(.{5,80})$/gm,
+            /^(\d+\.[\d.]*)\s+([A-Z][^\n]{5,60})$/gm,
+            /^(•|▪|➤|-)\s*([A-Z][^\n]{10,60})$/gm,
+        ];
+
+        for (const pattern of sectionPatterns) {
+            let match;
+            pattern.lastIndex = 0; // Reset regex
+            while ((match = pattern.exec(sampleText)) !== null && sectionTitles.length < 10) {
+                const title = (match[2] || match[1]).trim();
+                if (title.length > 5 && !sectionTitles.includes(title)) {
+                    sectionTitles.push(title);
+                }
+            }
+        }
+        if (sectionTitles.length > 0) {
+            contextParts.push(`Argomenti trattati: ${sectionTitles.join(', ')}`);
+        }
+
+        // 3. Estrai parole chiave tecniche dal testo (frequenza alta)
+        const technicalTerms = this._extractTechnicalTerms(sampleText);
+        if (technicalTerms.length > 0) {
+            contextParts.push(`Termini chiave: ${technicalTerms.slice(0, 15).join(', ')}`);
+        }
+
+        // 4. Identifica il campo/materia dal contenuto
+        const field = this._identifyField(sampleText);
+        if (field) {
+            contextParts.push(`Campo: ${field}`);
+        }
+
+        // Combina tutto in un contesto ricco
+        const fullContext = contextParts.join('. ');
+        return fullContext.length > 10 ? fullContext : 'Documento di studio';
+    }
+
+    /**
+     * 🔬 Estrai termini tecnici dal testo (con limite memoria)
+     */
+    _extractTechnicalTerms(text) {
+        // Limita testo per evitare problemi di memoria
+        const sampleText = text.slice(0, 50000);
+
+        // Stopwords italiane e inglesi
+        const stopwords = new Set([
+            'il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'di', 'a', 'da',
+            'in', 'con', 'su', 'per', 'tra', 'fra', 'che', 'non', 'come', 'anche',
+            'più', 'dove', 'quando', 'essere', 'avere', 'fare', 'dire', 'questo',
+            'quello', 'suo', 'loro', 'tutto', 'ogni', 'altro', 'molto', 'poco',
+            'nel', 'nella', 'dello', 'della', 'degli', 'delle', 'sono', 'sia',
+            'hanno', 'può', 'deve', 'quindi', 'perché', 'page', 'end', 'the', 'and',
+            'that', 'with', 'from', 'this', 'which', 'about', 'into', 'through',
+            'dell', 'all', 'alla', 'alle', 'agli', 'agli', 'nei', 'nelle', 'sui',
+            'sulla', 'sulle', 'dagli', 'dalle', 'quali', 'quale', 'quanto', 'quanti',
+            'stata', 'stato', 'stati', 'state', 'viene', 'vengono', 'fatto', 'fatta',
+            'essere', 'stata', 'stato', 'come', 'così', 'dopo', 'prima', 'ancora',
+            'sempre', 'solo', 'senza', 'verso', 'oltre', 'sotto', 'sopra', 'mentre'
+        ]);
+
+        // Conta frequenza parole significative (4+ caratteri, non stopword)
+        const wordFreq = {};
+        const words = sampleText.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/);
+
+        for (const word of words) {
+            if (word.length >= 4 && !stopwords.has(word) && !/^\d+$/.test(word)) {
+                wordFreq[word] = (wordFreq[word] || 0) + 1;
+            }
+        }
+
+        // Ordina per frequenza e prendi i top termini (min 3 occorrenze)
+        return Object.entries(wordFreq)
+            .filter(([_, count]) => count >= 3)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20)
+            .map(([word]) => word);
+    }
+
+    /**
+     * 🎓 Identifica il campo/materia del documento
+     */
+    _identifyField(text) {
+        // Limita testo per evitare problemi di memoria
+        const lowerText = text.slice(0, 50000).toLowerCase();
+
+        const fieldIndicators = {
+            'Economia e Finanza': ['bilancio', 'economia', 'finanza', 'mercato', 'investimento', 'capitale', 'debito', 'credito', 'banca', 'fiscale', 'tributario', 'imposta'],
+            'Diritto': ['legge', 'norma', 'giuridico', 'contratto', 'diritto', 'costituzione', 'codice', 'sentenza', 'tribunale', 'giudice'],
+            'Medicina e Biologia': ['cellula', 'organismo', 'malattia', 'sintomo', 'diagnosi', 'terapia', 'farmaco', 'anatomia', 'fisiologia', 'patologia'],
+            'Informatica': ['algoritmo', 'programmazione', 'software', 'database', 'rete', 'sistema operativo', 'codice', 'variabile', 'funzione'],
+            'Ingegneria': ['progettazione', 'struttura', 'materiale', 'meccanica', 'elettronica', 'circuito', 'sistema', 'energia'],
+            'Matematica': ['teorema', 'dimostrazione', 'funzione', 'equazione', 'derivata', 'integrale', 'matrice', 'vettore'],
+            'Fisica': ['forza', 'energia', 'massa', 'velocità', 'accelerazione', 'campo', 'onda', 'particella'],
+            'Chimica': ['molecola', 'atomo', 'reazione', 'elemento', 'composto', 'soluzione', 'acido', 'base'],
+            'Scienze Politiche': ['stato', 'governo', 'parlamento', 'democrazia', 'politica', 'elezione', 'partito', 'pubblico', 'amministrazione'],
+            'Psicologia': ['comportamento', 'cognizione', 'emozione', 'personalità', 'sviluppo', 'apprendimento', 'memoria'],
+        };
+
+        let bestField = '';
+        let maxScore = 0;
+
+        for (const [field, keywords] of Object.entries(fieldIndicators)) {
+            let score = 0;
+            for (const keyword of keywords) {
+                const regex = new RegExp(keyword, 'gi');
+                const matches = lowerText.match(regex);
+                if (matches) score += matches.length;
+            }
+            if (score > maxScore) {
+                maxScore = score;
+                bestField = field;
+            }
+        }
+
+        return maxScore >= 5 ? bestField : '';
+    }
+
+    /**
+     * 📚 Estrai topic principali dagli header - MIGLIORATO
+     */
+    _extractMainTopics(text) {
+        const topics = [];
+
+        // Pattern per trovare titoli e sezioni
+        const headerPatterns = [
+            /^#+\s+(.{5,80})$/gm,                          // Markdown headers
+            /^(\d+\.[\d.]*)\s+([^\n]{5,60})$/gm,           // Numbered sections
+            /^(Capitolo|Chapter)\s+\d+[:\s-]+(.+)$/gim,
+            /^(Sezione|Section)\s+[\d.]+[:\s-]+(.+)$/gim,
+            /^([A-Z][A-Z\s]{5,50}):?\s*$/gm,               // ALL CAPS titles
+            /^(•|▪|➤|►)\s*([A-Z][^\n]{10,60})$/gm,        // Bullet points
+        ];
+
+        for (const pattern of headerPatterns) {
+            let match;
+            pattern.lastIndex = 0; // Reset regex
+            while ((match = pattern.exec(text)) !== null && topics.length < 15) {
+                const topic = (match[2] || match[1]).trim();
+                if (topic.length > 5 && topic.length < 80) {
+                    const cleaned = topic.replace(/^[\d.\s:•▪➤►-]+/, '').trim();
+                    if (cleaned.length > 5 && !topics.some(t => t.toLowerCase() === cleaned.toLowerCase())) {
+                        topics.push(cleaned);
+                    }
+                }
+            }
+        }
+
+        return topics.slice(0, 10);
+    }
+
+    /**
+     * 📊 Calcola densità contenuto
+     */
+    _calculateDensityScore(text) {
+        // Fattori che aumentano la densità:
+        // - Presenza di definizioni, teoremi, formule
+        // - Rapporto parole/caratteri
+        // - Presenza di terminologia tecnica
+
+        const definitionCount = (text.match(/definizione|teorema|lemma|corollario|propriet[àa]/gi) || []).length;
+        const formulaCount = (text.match(/[=+\-*/^√∫∑∏]/g) || []).length;
+        const wordCount = text.split(/\s+/).length;
+        const charCount = text.length;
+
+        // Rapporto definizioni per 1000 parole
+        const defDensity = Math.min(1, (definitionCount / wordCount) * 100);
+
+        // Rapporto formule per 1000 caratteri
+        const formulaDensity = Math.min(1, (formulaCount / charCount) * 50);
+
+        // Densità media parole (più corte = più dense)
+        const avgWordLength = charCount / Math.max(1, wordCount);
+        const wordDensity = avgWordLength > 6 ? 0.7 : avgWordLength > 5 ? 0.5 : 0.3;
+
+        // Score finale
+        const score = (defDensity * 0.4) + (formulaDensity * 0.3) + (wordDensity * 0.3);
+        return Math.max(0.2, Math.min(1, score));
     }
 
     _sanitizeTutorHistory(history) {
@@ -3089,6 +3441,174 @@ Genera una risposta per OGNI domanda nella lista.`;
         return text.slice(0, maxLength) + (typeof suffix === 'string' ? suffix : '');
     }
 
+    _normalizeStudyMode(value) {
+        const normalized = typeof value === 'string' ? value.toLowerCase() : 'flashcard';
+        const allowed = ['flashcard', 'quiz', 'typing', 'mix', 'sprint', 'focus', 'exam'];
+        return allowed.includes(normalized) ? normalized : 'flashcard';
+    }
+
+    _normalizeSessionFocus(value) {
+        const normalized = typeof value === 'string' ? value.toLowerCase() : 'smart';
+        const allowed = ['smart', 'due', 'weak', 'all'];
+        return allowed.includes(normalized) ? normalized : 'smart';
+    }
+
+    _normalizeSessionDirection(value) {
+        const normalized = typeof value === 'string' ? value.toLowerCase() : 'front';
+        const allowed = ['front', 'back', 'mixed'];
+        return allowed.includes(normalized) ? normalized : 'front';
+    }
+
+    _getDefaultSessionLimit(mode) {
+        const defaults = {
+            flashcard: 20,
+            quiz: 20,
+            typing: 20,
+            mix: 30,
+            sprint: 15,
+            focus: 20,
+            exam: 30,
+        };
+        return defaults[mode] || 20;
+    }
+
+    _resolveCardId(card) {
+        if (!card) return '';
+        return String(card.id || card._id || '');
+    }
+
+    _calculateCardDifficulty(card, now) {
+        const ease = Number.isFinite(Number(card?.easinessFactor)) ? Number(card.easinessFactor) : 2.5;
+        const interval = Number.isFinite(Number(card?.interval)) ? Number(card.interval) : 0;
+        const repetitions = Number.isFinite(Number(card?.repetitions)) ? Number(card.repetitions) : 0;
+        const status = typeof card?.status === 'string' ? card.status : 'review';
+
+        const nowTs = now instanceof Date ? now.getTime() : Date.now();
+        const nextReviewTs = card?.nextReviewDate ? new Date(card.nextReviewDate).getTime() : 0;
+        const overdueDays = nextReviewTs > 0 ? Math.max(0, (nowTs - nextReviewTs) / 86400000) : 0;
+
+        const easePenalty = Math.max(0, 2.6 - ease) * 1.2;
+        const intervalPenalty = interval > 0 ? Math.min(1.2, 1 / interval) : 0.9;
+        const repetitionPenalty = repetitions < 2 ? 0.8 : repetitions < 4 ? 0.4 : 0;
+        const statusBonus = status === 'learning' ? 0.6 : status === 'new' ? 0.4 : 0;
+        const overdueBonus = Math.min(2, overdueDays * 0.15);
+
+        return easePenalty + intervalPenalty + repetitionPenalty + statusBonus + overdueBonus;
+    }
+
+    _buildSmartSelection(cards, dueCards, now) {
+        const sortedDue = [...dueCards].sort((a, b) => {
+            const aTime = new Date(a.nextReviewDate).getTime();
+            const bTime = new Date(b.nextReviewDate).getTime();
+            return aTime - bTime;
+        });
+        const dueIds = new Set(sortedDue.map(card => this._resolveCardId(card)));
+        const remaining = cards.filter(card => !dueIds.has(this._resolveCardId(card)));
+        const scored = remaining
+            .map(card => ({ card, score: this._calculateCardDifficulty(card, now) }))
+            .sort((a, b) => b.score - a.score)
+            .map(item => item.card);
+        return [...sortedDue, ...scored];
+    }
+
+    _buildExamSelection(cards, limit) {
+        const buckets = {
+            new: [],
+            learning: [],
+            review: [],
+            mastered: [],
+        };
+
+        for (const card of cards) {
+            const status = typeof card.status === 'string' ? card.status : 'review';
+            if (buckets[status]) {
+                buckets[status].push(card);
+            } else {
+                buckets.review.push(card);
+            }
+        }
+
+        const order = [
+            { key: 'learning', weight: 3 },
+            { key: 'review', weight: 3 },
+            { key: 'new', weight: 2 },
+            { key: 'mastered', weight: 1 },
+        ];
+
+        const shuffledBuckets = Object.fromEntries(
+            Object.entries(buckets).map(([key, items]) => [key, this._shuffleArray(items)])
+        );
+
+        const selection = [];
+        let progressMade = true;
+
+        while (selection.length < limit && progressMade) {
+            progressMade = false;
+            for (const bucket of order) {
+                for (let i = 0; i < bucket.weight; i += 1) {
+                    if (selection.length >= limit) break;
+                    const items = shuffledBuckets[bucket.key];
+                    if (items.length > 0) {
+                        selection.push(items.pop());
+                        progressMade = true;
+                    }
+                }
+                if (selection.length >= limit) break;
+            }
+        }
+
+        if (selection.length < limit) {
+            const selectedIds = new Set(selection.map(card => this._resolveCardId(card)));
+            const remaining = cards.filter(card => !selectedIds.has(this._resolveCardId(card)));
+            const filler = this._shuffleArray(remaining);
+            for (const card of filler) {
+                if (selection.length >= limit) break;
+                selection.push(card);
+            }
+        }
+
+        return selection;
+    }
+
+    _buildCardModes(mode, cards) {
+        if (mode !== 'mix' && mode !== 'exam') return undefined;
+        const cycle = mode === 'exam'
+            ? ['quiz', 'typing', 'quiz', 'flashcard', 'typing']
+            : ['quiz', 'typing', 'flashcard'];
+        return cards.reduce((acc, card, index) => {
+            acc[this._resolveCardId(card)] = cycle[index % cycle.length];
+            return acc;
+        }, {});
+    }
+
+    _selectSessionCards({ cards, dueCards, mode, focus, limit, now }) {
+        let selection = [];
+
+        if (mode === 'exam') {
+            selection = this._buildExamSelection(cards, limit || cards.length);
+        } else if (focus === 'due') {
+            const sortedDue = [...dueCards].sort((a, b) => {
+                const aTime = new Date(a.nextReviewDate).getTime();
+                const bTime = new Date(b.nextReviewDate).getTime();
+                return aTime - bTime;
+            });
+            selection = sortedDue.length > 0 ? sortedDue : cards;
+        } else if (focus === 'weak') {
+            selection = [...cards]
+                .map(card => ({ card, score: this._calculateCardDifficulty(card, now) }))
+                .sort((a, b) => b.score - a.score)
+                .map(item => item.card);
+        } else if (focus === 'all') {
+            selection = [...cards];
+        } else {
+            selection = this._buildSmartSelection(cards, dueCards, now);
+        }
+
+        const trimmed = limit > 0 ? selection.slice(0, limit) : selection;
+        const shouldShuffle = ['quiz', 'mix', 'sprint'].includes(mode) && focus !== 'due';
+        return shouldShuffle ? this._shuffleArray(trimmed) : trimmed;
+    }
+
     _buildQuizOptions(correctAnswer, allAnswers = []) {
         const normalizedCorrect = this._normalizeAnswerValue(correctAnswer);
         const candidates = allAnswers
@@ -3143,77 +3663,8 @@ Genera una risposta per OGNI domanda nella lista.`;
         return arr;
     }
 
-    _calculateSessionXpBreakdown(metadata = {}) {
-        const correctCount = this._toNumber(metadata.correctCount, 0);
-        const wrongCount = this._toNumber(metadata.wrongCount, 0);
-        const timeSpentSeconds = this._toNumber(metadata.timeSpentSeconds, 0);
-        const totalCards = this._toNumber(metadata.totalCards, correctCount + wrongCount);
-        const streakBonus = this._toNumber(metadata.streakBonus, 0);
-
-        const timePerCard = totalCards > 0 ? timeSpentSeconds / totalCards : 0;
-        const speedBonus = timePerCard > 0
-            ? Math.max(0, Math.round(10 - timePerCard / 3))
-            : 0;
-
-        const correctXp = correctCount * 2;
-        const total = SESSION_BASE_XP + correctXp + speedBonus + streakBonus;
-
-        return {
-            base: SESSION_BASE_XP,
-            correct: correctXp,
-            speedBonus,
-            streakBonus,
-            total,
-        };
-    }
-
     _toNumber(value, fallback = 0) {
         return Number.isFinite(Number(value)) ? Number(value) : fallback;
-    }
-
-    _updateDeckAnalytics(deck, quality, sessionMeta = null) {
-        if (!deck.analytics) {
-            deck.analytics = {
-                totalReviews: 0,
-                averageTimePerCard: 0,
-                retentionRate: 0,
-                lastStudied: null,
-                studyStreak: 0,
-            };
-        }
-
-        const analytics = deck.analytics;
-        analytics.totalReviews = (analytics.totalReviews || 0) + 1;
-        analytics.lastStudied = new Date();
-
-        const isCorrect = quality >= 3;
-        const previousTotal = analytics.totalReviews - 1 || 1;
-        const previousCorrect = Math.round((analytics.retentionRate || 0) * previousTotal);
-        const newCorrect = previousCorrect + (isCorrect ? 1 : 0);
-        analytics.retentionRate = newCorrect / analytics.totalReviews;
-
-        if (sessionMeta?.timePerCard && Number.isFinite(sessionMeta.timePerCard)) {
-            const previousAvg = analytics.averageTimePerCard || 0;
-            const newAvg = (previousAvg * previousTotal + sessionMeta.timePerCard) / analytics.totalReviews;
-            analytics.averageTimePerCard = newAvg;
-        }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const lastStudied = analytics.lastStudied ? new Date(analytics.lastStudied) : null;
-        if (lastStudied) {
-            lastStudied.setHours(0, 0, 0, 0);
-            const daysDiff = Math.floor((today - lastStudied) / (1000 * 60 * 60 * 24));
-            if (daysDiff === 0) {
-                // Stesso giorno
-            } else if (daysDiff === 1) {
-                analytics.studyStreak = (analytics.studyStreak || 0) + 1;
-            } else {
-                analytics.studyStreak = 1;
-            }
-        } else {
-            analytics.studyStreak = 1;
-        }
     }
 
     // =========================================
@@ -3223,7 +3674,7 @@ Genera una risposta per OGNI domanda nella lista.`;
     /**
      * Resetta le carte di tutti i deck associati a un esame
      * @param {object} tenantScope - Scope del tenant
-     * @param {string} examId - ID dell'esame (Goal)
+     * @param {string} examId - ID dell'esame
      * @param {string} type - 'all' per reset completo, 'hard-only' per solo carte difficili
      * @returns {Promise<object>} - Statistiche del reset
      */
@@ -3233,15 +3684,15 @@ Genera una risposta per OGNI domanda nella lista.`;
         console.log('[StudyService] userId:', userId);
 
         // Verifica che l'esame esista e appartenga all'utente
-        const goal = await Goal.findOne({ _id: examId, user: userId });
-        if (!goal) {
+        const exam = await Exam.findOne({ _id: examId, user: userId });
+        if (!exam) {
             console.error('[StudyService] Esame non trovato:', { examId, userId });
             throw AppError.notFound('Esame non trovato');
         }
-        console.log('[StudyService] Esame trovato:', goal.title);
+        console.log('[StudyService] Esame trovato:', exam.title);
 
         // Trova tutti i deck associati a questo esame
-        const decks = await Deck.find({ goalId: examId, user: userId });
+        const decks = await Deck.find({ examId, user: userId });
         console.log('[StudyService] Trovati', decks.length, 'deck per l\'esame');
         if (decks.length === 0) {
             console.warn('[StudyService] Nessun mazzo trovato per esame:', examId);
@@ -3277,7 +3728,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                 card.nextReviewDate = new Date();
                 card.status = 'new';
                 card.lastReviewed = null;
-                // Mantieni reviewHistory per analytics, ma resetta i parametri SM-2
+                // Mantieni reviewHistory per storico, ma resetta i parametri SM-2
             }
 
             if (type === 'all') {
@@ -3301,7 +3752,7 @@ Genera una risposta per OGNI domanda nella lista.`;
     /**
      * Genera domande AI di approfondimento basate sulle difficoltà segnalate
      * @param {object} tenantScope - Scope del tenant
-     * @param {string} examId - ID dell'esame (Goal)
+     * @param {string} examId - ID dell'esame
      * @param {string[]} difficulties - Array di difficoltà segnalate (es. ['concepts', 'time'])
      * @returns {Promise<object>} - Statistiche della generazione
      */
@@ -3311,15 +3762,15 @@ Genera una risposta per OGNI domanda nella lista.`;
         console.log('[StudyService] userId:', userId);
 
         // Verifica che l'esame esista e appartenga all'utente
-        const goal = await Goal.findOne({ _id: examId, user: userId });
-        if (!goal) {
+        const exam = await Exam.findOne({ _id: examId, user: userId });
+        if (!exam) {
             console.error('[StudyService] Esame non trovato:', { examId, userId });
             throw AppError.notFound('Esame non trovato');
         }
-        console.log('[StudyService] Esame trovato:', goal.title);
+        console.log('[StudyService] Esame trovato:', exam.title);
 
         // Trova tutti i deck associati a questo esame
-        const decks = await Deck.find({ goalId: examId, user: userId });
+        const decks = await Deck.find({ examId, user: userId });
         console.log('[StudyService] Trovati', decks.length, 'deck per l\'esame');
         if (decks.length === 0) {
             console.warn('[StudyService] Nessun mazzo trovato per esame:', examId);
@@ -3360,8 +3811,8 @@ Genera una risposta per OGNI domanda nella lista.`;
 
 ${contextPrompt}
 
-CONTESTO ESAME: "${goal.title}"
-${goal.description ? `DESCRIZIONE: ${goal.description}` : ''}
+CONTESTO ESAME: "${exam.title}"
+${exam.description ? `DESCRIZIONE: ${exam.description}` : ''}
 
 ARGOMENTI ESISTENTI NEL MAZZO:
 ${topics || 'Nessun argomento specifico'}

@@ -67,6 +67,23 @@ module.exports = {
     },
 
     // ==========================================
+    // CSRF Configuration
+    // ==========================================
+    csrf: {
+        cookieName: process.env.CSRF_COOKIE_NAME || 'csrfToken',
+        headerName: process.env.CSRF_HEADER_NAME || 'X-CSRF-Token',
+        tokenBytes: parseInt(process.env.CSRF_TOKEN_BYTES || '32', 10),
+        cookieMaxAge: parseInt(process.env.CSRF_COOKIE_MAX_AGE || '604800000', 10),
+    },
+
+    // ==========================================
+    // Encryption Configuration
+    // ==========================================
+    encryption: {
+        key: process.env.DATA_ENCRYPTION_KEY || '',
+    },
+
+    // ==========================================
     // Rate Limiting Configuration
     // ==========================================
     rateLimit: {

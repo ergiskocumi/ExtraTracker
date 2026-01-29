@@ -3,22 +3,21 @@
  * 
  * Sistema di routing:
  * - /login, /register, /forgot-password, /reset-password, /verify-email → Pagine pubbliche (AuthLayout)
- * - /, /goals, /settings, /study → Pagine protette (AppLayout)
+ * - /, /settings, /study → Pagine protette (AppLayout)
  */
 
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { GoalsProvider } from './features/goals/context/GoalsContext';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
+import { FeedbackProvider } from './features/feedback/context/FeedbackContext';
 import { ProtectedRoute } from './features/auth/context/AuthContext';
+import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
 import { useSettings } from './features/settings/context/SettingsContext';
 
 // OTTIMIZZATO: Lazy loading per tutte le pagine (code splitting)
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const SettingsPage = lazy(() => import('./features/settings/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
-const GoalsPage = lazy(() => import('./features/goals/pages/GoalsPage').then(m => ({ default: m.GoalsPage })));
-const GoalDetailPage = lazy(() => import('./features/goals/pages/GoalDetailPage').then(m => ({ default: m.GoalDetailPage })));
 const LoginPage = lazy(() => import('./features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('./features/auth/pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
@@ -30,6 +29,9 @@ const DecksDashboardPage = lazy(() => import('./features/study/pages/DecksDashbo
 const StudySessionPage = lazy(() => import('./features/study/pages/StudySessionPage').then(m => ({ default: m.StudySessionPage })));
 const DeckDetailPage = lazy(() => import('./features/study/pages/DeckDetailPage').then(m => ({ default: m.DeckDetailPage })));
 const CinemaPage = lazy(() => import('./features/study/pages/CinemaPage').then(m => ({ default: m.CinemaPage })));
+
+// Admin Pages - Lazy loaded
+const AdminFeedbackPage = lazy(() => import('./features/feedback/pages/AdminFeedbackPage').then(m => ({ default: m.AdminFeedbackPage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -44,9 +46,7 @@ const HomeRedirect = () => {
     // Evita redirect "a caso" prima di aver caricato le preferenze reali dal backend.
     if (!hasLoaded) return null;
 
-    const to = preferences.defaultView === 'goals'
-        ? '/goals'
-        : '/dashboard';
+    const to = '/dashboard';
 
     return <Navigate to={to} replace />;
 };
@@ -69,17 +69,15 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <SettingsProvider>
-                                <GoalsProvider>
+                                <FeedbackProvider>
                                     <AppLayout />
-                                </GoalsProvider>
+                                </FeedbackProvider>
                             </SettingsProvider>
                         </ProtectedRoute>
                     }
                 >
                     <Route path="/" element={<HomeRedirect />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/goals" element={<GoalsPage />} />
-                    <Route path="/goals/:id" element={<GoalDetailPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
 
                     {/* Study / Flashcards */}
@@ -88,6 +86,16 @@ function App() {
                     <Route path="/study/deck/:deckId/cinema" element={<CinemaPage />} />
                     <Route path="/study/:deckId" element={<StudySessionPage />} />
                     <Route path="/study/:deckId/session" element={<StudySessionPage />} />
+
+                    {/* Admin Routes */}
+                    <Route
+                        path="/admin/feedback"
+                        element={
+                            <AdminRoute>
+                                <AdminFeedbackPage />
+                            </AdminRoute>
+                        }
+                    />
                 </Route>
             </Routes>
         </Suspense>

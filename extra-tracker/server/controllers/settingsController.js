@@ -12,6 +12,10 @@ const User = require('../models/User');
 const { asyncHandler } = require('../middleware/errorHandler');
 const AppError = require('../utils/AppError');
 const { exportUserData, importUserData } = require('../services/dataExportImportService');
+const authService = require('../services/authService');
+const { encryptFields, decryptFields } = require('../utils/encryption');
+
+const PROFILE_SENSITIVE_FIELDS = ['phone', 'bio', 'company', 'jobTitle', 'location', 'website'];
 
 // ==========================================
 // PROFILO UTENTE
@@ -31,7 +35,10 @@ const getProfile = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         data: {
-            profile: user.profile || {},
+            profile: decryptFields(
+                user.profile?.toObject?.() || user.profile || {},
+                PROFILE_SENSITIVE_FIELDS
+            ),
             email: user.email,
             isEmailVerified: user.isEmailVerified,
             createdAt: user.createdAt,
@@ -58,10 +65,11 @@ const updateProfile = asyncHandler(async (req, res) => {
     ];
 
     // Filtra solo i campi permessi
+    const encryptedBody = encryptFields(req.body || {}, PROFILE_SENSITIVE_FIELDS);
     const updates = {};
     for (const field of allowedFields) {
-        if (req.body[field] !== undefined) {
-            updates[`profile.${field}`] = req.body[field];
+        if (encryptedBody[field] !== undefined) {
+            updates[`profile.${field}`] = encryptedBody[field];
         }
     }
 
@@ -79,7 +87,10 @@ const updateProfile = asyncHandler(async (req, res) => {
         success: true,
         message: 'Profilo aggiornato con successo',
         data: {
-            profile: user.profile,
+            profile: decryptFields(
+                user.profile?.toObject?.() || user.profile || {},
+                PROFILE_SENSITIVE_FIELDS
+            ),
         },
     });
 });
@@ -114,8 +125,6 @@ const getPreferences = asyncHandler(async (req, res) => {
         defaultView: 'dashboard',
         weekStartsOn: 1,
         workingDays: [1, 2, 3, 4, 5],
-        dailyGoalHours: 8,
-        weeklyGoalHours: 40,
     };
 
     res.status(200).json({
@@ -148,8 +157,6 @@ const updatePreferences = asyncHandler(async (req, res) => {
         'defaultView',
         'weekStartsOn',
         'workingDays',
-        'dailyGoalHours',
-        'weeklyGoalHours',
     ];
 
     // Filtra solo i campi permessi
@@ -199,7 +206,6 @@ const getNotifications = asyncHandler(async (req, res) => {
         email: {
             enabled: true,
             weeklyReport: true,
-            goalReminders: true,
         },
         push: {
             enabled: false,
@@ -231,7 +237,6 @@ const updateNotifications = asyncHandler(async (req, res) => {
     if (email) {
         if (email.enabled !== undefined) updates['notifications.email.enabled'] = email.enabled;
         if (email.weeklyReport !== undefined) updates['notifications.email.weeklyReport'] = email.weeklyReport;
-        if (email.goalReminders !== undefined) updates['notifications.email.goalReminders'] = email.goalReminders;
     }
 
     // Aggiorna preferenze push
@@ -278,7 +283,10 @@ const getAllSettings = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         data: {
-            profile: user.profile || {},
+            profile: decryptFields(
+                user.profile?.toObject?.() || user.profile || {},
+                PROFILE_SENSITIVE_FIELDS
+            ),
             preferences: user.preferences || {},
             notifications: user.notifications || {},
             account: {
@@ -298,7 +306,7 @@ const getAllSettings = asyncHandler(async (req, res) => {
 /**
  * GET /api/settings/export
  * Esporta tutti i dati "lavoro" dell'utente (GDPR compliance)
- * NON include: email, password, level, XP, tokens (solo dati lavoro)
+ * NON include: email, password, tokens (solo dati lavoro)
  */
 const exportData = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user.id);
@@ -422,8 +430,7 @@ const deleteAccount = asyncHandler(async (req, res) => {
         throw new AppError('Utente non trovato', 404, 'USER_NOT_FOUND');
     }
 
-    const bcrypt = require('bcrypt');
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = await authService.verifyPassword(user.password, password);
 
     if (!isValidPassword) {
         throw new AppError('Password non corretta', 401, 'INVALID_PASSWORD');
@@ -431,21 +438,21 @@ const deleteAccount = asyncHandler(async (req, res) => {
 
     // Elimina tutti i dati dell'utente
     const WorkLog = require('../models/WorkLog');
-    const Goal = require('../models/Goal');
-    const CheckIn = require('../models/CheckIn');
+    const Exam = require('../models/Exam');
     const Deck = require('../models/Deck');
     const Folder = require('../models/Folder');
     const Tag = require('../models/Tag');
     const WorkTodo = require('../models/WorkTodo');
+    const Feedback = require('../models/Feedback');
 
     await Promise.all([
         WorkLog.deleteMany({ user: req.user.id }),
-        Goal.deleteMany({ user: req.user.id }),
-        CheckIn.deleteMany({ user: req.user.id }),
+        Exam.deleteMany({ user: req.user.id }),
         Deck.deleteMany({ user: req.user.id }),
         Folder.deleteMany({ user: req.user.id }),
         Tag.deleteMany({ user: req.user.id }),
         WorkTodo.deleteMany({ user: req.user.id }),
+        Feedback.deleteMany({ user: req.user.id }),
         User.findByIdAndDelete(req.user.id),
     ]);
 

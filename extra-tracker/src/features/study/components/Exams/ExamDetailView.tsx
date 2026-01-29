@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen } from 'lucide-react';
-import type { Goal } from '../../../goals/types';
+import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
 import { DeckGrid } from '../Deck/DeckGrid';
 import { DeckCard } from '../DeckCard';
@@ -12,7 +12,7 @@ import type { Tag } from '../../services/tagsService';
 // ============================================
 
 interface ExamDetailViewProps {
-    exam: Goal;
+    exam: Exam;
     decks: Deck[];
     folders: any[];
     tags: Tag[];
@@ -53,7 +53,7 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
     viewMode = 'grid',
 }) => {
     // Filtra solo i mazzi associati a questo esame
-    const examDecks = decks.filter(d => d.goalId === exam.id);
+    const examDecks = decks.filter(d => d.examId === exam.id);
 
     return (
         <div>

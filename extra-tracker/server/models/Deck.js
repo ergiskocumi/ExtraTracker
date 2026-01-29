@@ -6,7 +6,7 @@
  *
  * RELAZIONI:
  * - Appartiene a un User (multi-tenancy)
- * - Appartiene a un Goal (referenza)
+ * - Appartiene a un Exam (referenza opzionale)
  */
 
 const mongoose = require('mongoose');
@@ -90,7 +90,7 @@ const cardSchema = new mongoose.Schema({
                 type: String,
                 required: true,
                 trim: true,
-                minlength: [20, 'Il testo originale deve essere almeno 20 caratteri'],
+                minlength: [150, 'Il testo originale deve essere almeno 150 caratteri (1-2 righe)'],
                 maxlength: [2000, 'Il testo originale non può superare 2000 caratteri'],
             },
         },
@@ -108,10 +108,10 @@ const normalizeTags = (tags) => {
 };
 
 const deckSchema = new mongoose.Schema({
-    goalId: {
+    examId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Goal',
-        required: [true, 'Il goal associato e\' obbligatorio'],
+        ref: 'Exam',
+        default: null,
         index: true,
     },
     title: {
@@ -181,14 +181,6 @@ const deckSchema = new mongoose.Schema({
             default: ['definition', 'concept', 'relationship'],
         },
     },
-    // Analytics tracking
-    analytics: {
-        totalReviews: { type: Number, default: 0 },
-        averageTimePerCard: { type: Number, default: 0 }, // in seconds
-        retentionRate: { type: Number, default: 0 }, // 0-1
-        lastStudied: { type: Date },
-        studyStreak: { type: Number, default: 0 },
-    },
 }, {
     timestamps: true,
 });
@@ -197,7 +189,7 @@ const deckSchema = new mongoose.Schema({
 // INDEXES
 // =========================================
 
-deckSchema.index({ user: 1, goalId: 1 });
+deckSchema.index({ user: 1, examId: 1 });
 deckSchema.index({ user: 1, folderId: 1 });
 deckSchema.index({ user: 1, tags: 1 });
 deckSchema.index({ user: 1, 'cards.nextReviewDate': 1 });

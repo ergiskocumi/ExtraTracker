@@ -11,25 +11,12 @@ import { apiClient, type ApiResponse } from '../../../shared/services/apiClient'
 export interface User {
     id: string;
     email: string;
+    role?: 'user' | 'admin';
     firstName?: string;
     lastName?: string;
     displayName?: string;
     isEmailVerified?: boolean;
     createdAt?: string;
-    gamification?: {
-        xp?: number;
-        level?: number;
-        streak?: {
-            current?: number;
-            lastActivityDate?: string;
-            best?: number;
-        };
-        stats?: {
-            totalStudySessions?: number;
-            totalFlashcardsReviewed?: number;
-            correctAnswers?: number;
-        };
-    };
 }
 
 export interface AuthData {

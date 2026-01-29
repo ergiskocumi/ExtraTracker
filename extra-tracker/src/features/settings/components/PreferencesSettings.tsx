@@ -51,7 +51,7 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
         setHasChanges(true);
 
         // Auto-save dopo 2 secondi di inattività per preferenze non critiche
-        const autoSaveFields = ['language', 'theme', 'timeFormat', 'currency', 'defaultView'];
+        const autoSaveFields = ['language', 'theme', 'timeFormat', 'currency'];
         if (autoSaveFields.includes(name)) {
             if (autoSaveTimer) {
                 clearTimeout(autoSaveTimer);
@@ -180,25 +180,6 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                         ]}
                     />
                 </div>
-            </div>
-
-            {/* Default View Section */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Layout className="w-5 h-5 text-primary-400" />
-                    Vista Predefinita
-                </h3>
-                <SettingsSelect
-                    label="Pagina iniziale"
-                    name="defaultView"
-                    value={formData.defaultView || 'dashboard'}
-                    onChange={handleChange}
-                    icon={Layout}
-                    options={[
-                        { value: 'dashboard', label: '📊 Dashboard' },
-                        { value: 'goals', label: '🎯 Obiettivi' },
-                    ]}
-                />
             </div>
 
 
