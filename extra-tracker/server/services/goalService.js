@@ -12,8 +12,6 @@ const BaseService = require('./BaseService');
 const Goal = require('../models/Goal');
 const CheckIn = require('../models/CheckIn');
 const AppError = require('../utils/AppError');
-const eventBus = require('../utils/eventBus');
-const activityService = require('./activityService');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -174,44 +172,14 @@ class GoalService extends BaseService {
         };
     }
 
-    /**
-     * Override create per registrare GOAL_CREATED.
-     */
     async create(tenantScope, data) {
         const created = await super.create(tenantScope, data);
-
-        const userId = this._getUserId(tenantScope);
-        try {
-            const metadata = {
-                entityId: created._id,
-                deadline: created.deadline,
-                category: created.category,
-            };
-            if (created.priority != null) {
-                metadata.priority = created.priority;
-            }
-
-            await activityService.recordActivity(userId, 'GOAL_CREATED', {
-                entityId: created._id,
-                category: created.category,
-                metadata,
-            });
-        } catch (err) {
-            console.error('❌ Activity log error (GOAL_CREATED):', err.message);
-        }
-
         return created;
     }
 
-    /**
-     * Override update per registrare eventi di completion/archiviazione.
-     */
     async update(tenantScope, id, data, options = {}) {
         const previous = await this.findById(tenantScope, id, { throwIfNotFound: true });
         const updated = await super.update(tenantScope, id, data, options);
-
-        await this._recordGoalUpdateActivity(tenantScope, previous, updated);
-
         return updated;
     }
 
@@ -522,22 +490,6 @@ class GoalService extends BaseService {
         return Math.max(0, Math.ceil((end - start) / MS_PER_DAY));
     }
 
-    async _recordGoalUpdateActivity(tenantScope, previous, updated) {
-        if (!previous || !updated) return;
-        if (previous.status === updated.status) return;
-
-        const status = updated.status;
-        
-        // Emetti evento solo per goal completati (Pattern Observer)
-        if (status === 'completed') {
-            const userId = this._getUserId(tenantScope);
-            eventBus.emit('goal.completed', {
-                userId,
-                goal: updated,
-            });
-        }
-        // Nota: GOAL_ARCHIVED può essere gestito in futuro se necessario
-    }
 }
 
 module.exports = new GoalService();

@@ -181,14 +181,6 @@ const deckSchema = new mongoose.Schema({
             default: ['definition', 'concept', 'relationship'],
         },
     },
-    // Analytics tracking
-    analytics: {
-        totalReviews: { type: Number, default: 0 },
-        averageTimePerCard: { type: Number, default: 0 }, // in seconds
-        retentionRate: { type: Number, default: 0 }, // 0-1
-        lastStudied: { type: Date },
-        studyStreak: { type: Number, default: 0 },
-    },
 }, {
     timestamps: true,
 });

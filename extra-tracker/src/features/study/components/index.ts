@@ -22,11 +22,9 @@ export { TypingView } from './Study/TypingView';
 export { PDFChat } from './PDF/PDFChat';
 
 // Deck components
-export { DeckAnalytics } from './Deck/DeckAnalytics';
 export { DeckGrid } from './Deck/DeckGrid';
 export { DeckSettings } from './Deck/DeckSettings';
 export { DeckNotifications } from './Deck/DeckNotifications';
-export { PerformanceCharts } from './Deck/PerformanceCharts';
 
 // Organization components
 export { FolderTree } from './Organization/FolderTree';

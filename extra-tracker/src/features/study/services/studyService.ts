@@ -114,15 +114,12 @@ export interface SessionRequestOptions {
 }
 
 export interface SessionCompleteResult {
-    xpEarned: number;
-    leveledUp: boolean;
-    newLevel: number;
-    xpBreakdown?: {
-        base: number;
-        correct: number;
-        speedBonus: number;
-        streakBonus: number;
-        total: number;
+    stats?: {
+        correctCount?: number;
+        wrongCount?: number;
+        timeSpentSeconds?: number;
+        totalCards?: number;
+        mode?: string;
     };
 }
 
@@ -159,33 +156,6 @@ export interface DeckSettings {
         style?: 'comprehensive' | 'conceptual' | 'factual' | 'application';
         difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
         questionTypes?: string[];
-    };
-}
-
-export interface DeckAnalytics {
-    stats: {
-        totalCards: number;
-        newCards: number;
-        learningCards: number;
-        reviewCards: number;
-        masteredCards: number;
-        dueCards: number;
-        averageEasinessFactor: number;
-        averageRepetitions: number;
-    };
-    analytics: {
-        totalReviews: number;
-        averageTimePerCard: number;
-        retentionRate: number;
-        retentionRatePercent: number;
-        lastStudied: string | null;
-        studyStreak: number;
-    };
-    algorithm: string;
-    aiSettings: {
-        style: string;
-        difficulty: string;
-        questionTypes: string[];
     };
 }
 
@@ -462,7 +432,7 @@ class StudyService {
     }
 
     /**
-     * Finalizza la sessione e assegna XP (gamification).
+     * Finalizza la sessione.
      */
     async completeSession(deckId: string, payload: SessionCompletePayload): Promise<SessionCompleteResult> {
         const response = await apiClient.post<SessionCompleteResult>(
@@ -592,14 +562,6 @@ class StudyService {
         const response = await apiClient.patch<any>(`${this.baseUrl}/${deckId}`, updates);
         const raw = unwrap(response, 'Errore nell\'aggiornamento');
         return normalizeDeck(raw);
-    }
-
-    /**
-     * Ottiene analytics dettagliate per un deck
-     */
-    async getDeckAnalytics(deckId: string): Promise<DeckAnalytics> {
-        const response = await apiClient.get<DeckAnalytics>(`${this.baseUrl}/${deckId}/analytics`);
-        return unwrap(response, 'Errore nel recupero delle analytics');
     }
 
     /**

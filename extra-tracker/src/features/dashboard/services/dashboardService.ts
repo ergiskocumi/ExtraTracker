@@ -60,21 +60,12 @@ export interface RecentItem {
     metadata?: Record<string, unknown>;
 }
 
-export interface GamificationSummary {
-    streak: number;
-    level: number;
-    xp: number;
-    nextLevelXp: number;
-    progress: number;
-}
-
 export interface DashboardSummary {
     greeting: string;
     study: StudySummary;
     goals: GoalsSummary;
     work: WorkSummary;
     recents: RecentItem[];
-    gamification: GamificationSummary;
 }
 
 export interface QuickAction {

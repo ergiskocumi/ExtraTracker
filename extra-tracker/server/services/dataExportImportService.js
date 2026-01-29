@@ -5,7 +5,7 @@
  * Servizio per esportare e importare i dati utente in modo sicuro.
  * 
  * SICUREZZA:
- * - Export: Solo dati "lavoro" (no email, password, level, XP, tokens)
+ * - Export: Solo dati "lavoro" (no email, password, tokens)
  * - Import: Validazione rigorosa, non permette modifiche a dati sensibili
  * - Relazioni: Mantiene integrità referenziale
  */
@@ -25,7 +25,7 @@ const AppError = require('../utils/AppError');
 
 /**
  * Esporta tutti i dati "lavoro" dell'utente
- * NON include: email, password, level, XP, tokens, gamification
+ * NON include: email, password, tokens
  */
 async function exportUserData(userId) {
     try {

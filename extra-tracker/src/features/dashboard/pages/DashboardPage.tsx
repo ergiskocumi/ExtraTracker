@@ -8,16 +8,12 @@ import { useSettings } from '../../settings/context/SettingsContext';
 import {
     Brain,
     Target,
-    Flame,
-    Trophy,
     ArrowRight,
     Sparkles,
     Calendar,
     BookOpen,
-    Zap,
     ChevronRight,
     Play,
-    Award,
     Clock,
     CheckCircle2,
     AlertCircle
@@ -41,10 +37,6 @@ const formatDate = () => {
         day: 'numeric',
         month: 'long'
     });
-};
-
-const formatNumber = (num: number): string => {
-    return new Intl.NumberFormat('it-IT').format(num);
 };
 
 // =========================================
@@ -127,74 +119,6 @@ const StatCard = ({ icon: Icon, label, value, iconColor }: StatCardProps) => (
             <div>
                 <p className="text-2xl font-bold text-white">{value}</p>
                 <p className="text-xs text-slate-400">{label}</p>
-            </div>
-        </div>
-    </motion.div>
-);
-
-// =========================================
-// XP PROGRESS SECTION
-// =========================================
-
-interface XpSectionProps {
-    level: number;
-    xp: number;
-    nextLevelXp: number;
-    progress: number;
-    streak: number;
-}
-
-const XpSection = ({ level, xp, nextLevelXp, progress, streak }: XpSectionProps) => (
-    <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl p-6 bg-gradient-to-br from-amber-900/40 to-orange-900/20 border border-amber-700/30"
-    >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            {/* Left - Level Badge */}
-            <div className="flex items-center gap-4">
-                <div className="relative">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                        <Trophy className="w-8 h-8 text-white" />
-                    </div>
-                    {streak > 0 && (
-                        <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center ring-2 ring-slate-900">
-                            <Flame className="w-3 h-3 text-white" />
-                        </div>
-                    )}
-                </div>
-                <div>
-                    <p className="text-sm text-amber-300/70">Livello</p>
-                    <p className="text-3xl font-bold text-white">{level}</p>
-                </div>
-            </div>
-
-            {/* Center - XP Info */}
-            <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-300">{formatNumber(xp)} XP</span>
-                    <span className="text-sm text-amber-400">{formatNumber(nextLevelXp)} XP</span>
-                </div>
-                <div className="h-3 rounded-full bg-slate-700/50 overflow-hidden">
-                    <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
-                        transition={{ duration: 1, ease: 'easeOut' }}
-                        className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
-                    />
-                </div>
-                <p className="text-xs text-slate-400 mt-2">
-                    {formatNumber(nextLevelXp - xp)} XP per il prossimo livello ({progress}%)
-                </p>
-            </div>
-
-            {/* Right - Streak */}
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50">
-                <Flame className="w-6 h-6 text-orange-400" />
-                <div>
-                    <p className="text-xl font-bold text-white">{streak}</p>
-                    <p className="text-xs text-slate-400">giorni streak</p>
-                </div>
             </div>
         </div>
     </motion.div>
@@ -431,7 +355,7 @@ export const DashboardPage = () => {
             {/* Loading State */}
             {loading && (
                 <div className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <QuickActionSkeleton />
                         <QuickActionSkeleton />
                         <QuickActionSkeleton />
@@ -470,19 +394,10 @@ export const DashboardPage = () => {
                             onClick={() => navigate('/goals')}
                         />
 
-                        <QuickAction
-                            icon={Award}
-                            title="Progressi"
-                            subtitle="Livelli e achievements"
-                            badge={`Lv ${summary.gamification.level}`}
-                            bgGradient="bg-gradient-to-br from-amber-600/30 to-orange-700/20"
-                            iconBg="bg-amber-500"
-                            onClick={() => navigate('/gamification')}
-                        />
                     </div>
 
                     {/* Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+                    <div className="grid grid-cols-2 md:grid-cols-2 gap-4 md:gap-5">
                         <StatCard
                             icon={BookOpen}
                             label="Studiate oggi"
@@ -495,28 +410,7 @@ export const DashboardPage = () => {
                             value={summary.goals.completedToday}
                             iconColor="bg-emerald-500/20"
                         />
-                        <StatCard
-                            icon={Flame}
-                            label="Streak"
-                            value={summary.gamification.streak}
-                            iconColor="bg-orange-500/20"
-                        />
-                        <StatCard
-                            icon={Zap}
-                            label="XP Totali"
-                            value={formatNumber(summary.gamification.xp)}
-                            iconColor="bg-amber-500/20"
-                        />
                     </div>
-
-                    {/* XP Progress */}
-                    <XpSection
-                        level={summary.gamification.level}
-                        xp={summary.gamification.xp}
-                        nextLevelXp={summary.gamification.nextLevelXp}
-                        progress={summary.gamification.progress}
-                        streak={summary.gamification.streak}
-                    />
 
                     {/* Bottom Row */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

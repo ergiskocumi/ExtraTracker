@@ -10,12 +10,10 @@
  */
 
 const goalService = require('../services/goalService');
-const UserActivity = require('../models/UserActivity');
 const User = require('../models/User');
 const Deck = require('../models/Deck');
 const WorkLog = require('../models/WorkLog');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { getXpForLevel } = require('../config/gamification');
 
 /**
  * Genera saluto dinamico basato sull'ora
@@ -38,42 +36,18 @@ const getGreeting = (name) => {
 };
 
 /**
- * Formatta il tempo relativo in modo leggibile
- */
-const formatRelativeTime = (date) => {
-    const now = new Date();
-    const diff = now - new Date(date);
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Adesso';
-    if (minutes < 60) return `${minutes} min fa`;
-    if (hours < 24) return `${hours} ${hours === 1 ? 'ora' : 'ore'} fa`;
-    if (days < 7) return `${days} ${days === 1 ? 'giorno' : 'giorni'} fa`;
-    return new Date(date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
-};
-
-/**
  * GET /api/dashboard/summary
  * 
  * Restituisce un riepilogo operativo completo:
  * - Saluto personalizzato
  * - Flashcards da ripassare
  * - Obiettivi attivi e in scadenza
- * - Attività recenti per "Jump Back In"
- * - Statistiche gamification
  * - Ore lavorate oggi
  */
 exports.getSummary = asyncHandler(async (req, res) => {
     const userId = req.user.id; // Middleware usa req.user.id, non _id
     const tenantScope = req.tenantScope;
-    const tenantId = tenantScope?.tenantId || userId;
     const todayDateStr = new Date().toISOString().split('T')[0];
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
 
     // =========================================
     // AGGREGAZIONE PARALLELA (Promise.all)
@@ -82,9 +56,7 @@ exports.getSummary = asyncHandler(async (req, res) => {
     const [
         decks,
         activeGoals,
-        recentActivities,
         todayWorkLogs,
-        todayActivityStats,
         user
     ] = await Promise.all([
         // 1. Tutti i mazzi con carte da ripassare
@@ -93,60 +65,17 @@ exports.getSummary = asyncHandler(async (req, res) => {
         // 2. Obiettivi attivi
         goalService.findActive(tenantScope),
         
-        // 3. Ultime 10 attività per "Jump Back In"
-        UserActivity.find({ user: userId })
-            .sort({ createdAt: -1 })
-            .limit(10)
-            .lean(),
-        
-        // 4. WorkLog di oggi per ore lavorate
+        // 3. WorkLog di oggi per ore lavorate
         WorkLog.find({ user: userId, date: todayDateStr }).lean(),
-
-        // 5. Attivita di oggi (study + goal completati)
-        UserActivity.aggregate([
-            {
-                $match: {
-                    user: tenantId,
-                    createdAt: { $gte: startOfDay, $lte: endOfDay },
-                    type: { $in: ['SESSION_COMPLETE', 'GOAL_COMPLETED'] },
-                },
-            },
-            {
-                $group: {
-                    _id: '$type',
-                    totalCards: {
-                        $sum: {
-                            $ifNull: [
-                                '$metadata.totalCards',
-                                {
-                                    $add: [
-                                        { $ifNull: ['$metadata.correctCount', 0] },
-                                        { $ifNull: ['$metadata.wrongCount', 0] },
-                                    ],
-                                },
-                            ],
-                        },
-                    },
-                    count: { $sum: 1 },
-                },
-            },
-        ]),
         
-        // 6. Dati utente per gamification (+ firstName per greeting)
-        User.findById(userId).select('profile gamification').lean()
+        // 4. Dati utente (+ firstName per greeting)
+        User.findById(userId).select('profile').lean()
     ]);
 
     // Estrai nome utente dal DB (firstName è dentro profile)
     const userName = user?.profile?.firstName || user?.profile?.displayName || 'Utente';
 
-    const todayStats = todayActivityStats.reduce((acc, entry) => {
-        if (entry._id === 'SESSION_COMPLETE') {
-            acc.cardsStudiedToday = entry.totalCards || 0;
-        } else if (entry._id === 'GOAL_COMPLETED') {
-            acc.goalsCompletedToday = entry.count || 0;
-        }
-        return acc;
-    }, { cardsStudiedToday: 0, goalsCompletedToday: 0 });
+    const todayStats = { cardsStudiedToday: 0, goalsCompletedToday: 0 };
 
     // =========================================
     // ELABORAZIONE DATI STUDIO
@@ -209,78 +138,7 @@ exports.getSummary = asyncHandler(async (req, res) => {
     // Top priority goal da mostrare
     const topPriorityGoal = overdueGoals[0] || highPriorityGoals[0] || upcomingGoals[0] || activeGoals[0];
 
-    // =========================================
-    // ELABORAZIONE "JUMP BACK IN" (Recents)
-    // =========================================
-    
     const recents = [];
-    const seenEntities = new Set();
-    
-    for (const activity of recentActivities) {
-        // Evita duplicati
-        const entityKey = `${activity.type}_${activity.entityId}`;
-        if (seenEntities.has(entityKey) || !activity.entityId) continue;
-        seenEntities.add(entityKey);
-        
-        let recentItem = null;
-        
-        if (activity.type === 'SESSION_COMPLETE') {
-            // Era una sessione di studio
-            const deck = decks.find(d => d._id.toString() === activity.entityId?.toString());
-            if (deck) {
-                recentItem = {
-                    type: 'deck',
-                    id: deck._id,
-                    title: deck.title,
-                    icon: '🧠',
-                    action: 'Riprendi studio',
-                    lastAction: formatRelativeTime(activity.createdAt),
-                    metadata: {
-                        totalCards: deck.cards?.length || 0,
-                        dueCards: deck.dueCount || 0
-                    }
-                };
-            }
-        } else if (activity.type === 'WORK_SESSION_LOGGED') {
-            // Era un log di lavoro
-            const durationMinutes = Number(activity.metadata?.durationMinutes) || 0;
-            recentItem = {
-                type: 'worklog',
-                id: activity.entityId,
-                title: activity.metadata?.projectName || 'Progetto',
-                icon: '⏱️',
-                action: 'Continua lavoro',
-                lastAction: formatRelativeTime(activity.createdAt),
-                metadata: {
-                    durationMinutes
-                }
-            };
-        } else if (activity.type === 'GOAL_CREATED' || activity.type === 'HABIT_CHECKIN') {
-            // Era un check-in su obiettivo
-            const goal = activeGoals.find(g => g._id.toString() === activity.entityId?.toString());
-            if (goal) {
-                recentItem = {
-                    type: 'goal',
-                    id: goal._id,
-                    title: goal.title,
-                    icon: '🎯',
-                    action: 'Check-in',
-                    lastAction: formatRelativeTime(activity.createdAt),
-                    metadata: {
-                        category: goal.category,
-                        progress: goal.progress || 0
-                    }
-                };
-            }
-        }
-        
-        if (recentItem) {
-            recents.push(recentItem);
-        }
-        
-        // Massimo 5 recenti
-        if (recents.length >= 5) break;
-    }
 
     // =========================================
     // ELABORAZIONE LAVORO DI OGGI
@@ -289,26 +147,6 @@ exports.getSummary = asyncHandler(async (req, res) => {
     const todayMinutes = todayWorkLogs.reduce((sum, log) => sum + (log.durationMinutes || 0), 0);
     const todayHours = Math.floor(todayMinutes / 60);
     const remainingMinutes = todayMinutes % 60;
-
-    // =========================================
-    // GAMIFICATION
-    // =========================================
-    
-    const gamification = user?.gamification || {};
-    const streak = gamification.streak?.current || 0;
-    const level = gamification.level || 1;
-    const xp = gamification.xp || 0;
-    
-    // Calcola XP richiesto per il PROSSIMO livello usando formula corretta
-    const nextLevelXp = getXpForLevel(level + 1);
-    
-    // XP current è quello del livello attuale
-    const currentLevelXp = getXpForLevel(level);
-    
-    // Progress: XP fino al livello attuale
-    const xpInCurrentLevel = xp - currentLevelXp;
-    const xpRequiredForCurrentLevel = nextLevelXp - currentLevelXp;
-    const progress = Math.max(0, Math.round((xpInCurrentLevel / xpRequiredForCurrentLevel) * 100));
 
     // =========================================
     // RESPONSE
@@ -350,15 +188,7 @@ exports.getSummary = asyncHandler(async (req, res) => {
                 sessionsToday: todayWorkLogs.length
             },
             
-            recents,
-            
-            gamification: {
-                streak,
-                level,
-                xp,
-                nextLevelXp,
-                progress
-            }
+            recents
         }
     });
 });

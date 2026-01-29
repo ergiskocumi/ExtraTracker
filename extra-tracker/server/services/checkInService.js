@@ -11,7 +11,6 @@ const BaseService = require('./BaseService');
 const CheckIn = require('../models/CheckIn');
 const Goal = require('../models/Goal');
 const AppError = require('../utils/AppError');
-const activityService = require('./activityService');
 
 class CheckInService extends BaseService {
     constructor() {
@@ -75,39 +74,8 @@ class CheckInService extends BaseService {
         return data;
     }
 
-    /**
-     * Override create per registrare HABIT_CHECKIN.
-     */
     async create(tenantScope, data) {
-        const created = await super.create(tenantScope, data);
-        const userId = this._getUserId(tenantScope);
-
-        try {
-            const goal = await Goal.findOne({
-                _id: created.goalId,
-                user: userId,
-            }).select('title type category');
-
-            if (goal?.type === 'habit') {
-                await activityService.recordActivity(userId, 'HABIT_CHECKIN', {
-                    entityId: created.goalId,
-                    category: goal.category,
-                    sentiment: created.mood,
-                    metadata: {
-                        entityId: created.goalId,
-                        checkInId: created._id,
-                        habitName: goal.title,
-                        goalId: created.goalId,
-                        mood: created.mood,
-                        checkInDate: created.date,
-                    },
-                });
-            }
-        } catch (err) {
-            console.error('❌ Activity log error (HABIT_CHECKIN):', err.message);
-        }
-
-        return created;
+        return super.create(tenantScope, data);
     }
 
     /**

@@ -97,7 +97,6 @@ const register = asyncHandler(async (req, res) => {
                 id: user._id,
                 email: user.email,
                 role: user.role,
-                gamification: user.gamification,
             },
         },
     });
@@ -122,7 +121,6 @@ const login = asyncHandler(async (req, res) => {
                 id: user._id,
                 email: user.email,
                 role: user.role,
-                gamification: user.gamification,
             },
         },
     });
@@ -195,7 +193,6 @@ const getProfile = asyncHandler(async (req, res) => {
                 role: user.role,
                 isEmailVerified: user.isEmailVerified,
                 createdAt: user.createdAt,
-                gamification: user.gamification,
             },
         },
     });
@@ -235,7 +232,6 @@ const checkAuth = asyncHandler(async (req, res) => {
                 id: user._id,
                 email: user.email,
                 role: user.role,
-                gamification: user.gamification,
             },
         },
     });

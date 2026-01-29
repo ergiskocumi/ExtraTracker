@@ -33,9 +33,6 @@ const StudySessionPage = lazy(() => import('./features/study/pages/StudySessionP
 const DeckDetailPage = lazy(() => import('./features/study/pages/DeckDetailPage').then(m => ({ default: m.DeckDetailPage })));
 const CinemaPage = lazy(() => import('./features/study/pages/CinemaPage').then(m => ({ default: m.CinemaPage })));
 
-// Gamification Page - Lazy loaded
-const GamificationPage = lazy(() => import('./features/gamification/pages/GamificationPage').then(m => ({ default: m.GamificationPage })));
-
 // Admin Pages - Lazy loaded
 const AdminFeedbackPage = lazy(() => import('./features/feedback/pages/AdminFeedbackPage').then(m => ({ default: m.AdminFeedbackPage })));
 
@@ -98,9 +95,6 @@ function App() {
                     <Route path="/study/deck/:deckId/cinema" element={<CinemaPage />} />
                     <Route path="/study/:deckId" element={<StudySessionPage />} />
                     <Route path="/study/:deckId/session" element={<StudySessionPage />} />
-
-                    {/* Gamification */}
-                    <Route path="/gamification" element={<GamificationPage />} />
 
                     {/* Admin Routes */}
                     <Route

@@ -3,7 +3,7 @@
  *
  * Design moderno con:
  * - Header bar minimalista e geometrica
- * - Menu utente con gamification real-time
+ * - Menu utente con accesso rapido
  * - Animazioni fluide e performanti
  */
 

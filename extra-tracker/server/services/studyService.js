@@ -17,7 +17,6 @@ const Deck = require('../models/Deck');
 const Goal = require('../models/Goal');
 const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
-const eventBus = require('../utils/eventBus');
 const sseManager = require('../utils/SSEManager');
 const OpenAI = require('openai');
 const pdfParse = require('pdf-parse');
@@ -26,7 +25,6 @@ const fs = require('fs/promises');
 const path = require('path');
 const vectorStoreService = require('./vectorStoreService');
 const { AlgorithmFactory } = require('./spacedRepetitionAlgorithms');
-const activityService = require('./activityService');
 
 // =========================================
 // COSTANTI BASE
@@ -38,7 +36,6 @@ const MAX_TUTOR_CONTEXT_LENGTH = 50000;
 const MAX_TUTOR_MESSAGE_LENGTH = 2000;
 const MAX_TUTOR_HISTORY_MESSAGES = 12;
 const MAX_TUTOR_HISTORY_MESSAGE_LENGTH = 1000;
-const SESSION_BASE_XP = 10;
 const QUIZ_FALLBACK_OPTIONS = [
     'Nessuna delle precedenti',
     'Altro',
@@ -472,62 +469,6 @@ class StudyService extends BaseService {
         return this._serializeDeck(deck);
     }
 
-    async getDeckAnalytics(tenantScope, deckId) {
-        const userId = this._getUserId(tenantScope);
-
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
-
-        const cards = Array.isArray(deck.cards) ? deck.cards : [];
-        const now = new Date();
-
-        const stats = {
-            totalCards: cards.length,
-            newCards: cards.filter(c => c.status === 'new').length,
-            learningCards: cards.filter(c => c.status === 'learning').length,
-            reviewCards: cards.filter(c => c.status === 'review').length,
-            masteredCards: cards.filter(c => c.status === 'mastered').length,
-            dueCards: cards.filter(c => {
-                const nextReview = new Date(c.nextReviewDate);
-                return nextReview <= now;
-            }).length,
-            averageEasinessFactor: cards.length > 0
-                ? cards.reduce((sum, c) => sum + (c.easinessFactor || 2.5), 0) / cards.length
-                : 2.5,
-            averageRepetitions: cards.length > 0
-                ? cards.reduce((sum, c) => sum + (c.repetitions || 0), 0) / cards.length
-                : 0,
-        };
-
-        const analytics = deck.analytics || {
-            totalReviews: 0,
-            averageTimePerCard: 0,
-            retentionRate: 0,
-            lastStudied: null,
-            studyStreak: 0,
-        };
-
-        return {
-            stats,
-            analytics: {
-                totalReviews: analytics.totalReviews || 0,
-                averageTimePerCard: analytics.averageTimePerCard || 0,
-                retentionRate: analytics.retentionRate || 0,
-                retentionRatePercent: Math.round((analytics.retentionRate || 0) * 100),
-                lastStudied: analytics.lastStudied,
-                studyStreak: analytics.studyStreak || 0,
-            },
-            algorithm: deck.algorithm || 'sm2',
-            aiSettings: deck.aiSettings || {
-                style: 'comprehensive',
-                difficulty: 'medium',
-                questionTypes: ['definition', 'concept', 'relationship'],
-            },
-        };
-    }
-
     async getDeckById(tenantScope, deckId) {
         const userId = this._getUserId(tenantScope);
 
@@ -771,16 +712,7 @@ class StudyService extends BaseService {
             avgTimePerCard,
         };
 
-        const xpBreakdown = this._calculateSessionXpBreakdown(metadata);
-        const result = await activityService.recordActivity(userId, 'SESSION_COMPLETE', {
-            entityId: deckId,
-            category: 'study',
-            metadata,
-        });
-
         return {
-            ...result,
-            xpBreakdown,
             stats: metadata,
         };
     }
@@ -853,21 +785,7 @@ class StudyService extends BaseService {
         });
         card.status = status;
 
-        this._updateDeckAnalytics(deck, quality, sessionMeta);
-
         await deck.save();
-
-        let gamification = null;
-        const shouldRecord = sessionMeta?.isComplete || sessionMeta?.completed;
-        if (shouldRecord) {
-            eventBus.emit('session.completed', {
-                userId,
-                session: {
-                    deckId,
-                    ...sessionMeta,
-                },
-            });
-        }
 
         const updatedCard = this._serializeCard(card);
 
@@ -882,7 +800,6 @@ class StudyService extends BaseService {
                 nextReviewDate: algorithmResult.nextReviewDate,
                 nextReviewInDays: algorithmResult.interval,
             },
-            gamification,
         };
     }
 
@@ -3758,117 +3675,8 @@ Genera una risposta per OGNI domanda nella lista.`;
         return arr;
     }
 
-    _calculateSessionXpBreakdown(metadata = {}) {
-        const { XP_ACTIONS } = require('../config/gamification');
-        const config = XP_ACTIONS.SESSION_COMPLETE;
-        const accuracyConfig = XP_ACTIONS.ACCURACY_BONUS;
-
-        const correctCount = this._toNumber(metadata.correctCount, 0);
-        const wrongCount = this._toNumber(metadata.wrongCount, 0);
-        const timeSpentSeconds = this._toNumber(metadata.timeSpentSeconds, 0);
-        const totalCards = this._toNumber(metadata.totalCards, correctCount + wrongCount);
-
-        // Calcola accuratezza
-        const accuracy = totalCards > 0 ? Math.round((correctCount / totalCards) * 100) : 0;
-
-        // XP base
-        let total = config.base;
-        const breakdown = [
-            { type: 'base', value: config.base, description: 'Sessione completata' }
-        ];
-
-        // Bonus per risposte corrette (2 XP per risposta corretta)
-        const correctXp = correctCount * config.perCorrect;
-        if (correctXp > 0) {
-            total += correctXp;
-            breakdown.push({ type: 'correct', value: correctXp, description: `${correctCount} risposte corrette` });
-        }
-
-        // Speed bonus (tempo medio per card < 10 secondi = bonus)
-        const avgTimePerCard = totalCards > 0 ? (timeSpentSeconds * 1000) / totalCards : 0;
-        let speedBonus = 0;
-        if (avgTimePerCard > 0 && avgTimePerCard < 10000) {
-            const speedFactor = Math.max(0, 1 - (avgTimePerCard / 10000));
-            speedBonus = Math.floor(speedFactor * config.speedBonus.max);
-            if (speedBonus > 0) {
-                total += speedBonus;
-                breakdown.push({ type: 'speed', value: speedBonus, description: 'Velocità risposta' });
-            }
-        }
-
-        // Accuracy bonus
-        let accuracyBonus = 0;
-        if (accuracy >= 100) {
-            accuracyBonus = accuracyConfig.perfect;
-        } else if (accuracy >= 90) {
-            accuracyBonus = accuracyConfig.excellent;
-        } else if (accuracy >= 80) {
-            accuracyBonus = accuracyConfig.good;
-        }
-
-        if (accuracyBonus > 0) {
-            total += accuracyBonus;
-            breakdown.push({ type: 'accuracy', value: accuracyBonus, description: `Accuratezza ${accuracy}%` });
-        }
-
-        return {
-            base: config.base,
-            correct: correctXp,
-            speedBonus,
-            accuracyBonus,
-            accuracy,
-            total,
-            breakdown
-        };
-    }
-
     _toNumber(value, fallback = 0) {
         return Number.isFinite(Number(value)) ? Number(value) : fallback;
-    }
-
-    _updateDeckAnalytics(deck, quality, sessionMeta = null) {
-        if (!deck.analytics) {
-            deck.analytics = {
-                totalReviews: 0,
-                averageTimePerCard: 0,
-                retentionRate: 0,
-                lastStudied: null,
-                studyStreak: 0,
-            };
-        }
-
-        const analytics = deck.analytics;
-        analytics.totalReviews = (analytics.totalReviews || 0) + 1;
-        analytics.lastStudied = new Date();
-
-        const isCorrect = quality >= 3;
-        const previousTotal = analytics.totalReviews - 1 || 1;
-        const previousCorrect = Math.round((analytics.retentionRate || 0) * previousTotal);
-        const newCorrect = previousCorrect + (isCorrect ? 1 : 0);
-        analytics.retentionRate = newCorrect / analytics.totalReviews;
-
-        if (sessionMeta?.timePerCard && Number.isFinite(sessionMeta.timePerCard)) {
-            const previousAvg = analytics.averageTimePerCard || 0;
-            const newAvg = (previousAvg * previousTotal + sessionMeta.timePerCard) / analytics.totalReviews;
-            analytics.averageTimePerCard = newAvg;
-        }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const lastStudied = analytics.lastStudied ? new Date(analytics.lastStudied) : null;
-        if (lastStudied) {
-            lastStudied.setHours(0, 0, 0, 0);
-            const daysDiff = Math.floor((today - lastStudied) / (1000 * 60 * 60 * 24));
-            if (daysDiff === 0) {
-                // Stesso giorno
-            } else if (daysDiff === 1) {
-                analytics.studyStreak = (analytics.studyStreak || 0) + 1;
-            } else {
-                analytics.studyStreak = 1;
-            }
-        } else {
-            analytics.studyStreak = 1;
-        }
     }
 
     // =========================================
@@ -3932,7 +3740,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                 card.nextReviewDate = new Date();
                 card.status = 'new';
                 card.lastReviewed = null;
-                // Mantieni reviewHistory per analytics, ma resetta i parametri SM-2
+                // Mantieni reviewHistory per storico, ma resetta i parametri SM-2
             }
 
             if (type === 'all') {

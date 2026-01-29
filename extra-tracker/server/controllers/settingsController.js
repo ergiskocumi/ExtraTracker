@@ -312,7 +312,7 @@ const getAllSettings = asyncHandler(async (req, res) => {
 /**
  * GET /api/settings/export
  * Esporta tutti i dati "lavoro" dell'utente (GDPR compliance)
- * NON include: email, password, level, XP, tokens (solo dati lavoro)
+ * NON include: email, password, tokens (solo dati lavoro)
  */
 const exportData = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user.id);
@@ -450,7 +450,6 @@ const deleteAccount = asyncHandler(async (req, res) => {
     const Folder = require('../models/Folder');
     const Tag = require('../models/Tag');
     const WorkTodo = require('../models/WorkTodo');
-    const UserActivity = require('../models/UserActivity');
     const Feedback = require('../models/Feedback');
 
     await Promise.all([
@@ -461,7 +460,6 @@ const deleteAccount = asyncHandler(async (req, res) => {
         Folder.deleteMany({ user: req.user.id }),
         Tag.deleteMany({ user: req.user.id }),
         WorkTodo.deleteMany({ user: req.user.id }),
-        UserActivity.deleteMany({ user: req.user.id }),
         Feedback.deleteMany({ user: req.user.id }),
         User.findByIdAndDelete(req.user.id),
     ]);

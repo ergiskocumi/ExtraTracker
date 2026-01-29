@@ -225,7 +225,7 @@ const getDashboard = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/study/:id/session-complete
- * Salva le statistiche di fine sessione e assegna XP
+ * Salva le statistiche di fine sessione
  */
 const completeSession = asyncHandler(async (req, res) => {
     const result = await studyService.completeSession(
@@ -374,19 +374,6 @@ const updateDeckSettings = asyncHandler(async (req, res) => {
     );
 
     res.json({ success: true, data: deck });
-});
-
-/**
- * GET /api/study/:id/analytics
- * Ottiene analytics dettagliate per un deck
- */
-const getDeckAnalytics = asyncHandler(async (req, res) => {
-    const analytics = await studyService.getDeckAnalytics(
-        req.tenantScope,
-        req.params.id
-    );
-
-    res.json({ success: true, data: analytics });
 });
 
 // =========================================
@@ -782,7 +769,6 @@ module.exports = {
     extractQuestions,
     generateAnswers,
     updateDeckSettings,
-    getDeckAnalytics,
     resetExamCards,
     generateRecoveryQuestions,
 };

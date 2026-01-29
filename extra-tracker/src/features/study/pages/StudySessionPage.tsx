@@ -24,7 +24,6 @@ import { QuizView } from '../components/Study/QuizView';
 import { TypingView } from '../components/Study/TypingView';
 import { studyService, type StudySession, type ReviewRating, type StudyMode, type Card, type SessionFocus, type SessionLength, type SessionDirection } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
-import { SessionSummaryModal, type SessionSummary } from '../../gamification/SessionSummaryModal';
 import { useAuth } from '../../auth/context/AuthContext';
 
 // ============================================
@@ -207,29 +206,6 @@ const MODE_LABELS: Record<StudyMode, string> = {
     exam: 'Esame',
 };
 
-const SESSION_BASE_XP = 10;
-
-const calculateSessionXpBreakdown = (
-    correctCount: number,
-    wrongCount: number,
-    timeSpentSeconds: number
-) => {
-    const totalCards = correctCount + wrongCount;
-    const timePerCard = totalCards > 0 ? timeSpentSeconds / totalCards : 0;
-    const speedBonus = timePerCard > 0
-        ? Math.max(0, Math.round(10 - timePerCard / 3))
-        : 0;
-    const correctXp = correctCount * 2;
-
-    return {
-        base: SESSION_BASE_XP,
-        correct: correctXp,
-        speedBonus,
-        streakBonus: 0,
-        total: SESSION_BASE_XP + correctXp + speedBonus,
-    };
-};
-
 // ============================================
 // GLOBAL SESSION STATE (persiste tra remount)
 // ============================================
@@ -301,9 +277,6 @@ export const StudySessionPage: React.FC = () => {
     });
     const sessionStatsRef = useRef(sessionStats);
     
-    // Summary state
-    const [summary, setSummary] = useState<SessionSummary | null>(null);
-    const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [isFinalizing, setIsFinalizing] = useState(false);
 
     // REFACTOR: Usa ref locale + globale per tracciare completamento
@@ -327,10 +300,9 @@ export const StudySessionPage: React.FC = () => {
 
             // Se la sessione è già completa (globale o locale), non ricaricare MAI
             if (isSessionCompleteRef.current || globalCompletedSessions.has(sessionKey)) {
-                // Se la sessione è completata ma non abbiamo summary, naviga al dettaglio mazzo (evita loop)
-                if (!summary && deckId) {
+                if (deckId) {
                     setTimeout(() => navigate(`/study/deck/${deckId}`), 100);
-                } else if (!summary) {
+                } else {
                     setTimeout(() => navigate('/study'), 100);
                 }
                 return;
@@ -429,15 +401,13 @@ export const StudySessionPage: React.FC = () => {
         const totalCards = statsSnapshot.total || session.cards.length;
         const unanswered = Math.max(0, totalCards - (correctCount + wrongCount));
         const finalWrongCount = isExamMode ? wrongCount + unanswered : wrongCount;
-        const accuracy = totalCards > 0 ? Math.round((correctCount / totalCards) * 100) : 0;
-        const passed = isExamMode ? accuracy >= 70 : undefined;
 
         setIsFinalizing(true);
         isSessionCompleteRef.current = true; // Marca come completata IMMEDIATAMENTE (locale)
         globalCompletedSessions.add(sessionKey); // Marca come completata GLOBALMENTE (persiste tra remount)
 
         try {
-            const result = await studyService.completeSession(deckId, {
+            await studyService.completeSession(deckId, {
                 mode,
                 stats: {
                     correct: correctCount,
@@ -446,39 +416,12 @@ export const StudySessionPage: React.FC = () => {
                 },
             });
 
-            const fallbackBreakdown = calculateSessionXpBreakdown(
-                correctCount,
-                finalWrongCount,
-                durationSeconds
-            );
-            const breakdown = result.xpBreakdown ?? fallbackBreakdown;
-            const totalXp = Number.isFinite(result.xpEarned) ? result.xpEarned : breakdown.total;
-
-            setSummary({
-                correctCount,
-                wrongCount: finalWrongCount,
-                timeSpentSeconds: durationSeconds,
-                xp: {
-                    base: breakdown.base,
-                    correct: breakdown.correct,
-                    speedBonus: breakdown.speedBonus,
-                    streakBonus: breakdown.streakBonus,
-                    total: totalXp,
-                },
-                mode,
-                score: isExamMode ? accuracy : undefined,
-                passed,
-                questionsTarget: isExamMode ? totalCards : undefined,
-                timeLimitSeconds: timeLimitSeconds ?? undefined,
-                // Aggiungi statistiche dettagliate per il summary
-                stats: {
-                    hard: statsSnapshot.hard,
-                    good: statsSnapshot.good,
-                    easy: statsSnapshot.easy,
-                    totalCards: statsSnapshot.total,
-                },
-            });
-            setIsSummaryOpen(true);
+            emitToast.success('Sessione completata');
+            if (deckId) {
+                navigate(`/study/deck/${deckId}`);
+            } else {
+                navigate('/study');
+            }
 
             // REFACTOR: checkAuth chiamato in modo asincrono non bloccante
             // Non aspetta il risultato, così non causa re-render che triggerano useEffect
@@ -496,7 +439,7 @@ export const StudySessionPage: React.FC = () => {
         } finally {
             setIsFinalizing(false);
         }
-    }, [deckId, session, isFinalizing, mode, checkAuth, isExamMode, timeLimitSeconds]);
+    }, [deckId, session, isFinalizing, mode, checkAuth, isExamMode, navigate]);
 
     useEffect(() => {
         if (!timeLimitSeconds || !session) {
@@ -753,7 +696,6 @@ export const StudySessionPage: React.FC = () => {
      * @returns {void}
      */
     const handleBackToDeck = useCallback(() => {
-        setIsSummaryOpen(false);
         if (deckId) {
             // Naviga al dettaglio del mazzo corrente
             navigate(`/study/deck/${deckId}`);
@@ -999,15 +941,6 @@ export const StudySessionPage: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            {/* Summary Modal */}
-            {summary && (
-                <SessionSummaryModal
-                    isOpen={isSummaryOpen}
-                    title={session?.deck.title ? `Sessione completata • ${session.deck.title}` : 'Sessione completata'}
-                    summary={summary}
-                    onClose={handleBackToDeck}
-                />
-            )}
         </div>
     );
 };

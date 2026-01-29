@@ -136,7 +136,6 @@ router.use(tenantContext({ required: true }));
 // =========================================
 
 router.get('/dashboard', studyController.getDashboard);
-router.get('/:id/analytics', studyController.getDeckAnalytics);
 router.get('/:id/session', studyController.getSession);
 router.get('/:id', studyController.getDeckById);
 router.post('/', studyController.createDeck);

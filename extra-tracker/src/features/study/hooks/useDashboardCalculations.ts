@@ -1,8 +1,7 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { AlertCircle, Sparkles, Play, Plus, BookOpen } from 'lucide-react';
 import type { Deck } from '../services/studyService';
 import type { Folder } from '../services/foldersService';
-import { analyticsService } from '../../analytics/services/analyticsService';
 
 export type FilterType = 'all' | 'due' | 'mastered' | 'recent';
 
@@ -30,26 +29,8 @@ export const useDashboardCalculations = ({
         if (completedExamIds.length === 0) return decks;
         return decks.filter(deck => !deck.goalId || !completedExamIds.includes(deck.goalId));
     }, [decks, completedExamIds]);
-    // Stato per le ore di studio
-    const [studyHours, setStudyHours] = useState<number>(0);
-    
-    // Carica le ore di studio dagli ultimi 7 giorni
-    useEffect(() => {
-        const loadStudyHours = async () => {
-            try {
-                const analytics = await analyticsService.getWeekly();
-                // Somma tutte le ore di studio degli ultimi 7 giorni (in secondi, convertiamo in ore)
-                const totalSeconds = analytics.dailyActivity.reduce((sum, day) => sum + (day.study || 0), 0);
-                const hours = totalSeconds / 3600; // Converti secondi in ore
-                setStudyHours(Math.round(hours * 10) / 10); // Arrotonda a 1 decimale
-            } catch (error) {
-                console.error('[useDashboardCalculations] Errore nel caricamento delle ore di studio:', error);
-                setStudyHours(0);
-            }
-        };
-        
-        loadStudyHours();
-    }, []);
+    // Stato per le ore di studio (non tracciate)
+    const [studyHours] = useState<number>(0);
     // Calcola statistiche per cartella
     const folderStats = useMemo(() => {
         const statsMap = new Map<string, {

@@ -41,7 +41,7 @@ import {
  * - Hero Section con stats grid (Progress, Countdown, Next Step)
  * - Tabs: Roadmap (default) | Journal | Stats
  * - SmartMilestoneCard con AI data (reasoning, action steps, resources)
- * - Gamification: Status badges, progress visualization
+ * - Status badges e progress visualization
  */
 
 // =========================================

@@ -166,4 +166,3 @@ const {
 - Tutorial per Goals/Obiettivi
 - Tutorial per Study Session
 - Tutorial per Exam Solver
-- Tutorial per Gamification

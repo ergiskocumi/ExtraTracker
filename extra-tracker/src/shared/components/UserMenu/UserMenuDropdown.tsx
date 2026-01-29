@@ -1,10 +1,9 @@
 /**
  * USER MENU DROPDOWN
  *
- * Menu utente moderno con design geometrico e dati gamification real-time.
+ * Menu utente moderno con design geometrico.
  * Features:
  * - Design glassmorphism con forme geometriche
- * - Livello, XP e streak in tempo reale
  * - Animazioni fluide
  * - Performance ottimizzata
  */
@@ -20,16 +19,10 @@ import {
     FiLogOut,
     FiChevronDown,
     FiBookOpen,
-    FiAward,
-    FiZap,
-    FiTrendingUp,
     FiShield,
 } from 'react-icons/fi';
 import { useAuth } from '../../../features/auth/context/AuthContext';
 import { useSettings } from '../../../features/settings/context/SettingsContext';
-import { useGamificationStatus } from '../../../features/gamification/hooks/useGamificationStatus';
-import { RankBadge } from '../../../features/gamification/components/RankBadge';
-import { LevelBadge } from '../../../features/gamification/components/LevelBadge';
 
 // ============================================
 // TYPES
@@ -49,80 +42,6 @@ interface MenuCategory {
     label: string;
     items: MenuItem[];
 }
-
-// ============================================
-// XP PROGRESS BAR
-// ============================================
-
-const XpProgressBar = memo(({
-    xpInLevel,
-    xpNeeded,
-}: {
-    xpInLevel: number;
-    xpNeeded: number;
-}) => {
-    const safeXpInLevel = Math.max(0, xpInLevel);
-    const safeXpNeeded = Math.max(1, xpNeeded);
-    const progress = Math.max(0, Math.min(100, (safeXpInLevel / safeXpNeeded) * 100));
-
-    return (
-        <div className="w-full">
-            <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] text-white/70 font-medium">
-                    {safeXpInLevel.toLocaleString()} / {safeXpNeeded.toLocaleString()} XP
-                </span>
-                <span className="text-[11px] text-primary-300 font-semibold">
-                    {progress.toFixed(0)}%
-                </span>
-            </div>
-            <div className="h-2 rounded-full bg-white/10 overflow-hidden ring-1 ring-white/10">
-                <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                    className="h-full rounded-full bg-gradient-to-r from-primary-500 via-primary-400 to-violet-500 shadow-lg shadow-primary-500/25"
-                />
-            </div>
-        </div>
-    );
-});
-
-XpProgressBar.displayName = 'XpProgressBar';
-
-// ============================================
-// STATS PILL
-// ============================================
-
-const StatPill = memo(({
-    icon: Icon,
-    value,
-    label,
-    color = 'primary',
-}: {
-    icon: React.ComponentType<{ className?: string }>;
-    value: string | number;
-    label: string;
-    color?: 'primary' | 'amber' | 'emerald' | 'rose';
-}) => {
-    const colorConfig = {
-        primary: 'bg-primary-500/15 text-primary-400 border-primary-500/20',
-        amber: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
-        emerald: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
-        rose: 'bg-rose-500/15 text-rose-400 border-rose-500/20',
-    };
-
-    return (
-        <div
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${colorConfig[color]}`}
-            title={label}
-        >
-            <Icon className="w-3.5 h-3.5" />
-            <span className="text-xs font-semibold">{value}</span>
-        </div>
-    );
-});
-
-StatPill.displayName = 'StatPill';
 
 // ============================================
 // MENU ITEM
@@ -208,10 +127,6 @@ export const UserMenuDropdown = memo(() => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { profile } = useSettings();
-    const { status: gamification } = useGamificationStatus({
-        enablePolling: true,
-        refreshInterval: 60000,
-    });
 
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -234,16 +149,6 @@ export const UserMenuDropdown = memo(() => {
         return user?.email || 'User';
     })();
 
-    // Gamification data with fallbacks
-    const level = gamification?.level ?? user?.gamification?.level ?? 1;
-    const title = gamification?.title ?? 'Principiante';
-    const rank = gamification?.rank ?? user?.gamification?.rank ?? 'Unranked';
-    const xp = gamification?.xp ?? user?.gamification?.xp ?? 0;
-    const xpInCurrentLevel = gamification?.xpInCurrentLevel ?? 0;
-    const xpNeededForNext = gamification?.xpNeededForNext ?? 100;
-    const streak = gamification?.streak?.current ?? user?.gamification?.streak?.current ?? 0;
-    const multiplier = gamification?.multipliers?.total ?? 1;
-
     // Menu categories
     const menuCategories: MenuCategory[] = [
         {
@@ -257,7 +162,6 @@ export const UserMenuDropdown = memo(() => {
             items: [
                 { path: '/goals', label: 'Obiettivi', icon: FiTarget, description: 'I tuoi traguardi' },
                 { path: '/study', label: 'Flashcards', icon: FiBookOpen, description: 'Studio intelligente' },
-                { path: '/gamification', label: 'Progressi', icon: FiAward, description: 'Level up!' },
             ],
         },
         {
@@ -359,17 +263,13 @@ export const UserMenuDropdown = memo(() => {
                     border border-white/[0.08] backdrop-blur-xl
                 `}
             >
-                {/* Level Badge + Avatar */}
+                {/* Avatar */}
                 <div className="relative">
                     <div
                         className="flex items-center justify-center w-9 h-9 text-sm font-bold text-white rounded-xl shadow-lg bg-gradient-to-br from-primary-500 to-violet-600 shadow-primary-500/25"
                         title={userLabel}
                     >
                         {userInitials}
-                    </div>
-                    {/* Level indicator */}
-                    <div className="absolute -bottom-1 -right-1 flex items-center justify-center w-5 h-5 rounded-md bg-dark-500 border border-white/20">
-                        <span className="text-[9px] font-bold text-white">{level}</span>
                     </div>
                 </div>
 
@@ -378,10 +278,6 @@ export const UserMenuDropdown = memo(() => {
                     <p className="text-sm font-medium text-white/90 truncate max-w-[100px]">
                         {profile?.firstName || 'Utente'}
                     </p>
-                    <div className="flex items-center gap-1">
-                        <FiZap className="w-2.5 h-2.5 text-amber-400" />
-                        <span className="text-[10px] text-white/50">{streak} giorni</span>
-                    </div>
                 </div>
 
                 {/* Chevron */}
@@ -454,31 +350,11 @@ export const UserMenuDropdown = memo(() => {
                                                         <div className="flex items-center justify-center w-16 h-16 text-xl font-bold text-white rounded-2xl shadow-xl bg-gradient-to-br from-primary-500 via-primary-600 to-violet-600 shadow-primary-500/30">
                                                             {userInitials}
                                                         </div>
-                                                        <LevelBadge level={level} size="sm" />
                                                     </div>
                                                     <div className="flex-1 min-w-0 pt-1">
                                                         <p className="text-lg font-semibold text-white truncate">{userLabel}</p>
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="text-sm text-primary-300/90 font-medium">{title}</p>
-                                                            <RankBadge rank={rank} size="sm" variant="icon" />
-                                                        </div>
                                                         <p className="text-xs text-white/50 truncate mt-1">{user?.email}</p>
                                                     </div>
-                                                </div>
-
-                                                {/* XP Progress */}
-                                                <div className="mb-4">
-                                                    <XpProgressBar
-                                                        xpInLevel={xpInCurrentLevel}
-                                                        xpNeeded={xpNeededForNext}
-                                                    />
-                                                </div>
-
-                                                {/* Stats Row */}
-                                                <div className="flex items-center gap-2.5">
-                                                    <StatPill icon={FiZap} value={streak} label="Streak" color="amber" />
-                                                    <StatPill icon={FiTrendingUp} value={`${multiplier.toFixed(1)}x`} label="Multiplier" color="emerald" />
-                                                    <StatPill icon={FiAward} value={`${xp.toLocaleString()} XP`} label="Total XP" color="primary" />
                                                 </div>
                                             </div>
                                         </div>

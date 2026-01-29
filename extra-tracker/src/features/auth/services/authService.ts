@@ -17,20 +17,6 @@ export interface User {
     displayName?: string;
     isEmailVerified?: boolean;
     createdAt?: string;
-    gamification?: {
-        xp?: number;
-        level?: number;
-        streak?: {
-            current?: number;
-            lastActivityDate?: string;
-            best?: number;
-        };
-        stats?: {
-            totalStudySessions?: number;
-            totalFlashcardsReviewed?: number;
-            correctAnswers?: number;
-        };
-    };
 }
 
 export interface AuthData {
