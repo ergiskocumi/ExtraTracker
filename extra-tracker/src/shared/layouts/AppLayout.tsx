@@ -8,7 +8,7 @@
  */
 
 import { memo, useEffect, useRef } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { FloatingFeedbackButton } from '../../features/feedback/components/FloatingFeedbackButton';
@@ -101,6 +101,13 @@ Footer.displayName = 'Footer';
 // ============================================
 
 export const AppLayout = () => {
+    const { pathname } = useLocation();
+    const hideHeader = pathname === '/dashboard';
+
+    useEffect(() => {
+        document.documentElement.style.setProperty('--app-header-height', hideHeader ? '0px' : '');
+    }, [hideHeader]);
+
     return (
         <div className="flex flex-col min-h-screen">
             {/* Header */}

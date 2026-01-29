@@ -3,8 +3,8 @@
  * 
  * Guida l'utente attraverso le funzionalità principali della dashboard:
  * - Saluto personalizzato
- * - Statistiche
- * - Quick actions
+ * - Mazzi recenti
+ * - Prossimi esami
  * - Menu utente
  */
 
@@ -33,18 +33,26 @@ export const dashboardTutorial: TutorialConfig = {
             waitForElement: true,
         },
         {
-            id: 'stats',
-            target: '[data-tutorial="stats"]',
-            title: 'Statistiche Rapide',
-            description: 'Queste card mostrano le tue statistiche giornaliere di studio.',
+            id: 'recent-decks',
+            target: '[data-tutorial="recent-decks"]',
+            title: 'Mazzi recenti',
+            description: 'Qui trovi gli ultimi mazzi aggiornati con azione rapida per ripassare.',
             position: 'bottom',
             waitForElement: true,
         },
         {
-            id: 'quick-actions',
-            target: '[data-tutorial="quick-actions"]',
-            title: 'Azioni Rapide',
-            description: 'Accedi velocemente alle funzionalità principali e inizia a studiare.',
+            id: 'upcoming-exams',
+            target: '[data-tutorial="upcoming-exams"]',
+            title: 'Prossimi esami',
+            description: 'Questa sezione mostra gli esami in arrivo con i giorni rimanenti.',
+            position: 'bottom',
+            waitForElement: true,
+        },
+        {
+            id: 'exams-cta',
+            target: '[data-tutorial="exams-cta"]',
+            title: 'Vai agli esami',
+            description: 'Accedi rapidamente alla sezione esami per gestire e studiare.',
             position: 'bottom',
             waitForElement: true,
         },
@@ -60,7 +68,7 @@ export const dashboardTutorial: TutorialConfig = {
             id: 'complete',
             target: 'body',
             title: '🎉 Tour Completato!',
-            description: 'Ora conosci le basi della dashboard. Esplora le altre sezioni come Flashcards per scoprire tutte le funzionalità di Silvi!',
+            description: 'Ora conosci le basi della dashboard. Esplora Flashcards ed esami per scoprire tutte le funzionalità di Silvi!',
             position: 'center',
             highlightPadding: 0,
         },
