@@ -230,7 +230,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     if (isEditing) {
         return (
             <div
-                className={getCardClasses()}
+                className={`group ${getCardClasses()}`}
                 style={{ background: getCardBackground() }}
                 // No onClick during editing to prevent any interaction conflicts
             >
@@ -245,7 +245,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
             initial={ANIMATION_CONFIG.card.initial}
             animate={ANIMATION_CONFIG.card.animate}
             exit={ANIMATION_CONFIG.card.exit}
-            className={getCardClasses()}
+            className={`group ${getCardClasses()}`}
             style={{ background: getCardBackground() }}
             onClick={handleCardClick}
         >

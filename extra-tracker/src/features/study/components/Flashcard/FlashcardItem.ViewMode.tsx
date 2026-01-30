@@ -59,19 +59,20 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
             className="space-y-3"
             onClick={onCardClick}
         >
-            {/* Question Section */}
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className={`${BADGE_STYLES.question.size} ${BADGE_STYLES.question.borderRadius} ${BADGE_STYLES.question.background} ${BADGE_STYLES.question.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.question.text} flex-shrink-0 ${BADGE_STYLES.question.shadow}`}>
-                        Q
-                    </div>
-                    <p className={LAYOUT.text.question + ' whitespace-pre-wrap break-words'}>
-                        {card.front}
-                    </p>
+            {/* Question Section: testo a tutta larghezza; pulsanti in overlay con animazione hover */}
+            <div className="relative flex items-start gap-3 min-w-0">
+                <div className={`${BADGE_STYLES.question.size} ${BADGE_STYLES.question.borderRadius} ${BADGE_STYLES.question.background} ${BADGE_STYLES.question.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.question.text} flex-shrink-0 ${BADGE_STYLES.question.shadow}`}>
+                    Q
                 </div>
+                <p className={LAYOUT.text.question + ' whitespace-pre-wrap break-words flex-1 min-w-0 pr-0'}>
+                    {card.front}
+                </p>
 
-                {/* Action Buttons */}
-                <div className={`flex items-center ${LAYOUT.spacing.gapButtons} shrink-0`}>
+                {/* Action Buttons: nascosti di default, appaiono con slide da destra a sinistra al hover */}
+                <div
+                    className={`absolute right-0 top-0 flex items-center ${LAYOUT.spacing.gapButtons} opacity-0 translate-x-4 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto transition-all duration-200 ease-out`}
+                    onClick={(e) => e.stopPropagation()}
+                >
                     {/* Show Source Button */}
                     {buttonState.hasSourceMetadata && (
                         <button
