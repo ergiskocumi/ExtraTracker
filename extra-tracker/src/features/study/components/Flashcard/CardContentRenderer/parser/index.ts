@@ -18,6 +18,7 @@ export {
     extractLaTeXFormulas,
     validateAllFormulas,
     hasLaTeX,
+    fixIncompleteLaTeX,
     type LaTeXValidationResult,
 } from './latexValidator';
 

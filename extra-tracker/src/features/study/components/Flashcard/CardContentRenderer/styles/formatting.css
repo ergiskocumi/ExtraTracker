@@ -1,0 +1,17 @@
+/* Highlight & inline formatting tweaks for WYSIWYG output */
+
+mark {
+    background: rgba(251, 191, 36, 0.35);
+    color: inherit;
+    padding: 0 0.15em;
+    border-radius: 0.2em;
+}
+
+[data-theme="dark"] mark,
+.dark mark {
+    background: rgba(251, 191, 36, 0.25);
+}
+
+mark::selection {
+    background: rgba(251, 191, 36, 0.5);
+}

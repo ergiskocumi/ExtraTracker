@@ -9,7 +9,7 @@
  */
 
 import { memo, useEffect, useRef } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -121,6 +121,9 @@ Footer.displayName = 'Footer';
 // ============================================
 
 export const AppLayout = () => {
+    const { pathname } = useLocation();
+    const hideFooter = pathname.startsWith('/study');
+
     return (
         <div className="flex flex-col min-h-screen">
             {/* Header */}
@@ -131,8 +134,8 @@ export const AppLayout = () => {
                 <Outlet />
             </main>
 
-            {/* Footer */}
-            <Footer />
+            {/* Footer: nascosto in /study per non disturbare sessioni e studio */}
+            {!hideFooter && <Footer />}
 
             {/* Global Feedback Components */}
             <FloatingFeedbackButton />

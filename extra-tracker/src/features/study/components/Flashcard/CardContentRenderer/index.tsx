@@ -35,8 +35,11 @@ import {
     validateAllFormulas,
     preprocessMathContent,
     containsMathExpressions,
+    fixIncompleteLaTeX,
 } from './parser';
 import './styles/cinemaMode.css';
+import './styles/formula.css';
+import './styles/formatting.css';
 
 // Import KaTeX CSS
 import 'katex/dist/katex.min.css';
@@ -495,13 +498,18 @@ const CardContentRendererComponent: React.FC<CardContentRendererProps> = ({
         // 2. Preprocessa il Markdown (normalizza newlines, etc.)
         const markdownPreprocessed = preprocessMarkdown(sanitized);
 
-        // 3. Se LaTeX non è disabilitato, rileva e avvolgi le espressioni matematiche
+        // 3. Correggi delimitatori LaTeX incompleti (es. $ aperto senza chiusura)
+        const latexFixed = !disableLatex
+            ? fixIncompleteLaTeX(markdownPreprocessed)
+            : markdownPreprocessed;
+
+        // 4. Se LaTeX non è disabilitato, rileva e avvolgi le espressioni matematiche
         //    Questo è necessario perché il contenuto spesso ha formule SENZA delimitatori $...$
-        if (!disableLatex && containsMathExpressions(markdownPreprocessed)) {
-            return preprocessMathContent(markdownPreprocessed);
+        if (!disableLatex && containsMathExpressions(latexFixed)) {
+            return preprocessMathContent(latexFixed);
         }
 
-        return markdownPreprocessed;
+        return latexFixed;
     }, [content, disableLatex]);
 
     // Gestione truncate

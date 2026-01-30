@@ -1,0 +1,379 @@
+/**
+ * FLASHCARD 3D FLIP ANIMATION
+ * ============================
+ *
+ * Stili CSS puri per l'animazione flip 3D delle flashcard.
+ * Usa CSS transforms per massima performance (GPU accelerated).
+ *
+ * Uso:
+ * <div class="perspective-container">
+ *   <div class="flashcard-inner [rotated]">
+ *     <div class="flashcard-front">...</div>
+ *     <div class="flashcard-back">...</div>
+ *   </div>
+ * </div>
+ */
+
+/* ===========================================
+   PERSPECTIVE CONTAINER
+   Definisce la prospettiva 3D per il flip
+   =========================================== */
+
+.perspective-container {
+    perspective: 1200px;
+    perspective-origin: center center;
+    width: 100%;
+}
+
+/* ===========================================
+   FLASHCARD INNER
+   Container che ruota con il contenuto
+   =========================================== */
+
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    min-height: 360px;
+    transform-style: preserve-3d;
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center center;
+    cursor: pointer;
+}
+
+/* Stato ruotato (mostra il retro) */
+.flashcard-inner.rotated {
+    transform: rotateY(180deg);
+}
+
+/* Mobile: altezza ridotta */
+@media (max-width: 640px) {
+    .flashcard-inner {
+        min-height: 280px;
+    }
+}
+
+/* ===========================================
+   FLASHCARD FRONT
+   Lato domanda della card
+   =========================================== */
+
+.flashcard-front {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    border-radius: 1.5rem;
+    padding: 1.5rem 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.10) 0%,
+        rgba(255, 255, 255, 0.04) 50%,
+        rgba(255, 255, 255, 0.02) 100%
+    );
+    box-shadow:
+        0 20px 60px -12px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.15),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+        inset 0 -1px 0 0 rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    overflow: hidden;
+}
+
+/* Mobile front */
+@media (max-width: 640px) {
+    .flashcard-front {
+        border-radius: 0.75rem;
+        padding: 1rem;
+    }
+}
+
+/* ===========================================
+   FLASHCARD BACK
+   Lato risposta della card
+   =========================================== */
+
+.flashcard-back {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: rotateY(180deg);
+    display: flex;
+    flex-direction: column;
+    border-radius: 1.5rem;
+    padding: 1.5rem 2rem;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    background: linear-gradient(
+        145deg,
+        rgba(139, 92, 246, 0.15) 0%,
+        rgba(99, 102, 241, 0.08) 50%,
+        rgba(139, 92, 246, 0.05) 100%
+    );
+    box-shadow:
+        0 20px 60px -12px rgba(139, 92, 246, 0.3),
+        0 0 0 1px rgba(139, 92, 246, 0.25),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+        inset 0 -1px 0 0 rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    overflow: hidden;
+}
+
+/* Mobile back */
+@media (max-width: 640px) {
+    .flashcard-back {
+        border-radius: 0.75rem;
+        padding: 1rem;
+    }
+}
+
+/* ===========================================
+   CONTENT AREAS
+   Zone scrollabili per contenuto lungo
+   =========================================== */
+
+.flashcard-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.flashcard-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.flashcard-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.flashcard-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+.flashcard-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* ===========================================
+   LABELS
+   Badge per "DOMANDA" / "RISPOSTA"
+   =========================================== */
+
+.flashcard-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.flashcard-label--question {
+    background: rgba(139, 92, 246, 0.15);
+    color: rgba(167, 139, 250, 0.9);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.flashcard-label--answer {
+    background: rgba(16, 185, 129, 0.2);
+    color: rgba(110, 231, 183, 0.95);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+/* Mobile labels */
+@media (max-width: 640px) {
+    .flashcard-label {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.5625rem;
+    }
+}
+
+/* ===========================================
+   FLIP HINT
+   Indicazione per girare la carta
+   =========================================== */
+
+.flashcard-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.75rem;
+    font-weight: 500;
+    animation: pulse-opacity 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-opacity {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.5; }
+}
+
+.flashcard-hint kbd {
+    padding: 0.125rem 0.375rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.25rem;
+    font-family: ui-monospace, monospace;
+    font-size: 0.625rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* ===========================================
+   CONTROLS BAR
+   Barra con pulsanti azioni
+   =========================================== */
+
+.flashcard-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: auto;
+    padding-top: 1rem;
+}
+
+.flashcard-controls button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.625rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+}
+
+.flashcard-controls button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.flashcard-controls button:active {
+    transform: scale(0.95);
+}
+
+/* Button variants */
+.flashcard-controls button.btn-edit {
+    border-color: rgba(139, 92, 246, 0.3);
+    background: rgba(139, 92, 246, 0.1);
+    color: rgba(167, 139, 250, 0.9);
+}
+
+.flashcard-controls button.btn-edit:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.flashcard-controls button.btn-delete {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.1);
+    color: rgba(252, 165, 165, 0.9);
+}
+
+.flashcard-controls button.btn-delete:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.flashcard-controls button.btn-flip {
+    border-color: rgba(59, 130, 246, 0.3);
+    background: rgba(59, 130, 246, 0.1);
+    color: rgba(147, 197, 253, 0.9);
+}
+
+.flashcard-controls button.btn-flip:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+/* Mobile controls */
+@media (max-width: 640px) {
+    .flashcard-controls {
+        gap: 0.375rem;
+    }
+
+    .flashcard-controls button {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.6875rem;
+    }
+}
+
+/* ===========================================
+   HOVER EFFECTS
+   Effetti al passaggio del mouse
+   =========================================== */
+
+.perspective-container:hover .flashcard-front,
+.perspective-container:hover .flashcard-back {
+    box-shadow:
+        0 25px 70px -12px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+/* ===========================================
+   THEME VARIANTS
+   Supporto per tema light
+   =========================================== */
+
+[data-theme="light"] .flashcard-front,
+.light .flashcard-front {
+    background: linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(248, 250, 252, 0.9) 100%
+    );
+    border-color: rgba(148, 163, 184, 0.3);
+    box-shadow:
+        0 20px 60px -12px rgba(0, 0, 0, 0.15),
+        0 0 0 1px rgba(148, 163, 184, 0.2);
+}
+
+[data-theme="light"] .flashcard-back,
+.light .flashcard-back {
+    background: linear-gradient(
+        145deg,
+        rgba(139, 92, 246, 0.1) 0%,
+        rgba(99, 102, 241, 0.05) 100%
+    );
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+[data-theme="light"] .flashcard-hint,
+.light .flashcard-hint {
+    color: rgba(71, 85, 105, 0.5);
+}
+
+[data-theme="light"] .flashcard-controls button,
+.light .flashcard-controls button {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(148, 163, 184, 0.3);
+    color: rgba(71, 85, 105, 0.8);
+}

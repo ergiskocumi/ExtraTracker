@@ -1,62 +1,28 @@
 /**
- * 🔍 MATH DETECTOR & AUTO-WRAPPER
- * ================================
+ * 🔍 MATH DETECTOR & AUTO-WRAPPER v2
+ * ===================================
  *
- * Rileva automaticamente espressioni matematiche nel testo e le avvolge
+ * Rileva automaticamente EQUAZIONI COMPLETE nel testo e le avvolge
  * con delimitatori LaTeX ($...$) per permettere il rendering con KaTeX.
  *
- * Problema risolto:
- * Il contenuto delle flashcard spesso contiene formule scritte senza
- * delimitatori LaTeX (es. "a_{n|i}" invece di "$a_{n|i}$").
- * Questo preprocessor le rileva e le formatta correttamente.
+ * Strategia v2:
+ * - Invece di cercare singole espressioni, rileva ZONE MATEMATICHE
+ * - Un'equazione inizia con "LETTERA =" e continua finché trova contenuto matematico
+ * - Avvolge l'intera equazione in un unico blocco $...$
  *
  * @module CardContentRenderer/parser/mathDetector
  */
 
 /**
- * Pattern che indicano espressioni matematiche.
- * Ordine importante: pattern più specifici prima di quelli generici.
+ * Caratteri che indicano contenuto matematico.
  */
-const MATH_PATTERNS = [
-    // Frazioni LaTeX: \frac{...}{...}
-    /\\frac\s*\{[^}]*\}\s*\{[^}]*\}/g,
-
-    // Radici: \sqrt{...} o \sqrt[n]{...}
-    /\\sqrt(?:\[[^\]]*\])?\s*\{[^}]*\}/g,
-
-    // Sommatorie, integrali, produttorie con limiti
-    /\\(?:sum|int|prod|lim)(?:_\{[^}]*\})?(?:\^\{[^}]*\})?/g,
-
-    // Comandi LaTeX comuni: \alpha, \beta, \infty, etc.
-    /\\(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|infty|partial|nabla|forall|exists|in|notin|subset|supset|cup|cap|land|lor|neg|Rightarrow|Leftarrow|Leftrightarrow|rightarrow|leftarrow|leftrightarrow|cdot|times|div|pm|mp|leq|geq|neq|approx|equiv|sim|propto|perp|parallel)/g,
-
-    // Simboli matematici comuni
-    /\\(?:mathbb|mathbf|mathcal|mathrm|text)\s*\{[^}]*\}/g,
-];
+const MATH_CHARS = /[+\-*/=^_{}()[\]]/;
 
 /**
- * Pattern per rilevare espressioni con subscript/superscript.
- * Questi sono i più comuni nelle flashcard di matematica finanziaria.
+ * Pattern che indicano l'INIZIO di un'equazione.
+ * Es: "V = ", "M = ", "a_{n|i} = "
  */
-const SUBSCRIPT_SUPERSCRIPT_PATTERN = /(?:^|[\s(=+\-*\/,;:])([a-zA-Z](?:_\{[^}]+\}|_[a-zA-Z0-9]|\^\{[^}]+\}|\^[\-]?[a-zA-Z0-9]+)+)(?=[\s)=+\-*\/,;:.]|$)/g;
-
-/**
- * Pattern per espressioni matematiche complete (equazioni).
- * Rileva pattern come: V = (1+i)^{-p} a_ni
- */
-const EQUATION_PATTERNS = [
-    // Espressioni con parentesi e esponenti: (1+i)^{-1}, (1+i)^n, etc.
-    /\([^)]+\)\^(?:\{[^}]+\}|[\-]?\d+|[\-]?[a-zA-Z])/g,
-
-    // Variabili con subscript complessi: a_{n|i}, s_{n|i}, etc.
-    /[a-zA-Z]_\{[^}]+\}/g,
-
-    // Variabili con subscript semplici seguite da altri termini: a_ni, v^p, etc.
-    /[a-zA-Z]_[a-zA-Z]+(?:\d+)?/g,
-
-    // Esponenti: x^2, x^{-1}, v^n, etc.
-    /[a-zA-Z]\^(?:\{[^}]+\}|[\-]?\d+|[\-]?[a-zA-Z])/g,
-];
+const EQUATION_START = /(?:^|[.;:]\s*|,\s+)([A-Za-z](?:_\{[^}]+\}|_[a-zA-Z0-9]+)?)\s*=/;
 
 /**
  * Pattern per rilevare se il testo contiene già delimitatori LaTeX.
@@ -64,136 +30,280 @@ const EQUATION_PATTERNS = [
 const HAS_LATEX_DELIMITERS = /\$[^$]+\$|\$\$[^$]+\$\$/;
 
 /**
- * Pattern per espressioni che dovrebbero essere formule inline.
- * Cattura sequenze matematiche significative.
- */
-const INLINE_MATH_PATTERN = /(?:^|[^$\\a-zA-Z])([a-zA-Z](?:_(?:\{[^}]+\}|[a-zA-Z0-9])|(?:\^(?:\{[^}]+\}|[\-]?[a-zA-Z0-9]+)))+)(?=[^a-zA-Z$]|$)/g;
-
-/**
- * Rileva e avvolge automaticamente le espressioni matematiche con delimitatori $.
+ * Preprocessa il contenuto per il rendering matematico.
+ * Rileva equazioni complete e le avvolge con $...$
  *
- * @param content - Testo contenente potenziali formule senza delimitatori
- * @returns Testo con formule avvolte in $...$
- *
- * @example
- * wrapMathExpressions('Il valore è a_{n|i} = v a_{n|i}')
- * // Output: 'Il valore è $a_{n|i}$ = $v$ $a_{n|i}$'
+ * @param content - Contenuto grezzo
+ * @returns Contenuto pronto per react-markdown con remark-math
  */
-export function wrapMathExpressions(content: string): string {
+export function preprocessMathContent(content: string): string {
     if (!content || typeof content !== 'string') {
         return '';
     }
 
-    // Se il contenuto ha già delimitatori LaTeX, non processare
+    // Se ha già delimitatori LaTeX, non processare
     if (HAS_LATEX_DELIMITERS.test(content)) {
         return content;
     }
 
-    let result = content;
-
-    // Set per tracciare le espressioni già processate (evita duplicati)
-    const processedExpressions = new Set<string>();
-
-    // 1. Trova tutte le espressioni matematiche candidate
-    const mathExpressions = findMathExpressions(content);
-
-    // 2. Ordina per lunghezza decrescente (processa prima le più lunghe)
-    //    Questo evita che "a_{n|i}" venga spezzato processando prima "a_"
-    mathExpressions.sort((a, b) => b.length - a.length);
-
-    // 3. Sostituisci ogni espressione con la versione wrapped
-    for (const expr of mathExpressions) {
-        if (processedExpressions.has(expr)) continue;
-
-        // Crea un pattern che matcha l'espressione esatta, non come parte di altra parola
-        // e non già dentro $...$
-        const escapedExpr = escapeRegExp(expr);
-        const pattern = new RegExp(
-            `(?<!\\$|[a-zA-Z])${escapedExpr}(?!\\$|[a-zA-Z])`,
-            'g'
-        );
-
-        const wrapped = `$${expr}$`;
-        result = result.replace(pattern, wrapped);
-        processedExpressions.add(expr);
+    // Se non contiene pattern matematici, ritorna così com'è
+    if (!containsMathExpressions(content)) {
+        return content;
     }
 
-    // 4. Pulizia: rimuovi $ doppi adiacenti e spazi extra
-    result = result
-        .replace(/\$\s*\$/g, '') // Rimuovi $$ vuoti
-        .replace(/\$\$+/g, '$') // Riduci $$$ a $
-        .replace(/\s+/g, ' '); // Normalizza spazi
-
-    return result;
+    return wrapEquations(content);
 }
 
 /**
- * Trova tutte le espressioni matematiche in un testo.
+ * Avvolge le equazioni complete con delimitatori $$ (block math).
+ * Le espressioni isolate usano $ (inline math).
+ * Strategia: trova sequenze che sembrano equazioni matematiche.
  */
-function findMathExpressions(content: string): string[] {
-    const expressions: string[] = [];
-    let match;
+function wrapEquations(content: string): string {
+    let result = '';
+    let i = 0;
+    const len = content.length;
 
-    // Pattern 1: Variabili con subscript complessi (a_{n|i}, s_{n|i}, etc.)
-    const subscriptComplexPattern = /[a-zA-Z]_\{[^}]+\}/g;
-    while ((match = subscriptComplexPattern.exec(content)) !== null) {
-        expressions.push(match[0]);
-    }
+    while (i < len) {
+        // Cerca l'inizio di una potenziale equazione
+        const equationMatch = findEquationStart(content, i);
 
-    // Pattern 2: Espressioni con parentesi e esponenti - TUTTI i casi
-    // (1+i)^{-p}, (1+i)^n, (1+i)^2, (1+i)^{n-1}, etc.
-    const parenExponentPattern = /\([^)]+\)\^(?:\{[^}]+\}|[\-]?[a-zA-Z0-9]+)/g;
-    while ((match = parenExponentPattern.exec(content)) !== null) {
-        expressions.push(match[0]);
-    }
+        if (equationMatch) {
+            // Aggiungi il testo prima dell'equazione
+            result += content.substring(i, equationMatch.start);
 
-    // Pattern 3: Variabili con esponenti - TUTTI i casi
-    // v^p, x^2, v^{-1}, v^n, etc.
-    const varExponentPattern = /[a-zA-Z]\^(?:\{[^}]+\}|[\-]?[a-zA-Z0-9]+)/g;
-    while ((match = varExponentPattern.exec(content)) !== null) {
-        expressions.push(match[0]);
-    }
+            // Trova la fine dell'equazione
+            const equationEnd = findEquationEnd(content, equationMatch.start);
+            const equation = content.substring(equationMatch.start, equationEnd).trim();
 
-    // Pattern 4: Variabili con subscript semplici (a_ni, v_0, s_n, etc.)
-    // Cattura lettere seguite da _ e poi lettere/numeri
-    const subscriptSimplePattern = /[a-zA-Z]_[a-zA-Z0-9]+/g;
-    while ((match = subscriptSimplePattern.exec(content)) !== null) {
-        // Evita match già coperti da subscript complessi
-        if (!match[0].includes('{')) {
-            expressions.push(match[0]);
+            // Avvolgi l'equazione come BLOCK MATH ($$...$$) per visualizzarla su riga separata
+            if (isSignificantMathExpression(equation)) {
+                // Rimuovi il punto finale se presente (lo aggiungiamo dopo)
+                const cleanEquation = equation.replace(/\.$/, '');
+                const hadPeriod = equation.endsWith('.');
+
+                // Usa $$ per block math (display mode)
+                result += `\n\n$$${cleanEquation}$$\n\n`;
+
+                if (hadPeriod) {
+                    // Se c'era un punto, non aggiungerlo (era parte della frase)
+                }
+            } else {
+                result += equation;
+            }
+
+            i = equationEnd;
+        } else {
+            // Cerca espressioni matematiche isolate (non equazioni)
+            const isolatedMatch = findIsolatedMathExpression(content, i);
+
+            if (isolatedMatch) {
+                result += content.substring(i, isolatedMatch.start);
+                // Usa $ per inline math
+                result += `$${isolatedMatch.expression}$`;
+                i = isolatedMatch.end;
+            } else {
+                // Nessuna espressione trovata, aggiungi il resto del contenuto
+                result += content.substring(i);
+                break;
+            }
         }
     }
 
-    // Pattern 5: Comandi LaTeX espliciti
-    const latexCommandPattern = /\\[a-zA-Z]+(?:\{[^}]*\})?/g;
-    while ((match = latexCommandPattern.exec(content)) !== null) {
-        expressions.push(match[0]);
-    }
-
-    // Pattern 6: Simboli matematici isolati con subscript/superscript
-    // Come: ä (con umlaut che potrebbe essere mal codificato), etc.
-    // Pattern per caratteri speciali matematici
-    const specialMathPattern = /[äöüÄÖÜ][_^][a-zA-Z0-9{}\-]+/g;
-    while ((match = specialMathPattern.exec(content)) !== null) {
-        expressions.push(match[0]);
-    }
-
-    // Rimuovi duplicati e filtra espressioni troppo corte o false positive
-    const uniqueExpressions = [...new Set(expressions)].filter((expr) => {
-        // Minimo 3 caratteri per essere considerata un'espressione matematica
-        if (expr.length < 3) return false;
-        // Deve contenere almeno un operatore matematico (_, ^, \)
-        return /[_^\\]/.test(expr);
-    });
-
-    return uniqueExpressions;
+    // Pulizia finale
+    return cleanupResult(result);
 }
 
 /**
- * Escape caratteri speciali per uso in RegExp.
+ * Trova l'inizio di un'equazione (pattern: LETTERA = ...)
  */
-function escapeRegExp(string: string): string {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function findEquationStart(content: string, fromIndex: number): { start: number; variable: string } | null {
+    // Pattern: lettera (con possibile subscript) seguita da =
+    // Es: "V = ", "M = ", "a_{n|i} = ", "v^p = "
+    const patterns = [
+        // Variabile con subscript complesso: a_{n|i} =
+        /([A-Za-z]_\{[^}]+\})\s*=/g,
+        // Variabile con subscript semplice: a_ni =
+        /([A-Za-z]_[a-zA-Z0-9]+)\s*=/g,
+        // Variabile con esponente: v^p =
+        /([A-Za-z]\^(?:\{[^}]+\}|[a-zA-Z0-9]+))\s*=/g,
+        // Variabile semplice: V =, M =
+        /(?:^|[^a-zA-Z])([A-Za-z])\s*=/g,
+    ];
+
+    let earliestMatch: { start: number; variable: string } | null = null;
+
+    for (const pattern of patterns) {
+        pattern.lastIndex = fromIndex;
+        const match = pattern.exec(content);
+
+        if (match && match.index >= fromIndex) {
+            const start = match.index + (match[0].indexOf(match[1]));
+
+            if (!earliestMatch || start < earliestMatch.start) {
+                earliestMatch = {
+                    start,
+                    variable: match[1],
+                };
+            }
+        }
+    }
+
+    return earliestMatch;
+}
+
+/**
+ * Trova la fine di un'equazione.
+ * Un'equazione termina quando:
+ * - Si incontra un punto SINGOLO seguito da spazio o fine stringa
+ * - Si incontra una virgola seguita da testo non matematico
+ * - Si incontra un punto e virgola
+ * - Si incontra un "dove" o "con" o "per" (parole che introducono spiegazioni)
+ *
+ * NON termina con:
+ * - "..." (puntini di sospensione - fanno parte della formula)
+ * - Virgola seguita da altra equazione
+ */
+function findEquationEnd(content: string, startIndex: number): number {
+    let i = startIndex;
+    let parenDepth = 0;
+    let braceDepth = 0;
+    const len = content.length;
+
+    while (i < len) {
+        const char = content[i];
+        const nextChar = content[i + 1] || '';
+        const nextNextChar = content[i + 2] || '';
+        const prevChar = content[i - 1] || '';
+
+        // Traccia parentesi
+        if (char === '(' || char === '[') parenDepth++;
+        if (char === ')' || char === ']') parenDepth--;
+        if (char === '{') braceDepth++;
+        if (char === '}') braceDepth--;
+
+        // Non terminare dentro parentesi
+        if (parenDepth > 0 || braceDepth > 0) {
+            i++;
+            continue;
+        }
+
+        // NON terminare con "..." (puntini di sospensione)
+        if (char === '.' && nextChar === '.' && nextNextChar === '.') {
+            i += 3; // Salta i tre punti
+            continue;
+        }
+
+        // Termina con punto SINGOLO seguito da spazio, fine stringa, o maiuscola
+        if (char === '.' && nextChar !== '.') {
+            if (nextChar === ' ' || nextChar === '' || nextChar === '\n' || /[A-Z]/.test(nextChar)) {
+                return i + 1;
+            }
+        }
+
+        // Termina con punto e virgola
+        if (char === ';') {
+            return i;
+        }
+
+        // Controlla se siamo a una parola chiave che termina l'equazione
+        const remainingText = content.substring(i).toLowerCase();
+        const terminators = [', dove ', ', con ', '. per ', ' dove ', ' con '];
+
+        for (const term of terminators) {
+            if (remainingText.startsWith(term)) {
+                return i;
+            }
+        }
+
+        // Se troviamo una virgola, verifica se quello che segue è ancora matematica
+        if (char === ',' && nextChar === ' ') {
+            const afterComma = content.substring(i + 2, i + 30);
+
+            // Continua se dopo la virgola c'è:
+            // - Un'altra equazione (LETTERA =)
+            // - "cioè", "quindi", "ovvero" seguiti da equazione
+            // - "per" seguito da condizione (es: "per i≠0")
+            const continuePatterns = [
+                /^[A-Za-z](?:_\{[^}]+\}|_[a-zA-Z0-9]+|\^[^=]*)?\s*=/,  // Altra equazione
+                /^(?:cioè|quindi|ovvero)\s+[A-Za-z]/i,                   // Connettivo + equazione
+                /^per\s+[a-z]/i,                                         // Condizione
+            ];
+
+            const shouldContinue = continuePatterns.some(p => p.test(afterComma));
+
+            if (!shouldContinue) {
+                return i;
+            }
+        }
+
+        i++;
+    }
+
+    return len;
+}
+
+/**
+ * Trova espressioni matematiche isolate (non parte di equazioni).
+ * Es: "il valore v^p è dato da..." - qui v^p è isolato
+ */
+function findIsolatedMathExpression(
+    content: string,
+    fromIndex: number
+): { start: number; end: number; expression: string } | null {
+    const patterns = [
+        // Subscript complessi: a_{n|i}, s_{n|i}
+        /([A-Za-z]_\{[^}]+\})/g,
+        // Parentesi con esponenti: (1+i)^{-n}, (1+i)^n
+        /(\([^)]+\)\^(?:\{[^}]+\}|[\-]?[a-zA-Z0-9]+))/g,
+        // Variabili con esponenti: v^p, v^{-1}, v^n
+        /([A-Za-z]\^(?:\{[^}]+\}|[\-]?[a-zA-Z0-9]+))/g,
+        // Subscript semplici: a_ni (solo se non fa parte di parola)
+        /(?<![a-zA-Z])([A-Za-z]_[a-zA-Z0-9]+)(?![a-zA-Z])/g,
+    ];
+
+    let earliestMatch: { start: number; end: number; expression: string } | null = null;
+
+    for (const pattern of patterns) {
+        pattern.lastIndex = fromIndex;
+        const match = pattern.exec(content);
+
+        if (match && match.index >= fromIndex) {
+            // Verifica che non sia già stato processato (non dentro $...$)
+            const beforeChar = content[match.index - 1] || '';
+            const afterChar = content[match.index + match[0].length] || '';
+
+            if (beforeChar !== '$' && afterChar !== '$') {
+                if (!earliestMatch || match.index < earliestMatch.start) {
+                    earliestMatch = {
+                        start: match.index,
+                        end: match.index + match[0].length,
+                        expression: match[1],
+                    };
+                }
+            }
+        }
+    }
+
+    return earliestMatch;
+}
+
+/**
+ * Verifica se un'espressione è abbastanza significativa da essere matematica.
+ */
+function isSignificantMathExpression(expr: string): boolean {
+    if (!expr || expr.length < 3) return false;
+
+    // Deve contenere almeno un operatore matematico o subscript/superscript
+    const hasMathContent =
+        /[=+\-*/^_]/.test(expr) ||
+        /\{[^}]+\}/.test(expr) ||
+        /\([^)]+\)/.test(expr);
+
+    // Non deve essere solo testo normale
+    const isNotJustText = !/^[a-zA-Z]+$/.test(expr);
+
+    return hasMathContent && isNotJustText;
 }
 
 /**
@@ -202,35 +312,39 @@ function escapeRegExp(string: string): string {
 export function containsMathExpressions(content: string): boolean {
     if (!content) return false;
 
-    // Check rapido per pattern comuni
-    const quickPatterns = [
-        /_\{/, // Subscript con parentesi
-        /\^\{/, // Superscript con parentesi
-        /_[a-z]/i, // Subscript semplice
-        /\^[\-]?\d/, // Superscript numerico
-        /\([^)]+\)\^/, // Parentesi con esponente
-        /\\[a-zA-Z]+/, // Comando LaTeX
+    const patterns = [
+        /_\{/,           // Subscript con parentesi
+        /\^\{/,          // Superscript con parentesi
+        /_[a-z]/i,       // Subscript semplice
+        /\^[\-]?\d/,     // Superscript numerico
+        /\([^)]+\)\^/,   // Parentesi con esponente
+        /\\[a-zA-Z]+/,   // Comando LaTeX
+        /[A-Za-z]\s*=\s*[^,.\s]/, // Equazione
     ];
 
-    return quickPatterns.some((pattern) => pattern.test(content));
+    return patterns.some((pattern) => pattern.test(content));
 }
 
 /**
- * Preprocessa il contenuto per il rendering matematico.
- * Combina rilevamento e wrapping in un'unica funzione.
- *
- * @param content - Contenuto grezzo
- * @returns Contenuto pronto per react-markdown con remark-math
+ * Pulizia del risultato finale.
  */
-export function preprocessMathContent(content: string): string {
-    if (!content) return '';
+function cleanupResult(result: string): string {
+    return result
+        // Rimuovi newlines eccessivi (max 2 consecutivi)
+        .replace(/\n{3,}/g, '\n\n')
+        // Normalizza spazi multipli (ma non newlines)
+        .replace(/[^\S\n]+/g, ' ')
+        // Rimuovi spazi prima/dopo newlines
+        .replace(/ ?\n ?/g, '\n')
+        // Trim finale
+        .trim();
+}
 
-    // Se non contiene espressioni matematiche, ritorna così com'è
-    if (!containsMathExpressions(content)) {
-        return content;
-    }
-
-    return wrapMathExpressions(content);
+/**
+ * Wrapper legacy per compatibilità.
+ */
+export function wrapMathExpressions(content: string): string {
+    return preprocessMathContent(content);
 }
 
 export default preprocessMathContent;

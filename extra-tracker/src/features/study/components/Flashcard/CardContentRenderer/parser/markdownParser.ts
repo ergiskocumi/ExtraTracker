@@ -17,6 +17,7 @@
 import type { PluggableList } from 'unified';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 
@@ -28,11 +29,9 @@ import rehypeRaw from 'rehype-raw';
  * 2. remarkMath - parsing delle formule $...$ e $$...$$
  */
 export const remarkPlugins: PluggableList = [
-    // GitHub Flavored Markdown
-    // Aggiunge: tabelle, strikethrough, autolink, task lists
     remarkGfm,
-    // Parsing formule matematiche
-    // Converte $...$ in nodi math inline, $$...$$ in nodi math block
+    // Ogni singolo a capo (\n) diventa <br> in output: comportamento tipo Word, pieno controllo utente
+    remarkBreaks,
     remarkMath,
 ];
 

@@ -285,4 +285,84 @@ export function hasLaTeX(content: string): boolean {
     return /\$[^$]+\$/.test(content);
 }
 
+/**
+ * Corregge i delimitatori LaTeX non chiusi per evitare errori di rendering.
+ *
+ * Gestisce:
+ * - `$` aperto senza chiusura → aggiunge `$` alla fine
+ * - `$$` aperto senza chiusura → aggiunge `$$` alla fine
+ * - Delimitatori misti (es. `$..$$`) → normalizza
+ *
+ * @param content - Testo con potenziali formule LaTeX incomplete
+ * @returns Testo con delimitatori corretti
+ *
+ * @example
+ * fixIncompleteLaTeX('Formula: $x^2');      // 'Formula: $x^2$'
+ * fixIncompleteLaTeX('Block: $$E=mc^2');    // 'Block: $$E=mc^2$$'
+ * fixIncompleteLaTeX('Già ok: $x+1$');      // 'Già ok: $x+1$' (invariato)
+ */
+export function fixIncompleteLaTeX(content: string): string {
+    if (!content || typeof content !== 'string') {
+        return '';
+    }
+
+    let result = content;
+
+    // Conta i delimitatori block ($$)
+    const blockDelimiters = (result.match(/\$\$/g) || []).length;
+    if (blockDelimiters % 2 !== 0) {
+        // Numero dispari di $$, aggiungi quello mancante
+        // Trova l'ultimo $$ e aggiungi la chiusura alla fine della riga o del contenuto
+        const lastBlockIndex = result.lastIndexOf('$$');
+        if (lastBlockIndex !== -1) {
+            const afterDelimiter = result.substring(lastBlockIndex + 2);
+            // Trova la fine della "formula" (newline o fine stringa)
+            const endOfLine = afterDelimiter.indexOf('\n');
+            if (endOfLine !== -1) {
+                const insertPos = lastBlockIndex + 2 + endOfLine;
+                result = result.slice(0, insertPos) + '$$' + result.slice(insertPos);
+            } else {
+                result += '$$';
+            }
+        }
+    }
+
+    // Conta i delimitatori inline ($) - escludendo i $$
+    // Prima maschera i $$ per non contarli come doppi $
+    const maskedContent = result.replace(/\$\$/g, '\u0000\u0000');
+    const inlineDelimiters = (maskedContent.match(/\$/g) || []).length;
+
+    if (inlineDelimiters % 2 !== 0) {
+        // Numero dispari di $, aggiungi quello mancante
+        // Trova l'ultimo $ singolo (non parte di $$)
+        let lastInlineIndex = -1;
+        for (let i = result.length - 1; i >= 0; i--) {
+            if (result[i] === '$') {
+                // Verifica che non sia parte di $$
+                const isPartOfBlock =
+                    (i > 0 && result[i - 1] === '$') ||
+                    (i < result.length - 1 && result[i + 1] === '$');
+                if (!isPartOfBlock) {
+                    lastInlineIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (lastInlineIndex !== -1) {
+            const afterDelimiter = result.substring(lastInlineIndex + 1);
+            // Per inline, chiudi prima dello spazio/punteggiatura o fine
+            const endMatch = afterDelimiter.match(/^[^\s.,;:!?\n$]*/);
+            if (endMatch) {
+                const insertPos = lastInlineIndex + 1 + endMatch[0].length;
+                result = result.slice(0, insertPos) + '$' + result.slice(insertPos);
+            } else {
+                result += '$';
+            }
+        }
+    }
+
+    return result;
+}
+
 export default validateLaTeX;

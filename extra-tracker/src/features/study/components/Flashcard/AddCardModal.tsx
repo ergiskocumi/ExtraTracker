@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiX, FiPlus } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MarkdownEditor } from './CardEditor';
 
 interface AddCardModalProps {
     /** Whether the modal is open */
@@ -152,17 +153,19 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                             Domanda (Fronte)
                                         </span>
                                     </label>
-                                    <textarea
+                                    <MarkdownEditor
                                         value={front}
-                                        onChange={(e) => setFront(e.target.value)}
+                                        onChange={setFront}
                                         placeholder="Inserisci la domanda..."
-                                        rows={4}
                                         autoFocus
-                                        className="w-full resize-y min-h-[100px] p-4 rounded-xl text-sm md:text-base bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60 transition-all duration-300"
-                                        style={{
-                                            scrollbarWidth: 'thin',
-                                            scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-                                        }}
+                                        disabled={isSubmitting}
+                                        onSave={handleConfirm}
+                                        onCancel={onClose}
+                                        toolbarVisibility="focus"
+                                        size="md"
+                                        minRows={4}
+                                        className="space-y-2"
+                                        textareaClassName="min-h-[100px] bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:ring-violet-500/50 focus:border-violet-500/60"
                                     />
                                 </div>
 
@@ -176,16 +179,18 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                             Risposta (Retro)
                                         </span>
                                     </label>
-                                    <textarea
+                                    <MarkdownEditor
                                         value={back}
-                                        onChange={(e) => setBack(e.target.value)}
+                                        onChange={setBack}
                                         placeholder="Inserisci la risposta..."
-                                        rows={5}
-                                        className="w-full resize-y min-h-[120px] p-4 rounded-xl text-sm md:text-base bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60 transition-all duration-300"
-                                        style={{
-                                            scrollbarWidth: 'thin',
-                                            scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-                                        }}
+                                        disabled={isSubmitting}
+                                        onSave={handleConfirm}
+                                        onCancel={onClose}
+                                        toolbarVisibility="focus"
+                                        size="md"
+                                        minRows={5}
+                                        className="space-y-2"
+                                        textareaClassName="min-h-[120px] bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:ring-violet-500/50 focus:border-violet-500/60"
                                     />
                                 </div>
                             </div>

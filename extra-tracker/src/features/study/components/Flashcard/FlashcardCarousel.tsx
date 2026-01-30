@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import type { Card, Deck } from '../../services/studyService';
 import { CardContentRenderer } from './CardContentRenderer/index';
+import { MarkdownEditor } from './CardEditor';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -148,25 +149,37 @@ const CardItem: React.FC<CardItemProps> = ({
                     {/* Front Edit */}
                     <div>
                         <label className="block mb-1.5 text-xs text-white/50">Domanda</label>
-                        <textarea
+                        <MarkdownEditor
                             value={editFront}
-                            onChange={(e) => setEditFront(e.target.value)}
-                            rows={2}
-                            autoFocus
-                            className="w-full p-3 rounded-lg bg-zinc-900/80 border border-zinc-700 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/50 resize-none"
+                            onChange={setEditFront}
                             placeholder="Scrivi la domanda..."
+                            autoFocus
+                            disabled={saving}
+                            onSave={handleSave}
+                            onCancel={onCancelEdit}
+                            toolbarVisibility="focus"
+                            size="sm"
+                            minRows={2}
+                            className="space-y-2"
+                            textareaClassName="min-h-[72px] bg-zinc-900/80 border border-zinc-700 text-white placeholder-white/30 focus:ring-violet-500/50 resize-none"
                         />
                     </div>
 
                     {/* Back Edit */}
                     <div>
                         <label className="block mb-1.5 text-xs text-white/50">Risposta</label>
-                        <textarea
+                        <MarkdownEditor
                             value={editBack}
-                            onChange={(e) => setEditBack(e.target.value)}
-                            rows={4}
-                            className="w-full p-3 rounded-lg bg-zinc-900/80 border border-zinc-700 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/50 resize-none"
+                            onChange={setEditBack}
                             placeholder="Scrivi la risposta..."
+                            disabled={saving}
+                            onSave={handleSave}
+                            onCancel={onCancelEdit}
+                            toolbarVisibility="focus"
+                            size="sm"
+                            minRows={4}
+                            className="space-y-2"
+                            textareaClassName="min-h-[120px] bg-zinc-900/80 border border-zinc-700 text-white placeholder-white/30 focus:ring-violet-500/50 resize-none"
                         />
                     </div>
                 </div>

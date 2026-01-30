@@ -1,0 +1,119 @@
+/**
+ * 📐 FORMULA STYLES
+ * =================
+ *
+ * Stili per il rendering delle formule matematiche con KaTeX.
+ * Forza le formule a essere visualizzate come blocchi separati.
+ */
+
+/* ===========================================
+   BLOCK MATH - Formule $$...$$ (display mode)
+   =========================================== */
+
+.katex-display {
+    display: block !important;
+    margin: 1rem 0 !important;
+    padding: 0.75rem 1rem !important;
+    text-align: center !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    background: rgba(248, 250, 252, 0.05) !important;
+    border: 1px solid rgba(203, 213, 225, 0.2) !important;
+    border-radius: 0.5rem !important;
+}
+
+/* Dark mode */
+.dark .katex-display,
+[data-theme="dark"] .katex-display {
+    background: rgba(30, 41, 59, 0.5) !important;
+    border-color: rgba(71, 85, 105, 0.3) !important;
+}
+
+/* ===========================================
+   INLINE MATH - Formule $...$ (inline mode)
+   =========================================== */
+
+.katex {
+    font-size: 1em !important;
+    line-height: 1.4 !important;
+}
+
+/* Aggiungi spaziatura intorno alle formule inline */
+.katex:not(.katex-display .katex) {
+    margin: 0 0.15em !important;
+    padding: 0.1em 0.2em !important;
+    background: rgba(139, 92, 246, 0.08) !important;
+    border-radius: 0.25rem !important;
+}
+
+/* ===========================================
+   FIX - Formule che vanno a capo
+   =========================================== */
+
+.katex-html {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+}
+
+/* Permetti alle formule lunghe di andare a capo */
+.katex .base {
+    display: inline !important;
+}
+
+/* ===========================================
+   ERRORI - Formule con sintassi errata
+   =========================================== */
+
+.katex-error {
+    color: #ef4444 !important;
+    font-family: monospace !important;
+    font-size: 0.9em !important;
+    background: rgba(239, 68, 68, 0.1) !important;
+    padding: 0.2em 0.4em !important;
+    border-radius: 0.25rem !important;
+}
+
+/* ===========================================
+   CINEMA MODE - Stili per lo studio
+   =========================================== */
+
+.cinema-mode .katex-display {
+    margin: 1.5rem 0 !important;
+    padding: 1rem 1.5rem !important;
+    font-size: 1.2em !important;
+    background: rgba(139, 92, 246, 0.08) !important;
+    border-color: rgba(139, 92, 246, 0.2) !important;
+}
+
+.cinema-mode .katex {
+    font-size: 1.1em !important;
+}
+
+/* ===========================================
+   RESPONSIVE - Mobile
+   =========================================== */
+
+@media (max-width: 640px) {
+    .katex-display {
+        margin: 0.75rem 0 !important;
+        padding: 0.5rem !important;
+        font-size: 0.9em !important;
+    }
+
+    .katex {
+        font-size: 0.95em !important;
+    }
+}
+
+/* ===========================================
+   STUDY MODE - Flashcard 3D
+   =========================================== */
+
+.study-mode .katex-display {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.study-mode .katex {
+    color: white !important;
+}
