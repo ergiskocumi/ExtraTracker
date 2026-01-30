@@ -16,6 +16,7 @@ import { useEffect, useMemo, memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { FiTarget } from 'react-icons/fi';
 import type { Card } from '../../services/studyService';
+import { CardContentRenderer } from './CardContentRenderer/index';
 
 interface FlashcardProps {
     card: Card;
@@ -223,9 +224,13 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                         }}
                     >
                         <div className={`w-full max-w-full ${isMobile ? 'px-1' : 'px-2'}`}>
-                            <p className={`${frontFontSize} ${isMobile ? 'font-semibold leading-tight' : 'font-bold leading-relaxed'} text-white text-center whitespace-pre-wrap break-words max-w-full drop-shadow-sm`}>
-                                {card.front}
-                            </p>
+                            <CardContentRenderer
+                                content={card.front}
+                                variant="study"
+                                size="adaptive"
+                                centered={true}
+                                className={`${frontFontSize} ${isMobile ? 'font-semibold leading-tight' : 'font-bold leading-relaxed'} max-w-full`}
+                            />
                         </div>
                     </div>
 
@@ -282,9 +287,13 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                         }}
                     >
                         <div className={`w-full max-w-full ${isMobile ? 'px-1' : 'px-2'}`}>
-                            <p className={`${backFontSize} ${isMobile ? 'font-medium leading-tight' : 'font-semibold leading-relaxed'} text-white/95 text-center whitespace-pre-wrap break-words max-w-full drop-shadow-sm`}>
-                                {card.back}
-                            </p>
+                            <CardContentRenderer
+                                content={card.back}
+                                variant="study"
+                                size="adaptive"
+                                centered={true}
+                                className={`${backFontSize} ${isMobile ? 'font-medium leading-tight' : 'font-semibold leading-relaxed'} text-white/95 max-w-full`}
+                            />
                         </div>
                     </div>
 

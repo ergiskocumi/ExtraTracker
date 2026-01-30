@@ -12,6 +12,7 @@ import { FileSearch } from 'lucide-react';
 import type { Card } from '../../services/studyService';
 import { BADGE_STYLES, BUTTON_STYLES, TEXT_CONTENT, ICON_SIZES, LAYOUT } from './FlashcardItem.constants';
 import type { ButtonState } from './FlashcardItem.types';
+import { CardContentRenderer } from './CardContentRenderer/index';
 
 // ============================================
 // TYPES
@@ -64,9 +65,13 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
                 <div className={`${BADGE_STYLES.question.size} ${BADGE_STYLES.question.borderRadius} ${BADGE_STYLES.question.background} ${BADGE_STYLES.question.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.question.text} flex-shrink-0 ${BADGE_STYLES.question.shadow}`}>
                     Q
                 </div>
-                <p className={LAYOUT.text.question + ' whitespace-pre-wrap break-words flex-1 min-w-0 pr-0'}>
-                    {card.front}
-                </p>
+                <div className="flex-1 min-w-0 pr-0">
+                    <CardContentRenderer
+                        content={card.front}
+                        variant="question"
+                        size="base"
+                    />
+                </div>
 
                 {/* Action Buttons: nascosti di default, appaiono con slide da destra a sinistra al hover */}
                 <div
@@ -129,9 +134,13 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
                 <div className={`${BADGE_STYLES.answer.size} ${BADGE_STYLES.answer.borderRadius} ${BADGE_STYLES.answer.background} ${BADGE_STYLES.answer.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.answer.text} flex-shrink-0 ${BADGE_STYLES.answer.shadow}`}>
                     A
                 </div>
-                <p className={LAYOUT.text.answer + ' break-words min-w-0'}>
-                    {card.back}
-                </p>
+                <div className="min-w-0">
+                    <CardContentRenderer
+                        content={card.back}
+                        variant="answer"
+                        size="base"
+                    />
+                </div>
             </div>
         </div>
     );

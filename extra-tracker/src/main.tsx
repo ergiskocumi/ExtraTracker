@@ -10,6 +10,8 @@ import { ScrollToTop } from "./shared/components/ScrollToTop";
 import { TutorialProvider } from "./shared/context/TutorialContext.tsx";
 // Silenzia tutti i log nel browser - i log devono essere gestiti solo dal backend
 import "./shared/utils/logger";
+// Stili KaTeX per il rendering delle formule matematiche nelle flashcard
+import "katex/dist/katex.min.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {

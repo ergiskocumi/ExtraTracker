@@ -7,6 +7,8 @@ export { Flashcard, FlashcardSkeleton } from './Flashcard/Flashcard';
 export { FlashcardItem } from './Flashcard/FlashcardItem';
 export { FlashcardList } from './Flashcard/FlashcardList';
 export { FlashcardCarousel } from './Flashcard/FlashcardCarousel';
+export { CardContentRenderer } from './Flashcard/CardContentRenderer/index';
+export type { CardContentRendererProps, ContentVariant, TextSize } from './Flashcard/CardContentRenderer/index';
 
 // Modals
 export { CreateDeckModal } from './Modals/CreateDeckModal';

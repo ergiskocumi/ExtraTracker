@@ -16,18 +16,19 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    ChevronDown, 
-    ChevronUp, 
-    Edit3, 
-    Check, 
-    X, 
+import {
+    ChevronDown,
+    ChevronUp,
+    Edit3,
+    Check,
+    X,
     Search,
     Layers,
     Eye,
     EyeOff
 } from 'lucide-react';
 import type { Card, Deck } from '../../services/studyService';
+import { CardContentRenderer } from './CardContentRenderer/index';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -190,9 +191,12 @@ const CardItem: React.FC<CardItemProps> = ({
 
                         {/* Question */}
                         <div className="flex-1 min-w-0">
-                            <p className={`text-sm leading-relaxed ${isActive ? 'text-white' : 'text-white/90'}`}>
-                                {card.front}
-                            </p>
+                            <CardContentRenderer
+                                content={card.front}
+                                variant={isActive ? 'study' : 'question'}
+                                size="sm"
+                                className={isActive ? 'text-white' : 'text-white/90'}
+                            />
                         </div>
 
                         {/* Actions */}
@@ -241,9 +245,12 @@ const CardItem: React.FC<CardItemProps> = ({
                                                 Risposta
                                             </span>
                                         </div>
-                                        <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">
-                                            {card.back}
-                                        </p>
+                                        <CardContentRenderer
+                                            content={card.back}
+                                            variant="answer"
+                                            size="sm"
+                                            className="text-white/85"
+                                        />
                                     </div>
                                 </div>
                             </motion.div>
