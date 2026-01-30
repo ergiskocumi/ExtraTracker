@@ -229,35 +229,40 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                         onPointerDownCapture={stopEventPropagation}
                         onMouseDownCapture={stopEventPropagation}
                         onTouchStartCapture={stopEventPropagation}
-                        className="relative z-10 w-[96vw] h-[96vh] max-w-[1920px] flex flex-col rounded-2xl border border-white/10 bg-slate-900 shadow-2xl overflow-hidden"
+                        className="relative z-10 w-[96vw] h-[96vh] max-w-[1920px] flex flex-col rounded-3xl border border-white/10 bg-[#0f1116] shadow-2xl overflow-hidden"
                         style={{
-                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                            boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.05), 0 20px 60px -10px rgba(0, 0, 0, 0.6)',
                         }}
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="modal-title"
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-800/50 flex-shrink-0">
+                        <div className="flex items-start justify-between px-8 py-6 flex-shrink-0">
                             <div>
-                                <h2 id="modal-title" className="text-xl font-bold text-white">
+                                <h2 id="modal-title" className="text-2xl font-bold text-white tracking-tight">
                                     {title}
                                 </h2>
-                                <p className="text-sm text-slate-400 mt-0.5">
-                                    Premi Invio per andare a capo. Usa la toolbar per elenchi puntati/numerati, grassetto, corsivo e formule LaTeX.
+                                <p className="text-sm text-slate-400 mt-1 max-w-2xl">
+                                    Utilizza l'editor markdown potenziato per creare flashcard ricche di contenuti.
+                                    <span className="opacity-50 ml-2 hidden sm:inline">Supporta LaTeX, Code Blocks e tabelle.</span>
                                 </p>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                                 {/* Preview Toggle */}
                                 <button
                                     type="button"
                                     onClick={() => setShowPreview(!showPreview)}
-                                    className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                                    className={`p-2.5 rounded-xl transition-all border ${
+                                        showPreview 
+                                            ? 'bg-white/5 text-white border-white/10' 
+                                            : 'bg-transparent text-slate-500 border-transparent hover:bg-white/5 hover:text-slate-300'
+                                    }`}
                                     aria-label={showPreview ? 'Nascondi anteprima' : 'Mostra anteprima'}
                                     title={showPreview ? 'Nascondi anteprima' : 'Mostra anteprima'}
                                 >
-                                    {showPreview ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    {showPreview ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                                 </button>
 
                                 {/* Close Button */}
@@ -265,7 +270,7 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                                     type="button"
                                     onClick={handleCancel}
                                     disabled={isSaving}
-                                    className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50"
+                                    className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/20 border border-transparent transition-all disabled:opacity-50"
                                     aria-label="Chiudi"
                                 >
                                     <X className="w-5 h-5" />
@@ -273,109 +278,131 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                             </div>
                         </div>
 
-                        {/* Tab Switcher */}
-                        <div className="flex items-center gap-2 px-6 py-3 border-b border-white/10 bg-slate-800/30 flex-shrink-0">
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab('front')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                    activeTab === 'front'
-                                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40'
-                                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                }`}
-                            >
-                                Domanda (Fronte)
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab('back')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                    activeTab === 'back'
-                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                }`}
-                            >
-                                Risposta (Retro)
-                            </button>
+                        {/* Tab Switcher & Stats */}
+                        <div className="flex items-center justify-between px-8 pb-4 border-b border-white/5 flex-shrink-0">
+                            <div className="flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/5">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('front')}
+                                    className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                                        activeTab === 'front'
+                                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/20'
+                                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                                >
+                                    Domanda
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('back')}
+                                    className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                                        activeTab === 'back'
+                                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20'
+                                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                                >
+                                    Risposta
+                                </button>
+                            </div>
 
                             {/* Status indicators */}
-                            <div className="ml-auto flex items-center gap-3 text-xs">
-                                {hasChanges && (
-                                    <span className="px-2 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            <div className="flex items-center gap-4 text-xs font-medium">
+                                {hasChanges ? (
+                                    <span className="flex items-center gap-2 text-amber-400 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                                         Modifiche non salvate
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-2 text-slate-500 px-3 py-1.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                                        Tutto salvato
                                     </span>
                                 )}
                             </div>
                         </div>
 
-                        {/* Content Area - due colonne ampie per evitare spezzature testo in anteprima */}
-                        <div ref={contentRef} className={`flex-1 overflow-hidden min-h-0 ${showPreview ? 'grid grid-cols-1 lg:grid-cols-2 gap-0' : ''}`}>
-                            {/* Editor Panel - min-width per colonna ampia */}
-                            <div className="h-full overflow-hidden flex flex-col border-r border-white/10 min-w-0 lg:min-w-[380px]">
-                                <div className="flex-1 overflow-hidden p-4 min-h-0">
-                                    {activeTab === 'front' ? (
-                                        <MarkdownEditor
-                                            key="front-editor"
-                                            value={front}
-                                            onChange={setFront}
-                                            placeholder="Scrivi la domanda... Supporta **Markdown** e $LaTeX$"
-                                            toolbarVisibility="always"
-                                            size="md"
-                                            autoFocus
-                                            disabled={disabled || isSaving}
-                                            onSave={canSave ? handleSave : undefined}
-                                            onCancel={handleCancel}
-                                            minRows={14}
-                                            textareaClassName="min-h-[50vh] resize-none"
-                                        />
-                                    ) : (
-                                        <MarkdownEditor
-                                            key="back-editor"
-                                            value={back}
-                                            onChange={setBack}
-                                            placeholder="Scrivi la risposta... Supporta **Markdown** e $LaTeX$"
-                                            toolbarVisibility="always"
-                                            size="md"
-                                            autoFocus
-                                            disabled={disabled || isSaving}
-                                            onSave={canSave ? handleSave : undefined}
-                                            onCancel={handleCancel}
-                                            minRows={14}
-                                            textareaClassName="min-h-[50vh] resize-none"
-                                        />
-                                    )}
+                        {/* Content Area */}
+                        <div ref={contentRef} className={`flex-1 overflow-hidden min-h-0 bg-[#0f1116] ${showPreview ? 'grid grid-cols-1 lg:grid-cols-2' : ''}`}>
+                            {/* Editor Panel */}
+                            <div className={`h-full overflow-hidden flex flex-col min-w-0 lg:min-w-[380px] ${showPreview ? 'border-r border-white/5' : ''}`}>
+                                <div className="flex-1 overflow-hidden p-6 min-h-0 relative">
+                                    {/* Background decoration */}
+                                    <div className="absolute inset-0 bg-gradient-to-b from-violet-500/5 to-transparent pointer-events-none" />
+                                    
+                                    <div className="relative h-full flex flex-col">
+                                        {activeTab === 'front' ? (
+                                            <MarkdownEditor
+                                                key="front-editor"
+                                                value={front}
+                                                onChange={setFront}
+                                                placeholder="# Scrivi qui la tua domanda..."
+                                                toolbarVisibility="always"
+                                                size="md"
+                                                autoFocus
+                                                disabled={disabled || isSaving}
+                                                onSave={canSave ? handleSave : undefined}
+                                                onCancel={handleCancel}
+                                                minRows={14}
+                                                textareaClassName="min-h-[50vh] resize-none bg-transparent border-none focus:ring-0 p-0 text-base leading-relaxed text-slate-200 font-mono"
+                                            />
+                                        ) : (
+                                            <MarkdownEditor
+                                                key="back-editor"
+                                                value={back}
+                                                onChange={setBack}
+                                                placeholder="Scrivi la risposta... Supporta **Markdown** e $LaTeX$"
+                                                toolbarVisibility="always"
+                                                size="md"
+                                                autoFocus
+                                                disabled={disabled || isSaving}
+                                                onSave={canSave ? handleSave : undefined}
+                                                onCancel={handleCancel}
+                                                minRows={14}
+                                                textareaClassName="min-h-[50vh] resize-none bg-transparent border-none focus:ring-0 p-0 text-base leading-relaxed text-slate-200 font-mono"
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Preview Panel - larghezza garantita per anteprima leggibile */}
+                            {/* Preview Panel */}
                             {showPreview && (
-                                <div className="h-full overflow-hidden flex flex-col bg-slate-800/30 min-w-0 lg:min-w-[380px]">
-                                    <div className="px-4 py-3 border-b border-white/10 flex-shrink-0">
-                                        <span className="text-xs font-medium text-slate-400 flex items-center gap-2">
-                                            <Eye className="w-3.5 h-3.5" />
-                                            Anteprima Live - {activeTab === 'front' ? 'Domanda' : 'Risposta'}
+                                <div className="h-full overflow-hidden flex flex-col bg-[#0a0c10] min-w-0 lg:min-w-[380px]">
+                                    <div className="px-6 py-3 border-b border-white/5 flex-shrink-0 bg-[#0c0e12]">
+                                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                            <Eye className="w-3.5 h-3.5 opacity-70" />
+                                            Anteprima Live {activeTab === 'front' ? '(Domanda)' : '(Risposta)'}
                                         </span>
                                     </div>
-                                    <div className="flex-1 overflow-auto p-4 min-h-0">
-                                        <EditorPreview
-                                            content={previewContent}
-                                            visible={true}
-                                            label=""
-                                            minHeight="min-h-[50vh]"
-                                            emptyPlaceholder="Inizia a scrivere per vedere l'anteprima..."
-                                        />
+                                    <div className="flex-1 overflow-auto p-8 min-h-0">
+                                        <div className="prose prose-invert prose-slate max-w-none">
+                                            <EditorPreview
+                                                content={previewContent}
+                                                visible={true}
+                                                label=""
+                                                minHeight="min-h-[50vh]"
+                                                emptyPlaceholder="Inizia a scrivere per vedere l'anteprima..."
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             )}
                         </div>
 
                         {/* Footer - Action Buttons */}
-                        <div className="flex items-center justify-between px-6 py-4 border-t border-white/10 bg-slate-800/50 flex-shrink-0">
-                            <div className="text-sm text-slate-400">
-                                <kbd className="px-2 py-1 bg-slate-700 rounded text-xs mr-1">Ctrl</kbd>
-                                +
-                                <kbd className="px-2 py-1 bg-slate-700 rounded text-xs mx-1">Enter</kbd>
-                                per salvare
+                        <div className="flex items-center justify-between px-8 py-5 border-t border-white/5 bg-[#12141a] flex-shrink-0">
+                            <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
+                                <span className="flex items-center gap-1.5">
+                                    <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded-md font-sans text-[10px]">Ctrl</kbd>
+                                    <span>+</span>
+                                    <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded-md font-sans text-[10px]">Enter</kbd>
+                                    <span className="ml-1 opacity-70">Salva</span>
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-white/10" />
+                                <span className="flex items-center gap-1.5">
+                                    <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded-md font-sans text-[10px]">Esc</kbd>
+                                    <span className="ml-1 opacity-70">Chiudi</span>
+                                </span>
                             </div>
 
                             <div className="flex items-center gap-3">
@@ -383,7 +410,7 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                                     type="button"
                                     onClick={handleCancel}
                                     disabled={isSaving}
-                                    className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50"
+                                    className="px-6 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 border border-transparent transition-all disabled:opacity-50"
                                 >
                                     Annulla
                                 </button>
@@ -391,15 +418,11 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                                     type="button"
                                     onClick={handleSave}
                                     disabled={!canSave || isSaving || disabled}
-                                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-400 hover:to-fuchsia-400 shadow-lg shadow-violet-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 ring-1 ring-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
                                 >
                                     {isSaving ? (
                                         <>
-                                            <motion.div
-                                                animate={{ rotate: 360 }}
-                                                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                                                className="w-4 h-4 border-2 rounded-full border-white/30 border-t-white"
-                                            />
+                                            <div className="w-4 h-4 border-2 rounded-full border-white/30 border-t-white animate-spin" />
                                             <span>Salvataggio...</span>
                                         </>
                                     ) : (
