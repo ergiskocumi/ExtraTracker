@@ -9,8 +9,6 @@ interface LogoProps {
   variant?: LogoVariant;
   monochrome?: boolean;
   animated?: boolean;
-  // NUOVA PROP: Permette di forzare il colore del testo per sfondi scuri/chiari specifici
-  theme?: 'light' | 'dark' | 'auto'; 
 }
 
 const iconSizes: Record<LogoSize, string> = {
@@ -39,16 +37,7 @@ export const Logo: React.FC<LogoProps> = ({
   variant = 'full',
   monochrome = false,
   animated = true,
-  theme = 'auto' // Default automatico in base al sistema
 }) => {
-  
-  // Logica per il colore del testo
-  const textColorClass = theme === 'dark' 
-    ? 'text-white' 
-    : theme === 'light' 
-      ? 'text-slate-900' 
-      : 'text-slate-900 dark:text-white'; // auto
-
   return (
     <div className={`group flex items-center gap-3 font-sans ${className} select-none`}>
       
@@ -92,8 +81,11 @@ export const Logo: React.FC<LogoProps> = ({
       </svg>
 
       {variant === 'full' && (
-        <span className={`font-bold tracking-tight ${textColorClass} ${textSizes[size]}`}>
-          Silvi<span className={monochrome ? '' : (theme === 'dark' ? "text-violet-400" : "text-violet-600 dark:text-violet-400")}>AI</span>
+        <span 
+          className={`font-bold tracking-tight ${textSizes[size]}`}
+          style={{ color: 'var(--text-primary)' }}
+        >
+          Silvi<span className={monochrome ? '' : 'text-violet-500'}>AI</span>
         </span>
       )}
     </div>

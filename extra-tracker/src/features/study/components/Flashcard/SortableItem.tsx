@@ -112,7 +112,7 @@ export const SortableItem: React.FC<SortableItemProps> = ({
                 {/* Numero card in modalità grid - discreto, in alto a sinistra, visibile solo su hover */}
                 {!isEditing && (
                     <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <span className="text-xs font-medium text-white/30 bg-black/30 px-2 py-1 rounded-full select-none">
+                        <span className="text-xs font-medium text-theme-muted bg-black/30 px-2 py-1 rounded-full select-none">
                             #{index + 1}
                         </span>
                     </div>
@@ -143,11 +143,11 @@ export const SortableItem: React.FC<SortableItemProps> = ({
                 {/* Drag Handle and Number - More subtle, only visible on hover */}
                 {!isEditing && (
                     <div className="flex flex-col items-center gap-2 pt-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                        <div className="p-1 text-white/20">
+                        <div className="p-1 text-theme-muted">
                             <DragHandleIcon className="w-4 h-4" />
                         </div>
                         {/* Numero card - discreto ma visibile */}
-                        <span className="text-xs font-medium text-white/30 select-none">
+                        <span className="text-xs font-medium text-theme-muted select-none">
                             #{index + 1}
                         </span>
                     </div>

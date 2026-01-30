@@ -180,11 +180,11 @@ export const ToastItem: React.FC<ToastProps> = ({ toast, onDismiss }) => {
                     {/* Contenuto */}
                     <div className="flex-1 min-w-0">
                         {toast.title && (
-                            <p className="font-semibold text-sm mb-1 text-white/90">
+                            <p className="font-semibold text-sm mb-1 text-theme-primary">
                                 {toast.title}
                             </p>
                         )}
-                        <p className="text-sm text-white/70">
+                        <p className="text-sm text-theme-secondary">
                             {toast.message}
                         </p>
                         
@@ -214,7 +214,7 @@ export const ToastItem: React.FC<ToastProps> = ({ toast, onDismiss }) => {
                                 flex-shrink-0 p-1.5 rounded-lg
                                 backdrop-blur-sm hover:bg-white/10
                                 border border-transparent hover:border-white/10
-                                text-white/50 hover:text-white/80
+                                text-theme-muted hover:text-theme-secondary
                                 transition-all duration-200
                                 focus:outline-none focus:ring-2 focus:ring-white/30
                             "

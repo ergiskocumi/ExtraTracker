@@ -178,7 +178,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     // ============================================
 
     const getCardClasses = (): string => {
-        const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding}`;
+        const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding} ${CARD_STYLES.base.shadow}`;
         // Disable hover effects and transitions during editing for better UX
         const interactive = !isEditing 
             ? `${CARD_STYLES.base.transition} ${CARD_STYLES.base.hover.border} ${CARD_STYLES.base.hover.shadow}` 

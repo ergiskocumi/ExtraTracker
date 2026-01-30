@@ -47,7 +47,7 @@ interface FilterTabsProps {
 
 const FilterTabs: React.FC<FilterTabsProps> = ({ active, onChange, counts }) => {
     const tabs: { key: FilterType; label: string; color: string }[] = [
-        { key: 'all', label: 'Tutte', color: 'text-white/70' },
+        { key: 'all', label: 'Tutte', color: 'text-theme-secondary' },
         { key: 'new', label: 'Nuove', color: 'text-blue-400' },
         { key: 'learning', label: 'Studio', color: 'text-amber-400' },
         { key: 'review', label: 'Ripasso', color: 'text-purple-400' },
@@ -64,7 +64,7 @@ const FilterTabs: React.FC<FilterTabsProps> = ({ active, onChange, counts }) => 
                         flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all
                         ${active === tab.key 
                             ? 'bg-white/[0.1] ' + tab.color
-                            : 'text-white/40 hover:text-white/60 hover:bg-white/[0.05]'
+                            : 'text-theme-muted hover:text-theme-secondary hover:bg-white/[0.05]'
                         }
                     `}
                 >
@@ -192,10 +192,10 @@ export const DeckDetailPage: React.FC = () => {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4">
                 <FiAlertCircle className="w-12 h-12 text-red-400" />
-                <p className="text-white/60">{error || 'Mazzo non trovato'}</p>
+                <p className="text-theme-secondary">{error || 'Mazzo non trovato'}</p>
                 <button
                     onClick={() => navigate('/study')}
-                    className="px-4 py-2 rounded-xl bg-white/[0.1] text-white hover:bg-white/[0.15] transition-all"
+                    className="px-4 py-2 rounded-xl bg-white/[0.1] text-theme-primary hover:bg-white/[0.15] transition-all"
                 >
                     Torna ai Mazzi
                 </button>
@@ -211,16 +211,16 @@ export const DeckDetailPage: React.FC = () => {
                     <div className="flex items-center gap-4 mb-4">
                         <button
                             onClick={() => navigate('/study')}
-                            className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-white/60 hover:text-white transition-all"
+                            className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-theme-muted hover:text-theme-primary transition-all"
                         >
                             <FiArrowLeft className="w-5 h-5" />
                         </button>
                         <div className="flex-1">
-                            <h1 className="text-xl sm:text-2xl font-bold text-white">
+                            <h1 className="text-xl sm:text-2xl font-bold text-theme-primary">
                                 {deck.title}
                             </h1>
                             {deck.description && (
-                                <p className="text-sm text-white/50 mt-0.5">{deck.description}</p>
+                                <p className="text-sm text-theme-muted mt-0.5">{deck.description}</p>
                             )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -246,7 +246,7 @@ export const DeckDetailPage: React.FC = () => {
                     </div>
 
                     {/* Stats Row */}
-                    <div className="flex items-center gap-6 text-sm text-white/50 mb-4">
+                    <div className="flex items-center gap-6 text-sm text-theme-muted mb-4">
                         <div className="flex items-center gap-2">
                             <FiBookOpen className="w-4 h-4" />
                             <span>{deck.totalCards} carte</span>
@@ -275,7 +275,7 @@ export const DeckDetailPage: React.FC = () => {
                             className={`px-4 py-2 text-sm font-medium transition-all border-b-2 ${
                                 activeTab === 'cards'
                                     ? 'border-primary-500 text-primary-400'
-                                    : 'border-transparent text-white/50 hover:text-white/70'
+                                    : 'border-transparent text-theme-muted hover:text-theme-secondary'
                             }`}
                         >
                             Carte
@@ -285,7 +285,7 @@ export const DeckDetailPage: React.FC = () => {
                             className={`px-4 py-2 text-sm font-medium transition-all border-b-2 flex items-center gap-2 ${
                                 activeTab === 'settings'
                                     ? 'border-primary-500 text-primary-400'
-                                    : 'border-transparent text-white/50 hover:text-white/70'
+                                    : 'border-transparent text-theme-muted hover:text-theme-secondary'
                             }`}
                         >
                             <FiSettings className="w-4 h-4" />
@@ -298,13 +298,13 @@ export const DeckDetailPage: React.FC = () => {
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
                             <FilterTabs active={filter} onChange={setFilter} counts={counts} />
                             <div className="relative flex-1 max-w-sm">
-                                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-theme-muted" />
                                 <input
                                     type="text"
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     placeholder="Cerca carte..."
-                                    className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.1] text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all"
+                                    className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.1] text-theme-primary placeholder:text-theme-muted focus:border-primary-500/50 focus:outline-none transition-all"
                                 />
                             </div>
                         </div>

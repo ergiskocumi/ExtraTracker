@@ -5,6 +5,108 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   THEME SYSTEM - CSS Custom Properties
+   ============================================ */
+
+:root {
+  /* Default to dark theme */
+  --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ============================================
+   DARK THEME (Default) - Luxury Night
+   ============================================ */
+[data-theme="dark"], :root {
+  /* Backgrounds */
+  --bg-base: #0a0a1a;
+  --bg-elevated: #0f0f22;
+  --bg-surface: rgba(255, 255, 255, 0.05);
+  --bg-surface-hover: rgba(255, 255, 255, 0.08);
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.07);
+  --bg-input: rgba(255, 255, 255, 0.05);
+  --bg-header: rgba(10, 10, 26, 0.7);
+  
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.5);
+  --text-disabled: rgba(255, 255, 255, 0.3);
+  
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 24px -4px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 40px -8px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 30px rgba(124, 58, 237, 0.3);
+  
+  /* Gradients */
+  --gradient-bg: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0f0f22 100%);
+  --gradient-mesh-1: rgba(124, 58, 237, 0.15);
+  --gradient-mesh-2: rgba(139, 92, 246, 0.1);
+  --gradient-mesh-3: rgba(167, 139, 250, 0.08);
+  
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  
+  /* Selection */
+  --selection-bg: rgba(124, 58, 237, 0.5);
+  --selection-text: #ffffff;
+}
+
+/* ============================================
+   LIGHT THEME - Luxury Ivory
+   Elegant warm tones for daytime study
+   ============================================ */
+[data-theme="light"] {
+  /* Backgrounds - Warm ivory/cream tones with better contrast */
+  --bg-base: #f8f6f3;
+  --bg-elevated: #ffffff;
+  --bg-surface: rgba(0, 0, 0, 0.03);
+  --bg-surface-hover: rgba(0, 0, 0, 0.05);
+  --bg-card: #fdfcff; /* Slight purple tint for premium feel */
+  --bg-card-hover: #faf8ff;
+  --bg-input: rgba(0, 0, 0, 0.04);
+  --bg-header: rgba(255, 255, 255, 0.92);
+  
+  /* Text - Rich charcoal for better readability */
+  --text-primary: #1a1a2e;
+  --text-secondary: #3d3d5c;
+  --text-muted: #6b6b8a;
+  --text-disabled: #9999b3;
+  
+  /* Borders - More visible for light theme, better card separation */
+  --border-subtle: rgba(0, 0, 0, 0.1);
+  --border-default: rgba(0, 0, 0, 0.15);
+  --border-strong: rgba(0, 0, 0, 0.25);
+  
+  /* Shadows - More pronounced for light theme, better card separation */
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 24px -4px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 40px -8px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 30px rgba(124, 58, 237, 0.12);
+  
+  /* Gradients - Subtle warmth */
+  --gradient-bg: linear-gradient(135deg, #f8f6f3 0%, #f0ede8 50%, #f8f6f3 100%);
+  --gradient-mesh-1: rgba(124, 58, 237, 0.08);
+  --gradient-mesh-2: rgba(139, 92, 246, 0.05);
+  --gradient-mesh-3: rgba(167, 139, 250, 0.04);
+  
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
+  
+  /* Selection */
+  --selection-bg: rgba(124, 58, 237, 0.25);
+  --selection-text: #1a1a2e;
+}
+
 @layer base {
   * {
     @apply antialiased;
@@ -15,12 +117,14 @@
   }
   
   body {
-    @apply min-h-screen text-white bg-dark-500;
-    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0f0f22 100%);
+    @apply min-h-screen;
+    background: var(--gradient-bg);
+    color: var(--text-primary);
     font-feature-settings: 'cv11', 'ss01';
+    transition: var(--theme-transition);
   }
 
-  /* Scroll lock per menu sidebar - previene inversione colori */
+  /* Scroll lock per menu sidebar */
   html.menu-sidebar-open,
   body.menu-sidebar-open {
     position: fixed !important;
@@ -29,20 +133,19 @@
     right: 0 !important;
     width: 100% !important;
     overflow: hidden !important;
-    /* Mantieni i colori originali */
-    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0f0f22 100%) !important;
-    color: #ffffff !important;
+    background: var(--gradient-bg) !important;
+    color: var(--text-primary) !important;
   }
   
   /* Assicura che il body::before mantenga i colori corretti */
   body.menu-sidebar-open::before {
     background: 
-      radial-gradient(ellipse at 20% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 40%),
-      radial-gradient(ellipse at 40% 80%, rgba(167, 139, 250, 0.08) 0%, transparent 40%) !important;
+      radial-gradient(ellipse at 20% 0%, var(--gradient-mesh-1) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, var(--gradient-mesh-2) 0%, transparent 40%),
+      radial-gradient(ellipse at 40% 80%, var(--gradient-mesh-3) 0%, transparent 40%) !important;
   }
 
-  /* Aggiungi un effetto mesh gradient di sottofondo */
+  /* Effetto mesh gradient di sottofondo */
   body::before {
     content: '';
     position: fixed;
@@ -51,21 +154,23 @@
     right: 0;
     bottom: 0;
     background: 
-      radial-gradient(ellipse at 20% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 40%),
-      radial-gradient(ellipse at 40% 80%, rgba(167, 139, 250, 0.08) 0%, transparent 40%);
+      radial-gradient(ellipse at 20% 0%, var(--gradient-mesh-1) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, var(--gradient-mesh-2) 0%, transparent 40%),
+      radial-gradient(ellipse at 40% 80%, var(--gradient-mesh-3) 0%, transparent 40%);
     pointer-events: none;
     z-index: -1;
+    transition: var(--theme-transition);
   }
 
   ::selection {
-    @apply text-white bg-primary-600/50;
+    background: var(--selection-bg);
+    color: var(--selection-text);
   }
 
-  /* Custom Scrollbar - nascosta di default, visibile solo su hover */
+  /* Custom Scrollbar - theme aware */
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -78,12 +183,13 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-white/20 rounded-full;
+    background: var(--scrollbar-thumb);
+    @apply rounded-full;
     transition: background-color 0.2s;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-white/30;
+    background: var(--scrollbar-thumb-hover);
   }
 
   /* Prevenire scrollbar orizzontale globale */
@@ -123,29 +229,130 @@
 }
 
 @layer components {
-  /* Card Styles - Premium Dark Glassmorphism */
+  /* ============================================
+     THEME-AWARE UTILITY CLASSES
+     ============================================ */
+  
+  /* Text Colors */
+  .text-theme-primary {
+    color: var(--text-primary);
+  }
+  .text-theme-secondary {
+    color: var(--text-secondary);
+  }
+  .text-theme-muted {
+    color: var(--text-muted);
+  }
+  
+  /* Backgrounds */
+  .bg-theme-base {
+    background: var(--bg-base);
+  }
+  .bg-theme-elevated {
+    background: var(--bg-elevated);
+  }
+  .bg-theme-surface {
+    background: var(--bg-surface);
+  }
+  .bg-theme-card {
+    background: var(--bg-card);
+  }
+  
+  /* Borders */
+  .border-theme-subtle {
+    border-color: var(--border-subtle);
+  }
+  .border-theme-default {
+    border-color: var(--border-default);
+  }
+  .border-theme-strong {
+    border-color: var(--border-strong);
+  }
+  
+  /* Shadows */
+  .shadow-theme-sm {
+    box-shadow: var(--shadow-sm);
+  }
+  .shadow-theme-md {
+    box-shadow: var(--shadow-md);
+  }
+  .shadow-theme-lg {
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* ============================================
+     CARD STYLES
+     ============================================ */
+  
+  /* Card Styles - Theme Aware Premium Glassmorphism */
   .card {
-    @apply bg-white/[0.04] backdrop-blur-xl rounded-3xl 
-           border border-white/[0.1] shadow-card
-           transition-all duration-300 ease-out;
-    background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
-    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.3), 
-                0 0 0 1px rgba(255, 255, 255, 0.05),
-                inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    @apply backdrop-blur-xl rounded-3xl transition-all duration-300 ease-out;
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    box-shadow: var(--shadow-md);
   }
   
   .card:hover {
-    @apply bg-white/[0.06] border-white/[0.15] transform -translate-y-1;
-    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.4), 
-                0 0 0 1px rgba(255, 255, 255, 0.1),
-                inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-                0 0 20px rgba(124, 58, 237, 0.1);
+    @apply transform -translate-y-1;
+    background: var(--bg-card-hover);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-lg);
   }
 
   .card-glass {
-    @apply bg-white/[0.06] backdrop-blur-xl rounded-3xl 
-           border border-white/[0.12] shadow-card;
-    background: linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
+    @apply backdrop-blur-xl rounded-3xl;
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+  }
+
+  /* ============================================
+     LIGHT THEME OVERRIDES
+     For components with hardcoded dark colors
+     ============================================ */
+  
+  [data-theme="light"] .text-white {
+    color: var(--text-primary) !important;
+  }
+  
+  [data-theme="light"] .text-white\/70,
+  [data-theme="light"] .text-white\/60,
+  [data-theme="light"] .text-white\/50 {
+    color: var(--text-secondary) !important;
+  }
+  
+  [data-theme="light"] .text-white\/40,
+  [data-theme="light"] .text-white\/30 {
+    color: var(--text-muted) !important;
+  }
+  
+  [data-theme="light"] .bg-white\/5,
+  [data-theme="light"] .bg-white\/\[0\.03\],
+  [data-theme="light"] .bg-white\/\[0\.02\] {
+    background-color: var(--bg-surface) !important;
+  }
+  
+  [data-theme="light"] .bg-white\/10,
+  [data-theme="light"] .bg-white\/\[0\.06\],
+  [data-theme="light"] .bg-white\/\[0\.08\] {
+    background-color: var(--bg-surface-hover) !important;
+  }
+  
+  [data-theme="light"] .border-white\/10,
+  [data-theme="light"] .border-white\/\[0\.1\],
+  [data-theme="light"] .border-white\/\[0\.06\] {
+    border-color: var(--border-default) !important;
+  }
+  
+  [data-theme="light"] .border-white\/20,
+  [data-theme="light"] .border-white\/\[0\.15\] {
+    border-color: var(--border-strong) !important;
+  }
+
+  /* User menu dropdown in light mode */
+  [data-theme="light"] [data-radix-popper-content-wrapper],
+  [data-theme="light"] .user-menu-dropdown {
+    background: var(--bg-elevated) !important;
+    border-color: var(--border-default) !important;
   }
 
   /* Settings Form - Touch Optimized Spacing */
