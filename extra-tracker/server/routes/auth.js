@@ -22,14 +22,17 @@ const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimiter');
 
 // Validators
-const { 
-    validateMiddleware, 
-    registerSchema, 
+const {
+    validateMiddleware,
+    registerSchema,
     loginSchema,
     changePasswordSchema,
     resetPasswordRequestSchema,
     resetPasswordConfirmSchema,
 } = require('../validators/authValidators');
+
+// Rate limiter dedicato per email verification (previene brute force token)
+const { passwordResetLimiter } = require('../middleware/rateLimiter');
 
 // ==========================================
 // PUBLIC ROUTES (no auth required)
@@ -138,9 +141,11 @@ router.get(
  * @route   POST /api/auth/verify-email
  * @desc    Verifica indirizzo email con token
  * @access  Public
+ * @security Rate limiting per prevenire brute force sul token
  */
 router.post(
     '/verify-email',
+    authLimiter, // Previene brute force sul token di verifica
     authController.verifyEmail
 );
 
@@ -148,10 +153,12 @@ router.post(
  * @route   POST /api/auth/resend-verification
  * @desc    Reinvia email di verifica
  * @access  Private
+ * @security Rate limiting per prevenire email bombing
  */
 router.post(
     '/resend-verification',
     requireAuth,
+    passwordResetLimiter, // Usa stesso limiter (3 req/ora) per prevenire spam
     authController.resendVerification
 );
 

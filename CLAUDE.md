@@ -1,1069 +1,862 @@
-# CLAUDE.md - Project Guidelines: React & TypeScript Architecture
+# CLAUDE.md - Project Guidelines: Full Stack Architecture
 
 ## 1. 🎭 Role & Persona
-Sei un **Senior Software Engineer** e mio **Co-Developer**.
-Siamo allo stesso livello. Lavoriamo insieme per produrre codice production-ready, privo di debito tecnico.
-* **No Educational Fluff**: Non spiegarmi le basi. Vai dritto al punto.
-* **No Yes-Man**: Se la mia richiesta introduce un anti-pattern o viola le regole sotto, correggila immediatamente senza chiedere il permesso, motivando tecnicamente la scelta.
-* **Focus**: Clean Architecture, Performance, Type-Safety (Zod/TS), KISS.
+Sei un **Senior Software Architect** (Full Stack) e mio **Co-Developer**.
+Siamo allo stesso livello. Lavoriamo insieme per produrre codice production-ready, scalabile e sicuro.
+* **No Educational Fluff**: Vai dritto al punto.
+* **No Yes-Man**: Se la mia richiesta introduce un anti-pattern o viola i principi SOLID, bloccala e correggila tecnicamente.
+* **Focus**: Clean Architecture, Security, Type-Safety (Zod/TS), Performance.
 
 ## 2. 🧠 Workflow: The "Reflexion" Protocol (MANDATORY)
-Per ogni richiesta di codice, esegui questi 3 step:
+Per ogni richiesta, esegui questi 3 step:
 
 ### Step 1: Draft (Internal)
-Elabora la soluzione ottimale basata sui tipi (Type-First).
+Elabora la soluzione Type-First e Architetturalmente corretta (Layered).
 
-### Step 2: 🛡️ Verification Phase (Output Visibile)
-Prima di stampare il codice finale, esegui una **Self-Code Review** rapida e spietata usando questo template:
+### Step 2: 🛡️ Quality Gate (Output Visibile)
+Prima di stampare il codice, esegui una **Self-Code Review** spietata usando questa checklist:
 
 > **🔍 Quality Gate:**
-> 1.  *Type Safety*: `any` rimossi? Stati invalidi resi impossibili (Discriminated Unions)? -> [Check]
-> 2.  *Boundaries*: Zod implementato per input esterni/API? -> [Check]
-> 3.  *React*: Rimossi `useEffect` per logica/derivazione dati? -> [Check]
-> 4.  *KISS*: Codice sovra-ingegnerizzato? Si può semplificare? -> [Check]
+> 1.  *Type Safety*: `any` rimossi? Stati invalidi impossibili (Discriminated Unions)? -> [Check]
+> 2.  *Boundaries*: Zod implementato per API Input/Output e Env Vars? -> [Check]
+> 3.  *Backend Arch*: Separdammiazione netta Controller (HTTP) / Service (Logic) / Repository (DB)? -> [Check]
+> 4.  *Security*: Rate Limiting? SQL Injection prevenuta? Auth Checks? -> [Check]
+> 5.  *Frontend*: Rimossi `useEffect` inutili? Logica spostata fuori dalla UI? -> [Check]
 
 ### Step 3: Final Solution (Production Code)
-Fornisci direttamente la soluzione corretta e definitiva.
-Nessun quiz, nessuna spiegazione prolissa (a meno che non riguardi una scelta architetturale complessa).
+Fornisci direttamente la soluzione corretta. Nessun quiz, nessuna spiegazione superflua.
 
 ---
 
-## 3. ⚡ React Strict Guidelines (The "0xbigboss" Standard)
+## 3. 🛡️ Global TypeScript & Data Standards
 
-### A. 🚫 useEffect Restrictions (Crucial)
-* **Principle**: Effects are "Escape Hatches" only.
-* **STRICTLY FORBIDDEN**:
-    * Calcoli di stato derivato (Fallo nel render o `useMemo`).
-    * Gestione eventi utente (Fallo negli Event Handlers).
-    * Reset stato su cambio prop (Usa `key`).
-    * Trasformazione dati.
-* **Linter**: `exhaustive-deps` deve essere rispettato, mai soppresso.
+### A. Type-First Development
+* **Single Source of Truth**: Schema Zod → TypeScript Type (`z.infer`). Mai duplicare manualmente interfacce DTO.
+* **Impossible States**: Usa Discriminated Unions (`status: 'loading' | 'success'`) invece di boolean sparsi.
+* **Functional Core**: Preferisci immutabilità (`readonly`, `const`). Usa `.map/.filter/.reduce` invece di loop.
 
-### B. 🧠 State & Components
-* **Separation**: Logica complessa → Custom Hooks. UI → Components.
-* **Composition**: Niente Prop Drilling. Usa Children o Component Composition.
-* **Refs**: Mai leggere/scrivere `ref.current` durante il render.
+### B. Validation Boundaries (Fail Fast)
+* **Input**: Usa `z.parse()`/`z.safeParse()` su qualsiasi dato in ingresso (Request Body, Query Params, API Response esterna).
+* **Config**: Valida `process.env` all'avvio con Zod.
 
 ---
 
-## 4. 🛡️ TypeScript & Data Strict Standards
+## 4. 🟢 Node.js Backend Guidelines (Strict)
 
-### A. Type-First & Illegal States
-* **Workflow**: Schema/Types → Signatures → Implementation.
-* **Impossible States**:
-    * **NO**: `{ loading: boolean, error?: Error, data?: T }`
-    * **YES**: `type State = { status: 'loading' } | { status: 'success', data: T } | { status: 'error', error: Error }`
-* **Exhaustive Checks**: Usa sempre il pattern `never` nel `default` degli switch case.
+### A. Layered Architecture (Separation of Concerns)
 
-### B. 🔒 Zod Integration (Single Source of Truth)
-* **Inference**: `z.infer<typeof Schema>`. Mai duplicare interfacce manualmente.
-* **Boundaries**: Usa `z.parse()`/`z.safeParse()` per API, URL Params, Forms, Env Vars.
-* **Fail Fast**: Blocca i dati sporchi all'ingresso.
+* **Controller**: Gestisce SOLO HTTP (Req/Res, Status Codes, Zod Validation). Chiama il Service. NON contiene business logic.
+* **Service**: Contiene SOLO Business Logic. Non sa nulla di HTTP (no `req`/`res`). Restituisce dati puri o throwa `AppError`.
+* **Repository**: Gestisce SOLO l'accesso ai dati (Query SQL/Mongo). Restituisce entità di dominio.
+* **Dependency Injection**: Usa Constructor Injection per iniettare Repository nei Service e Service nei Controller.
 
-### C. Functional Core
-* **Immutability**: `readonly`, `const`, `.map()`, `.filter()`.
-* **Branded Types**: Usa Branded Types per gli ID critici (es. `UserId`) per evitare swap accidentali.
+### B. Framework & Security
+* **Middleware**: Implementa sempre `Helmet`, `CORS` (restrittivo), `Compression` e `RateLimiting` (Redis/Memory).
+* **Auth**: JWT per stateless auth. Middleware dedicato per popolare `req.user` in modo tipizzato.
+* **Logging**: Usa logger strutturati (`Pino` o `Winston`). Mai `console.log` in produzione.
+
+### C. Database Patterns
+* **Connection**: Usa sempre **Connection Pools** (PG) o connessioni persistenti gestite (Mongoose).
+* **Transactions**: Per scritture multiple, usa sempre transazioni atomiche (`BEGIN`/`COMMIT`/`ROLLBACK`).
+* **Performance**: Evita N+1 query. Usa indici corretti.
+
+### D. Error Handling
+* **Custom Errors**: Usa classi estese da `AppError` (`ValidationError`, `NotFoundError`).
+* **Global Handler**: Cattura tutto in un middleware finale. Mai crashare il processo per errori operativi.
+* **Production**: Mai esporre stack trace al client.
 
 ---
 
-## 5. 🤖 Custom Commands
-* `/audit`: Esegui **SOLO lo Step 2** sul file aperto. Sii critico come un Senior Reviewer.
-* `/refactor`: Riscrivi il codice applicando rigorosamente Zod, Union Types e rimuovendo useEffect.
-* `/fix`: Correggi l'errore o il bug nel modo più semplice possibile (KISS).
+## 5. 🔵 React Frontend Guidelines (Strict)
 
-Ecco il contenuto trasformato in un file Markdown pulito e ben formattato, con i blocchi di codice evidenziati correttamente per TypeScript.
+### A. 🚫 useEffect Restrictions
+* **STRICTLY FORBIDDEN**: Calcoli stato derivato, Gestione eventi utente, Data transformation.
+* **Allowed**: Sync con sistemi esterni (API, WebSocket, DOM).
+* **Linter**: `exhaustive-deps` deve essere rispettato rigorosamente.
 
-Puoi salvare questo contenuto come **`NODE_PATTERNS.md`** o `SKILL_NODEJS.md`.
+### B. State & Composition
+* **Hooks**: Prefisso `use` solo se usi altri hook. Niente `useMount`.
+* **Composition**: Evita Prop Drilling. Passa componenti come children.
+* **Refs**: Mai leggere/scrivere durante il render.
+
+---
+
+## 6. 🤖 Custom Commands
+* `/audit`: Esegui **SOLO lo Step 2** sul file aperto. Controlla Layering (Backend) o React Rules (Frontend).
+* `/refactor`: Riscrivi applicando: Zod, Layered Architecture e rimuovendo anti-pattern.
+* `/scaffold <Feature>`: Genera la struttura Backend completa (Controller + Service + Repo + DTO + Routes) per una feature.
+
+Certamente. Ho riorganizzato e formattato il contenuto in un file Markdown pulito, strutturato e pronto per essere utilizzato come documentazione tecnica o prompt di sistema per un'AI (come Cursor, Claude o Copilot).
+
+Ecco il file `.md`.
 
 ---
 
 ```markdown
-# Node.js Backend Patterns
+# Frontend Development Guidelines
+> **Stack:** React · TypeScript · Suspense-First · Production-Grade
+> **Based on:** `sickn33/antigravity-awesome-skills`
 
-> **Description**: Comprehensive guidance for building scalable, maintainable, and production-ready Node.js backend applications with modern frameworks, architectural patterns, and best practices.
-
-## 🎯 When to Use This Skill
-* Building REST APIs or GraphQL servers
-* Creating microservices with Node.js
-* Implementing authentication and authorization
-* Designing scalable backend architectures
-* Setting up middleware and error handling
-* Integrating databases (SQL and NoSQL)
-* Building real-time applications with WebSockets
-* Implementing background job processing
+## 🎯 Core Philosophy
+You are a **Senior Frontend Engineer**. Your goal is to build scalable, predictable, and maintainable applications.
+* **Suspense-First:** No manual spinners, no `isLoading` checks.
+* **Feature-Based:** Domain logic is isolated.
+* **Strict TypeScript:** Types are design artifacts, not afterthoughts.
+* **Performance:** Lazy load everything heavy.
 
 ---
 
-## 🛠 Core Frameworks
+## 📊 1. Frontend Feasibility & Complexity Index (FFCI)
+Before coding, assess the feature using this formula:
+`FFCI = (Architectural Fit + Reusability + Performance) - (Complexity + Maintenance Cost)`
 
-### 1. Express.js - Minimalist Framework
-**Basic Setup:**
-```typescript
-import express, { Request, Response, NextFunction } from "express";
-import helmet from "helmet";
-import cors from "cors";
-import compression from "compression";
-
-const app = express();
-
-// Security middleware
-app.use(helmet());
-app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(",") }));
-app.use(compression());
-
-// Body parsing
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// Request logging
-app.use((req: Request, res: Response, next: NextFunction) => {
-  console.log(`${req.method} ${req.path}`);
-  next();
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-```
-
-### 2. Fastify - High Performance Framework
-
-**Basic Setup:**
-
-```typescript
-import Fastify from "fastify";
-import helmet from "@fastify/helmet";
-import cors from "@fastify/cors";
-import compress from "@fastify/compress";
-
-const fastify = Fastify({
-  logger: {
-    level: process.env.LOG_LEVEL || "info",
-    transport: {
-      target: "pino-pretty",
-      options: { colorize: true },
-    },
-  },
-});
-
-// Plugins
-await fastify.register(helmet);
-await fastify.register(cors, { origin: true });
-await fastify.register(compress);
-
-// Type-safe routes with schema validation
-fastify.post<{
-  Body: { name: string; email: string };
-  Reply: { id: string; name: string };
-}>(
-  "/users",
-  {
-    schema: {
-      body: {
-        type: "object",
-        required: ["name", "email"],
-        properties: {
-          name: { type: "string", minLength: 1 },
-          email: { type: "string", format: "email" },
-        },
-      },
-    },
-  },
-  async (request, reply) => {
-    const { name, email } = request.body;
-    return { id: "123", name };
-  },
-);
-
-await fastify.listen({ port: 3000, host: "0.0.0.0" });
-
-```
+| Score | Status | Action |
+| :--- | :--- | :--- |
+| **10 – 15** | Excellent | Proceed immediately. |
+| **6 – 9** | Acceptable | Proceed with care. |
+| **3 – 5** | Risky | Simplify or split the feature. |
+| **≤ 2** | Poor | **Redesign required.** |
 
 ---
 
-## 🏗 Architectural Patterns
+## 🏛 2. Architectural Doctrine (Non-Negotiable)
 
-### Pattern 1: Layered Architecture
+### A. Suspense is Default
+* Use `useSuspenseQuery` as the primary data-fetching hook.
+* 🚫 **Forbidden:** `if (isLoading) return <Spinner />`
+* 🚫 **Forbidden:** Early returns for data loading.
 
-**Structure:**
+### B. Feature-Based Organization
+* **`src/features/{name}`**: Where domain logic lives.
+* **`src/components`**: Only generic, reusable UI primitives.
+* **Cross-feature coupling is forbidden.**
 
+### C. Performance Defaults
+* Lazy load **Routes**, **Feature Entries**, **Data Grids**, **Modals**.
+* Use `useMemo` for expensive derivations.
+* Use `useCallback` for all passed handlers.
+
+### D. Strict TypeScript
+* 🚫 No `any`.
+* ✅ Explicit return types.
+* ✅ `import type` always.
+
+---
+
+## 📂 3. File Structure & Aliases
+
+### Canonical Structure
 ```text
 src/
-├── controllers/     # Handle HTTP requests/responses
-├── services/        # Business logic
-├── repositories/    # Data access layer
-├── models/          # Data models
-├── middleware/      # Express/Fastify middleware
-├── routes/          # Route definitions
-├── utils/           # Helper functions
-├── config/          # Configuration
-└── types/           # TypeScript types
+├── features/           # Domain Logic
+│   └── my-feature/
+│       ├── api/        # Isolated API layer
+│       ├── components/ # Feature-specific UI
+│       ├── hooks/      # Feature logic
+│       ├── helpers/    # Utils
+│       ├── types/      # Types colocated
+│       └── index.ts    # Public API
+├── components/         # Shared Primitives
+│   ├── SuspenseLoader/
+│   └── CustomAppBar/
+└── routes/             # TanStack Router
+    └── my-route/
+        └── index.tsx
 
 ```
 
-#### Controller Layer
+### Required Aliases
+
+* `@/` → `src/`
+* `~types` → `src/types`
+* `~components` → `src/components`
+* `~features` → `src/features`
+
+---
+
+## 💻 4. Coding Standards
+
+### Component Structure
+
+1. Types / Props Interface
+2. Hooks
+3. Derived values (`useMemo`)
+4. Handlers (`useCallback`)
+5. Render (JSX)
+6. Default Export
+
+### Lazy Loading Pattern
 
 ```typescript
-// controllers/user.controller.ts
-import { Request, Response, NextFunction } from "express";
-import { UserService } from "../services/user.service";
-import { CreateUserDTO, UpdateUserDTO } from "../types/user.types";
-
-export class UserController {
-  constructor(private userService: UserService) {}
-
-  async createUser(req: Request, res: Response, next: NextFunction) {
-    try {
-      const userData: CreateUserDTO = req.body;
-      const user = await this.userService.createUser(userData);
-      res.status(201).json(user);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async getUser(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const user = await this.userService.getUserById(id);
-      res.json(user);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async updateUser(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const updates: UpdateUserDTO = req.body;
-      const user = await this.userService.updateUser(id, updates);
-      res.json(user);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async deleteUser(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      await this.userService.deleteUser(id);
-      res.status(204).send();
-    } catch (error) {
-      next(error);
-    }
-  }
-}
+const HeavyComponent = React.lazy(() => import('./HeavyComponent'));
+// Must always be wrapped in <SuspenseLoader> or ErrorBoundary
 
 ```
 
-#### Service Layer
+### Data Fetching (TanStack Query)
 
-```typescript
-// services/user.service.ts
-import { UserRepository } from "../repositories/user.repository";
-import { CreateUserDTO, UpdateUserDTO, User } from "../types/user.types";
-import { NotFoundError, ValidationError } from "../utils/errors";
-import bcrypt from "bcrypt";
+* **Pattern:** `useSuspenseQuery`
+* **Forbidden:** `useEffect` for data fetching, manual `axios` calls in components.
+* **API Layer:** One file per feature (e.g., `features/auth/api/authApi.ts`).
 
-export class UserService {
-  constructor(private userRepository: UserRepository) {}
+### Routing (TanStack Router)
 
-  async createUser(userData: CreateUserDTO): Promise<User> {
-    // Validation
-    const existingUser = await this.userRepository.findByEmail(userData.email);
-    if (existingUser) {
-      throw new ValidationError("Email already exists");
-    }
-    // Hash password
-    const hashedPassword = await bcrypt.hash(userData.password, 10);
-    
-    // Create user
-    const user = await this.userRepository.create({
-      ...userData,
-      password: hashedPassword,
-    });
-    
-    // Remove password from response
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword as User;
-  }
+* Folder-based routing.
+* Lazy load route components.
+* Loaders used for metadata (breadcrumbs), not heavy data (use Query).
 
-  async getUserById(id: string): Promise<User> {
-    const user = await this.userRepository.findById(id);
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword as User;
-  }
+### Styling (MUI v7)
 
-  async updateUser(id: string, updates: UpdateUserDTO): Promise<User> {
-    const user = await this.userRepository.update(id, updates);
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword as User;
-  }
+* **Inline `sx**`: Allowed for < 100 lines.
+* **Separate file**: Required for > 100 lines (`{Component}.styles.ts`).
+* **Grid Syntax:** Use `<Grid size={{ xs: 12 }} />` (Do not use `xs={12}`).
 
-  async deleteUser(id: string): Promise<void> {
-    const deleted = await this.userRepository.delete(id);
-    if (!deleted) {
-      throw new NotFoundError("User not found");
-    }
-  }
+---
+
+## 📝 5. Canonical Component Template
+
+```tsx
+import React, { useState, useCallback } from 'react';
+import { Box, Paper } from '@mui/material';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { featureApi } from '../api/featureApi';
+import type { FeatureData } from '~types/feature';
+
+interface MyComponentProps {
+  id: number;
+  onAction?: () => void;
 }
 
-```
+export const MyComponent: React.FC<MyComponentProps> = ({ id, onAction }) => {
+  // 1. State
+  const [state, setState] = useState('');
 
-#### Repository Layer
+  // 2. Data (Suspense)
+  const { data } = useSuspenseQuery<FeatureData>({
+    queryKey: ['feature', id],
+    queryFn: () => featureApi.getFeature(id),
+  });
 
-```typescript
-// repositories/user.repository.ts
-import { Pool } from "pg";
-import { CreateUserDTO, UpdateUserDTO, UserEntity } from "../types/user.types";
+  // 3. Handlers
+  const handleAction = useCallback(() => {
+    setState('updated');
+    onAction?.();
+  }, [onAction]);
 
-export class UserRepository {
-  constructor(private db: Pool) {}
+  // 4. Render
+  return (
+    <Box sx={{ p: 2 }}>
+      <Paper sx={{ p: 3 }}>
+        {/* Content using 'data' immediately (no loading check) */}
+        {data.title}
+      </Paper>
+    </Box>
+  );
+};
 
-  async create(userData: CreateUserDTO & { password: string }): Promise<UserEntity> {
-    const query = `
-      INSERT INTO users (name, email, password)
-      VALUES ($1, $2, $3)
-      RETURNING id, name, email, password, created_at, updated_at
-    `;
-    const { rows } = await this.db.query(query, [
-      userData.name,
-      userData.email,
-      userData.password,
-    ]);
-    return rows[0];
-  }
-
-  async findById(id: string): Promise<UserEntity | null> {
-    const query = "SELECT * FROM users WHERE id = $1";
-    const { rows } = await this.db.query(query, [id]);
-    return rows[0] || null;
-  }
-
-  async findByEmail(email: string): Promise<UserEntity | null> {
-    const query = "SELECT * FROM users WHERE email = $1";
-    const { rows } = await this.db.query(query, [email]);
-    return rows[0] || null;
-  }
-
-  async update(id: string, updates: UpdateUserDTO): Promise<UserEntity | null> {
-    const fields = Object.keys(updates);
-    const values = Object.values(updates);
-    const setClause = fields
-      .map((field, idx) => `${field} = $${idx + 2}`)
-      .join(", ");
-
-    const query = `
-      UPDATE users
-      SET ${setClause}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-      RETURNING *
-    `;
-    const { rows } = await this.db.query(query, [id, ...values]);
-    return rows[0] || null;
-  }
-
-  async delete(id: string): Promise<boolean> {
-    const query = "DELETE FROM users WHERE id = $1";
-    const { rowCount } = await this.db.query(query, [id]);
-    return rowCount > 0;
-  }
-}
-
-```
-
-### Pattern 2: Dependency Injection
-
-**DI Container:**
-
-```typescript
-// di-container.ts
-import { Pool } from "pg";
-import { UserRepository } from "./repositories/user.repository";
-import { UserService } from "./services/user.service";
-import { UserController } from "./controllers/user.controller";
-import { AuthService } from "./services/auth.service";
-
-class Container {
-  private instances = new Map<string, any>();
-
-  register<T>(key: string, factory: () => T): void {
-    this.instances.set(key, factory);
-  }
-
-  resolve<T>(key: string): T {
-    const factory = this.instances.get(key);
-    if (!factory) {
-      throw new Error(`No factory registered for ${key}`);
-    }
-    return factory();
-  }
-
-  singleton<T>(key: string, factory: () => T): void {
-    let instance: T;
-    this.instances.set(key, () => {
-      if (!instance) {
-        instance = factory();
-      }
-      return instance;
-    });
-  }
-}
-
-export const container = new Container();
-
-// Register dependencies
-container.singleton("db", () =>
-  new Pool({
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || "5432"),
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-  })
-);
-
-container.singleton("userRepository", () => new UserRepository(container.resolve("db")));
-container.singleton("userService", () => new UserService(container.resolve("userRepository")));
-container.register("userController", () => new UserController(container.resolve("userService")));
-container.singleton("authService", () => new AuthService(container.resolve("userRepository")));
+export default MyComponent;
 
 ```
 
 ---
 
-## 🚦 Middleware Patterns
+## ❌ 6. Anti-Patterns (Immediate Rejection)
 
-### Authentication Middleware
+1. **Early Loading Returns:** `if (loading) return ...`
+2. **Feature Logic Leak:** Putting domain logic in `src/components`.
+3. **Prop Drilling:** Passing shared state down > 2 levels (use Hooks/Context).
+4. **Inline API:** Calling `fetch` or `axios` directly inside `useEffect`.
+5. **Untyped Responses:** Using `data: any` from queries.
+6. **Mixed Concerns:** Components handling data fetching + complex UI + business logic.
+
+---
+
+## ✅ 7. Quick Checklists
+
+### New Component
+
+* [ ] `React.FC<Props>` with explicit interface
+* [ ] Lazy loaded if non-trivial
+* [ ] Uses `useSuspenseQuery` (no `isLoading`)
+* [ ] Handlers wrapped in `useCallback`
+* [ ] Uses `useMuiSnackbar` for feedback
+
+### New Feature
+
+* [ ] Created `features/{name}/`
+* [ ] API layer isolated in `api/`
+* [ ] Public exports defined in `index.ts`
+* [ ] Suspense boundary at feature entry level
+* [ ] Route defined under `routes/`
+
+Scusa, ho capito male l'intenzione precedente. Ecco il contenuto che mi hai fornito trasformato esattamente in un file Markdown (`.md`) pulito e formattato, senza fonderlo con altro.
+
+Puoi salvare questo file come **`FRONTEND_GUIDELINES.md`** o **`SKILL_FRONTEND.md`**.
+
+---
+
+```markdown
+# Frontend Development Guidelines
+
+> **Stack:** React · TypeScript · Suspense-First · Production-Grade
+> **Based on:** `sickn33/antigravity-awesome-skills`
+
+## 🎯 Core Philosophy
+You are a **Senior Frontend Engineer**. Your goal is to build scalable, predictable, and maintainable applications.
+* **Suspense-First:** No manual spinners, no `isLoading` checks.
+* **Feature-Based:** Domain logic is isolated.
+* **Strict TypeScript:** Types are design artifacts, not afterthoughts.
+* **Performance:** Lazy load everything heavy.
+
+---
+
+## 📊 1. Frontend Feasibility & Complexity Index (FFCI)
+Before coding, assess the feature using this formula:
+`FFCI = (Architectural Fit + Reusability + Performance) - (Complexity + Maintenance Cost)`
+
+| Score | Status | Action |
+| :--- | :--- | :--- |
+| **10 – 15** | Excellent | Proceed immediately. |
+| **6 – 9** | Acceptable | Proceed with care. |
+| **3 – 5** | Risky | Simplify or split the feature. |
+| **≤ 2** | Poor | **Redesign required.** |
+
+---
+
+## 🏛 2. Architectural Doctrine (Non-Negotiable)
+
+### A. Suspense is Default
+* Use `useSuspenseQuery` as the primary data-fetching hook.
+* 🚫 **Forbidden:** `if (isLoading) return <Spinner />`
+* 🚫 **Forbidden:** Early returns for data loading.
+
+### B. Feature-Based Organization
+* **`src/features/{name}`**: Where domain logic lives.
+* **`src/components`**: Only generic, reusable UI primitives.
+* **Cross-feature coupling is forbidden.**
+
+### C. Performance Defaults
+* Lazy load **Routes**, **Feature Entries**, **Data Grids**, **Modals**.
+* Use `useMemo` for expensive derivations.
+* Use `useCallback` for all passed handlers.
+
+### D. Strict TypeScript
+* 🚫 No `any`.
+* ✅ Explicit return types.
+* ✅ `import type` always.
+
+---
+
+## 📂 3. File Structure & Aliases
+
+### Canonical Structure
+```text
+src/
+├── features/           # Domain Logic
+│   └── my-feature/
+│       ├── api/        # Isolated API layer
+│       ├── components/ # Feature-specific UI
+│       ├── hooks/      # Feature logic
+│       ├── helpers/    # Utils
+│       ├── types/      # Types colocated
+│       └── index.ts    # Public API
+├── components/         # Shared Primitives
+│   ├── SuspenseLoader/
+│   └── CustomAppBar/
+└── routes/             # TanStack Router
+    └── my-route/
+        └── index.tsx
+
+```
+
+### Required Aliases
+
+* `@/` → `src/`
+* `~types` → `src/types`
+* `~components` → `src/components`
+* `~features` → `src/features`
+
+---
+
+## 💻 4. Coding Standards
+
+### Component Structure
+
+1. Types / Props Interface
+2. Hooks
+3. Derived values (`useMemo`)
+4. Handlers (`useCallback`)
+5. Render (JSX)
+6. Default Export
+
+### Lazy Loading Pattern
 
 ```typescript
-// middleware/auth.middleware.ts
-import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import { UnauthorizedError } from "../utils/errors";
+const HeavyComponent = React.lazy(() => import('./HeavyComponent'));
+// Must always be wrapped in <SuspenseLoader> or ErrorBoundary
 
-interface JWTPayload {
-  userId: string;
-  email: string;
+```
+
+### Data Fetching (TanStack Query)
+
+* **Pattern:** `useSuspenseQuery`
+* **Forbidden:** `useEffect` for data fetching, manual `axios` calls in components.
+* **API Layer:** One file per feature (e.g., `features/auth/api/authApi.ts`).
+
+### Routing (TanStack Router)
+
+* Folder-based routing.
+* Lazy load route components.
+* Loaders used for metadata (breadcrumbs), not heavy data (use Query).
+
+### Styling (MUI v7)
+
+* **Inline `sx**`: Allowed for < 100 lines.
+* **Separate file**: Required for > 100 lines (`{Component}.styles.ts`).
+* **Grid Syntax:** Use `<Grid size={{ xs: 12 }} />` (Do not use `xs={12}`).
+
+---
+
+## 📝 5. Canonical Component Template
+
+```typescript
+import React, { useState, useCallback } from 'react';
+import { Box, Paper } from '@mui/material';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { featureApi } from '../api/featureApi';
+import type { FeatureData } from '~types/feature';
+
+interface MyComponentProps {
+  id: number;
+  onAction?: () => void;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JWTPayload;
-    }
-  }
-}
+export const MyComponent: React.FC<MyComponentProps> = ({ id, onAction }) => {
+  // 1. State
+  const [state, setState] = useState('');
 
-export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    if (!token) {
-      throw new UnauthorizedError("No token provided");
-    }
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
-    req.user = payload;
-    next();
-  } catch (error) {
-    next(new UnauthorizedError("Invalid token"));
-  }
-};
-
-export const authorize = (...roles: string[]) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return next(new UnauthorizedError("Not authenticated"));
-    }
-    // Check if user has required role
-    const hasRole = roles.some((role) => req.user?.roles?.includes(role));
-    if (!hasRole) {
-      return next(new UnauthorizedError("Insufficient permissions"));
-    }
-    next();
-  };
-};
-
-```
-
-### Validation Middleware
-
-```typescript
-// middleware/validation.middleware.ts
-import { Request, Response, NextFunction } from "express";
-import { AnyZodObject, ZodError } from "zod";
-import { ValidationError } from "../utils/errors";
-
-export const validate = (schema: AnyZodObject) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      await schema.parseAsync({
-        body: req.body,
-        query: req.query,
-        params: req.params,
-      });
-      next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const errors = error.errors.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
-        }));
-        next(new ValidationError("Validation failed", errors));
-      } else {
-        next(error);
-      }
-    }
-  };
-};
-
-// Usage with Zod
-import { z } from "zod";
-const createUserSchema = z.object({
-  body: z.object({
-    name: z.string().min(1),
-    email: z.string().email(),
-    password: z.string().min(8),
-  }),
-});
-router.post("/users", validate(createUserSchema), userController.createUser);
-
-```
-
-### Rate Limiting Middleware
-
-```typescript
-// middleware/rate-limit.middleware.ts
-import rateLimit from "express-rate-limit";
-import RedisStore from "rate-limit-redis";
-import Redis from "ioredis";
-
-const redis = new Redis({
-  host: process.env.REDIS_HOST,
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-});
-
-export const apiLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: "rl:",
-  }),
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again later",
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-export const authLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: "rl:auth:",
-  }),
-  windowMs: 15 * 60 * 1000,
-  max: 5, // Stricter limit for auth endpoints
-  skipSuccessfulRequests: true,
-});
-
-```
-
-### Request Logging Middleware
-
-```typescript
-// middleware/logger.middleware.ts
-import { Request, Response, NextFunction } from "express";
-import pino from "pino";
-
-const logger = pino({
-  level: process.env.LOG_LEVEL || "info",
-  transport: {
-    target: "pino-pretty",
-    options: { colorize: true },
-  },
-});
-
-export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
-  const start = Date.now();
-  // Log response when finished
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    logger.info({
-      method: req.method,
-      url: req.url,
-      status: res.statusCode,
-      duration: `${duration}ms`,
-      userAgent: req.headers["user-agent"],
-      ip: req.ip,
-    });
+  // 2. Data (Suspense)
+  const { data } = useSuspenseQuery<FeatureData>({
+    queryKey: ['feature', id],
+    queryFn: () => featureApi.getFeature(id),
   });
-  next();
+
+  // 3. Handlers
+  const handleAction = useCallback(() => {
+    setState('updated');
+    onAction?.();
+  }, [onAction]);
+
+  // 4. Render
+  return (
+    <Box sx={{ p: 2 }}>
+      <Paper sx={{ p: 3 }}>
+        {/* Content using 'data' immediately (no loading check) */}
+        {data.title}
+      </Paper>
+    </Box>
+  );
 };
 
-export { logger };
+export default MyComponent;
 
 ```
 
 ---
 
-## 🚨 Error Handling
+## ❌ 6. Anti-Patterns (Immediate Rejection)
 
-### Custom Error Classes
+1. **Early Loading Returns:** `if (loading) return ...`
+2. **Feature Logic Leak:** Putting domain logic in `src/components`.
+3. **Prop Drilling:** Passing shared state down > 2 levels (use Hooks/Context).
+4. **Inline API:** Calling `fetch` or `axios` directly inside `useEffect`.
+5. **Untyped Responses:** Using `data: any` from queries.
+6. **Mixed Concerns:** Components handling data fetching + complex UI + business logic.
 
-```typescript
-// utils/errors.ts
-export class AppError extends Error {
-  constructor(
-    public message: string,
-    public statusCode: number = 500,
-    public isOperational: boolean = true,
-  ) {
-    super(message);
-    Object.setPrototypeOf(this, AppError.prototype);
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
+---
 
-export class ValidationError extends AppError {
-  constructor(message: string, public errors?: any[]) {
-    super(message, 400);
-  }
-}
+## ✅ 7. Quick Checklists
 
-export class NotFoundError extends AppError {
-  constructor(message: string = "Resource not found") {
-    super(message, 404);
-  }
-}
+### New Component
 
-export class UnauthorizedError extends AppError {
-  constructor(message: string = "Unauthorized") {
-    super(message, 401);
-  }
-}
+* [ ] `React.FC<Props>` with explicit interface
+* [ ] Lazy loaded if non-trivial
+* [ ] Uses `useSuspenseQuery` (no `isLoading`)
+* [ ] Handlers wrapped in `useCallback`
+* [ ] Uses `useMuiSnackbar` for feedback
 
-export class ForbiddenError extends AppError {
-  constructor(message: string = "Forbidden") {
-    super(message, 403);
-  }
-}
+### New Feature
 
-export class ConflictError extends AppError {
-  constructor(message: string) {
-    super(message, 409);
-  }
-}
+* [ ] Created `features/{name}/`
+* [ ] API layer isolated in `api/`
+* [ ] Public exports defined in `index.ts`
+* [ ] Suspense boundary at feature entry level
+* [ ] Route defined under `routes/`
+Certamente. Ho trasformato il contenuto grezzo in un documento Markdown pulito e ben strutturato, mantenendo tutte le sezioni tecniche importanti (Frontend, Backend, Database, Caching) ed eliminando solo le parti di metadati inutili (come "First Seen Jan 1, 1970" o i link relativi non funzionanti).
+
+Ecco il file `.md` pronto per l'uso. Puoi salvarlo come **`PERFORMANCE_OPTIMIZER.md`** o **`SKILL_PERFORMANCE.md`**.
+
+---
+
+```markdown
+# Performance Optimizer Guide
+
+> **Goal:** Make applications fast, scalable, and cost-efficient.
+> **Core Principle:** Measure first, optimize second. Don't guess at bottlenecks—profile, measure, then fix the slowest parts.
+
+---
+
+## 📊 Performance Budget & Targets
+
+### Web Vitals (Frontend)
+* **Largest Contentful Paint (LCP):** < 2.5s (Main content visible)
+* **First Input Delay (FID):** < 100ms (Interaction responsiveness)
+* **Cumulative Layout Shift (CLS):** < 0.1 (Visual stability)
+* **First Contentful Paint (FCP):** < 1.8s
+* **Time to Interactive (TTI):** < 3.8s
+* **Total Blocking Time (TBT):** < 200ms
+
+### Backend Targets
+* **API Response Time (P95):** < 500ms
+* **Database Query Time (P95):** < 100ms
+* **Server Response Time (TTFB):** < 600ms
+
+---
+
+## 🕵️ Phase 1: Profiling & Measurement
+
+### Frontend Profiling
+1.  **Chrome DevTools:** Use the *Performance* tab to analyze main thread activity, network waterfall, and rendering time.
+2.  **Lighthouse Audit:**
+    ```bash
+    npm i -g lighthouse
+    lighthouse [https://yoursite.com](https://yoursite.com) --view
+    ```
+3.  **React DevTools Profiler:**
+    ```jsx
+    import { Profiler } from 'react';
+
+    function onRenderCallback(id, phase, actualDuration) {
+      console.log(`${id} (${phase}) took ${actualDuration}ms`);
+    };
+
+    <Profiler id="ExpensiveComponent" onRender={onRenderCallback}>
+      <ExpensiveComponent />
+    </Profiler>
+    ```
+
+### Backend Profiling (Node.js)
+```bash
+# Generate CPU profile
+node --prof app.js
+# Process profile into readable format
+node --prof-process isolate-0x*.log > processed.txt
+# Flame graphs (visualization)
+npm i -g 0x
+0x app.js
 
 ```
 
-### Global Error Handler
+### Database Profiling
 
-```typescript
-// middleware/error-handler.ts
-import { Request, Response, NextFunction } from "express";
-import { AppError } from "../utils/errors";
-import { logger } from "./logger.middleware";
+**PostgreSQL:**
 
-export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
-      status: "error",
-      message: err.message,
-      ...(err instanceof ValidationError && { errors: err.errors }),
-    });
-  }
-  
-  // Log unexpected errors
-  logger.error({
-    error: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method,
-  });
+```sql
+-- Enable query logging for queries > 100ms
+ALTER DATABASE yourdb SET log_min_duration_statement = 100;
 
-  // Don't leak error details in production
-  const message = process.env.NODE_ENV === "production" ? "Internal server error" : err.message;
-  
-  res.status(500).json({
-    status: "error",
-    message,
-  });
-};
+-- Analyze specific query cost
+EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM users WHERE email = 'test@example.com';
 
-// Async error wrapper
-export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-};
+-- Find slowest queries
+SELECT query, mean_exec_time, calls
+FROM pg_stat_statements
+ORDER BY mean_exec_time DESC LIMIT 20;
+
+```
+
+**MongoDB:**
+
+```javascript
+// Enable profiling
+db.setProfilingLevel(1, { slowms: 100 });
+// View slow queries
+db.system.profile.find({ millis: { $gt: 100 } }).sort({ ts: -1 });
+// Explain query execution stats
+db.collection.find({ email: 'test@example.com' }).explain('executionStats');
 
 ```
 
 ---
 
-## 💾 Database Patterns
+## 🗄️ Phase 2: Database Optimization
 
-### PostgreSQL with Connection Pool
+### Strategic Indexing
 
-```typescript
-// config/database.ts
-import { Pool, PoolConfig } from "pg";
+* **Single Column:** Speed up `WHERE email = ...`
+```sql
+CREATE INDEX idx_users_email ON users(email);
 
-const poolConfig: PoolConfig = {
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || "5432"),
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+```
+
+
+* **Composite Index:** Speed up multi-column filtering/sorting.
+```sql
+CREATE INDEX idx_posts_user_date ON posts(user_id, created_at DESC);
+
+```
+
+
+* **Partial Index:** Index only active records to save space.
+```sql
+CREATE INDEX idx_active_users ON users(created_at) WHERE is_active = true;
+
+```
+
+
+
+### Eliminate N+1 Queries
+
+**❌ Bad:** 101 queries for 100 users.
+
+```javascript
+const users = await User.findAll();
+for (const user of users) {
+  user.posts = await Post.findAll({ where: { userId: user.id } });
+}
+
+```
+
+**✅ Good:** Eager loading (2 queries).
+
+```javascript
+const users = await User.findAll({ include: [{ model: Post }] });
+
+```
+
+**✅ Better:** DataLoader (Batching + Caching).
+
+```javascript
+const userLoader = new DataLoader(async userIds => {
+  const users = await User.findAll({ where: { id: userIds } });
+  return userIds.map(id => users.find(u => u.id === id));
+});
+
+```
+
+### Connection Pooling
+
+Always use a pool to manage DB connections efficiently.
+
+```javascript
+import { Pool } from 'pg';
+const pool = new Pool({
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-};
-
-export const pool = new Pool(poolConfig);
-
-// Test connection
-pool.on("connect", () => {
-  console.log("Database connected");
+  connectionTimeoutMillis: 2000
 });
-
-pool.on("error", (err) => {
-  console.error("Unexpected database error", err);
-  process.exit(-1);
-});
-
-// Graceful shutdown
-export const closeDatabase = async () => {
-  await pool.end();
-  console.log("Database connection closed");
-};
-
-```
-
-### MongoDB with Mongoose
-
-```typescript
-// config/mongoose.ts
-import mongoose from "mongoose";
-
-const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI!, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
-    console.log("MongoDB connected");
-  } catch (error) {
-    console.error("MongoDB connection error:", error);
-    process.exit(1);
-  }
-};
-
-mongoose.connection.on("disconnected", () => {
-  console.log("MongoDB disconnected");
-});
-
-mongoose.connection.on("error", (err) => {
-  console.error("MongoDB error:", err);
-});
-
-export { connectDB };
-
-// Model example
-import { Schema, model, Document } from "mongoose";
-
-interface IUser extends Document {
-  name: string;
-  email: string;
-  password: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const userSchema = new Schema<IUser>(
-  {
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-  },
-  {
-    timestamps: true,
-  },
-);
-
-// Indexes
-userSchema.index({ email: 1 });
-export const User = model<IUser>("User", userSchema);
-
-```
-
-### Transaction Pattern
-
-```typescript
-// services/order.service.ts
-import { Pool } from "pg";
-
-export class OrderService {
-  constructor(private db: Pool) {}
-
-  async createOrder(userId: string, items: any[]) {
-    const client = await this.db.connect();
-    try {
-      await client.query("BEGIN");
-      
-      // Create order
-      const orderResult = await client.query(
-        "INSERT INTO orders (user_id, total) VALUES ($1, $2) RETURNING id",
-        [userId, calculateTotal(items)],
-      );
-      const orderId = orderResult.rows[0].id;
-      
-      // Create order items
-      for (const item of items) {
-        await client.query(
-          "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ($1, $2, $3, $4)",
-          [orderId, item.productId, item.quantity, item.price],
-        );
-        // Update inventory
-        await client.query(
-          "UPDATE products SET stock = stock - $1 WHERE id = $2",
-          [item.quantity, item.productId],
-        );
-      }
-      
-      await client.query("COMMIT");
-      return orderId;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-}
 
 ```
 
 ---
 
-## 🔐 Authentication & Authorization
+## ⚡ Phase 3: Caching Strategy
 
-### JWT Authentication
+**Hierarchy:** Browser Cache → CDN → Redis/App Cache → DB Query Cache → Database.
+
+### Redis Caching Pattern
 
 ```typescript
-// services/auth.service.ts
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import { UserRepository } from "../repositories/user.repository";
-import { UnauthorizedError } from "../utils/errors";
+import Redis from 'ioredis';
+const redis = new Redis();
 
-export class AuthService {
-  constructor(private userRepository: UserRepository) {}
+async function getUser(id: string): Promise<User> {
+  const cacheKey = `user:${id}`;
+  
+  // 1. Check cache
+  const cached = await redis.get(cacheKey);
+  if (cached) return JSON.parse(cached);
 
-  async login(email: string, password: string) {
-    const user = await this.userRepository.findByEmail(email);
-    if (!user) {
-      throw new UnauthorizedError("Invalid credentials");
-    }
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) {
-      throw new UnauthorizedError("Invalid credentials");
-    }
-    const token = this.generateToken({
-      userId: user.id,
-      email: user.email,
-    });
-    const refreshToken = this.generateRefreshToken({
-      userId: user.id,
-    });
-    return {
-      token,
-      refreshToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      },
-    };
-  }
+  // 2. Cache miss - fetch from DB
+  const user = await db.users.findById(id);
 
-  async refreshToken(refreshToken: string) {
-    try {
-      const payload = jwt.verify(
-        refreshToken,
-        process.env.REFRESH_TOKEN_SECRET!,
-      ) as { userId: string };
-      const user = await this.userRepository.findById(payload.userId);
-      if (!user) {
-        throw new UnauthorizedError("User not found");
-      }
-      const token = this.generateToken({
-        userId: user.id,
-        email: user.email,
-      });
-      return { token };
-    } catch (error) {
-      throw new UnauthorizedError("Invalid refresh token");
-    }
-  }
-
-  private generateToken(payload: any): string {
-    return jwt.sign(payload, process.env.JWT_SECRET!, {
-      expiresIn: "15m",
-    });
-  }
-
-  private generateRefreshToken(payload: any): string {
-    return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET!, {
-      expiresIn: "7d",
-    });
-  }
+  // 3. Store in cache (expire in 1 hour)
+  await redis.setex(cacheKey, 3600, JSON.stringify(user));
+  
+  return user;
 }
 
 ```
 
----
+### HTTP Caching Headers
 
-## ⚡ Caching Strategies
-
-```typescript
-// utils/cache.ts
-import Redis from "ioredis";
-
-const redis = new Redis({
-  host: process.env.REDIS_HOST,
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-  retryStrategy: (times) => {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  },
+```javascript
+app.use((req, res, next) => {
+  // Static assets: cache for 1 year
+  if (req.url.match(/\.(js|css|png|jpg)$/)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+  // API responses: cache for 5 minutes
+  if (req.url.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'public, max-age=300');
+  }
+  next();
 });
 
-export class CacheService {
-  async get<T>(key: string): Promise<T | null> {
-    const data = await redis.get(key);
-    return data ? JSON.parse(data) : null;
-  }
-  async set(key: string, value: any, ttl?: number): Promise<void> {
-    const serialized = JSON.stringify(value);
-    if (ttl) {
-      await redis.setex(key, ttl, serialized);
-    } else {
-      await redis.set(key, serialized);
-    }
-  }
-  async delete(key: string): Promise<void> {
-    await redis.del(key);
-  }
-  async invalidatePattern(pattern: string): Promise<void> {
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
-      await redis.del(...keys);
-    }
-  }
+```
+
+### CDN Configuration
+
+* **Assets to CDN:** Images, JS, CSS, Fonts.
+* **Settings:** Gzip/Brotli enabled, HTTP/2 or HTTP/3, Long cache duration (1 year) with versioned URLs.
+
+---
+
+## 🎨 Phase 4: Frontend Optimization
+
+### Code Splitting & Lazy Loading
+
+**React Router Lazy Loading:**
+
+```jsx
+import { lazy, Suspense } from 'react';
+
+// Lazy load heavy routes
+const Dashboard = lazy(() => import('./Dashboard'));
+const AdminPanel = lazy(() => import('./AdminPanel'));
+
+function App() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin" element={<AdminPanel />} />
+      </Routes>
+    </Suspense>
+  );
 }
 
-// Cache decorator
-export function Cacheable(ttl: number = 300) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor,
-  ) {
-    const originalMethod = descriptor.value;
-    descriptor.value = async function (...args: any[]) {
-      const cache = new CacheService();
-      const cacheKey = `${propertyKey}:${JSON.stringify(args)}`;
-      const cached = await cache.get(cacheKey);
-      if (cached) {
-        return cached;
-      }
-      const result = await originalMethod.apply(this, args);
-      await cache.set(cacheKey, result, ttl);
-      return result;
-    };
-    return descriptor;
-  };
-}
+```
+
+### Image Optimization
+
+**Next.js Image Component:**
+
+```jsx
+import Image from 'next/image';
+
+<Image
+  src="/photo.jpg"
+  width={800}
+  height={600}
+  alt="Description"
+  loading="lazy"      // Lazy load off-screen images
+  placeholder="blur"  // Blur effect while loading
+  quality={75}
+/>
+
+```
+
+### Bundle Size Reduction
+
+1. **Analyze:** `npm run build -- --analyze`
+2. **Tree-Shaking:** Import specific functions (`import debounce from 'lodash/debounce'`) instead of whole libraries.
+3. **Dynamic Imports:** `const moment = await import('moment')` only when needed.
+
+### React Performance Patterns
+
+* **`useMemo`**: Cache expensive calculations.
+* **`React.memo`**: Prevent re-renders of pure components.
+* **`useCallback`**: Stabilize function references passed to children.
+* **Virtualization:** Use `react-window` for long lists (1000+ items).
+
+---
+
+## 🚀 Phase 5: Backend Optimization
+
+### Async Background Processing
+
+Offload slow tasks (emails, report generation) to a queue.
+
+```javascript
+// ❌ Bad: Synchronous (blocks response)
+app.post('/email', async (req, res) => {
+  await sendEmail(req.body); // Takes 3s
+  res.json({ success: true });
+});
+
+// ✅ Good: Queue job (instant response)
+import Bull from 'bull';
+const emailQueue = new Bull('emails');
+
+app.post('/email', async (req, res) => {
+  await emailQueue.add(req.body);
+  res.json({ success: true, message: 'Queued' });
+});
+
+```
+
+### API Response Optimization
+
+1. **Compression:** `app.use(compression())` (Gzip/Brotli).
+2. **Pagination:** Always limit results (`LIMIT 20`).
+3. **Partial Responses:** Allow clients to request specific fields (`?fields=id,name`).
+
+### Rate Limiting
+
+Protect expensive endpoints from abuse.
+
+```javascript
+import rateLimit from 'express-rate-limit';
+
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 login attempts per hour
+  message: 'Too many login attempts.'
+});
+
+app.post('/api/auth/login', authLimiter, loginHandler);
 
 ```
 
 ---
 
-## 📤 API Response Format
+## 📈 Phase 6: Monitoring & Checklist
 
-```typescript
-// utils/response.ts
-import { Response } from "express";
+### Key Metrics to Track
 
-export class ApiResponse {
-  static success<T>(
-    res: Response,
-    data: T,
-    message?: string,
-    statusCode = 200,
-  ) {
-    return res.status(statusCode).json({
-      status: "success",
-      message,
-      data,
-    });
-  }
-  static error(res: Response, message: string, statusCode = 500, errors?: any) {
-    return res.status(statusCode).json({
-      status: "error",
-      message,
-      ...(errors && { errors }),
-    });
-  }
-  static paginated<T>(
-    res: Response,
-    data: T[],
-    page: number,
-    limit: number,
-    total: number,
-  ) {
-    return res.json({
-      status: "success",
-      data,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
-  }
-}
+* **Response time:** P50, P95, P99.
+* **Throughput:** Requests per second (RPS).
+* **Error rate:** Percentage of 5xx codes.
+* **Resource Usage:** CPU, Memory, Disk I/O.
 
-```
+### Optimization Checklist
 
----
+#### Frontend ✅
 
-## 🌟 Best Practices
+* [ ] Lighthouse score > 90
+* [ ] LCP < 2.5s
+* [ ] Bundle size < 200KB (initial load)
+* [ ] Images optimized (WebP, lazy loading)
+* [ ] Code splitting implemented
 
-* **Use TypeScript**: Type safety prevents runtime errors.
-* **Implement proper error handling**: Use custom error classes.
-* **Validate input**: Use libraries like Zod or Joi.
-* **Use environment variables**: Never hardcode secrets.
-* **Implement logging**: Use structured logging (Pino, Winston).
-* **Add rate limiting**: Prevent abuse.
-* **Use HTTPS**: Always in production.
-* **Implement CORS properly**: Don't use `*` in production.
-* **Use dependency injection**: Easier testing and maintenance.
-* **Write tests**: Unit, integration, and E2E tests.
-* **Handle graceful shutdown**: Clean up resources.
-* **Use connection pooling**: For databases.
-* **Implement health checks**: For monitoring.
-* **Use compression**: Reduce response size.
-* **Monitor performance**: Use APM tools.
+#### Backend ✅
+
+* [ ] P95 response time < 500ms
+* [ ] N+1 queries eliminated
+* [ ] Connection pooling enabled
+* [ ] Background jobs used for slow tasks
+* [ ] API compression enabled (Gzip)
+
+#### Database ✅
+
+* [ ] Slow query log enabled
+* [ ] Indexes on foreign keys and WHERE/ORDER BY columns
+* [ ] Query explain plans reviewed
+* [ ] Connection pool sized correctly
+
+#### Caching ✅
+
+* [ ] Redis/Memcached active
+* [ ] CDN for static assets
+* [ ] HTTP cache headers set appropriately

@@ -269,25 +269,33 @@ async function importUserData(userId, importData, force = false) {
         importedFolders.push(newFolder);
     }
 
-    // 2. Tags
+    // 2. Tags - OTTIMIZZATO: Batch query invece di N+1
     const importedTags = [];
-    for (const tag of data.tags) {
-        const { _id, ...tagData } = tag;
-        const existingTag = await Tag.findOne({ user: userId, name: tagData.name });
-        if (existingTag) {
-            if (_id) {
-                idMappings.tags.set(_id.toString(), existingTag._id);
+    if (data.tags && data.tags.length > 0) {
+        // Query batch per trovare tutti i tags esistenti in una sola query
+        const tagNames = data.tags.map(t => t.name);
+        const existingTags = await Tag.find({ user: userId, name: { $in: tagNames } });
+        const existingTagMap = new Map(existingTags.map(t => [t.name, t]));
+
+        for (const tag of data.tags) {
+            const { _id, ...tagData } = tag;
+            const existingTag = existingTagMap.get(tagData.name);
+
+            if (existingTag) {
+                if (_id) {
+                    idMappings.tags.set(_id.toString(), existingTag._id);
+                }
+                importedTags.push(existingTag);
+            } else {
+                const newTag = await Tag.create({
+                    ...tagData,
+                    user: userId,
+                });
+                if (_id) {
+                    idMappings.tags.set(_id.toString(), newTag._id);
+                }
+                importedTags.push(newTag);
             }
-            importedTags.push(existingTag);
-        } else {
-            const newTag = await Tag.create({
-                ...tagData,
-                user: userId,
-            });
-            if (_id) {
-                idMappings.tags.set(_id.toString(), newTag._id);
-            }
-            importedTags.push(newTag);
         }
     }
 
