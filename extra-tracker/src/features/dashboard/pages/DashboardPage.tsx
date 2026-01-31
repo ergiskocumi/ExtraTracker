@@ -19,6 +19,7 @@ import { studyService, type Deck } from '../../study/services/studyService';
 import examService from '../../study/services/examService';
 import type { Exam } from '../../study/types/exam';
 import { TargetIcon } from '../../../shared/components/icons';
+import { pagePreloaders } from '../../../shared/hooks/usePreload';
 
 const getGreeting = () => {
     const hour = new Date().getHours();
@@ -195,9 +196,11 @@ export const DashboardPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => navigate(`/study/${deck.id}/session?mode=flashcard`)}
+                                        onMouseEnter={pagePreloaders.studySession}
+                                        onFocus={pagePreloaders.studySession}
                                         className={`w-full py-3 px-4 rounded-xl text-sm font-semibold tracking-wide transition-all duration-300 border
-                                                 ${hasDueCards 
-                                                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 hover:shadow-[0_0_15px_rgba(16,185,129,0.3)]' 
+                                                 ${hasDueCards
+                                                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 hover:shadow-[0_0_15px_rgba(16,185,129,0.3)]'
                                                     : 'bg-theme-surface border-theme-default text-theme-secondary hover:bg-theme-card hover:text-theme-primary hover:border-theme-strong'
                                                  }`}
                                     >
