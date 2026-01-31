@@ -32,6 +32,8 @@ export interface FlashcardItemProps {
     isSourceActive?: boolean;
     /** Callback when editing state changes (for disabling drag during edit) */
     onEditingChange?: (isEditing: boolean) => void;
+    /** Compact mode for cinema view - uses inline editing instead of fullscreen modal */
+    compactMode?: boolean;
 }
 
 // ============================================

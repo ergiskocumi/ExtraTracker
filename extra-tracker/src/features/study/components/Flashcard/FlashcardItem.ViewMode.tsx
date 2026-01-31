@@ -57,15 +57,15 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
 
     return (
         <div
-            className="space-y-3"
+            className="space-y-4"
             onClick={onCardClick}
         >
-            {/* Question Section: testo a tutta larghezza; pulsanti in overlay con animazione hover */}
-            <div className="relative flex items-start gap-3 min-w-0">
-                <div className={`${BADGE_STYLES.question.size} ${BADGE_STYLES.question.borderRadius} ${BADGE_STYLES.question.background} ${BADGE_STYLES.question.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.question.text} flex-shrink-0 ${BADGE_STYLES.question.shadow}`}>
+            {/* Question Section */}
+            <div className="relative flex items-start gap-4 min-w-0">
+                <div className={`${BADGE_STYLES.question.size} ${BADGE_STYLES.question.borderRadius} ${BADGE_STYLES.question.background} ${BADGE_STYLES.question.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.question.text} flex-shrink-0 ${BADGE_STYLES.question.shadow} mt-0.5`}>
                     Q
                 </div>
-                <div className="flex-1 min-w-0 pr-0">
+                <div className="flex-1 min-w-0 pt-0.5">
                     <CardContentRenderer
                         content={card.front}
                         variant="question"
@@ -73,9 +73,9 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
                     />
                 </div>
 
-                {/* Action Buttons: nascosti di default, appaiono con slide da destra a sinistra al hover */}
+                {/* Action Buttons */}
                 <div
-                    className={`absolute right-0 top-0 flex items-center ${LAYOUT.spacing.gapButtons} opacity-0 translate-x-4 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto transition-all duration-200 ease-out`}
+                    className={`absolute right-0 top-0 flex items-center ${LAYOUT.spacing.gapButtons} opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto transition-all duration-200 ease-out`}
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Show Source Button */}
@@ -130,11 +130,11 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
             </div>
 
             {/* Answer Section */}
-            <div className={`flex items-start gap-3 ${LAYOUT.spacing.paddingTop} ${LAYOUT.divider.border} min-w-0`}>
-                <div className={`${BADGE_STYLES.answer.size} ${BADGE_STYLES.answer.borderRadius} ${BADGE_STYLES.answer.background} ${BADGE_STYLES.answer.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.answer.text} flex-shrink-0 ${BADGE_STYLES.answer.shadow}`}>
+            <div className={`flex items-start gap-4 ${LAYOUT.spacing.paddingTop} ${LAYOUT.divider.border} min-w-0`}>
+                <div className={`${BADGE_STYLES.answer.size} ${BADGE_STYLES.answer.borderRadius} ${BADGE_STYLES.answer.background} ${BADGE_STYLES.answer.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.answer.text} flex-shrink-0 ${BADGE_STYLES.answer.shadow} mt-0.5`}>
                     A
                 </div>
-                <div className="min-w-0">
+                <div className="flex-1 min-w-0 pt-0.5">
                     <CardContentRenderer
                         content={card.back}
                         variant="answer"

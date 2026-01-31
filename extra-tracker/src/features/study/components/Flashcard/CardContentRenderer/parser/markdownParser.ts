@@ -30,8 +30,8 @@ import rehypeRaw from 'rehype-raw';
  */
 export const remarkPlugins: PluggableList = [
     remarkGfm,
-    // Ogni singolo a capo (\n) diventa <br> in output: comportamento tipo Word, pieno controllo utente
-    remarkBreaks,
+    // remarkBreaks rimosso per evitare "troppo andate a capo". 
+    // Ora usa break standard markdown (spazio singolo = continua riga, doppio spazio = a capo, newline vuota = paragrafo)
     remarkMath,
 ];
 

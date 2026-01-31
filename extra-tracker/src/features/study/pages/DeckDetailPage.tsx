@@ -11,7 +11,7 @@
  * - Aggiunta rapida di nuove card
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
@@ -45,24 +45,28 @@ interface FilterTabsProps {
     counts: Record<FilterType, number>;
 }
 
-const FilterTabs: React.FC<FilterTabsProps> = ({ active, onChange, counts }) => {
-    const tabs: { key: FilterType; label: string; color: string }[] = [
-        { key: 'all', label: 'Tutte', color: 'text-theme-secondary' },
-        { key: 'new', label: 'Nuove', color: 'text-blue-400' },
-        { key: 'learning', label: 'Studio', color: 'text-amber-400' },
-        { key: 'review', label: 'Ripasso', color: 'text-purple-400' },
-        { key: 'mastered', label: 'Padroneggiate', color: 'text-emerald-400' },
-    ];
+/**
+ * FilterTabs - Memoizzato per evitare re-render non necessari
+ * @see rerender-memo
+ */
+const FILTER_TABS_CONFIG: { key: FilterType; label: string; color: string }[] = [
+    { key: 'all', label: 'Tutte', color: 'text-theme-secondary' },
+    { key: 'new', label: 'Nuove', color: 'text-blue-400' },
+    { key: 'learning', label: 'Studio', color: 'text-amber-400' },
+    { key: 'review', label: 'Ripasso', color: 'text-purple-400' },
+    { key: 'mastered', label: 'Padroneggiate', color: 'text-emerald-400' },
+];
 
+const FilterTabs = memo<FilterTabsProps>(({ active, onChange, counts }) => {
     return (
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
-            {tabs.map(tab => (
+            {FILTER_TABS_CONFIG.map(tab => (
                 <button
                     key={tab.key}
                     onClick={() => onChange(tab.key)}
                     className={`
                         flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all
-                        ${active === tab.key 
+                        ${active === tab.key
                             ? 'bg-white/[0.1] ' + tab.color
                             : 'text-theme-muted hover:text-theme-secondary hover:bg-white/[0.05]'
                         }
@@ -76,7 +80,9 @@ const FilterTabs: React.FC<FilterTabsProps> = ({ active, onChange, counts }) => 
             ))}
         </div>
     );
-};
+});
+
+FilterTabs.displayName = 'FilterTabs';
 
 // ============================================
 // MAIN PAGE COMPONENT
@@ -120,27 +126,47 @@ export const DeckDetailPage: React.FC = () => {
     // Scroll to top when navigating to this page or when deck ID changes
     useScrollToTop([id]);
 
-    // Filtered cards
-    const filteredCards = deck?.cards.filter(card => {
-        // Filter by status
-        if (filter !== 'all' && card.status !== filter) return false;
-        // Filter by search
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            return card.front.toLowerCase().includes(query) || 
-                   card.back.toLowerCase().includes(query);
-        }
-        return true;
-    }) || [];
+    /**
+     * Filtered cards - memoizzato per evitare ricalcolo ad ogni render
+     * @see rerender-memo
+     */
+    const filteredCards = useMemo(() => {
+        if (!deck?.cards) return [];
 
-    // Counts
-    const counts: Record<FilterType, number> = {
-        all: deck?.cards.length || 0,
-        new: deck?.cards.filter(c => c.status === 'new').length || 0,
-        learning: deck?.cards.filter(c => c.status === 'learning').length || 0,
-        review: deck?.cards.filter(c => c.status === 'review').length || 0,
-        mastered: deck?.cards.filter(c => c.status === 'mastered').length || 0,
-    };
+        return deck.cards.filter(card => {
+            // Filter by status
+            if (filter !== 'all' && card.status !== filter) return false;
+            // Filter by search
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                return card.front.toLowerCase().includes(query) ||
+                       card.back.toLowerCase().includes(query);
+            }
+            return true;
+        });
+    }, [deck?.cards, filter, searchQuery]);
+
+    /**
+     * Counts calcolati in un singolo loop - OTTIMIZZATO
+     * @see js-combine-iterations
+     */
+    const counts = useMemo((): Record<FilterType, number> => {
+        if (!deck?.cards) {
+            return { all: 0, new: 0, learning: 0, review: 0, mastered: 0 };
+        }
+
+        const result = { all: deck.cards.length, new: 0, learning: 0, review: 0, mastered: 0 };
+
+        // Un singolo loop invece di 4 filter separati
+        for (const card of deck.cards) {
+            if (card.status === 'new') result.new++;
+            else if (card.status === 'learning') result.learning++;
+            else if (card.status === 'review') result.review++;
+            else if (card.status === 'mastered') result.mastered++;
+        }
+
+        return result;
+    }, [deck?.cards]);
 
     // Handlers
     const handleAddCard = async (front: string, back: string) => {
@@ -205,7 +231,7 @@ export const DeckDetailPage: React.FC = () => {
 
     return (
         <div className="min-h-screen px-4 sm:px-6 py-6 sm:py-8">
-            <div className="max-w-6xl mx-auto">
+            <div className="w-full max-w-[1920px] mx-auto">
                 {/* Header */}
                 <header className="mb-6">
                     <div className="flex items-center gap-4 mb-4">

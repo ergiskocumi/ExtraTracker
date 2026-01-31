@@ -80,6 +80,7 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         onDeckUpdate={onDeckUpdate}
                         onShowSource={onShowSource}
                         activeSourceCardId={activeSourceCardId}
+                        compactMode={true}
                     />
                 ) : (
                     <PDFChat

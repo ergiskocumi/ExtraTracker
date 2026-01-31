@@ -12,21 +12,21 @@
 
 .katex-display {
     display: block !important;
-    margin: 1rem 0 !important;
-    padding: 0.75rem 1rem !important;
+    margin: 0.35rem 0 !important; /* Spaziatura verticale più compatta */
+    padding: 0.15rem 0 !important; /* Padding minimo */
     text-align: center !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
-    background: rgba(248, 250, 252, 0.05) !important;
-    border: 1px solid rgba(203, 213, 225, 0.2) !important;
-    border-radius: 0.5rem !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
 }
 
 /* Dark mode */
 .dark .katex-display,
 [data-theme="dark"] .katex-display {
-    background: rgba(30, 41, 59, 0.5) !important;
-    border-color: rgba(71, 85, 105, 0.3) !important;
+    background: transparent !important;
+    border-color: transparent !important;
 }
 
 /* ===========================================
@@ -34,30 +34,30 @@
    =========================================== */
 
 .katex {
-    font-size: 1em !important;
-    line-height: 1.4 !important;
+    font-size: 1em !important; /* Più compatto */
+    line-height: inherit !important;
 }
 
 /* Aggiungi spaziatura intorno alle formule inline */
 .katex:not(.katex-display .katex) {
     margin: 0 0.15em !important;
-    padding: 0.1em 0.2em !important;
-    background: rgba(139, 92, 246, 0.08) !important;
-    border-radius: 0.25rem !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    vertical-align: baseline !important; /* Evita salti di riga strani */
 }
 
 /* ===========================================
    FIX - Formule che vanno a capo
    =========================================== */
 
-.katex-html {
-    white-space: normal !important;
-    word-wrap: break-word !important;
+/* Evita a-capo interni nelle formule a blocco: usa scroll orizzontale */
+.katex-display .katex-html {
+    white-space: nowrap !important;
 }
 
-/* Permetti alle formule lunghe di andare a capo */
-.katex .base {
-    display: inline !important;
+.katex-display .base {
+    display: inline-block !important;
 }
 
 /* ===========================================
@@ -95,8 +95,8 @@
 
 @media (max-width: 640px) {
     .katex-display {
-        margin: 0.75rem 0 !important;
-        padding: 0.5rem !important;
+        margin: 0.5rem 0 !important;
+        padding: 0.25rem !important;
         font-size: 0.9em !important;
     }
 

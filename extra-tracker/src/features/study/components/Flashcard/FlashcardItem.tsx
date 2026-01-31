@@ -42,6 +42,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     onShowSource,
     isSourceActive = false,
     onEditingChange,
+    compactMode = false,
 }) => {
     // ============================================
     // STATE
@@ -99,7 +100,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
 
     /**
      * Starts editing mode.
-     * For existing cards: opens fullscreen modal
+     * For existing cards: opens fullscreen modal unless in compactMode (cinema view)
      * For new/temporary cards: uses inline editing
      */
     const handleStartEdit = useCallback(() => {
@@ -109,11 +110,17 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
             setTempBack(card.back);
             setIsEditing(true);
             onEditingChange?.(true);
+        } else if (compactMode) {
+            // Cinema mode: use inline editing instead of fullscreen modal
+            setTempFront(card.front);
+            setTempBack(card.back);
+            setIsEditing(true);
+            onEditingChange?.(true);
         } else {
-            // Existing card: open fullscreen modal
+            // Normal mode: open fullscreen modal
             setIsModalOpen(true);
         }
-    }, [card.id, card.front, card.back, onEditingChange]);
+    }, [card.id, card.front, card.back, onEditingChange, compactMode]);
 
     /**
      * Cancels editing and resets to original values.
@@ -212,7 +219,8 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     // ============================================
 
     const getCardClasses = (): string => {
-        const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding} ${CARD_STYLES.base.shadow}`;
+        // @ts-ignore - height property added to constant
+        const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding} ${CARD_STYLES.base.shadow} ${CARD_STYLES.base.height || ''}`;
         // Disable hover effects and transitions during editing for better UX
         const interactive = !isEditing 
             ? `${CARD_STYLES.base.transition} ${CARD_STYLES.base.hover.border} ${CARD_STYLES.base.hover.shadow}` 

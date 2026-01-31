@@ -69,6 +69,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     viewMode = VIEW_MODE.list,
     onShowSource,
     activeSourceCardId,
+    compactMode = false,
 }) => {
     // ============================================
     // STATE
@@ -341,6 +342,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                             viewMode="grid"
                             onShowSource={onShowSource}
                             isSourceActive={activeSourceCardId === card.id}
+                            compactMode={compactMode}
                         />
                         {insertingIndex === index && (
                             <div className={GRID_STYLES.fullSpan}>
@@ -408,6 +410,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
                             viewMode="list"
                             onShowSource={onShowSource}
                             isSourceActive={activeSourceCardId === card.id}
+                            compactMode={compactMode}
                         />
                         {insertingIndex === index + 1 ? (
                             <FlashcardInlineForm

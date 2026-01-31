@@ -107,8 +107,8 @@ const TYPOGRAPHY = {
         cinema: 'text-xl md:text-2xl',
     },
     lineHeight: {
-        body: 'leading-relaxed', // 1.6
-        math: 'leading-normal', // 1.4
+        body: 'leading-snug', // 1.375
+        math: 'leading-snug', // 1.375
     },
     letterSpacing: {
         body: 'tracking-tight', // -0.025em
@@ -138,16 +138,16 @@ const COLORS = {
  * Design System - Spaziatura
  */
 const SPACING = {
-    paragraph: 'mb-6 last:mb-0',
-    paragraphMobile: 'mb-4 last:mb-0',
+    paragraph: 'mb-2 sm:mb-3 last:mb-0',
+    paragraphMobile: 'mb-2 last:mb-0',
     list: {
-        level1: 'pl-8',
-        level2: 'pl-12',
-        level3: 'pl-16',
+        level1: 'pl-5',
+        level2: 'pl-8',
+        level3: 'pl-12',
     },
     formula: {
-        block: 'py-3 px-4 my-4',
-        inline: 'px-1.5',
+        block: 'py-1 px-0.5 my-1',
+        inline: 'px-0.5',
     },
 } as const;
 
@@ -160,6 +160,12 @@ const TRUNCATE_LIMIT = 5000;
  * Limite paragrafi visibili prima di "Mostra tutto".
  */
 const TRUNCATE_PARAGRAPHS = 3;
+
+/**
+ * Regex per split paragrafi - HOISTED per evitare ri-creazione ad ogni chiamata
+ * @see js-hoist-regexp
+ */
+const PARAGRAPH_SPLIT_REGEX = /\n\n+/;
 
 // ============================================
 // STYLE MAPPINGS
@@ -217,7 +223,8 @@ const truncateContent = (content: string, maxParagraphs: number): {
     isTruncated: boolean;
     totalParagraphs: number;
 } => {
-    const paragraphs = content.split(/\n\n+/);
+    // Usa regex hoistato per performance
+    const paragraphs = content.split(PARAGRAPH_SPLIT_REGEX);
     const totalParagraphs = paragraphs.length;
 
     if (content.length <= TRUNCATE_LIMIT && totalParagraphs <= maxParagraphs) {
@@ -249,7 +256,7 @@ const createMarkdownComponents = (
     p: ({ children }) => (
         <p
             className={`
-                ${cinemaMode ? 'mb-8' : SPACING.paragraph}
+                ${cinemaMode ? 'mb-6' : SPACING.paragraph}
                 ${centered ? 'text-center' : ''}
                 ${TYPOGRAPHY.lineHeight.body}
             `}
@@ -262,7 +269,7 @@ const createMarkdownComponents = (
     ul: ({ children }) => (
         <ul
             className={`
-                list-disc ${SPACING.list.level1} space-y-2 mb-6 last:mb-0
+                list-disc ${SPACING.list.level1} space-y-1.5 mb-3 last:mb-0
                 ${COLORS.list.marker}
                 ${centered ? 'text-left inline-block' : ''}
             `}
@@ -275,7 +282,7 @@ const createMarkdownComponents = (
     ol: ({ children }) => (
         <ol
             className={`
-                list-decimal ${SPACING.list.level1} space-y-2 mb-6 last:mb-0
+                list-decimal ${SPACING.list.level1} space-y-1.5 mb-3 last:mb-0
                 ${centered ? 'text-left inline-block' : ''}
             `}
         >
@@ -334,7 +341,7 @@ const createMarkdownComponents = (
     pre: ({ children }) => (
         <pre
             className={`
-                p-4 rounded-xl overflow-x-auto mb-6 last:mb-0
+                p-3 rounded-xl overflow-x-auto mb-3 last:mb-0
                 bg-slate-900 border border-slate-700
                 ${cinemaMode ? 'text-base' : 'text-sm'}
             `}
@@ -349,7 +356,7 @@ const createMarkdownComponents = (
             className={`
                 border-l-4 border-violet-500/50 pl-4 italic
                 ${COLORS.text.secondary} opacity-90
-                mb-6 last:mb-0
+                mb-3 last:mb-0
                 ${cinemaMode ? 'py-2 bg-violet-500/5 rounded-r-lg' : ''}
             `}
         >

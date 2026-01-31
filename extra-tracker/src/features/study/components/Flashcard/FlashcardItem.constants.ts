@@ -39,11 +39,12 @@ export const ANIMATION_CONFIG = {
 
 export const CARD_STYLES = {
     base: {
-        borderRadius: 'rounded-xl',
-        padding: 'p-3.5 md:p-4',
+        borderRadius: 'rounded-2xl',
+        padding: 'p-5 md:p-6', 
         border: 'border border-theme-default',
         shadow: 'shadow-theme-sm',
         transition: 'transition-colors duration-200',
+        height: 'h-full flex flex-col',
         hover: {
             border: 'hover:border-theme-strong',
             shadow: 'hover:shadow-theme-md',

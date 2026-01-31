@@ -6,7 +6,7 @@
  * sortable. Handles the transform and transition styles automatically.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Card } from '../../services/studyService';
@@ -22,12 +22,15 @@ interface SortableItemProps {
     viewMode?: 'list' | 'grid';
     onShowSource?: (card: Card) => void;
     isSourceActive?: boolean;
+    compactMode?: boolean;
 }
 
 /**
  * Drag Handle Icon Component
+ * HOISTED: Definito fuori dal componente per evitare ri-creazione ad ogni render
+ * @see rendering-hoist-jsx
  */
-const DragHandleIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+const DragHandleIcon = memo<{ className?: string }>(({ className = "w-4 h-4" }) => (
     <svg
         className={className}
         viewBox="0 0 24 24"
@@ -44,9 +47,16 @@ const DragHandleIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4
         <circle cx="15" cy="12" r="1" />
         <circle cx="15" cy="19" r="1" />
     </svg>
-);
+));
 
-export const SortableItem: React.FC<SortableItemProps> = ({
+DragHandleIcon.displayName = 'DragHandleIcon';
+
+/**
+ * SortableItem Component
+ * MEMOIZED: Previene re-render non necessari durante il drag
+ * @see rerender-memo
+ */
+const SortableItemComponent: React.FC<SortableItemProps> = ({
     card,
     index,
     totalCards,
@@ -56,6 +66,7 @@ export const SortableItem: React.FC<SortableItemProps> = ({
     viewMode = 'list',
     onShowSource,
     isSourceActive = false,
+    compactMode = false,
 }) => {
     // Track editing state to disable drag during editing
     const [isEditing, setIsEditing] = useState(false);
@@ -125,6 +136,7 @@ export const SortableItem: React.FC<SortableItemProps> = ({
                     onShowSource={onShowSource}
                     isSourceActive={isSourceActive}
                     onEditingChange={handleEditingChange}
+                    compactMode={compactMode}
                 />
             </div>
         );
@@ -163,11 +175,19 @@ export const SortableItem: React.FC<SortableItemProps> = ({
                         onShowSource={onShowSource}
                         isSourceActive={isSourceActive}
                         onEditingChange={handleEditingChange}
+                        compactMode={compactMode}
                     />
                 </div>
             </div>
         </div>
     );
 };
+
+/**
+ * Memoized export - previene re-render quando le props non cambiano
+ * @see rerender-memo
+ */
+export const SortableItem = memo(SortableItemComponent);
+SortableItem.displayName = 'SortableItem';
 
 export default SortableItem;
