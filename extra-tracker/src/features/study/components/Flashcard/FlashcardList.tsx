@@ -87,6 +87,14 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     const [hoveredInsertPosition, setHoveredInsertPosition] = useState<number | null>(null);
 
     // ============================================
+    // MEMOIZED VALUES (performance optimization)
+    // ============================================
+
+    // Memoize item IDs array for SortableContext to prevent re-renders
+    const itemIds = useMemo(() => items.map(card => card.id), [items]);
+    const cardCount = items.length;
+
+    // ============================================
     // EFFECTS
     // ============================================
 
@@ -130,7 +138,6 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
     // COMPUTED VALUES
     // ============================================
 
-    const cardCount = items.length;
     const activeCard = useMemo(() => {
         return activeId ? findCardById(items, activeId) : null;
     }, [activeId, items]);
@@ -326,7 +333,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
      */
     const renderGridView = () => (
         <SortableContext
-            items={items.map(card => card.id)}
+            items={itemIds}
             strategy={rectSortingStrategy}
         >
             <div className={GRID_STYLES.container}>
@@ -373,7 +380,7 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
      */
     const renderListView = () => (
         <SortableContext
-            items={items.map(card => card.id)}
+            items={itemIds}
             strategy={verticalListSortingStrategy}
         >
             <div className={LIST_STYLES.container}>

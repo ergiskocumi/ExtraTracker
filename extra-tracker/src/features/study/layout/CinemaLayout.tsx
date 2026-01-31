@@ -14,7 +14,8 @@ import React, { memo, useCallback, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Panel, Group, Separator } from 'react-resizable-panels';
-import { PDFReader, type PDFReaderRef } from '../components/PDF/PDFReader';
+import PDFReader from '../components/PDF/PDFReaderLazy';
+import type { PDFReaderRef } from '../components/PDF/PDFReader';
 import { StudySidebar } from '../components/Study/StudySidebar';
 import type { Deck, Card } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
@@ -62,13 +63,8 @@ interface PDFPanelProps {
 
 const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef, onSearchError }) => {
     /**
-     * CRITICAL: Always render PDFReader, even when pdfSrc is null.
-     * 
-     * React's Rules of Hooks require that components are always rendered
-     * in the same way. If we conditionally render PDFReader, its hooks
-     * won't be called consistently, causing "Rendered fewer hooks than expected" errors.
-     * 
-     * PDFReader handles the null case internally, so we can safely always render it.
+     * Keep PDFReader mounted to preserve its internal state.
+     * It safely handles a null pdfUrl internally.
      */
     
     // Normalize pdfSrc to ensure it's either a valid string or null

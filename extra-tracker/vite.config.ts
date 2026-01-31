@@ -29,7 +29,19 @@ export default defineConfig({
     } as any,
     cssCodeSplit: true,
     reportCompressedSize: false,
-    // RIMOSSO manualChunks - lascia che Vite gestisca automaticamente
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks - separate heavy libraries
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-pdf': ['pdfjs-dist', '@react-pdf-viewer/core', '@react-pdf-viewer/default-layout'],
+          'vendor-charts': ['recharts'],
+          'vendor-markdown': ['react-markdown', 'remark-gfm', 'rehype-raw', 'rehype-katex', 'remark-math'],
+          'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+          'vendor-motion': ['framer-motion'],
+        },
+      },
+    },
     chunkSizeWarningLimit: 1500,
     sourcemap: false,
   },

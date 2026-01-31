@@ -8,14 +8,26 @@
  * - Supporto temi Light/Dark
  */
 
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, lazy, Suspense } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { FloatingFeedbackButton } from '../../features/feedback/components/FloatingFeedbackButton';
-import { GlobalFeedbackModal } from '../../features/feedback/components/GlobalFeedbackModal';
-import { TutorialManager } from '../components/Tutorial/TutorialManager';
+const FloatingFeedbackButton = lazy(() =>
+    import('../../features/feedback/components/FloatingFeedbackButton').then((m) => ({
+        default: m.FloatingFeedbackButton,
+    }))
+);
+const GlobalFeedbackModal = lazy(() =>
+    import('../../features/feedback/components/GlobalFeedbackModal').then((m) => ({
+        default: m.GlobalFeedbackModal,
+    }))
+);
+const TutorialManager = lazy(() =>
+    import('../components/Tutorial/TutorialManager').then((m) => ({
+        default: m.TutorialManager,
+    }))
+);
 
 // ============================================
 // HEADER COMPONENT
@@ -130,7 +142,7 @@ export const AppLayout = () => {
             <Header />
 
             {/* Main Content */}
-            <main className="flex-1 w-full max-w-6xl px-4 sm:px-6 py-6 sm:py-8 mx-auto animate-fade-in relative z-0">
+            <main className="flex-1 w-full max-w-6xl px-4 sm:px-6 py-6 sm:py-8 mx-auto relative z-0">
                 <Outlet />
             </main>
 
@@ -138,11 +150,11 @@ export const AppLayout = () => {
             {!hideFooter && <Footer />}
 
             {/* Global Feedback Components */}
-            <FloatingFeedbackButton />
-            <GlobalFeedbackModal />
-            
-            {/* Tutorial Manager */}
-            <TutorialManager />
+            <Suspense fallback={null}>
+                <FloatingFeedbackButton />
+                <GlobalFeedbackModal />
+                <TutorialManager />
+            </Suspense>
         </div>
     );
 };

@@ -114,7 +114,7 @@ export const DashboardPage = () => {
     };
 
     return (
-        <div className="dashboard-page space-y-8 animate-fade-in">
+        <div className="dashboard-page space-y-8">
             {/* Ambient Glow Background - Subtle, theme-aware via CSS variables */}
             <div className="fixed top-0 left-0 right-0 h-[500px] pointer-events-none z-[-1] opacity-40">
                 <div 

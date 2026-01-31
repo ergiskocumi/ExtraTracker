@@ -8,7 +8,7 @@
  * @module FlashcardItem
  */
 
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import React, { useEffect, useState, useCallback, memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { Card } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
@@ -215,34 +215,34 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     }, [card.id, onUpdate]);
 
     // ============================================
-    // STYLE COMPUTATION
+    // STYLE COMPUTATION (memoized for performance)
     // ============================================
 
-    const getCardClasses = (): string => {
+    const cardClasses = useMemo((): string => {
         // @ts-ignore - height property added to constant
         const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding} ${CARD_STYLES.base.shadow} ${CARD_STYLES.base.height || ''}`;
         // Disable hover effects and transitions during editing for better UX
-        const interactive = !isEditing 
-            ? `${CARD_STYLES.base.transition} ${CARD_STYLES.base.hover.border} ${CARD_STYLES.base.hover.shadow}` 
+        const interactive = !isEditing
+            ? `${CARD_STYLES.base.transition} ${CARD_STYLES.base.hover.border} ${CARD_STYLES.base.hover.shadow}`
             : '';
         const cursor = onClick && !isEditing ? 'cursor-pointer' : '';
-        const border = isSourceActive 
-            ? CARD_STYLES.sourceActive.border 
+        const border = isSourceActive
+            ? CARD_STYLES.sourceActive.border
             : CARD_STYLES.default.border;
         const shadow = isSourceActive && !isEditing ? CARD_STYLES.sourceActive.shadow : '';
-        
-        return `${base} ${interactive} ${cursor} ${border} ${shadow}`.trim();
-    };
 
-    const getCardBackground = (): string => {
+        return `${base} ${interactive} ${cursor} ${border} ${shadow}`.trim();
+    }, [isEditing, onClick, isSourceActive]);
+
+    const cardBackground = useMemo((): string => {
         if (isEditing) {
             return 'rgba(255, 255, 255, 0.06)';
         }
 
-        return isSourceActive 
-            ? CARD_STYLES.sourceActive.background 
+        return isSourceActive
+            ? CARD_STYLES.sourceActive.background
             : CARD_STYLES.default.background;
-    };
+    }, [isEditing, isSourceActive]);
 
     // ============================================
     // RENDER
@@ -276,8 +276,8 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     if (isEditing) {
         return (
             <div
-                className={`group ${getCardClasses()}`}
-                style={{ background: getCardBackground() }}
+                className={`group ${cardClasses}`}
+                style={{ background: cardBackground }}
                 // No onClick during editing to prevent any interaction conflicts
             >
                 {cardContent}
@@ -292,8 +292,8 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
                 initial={ANIMATION_CONFIG.card.initial}
                 animate={ANIMATION_CONFIG.card.animate}
                 exit={ANIMATION_CONFIG.card.exit}
-                className={`group ${getCardClasses()}`}
-                style={{ background: getCardBackground() }}
+                className={`group ${cardClasses}`}
+                style={{ background: cardBackground }}
                 onClick={handleCardClick}
             >
                 {cardContent}

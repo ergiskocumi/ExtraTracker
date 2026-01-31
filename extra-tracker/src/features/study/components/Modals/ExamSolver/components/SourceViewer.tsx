@@ -10,7 +10,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, FileText, Search } from 'lucide-react';
-import PDFReader, { type PDFReaderRef } from '../../../PDF/PDFReader';
+import PDFReader from '../../../PDF/PDFReaderLazy';
+import type { PDFReaderRef } from '../../../PDF/PDFReader';
 
 // ============================================
 // TYPES

@@ -20,7 +20,7 @@ export const ThemeToggle = () => {
         <button
             type="button"
             onClick={toggleTheme}
-            className="relative w-14 h-8 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+            className="relative w-14 h-8 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 overflow-hidden"
             style={{
                 background: isDark 
                     ? 'linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%)' 
@@ -30,25 +30,36 @@ export const ThemeToggle = () => {
             aria-label={isDark ? 'Passa al tema chiaro' : 'Passa al tema scuro'}
             title={isDark ? 'Tema chiaro' : 'Tema scuro'}
         >
-            {/* Track decorations */}
+            {/* Background gradient preview - shows where you're going */}
+            <div 
+                className="absolute inset-0 transition-all duration-300"
+                style={{
+                    background: isDark 
+                        ? 'linear-gradient(to right, transparent 0%, rgba(255, 215, 0, 0.3) 60%, rgba(255, 215, 0, 0.6) 100%)'
+                        : 'linear-gradient(to left, transparent 0%, rgba(26, 26, 46, 0.4) 60%, rgba(26, 26, 46, 0.8) 100%)',
+                }}
+            />
+
+            {/* Track decorations - Preview of next theme */}
             {isDark ? (
-                // Stars for dark mode
+                // Clouds for light mode preview (right side - where toggle will go)
                 <>
-                    <span className="absolute top-1.5 left-2 w-1 h-1 bg-white/60 rounded-full" />
-                    <span className="absolute top-3 left-4 w-0.5 h-0.5 bg-white/40 rounded-full" />
-                    <span className="absolute bottom-2 left-3 w-0.5 h-0.5 bg-white/50 rounded-full" />
+                    <span className="absolute top-2 right-2 w-1.5 h-0.5 bg-white/70 rounded-full" />
+                    <span className="absolute top-2.5 right-4 w-2 h-0.5 bg-white/60 rounded-full" />
+                    <span className="absolute bottom-2.5 right-3 w-1 h-0.5 bg-white/50 rounded-full" />
                 </>
             ) : (
-                // Clouds for light mode
+                // Stars for dark mode preview (left side - where toggle will go)
                 <>
-                    <span className="absolute top-2 right-3 w-2 h-1 bg-white/70 rounded-full" />
-                    <span className="absolute bottom-2.5 right-4 w-1.5 h-0.5 bg-white/50 rounded-full" />
+                    <span className="absolute top-1.5 left-2 w-1 h-1 bg-gray-400 rounded-full animate-pulse" />
+                    <span className="absolute top-3 left-4 w-0.5 h-0.5 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                    <span className="absolute bottom-2 left-3 w-0.5 h-0.5 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
                 </>
             )}
             
             {/* Toggle knob with icon */}
             <span
-                className="absolute top-1 flex items-center justify-center w-6 h-6 rounded-full shadow-md transition-all duration-300"
+                className="absolute top-1 flex items-center justify-center w-6 h-6 rounded-full shadow-md transition-all duration-300 z-10"
                 style={{
                     left: isDark ? '4px' : 'calc(100% - 28px)',
                     background: isDark 
