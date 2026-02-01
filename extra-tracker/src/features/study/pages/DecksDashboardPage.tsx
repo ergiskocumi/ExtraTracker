@@ -17,7 +17,6 @@ import { useDeckHandlers } from '../hooks/useDeckHandlers';
 import { useOrganizedDecks } from '../hooks/useOrganizedDecks';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { DashboardLayout } from '../components/DashboardLayout';
-import { DashboardHero } from '../components/DashboardHero';
 import { TodayPlan } from '../components/TodayPlan';
 import { FilterBar } from '../components/FilterBar';
 import { DashboardContent } from '../components/DashboardContent';
@@ -58,7 +57,6 @@ export const DecksDashboardPage: React.FC = () => {
     const {
         decks,
         setDecks,
-        dueCardCount,
         isLoading,
         error,
         folders,
@@ -266,16 +264,6 @@ export const DecksDashboardPage: React.FC = () => {
             .map(exam => exam.id);
     }, [exams]);
 
-    // Calcola numero esami completati
-    const completedExamsCount = useMemo(() => {
-        return exams.filter(exam => 
-            exam.status === 'passed' || 
-            exam.status === 'failed' || 
-            exam.status === 'archived' || 
-            exam.status === 'completed'
-        ).length;
-    }, [exams]);
-
     // Calcola dueCardCount escludendo le carte degli esami completati
     const activeDueCardCount = useMemo(() => {
         // Filtra i deck degli esami completati
@@ -291,8 +279,6 @@ export const DecksDashboardPage: React.FC = () => {
         folderStats,
         todayPriorityDecks,
         filteredDecks,
-        totalCards,
-        masteredDecks,
     } = useDashboardCalculations({
         decks,
         folders,
@@ -410,19 +396,6 @@ export const DecksDashboardPage: React.FC = () => {
             }}
             onCompleteExam={() => setShowCompletionModal(true)}
         >
-            {/* Hero Stats + Stato Mentale - Nascosti quando una cartella o un esame è selezionato */}
-            {!isLoading && decks.length > 0 && !selectedFolderId && !selectedExamId && (
-                <>
-                    <DashboardHero
-                        totalDecks={decks.filter(d => !d.examId || !completedExamIds.includes(d.examId)).length}
-                        totalCards={totalCards}
-                        dueCards={activeDueCardCount}
-                        masteredDecks={completedExamsCount}
-                    />
-                    {/* Separatore */}
-                    <div className="my-8 border-t border-white/10"></div>
-                </>
-            )}
 
             {/* Oggi: Cosa Devo Studiare - Nascosto quando una cartella è selezionata */}
             {/* TEMPORANEAMENTE NASCOSTO PER TEST */}

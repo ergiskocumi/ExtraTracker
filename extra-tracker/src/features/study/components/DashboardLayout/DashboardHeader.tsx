@@ -89,7 +89,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                 transition={{ duration: 0.3 }}
                                 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white"
                             >
-                                Flashcards
+                                I Tuoi Esami
                             </motion.h1>
                         )}
                     </AnimatePresence>
@@ -98,8 +98,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     {selectedExamName 
                         ? 'Mazzi per questo esame' 
                         : selectedFolderName 
-                            ? 'Mazzi in questa cartella' 
-                            : 'Gestisci i tuoi mazzi e migliora la memoria'
+                            ? 'Esami in questa cartella' 
+                            : 'Gestisci i tuoi esami e preparati al meglio'
                     }
                 </p>
             </div>
@@ -127,7 +127,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                         className="flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
                     >
                         <FileText className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                        <span className="hidden sm:inline">Exam Solver</span>
+                        <span className="hidden sm:inline">Risolvi Esame</span>
                         <span className="sm:hidden">Solver</span>
                     </motion.button>
                 )}
@@ -138,7 +138,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     className="flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-3 sm:py-3.5 md:py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-violet-500 to-violet-600 text-white font-bold shadow-xl shadow-violet-500/30 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
                 >
                     <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                    <span>Nuovo Mazzo</span>
+                    <span>Nuovo Esame</span>
                 </motion.button>
             </div>
         </div>
