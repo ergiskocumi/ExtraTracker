@@ -11,7 +11,11 @@
 import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
-import { TbMoodSmile, TbMoodNeutral, TbFlame } from 'react-icons/tb';
+import { 
+    TbMoodSmile, TbMoodNeutral, TbFlame, 
+    TbLayoutGrid, TbClipboardCheck, TbCertificate, TbToggleLeft,
+    TbBrain, TbCalendarTime, TbBolt, TbSchool 
+} from 'react-icons/tb';
 
 // ============================================
 // TYPES
@@ -55,6 +59,9 @@ interface ModeDefinition {
     id: 'quiz' | 'spaced' | 'timeattack' | 'exam';
     title: string;
     description: string;
+    icon: React.ElementType;
+    gradient: string;
+    features: string[];
     config: StudyStartConfig;
 }
 
@@ -62,7 +69,10 @@ const MODES: ModeDefinition[] = [
     {
         id: 'quiz',
         title: 'Quiz',
-        description: 'Metti alla prova la tua memoria con un quiz',
+        description: 'Verifica attiva delle conoscenze',
+        icon: TbBrain,
+        gradient: 'from-blue-500 to-cyan-500',
+        features: ['Smart Mix intelligente', 'Focus su concetti chiave', 'Apprendimento attivo'],
         config: {
             mode: 'quiz',
             focus: 'smart',
@@ -73,7 +83,10 @@ const MODES: ModeDefinition[] = [
     {
         id: 'spaced',
         title: 'Ripetizione Spaziata',
-        description: '"Studia meno e ricorda meglio: il sistema ti dice cosa ripassare."',
+        description: 'Memorizzazione scientifica a lungo termine',
+        icon: TbCalendarTime,
+        gradient: 'from-emerald-500 to-teal-500',
+        features: ['Algoritmo Ebbinghaus', 'Ripasso ottimizzato', 'Massima ritenzione'],
         config: {
             mode: 'flashcard',
             focus: 'due',
@@ -84,7 +97,10 @@ const MODES: ModeDefinition[] = [
     {
         id: 'timeattack',
         title: 'Time Attack',
-        description: 'Allena il tuo ragionamento con una sfida a tempo',
+        description: 'Velocità e precisione sotto pressione',
+        icon: TbBolt,
+        gradient: 'from-amber-500 to-orange-500',
+        features: ['10 minuti intensi', 'Allenamento rapido', 'Massima concentrazione'],
         config: {
             mode: 'sprint',
             focus: 'smart',
@@ -94,8 +110,11 @@ const MODES: ModeDefinition[] = [
     },
     {
         id: 'exam',
-        title: 'Simulazione esame',
-        description: '"Un mix di tutti gli argomenti per simulare il giorno dell\'esame."',
+        title: 'Simulazione Esame',
+        description: 'Preparazione completa alla prova finale',
+        icon: TbSchool,
+        gradient: 'from-purple-500 to-pink-500',
+        features: ['Condizioni reali', 'Timer personalizzabile', 'Mix completo argomenti'],
         config: {
             mode: 'exam',
             focus: 'all',
@@ -118,25 +137,75 @@ interface ExamTypeOption {
     id: ExamType;
     label: string;
     description: string;
+    icon: React.ElementType;
+    color: string;
 }
 
 const EXAM_TYPES: ExamTypeOption[] = [
-    { id: 'mixed', label: 'Misto', description: 'Mix automatico di tutte le tipologie' },
-    { id: 'quiz_initial', label: 'Quiz Iniziale', description: 'Superamento per accesso esame finale' },
-    { id: 'full_mixed', label: 'Esame Misto', description: 'Quiz + domande aperte + vero/falso' },
-    { id: 'true_false', label: 'Vero e Falso', description: 'Solo domande vero/falso' },
+    { 
+        id: 'mixed', 
+        label: 'Misto', 
+        description: 'Mix automatico di tutte le tipologie',
+        icon: TbLayoutGrid,
+        color: 'from-purple-500 to-pink-500'
+    },
+    { 
+        id: 'quiz_initial', 
+        label: 'Quiz Iniziale', 
+        description: 'Superamento per accesso esame finale',
+        icon: TbClipboardCheck,
+        color: 'from-blue-500 to-cyan-500'
+    },
+    { 
+        id: 'full_mixed', 
+        label: 'Esame Misto', 
+        description: 'Quiz + domande aperte + vero/falso',
+        icon: TbCertificate,
+        color: 'from-indigo-500 to-purple-500'
+    },
+    { 
+        id: 'true_false', 
+        label: 'Vero e Falso', 
+        description: 'Solo domande vero/falso',
+        icon: TbToggleLeft,
+        color: 'from-teal-500 to-emerald-500'
+    },
 ];
 
 interface DifficultyOption {
     id: ExamDifficulty;
     label: string;
     icon: React.ElementType;
+    color: string;
+    bgColor: string;
+    borderColor: string;
 }
 
 const DIFFICULTIES: DifficultyOption[] = [
-    { id: 'easy', label: 'Facile', icon: TbMoodSmile },
-    { id: 'medium', label: 'Medio', icon: TbMoodNeutral },
-    { id: 'hard', label: 'Difficile', icon: TbFlame },
+    { 
+        id: 'easy', 
+        label: 'Facile', 
+        icon: TbMoodSmile,
+        color: 'text-emerald-600 dark:text-emerald-400',
+        bgColor: 'bg-emerald-500/10 hover:bg-emerald-500/20',
+        borderColor: 'border-emerald-500/30'
+    },
+    { 
+        id: 'medium', 
+        label: 'Medio', 
+        icon: TbMoodNeutral,
+        color: 'text-amber-600 dark:text-amber-400',
+        bgColor: 'bg-amber-500/10 hover:bg-amber-500/20',
+        borderColor: 'border-amber-500/30'
+    },
+    { 
+        id: 'hard', 
+        label: 'Difficile', 
+        icon: TbFlame,
+        color: 'text-red-600 dark:text-red-400',
+        bgColor: 'bg-red-500/10 hover:bg-red-500/20',
+        borderColor: 'border-red-500/30'
+    },
 ];
 
 // ============================================
@@ -150,6 +219,8 @@ interface ModeCardProps {
 }
 
 const ModeCard: React.FC<ModeCardProps> = ({ mode, index, onSelect }) => {
+    const Icon = mode.icon;
+    
     return (
         <motion.button
             type="button"
@@ -160,41 +231,65 @@ const ModeCard: React.FC<ModeCardProps> = ({ mode, index, onSelect }) => {
             whileTap={{ scale: 0.98 }}
             onClick={onSelect}
             className="
-                group relative flex flex-col items-center justify-center
-                aspect-square p-6 sm:p-8
+                group relative flex flex-col overflow-hidden
+                aspect-square p-5 sm:p-6
                 rounded-3xl border-2 transition-all duration-300
 
-                bg-white/80 border-gray-200/60
-                hover:bg-white hover:border-gray-300 hover:shadow-xl hover:shadow-black/5
+                bg-gray-50 border-gray-200 shadow-sm
+                hover:bg-white hover:border-gray-300 hover:shadow-md
 
-                dark:bg-white/5 dark:border-white/10
-                dark:hover:bg-white/10 dark:hover:border-white/20 dark:hover:shadow-xl dark:hover:shadow-black/20
+                dark:bg-gray-800/50 dark:border-gray-700/50
+                dark:hover:bg-gray-800/70 dark:hover:border-gray-600/50 dark:hover:shadow-2xl
 
-                cursor-pointer text-center
+                cursor-pointer text-left
             "
         >
-            <h3 className="
-                text-xl sm:text-2xl font-semibold mb-3
+            {/* Subtle accent gradient (non invasivo) */}
+            <div className={`
+                absolute top-0 left-0 w-full h-1 rounded-t-3xl
+                bg-gradient-to-r ${mode.gradient}
+                opacity-60 group-hover:opacity-100 transition-opacity
+            `} />
+            
+            {/* Header: Icon + Title */}
+            <div className="relative flex items-center gap-3 mb-3">
+                <div className={`
+                    p-2.5 rounded-xl bg-gradient-to-br ${mode.gradient}
+                    group-hover:scale-110 transition-transform duration-300
+                `}>
+                    <Icon className="w-5 h-5 text-gray-50" />
+                </div>
+                <h3 className="
+                    text-xl sm:text-2xl font-bold
                 text-gray-900 dark:text-white
-                group-hover:text-gray-950 dark:group-hover:text-white
                 transition-colors
-            ">
-                {mode.title}
-            </h3>
+                ">
+                    {mode.title}
+                </h3>
+            </div>
+            
+            {/* Description */}
             <p className="
-                text-sm sm:text-base leading-relaxed
-                text-gray-500 dark:text-white/60
-                group-hover:text-gray-600 dark:group-hover:text-white/70
-                transition-colors max-w-[200px]
+                relative text-xs sm:text-sm leading-relaxed mb-4
+                text-gray-800 dark:text-gray-300
+                transition-colors
             ">
                 {mode.description}
             </p>
-            <div className="
-                absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100
-                transition-opacity duration-300 pointer-events-none
-                bg-gradient-to-br from-transparent via-transparent to-black/[0.02]
-                dark:to-white/[0.03]
-            " />
+
+            {/* Features */}
+            <div className="relative mt-auto space-y-2">
+                {mode.features.map((feature, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-xs">
+                        <div className={`
+                            mt-1.5 w-1 h-1 rounded-full bg-gradient-to-r ${mode.gradient} flex-shrink-0
+                        `} />
+                        <span className="text-gray-700 dark:text-gray-400 leading-tight">
+                            {feature}
+                        </span>
+                    </div>
+                ))}
+            </div>
         </motion.button>
     );
 };
@@ -295,8 +390,9 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
             className="space-y-6"
         >
             {/* Numero Domande */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-white/70 mb-3">
+            <div className="bg-white dark:bg-white/5 rounded-2xl p-5 border border-gray-200/70 dark:border-white/10 shadow-sm">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-white/70 mb-3 flex items-center gap-2">
+                    <span className="text-lg">📝</span>
                     Numero Domande
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -311,7 +407,7 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
                             className={`
                                 px-4 py-2.5 rounded-xl font-medium transition-all
                                 ${!isCustomQuestions && questionCount === preset
-                                    ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                                    ? 'bg-gray-900 text-gray-50 dark:bg-white dark:text-gray-900'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/20'
                                 }
                             `}
@@ -344,8 +440,9 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {/* Tipo Esame */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-white/70 mb-3">
+                <div className="bg-white dark:bg-white/5 rounded-2xl p-5 border border-gray-200/70 dark:border-white/10 shadow-sm">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-white/70 mb-3 flex items-center gap-2">
+                        <span className="text-lg">🎯</span>
                         Tipo Esame
                     </label>
                     <div className="relative">
@@ -353,18 +450,33 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
                             type="button"
                             onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
                             className="
-                                w-full px-4 py-3 rounded-xl text-left
-                                bg-gray-100 dark:bg-white/10
+                                w-full px-4 py-3.5 rounded-xl text-left
+                                bg-white dark:bg-white/5
                                 text-gray-900 dark:text-white
-                                border-2 border-transparent
-                                hover:border-gray-300 dark:hover:border-white/30
-                                transition-all flex items-center justify-between
+                                border-2 transition-all 
+                                flex items-center justify-between gap-3
+                                shadow-sm hover:shadow-md
+                                group
                             "
+                            style={{
+                                borderColor: isTypeDropdownOpen ? 'currentColor' : 'transparent',
+                            }}
                         >
-                            <span>{selectedExamType.label}</span>
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg bg-gradient-to-br ${selectedExamType.color}`}>
+                                    <selectedExamType.icon className="w-5 h-5 text-gray-50" />
+                                </div>
+                                <div>
+                                    <div className="font-semibold">{selectedExamType.label}</div>
+                                    <div className="text-xs text-gray-500 dark:text-white/50">
+                                        {selectedExamType.description}
+                                    </div>
+                                </div>
+                            </div>
                             <motion.span
                                 animate={{ rotate: isTypeDropdownOpen ? 180 : 0 }}
                                 transition={{ duration: 0.2 }}
+                                className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-white/70"
                             >
                                 ▼
                             </motion.span>
@@ -384,30 +496,39 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
                                         shadow-xl overflow-hidden
                                     "
                                 >
-                                    {EXAM_TYPES.map((type) => (
-                                        <button
-                                            key={type.id}
-                                            type="button"
-                                            onClick={() => {
-                                                setExamType(type.id);
-                                                setIsTypeDropdownOpen(false);
-                                            }}
-                                            className={`
-                                                w-full px-4 py-3 text-left transition-colors
-                                                ${examType === type.id
-                                                    ? 'bg-gray-100 dark:bg-white/10'
-                                                    : 'hover:bg-gray-50 dark:hover:bg-white/5'
-                                                }
-                                            `}
-                                        >
-                                            <div className="font-medium text-gray-900 dark:text-white">
-                                                {type.label}
-                                            </div>
-                                            <div className="text-xs text-gray-500 dark:text-white/50">
-                                                {type.description}
-                                            </div>
-                                        </button>
-                                    ))}
+                                    {EXAM_TYPES.map((type) => {
+                                        const TypeIcon = type.icon;
+                                        return (
+                                            <button
+                                                key={type.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setExamType(type.id);
+                                                    setIsTypeDropdownOpen(false);
+                                                }}
+                                                className={`
+                                                    w-full px-4 py-3 text-left transition-all
+                                                    flex items-center gap-3
+                                                    ${examType === type.id
+                                                        ? 'bg-gray-100 dark:bg-white/10'
+                                                        : 'hover:bg-gray-50 dark:hover:bg-white/5'
+                                                    }
+                                                `}
+                                            >
+                                                <div className={`p-2 rounded-lg bg-gradient-to-br ${type.color} flex-shrink-0`}>
+                                                    <TypeIcon className="w-4 h-4 text-gray-50" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="font-medium text-gray-900 dark:text-white">
+                                                        {type.label}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-white/50">
+                                                        {type.description}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -415,29 +536,49 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
                 </div>
 
                 {/* Difficoltà */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-white/70 mb-3">
+                <div className="bg-white dark:bg-white/5 rounded-2xl p-5 border border-gray-200/70 dark:border-white/10 shadow-sm">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-white/70 mb-3 flex items-center gap-2">
+                        <span className="text-lg">⚡</span>
                         Difficoltà esame
                     </label>
                     <div className="flex gap-2">
                         {DIFFICULTIES.map((diff) => {
                             const Icon = diff.icon;
+                            const isSelected = difficulty === diff.id;
                             return (
-                                <button
+                                <motion.button
                                     key={diff.id}
                                     type="button"
                                     onClick={() => setDifficulty(diff.id)}
+                                    whileHover={{ scale: 1.02, y: -2 }}
+                                    whileTap={{ scale: 0.98 }}
                                     className={`
-                                        flex-1 flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl transition-all
-                                        ${difficulty === diff.id
-                                            ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60 dark:hover:bg-white/20'
+                                        flex-1 flex flex-col items-center gap-2 py-4 px-2 rounded-xl 
+                                        transition-all border-2 relative overflow-hidden
+                                        ${isSelected
+                                            ? `${diff.bgColor} ${diff.borderColor} shadow-lg`
+                                            : `bg-gray-50 dark:bg-white/5 border-transparent hover:${diff.bgColor}`
                                         }
                                     `}
                                 >
-                                    <Icon className="w-5 h-5" />
-                                    <span className="text-xs font-medium">{diff.label}</span>
-                                </button>
+                                    <Icon className={`w-6 h-6 transition-colors ${
+                                        isSelected ? diff.color : 'text-gray-400 dark:text-white/40'
+                                    }`} />
+                                    <span className={`text-sm font-semibold transition-colors ${
+                                        isSelected 
+                                            ? diff.color.replace('text-', 'text-').replace('/400', '/700 dark:text-').replace('/600', '') + diff.color.split('dark:')[1]
+                                            : 'text-gray-600 dark:text-white/60'
+                                    }`}>
+                                        {diff.label}
+                                    </span>
+                                    {isSelected && (
+                                        <motion.div
+                                            layoutId="difficulty-indicator"
+                                            className="absolute inset-0 -z-10"
+                                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                        />
+                                    )}
+                                </motion.button>
                             );
                         })}
                     </div>
@@ -445,8 +586,9 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
             </div>
 
             {/* Timer */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-white/70 mb-3">
+            <div className="bg-white dark:bg-white/5 rounded-2xl p-5 border border-gray-200/70 dark:border-white/10 shadow-sm">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-white/70 mb-3 flex items-center gap-2">
+                    <span className="text-lg">⏱️</span>
                     Timer esame <span className="text-gray-400 dark:text-white/40 font-normal">(max 3 ore)</span>
                 </label>
                 <div className="flex items-center gap-3">
@@ -528,7 +670,7 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
                     onClick={handleStart}
                     className="
                         flex-1 px-6 py-4 rounded-2xl font-semibold
-                        bg-gray-900 text-white hover:bg-gray-800
+                        bg-gray-900 text-gray-50 hover:bg-gray-800
                         dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100
                         transition-all
                     "
@@ -595,7 +737,7 @@ export const StudyModeSelector: React.FC<StudyModeSelectorProps> = ({
                 exit={{ opacity: 0, x: -50 }}
                 transition={{ duration: 0.3 }}
             >
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                     {MODES.map((mode, index) => (
                         <ModeCard
                             key={mode.id}
@@ -624,7 +766,7 @@ export const StudyModeSelector: React.FC<StudyModeSelectorProps> = ({
                         onClick={handleClose}
                         className="
                             fixed inset-0 z-[100]
-                            bg-black/20 dark:bg-black/40
+                            bg-black/10 :bg-black/40
                             backdrop-blur-xl
                         "
                     />
@@ -641,7 +783,7 @@ export const StudyModeSelector: React.FC<StudyModeSelectorProps> = ({
                                 w-full max-w-2xl pointer-events-auto
                                 rounded-[32px] overflow-hidden
 
-                                bg-gray-50/95 border border-gray-200/50
+                                bg-white/95 border border-gray-200
                                 shadow-2xl shadow-black/10
 
                                 dark:bg-gray-900/95 dark:border-white/10
