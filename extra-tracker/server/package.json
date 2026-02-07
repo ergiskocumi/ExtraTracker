@@ -18,13 +18,13 @@
     "@langchain/openai": "^0.3.0",
     "@pinecone-database/pinecone": "^3.0.0",
     "argon2": "^0.41.1",
+    "bull": "^4.12.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "express-rate-limit": "^7.4.1",
-    "rate-limit-redis": "^4.2.0",
-    "redis": "^4.7.0",
+    "geoip-lite": "^1.4.10",
     "helmet": "^7.2.0",
     "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.2",
@@ -34,8 +34,12 @@
     "nodemailer": "^6.9.16",
     "nodemon": "^3.1.7",
     "openai": "^4.71.0",
+    "otplib": "^13.2.1",
     "pdf-parse": "1.1.1",
-    "zod": "^3.23.8",
-    "bull": "^4.12.0"
+    "qrcode": "^1.5.4",
+    "rate-limit-redis": "^4.2.0",
+    "redis": "^4.7.0",
+    "ua-parser-js": "^2.0.9",
+    "zod": "^3.23.8"
   }
 }

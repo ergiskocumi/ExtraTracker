@@ -1,17 +1,15 @@
 /**
- * CONTROLLER AUTENTICAZIONE
+ * CONTROLLER AUTENTICAZIONE - Enhanced Security Version
  * 
- * Responsabilità:
- * 1. Gestire request/response HTTP
- * 2. Chiamare il service appropriato
- * 3. Impostare cookies sicuri
- * 4. Formattare risposte
- * 
- * NON contiene logica di business (quella è nel service)
+ * Aggiornamenti:
+ * - Audit logging integrato
+ * - Device fingerprinting
+ * - Enhanced JWT claims
  */
 
 const authService = require('../services/authService');
-const { getDeviceInfo } = require('../services/authService');
+const auditService = require('../services/auditService');
+const { getDeviceInfo, generateDeviceFingerprint } = require('../services/authService');
 const securityConfig = require('../config/security');
 const { setCsrfCookie } = require('../middleware/csrf');
 const { asyncHandler } = require('../middleware/errorHandler');
@@ -26,14 +24,12 @@ const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
  * Helper per impostare i cookie di autenticazione
  */
 const setAuthCookies = (res, accessToken, refreshToken) => {
-    // Access token cookie
     res.cookie(
         securityConfig.cookie.name,
         accessToken,
         securityConfig.cookie.options
     );
 
-    // Refresh token cookie (path specifico!)
     res.cookie(
         securityConfig.cookie.refreshName,
         refreshToken,
@@ -66,24 +62,28 @@ const clearAuthCookies = (res) => {
 
 /**
  * POST /api/auth/register
- * Registra un nuovo utente
  */
 const register = asyncHandler(async (req, res) => {
     const deviceInfo = getDeviceInfo(req);
-    const { user, accessToken, refreshToken } = await authService.register(req.body, deviceInfo);
+    const deviceFingerprint = generateDeviceFingerprint(req);
+    
+    const { user, accessToken, refreshToken } = await authService.register(
+        req.body, 
+        deviceInfo,
+        req
+    );
 
     // Genera token di verifica email
     const verificationToken = generateToken();
     const hashedToken = hashToken(verificationToken);
     const verificationExpires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
     
-    // Salva token hashato nel DB
     await User.findByIdAndUpdate(user._id, {
         emailVerificationToken: hashedToken,
         emailVerificationExpires: verificationExpires,
     });
 
-    // Invia email di verifica (non blocca la risposta)
+    // Invia email di verifica
     emailService.sendVerificationEmail(user.email, verificationToken)
         .catch(err => {
             logger.error('AuthController', 'Invio email verifica fallito', {
@@ -92,7 +92,6 @@ const register = asyncHandler(async (req, res) => {
             });
         });
 
-    // Imposta cookies sicuri
     setAuthCookies(res, accessToken, refreshToken);
 
     res.status(201).json({
@@ -110,38 +109,62 @@ const register = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/auth/login
- * Effettua il login
  */
 const login = asyncHandler(async (req, res) => {
     const deviceInfo = getDeviceInfo(req);
-    const { user, accessToken, refreshToken } = await authService.login(req.body, deviceInfo);
+    const { twoFactorCode } = req.body;
 
-    // Imposta cookies sicuri
-    setAuthCookies(res, accessToken, refreshToken);
+    try {
+        const { user, accessToken, refreshToken } = await authService.login(
+            req.body,
+            deviceInfo,
+            req
+        );
 
-    res.status(200).json({
-        success: true,
-        message: 'Login effettuato con successo',
-        data: {
-            user: {
-                id: user._id,
-                email: user.email,
-                role: user.role,
+        // Se 2FA richiesto, genera temp token
+        if (user.twoFactorEnabled && !twoFactorCode) {
+            const tempToken = authService.generateAccessToken(user, { 
+                type: 'temp',
+                expiresIn: '5m'
+            });
+
+            return res.status(200).json({
+                success: true,
+                requiresTwoFactor: true,
+                message: 'Inserisci il codice 2FA',
+                data: {
+                    tempToken,
+                },
+            });
+        }
+
+        setAuthCookies(res, accessToken, refreshToken);
+
+        res.status(200).json({
+            success: true,
+            message: 'Login effettuato con successo',
+            data: {
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    role: user.role,
+                    twoFactorEnabled: user.twoFactorEnabled,
+                },
             },
-        },
-    });
+        });
+    } catch (error) {
+        // Audit login failure è già fatto nel service
+        throw error;
+    }
 });
 
 /**
  * POST /api/auth/refresh
- * Rinnova l'access token usando il refresh token
  */
 const refresh = asyncHandler(async (req, res, next) => {
     const refreshToken = req.cookies?.[securityConfig.cookie.refreshName];
 
     if (!refreshToken) {
-        // Esempio di utilizzo AppError: passa l'errore al global error handler
-        // Il global handler si occuperà di formattare la risposta corretta
         return next(new AppError('Sessione scaduta, effettua nuovamente il login', 401));
     }
 
@@ -149,7 +172,6 @@ const refresh = asyncHandler(async (req, res, next) => {
     const { accessToken, refreshToken: newRefreshToken } = 
         await authService.refreshAccessToken(refreshToken, deviceInfo);
 
-    // Ruota i token (refresh token rotation per sicurezza)
     setAuthCookies(res, accessToken, newRefreshToken);
 
     res.status(200).json({
@@ -160,21 +182,15 @@ const refresh = asyncHandler(async (req, res, next) => {
 
 /**
  * POST /api/auth/logout
- * Effettua il logout (invalida solo la sessione corrente o tutte se specificato)
  */
 const logout = asyncHandler(async (req, res) => {
-    // Invalida refresh token nel DB e access token nella blacklist (se utente autenticato)
     if (req.user?.id) {
         const refreshToken = req.cookies?.[securityConfig.cookie.refreshName];
         const accessToken = req.cookies?.[securityConfig.cookie.name];
         
-        // Se c'è un refresh token, invalida solo quella sessione
-        // Altrimenti invalida tutte le sessioni (logout da tutti i dispositivi)
-        // Aggiungi access token alla blacklist per revoca immediata
-        await authService.logout(req.user.id, refreshToken || null, accessToken || null);
+        await authService.logout(req.user.id, refreshToken || null, accessToken || null, req);
     }
 
-    // Cancella cookies
     clearAuthCookies(res);
 
     res.status(200).json({
@@ -185,7 +201,6 @@ const logout = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/auth/me
- * Ottieni profilo utente corrente
  */
 const getProfile = asyncHandler(async (req, res) => {
     const user = await authService.getProfile(req.user.id);
@@ -198,6 +213,7 @@ const getProfile = asyncHandler(async (req, res) => {
                 email: user.email,
                 role: user.role,
                 isEmailVerified: user.isEmailVerified,
+                twoFactorEnabled: user.twoFactorEnabled,
                 createdAt: user.createdAt,
             },
         },
@@ -206,14 +222,12 @@ const getProfile = asyncHandler(async (req, res) => {
 
 /**
  * PUT /api/auth/password
- * Cambia password
  */
 const changePassword = asyncHandler(async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
-    await authService.changePassword(req.user.id, currentPassword, newPassword);
+    await authService.changePassword(req.user.id, currentPassword, newPassword, req);
 
-    // Cancella tutti i cookie per forzare re-login
     clearAuthCookies(res);
 
     res.status(200).json({
@@ -224,10 +238,8 @@ const changePassword = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/auth/check
- * Verifica se l'utente è autenticato (per il frontend)
  */
 const checkAuth = asyncHandler(async (req, res) => {
-    // Se arriviamo qui, il middleware requireAuth ha già verificato il token
     const user = await authService.getProfile(req.user.id);
 
     res.status(200).json({
@@ -245,7 +257,6 @@ const checkAuth = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/auth/csrf
- * Restituisce il CSRF token corrente (e assicura il cookie)
  */
 const getCsrfToken = asyncHandler(async (req, res) => {
     const csrfToken = req.csrfToken || setCsrfCookie(res);
@@ -262,22 +273,15 @@ const getCsrfToken = asyncHandler(async (req, res) => {
 // VERIFICA EMAIL
 // ==========================================
 
-/**
- * POST /api/auth/verify-email
- * Verifica l'indirizzo email con il token
- */
 const verifyEmail = asyncHandler(async (req, res, next) => {
     const { token } = req.body;
 
     if (!token) {
-        // Esempio di utilizzo AppError: usa next() per passare l'errore al global handler
         return next(new AppError('Token di verifica mancante', 400));
     }
 
-    // Hash del token per confronto
     const hashedToken = hashToken(token);
 
-    // Trova utente con questo token
     const user = await User.findOne({
         emailVerificationToken: hashedToken,
         emailVerificationExpires: { $gt: Date.now() },
@@ -293,11 +297,21 @@ const verifyEmail = asyncHandler(async (req, res, next) => {
         });
     }
 
-    // Aggiorna utente
     user.isEmailVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
     await user.save();
+
+    // Audit log
+    await auditService.log({
+        userId: user._id,
+        userEmail: user.email,
+        action: 'EMAIL_VERIFIED',
+        description: 'Email verificata con successo',
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        success: true,
+    });
 
     res.status(200).json({
         success: true,
@@ -305,10 +319,6 @@ const verifyEmail = asyncHandler(async (req, res, next) => {
     });
 });
 
-/**
- * POST /api/auth/resend-verification
- * Reinvia email di verifica
- */
 const resendVerification = asyncHandler(async (req, res) => {
     const userId = req.user?.id;
 
@@ -344,7 +354,6 @@ const resendVerification = asyncHandler(async (req, res) => {
         });
     }
 
-    // Genera nuovo token
     const verificationToken = generateToken();
     const hashedToken = hashToken(verificationToken);
     const verificationExpires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
@@ -354,7 +363,6 @@ const resendVerification = asyncHandler(async (req, res) => {
         emailVerificationExpires: verificationExpires,
     });
 
-    // Invia email
     await emailService.sendVerificationEmail(user.email, verificationToken);
 
     res.status(200).json({
@@ -367,10 +375,6 @@ const resendVerification = asyncHandler(async (req, res) => {
 // RESET PASSWORD
 // ==========================================
 
-/**
- * POST /api/auth/forgot-password
- * Richiedi reset password
- */
 const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
 
@@ -384,10 +388,8 @@ const forgotPassword = asyncHandler(async (req, res) => {
         });
     }
 
-    // Cerca utente (non rivelare se esiste o meno per sicurezza)
     const user = await User.findOne({ email: email.toLowerCase() });
 
-    // Rispondi sempre con successo per non rivelare se l'email esiste
     if (!user) {
         return res.status(200).json({
             success: true,
@@ -395,25 +397,33 @@ const forgotPassword = asyncHandler(async (req, res) => {
         });
     }
 
-    // Genera token con scadenza (1 ora)
     const resetToken = generateToken();
     const hashedToken = hashToken(resetToken);
 
     await User.findByIdAndUpdate(user._id, {
         passwordResetToken: hashedToken,
-        passwordResetExpires: Date.now() + 60 * 60 * 1000, // 1 ora
+        passwordResetExpires: Date.now() + 60 * 60 * 1000,
     });
 
-    // Invia email
     try {
         await emailService.sendPasswordResetEmail(user.email, resetToken);
     } catch (error) {
-        // Se l'invio fallisce, pulisci il token
         await User.findByIdAndUpdate(user._id, {
             $unset: { passwordResetToken: 1, passwordResetExpires: 1 },
         });
         throw error;
     }
+
+    // Audit log
+    await auditService.log({
+        userId: user._id,
+        userEmail: user.email,
+        action: 'PASSWORD_RESET_REQUEST',
+        description: 'Richiesta reset password',
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        success: true,
+    });
 
     res.status(200).json({
         success: true,
@@ -421,17 +431,11 @@ const forgotPassword = asyncHandler(async (req, res) => {
     });
 });
 
-/**
- * POST /api/auth/reset-password
- * Completa il reset password con nuovo password
- */
 const resetPassword = asyncHandler(async (req, res) => {
     const { token, newPassword } = req.body;
 
-    // Hash del token
     const hashedToken = hashToken(token);
 
-    // Trova utente con token valido e non scaduto
     const user = await User.findOne({
         passwordResetToken: hashedToken,
         passwordResetExpires: { $gt: Date.now() },
@@ -447,12 +451,26 @@ const resetPassword = asyncHandler(async (req, res) => {
         });
     }
 
-    // Aggiorna password
-    user.password = await authService.hashPassword(newPassword);
+    // Hash nuova password
+    const hashedPassword = await authService.hashPassword(newPassword);
+    
+    user.password = hashedPassword;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
-    user.refreshTokenHash = undefined; // Invalida sessioni esistenti
+    user.refreshTokenHash = undefined;
     await user.save();
+
+    // Audit log
+    await auditService.log({
+        userId: user._id,
+        userEmail: user.email,
+        action: 'PASSWORD_RESET_COMPLETE',
+        description: 'Password resettata con successo',
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        success: true,
+        severity: 'HIGH',
+    });
 
     // Invia email di conferma
     emailService.sendPasswordChangedEmail(user.email)
