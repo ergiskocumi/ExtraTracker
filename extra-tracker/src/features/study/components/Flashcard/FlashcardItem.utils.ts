@@ -101,5 +101,9 @@ export function shouldHandleCardClick(
     if (isEditing) return false;
     
     const target = event.target as HTMLElement;
-    return !target.closest('button') && !target.closest('textarea') && !target.closest('input');
+    return !target.closest('button') &&
+        !target.closest('textarea') &&
+        !target.closest('input') &&
+        !target.closest('[data-card-editor]') &&
+        !target.closest('[contenteditable=\"true\"]');
 }

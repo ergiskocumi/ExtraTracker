@@ -282,6 +282,12 @@ class StudyService extends BaseService {
         // Riordina le card secondo l'ordine fornito
         const reorderedCards = cardIds.map(id => cardMap.get(id));
 
+        // SAFETY CHECK: Verifica che nessuna card sia undefined (defensive programming)
+        const hasUndefined = reorderedCards.some(card => card === undefined);
+        if (hasUndefined) {
+            throw AppError.internal({ message: 'Errore interno nel riordinamento delle card' });
+        }
+
         // Aggiorna il deck con le card riordinate
         deck.cards = reorderedCards;
         await deck.save();
@@ -478,8 +484,11 @@ class StudyService extends BaseService {
 
     _serializeDeck(deck) {
         // Converti deck Mongoose a plain object se necessario
-        const deckObj = deck.toObject ? deck.toObject() : deck;
-        return deck.toJSON();
+        // FIXED: Usava deckObj ma ritornava deck.toJSON()
+        if (deck.toJSON) {
+            return deck.toJSON();
+        }
+        return deck.toObject ? deck.toObject() : deck;
     }
 
     // =========================================
@@ -1150,25 +1159,20 @@ class StudyService extends BaseService {
     _extractPageNumbers(text) {
         if (!text) return [];
 
-        const pageNumbers = [];
+        // OTTIMIZZATO: Usa Set per O(1) lookup invece di includes() O(n)
+        const pageNumbers = new Set();
         const pageRegex = /--- PAGE (\d+) ---/g;
         const pageRegexOld = /--- Pagina (\d+) ---/g;
 
         let match;
         while ((match = pageRegex.exec(text)) !== null) {
-            const pageNum = parseInt(match[1], 10);
-            if (!pageNumbers.includes(pageNum)) {
-                pageNumbers.push(pageNum);
-            }
+            pageNumbers.add(parseInt(match[1], 10));
         }
         while ((match = pageRegexOld.exec(text)) !== null) {
-            const pageNum = parseInt(match[1], 10);
-            if (!pageNumbers.includes(pageNum)) {
-                pageNumbers.push(pageNum);
-            }
+            pageNumbers.add(parseInt(match[1], 10));
         }
 
-        return pageNumbers.sort((a, b) => a - b);
+        return Array.from(pageNumbers).sort((a, b) => a - b);
     }
 
     /**

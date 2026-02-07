@@ -7,9 +7,10 @@
  * No backdrop/overlay - allows PDF scrolling while typing.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { FiCheck, FiX } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import { MarkdownEditor } from './CardEditor';
 
 interface FlashcardInlineFormProps {
     /** Callback when the form is saved */
@@ -28,14 +29,6 @@ export const FlashcardInlineForm: React.FC<FlashcardInlineFormProps> = ({
     const [front, setFront] = useState('');
     const [back, setBack] = useState('');
     const [isSaving, setIsSaving] = useState(false);
-    const frontTextareaRef = useRef<HTMLTextAreaElement>(null);
-
-    // Auto-focus the front input on mount
-    useEffect(() => {
-        if (frontTextareaRef.current) {
-            frontTextareaRef.current.focus();
-        }
-    }, []);
 
     const handleSave = async () => {
         const trimmedFront = front.trim();
@@ -80,17 +73,19 @@ export const FlashcardInlineForm: React.FC<FlashcardInlineFormProps> = ({
                             Domanda (Fronte)
                         </label>
                     </div>
-                    <textarea
-                        ref={frontTextareaRef}
+                    <MarkdownEditor
                         value={front}
-                        onChange={(e) => setFront(e.target.value)}
+                        onChange={setFront}
                         placeholder="Inserisci la domanda..."
-                        rows={3}
-                        className="w-full resize-y min-h-[80px] p-3 rounded-xl text-sm md:text-base bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60 transition-all duration-300"
-                        style={{
-                            scrollbarWidth: 'thin',
-                            scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-                        }}
+                        autoFocus
+                        disabled={isSaving}
+                        onSave={handleSave}
+                        onCancel={onCancel}
+                        toolbarVisibility="focus"
+                        size="sm"
+                        minRows={3}
+                        className="space-y-2"
+                        textareaClassName="min-h-[80px] bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:ring-violet-500/50 focus:border-violet-500/60"
                     />
                 </div>
 
@@ -104,16 +99,18 @@ export const FlashcardInlineForm: React.FC<FlashcardInlineFormProps> = ({
                             Risposta (Retro)
                         </label>
                     </div>
-                    <textarea
+                    <MarkdownEditor
                         value={back}
-                        onChange={(e) => setBack(e.target.value)}
+                        onChange={setBack}
                         placeholder="Inserisci la risposta..."
-                        rows={4}
-                        className="w-full resize-y min-h-[100px] p-3 rounded-xl text-sm md:text-base bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60 transition-all duration-300"
-                        style={{
-                            scrollbarWidth: 'thin',
-                            scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-                        }}
+                        disabled={isSaving}
+                        onSave={handleSave}
+                        onCancel={onCancel}
+                        toolbarVisibility="focus"
+                        size="sm"
+                        minRows={4}
+                        className="space-y-2"
+                        textareaClassName="min-h-[100px] bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:ring-violet-500/50 focus:border-violet-500/60"
                     />
                 </div>
 

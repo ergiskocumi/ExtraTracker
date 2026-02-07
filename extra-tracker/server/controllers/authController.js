@@ -18,6 +18,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const { emailService, generateToken, hashToken } = require('../services/emailService');
 const AppError = require('../utils/AppError');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -84,7 +85,12 @@ const register = asyncHandler(async (req, res) => {
 
     // Invia email di verifica (non blocca la risposta)
     emailService.sendVerificationEmail(user.email, verificationToken)
-        .catch(err => console.error('Errore invio email verifica:', err));
+        .catch(err => {
+            logger.error('AuthController', 'Invio email verifica fallito', {
+                userId: user._id.toString(),
+                error: err.message
+            });
+        });
 
     // Imposta cookies sicuri
     setAuthCookies(res, accessToken, refreshToken);

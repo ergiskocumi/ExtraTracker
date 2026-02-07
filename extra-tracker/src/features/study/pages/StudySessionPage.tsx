@@ -25,6 +25,7 @@ import { TypingView } from '../components/Study/TypingView';
 import { studyService, type StudySession, type ReviewRating, type StudyMode, type Card, type SessionFocus, type SessionLength, type SessionDirection } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { useAuth } from '../../auth/context/AuthContext';
+import { selectCardsForQuiz } from '../utils/adaptiveGapFiller';
 
 // ============================================
 // RATING BUTTON COMPONENT
@@ -339,7 +340,14 @@ export const StudySessionPage: React.FC = () => {
                     return;
                 }
 
-                const orderedCards = data.cards;
+                // Applica Adaptive Gap-Filler per modalità Quiz
+                // L'algoritmo seleziona le carte in modo intelligente:
+                // - 50% Criticità (carte difficili)
+                // - 30% Nuove (carte mai viste)
+                // - 20% Consolidate (carte padroneggiate per motivazione)
+                const orderedCards = mode === 'quiz'
+                    ? selectCardsForQuiz(data.cards, limit).cards
+                    : data.cards;
                 const cardModes = data.cardModes ?? buildFallbackCardModes(orderedCards, mode);
                 setSession({ ...data, cards: orderedCards, cardModes });
                 setCurrentCardIndex(0);

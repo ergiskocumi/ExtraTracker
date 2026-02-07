@@ -5,6 +5,7 @@
  * Gestisce le richieste HTTP per Learning & Flashcards.
  */
 
+const fs = require('fs').promises;
 const studyService = require('../services/studyService');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { validatePdfFile } = require('../utils/pdfValidator');
@@ -296,6 +297,8 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
 
     // Verifica che sia un PDF
     if (req.file.mimetype !== 'application/pdf') {
+        // Cleanup file prima di ritornare errore
+        await fs.unlink(req.file.path).catch(() => {});
         return res.status(400).json({
             success: false,
             error: 'Il file deve essere un PDF.',
@@ -305,23 +308,30 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
     // Limite dimensione file (10MB)
     const maxSize = 10 * 1024 * 1024;
     if (req.file.size > maxSize) {
+        // Cleanup file prima di ritornare errore
+        await fs.unlink(req.file.path).catch(() => {});
         return res.status(400).json({
             success: false,
             error: 'Il file è troppo grande. Massimo 10MB.',
         });
     }
 
-    const result = await studyService.generateCardsFromPDF(
-        req.tenantScope,
-        req.params.id,
-        req.file.path
-    );
+    try {
+        const result = await studyService.generateCardsFromPDF(
+            req.tenantScope,
+            req.params.id,
+            req.file.path
+        );
 
-    res.json({
-        success: true,
-        data: result,
-        message: `✨ Generate ${result.generatedCount} flashcard con successo!`,
-    });
+        res.json({
+            success: true,
+            data: result,
+            message: `✨ Generate ${result.generatedCount} flashcard con successo!`,
+        });
+    } finally {
+        // Cleanup: rimuovi file temporaneo dopo elaborazione
+        await fs.unlink(req.file.path).catch(() => {});
+    }
 });
 
 /**
@@ -591,11 +601,43 @@ const generateAnswers = asyncHandler(async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disabilita buffering nginx
 
+    // Timeout SSE: chiudi connessione dopo 5 minuti di inattività
+    const SSE_TIMEOUT_MS = 5 * 60 * 1000;
+    let lastActivity = Date.now();
+    let connectionClosed = false;
+
     // Helper per inviare eventi SSE
     const sendEvent = (type, data) => {
+        if (connectionClosed) return;
+        lastActivity = Date.now();
         res.write(`event: ${type}\n`);
         res.write(`data: ${JSON.stringify(data)}\n\n`);
     };
+
+    // Heartbeat periodico (ogni 30s) per mantenere connessione attiva
+    const heartbeatInterval = setInterval(() => {
+        if (connectionClosed) {
+            clearInterval(heartbeatInterval);
+            return;
+        }
+        // Verifica timeout
+        if (Date.now() - lastActivity > SSE_TIMEOUT_MS) {
+            console.warn('⏰ SSE timeout: chiusura connessione per inattività');
+            sendEvent('error', { message: 'Timeout: connessione chiusa per inattività' });
+            connectionClosed = true;
+            clearInterval(heartbeatInterval);
+            res.end();
+            return;
+        }
+        // Invia heartbeat
+        res.write(':heartbeat\n\n');
+    }, 30000);
+
+    // Cleanup su chiusura client
+    req.on('close', () => {
+        connectionClosed = true;
+        clearInterval(heartbeatInterval);
+    });
 
     try {
         const result = await studyService.generateExamAnswers(
@@ -629,11 +671,15 @@ const generateAnswers = asyncHandler(async (req, res) => {
             console.error('❌ generateAnswers: flashcards mancanti o non array:', result);
         }
 
-        // Invia evento finale
+        // Invia evento finale e cleanup
+        clearInterval(heartbeatInterval);
+        connectionClosed = true;
         sendEvent('complete', result);
         res.end();
     } catch (err) {
         console.error('❌ generateAnswers error:', err.message);
+        clearInterval(heartbeatInterval);
+        connectionClosed = true;
         sendEvent('error', { message: err.message || 'Errore durante la generazione' });
         res.end();
     }

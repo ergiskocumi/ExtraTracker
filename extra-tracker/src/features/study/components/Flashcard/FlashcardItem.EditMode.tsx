@@ -7,10 +7,11 @@
  * Memoized with React.memo to prevent unnecessary re-renders.
  */
 
-import React, { useRef, useEffect, useCallback, memo } from 'react';
+import React, { useCallback, memo } from 'react';
 import { FiX, FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { ANIMATION_CONFIG, INPUT_STYLES, BUTTON_STYLES, TEXT_CONTENT, ICON_SIZES, LAYOUT } from './FlashcardItem.constants';
+import { ANIMATION_CONFIG, BUTTON_STYLES, TEXT_CONTENT, ICON_SIZES, LAYOUT } from './FlashcardItem.constants';
+import { MarkdownEditor } from './CardEditor';
 
 // ============================================
 // TYPES
@@ -42,64 +43,8 @@ const EditModeComponent: React.FC<EditModeProps> = ({
     onCancel,
 }) => {
     // ============================================
-    // REFS
-    // ============================================
-    
-    const frontInputRef = useRef<HTMLTextAreaElement>(null);
-
-    // ============================================
-    // EFFECTS
-    // ============================================
-
-    /**
-     * Focus the first input when component mounts.
-     * Using useEffect ensures focus happens after render, avoiding animation conflicts.
-     */
-    useEffect(() => {
-        // Small delay to ensure DOM is ready and avoid animation interference
-        const timeoutId = setTimeout(() => {
-            frontInputRef.current?.focus();
-            // Move cursor to end of text
-            if (frontInputRef.current) {
-                const length = frontInputRef.current.value.length;
-                frontInputRef.current.setSelectionRange(length, length);
-            }
-        }, 0);
-
-        return () => clearTimeout(timeoutId);
-    }, []);
-
-    /**
-     * Handle keyboard shortcuts for better UX.
-     * - Escape: Cancel editing
-     * - Ctrl/Cmd + Enter: Save
-     */
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Escape to cancel
-            if (e.key === 'Escape' && !isSaving) {
-                e.preventDefault();
-                onCancel();
-                return;
-            }
-
-            // Ctrl/Cmd + Enter to save
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && canSave && !isSaving) {
-                e.preventDefault();
-                onSave();
-                return;
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onCancel, onSave, canSave, isSaving]);
-
-    // ============================================
     // STYLE COMPUTATION
     // ============================================
-
-    const inputBaseClasses = `${INPUT_STYLES.base.width} ${INPUT_STYLES.base.resize} ${INPUT_STYLES.base.minHeight} ${INPUT_STYLES.base.padding} ${INPUT_STYLES.base.borderRadius} ${INPUT_STYLES.base.fontSize} ${INPUT_STYLES.base.background} ${INPUT_STYLES.base.border} ${INPUT_STYLES.base.backdrop} ${INPUT_STYLES.base.text} ${INPUT_STYLES.base.placeholder} ${INPUT_STYLES.base.focus.outline} ${INPUT_STYLES.base.focus.ring} ${INPUT_STYLES.base.focus.border} ${INPUT_STYLES.base.transition}`;
 
     const cancelButtonClasses = `flex items-center justify-center ${LAYOUT.spacing.gapButtons} px-4 py-2.5 ${BUTTON_STYLES.base.borderRadius} ${BUTTON_STYLES.base.border} ${BUTTON_STYLES.base.transition} ${BUTTON_STYLES.base.active} ${BUTTON_STYLES.cancel.border} ${BUTTON_STYLES.cancel.background} ${BUTTON_STYLES.cancel.text} ${BUTTON_STYLES.cancel.hover.text} ${BUTTON_STYLES.cancel.hover.background} ${BUTTON_STYLES.cancel.disabled.opacity} ${BUTTON_STYLES.cancel.disabled.cursor} text-sm font-medium`;
 
@@ -117,26 +62,6 @@ const EditModeComponent: React.FC<EditModeProps> = ({
         e.stopPropagation();
     }, []);
 
-    const stopFocusPropagation = useCallback<React.FocusEventHandler<HTMLTextAreaElement>>((e) => {
-        e.stopPropagation();
-    }, []);
-
-    /**
-     * Handles input change and stops propagation.
-     */
-    const handleFrontChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        e.stopPropagation();
-        onFrontChange(e.target.value);
-    }, [onFrontChange]);
-
-    /**
-     * Handles input change and stops propagation.
-     */
-    const handleBackChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        e.stopPropagation();
-        onBackChange(e.target.value);
-    }, [onBackChange]);
-
     // ============================================
     // RENDER
     // ============================================
@@ -150,49 +75,37 @@ const EditModeComponent: React.FC<EditModeProps> = ({
             onClick={stopPropagation}
         >
             {/* Front Input */}
-            <div>
-                <label 
-                    htmlFor="flashcard-front-input"
-                    className="block mb-2 text-xs font-medium text-slate-300"
-                >
-                    {TEXT_CONTENT.labels.front}
-                </label>
-                <textarea
-                    id="flashcard-front-input"
-                    ref={frontInputRef}
-                    value={frontValue}
-                    onChange={handleFrontChange}
-                    onMouseDown={stopPropagation}
-                    onTouchStart={stopPropagation}
-                    onClick={stopPropagation}
-                    onFocus={stopFocusPropagation}
-                    rows={3}
-                    className={inputBaseClasses}
-                    placeholder={TEXT_CONTENT.placeholders.front}
-                />
-            </div>
+            <MarkdownEditor
+                value={frontValue}
+                onChange={onFrontChange}
+                label={TEXT_CONTENT.labels.front}
+                placeholder={TEXT_CONTENT.placeholders.front}
+                autoFocus
+                disabled={isSaving}
+                onSave={canSave && !isSaving ? onSave : undefined}
+                onCancel={isSaving ? undefined : onCancel}
+                toolbarVisibility="focus"
+                size="md"
+                minRows={3}
+                className="space-y-2"
+                textareaClassName="min-h-[80px]"
+            />
 
             {/* Back Input */}
-            <div>
-                <label 
-                    htmlFor="flashcard-back-input"
-                    className="block mb-2 text-xs font-medium text-slate-300"
-                >
-                    {TEXT_CONTENT.labels.back}
-                </label>
-                <textarea
-                    id="flashcard-back-input"
-                    value={backValue}
-                    onChange={handleBackChange}
-                    onMouseDown={stopPropagation}
-                    onTouchStart={stopPropagation}
-                    onClick={stopPropagation}
-                    onFocus={stopFocusPropagation}
-                    rows={4}
-                    className={inputBaseClasses}
-                    placeholder={TEXT_CONTENT.placeholders.back}
-                />
-            </div>
+            <MarkdownEditor
+                value={backValue}
+                onChange={onBackChange}
+                label={TEXT_CONTENT.labels.back}
+                placeholder={TEXT_CONTENT.placeholders.back}
+                disabled={isSaving}
+                onSave={canSave && !isSaving ? onSave : undefined}
+                onCancel={isSaving ? undefined : onCancel}
+                toolbarVisibility="focus"
+                size="md"
+                minRows={4}
+                className="space-y-2"
+                textareaClassName="min-h-[120px]"
+            />
 
             {/* Action Bar */}
             <div 

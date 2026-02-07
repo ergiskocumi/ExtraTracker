@@ -183,33 +183,34 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                                    z-50
                                    flex flex-col
                                    pointer-events-auto
-                                   overflow-hidden"
+                                   overflow-hidden
+                                   bg-theme-elevated border border-theme-default"
                         style={{
-                            // Effetto vetro tipo macOS con sfondo trasparente scuro
-                            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.75) 0%, rgba(17, 24, 39, 0.65) 100%)',
+                            // Effetto vetro tipo macOS con theme variables
+                            background: `linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-surface) 100%)`,
                             backdropFilter: 'blur(40px) saturate(180%)',
                             WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)',
+                            borderColor: 'var(--border-default)',
+                            boxShadow: `0 8px 32px 0 var(--shadow-md), inset 0 1px 0 0 var(--border-subtle)`,
                             transformOrigin: 'bottom right', // Parte dal punto in basso a destra (dove c'è il pulsante)
                         }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header con stile macOS */}
-                        <div className="p-6 border-b border-white/5 flex-shrink-0">
+                        <div className="p-6 border-b border-theme-subtle flex-shrink-0">
                             <div className="flex items-center justify-between mb-2">
-                                <h2 className="text-sm font-bold text-white/90 uppercase tracking-widest">
+                                <h2 className="text-sm font-bold text-theme-primary uppercase tracking-widest">
                                     Organizza
                                 </h2>
                                 <button
                                     onClick={onClose}
-                                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors group"
+                                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors group dark:hover:bg-white/10"
                                     aria-label="Chiudi"
                                 >
-                                    <X className="w-4 h-4 text-white/60 group-hover:text-white transition-colors" />
+                                    <X className="w-4 h-4 text-theme-muted group-hover:text-theme-primary transition-colors" />
                                 </button>
                             </div>
-                            <p className="text-[10px] text-white/40">
+                            <p className="text-[10px] text-theme-muted">
                                 💡 Trascina un mazzo per organizzarlo
                             </p>
                         </div>
@@ -220,7 +221,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                             {exams && exams.length > 0 && (
                                 <div>
                                     <div className="flex items-center justify-between mb-4">
-                                        <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2">
+                                        <h3 className="text-xs font-bold text-theme-muted uppercase tracking-wider flex items-center gap-2">
                                             <BookOpen className="w-3.5 h-3.5" />
                                             Esami
                                         </h3>

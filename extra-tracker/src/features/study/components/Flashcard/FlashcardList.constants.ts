@@ -197,8 +197,8 @@ export const DRAG_OVERLAY_STYLES = {
 } as const;
 
 export const GRID_STYLES = {
-    container: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6',
-    fullSpan: 'col-span-full sm:col-span-2 lg:col-span-3',
+    container: 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20',
+    fullSpan: 'col-span-full md:col-span-2 xl:col-span-3',
 } as const;
 
 export const LIST_STYLES = {

@@ -37,6 +37,8 @@ export interface FlashcardListProps {
     onShowSource?: (card: Card) => void;
     /** ID of the card currently highlighted as "source active" */
     activeSourceCardId?: string | null;
+    /** Compact mode for cinema view - uses inline editing instead of fullscreen modal */
+    compactMode?: boolean;
 }
 
 // ============================================

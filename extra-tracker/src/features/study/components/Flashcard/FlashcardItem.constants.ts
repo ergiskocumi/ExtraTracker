@@ -39,23 +39,25 @@ export const ANIMATION_CONFIG = {
 
 export const CARD_STYLES = {
     base: {
-        borderRadius: 'rounded-xl',
-        padding: 'p-3.5 md:p-4',
-        border: 'border border-white/[0.05]',
+        borderRadius: 'rounded-2xl',
+        padding: 'p-5 md:p-6', 
+        border: 'border border-theme-default',
+        shadow: 'shadow-theme-sm',
         transition: 'transition-colors duration-200',
+        height: 'h-full flex flex-col',
         hover: {
-            border: 'hover:border-white/[0.12]',
-            shadow: 'hover:shadow-[0_6px_18px_rgba(0,0,0,0.22)]',
+            border: 'hover:border-theme-strong',
+            shadow: 'hover:shadow-theme-md',
         },
     },
     sourceActive: {
         border: 'border-violet-500/40',
         shadow: 'shadow-[0_0_16px_rgba(139,92,246,0.25)]',
-        background: 'bg-violet-500/10',
+        background: 'rgba(139, 92, 246, 0.1)', // CSS value for inline style
     },
     default: {
-        border: 'border-white/[0.05]',
-        background: 'bg-white/[0.02]',
+        border: 'border-theme-default',
+        background: 'var(--bg-card)', // Use CSS variable for theme-aware background
     },
 } as const;
 
@@ -89,9 +91,9 @@ export const BUTTON_STYLES = {
     edit: {
         border: 'border-white/[0.08]',
         background: 'bg-white/[0.05]',
-        text: 'text-white/70',
+        text: 'text-theme-secondary',
         hover: {
-            text: 'hover:text-white',
+            text: 'hover:text-theme-primary',
             background: 'hover:bg-white/[0.10]',
         },
     },
@@ -136,9 +138,9 @@ export const BUTTON_STYLES = {
     cancel: {
         border: 'border-white/[0.08]',
         background: 'bg-white/[0.05]',
-        text: 'text-slate-300',
+        text: 'text-theme-secondary',
         hover: {
-            text: 'hover:text-white',
+            text: 'hover:text-theme-primary',
             background: 'hover:bg-white/[0.10]',
         },
         disabled: {
@@ -171,8 +173,8 @@ export const INPUT_STYLES = {
         background: 'bg-white/[0.05]',
         border: 'border border-white/[0.08]',
         backdrop: 'backdrop-blur-sm',
-        text: 'text-white',
-        placeholder: 'placeholder:text-slate-400',
+        text: 'text-theme-primary',
+        placeholder: 'placeholder:text-theme-muted',
         focus: {
             outline: 'focus:outline-none',
             ring: 'focus:ring-2 focus:ring-violet-500/50',
@@ -254,8 +256,8 @@ export const LAYOUT = {
         paddingTop: 'pt-3',
     },
     text: {
-        question: 'text-sm md:text-base font-semibold leading-relaxed text-white',
-        answer: 'text-sm md:text-base leading-relaxed whitespace-pre-wrap text-white/80',
+        question: 'text-sm md:text-base font-semibold leading-relaxed text-theme-primary',
+        answer: 'text-sm md:text-base leading-relaxed whitespace-pre-wrap text-theme-secondary',
     },
     divider: {
         border: 'border-t border-white/[0.08]',

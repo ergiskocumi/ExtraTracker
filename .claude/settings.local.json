@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx skills:*)",
+      "Bash(npx tsc:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(wc:*)",
+      "Bash(node:*)"
+    ]
+  }
+}

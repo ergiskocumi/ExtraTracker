@@ -1,0 +1,208 @@
+/**
+ * EDITOR STYLES - Ottimizzazioni per l'editor delle flashcard
+ * ===========================================================
+ *
+ * Stili per:
+ * - Toolbar su singola riga con scroll orizzontale
+ * - Editor area con altezza minima
+ * - Fullscreen modal responsive
+ */
+
+/* ===========================================
+   TOOLBAR - Singola riga con scroll
+   =========================================== */
+
+.card-editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+
+    /* CRITICO: Forza singola riga */
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    /* Scrollbar sottile */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.card-editor-toolbar::-webkit-scrollbar {
+    height: 4px;
+}
+
+.card-editor-toolbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.card-editor-toolbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+.card-editor-toolbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Bottoni toolbar */
+.card-editor-toolbar button {
+    flex-shrink: 0;
+    min-width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.card-editor-toolbar button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.card-editor-toolbar button:active {
+    transform: scale(0.95);
+}
+
+/* Divider */
+.card-editor-toolbar .divider,
+.card-editor-toolbar span[aria-hidden="true"] {
+    flex-shrink: 0;
+    width: 1px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 0.25rem;
+}
+
+/* ===========================================
+   EDITOR TEXTAREA - Altezza minima
+   =========================================== */
+
+[data-card-editor] textarea {
+    min-height: 120px !important;
+    resize: vertical;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+}
+
+/* Fullscreen mode: textarea più grande */
+.fullscreen-edit-modal textarea {
+    min-height: 400px !important;
+}
+
+@media (min-width: 1024px) {
+    .fullscreen-edit-modal textarea {
+        min-height: 500px !important;
+    }
+}
+
+/* ===========================================
+   FULLSCREEN MODAL - Layout responsive
+   =========================================== */
+
+.fullscreen-edit-modal {
+    width: 95vw;
+    height: 95vh;
+    max-width: 1400px;
+}
+
+/* Mobile: modal a tutto schermo */
+@media (max-width: 640px) {
+    .fullscreen-edit-modal {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+    }
+
+    .fullscreen-edit-modal .card-editor-toolbar {
+        padding: 0.375rem 0.5rem;
+    }
+
+    .fullscreen-edit-modal .card-editor-toolbar button {
+        min-width: 32px;
+        height: 32px;
+    }
+}
+
+/* ===========================================
+   PREVIEW PANEL - Stili specifici
+   =========================================== */
+
+.editor-preview-panel {
+    background: rgba(30, 41, 59, 0.5);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.editor-preview-panel .preview-content {
+    padding: 1.5rem;
+    min-height: 400px;
+}
+
+/* ===========================================
+   FOCUS STATES - Accessibilità
+   =========================================== */
+
+[data-card-editor] textarea:focus {
+    outline: none;
+    box-shadow:
+        0 0 0 2px rgba(139, 92, 246, 0.3),
+        inset 0 0 0 1px rgba(139, 92, 246, 0.5);
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.card-editor-toolbar button:focus-visible {
+    outline: 2px solid rgba(139, 92, 246, 0.5);
+    outline-offset: 2px;
+}
+
+/* ===========================================
+   LOADING STATE
+   =========================================== */
+
+.editor-saving {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.editor-saving::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(2px);
+}
+
+/* ===========================================
+   THEME - Light mode support
+   =========================================== */
+
+[data-theme="light"] .card-editor-toolbar,
+.light .card-editor-toolbar {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(148, 163, 184, 0.3);
+}
+
+[data-theme="light"] .card-editor-toolbar button:hover,
+.light .card-editor-toolbar button:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] [data-card-editor] textarea,
+.light [data-card-editor] textarea {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(148, 163, 184, 0.3);
+    color: #1e293b;
+}
+
+[data-theme="light"] .editor-preview-panel,
+.light .editor-preview-panel {
+    background: rgba(248, 250, 252, 0.9);
+    border-color: rgba(148, 163, 184, 0.3);
+}

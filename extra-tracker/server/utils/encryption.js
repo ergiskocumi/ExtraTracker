@@ -26,7 +26,12 @@ const resolveKey = () => {
     if (!rawKey) {
         if (!warnedMissingKey) {
             warnedMissingKey = true;
-            logger.warn('Security', 'DATA_ENCRYPTION_KEY non configurata: encryption disabilitata');
+            if (isProduction) {
+                // In produzione, log errore critico (encryption disabilitata è un rischio)
+                logger.error('Security', '⚠️  CRITICAL: DATA_ENCRYPTION_KEY non configurata in PRODUZIONE! I dati sensibili NON saranno criptati.');
+            } else {
+                logger.warn('Security', 'DATA_ENCRYPTION_KEY non configurata: encryption disabilitata (OK in sviluppo)');
+            }
         }
         cachedKey = null;
         return cachedKey;
@@ -53,10 +58,6 @@ const resolveKey = () => {
     }
 
     cachedKey = keyBuffer;
-
-    if (isProduction && !cachedKey) {
-        logger.warn('Security', 'Encryption disabilitata in produzione: configura DATA_ENCRYPTION_KEY');
-    }
 
     return cachedKey;
 };

@@ -18,6 +18,7 @@ const cookieParser = require('cookie-parser');
 const hpp = require('hpp');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto'); // Hoisted: evita require ad ogni request
 require('dotenv').config();
 
 // Environment Configuration (DEVE essere caricato per primo)
@@ -74,8 +75,8 @@ app.set('trust proxy', envConfig.server.trustProxy);
 // ==========================================
 
 // Aggiunge request ID a ogni richiesta per tracciamento errori
+// OTTIMIZZATO: crypto è ora importato a livello modulo
 app.use((req, res, next) => {
-    const crypto = require('crypto');
     req.requestId = req.headers['x-request-id'] || crypto.randomUUID();
     res.setHeader('X-Request-ID', req.requestId);
     next();
@@ -225,6 +226,19 @@ const gracefulShutdown = async (signal) => {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Gestione errori globali non catturati (previene crash silenzioso)
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Server', 'Unhandled Promise Rejection', { reason, promise });
+    // In produzione, considera di riavviare il processo dopo logging
+    // process.exit(1);
+});
+
+process.on('uncaughtException', (error) => {
+    logger.error('Server', 'Uncaught Exception', error);
+    // Graceful shutdown dopo errore critico
+    gracefulShutdown('uncaughtException');
+});
 
 // ==========================================
 // 10. START SERVER
