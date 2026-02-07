@@ -65,10 +65,12 @@ const MenuItemComponent = memo(({
     const className = `
         group flex items-center gap-3.5 px-4 py-3 mx-2 rounded-2xl transition-all duration-150 cursor-pointer
         ${isActive
-            ? 'bg-gradient-to-r from-primary-500/25 to-violet-500/15 text-white border border-primary-500/25 shadow-lg shadow-primary-500/10'
-            : 'text-white/70 hover:bg-white/[0.08] hover:text-white border border-transparent'
+            ? 'bg-gradient-to-r from-primary-500/25 to-violet-500/15 border border-primary-500/25 shadow-lg shadow-primary-500/10'
+            : 'hover:bg-white/[0.08] border border-transparent'
         }
     `;
+    const activeTextColor = isActive ? 'var(--text-primary)' : 'var(--text-secondary)';
+    const activeDescColor = 'var(--text-muted)';
 
     const content = (
         <>
@@ -76,19 +78,20 @@ const MenuItemComponent = memo(({
                 className={`
                     w-10 h-10 rounded-2xl flex items-center justify-center transition-all
                     ${isActive
-                        ? 'bg-gradient-to-br from-primary-500 to-violet-600 text-white shadow-lg shadow-primary-500/30'
+                        ? 'bg-gradient-to-br from-primary-500 to-violet-600 shadow-lg shadow-primary-500/30'
                         : 'bg-white/[0.06] group-hover:bg-white/[0.1]'
                     }
                 `}
+                style={{ color: isActive ? 'white' : activeTextColor }}
             >
                 <item.icon size={20} />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0" style={{ color: activeTextColor }}>
                 <p className="text-base font-medium">{item.label}</p>
-                <p className="text-xs text-white/50 truncate">{item.description}</p>
+                <p className="text-xs truncate" style={{ color: activeDescColor }}>{item.description}</p>
             </div>
             {item.badge && (
-                <span className="px-2 py-1 text-[11px] font-bold rounded-md bg-primary-500/20 text-primary-300">
+                <span className="px-2 py-1 text-[11px] font-bold rounded-md badge-primary">
                     {item.badge}
                 </span>
             )}
@@ -281,7 +284,8 @@ export const UserMenuDropdown = memo(() => {
                 {/* Chevron */}
                 <FiChevronDown
                     size={14}
-                    className={`text-white/40 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                    className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                    style={{ color: 'var(--text-muted)' }}
                 />
             </motion.button>
 

@@ -84,8 +84,8 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
         <form onSubmit={handleSubmit} className="space-y-6">
             {/* Language & Theme Section */}
             <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Globe className="w-5 h-5 text-primary-400" />
+                <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                    <Globe className="w-5 h-5" style={{ color: 'var(--primary-500)' }} />
                     Localizzazione e Visualizzazione
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
@@ -125,18 +125,37 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
-                                className="mt-3 p-3 rounded-xl border border-white/[0.1] bg-white/[0.03]"
+                                className="mt-3 p-3 rounded-xl border bg-theme-surface"
+                                style={{ borderColor: 'var(--border-default)' }}
                             >
-                                <p className="text-xs font-semibold text-white/60 mb-2">Anteprima:</p>
-                                <div className={`flex items-center gap-2 p-2 rounded-lg ${
-                                    formData.theme === 'dark' 
-                                        ? 'bg-dark-500 text-white' 
-                                        : formData.theme === 'light'
-                                        ? 'bg-white text-gray-900'
-                                        : 'bg-gradient-to-r from-dark-500 to-white text-white'
-                                }`}>
-                                    <div className="w-2 h-2 rounded-full bg-current opacity-60" />
-                                    <span className="text-xs">
+                                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Anteprima:</p>
+                                <div 
+                                    className="flex items-center gap-2 p-2 rounded-lg transition-all duration-300"
+                                    style={{
+                                        background: formData.theme === 'dark' 
+                                            ? 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%)'
+                                            : formData.theme === 'light'
+                                            ? 'linear-gradient(135deg, #f8f7f5 0%, #ffffff 100%)'
+                                            : 'linear-gradient(135deg, #0a0a1a 0%, #f8f7f5 100%)',
+                                        color: formData.theme === 'dark' 
+                                            ? '#ffffff'
+                                            : formData.theme === 'light'
+                                            ? '#1a1a2e'
+                                            : '#ffffff',
+                                        border: '1px solid var(--border-default)'
+                                    }}
+                                >
+                                    <div 
+                                        className="w-2 h-2 rounded-full opacity-60"
+                                        style={{
+                                            background: formData.theme === 'dark' 
+                                                ? '#8b5cf6'
+                                                : formData.theme === 'light'
+                                                ? '#7c3aed'
+                                                : '#8b5cf6'
+                                        }}
+                                    />
+                                    <span className="text-xs font-medium">
                                         {formData.theme === 'dark' && 'Tema scuro'}
                                         {formData.theme === 'light' && 'Tema chiaro'}
                                         {formData.theme === 'system' && 'Tema sistema'}
@@ -149,8 +168,8 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
 
             {/* Formatting Section */}
             <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Layout className="w-5 h-5 text-primary-400" />
+                <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                    <Layout className="w-5 h-5" style={{ color: 'var(--primary-500)' }} />
                     Formattazione
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
@@ -200,21 +219,22 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
             </AnimatePresence>
 
             {/* Submit Button */}
-            <div className="flex items-center justify-between pt-4 border-t border-white/[0.08]">
+            <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                 <div className="flex items-center gap-3">
-                    <p className="text-sm text-white/50">
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                         {hasChanges ? (
                             <span className="flex items-center gap-2">
                                 <motion.div
                                     animate={{ scale: [1, 1.2, 1] }}
                                     transition={{ repeat: Infinity, duration: 2 }}
-                                    className="w-2 h-2 rounded-full bg-amber-400"
+                                    className="w-2 h-2 rounded-full"
+                                    style={{ background: 'var(--warning)' }}
                                 />
                                 Modifiche non salvate
                             </span>
                         ) : (
                             <span className="flex items-center gap-2">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                <CheckCircle2 className="w-4 h-4" style={{ color: 'var(--success)' }} />
                                 Tutto aggiornato
                             </span>
                         )}
@@ -231,7 +251,8 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                             }}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors"
+                            style={{ color: 'var(--text-muted)' }}
                         >
                             <RotateCcw className="w-3 h-3" />
                             Reset
