@@ -155,6 +155,11 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
         };
     };
 
+    // Ottieni i decks per un esame specifico (per la distribuzione carte)
+    const getExamDecks = (examId: string) => {
+        return decks.filter(d => d.examId === examId);
+    };
+
     // Filtra i mazzi in base alla ricerca
     const filteredDecks = useMemo(() => {
         if (!searchQuery.trim()) {
@@ -411,8 +416,10 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                                                     totalCards={stats.totalCards}
                                                     dueCards={stats.dueCards}
                                                     masteryPercent={stats.masteryPercent}
+                                                    decks={getExamDecks(exam.id)}
                                                     onClick={() => onExamClick(exam.id)}
                                                     onDelete={handleRequestDeleteExam}
+                                                    onReactivate={onReactivateExam}
                                                 />
                                             </motion.div>
                                         );
@@ -458,8 +465,10 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                                                     totalCards={stats.totalCards}
                                                     dueCards={stats.dueCards}
                                                     masteryPercent={stats.masteryPercent}
+                                                    decks={getExamDecks(exam.id)}
                                                     onClick={() => onExamClick(exam.id)}
                                                     onDelete={handleRequestDeleteExam}
+                                                    onReactivate={onReactivateExam}
                                                 />
                                             </motion.div>
                                         );
