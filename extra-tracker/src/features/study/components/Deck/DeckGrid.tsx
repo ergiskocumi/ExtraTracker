@@ -14,6 +14,7 @@ interface DeckCardProps {
     onViewDetail: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
+    onExamSolver?: (deckId: string) => void;
     tags?: Tag[];
     onTogglePin?: (deck: Deck) => void;
 }
@@ -32,6 +33,7 @@ interface DeckGridProps {
     onExamSolver?: (deckId: string) => void;
     isFolderSelected?: boolean;
     onTogglePin?: (deck: Deck) => void;
+    viewMode?: 'grid' | 'list';
 }
 
 export const DeckGrid: React.FC<DeckGridProps> = ({
@@ -48,6 +50,7 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
     onExamSolver,
     isFolderSelected = false,
     onTogglePin,
+    viewMode = 'grid',
 }) => {
     if (decks.length === 0) {
         return (
@@ -63,7 +66,11 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6"
+            className={
+                viewMode === 'list'
+                    ? 'space-y-3 sm:space-y-4'
+                    : 'grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6'
+            }
         >
             <AnimatePresence mode="popLayout">
                 {decks.map((deck, index) => (
