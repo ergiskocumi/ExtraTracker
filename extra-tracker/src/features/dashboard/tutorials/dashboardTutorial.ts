@@ -8,7 +8,7 @@
  * - Menu utente
  */
 
-import type { TutorialConfig } from '../../../../shared/context/TutorialContext';
+import type { TutorialConfig } from '../../../shared/context/TutorialContext';
 
 export const dashboardTutorial: TutorialConfig = {
     id: 'dashboard-tutorial',

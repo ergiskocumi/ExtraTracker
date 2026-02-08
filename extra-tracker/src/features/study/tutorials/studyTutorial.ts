@@ -7,7 +7,7 @@
  * - Modalità di studio
  */
 
-import type { TutorialConfig } from '../../../../shared/context/TutorialContext';
+import type { TutorialConfig } from '../../../shared/context/TutorialContext';
 
 export const studyTutorial: TutorialConfig = {
     id: 'study-tutorial',
