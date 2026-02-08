@@ -17,27 +17,45 @@ import { CinemaLayout } from '../CinemaLayout';
 import type { Deck } from '../../services/studyService';
 
 // Mock dependencies
-vi.mock('../../components/PDF/FluidPDFViewer', () => ({
-    FluidPDFViewer: ({ pdfUrl }: { pdfUrl: string }) => (
-        <div data-testid="pdf-viewer">{pdfUrl}</div>
+vi.mock('react-resizable-panels', () => ({
+    Group: ({ children }: { children: React.ReactNode }) => <div data-testid="panels-group">{children}</div>,
+    Panel: ({ children }: { children: React.ReactNode }) => <div data-testid="panel">{children}</div>,
+    Separator: ({ children }: { children?: React.ReactNode }) => <div data-testid="panel-separator">{children}</div>,
+}));
+
+vi.mock('../../components/PDF/PDFReaderLazy', () => ({
+    default: ({ pdfUrl }: { pdfUrl: string | null }) => (
+        <div data-testid="pdf-viewer">{pdfUrl ?? 'no-pdf'}</div>
     ),
 }));
 
 vi.mock('../../components/Study/StudySidebar', () => ({
-    StudySidebar: ({ deck }: { deck: Deck }) => (
-        <div data-testid="study-sidebar">{deck.title}</div>
+    StudySidebar: ({
+        deck,
+        onNavigateBack,
+    }: {
+        deck: Deck;
+        onNavigateBack?: () => void;
+    }) => (
+        <div data-testid="study-sidebar">
+            <span>{deck.title}</span>
+            <button aria-label="Torna al mazzo" onClick={onNavigateBack}>
+                Torna al mazzo
+            </button>
+        </div>
     ),
 }));
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
+let mockDeckId: string | undefined = 'test-deck-id';
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
-        useParams: () => ({ deckId: 'test-deck-id' }),
+        useParams: () => ({ deckId: mockDeckId }),
     };
 });
 
@@ -55,6 +73,7 @@ describe('CinemaLayout - Navigation Tests', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockNavigate.mockClear();
+        mockDeckId = 'test-deck-id';
     });
 
     it('should navigate to deck detail when back button is clicked without onNavigateBack prop', () => {
@@ -105,15 +124,7 @@ describe('CinemaLayout - Navigation Tests', () => {
     });
 
     it('should fallback to dashboard if deckId is not available', () => {
-        // Mock scenario without deckId
-        vi.mock('react-router-dom', async () => {
-            const actual = await vi.importActual('react-router-dom');
-            return {
-                ...actual,
-                useNavigate: () => mockNavigate,
-                useParams: () => ({ deckId: undefined }),
-            };
-        });
+        mockDeckId = undefined;
 
         render(
             <BrowserRouter>

@@ -135,6 +135,12 @@ export const StudySessionPage: React.FC = () => {
     // ============================================
 
     useEffect(() => {
+        if (!deckId) {
+            setError('ID mazzo non valido');
+            setIsLoading(false);
+            return;
+        }
+
         if (!sessionKey || hasLoadedRef.current) return;
 
         // Check if already completed
@@ -144,12 +150,6 @@ export const StudySessionPage: React.FC = () => {
         }
 
         const loadSession = async () => {
-            if (!deckId) {
-                setError('ID mazzo non valido');
-                setIsLoading(false);
-                return;
-            }
-
             try {
                 setIsLoading(true);
 

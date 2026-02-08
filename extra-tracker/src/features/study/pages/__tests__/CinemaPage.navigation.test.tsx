@@ -18,6 +18,19 @@ import * as studyService from '../../services/studyService';
 
 // Mock dependencies
 vi.mock('../../services/studyService');
+vi.mock('../../layout/CinemaLayout', () => ({
+    CinemaLayout: ({
+        onNavigateBack,
+    }: {
+        onNavigateBack?: () => void;
+    }) => (
+        <div data-testid="cinema-layout">
+            <button aria-label="Torna al mazzo" onClick={onNavigateBack}>
+                Torna al mazzo
+            </button>
+        </div>
+    ),
+}));
 vi.mock('../../../shared/components/toast', () => ({
     emitToast: {
         success: vi.fn(),
@@ -70,7 +83,7 @@ describe('CinemaPage - Navigation Tests', () => {
         });
 
         // Find and click the back button in CinemaLayout header
-        const backButton = screen.getByLabelText(/torna al mazzo/i);
+        const backButton = screen.getByRole('button', { name: /torna al mazzo/i });
         expect(backButton).toBeInTheDocument();
 
         fireEvent.click(backButton);
@@ -94,11 +107,11 @@ describe('CinemaPage - Navigation Tests', () => {
 
         // Wait for error state
         await waitFor(() => {
-            expect(screen.getByText(/torna ai mazzi/i)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /torna ai mazzi/i })).toBeInTheDocument();
         });
 
         // Click error back button
-        const errorButton = screen.getByText(/torna ai mazzi/i);
+        const errorButton = screen.getByRole('button', { name: /torna ai mazzi/i });
         fireEvent.click(errorButton);
 
         // Verify navigation to exam decks from location state
@@ -118,14 +131,11 @@ describe('CinemaPage - Navigation Tests', () => {
             </BrowserRouter>
         );
 
-        // Wait for error state
         await waitFor(() => {
-            const button = screen.queryByText(/torna/i);
-            if (button) {
-                fireEvent.click(button);
-                // Should fallback to dashboard
-                expect(mockNavigate).toHaveBeenCalledWith('/study');
-            }
+            expect(screen.getByRole('button', { name: /torna ai mazzi/i })).toBeInTheDocument();
         });
+
+        fireEvent.click(screen.getByRole('button', { name: /torna ai mazzi/i }));
+        expect(mockNavigate).toHaveBeenCalledWith('/study');
     });
 });

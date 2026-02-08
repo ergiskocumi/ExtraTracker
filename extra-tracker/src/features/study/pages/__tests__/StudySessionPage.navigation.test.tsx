@@ -13,15 +13,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { StudySessionPage } from '../StudySessionPage';
 import * as studyService from '../../services/studyService';
-import { useAuth } from '../../../auth/context/AuthContext';
 
 // Mock dependencies
 vi.mock('../../services/studyService');
-vi.mock('../../../auth/context/AuthContext');
 vi.mock('../../../shared/components/toast', () => ({
     emitToast: {
         info: vi.fn(),
@@ -32,13 +30,14 @@ vi.mock('../../../shared/components/toast', () => ({
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
+let mockDeckId: string | undefined = 'test-deck-id';
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
-        useParams: () => ({ deckId: 'test-deck-id' }),
+        useParams: () => ({ deckId: mockDeckId }),
         useSearchParams: () => [new URLSearchParams(), vi.fn()],
     };
 });
@@ -47,24 +46,31 @@ describe('StudySessionPage - Navigation Tests', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockNavigate.mockClear();
-
-        // Default mock implementations
-        (useAuth as any).mockReturnValue({
-            checkAuth: vi.fn().mockResolvedValue(true),
-        });
+        mockDeckId = 'test-deck-id';
 
         (studyService.studyService.getSession as any) = vi.fn().mockResolvedValue({
             deck: {
                 id: 'test-deck-id',
                 title: 'Test Deck',
+                tags: [],
+                cards: [],
+                totalCards: 1,
+                dueCount: 1,
             },
             cards: [
                 {
                     id: 'card-1',
                     front: 'Question 1',
                     back: 'Answer 1',
+                    status: 'new',
+                    easinessFactor: 2.5,
+                    interval: 0,
+                    repetitions: 0,
+                    nextReviewDate: new Date().toISOString(),
                 },
             ],
+            remaining: 1,
+            total: 1,
         });
     });
 
@@ -81,7 +87,7 @@ describe('StudySessionPage - Navigation Tests', () => {
         });
 
         // Find and click the back button
-        const backButton = screen.getByLabelText(/torna al mazzo/i);
+        const backButton = screen.getByRole('button', { name: /esci/i });
         expect(backButton).toBeInTheDocument();
 
         fireEvent.click(backButton);
@@ -102,14 +108,12 @@ describe('StudySessionPage - Navigation Tests', () => {
             expect(screen.queryByText(/caricamento/i)).not.toBeInTheDocument();
         });
 
-        // Find and click the X button (there might be multiple, get the one in header)
-        const xButtons = screen.getAllByLabelText(/torna al mazzo/i);
-        const xButton = xButtons.find(btn => btn.querySelector('svg'));
-        
-        if (xButton) {
-            fireEvent.click(xButton);
-            expect(mockNavigate).toHaveBeenCalledWith('/study/deck/test-deck-id');
-        }
+        const header = document.querySelector('header');
+        expect(header).toBeTruthy();
+        const headerButtons = within(header as HTMLElement).getAllByRole('button');
+        const closeButton = headerButtons[headerButtons.length - 1];
+        fireEvent.click(closeButton);
+        expect(mockNavigate).toHaveBeenCalledWith('/study/deck/test-deck-id');
     });
 
     it('should navigate to deck detail on error if deckId is available', async () => {
@@ -138,16 +142,11 @@ describe('StudySessionPage - Navigation Tests', () => {
     });
 
     it('should navigate to dashboard if deckId is not available', async () => {
-        // Mock scenario without deckId
-        vi.mock('react-router-dom', async () => {
-            const actual = await vi.importActual('react-router-dom');
-            return {
-                ...actual,
-                useNavigate: () => mockNavigate,
-                useParams: () => ({ deckId: undefined }),
-                useSearchParams: () => [new URLSearchParams(), vi.fn()],
-            };
-        });
+        mockDeckId = undefined;
+
+        (studyService.studyService.getSession as any) = vi.fn().mockRejectedValue(
+            new Error('Session error')
+        );
 
         render(
             <BrowserRouter>
@@ -155,15 +154,12 @@ describe('StudySessionPage - Navigation Tests', () => {
             </BrowserRouter>
         );
 
-        // Wait for error state
         await waitFor(() => {
-            const buttons = screen.queryAllByText(/torna/i);
-            if (buttons.length > 0) {
-                fireEvent.click(buttons[0]);
-                // Should fallback to dashboard
-                expect(mockNavigate).toHaveBeenCalledWith('/study');
-            }
+            expect(screen.getByRole('button', { name: /torna al mazzo/i })).toBeInTheDocument();
         });
+
+        fireEvent.click(screen.getByRole('button', { name: /torna al mazzo/i }));
+        expect(mockNavigate).toHaveBeenCalledWith('/study');
     });
 
 });
