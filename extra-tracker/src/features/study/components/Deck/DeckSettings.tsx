@@ -19,6 +19,7 @@ import { studyService, type Deck, type DeckSettings as DeckSettingsConfig } from
 import { emitToast } from '../../../../shared/components/toast';
 import examService from '../../services/examService';
 import type { Exam } from '../../types/exam';
+import { AlgorithmInfoModal } from './AlgorithmInfoModal';
 
 interface DeckSettingsProps {
     deck: Deck;
@@ -35,7 +36,8 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
         },
     });
     const [saving, setSaving] = useState(false);
-    
+    const [showAlgorithmInfo, setShowAlgorithmInfo] = useState(false);
+
     // Stato per la gestione dell'esame associato
     const [exams, setExams] = useState<Exam[]>([]);
     const [selectedExamId, setSelectedExamId] = useState<string | null>(deck.examId || null);
@@ -59,10 +61,9 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
 
     useEffect(() => {
         // Carica impostazioni esistenti se disponibili
-        const deckAny = deck as any;
-        const currentSettings = {
-            algorithm: deckAny.algorithm || 'sm2',
-            aiSettings: deckAny.aiSettings || {
+        const currentSettings: DeckSettingsConfig = {
+            algorithm: deck.algorithm || 'sm2',
+            aiSettings: deck.aiSettings || {
                 style: 'comprehensive',
                 difficulty: 'medium',
                 questionTypes: ['definition', 'concept', 'relationship'],
@@ -82,16 +83,39 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
         
         // Carica gli esami disponibili
         loadExams();
-    }, [deck.id, deck.examId, loadExams]); // Ricarica solo se cambia il deck ID o examId
+    }, [deck.id, deck.examId, deck.algorithm, deck.aiSettings, loadExams]);
 
     const handleSave = async () => {
         try {
             setSaving(true);
+            console.log('[DeckSettings] Salvataggio impostazioni:', settings);
+            
+            // Validazione
+            if (!settings.aiSettings?.questionTypes || settings.aiSettings.questionTypes.length === 0) {
+                emitToast.error('Seleziona almeno un tipo di domanda');
+                setSaving(false);
+                return;
+            }
+            
             const updated = await studyService.updateDeckSettings(deck.id, settings);
-            onUpdate(updated);
-            emitToast.success('Impostazioni salvate', { title: 'Ok' });
+            console.log('[DeckSettings] Risposta:', updated);
+            
+            // Verifica che le impostazioni siano state salvate
+            if (updated && updated.id) {
+                onUpdate(updated);
+                emitToast.success('Impostazioni salvate con successo!', { 
+                    title: 'Salvato',
+                    duration: 3000 
+                });
+            } else {
+                throw new Error('Risposta server non valida');
+            }
         } catch (err: any) {
-            emitToast.error(err.message || 'Errore nel salvataggio');
+            console.error('[DeckSettings] Errore salvataggio:', err);
+            emitToast.error(err.message || 'Errore nel salvataggio delle impostazioni', {
+                title: 'Errore',
+                duration: 5000
+            });
         } finally {
             setSaving(false);
         }
@@ -225,10 +249,20 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
 
             {/* Algoritmo */}
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <FiZap className="w-5 h-5" />
-                    Algoritmo di Spaced Repetition
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <FiZap className="w-5 h-5" />
+                        Algoritmo di Spaced Repetition
+                    </h3>
+                    <button
+                        type="button"
+                        onClick={() => setShowAlgorithmInfo(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-primary-400 hover:text-primary-300 hover:bg-primary-500/10 transition-colors"
+                    >
+                        <FiInfo className="w-4 h-4" />
+                        <span>Scopri di più</span>
+                    </button>
+                </div>
                 <div className="space-y-3">
                     {(['sm2', 'fsrs', 'leitner', 'anki'] as const).map((algo) => (
                         <label
@@ -392,6 +426,12 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                     </>
                 )}
             </motion.button>
+
+            {/* Algorithm Info Modal */}
+            <AlgorithmInfoModal
+                isOpen={showAlgorithmInfo}
+                onClose={() => setShowAlgorithmInfo(false)}
+            />
         </div>
     );
 };
