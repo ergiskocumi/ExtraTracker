@@ -26,7 +26,7 @@ export const TutorialDebug: React.FC = () => {
         }
     };
 
-    if (process.env.NODE_ENV !== 'development') {
+    if (!import.meta.env.DEV) {
         return null;
     }
 
