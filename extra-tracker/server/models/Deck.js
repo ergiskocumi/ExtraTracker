@@ -187,6 +187,45 @@ const deckSchema = new mongoose.Schema({
             default: ['definition', 'concept', 'relationship'],
         },
     },
+    // =========================================
+    // EXAM PROGRESS (Pausa/Resume)
+    // =========================================
+    examProgress: {
+        type: {
+            examConfig: {
+                mode: String,
+                focus: String,
+                length: String,
+                timeLimitMinutes: Number,
+                questionCount: Number,
+                direction: String,
+                examType: String,
+                examDifficulty: String,
+            },
+            currentCardIndex: {
+                type: Number,
+                default: 0,
+            },
+            stats: {
+                hard: { type: Number, default: 0 },
+                good: { type: Number, default: 0 },
+                easy: { type: Number, default: 0 },
+            },
+            elapsedSeconds: {
+                type: Number,
+                default: 0,
+            },
+            answers: [{
+                cardId: String,
+                rating: Number,
+                timestamp: Date,
+            }],
+            sessionCardIds: [String],
+            pausedAt: Date,
+        },
+        default: null,
+        _id: false,
+    },
 }, {
     timestamps: true,
 });

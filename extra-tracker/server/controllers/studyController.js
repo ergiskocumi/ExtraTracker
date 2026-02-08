@@ -76,6 +76,8 @@ const getSession = asyncHandler(async (req, res) => {
     const timeValue = Number(req.query.time);
     const questionsValue = Number(req.query.questions);
     const direction = String(req.query.direction || 'front').toLowerCase();
+    const examType = req.query.examType ? String(req.query.examType).toLowerCase() : undefined;
+    const examDifficulty = req.query.examDifficulty ? String(req.query.examDifficulty).toLowerCase() : undefined;
 
     const session = await studyService.getStudySession(
         req.tenantScope,
@@ -87,6 +89,8 @@ const getSession = asyncHandler(async (req, res) => {
             timeLimitMinutes: Number.isFinite(timeValue) ? timeValue : undefined,
             questionCount: Number.isFinite(questionsValue) ? questionsValue : undefined,
             direction,
+            examType,
+            examDifficulty,
         }
     );
 
@@ -792,6 +796,55 @@ const examSolver = asyncHandler(async (req, res) => {
     }
 });
 
+/**
+ * POST /api/study/:id/exam-progress
+ * Salva il progresso di un esame in corso per pausa/resume
+ */
+const saveExamProgress = asyncHandler(async (req, res) => {
+    console.log('💾 saveExamProgress chiamato:', { deckId: req.params.id });
+
+    const result = await studyService.saveExamProgress(
+        req.tenantScope,
+        req.params.id,
+        req.body
+    );
+
+    console.log('✅ saveExamProgress completato');
+    res.json({ success: true, data: result });
+});
+
+/**
+ * GET /api/study/:id/exam-progress
+ * Recupera il progresso salvato di un esame
+ */
+const getExamProgress = asyncHandler(async (req, res) => {
+    console.log('📥 getExamProgress chiamato:', { deckId: req.params.id });
+
+    const progress = await studyService.getExamProgress(
+        req.tenantScope,
+        req.params.id
+    );
+
+    console.log('✅ getExamProgress completato:', { hasProgress: !!progress });
+    res.json({ success: true, data: progress });
+});
+
+/**
+ * DELETE /api/study/:id/exam-progress
+ * Cancella il progresso salvato di un esame
+ */
+const clearExamProgress = asyncHandler(async (req, res) => {
+    console.log('🗑️ clearExamProgress chiamato:', { deckId: req.params.id });
+
+    const result = await studyService.clearExamProgress(
+        req.tenantScope,
+        req.params.id
+    );
+
+    console.log('✅ clearExamProgress completato');
+    res.json({ success: true, data: result });
+});
+
 module.exports = {
     createDeck,
     updateDeck,
@@ -817,4 +870,7 @@ module.exports = {
     updateDeckSettings,
     resetExamCards,
     generateRecoveryQuestions,
+    saveExamProgress,
+    getExamProgress,
+    clearExamProgress,
 };

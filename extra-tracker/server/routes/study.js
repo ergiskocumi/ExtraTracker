@@ -156,6 +156,28 @@ router.post('/:id/chat', aiLimiter, studyController.chatWithTutor);
 router.post('/:id/answer-question', aiLimiter, studyController.answerExamQuestion);
 router.delete('/:id', studyController.deleteDeck);
 
+// =========================================
+// EXAM PROGRESS - Pausa/Resume
+// =========================================
+
+/**
+ * POST /api/study/:id/exam-progress
+ * Salva il progresso di un esame in corso per pausa/resume
+ */
+router.post('/:id/exam-progress', studyController.saveExamProgress);
+
+/**
+ * GET /api/study/:id/exam-progress
+ * Recupera il progresso salvato di un esame
+ */
+router.get('/:id/exam-progress', studyController.getExamProgress);
+
+/**
+ * DELETE /api/study/:id/exam-progress
+ * Cancella il progresso salvato di un esame
+ */
+router.delete('/:id/exam-progress', studyController.clearExamProgress);
+
 // 🪄 Magic Generate from PDF (con multer middleware)
 // AI Generate - Rate limited: 10 chiamate per ora per utente
 router.post('/:id/generate-pdf', aiLimiter, (req, res, next) => {
