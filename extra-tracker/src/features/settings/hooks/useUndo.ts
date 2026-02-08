@@ -127,7 +127,6 @@ export const useUndo = <T extends Record<string, any>>(
         // Toast di conferma
         emitToast.info('Modifica annullata', {
             title: 'Annulla',
-            duration: 1500,
         });
     }, [onUndo]);
 
@@ -162,8 +161,7 @@ export const useUndo = <T extends Record<string, any>>(
 
         // Toast di conferma
         emitToast.info('Modifica ripristinata', {
-            title: 'Ripristina',
-            duration: 1500,
+            title: 'Annulla',
         });
     }, [onRedo]);
 
