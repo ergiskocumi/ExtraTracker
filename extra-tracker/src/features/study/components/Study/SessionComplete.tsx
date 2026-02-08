@@ -8,13 +8,18 @@
  * - Azioni post-sessione
  */
 
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Trophy, Clock, Target, RotateCcw, Home, BookOpen, TrendingUp, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trophy, Clock, Target, RotateCcw, Home, BookOpen, TrendingUp, Zap, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 
 // ============================================
 // TYPES
 // ============================================
+
+interface WrongAnswer {
+    front: string;
+    back: string;
+}
 
 interface SessionCompleteProps {
     totalCards: number;
@@ -24,6 +29,8 @@ interface SessionCompleteProps {
     onRestart: () => void;
     onBack: () => void;
     onContinue?: () => void;
+    wrongAnswers?: WrongAnswer[];
+    isExamMode?: boolean;
 }
 
 // ============================================
@@ -38,9 +45,14 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
     onRestart,
     onBack,
     onContinue,
+    wrongAnswers = [],
+    isExamMode = false,
 }) => {
+    const [showWrongAnswers, setShowWrongAnswers] = useState(false);
+
     const accuracy = totalCards > 0 ? Math.round((correctCount / totalCards) * 100) : 0;
     const durationMinutes = Math.ceil(durationSeconds / 60);
+    const avgTimePerCard = totalCards > 0 ? Math.round(durationSeconds / totalCards) : 0;
 
     // Performance message
     const getPerformanceMessage = () => {
@@ -170,6 +182,85 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                         />
                     </div>
                 </motion.div>
+
+                {/* Avg time per card (per exam mode) */}
+                {isExamMode && avgTimePerCard > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1 }}
+                        className="mb-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-3"
+                    >
+                        <Clock className="w-5 h-5 text-blue-400" />
+                        <div>
+                            <div className="text-white/70 text-sm">Tempo medio per domanda</div>
+                            <div className="text-blue-400 font-bold text-lg">{avgTimePerCard}s</div>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Wrong answers section (solo per exam mode) */}
+                {isExamMode && wrongAnswers.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1.05 }}
+                        className="mb-8"
+                    >
+                        <button
+                            onClick={() => setShowWrongAnswers(!showWrongAnswers)}
+                            className="w-full p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/15 transition-all flex items-center justify-between"
+                        >
+                            <div className="flex items-center gap-3">
+                                <AlertCircle className="w-5 h-5 text-orange-400" />
+                                <div className="text-left">
+                                    <div className="text-white font-semibold">
+                                        Domande da rivedere ({wrongAnswers.length})
+                                    </div>
+                                    <div className="text-white/50 text-sm">
+                                        Clicca per vedere le risposte corrette
+                                    </div>
+                                </div>
+                            </div>
+                            {showWrongAnswers ? (
+                                <ChevronUp className="w-5 h-5 text-white/50" />
+                            ) : (
+                                <ChevronDown className="w-5 h-5 text-white/50" />
+                            )}
+                        </button>
+
+                        <AnimatePresence>
+                            {showWrongAnswers && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="mt-3 space-y-3 overflow-hidden"
+                                >
+                                    {wrongAnswers.map((answer, index) => (
+                                        <motion.div
+                                            key={index}
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: index * 0.05 }}
+                                            className="p-4 rounded-xl bg-white/5 border border-white/10"
+                                        >
+                                            <div className="mb-2">
+                                                <div className="text-white/50 text-xs mb-1">Domanda</div>
+                                                <div className="text-white">{answer.front}</div>
+                                            </div>
+                                            <div className="pt-2 border-t border-white/10">
+                                                <div className="text-emerald-400/70 text-xs mb-1">Risposta corretta</div>
+                                                <div className="text-emerald-400 font-medium">{answer.back}</div>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </motion.div>
+                )}
 
                 {/* Action buttons */}
                 <motion.div
