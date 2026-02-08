@@ -81,7 +81,7 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
     const isActive = exam.status === 'active';
     const isCompleted = ['passed', 'failed', 'archived', 'completed'].includes(exam.status);
 
-    const actions: ActionButton[] = [
+    const allActions: ActionButton[] = [
         // Azione primaria: Studio
         {
             id: 'study',
@@ -174,7 +174,8 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
             onClick: () => onArchive?.(),
             hidden: !isActive || !onArchive,
         },
-    ].filter(a => !a.hidden);
+    ];
+    const actions = allActions.filter((a) => !a.hidden);
 
     const getVariantClasses = (variant: ActionButton['variant']) => {
         switch (variant) {
