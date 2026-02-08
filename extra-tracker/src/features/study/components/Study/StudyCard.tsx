@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { Sparkles, RotateCcw, Brain, GraduationCap, Trophy, Eye, EyeOff } from 'lucide-react';
 import type { Card, CardStatus } from '../../services/studyService';
 import { CardContentRenderer } from '../Flashcard/CardContentRenderer';
@@ -59,6 +59,9 @@ const STATUS_CONFIG: Record<CardStatus, { label: string; icon: React.ElementType
     },
 };
 
+const CARD_TRANSITION_EASE: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
+const FLIP_TRANSITION_EASE: [number, number, number, number] = [0.4, 0, 0.2, 1];
+
 // ============================================
 // COMPONENT
 // ============================================
@@ -93,7 +96,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
     }, [onFlip]);
 
     // Animation variants
-    const cardVariants = {
+    const cardVariants: Variants = {
         enter: (direction: string) => ({
             x: direction === 'right' ? 300 : direction === 'left' ? -300 : 0,
             y: direction === 'up' ? -100 : 0,
@@ -109,7 +112,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
             rotateY: 0,
             transition: {
                 duration: 0.4,
-                ease: [0.25, 0.46, 0.45, 0.94],
+                ease: CARD_TRANSITION_EASE,
             },
         },
         exit: (direction: string) => ({
@@ -154,10 +157,10 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                 variants={cardVariants}
             >
                 <motion.div
-                    className="relative w-full h-full"
-                    style={{ transformStyle: 'preserve-3d' }}
-                    animate={{ rotateY: isFlipped ? 180 : 0 }}
-                    transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+                className="relative w-full h-full"
+                style={{ transformStyle: 'preserve-3d' }}
+                animate={{ rotateY: isFlipped ? 180 : 0 }}
+                    transition={{ duration: 0.6, ease: FLIP_TRANSITION_EASE }}
                 >
                     {/* FRONT SIDE */}
                     <div
