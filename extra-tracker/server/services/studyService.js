@@ -520,6 +520,19 @@ class StudyService extends BaseService {
         const requestedQuestions = this._toNumber(config.questionCount, 0);
         const timeLimitMinutes = this._toNumber(config.timeLimitMinutes, 0);
 
+        // Exam-specific configuration
+        const examType = config.examType && typeof config.examType === 'string' ? config.examType.toLowerCase() : undefined;
+        const examDifficulty = config.examDifficulty && typeof config.examDifficulty === 'string' ? config.examDifficulty.toLowerCase() : undefined;
+
+        // DEBUG: Log exam configuration
+        if (mode === 'exam') {
+            console.log(`[StudyService.getStudySession] EXAM MODE ACTIVATED`);
+            console.log(`[StudyService.getStudySession] examType: ${examType || 'NOT SET'}`);
+            console.log(`[StudyService.getStudySession] examDifficulty: ${examDifficulty || 'NOT SET'}`);
+            console.log(`[StudyService.getStudySession] Total cards in deck: ${cards.length}`);
+            console.log(`[StudyService.getStudySession] questionCount: ${requestedQuestions}`);
+        }
+
         const dueCards = cards.filter(card => {
             const nextReview = new Date(card.nextReviewDate);
             return nextReview <= now;
@@ -542,14 +555,15 @@ class StudyService extends BaseService {
             focus,
             limit: sessionLimit,
             now,
+            examDifficulty,
         });
 
-        const cardModes = this._buildCardModes(mode, sessionCards);
+        const cardModes = this._buildCardModes(mode, sessionCards, examType);
         const allAnswers = cards
             .map(card => card.back)
             .filter(answer => typeof answer === 'string' && answer.trim().length > 0);
 
-        const enrichedCards = sessionCards.map(card => {
+        let enrichedCards = sessionCards.map(card => {
             const cardId = this._resolveCardId(card);
             const cardMode = cardModes?.[cardId] || mode;
             if (cardMode === 'quiz') {
@@ -560,6 +574,12 @@ class StudyService extends BaseService {
             }
             return card;
         });
+
+        // Se examType è 'true_false', trasforma le carte in formato Vero/Falso
+        if (examType === 'true_false') {
+            console.log(`[StudyService.getStudySession] Transforming cards to TRUE/FALSE format`);
+            enrichedCards = this._transformToTrueFalse(enrichedCards, allAnswers);
+        }
 
         return {
             deck: {
@@ -715,6 +735,108 @@ class StudyService extends BaseService {
 
         return {
             stats: metadata,
+        };
+    }
+
+    // =========================================
+    // EXAM PROGRESS (Pausa/Resume)
+    // =========================================
+
+    /**
+     * Salva il progresso di un esame in corso per permettere pausa/resume
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} deckId - ID del deck
+     * @param {object} progressData - Dati di progresso dell'esame
+     * @returns {Promise<object>} - Conferma salvataggio
+     */
+    async saveExamProgress(tenantScope, deckId, progressData = {}) {
+        const userId = this._getUserId(tenantScope);
+
+        // Validazione base
+        if (!progressData || typeof progressData !== 'object') {
+            throw AppError.validation('Dati di progresso non validi');
+        }
+
+        const examProgress = {
+            examConfig: progressData.examConfig || {},
+            currentCardIndex: this._toNumber(progressData.currentCardIndex, 0),
+            stats: {
+                hard: this._toNumber(progressData.stats?.hard, 0),
+                good: this._toNumber(progressData.stats?.good, 0),
+                easy: this._toNumber(progressData.stats?.easy, 0),
+            },
+            elapsedSeconds: this._toNumber(progressData.elapsedSeconds, 0),
+            answers: Array.isArray(progressData.answers) ? progressData.answers : [],
+            sessionCardIds: Array.isArray(progressData.sessionCardIds) ? progressData.sessionCardIds : [],
+            pausedAt: new Date(),
+        };
+
+        const deck = await Deck.findOneAndUpdate(
+            { _id: deckId, user: userId },
+            { $set: { examProgress } },
+            { new: true }
+        );
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        console.log(`[StudyService] Exam progress saved for deck ${deckId}`);
+
+        return {
+            success: true,
+            message: 'Progresso esame salvato',
+            pausedAt: examProgress.pausedAt,
+        };
+    }
+
+    /**
+     * Recupera il progresso salvato di un esame
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} deckId - ID del deck
+     * @returns {Promise<object|null>} - Progresso salvato o null se non esiste
+     */
+    async getExamProgress(tenantScope, deckId) {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOne({ _id: deckId, user: userId }).select('examProgress');
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        // Se non c'è progresso salvato, ritorna null
+        if (!deck.examProgress) {
+            return null;
+        }
+
+        return deck.examProgress;
+    }
+
+    /**
+     * Cancella il progresso salvato di un esame
+     * @param {object} tenantScope - Scope del tenant
+     * @param {string} deckId - ID del deck
+     * @returns {Promise<object>} - Conferma cancellazione
+     */
+    async clearExamProgress(tenantScope, deckId) {
+        const userId = this._getUserId(tenantScope);
+
+        const deck = await Deck.findOneAndUpdate(
+            { _id: deckId, user: userId },
+            { $set: { examProgress: null } },
+            { new: true }
+        );
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        console.log(`[StudyService] Exam progress cleared for deck ${deckId}`);
+
+        return {
+            success: true,
+            message: 'Progresso esame cancellato',
         };
     }
 
@@ -3577,22 +3699,68 @@ Genera una risposta per OGNI domanda nella lista.`;
         return selection;
     }
 
-    _buildCardModes(mode, cards) {
+    _buildCardModes(mode, cards, examType) {
         if (mode !== 'mix' && mode !== 'exam') return undefined;
-        const cycle = mode === 'exam'
-            ? ['quiz', 'typing', 'quiz', 'flashcard', 'typing']
-            : ['quiz', 'typing', 'flashcard'];
-        return cards.reduce((acc, card, index) => {
+
+        let cycle;
+
+        // Se mode='exam' e examType è specificato, rispetta il tipo esame
+        if (mode === 'exam' && examType) {
+            console.log(`[StudyService._buildCardModes] EXAM MODE with examType=${examType}`);
+            switch (examType) {
+                case 'quiz_initial':
+                    // Solo quiz (multiple choice)
+                    cycle = ['quiz'];
+                    break;
+                case 'full_mixed':
+                    // 50% quiz, 30% typing, 20% flashcard
+                    cycle = ['quiz', 'quiz', 'quiz', 'quiz', 'quiz', 'typing', 'typing', 'typing', 'flashcard', 'flashcard'];
+                    break;
+                case 'true_false':
+                    // Per ora usiamo quiz (in futuro possiamo aggiungere una modalità vero/falso dedicata)
+                    cycle = ['quiz'];
+                    console.log(`[StudyService._buildCardModes] WARNING: true_false is not fully implemented, using regular quiz mode`);
+                    break;
+                case 'mixed':
+                default:
+                    // Default exam cycle
+                    cycle = ['quiz', 'typing', 'quiz', 'flashcard', 'typing'];
+                    break;
+            }
+            console.log(`[StudyService._buildCardModes] Cycle selected:`, cycle);
+        } else {
+            // Default cycles per mix e exam (senza examType)
+            cycle = mode === 'exam'
+                ? ['quiz', 'typing', 'quiz', 'flashcard', 'typing']
+                : ['quiz', 'typing', 'flashcard'];
+            console.log(`[StudyService._buildCardModes] Using default cycle for mode=${mode}:`, cycle);
+        }
+
+        const cardModes = cards.reduce((acc, card, index) => {
             acc[this._resolveCardId(card)] = cycle[index % cycle.length];
             return acc;
         }, {});
+
+        console.log(`[StudyService._buildCardModes] Generated cardModes for ${cards.length} cards`);
+        return cardModes;
     }
 
-    _selectSessionCards({ cards, dueCards, mode, focus, limit, now }) {
+    _selectSessionCards({ cards, dueCards, mode, focus, limit, now, examDifficulty }) {
         let selection = [];
 
         if (mode === 'exam') {
-            selection = this._buildExamSelection(cards, limit || cards.length);
+            let examCards = [...cards];
+
+            console.log(`[StudyService._selectSessionCards] EXAM MODE: cards=${cards.length}, limit=${limit}, examDifficulty=${examDifficulty || 'NONE'}`);
+
+            // Se examDifficulty è specificato, filtra le carte per success rate
+            if (examDifficulty) {
+                examCards = this._filterCardsByDifficulty(cards, examDifficulty);
+                console.log(`[StudyService._selectSessionCards] After difficulty filter: ${examCards.length} cards`);
+            }
+
+            selection = this._buildExamSelection(examCards, limit || examCards.length);
+            console.log(`[StudyService._selectSessionCards] After _buildExamSelection: ${selection.length} cards selected`);
         } else if (focus === 'due') {
             const sortedDue = [...dueCards].sort((a, b) => {
                 const aTime = new Date(a.nextReviewDate).getTime();
@@ -3614,6 +3782,89 @@ Genera una risposta per OGNI domanda nella lista.`;
         const trimmed = limit > 0 ? selection.slice(0, limit) : selection;
         const shouldShuffle = ['quiz', 'mix', 'sprint'].includes(mode) && focus !== 'due';
         return shouldShuffle ? this._shuffleArray(trimmed) : trimmed;
+    }
+
+    /**
+     * Calcola il success rate di una carta (0-100%)
+     * Basato su easinessFactor e reviewCount
+     */
+    _calculateSuccessRate(card) {
+        const ef = typeof card.easinessFactor === 'number' ? card.easinessFactor : DEFAULT_EASINESS_FACTOR;
+        const reviewCount = typeof card.repetitions === 'number' ? card.repetitions : 0;
+
+        // Se la carta è nuova (reviewCount === 0), calcoliamo il success rate basandoci solo su EF iniziale
+        // Questo permette di distribuire le carte nuove tra le difficoltà
+        // Invece di assumere 50% per tutte, usiamo la formula standard
+
+        // Formula: Success Rate basato su Easiness Factor
+        // EF range: 1.3 (hard) - 2.5 (perfect)
+        // Normalizziamo a 0-100%
+        // EF 1.3 -> 0% success
+        // EF 2.5 -> 100% success
+        const minEF = MIN_EASINESS_FACTOR; // 1.3
+        const maxEF = DEFAULT_EASINESS_FACTOR; // 2.5
+        const normalizedEF = (ef - minEF) / (maxEF - minEF);
+        const successRate = Math.max(0, Math.min(100, normalizedEF * 100));
+
+        return successRate;
+    }
+
+    /**
+     * Filtra le carte per difficoltà richiesta
+     * @param {Array} cards - Array di carte
+     * @param {string} difficulty - 'easy' | 'medium' | 'hard'
+     * @returns {Array} - Carte filtrate
+     */
+    _filterCardsByDifficulty(cards, difficulty) {
+        const cardsWithSuccessRate = cards.map(card => ({
+            card,
+            successRate: this._calculateSuccessRate(card),
+        }));
+
+        // DEBUG: Log success rate distribution
+        const successRateStats = {
+            easy: cardsWithSuccessRate.filter(item => item.successRate > 80).length,
+            medium: cardsWithSuccessRate.filter(item => item.successRate >= 50 && item.successRate <= 80).length,
+            hard: cardsWithSuccessRate.filter(item => item.successRate < 50).length,
+        };
+        console.log(`[StudyService._filterCardsByDifficulty] Total cards: ${cards.length}, Difficulty requested: ${difficulty}`);
+        console.log(`[StudyService._filterCardsByDifficulty] Distribution: easy=${successRateStats.easy}, medium=${successRateStats.medium}, hard=${successRateStats.hard}`);
+
+        // Sample first 5 cards for debugging
+        const sample = cardsWithSuccessRate.slice(0, 5).map(item => ({
+            ef: item.card.easinessFactor,
+            reps: item.card.repetitions,
+            successRate: item.successRate.toFixed(2)
+        }));
+        console.log(`[StudyService._filterCardsByDifficulty] Sample cards:`, JSON.stringify(sample));
+
+        let filtered;
+
+        switch (difficulty) {
+            case 'easy':
+                // Success rate > 80%
+                filtered = cardsWithSuccessRate.filter(item => item.successRate > 80);
+                break;
+            case 'hard':
+                // Success rate < 50%
+                filtered = cardsWithSuccessRate.filter(item => item.successRate < 50);
+                break;
+            case 'medium':
+            default:
+                // Success rate 50-80%
+                filtered = cardsWithSuccessRate.filter(item => item.successRate >= 50 && item.successRate <= 80);
+                break;
+        }
+
+        console.log(`[StudyService._filterCardsByDifficulty] Filtered result: ${filtered.length} cards`);
+
+        // Se il filtro produce 0 carte, ritorna tutte le carte (fallback)
+        if (filtered.length === 0) {
+            console.warn(`[StudyService._filterCardsByDifficulty] Nessuna carta trovata per difficulty=${difficulty}, usando tutte le carte`);
+            return cards;
+        }
+
+        return filtered.map(item => item.card);
     }
 
     _buildQuizOptions(correctAnswer, allAnswers = []) {
@@ -3654,6 +3905,60 @@ Genera una risposta per OGNI domanda nella lista.`;
         }
 
         return this._shuffleArray(options);
+    }
+
+    /**
+     * Trasforma le carte in formato Vero/Falso per esami
+     * @param {Array} cards - Carte da trasformare
+     * @param {Array} allAnswers - Tutte le risposte disponibili per generare affermazioni false
+     * @returns {Array} - Carte trasformate con formato true/false
+     */
+    _transformToTrueFalse(cards, allAnswers = []) {
+        console.log(`[StudyService._transformToTrueFalse] Transforming ${cards.length} cards to TRUE/FALSE format`);
+
+        return cards.map((card, index) => {
+            const isTrue = Math.random() < 0.5; // 50% chance di affermazione vera
+
+            let statement;
+            let correctAnswer;
+
+            if (isTrue) {
+                // Affermazione VERA: front + risposta corretta
+                statement = `${card.front} → ${card.back}`;
+                correctAnswer = 'Vero';
+            } else {
+                // Affermazione FALSA: front + risposta sbagliata
+                const wrongAnswers = allAnswers.filter(answer =>
+                    this._normalizeAnswerValue(answer) !== this._normalizeAnswerValue(card.back)
+                );
+                const randomWrong = wrongAnswers.length > 0
+                    ? wrongAnswers[Math.floor(Math.random() * wrongAnswers.length)]
+                    : 'risposta errata';
+
+                statement = `${card.front} → ${randomWrong}`;
+                correctAnswer = 'Falso';
+            }
+
+            const transformedCard = {
+                ...card,
+                front: statement,
+                back: correctAnswer,
+                options: ['Vero', 'Falso'],
+                isTrueFalse: true,
+                originalFront: card.front, // Salva l'originale per riferimento
+                originalBack: card.back,
+            };
+
+            if (index < 3) {
+                console.log(`[StudyService._transformToTrueFalse] Sample card #${index + 1}:`, {
+                    statement: statement.substring(0, 80) + '...',
+                    correctAnswer,
+                    isTrue
+                });
+            }
+
+            return transformedCard;
+        });
     }
 
     _normalizeAnswerValue(value) {
