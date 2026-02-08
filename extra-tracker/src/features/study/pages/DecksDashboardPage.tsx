@@ -92,6 +92,7 @@ export const DecksDashboardPage: React.FC = () => {
     useScrollToTop([selectedExamId]);
 
     // ========== EXAM SELECTION ==========
+    // IMPORTANTE: Definito PRIMA del useEffect che lo usa per evitare hoisting error
 
     const handleExamSelect = useCallback(async (examId: string | null) => {
         if (examId === null) {
@@ -113,6 +114,15 @@ export const DecksDashboardPage: React.FC = () => {
             console.error('Errore nel caricamento dell\'esame:', err);
         }
     }, []);
+
+    // Leggi parametro exam dall'URL (per tornare indietro dal deck detail)
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const examIdFromUrl = params.get('exam');
+        if (examIdFromUrl && !selectedExamId) {
+            handleExamSelect(examIdFromUrl);
+        }
+    }, [location.search, handleExamSelect, selectedExamId]);
 
     // Exam from ExamGrid or WeeklyCalendar -> DayDetail
     const handleExamClick = useCallback(async (examId: string) => {
