@@ -127,7 +127,7 @@ export const StudySessionPage: React.FC = () => {
     const isCompleteRef = useRef(false);
     const hasLoadedRef = useRef(false);
     const hasStudiedRef = useRef(false);
-    const timerRef = useRef<ReturnType<typeof intervalId> | null>(null);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const sessionKey = deckId ? `${deckId}-${mode}-${focus}-${length}-${questionCount}-${timeLimitMinutes}-${direction}-${examType}-${examDifficulty}` : null;
 
     // ============================================
