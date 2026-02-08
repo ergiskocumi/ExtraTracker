@@ -30,7 +30,7 @@ vi.mock('../../../../shared/components/toast', () => ({
 
 // Mock window.prompt
 const mockPrompt = vi.fn();
-global.window.prompt = mockPrompt;
+globalThis.window.prompt = mockPrompt;
 
 describe('FlashcardList - Numerazione Card', () => {
     const mockDeck: Deck = {
