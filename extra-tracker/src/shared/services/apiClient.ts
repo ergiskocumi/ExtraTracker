@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import type { AxiosError, AxiosResponse, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import { emitToast } from '../components/toast';
 
@@ -127,18 +127,17 @@ axiosInstance.interceptors.request.use(async (config) => {
     if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
         await ensureCsrfToken();
         if (cachedCsrfToken) {
-            config.headers = {
-                ...(config.headers || {}),
-                [CSRF_HEADER_NAME]: cachedCsrfToken,
-            };
+            const headers = AxiosHeaders.from(config.headers || {});
+            headers.set(CSRF_HEADER_NAME, cachedCsrfToken);
+            config.headers = headers;
         }
     }
 
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-        if (config.headers) {
-            delete (config.headers as any)['Content-Type'];
-            delete (config.headers as any)['content-type'];
-        }
+        const headers = AxiosHeaders.from(config.headers || {});
+        headers.delete('Content-Type');
+        headers.delete('content-type');
+        config.headers = headers;
     }
     return config;
 });
