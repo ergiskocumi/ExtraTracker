@@ -1,11 +1,10 @@
 /**
- * USER MENU DROPDOWN
+ * USER MENU DROPDOWN - Versione Pulita
  *
- * Menu utente moderno con design geometrico.
- * Features:
- * - Design glassmorphism con forme geometriche
+ * Menu utente moderno con:
+ * - Avatar foto profilo con bordo animato
+ * - Design glassmorphism avanzato
  * - Animazioni fluide
- * - Performance ottimizzata
  */
 
 import { useState, useRef, useEffect, memo } from 'react';
@@ -41,6 +40,70 @@ interface MenuCategory {
     label: string;
     items: MenuItem[];
 }
+
+// ============================================
+// AVATAR COMPONENT
+// ============================================
+
+interface UserAvatarProps {
+    avatarUrl?: string;
+    initials: string;
+    size?: 'sm' | 'md' | 'lg';
+    isAnimated?: boolean;
+}
+
+const UserAvatar = memo(({
+    avatarUrl,
+    initials,
+    size = 'md',
+    isAnimated = true,
+}: UserAvatarProps) => {
+    const sizeClasses = {
+        sm: { container: 'w-8 h-8', text: 'text-xs' },
+        md: { container: 'w-9 h-9', text: 'text-sm' },
+        lg: { container: 'w-16 h-16', text: 'text-xl' },
+    };
+
+    const s = sizeClasses[size];
+
+    return (
+        <motion.div
+            className={`relative ${s.container} rounded-xl overflow-hidden shadow-lg`}
+            whileHover={isAnimated ? { scale: 1.05 } : undefined}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+        >
+            {/* Bordo gradiente animato */}
+            <div 
+                className="absolute inset-0 rounded-xl z-0"
+                style={{
+                    background: 'linear-gradient(135deg, var(--primary-500) 0%, var(--violet-500) 50%, var(--primary-600) 100%)',
+                    padding: '2px',
+                }}
+            >
+                <div className="w-full h-full rounded-xl bg-gradient-to-br from-primary-500 to-violet-600" />
+            </div>
+
+            {/* Immagine o Iniziali */}
+            <div className="absolute inset-[2px] rounded-[10px] overflow-hidden bg-gradient-to-br from-primary-500 to-violet-600 flex items-center justify-center">
+                {avatarUrl ? (
+                    <img
+                        src={avatarUrl}
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                    />
+                ) : null}
+                <span className={`${s.text} font-bold text-white drop-shadow-md ${avatarUrl ? 'hidden' : 'block'}`}>
+                    {initials}
+                </span>
+            </div>
+        </motion.div>
+    );
+});
+
+UserAvatar.displayName = 'UserAvatar';
 
 // ============================================
 // MENU ITEM
@@ -101,7 +164,6 @@ const MenuItemComponent = memo(({
         </>
     );
 
-    // If it has an action (no path), render as button
     if (item.action && !item.path) {
         return (
             <button onClick={handleClick} className={className}>
@@ -110,7 +172,6 @@ const MenuItemComponent = memo(({
         );
     }
 
-    // Otherwise render as Link
     return (
         <Link to={item.path || '/'} onClick={handleClick} className={className}>
             {content}
@@ -189,26 +250,19 @@ export const UserMenuDropdown = memo(() => {
 
     const handleNavClick = () => setIsOpen(false);
 
-    // Scroll lock quando il menu è aperto - Usa event listeners invece di modificare body styles
+    // Scroll lock quando il menu è aperto
     useEffect(() => {
         if (isOpen) {
-            // Salva lo scroll corrente
             const scrollY = window.scrollY;
-            
-            // Blocca lo scroll usando overflow hidden su html invece di body
-            // Questo evita problemi di rendering e inversione colori
             const html = document.documentElement;
             const body = document.body;
             
-            // Salva gli stili originali
             const originalHtmlOverflow = html.style.overflow;
             const originalBodyOverflow = body.style.overflow;
             
-            // Blocca lo scroll solo con overflow, senza cambiare position
             html.style.overflow = 'hidden';
             body.style.overflow = 'hidden';
             
-            // Previeni anche scroll con wheel e touch events come backup
             const preventScroll = (e: Event) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -220,16 +274,11 @@ export const UserMenuDropdown = memo(() => {
             document.addEventListener('scroll', preventScroll, preventScrollOptions);
             
             return () => {
-                // Ripristina gli stili
                 html.style.overflow = originalHtmlOverflow;
                 body.style.overflow = originalBodyOverflow;
-                
-                // Rimuovi event listeners
                 document.removeEventListener('wheel', preventScroll, preventScrollOptions);
                 document.removeEventListener('touchmove', preventScroll, preventScrollOptions);
                 document.removeEventListener('scroll', preventScroll, preventScrollOptions);
-                
-                // Ripristina la posizione di scroll
                 window.scrollTo(0, scrollY);
             };
         }
@@ -252,27 +301,25 @@ export const UserMenuDropdown = memo(() => {
         <div className="relative" ref={menuRef}>
             {/* Trigger Button */}
             <motion.button
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl transition-all duration-200 border backdrop-blur-xl"
                 style={{
                     background: isOpen
                         ? 'var(--bg-surface-hover)'
                         : 'var(--bg-surface)',
-                    borderColor: 'var(--border-subtle)',
+                    borderColor: isOpen ? 'var(--primary-500/30)' : 'var(--border-subtle)',
                     color: 'var(--text-primary)',
+                    boxShadow: isOpen ? '0 0 20px var(--primary-500/10)' : 'none',
                 }}
             >
                 {/* Avatar */}
-                <div className="relative">
-                    <div
-                        className="flex items-center justify-center w-9 h-9 text-sm font-bold text-white rounded-xl shadow-lg bg-gradient-to-br from-primary-500 to-violet-600 shadow-primary-500/25"
-                        title={userLabel}
-                    >
-                        {userInitials}
-                    </div>
-                </div>
+                <UserAvatar
+                    avatarUrl={profile?.avatar}
+                    initials={userInitials}
+                    size="md"
+                />
 
                 {/* User Info (desktop only) */}
                 <div className="hidden md:block text-left min-w-0">
@@ -282,11 +329,15 @@ export const UserMenuDropdown = memo(() => {
                 </div>
 
                 {/* Chevron */}
-                <FiChevronDown
-                    size={14}
-                    className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                    style={{ color: 'var(--text-muted)' }}
-                />
+                <motion.div
+                    animate={{ rotate: isOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    <FiChevronDown
+                        size={14}
+                        style={{ color: 'var(--text-muted)' }}
+                    />
+                </motion.div>
             </motion.button>
 
             {/* Sidebar - Renderizzata tramite Portal */}
@@ -294,7 +345,7 @@ export const UserMenuDropdown = memo(() => {
                 <AnimatePresence>
                     {isOpen && (
                         <>
-                            {/* Backdrop - Blocca il resto dello schermo */}
+                            {/* Backdrop */}
                             <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -303,7 +354,7 @@ export const UserMenuDropdown = memo(() => {
                                 className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
                             />
                             
-                            {/* Sidebar a destra */}
+                            {/* Sidebar */}
                             <motion.div
                                 initial={{ x: '100%', opacity: 0 }}
                                 animate={{ x: 0, opacity: 1 }}
@@ -318,16 +369,13 @@ export const UserMenuDropdown = memo(() => {
                                 ref={menuRef}
                             >
                                 <div className="h-full flex flex-col overflow-hidden">
-                                    {/* Header con pulsante chiusura */}
+                                    {/* Header */}
                                     <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                                         <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Menu</h2>
                                         <button
                                             onClick={() => setIsOpen(false)}
-                                            className="p-2 rounded-lg transition-colors"
-                                            style={{
-                                                background: 'transparent',
-                                                color: 'var(--text-muted)',
-                                            }}
+                                            className="p-2 rounded-lg transition-colors hover:bg-white/[0.08]"
+                                            style={{ color: 'var(--text-muted)' }}
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -337,30 +385,21 @@ export const UserMenuDropdown = memo(() => {
 
                                     {/* Content */}
                                     <div className="flex-1 overflow-hidden">
-                                        {/* ===== USER PROFILE SECTION ===== */}
+                                        {/* User Profile Section */}
                                         <div className="relative p-5 overflow-hidden">
-                                            {/* Background geometric shapes */}
+                                            {/* Background */}
                                             <div className="absolute inset-0 pointer-events-none">
                                                 <div className="absolute top-0 right-0 w-36 h-36 bg-primary-500/15 rounded-[32px] blur-3xl transform translate-x-1/2 -translate-y-1/2 rotate-12" />
                                                 <div className="absolute bottom-0 left-0 w-28 h-28 bg-violet-500/12 rounded-[26px] blur-2xl transform -translate-x-1/2 translate-y-1/2 -rotate-12" />
-                                                {/* Geometric lines */}
-                                                <svg className="absolute inset-0 w-full h-full opacity-[0.03]" viewBox="0 0 100 100">
-                                                    <line x1="0" y1="0" x2="100" y2="100" stroke="white" strokeWidth="0.5" />
-                                                    <line x1="100" y1="0" x2="0" y2="100" stroke="white" strokeWidth="0.5" />
-                                                </svg>
                                             </div>
 
                                             <div className="relative z-10">
-                                                {/* User header */}
                                                 <div className="flex items-start gap-4 mb-5">
-                                                    <div className="relative">
-                                                        <div className="flex items-center justify-center w-16 h-16 text-xl font-bold rounded-2xl shadow-xl bg-gradient-to-br from-primary-500 via-primary-600 to-violet-600" style={{
-                                                            color: 'var(--text-primary)',
-                                                            boxShadow: '0 8px 24px var(--primary-shadow-color)',
-                                                        }}>
-                                                            {userInitials}
-                                                        </div>
-                                                    </div>
+                                                    <UserAvatar
+                                                        avatarUrl={profile?.avatar}
+                                                        initials={userInitials}
+                                                        size="lg"
+                                                    />
                                                     <div className="flex-1 min-w-0 pt-1">
                                                         <p className="text-lg font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{userLabel}</p>
                                                         <p className="text-xs truncate mt-1" style={{ color: 'var(--text-muted)' }}>{user?.email}</p>
@@ -369,12 +408,10 @@ export const UserMenuDropdown = memo(() => {
                                             </div>
                                         </div>
 
-                                        {/* Divider with glow */}
-                                        <div className="h-px bg-gradient-to-r from-transparent to-transparent" style={{
-                                            '--tw-gradient-via': 'var(--border-default)',
-                                        } as React.CSSProperties} />
+                                        {/* Divider */}
+                                        <div className="h-px mx-4" style={{ background: 'var(--border-subtle)' }} />
 
-                                        {/* ===== MENU ITEMS ===== */}
+                                        {/* Menu Items */}
                                         <div className="py-3">
                                             {menuCategories.map((category, catIndex) => (
                                                 <div key={category.label}>
@@ -402,16 +439,14 @@ export const UserMenuDropdown = memo(() => {
                                         </div>
                                     </div>
 
-                                    {/* ===== LOGOUT SECTION - Fixed at bottom ===== */}
+                                    {/* Logout Section */}
                                     <div className="p-4" style={{ borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)' }}>
                                         <motion.button
                                             whileHover={{ scale: 1.01, x: 2 }}
                                             whileTap={{ scale: 0.99 }}
                                             onClick={handleLogout}
                                             className="flex items-center w-full gap-3 px-3 py-2.5 transition-all rounded-xl group"
-                                            style={{
-                                                color: 'var(--text-danger)',
-                                            }}
+                                            style={{ color: 'var(--text-danger)' }}
                                         >
                                             <div className="flex items-center justify-center w-9 h-9 rounded-xl transition-colors" style={{
                                                 background: 'var(--bg-danger-subtle)',

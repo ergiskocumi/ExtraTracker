@@ -10,6 +10,7 @@
 
 import { memo, useEffect, useRef, lazy, Suspense } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -77,22 +78,13 @@ const Header = memo(() => {
                         className="flex items-center gap-3 group relative z-10"
                         title={`${APP_NAME}${appVersion ? ` v${appVersion}` : ''}`}
                     >
-                        <div className="transition-transform duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_15px_rgba(124,58,237,0.5)]">
-                            <Logo size="md" variant="full" />
-                        </div>
-                        
-                        {appVersion && (
-                            <span 
-                                className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium group-hover:border-primary-500/30 transition-colors"
-                                style={{
-                                    color: 'var(--text-muted)',
-                                    background: 'var(--bg-surface)',
-                                    border: '1px solid var(--border-subtle)',
-                                }}
-                            >
-                                v{appVersion}
-                            </span>
-                        )}
+                        <motion.div 
+                            className="transition-transform duration-300"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                        >
+                            <Logo size="md" variant="with-version" animated={true} />
+                        </motion.div>
                     </Link>
 
                     {/* RIGHT: Theme Toggle + User Menu */}
