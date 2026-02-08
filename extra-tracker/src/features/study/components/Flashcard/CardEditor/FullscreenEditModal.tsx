@@ -14,7 +14,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { X, Save, Eye, EyeOff } from 'lucide-react';
 import { MarkdownEditor } from './MarkdownEditor';
 import { EditorPreview } from './EditorPreview';
@@ -49,13 +49,13 @@ export interface FullscreenEditModalProps {
 // ANIMATIONS
 // ============================================
 
-const overlayVariants = {
+const overlayVariants: Variants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1 },
     exit: { opacity: 0 },
 };
 
-const modalVariants = {
+const modalVariants: Variants = {
     hidden: {
         opacity: 0,
         scale: 0.95,
@@ -133,6 +133,7 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
 
     // Blocca scroll body quando modal è aperto
     useEffect(() => {
+        if (typeof document === 'undefined') return undefined;
         if (isOpen) {
             document.body.style.overflow = 'hidden';
         } else {
@@ -442,9 +443,9 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
 
     // Portal nel ROOT React (#root): così input/keydown (Invio, frecce, digitazione) arrivano
     // al root e React li gestisce. Con portal su body gli eventi non raggiungevano il root.
-    const portalTarget = typeof document !== 'undefined'
-        ? (document.getElementById('root') ?? document.body)
-        : document.body;
+    const portalTarget =
+        typeof document !== 'undefined' ? (document.getElementById('root') ?? document.body) : null;
+    if (!portalTarget) return null;
     return createPortal(modalContent, portalTarget);
 };
 
