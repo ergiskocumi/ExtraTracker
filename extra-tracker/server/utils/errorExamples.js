@@ -42,7 +42,7 @@ function exampleWithMetadata() {
 /**
  * Esempio 3: Errore wrapping errore originale
  */
-function exampleWrappingError() {
+async function exampleWrappingError() {
     try {
         await someDatabaseOperation();
     } catch (error) {
@@ -132,7 +132,7 @@ function exampleRateLimit() {
  */
 async function exampleExternalAPI() {
     try {
-        await openai.chat.completions.create({...});
+        await openai.chat.completions.create({ model: 'gpt-4', messages: [] });
     } catch (error) {
         throw AppError.externalAPI(
             'OpenAI',
@@ -175,7 +175,7 @@ function exampleFileUpload() {
  */
 async function exampleEmail() {
     try {
-        await transporter.sendMail({...});
+        await transporter.sendMail({ to: user.email, subject: 'Verifica Email', html: '<p>Clicca per verificare</p>' });
     } catch (error) {
         throw AppError.email(
             'Impossibile inviare l\'email di verifica',
