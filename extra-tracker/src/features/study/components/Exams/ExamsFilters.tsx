@@ -99,7 +99,9 @@ export const ExamsFilters: React.FC<ExamsFiltersProps> = ({
                     {filters.map((f) => {
                         const isActive = filter === f.key;
                         const styles = FILTER_STYLES[f.key];
-                        const stateStyles = isActive ? styles.active : styles.inactive;
+                        const activeStyles = styles.active;
+                        const inactiveStyles = styles.inactive;
+                        const stateStyles = isActive ? activeStyles : inactiveStyles;
 
                         return (
                             <button
@@ -110,8 +112,8 @@ export const ExamsFilters: React.FC<ExamsFiltersProps> = ({
                                     ${stateStyles.background}
                                     ${stateStyles.text}
                                     ${stateStyles.border}
-                                    ${!isActive ? stateStyles.hover.background : ''}
-                                    ${!isActive ? stateStyles.hover.text : ''}
+                                    ${!isActive ? inactiveStyles.hover.background : ''}
+                                    ${!isActive ? inactiveStyles.hover.text : ''}
                                 `}
                             >
                                 <Filter className={FILTER_BASE_STYLES.icon} />

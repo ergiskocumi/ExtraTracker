@@ -15,6 +15,7 @@ import type {
     FeedbackUser,
     CreateFeedbackDTO,
     UpdateFeedbackDTO,
+    PaginationMeta,
 } from '../types';
 
 /**
@@ -23,6 +24,33 @@ import type {
 class FeedbackService {
     private baseUrl = '/feedback';
     private adminUrl = '/admin/feedback';
+
+    private requireData<T>(response: ApiResponse<T>, fallbackMessage: string): T {
+        if (response.data === undefined || response.data === null) {
+            throw new Error(response.message || fallbackMessage);
+        }
+        return response.data;
+    }
+
+    private normalizeListResponse(
+        response: ApiResponse<Feedback[]>,
+        defaults: { page: number; limit: number }
+    ): FeedbackListResponse {
+        const data = response.data ?? [];
+        const responseMeta = (response as ApiResponse<Feedback[]> & { meta?: PaginationMeta }).meta;
+
+        return {
+            success: response.success,
+            data,
+            meta: responseMeta ?? {
+                page: defaults.page,
+                limit: defaults.limit,
+                total: data.length,
+                totalPages: data.length > 0 ? 1 : 0,
+                hasMore: false,
+            },
+        };
+    }
 
     // ==========================================
     // USER METHODS
@@ -49,16 +77,22 @@ class FeedbackService {
             });
         }
 
-        return apiClient.post<Feedback>(this.baseUrl, formData);
+        const response = await apiClient.post<Feedback>(this.baseUrl, formData);
+        return {
+            success: response.success,
+            data: this.requireData(response, 'Feedback creato senza payload valido'),
+            message: response.message,
+        };
     }
 
     /**
      * Ottieni lista dei propri feedback
      */
     async getMyFeedback(page = 1, limit = 20): Promise<FeedbackListResponse> {
-        return apiClient.get<Feedback[]>(`${this.baseUrl}/my`, {
+        const response = await apiClient.get<Feedback[]>(`${this.baseUrl}/my`, {
             params: { page, limit },
         });
+        return this.normalizeListResponse(response, { page, limit });
     }
 
     // ==========================================
@@ -82,28 +116,45 @@ class FeedbackService {
             params.labels = filters.labels.join(',');
         }
 
-        return apiClient.get<Feedback[]>(this.adminUrl, { params });
+        const page = filters.page ?? 1;
+        const limit = filters.limit ?? 20;
+        const response = await apiClient.get<Feedback[]>(this.adminUrl, { params });
+        return this.normalizeListResponse(response, { page, limit });
     }
 
     /**
      * Ottieni singolo feedback (admin only)
      */
     async getFeedbackById(id: string): Promise<FeedbackResponse> {
-        return apiClient.get<Feedback>(`${this.adminUrl}/${id}`);
+        const response = await apiClient.get<Feedback>(`${this.adminUrl}/${id}`);
+        return {
+            success: response.success,
+            data: this.requireData(response, 'Feedback non trovato'),
+            message: response.message,
+        };
     }
 
     /**
      * Ottieni statistiche feedback (admin only)
      */
     async getStats(): Promise<FeedbackStatsResponse> {
-        return apiClient.get<FeedbackStats>(`${this.adminUrl}/stats`);
+        const response = await apiClient.get<FeedbackStats>(`${this.adminUrl}/stats`);
+        return {
+            success: response.success,
+            data: this.requireData(response, 'Statistiche feedback non disponibili'),
+        };
     }
 
     /**
      * Aggiorna feedback (admin only)
      */
     async updateFeedback(id: string, data: UpdateFeedbackDTO): Promise<FeedbackResponse> {
-        return apiClient.patch<Feedback>(`${this.adminUrl}/${id}`, data);
+        const response = await apiClient.patch<Feedback>(`${this.adminUrl}/${id}`, data);
+        return {
+            success: response.success,
+            data: this.requireData(response, 'Aggiornamento feedback non riuscito'),
+            message: response.message,
+        };
     }
 
     /**

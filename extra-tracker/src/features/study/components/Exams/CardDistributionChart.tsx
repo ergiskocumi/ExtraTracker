@@ -41,6 +41,8 @@ interface StatusSegment {
     percent: number;
     color: string;
     bgColor: string;
+    bgLight: string;
+    borderColor: string;
     icon: React.ElementType;
     description: string;
 }

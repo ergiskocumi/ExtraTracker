@@ -313,6 +313,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
         } catch (err: any) {
             console.error('[ExamCompletionModal] Errore nel salvataggio:', err);
             emitToast.error(err.message || 'Errore nel salvataggio del risultato');
+        } finally {
             setIsLoading(false);
         }
     };

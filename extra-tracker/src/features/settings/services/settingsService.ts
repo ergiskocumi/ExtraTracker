@@ -61,6 +61,8 @@ export interface UserPreferences {
     // Lavoro
     weekStartsOn: 0 | 1;
     workingDays: number[];
+    dailyGoalHours: number;
+    weeklyGoalHours: number;
 }
 
 export interface PreferencesData {

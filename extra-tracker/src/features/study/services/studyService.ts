@@ -772,8 +772,9 @@ class StudyService {
         currentCardIndex: number;
         stats: { hard: number; good: number; easy: number };
         elapsedSeconds: number;
-        answers: Array<{ cardId: string; rating: number; timestamp: Date }>;
+        answers: Array<{ cardId: string; rating: number; timestamp: Date | string }>;
         sessionCardIds: string[];
+        pausedAt?: string;
     }): Promise<{ success: boolean; message: string; pausedAt: Date }> {
         const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/exam-progress`, progressData);
         return unwrap(response, 'Errore nel salvataggio del progresso');

@@ -88,6 +88,8 @@ const defaultPreferences: UserPreferences = {
     defaultView: 'dashboard',
     weekStartsOn: 1,
     workingDays: [1, 2, 3, 4, 5],
+    dailyGoalHours: 4,
+    weeklyGoalHours: 20,
 };
 
 const defaultNotifications: UserNotifications = {

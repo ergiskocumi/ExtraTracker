@@ -30,7 +30,7 @@ vi.mock('../../../../shared/components/toast', () => ({
 
 // Mock window.prompt
 const mockPrompt = vi.fn();
-global.window.prompt = mockPrompt;
+globalThis.window.prompt = mockPrompt;
 
 describe('FlashcardList - Numerazione Card', () => {
     const mockDeck: Deck = {
@@ -115,9 +115,9 @@ describe('FlashcardList - Drag & Drop', () => {
             />
         );
 
-        const firstCard = screen.getByText('Question 1').closest('[draggable]');
+        const firstCard = document.querySelector('[aria-roledescription="sortable"]');
         expect(firstCard).toBeInTheDocument();
-        expect(firstCard).toHaveAttribute('draggable', 'true');
+        expect(firstCard).toHaveAttribute('role', 'button');
     });
 
     it('should reorder cards when dropped', async () => {
@@ -385,11 +385,14 @@ describe('FlashcardList - Insert Card at Position', () => {
             />
         );
 
-        // Trova l'area di inserimento tra le card
-        const insertAreas = screen.getAllByLabelText(/Inserisci card in posizione/i);
-        
-        // L'area dovrebbe esistere ma essere nascosta inizialmente
+        const insertAreas = document.querySelectorAll('.group\\/insert');
         expect(insertAreas.length).toBeGreaterThan(0);
+
+        fireEvent.mouseEnter((insertAreas[1] ?? insertAreas[0]) as Element);
+
+        await waitFor(() => {
+            expect(screen.queryByLabelText(/Inserisci card in posizione/i)).toBeInTheDocument();
+        });
     });
 
     it('should insert card at specific position when insert button is clicked', async () => {

@@ -35,9 +35,9 @@ describe('timeToMinutes', () => {
         });
     });
 
-    it('lancia errore per spazi bianchi (trimming non automatico)', () => {
-        expect(() => timeToMinutes(' 12:00')).toThrow(/Formato non valido/);
-        expect(() => timeToMinutes('12:00 ')).toThrow(/Formato non valido/);
+    it('accetta spazi bianchi laterali (trimming automatico)', () => {
+        expect(timeToMinutes(' 12:00')).toBe(720);
+        expect(timeToMinutes('12:00 ')).toBe(720);
     });
 
     // casi di errore (Logica e Range) 

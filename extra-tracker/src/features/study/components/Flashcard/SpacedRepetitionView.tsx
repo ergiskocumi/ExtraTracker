@@ -37,6 +37,11 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
     const [selectedRating, setSelectedRating] = useState<RatingValue | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [sessionTime, setSessionTime] = useState(0);
+    const [accuracy, setAccuracy] = useState({
+        correctCount: 0,
+        totalCount: 0,
+        accuracyPercentage: 0,
+    });
 
  
 
@@ -101,22 +106,30 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
         setIsFlipped(!isFlipped);
     }, [isFlipped]);
 
+    const recordAnswer = useCallback((isCorrect: boolean) => {
+        setAccuracy((prev) => {
+            const totalCount = prev.totalCount + 1;
+            const correctCount = prev.correctCount + (isCorrect ? 1 : 0);
+            return {
+                totalCount,
+                correctCount,
+                accuracyPercentage: totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0,
+            };
+        });
+    }, []);
+
     const handleRate = useCallback(async (rating: RatingValue) => {
         if (isSubmitting) return;
 
         setSelectedRating(rating);
         setIsSubmitting(true);
 
-        // Audio feedback
         if (rating === 3) {
-            audio.playCorrect();
-            accuracy.recordAnswer(card.id, true);
+            recordAnswer(true);
         } else if (rating === 2) {
-            audio.playWarning();
-            accuracy.recordAnswer(card.id, false);
+            recordAnswer(false);
         } else {
-            audio.playIncorrect();
-            accuracy.recordAnswer(card.id, false);
+            recordAnswer(false);
         }
 
         // Submit and advance
@@ -132,7 +145,7 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
         } else {
             setIsSubmitting(false);
         }
-    }, [card.id, isSubmitting, onRate, onNext, audio, accuracy]);
+    }, [isSubmitting, onRate, onNext, recordAnswer]);
 
     const progressPercent = useMemo(
         () => Math.round(((currentIndex + 1) / totalCards) * 100),

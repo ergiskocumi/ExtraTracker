@@ -14,6 +14,7 @@ import { ProtectedRoute } from './features/auth/context/AuthContext';
 import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
 import { useSettings } from './features/settings/context/SettingsContext';
+import { WorkLogProvider } from './features/tracker/context/WorkLogContext';
 
 // OTTIMIZZATO: Lazy loading per tutte le pagine (code splitting)
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -69,9 +70,11 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <SettingsProvider>
-                                <FeedbackProvider>
-                                    <AppLayout />
-                                </FeedbackProvider>
+                                <WorkLogProvider>
+                                    <FeedbackProvider>
+                                        <AppLayout />
+                                    </FeedbackProvider>
+                                </WorkLogProvider>
                             </SettingsProvider>
                         </ProtectedRoute>
                     }
