@@ -72,8 +72,14 @@ export const DeckDetailPage: React.FC = () => {
     }, [id, navigate]);
 
     const handleBack = useCallback(() => {
-        navigate('/study');
-    }, [navigate]);
+        // Se il mazzo appartiene a un esame, torna alla dashboard con parametro exam
+        // Così la dashboard mostra direttamente il dettaglio di quell'esame
+        if (deck?.examId) {
+            navigate(`/study?exam=${deck.examId}`);
+        } else {
+            navigate('/study');
+        }
+    }, [navigate, deck?.examId]);
 
     const handleReadPdf = useCallback(() => {
         if (!id) return;
