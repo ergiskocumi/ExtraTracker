@@ -97,6 +97,16 @@ export const useDeckHandlers = ({
         if (config.questionCount) {
             params.set('questions', String(config.questionCount));
         }
+        // EXAM CONFIG: Passa examType e examDifficulty per esami
+        if (config.examType) {
+            params.set('examType', config.examType);
+        }
+        if (config.examDifficulty) {
+            params.set('examDifficulty', config.examDifficulty);
+        }
+
+        console.log('[useDeckHandlers] Starting session with params:', Object.fromEntries(params));
+
         navigate(`/study/${studyDeck.id}/session?${params.toString()}`);
         setIsStudyModeOpen(false);
         setStudyDeck(null);
