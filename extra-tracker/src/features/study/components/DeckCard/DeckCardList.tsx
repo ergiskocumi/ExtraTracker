@@ -28,6 +28,7 @@ export interface DeckCardListProps {
     onViewDetail: (deckId: string) => void;
     onDelete: (deck: Deck) => void;
     onUpdate: (deck: Deck) => void;
+    onExamSolver?: (deckId: string) => void;
     tags?: Tag[];
     onTogglePin?: (deck: Deck) => void;
 }
