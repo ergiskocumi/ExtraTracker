@@ -19,17 +19,14 @@ const getEnvironment = () => {
     const explicitEnv = process.env.ENVIRONMENT;
     if (explicitEnv === 'production' || explicitEnv === 'prod') {
         return 'production';
-    }
-    if (explicitEnv === 'development' || explicitEnv === 'dev') {
+    } else if (explicitEnv === 'development' || explicitEnv === 'dev') {
+        return 'development';
+    } else if (process.env.NODE_ENV === 'production') {
+        // Fallback a NODE_ENV
+        return 'production';
+    } else {
         return 'development';
     }
-    
-    // Fallback a NODE_ENV
-    if (process.env.NODE_ENV === 'production') {
-        return 'production';
-    }
-    
-    return 'development';
 };
 
 const currentEnvironment = getEnvironment();
@@ -53,14 +50,16 @@ if (currentEnvironment === 'production') {
         });
         console.error('📝 Configura tutte le variabili richieste nel file .env prima di avviare il server');
         process.exit(1);
-    }
-    
-    // Validazione JWT_SECRET
-    if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
+    } else if (process.env.JWT_SECRET.length < 32) {
+        // Validazione JWT_SECRET
         console.error('❌ ERRORE CRITICO: JWT_SECRET deve essere almeno 32 caratteri in produzione');
         console.error('📝 Genera un secret sicuro con: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
         process.exit(1);
+    } else {
+        // Configurazione produzione valida: nessuna azione richiesta.
     }
+} else {
+    // In sviluppo non servono validazioni bloccanti delle variabili richieste.
 }
 
 // Log ambiente corrente
