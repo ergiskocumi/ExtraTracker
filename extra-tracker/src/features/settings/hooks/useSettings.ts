@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { authService, type ChangePasswordData } from '../../auth/services/authService';
 import { useSettings as useSettingsContext } from '../context/SettingsContext';
-import type { UserProfile, UserPreferences } from '../services/settingsService';
+import type { UserProfile, UserPreferences, UserNotifications } from '../services/settingsService';
 
 interface FormStatus {
     loading: boolean;
@@ -12,6 +12,7 @@ interface FormStatus {
 interface SettingsState {
     profileStatus: FormStatus;
     preferencesStatus: FormStatus;
+    notificationsStatus: FormStatus;
     passwordStatus: FormStatus;
     accountStatus: FormStatus;
 }
@@ -23,12 +24,14 @@ export const useSettingsPage = () => {
     const [status, setStatus] = useState<SettingsState>({
         profileStatus: initialStatus,
         preferencesStatus: initialStatus,
+        notificationsStatus: initialStatus,
         passwordStatus: initialStatus,
         accountStatus: initialStatus,
     });
 
     const setProfileStatus = (partial: Partial<FormStatus>) => setStatus(prev => ({ ...prev, profileStatus: { ...prev.profileStatus, ...partial } }));
     const setPreferencesStatus = (partial: Partial<FormStatus>) => setStatus(prev => ({ ...prev, preferencesStatus: { ...prev.preferencesStatus, ...partial } }));
+    const setNotificationsStatus = (partial: Partial<FormStatus>) => setStatus(prev => ({ ...prev, notificationsStatus: { ...prev.notificationsStatus, ...partial } }));
     const setPasswordStatus = (partial: Partial<FormStatus>) => setStatus(prev => ({ ...prev, passwordStatus: { ...prev.passwordStatus, ...partial } }));
     const setAccountStatus = (partial: Partial<FormStatus>) => setStatus(prev => ({ ...prev, accountStatus: { ...prev.accountStatus, ...partial } }));
 
@@ -43,6 +46,13 @@ export const useSettingsPage = () => {
         setPreferencesStatus({ loading: true, success: false, error: null });
         const ok = await settings.updatePreferences(data);
         setPreferencesStatus({ loading: false, success: ok, error: ok ? null : settings.error });
+        return ok;
+    };
+
+    const saveNotifications = async (data: Partial<UserNotifications>) => {
+        setNotificationsStatus({ loading: true, success: false, error: null });
+        const ok = await settings.updateNotifications(data);
+        setNotificationsStatus({ loading: false, success: ok, error: ok ? null : settings.error });
         return ok;
     };
 
@@ -80,9 +90,18 @@ export const useSettingsPage = () => {
         return ok;
     };
 
+    const uploadAvatar = async (file: File) => {
+        return await settings.uploadAvatar(file);
+    };
+
+    const deleteAvatar = async () => {
+        return await settings.deleteAvatar();
+    };
+
     return {
         profile: settings.profile,
         preferences: settings.preferences,
+        notifications: settings.notifications,
         account: settings.account,
         isLoading: settings.isLoading,
         hasLoaded: settings.hasLoaded,
@@ -90,10 +109,13 @@ export const useSettingsPage = () => {
         statuses: status,
         saveProfile,
         savePreferences,
+        saveNotifications,
         changePassword,
         exportData,
         checkImportData,
         importData,
         deleteAccount,
+        uploadAvatar,
+        deleteAvatar,
     };
 };

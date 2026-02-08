@@ -65,6 +65,8 @@ interface SettingsContextValue extends SettingsState {
         };
     } | null>;
     deleteAccount: (password: string, confirmation: string) => Promise<boolean>;
+    uploadAvatar: (file: File) => Promise<string | null>;
+    deleteAvatar: () => Promise<boolean>;
     clearError: () => void;
 }
 
@@ -366,6 +368,65 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     /**
+     * Upload avatar
+     */
+    const uploadAvatar = useCallback(async (file: File): Promise<string | null> => {
+        setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+        try {
+            const response = await settingsService.uploadAvatar(file);
+
+            if (response.success && response.data) {
+                setState(prev => ({
+                    ...prev,
+                    profile: { ...prev.profile, avatar: response.data?.avatarUrl },
+                    isLoading: false,
+                }));
+                
+                emitToast.success('Avatar aggiornato!', {
+                    title: 'Foto profilo',
+                });
+                
+                return response.data.avatarUrl;
+            } else {
+                setState(prev => ({
+                    ...prev,
+                    isLoading: false,
+                    error: response.error?.message || 'Errore upload avatar',
+                }));
+                return null;
+            }
+        } catch (err) {
+            setState(prev => ({
+                ...prev,
+                isLoading: false,
+                error: err instanceof Error ? err.message : 'Errore upload avatar',
+            }));
+            return null;
+        }
+    }, []);
+
+    /**
+     * Elimina avatar
+     */
+    const deleteAvatarFn = useCallback(async (): Promise<boolean> => {
+        try {
+            const response = await settingsService.deleteAvatar();
+            
+            if (response.success) {
+                setState(prev => ({
+                    ...prev,
+                    profile: { ...prev.profile, avatar: undefined },
+                }));
+                return true;
+            }
+            return false;
+        } catch {
+            return false;
+        }
+    }, []);
+
+    /**
      * Pulisci errore
      */
     const clearError = useCallback(() => {
@@ -424,6 +485,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         checkImportData,
         importData,
         deleteAccount,
+        uploadAvatar,
+        deleteAvatar: deleteAvatarFn,
         clearError,
     };
 

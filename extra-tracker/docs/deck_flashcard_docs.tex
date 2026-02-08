@@ -1,0 +1,1102 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================
+% PACCHETTI
+% ============================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{enumitem}
+
+% ============================================
+% CONFIGURAZIONE PAGINA
+% ============================================
+\geometry{margin=2.5cm}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Deck/Flashcard Component - Technical Documentation},
+    pdfauthor={Silvi Development Team}
+}
+
+% ============================================
+% COLORI
+% ============================================
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{darkblue}{rgb}{0.0,0.0,0.6}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+
+% ============================================
+% STILE LISTATI CODICE
+% ============================================
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% ============================================
+% TIKZ LIBRERIE
+% ============================================
+\usetikzlibrary{shapes.geometric, arrows, positioning, fit, backgrounds, calc}
+
+% ============================================
+% STILE TITOLI
+% ============================================
+\titleformat{\section}{\Large\bfseries\color{darkblue}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{darkblue}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{darkblue}}{\thesubsubsection}{1em}{}
+
+% ============================================
+% HEADER E FOOTER
+% ============================================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{Deck/Flashcard Component}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% ============================================
+% TITOLO
+% ============================================
+\title{
+    \Huge\textbf{Deck/Flashcard Component}\\[0.5em]
+    \Large\textit{Documentazione Tecnica Completa}\\[1em]
+    \large Silvi - Spaced Repetition System
+}
+\author{
+    \textbf{Extra Tracker Development Team}\\
+    \texttt{Versione 1.0 - Febbraio 2026}
+}
+\date{\today}
+
+% ============================================
+% INIZIO DOCUMENTO
+% ============================================
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+
+\begin{abstract}
+\noindent
+Questo documento fornisce una documentazione tecnica esaustiva del componente \textbf{Deck/Flashcard} del sistema Silvi. Il componente implementa un sistema completo di \textit{spaced repetition} con supporto per algoritmi SM-2, FSRS e Leitner, generazione AI di flashcard da PDF, e multi-modalita' di studio (flashcard, quiz, typing, mix). Il documento copre l'architettura completa sia backend (Node.js/Express/MongoDB) che frontend (React/TypeScript), i flussi di comunicazione, gli algoritmi core, e le integrazioni con servizi AI.
+\end{abstract}
+
+\vfill
+\newpage
+
+% ============================================
+% INDICE
+% ============================================
+\tableofcontents
+\newpage
+
+% ============================================
+% SEZIONE 1: INTRODUZIONE
+% ============================================
+\section{Introduzione}\label{sec:intro}
+
+\subsection{Panoramica del Componente}
+
+Il componente \textbf{Deck/Flashcard} e' il nucleo del sistema di apprendimento di Silvi. Implementa un sistema completo di gestione mazzi di flashcard con le seguenti caratteristiche principali:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Spaced Repetition}: Implementazione degli algoritmi SM-2, FSRS e Leitner
+    \item \textbf{Multi-Modalita'}: Flashcard, Quiz (multiple choice), Typing, Mix, Sprint, Focus, Exam
+    \item \textbf{AI Integration}: Generazione automatica di flashcard da PDF tramite OpenAI
+    \item \textbf{Source Grounding}: Tracciamento della fonte originale nel PDF per ogni flashcard
+    \item \textbf{Exam Integration}: Collegamento diretto con il sistema di gestione esami
+    \item \textbf{Multi-Tenancy}: Isolamento completo dei dati per utente
+\end{itemize}
+
+\subsection{Architettura Generale}
+
+Il sistema segue un'architettura \textbf{Client-Server} a tre livelli:
+
+\begin{center}
+\begin{tikzpicture}[
+    box/.style={rectangle, rounded corners, draw=darkblue, fill=blue!5, minimum width=3cm, minimum height=1cm, align=center},
+    arrow/.style={->, >=stealth, thick}
+]
+    \node[box] (client) at (0,0) {\textbf{Client}\\React + TypeScript};
+    \node[box] (api) at (5,0) {\textbf{API Layer}\\Express + Middleware};
+    \node[box] (service) at (10,0) {\textbf{Service Layer}\\Business Logic};
+    \node[box] (db) at (10,-2.5) {\textbf{Database}\\MongoDB + Mongoose};
+    \node[box] (ai) at (5,-2.5) {\textbf{AI Services}\\OpenAI};
+    
+    \draw[arrow] (client) -- (api) node[midway,above] {\small HTTPS/JSON};
+    \draw[arrow] (api) -- (service) node[midway,above] {\small tenantScope};
+    \draw[arrow] (service) -- (db) node[midway,right] {\small Queries};
+    \draw[arrow, dashed] (service) -- (ai) node[midway,above] {\small PDF/Gen};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Struttura dei File}
+
+\begin{lstlisting}[language=bash, caption={Struttura file componente Deck/Flashcard}]
+# BACKEND
+server/
+|-- models/
+|   |-- Deck.js              # Schema MongoDB (cards embedded)
+|   |-- Exam.js              # Schema esami (relazione opzionale)
+|-- controllers/
+|   |-- studyController.js   # HTTP request handlers
+|-- services/
+|   |-- studyService.js      # Business logic + AI generation
+|-- routes/
+|   |-- study.js             # Route definitions (/api/study)
+|-- plugins/
+|   |-- multiTenancy.js      # Tenant isolation plugin
+
+# FRONTEND
+src/features/study/
+|-- services/
+|   |-- studyService.ts      # API client + normalization
+|-- components/
+|   |-- DeckCard/            # Visualizzazione deck
+|   |-- Flashcard/           # Studio flashcard
+|   |-- DeckSections/        # Organizzazione folder
+|-- pages/
+|   |-- DeckDetailPage.tsx   # Pagina dettaglio deck
+|   |-- StudySessionPage.tsx # Sessione di studio
+\end{lstlisting}
+
+% ============================================
+% SEZIONE 2: BACKEND
+% ============================================
+\section{Backend Architecture}\label{sec:backend}
+
+\subsection{Data Model: Deck Schema}\label{subsec:deck-model}
+
+Il modello Deck utilizza uno schema MongoDB con \textbf{embedded documents} per le cards. Questa scelta progettuale e' ottimale perche':
+\begin{itemize}
+    \item Le cards sono sempre accedute nel contesto del loro deck
+    \item Non ci sono relazioni many-to-many complesse
+    \item Le operazioni di lettura sono atomiche (single document)
+\end{itemize}
+
+\begin{lstlisting}[language=JavaScript, caption={Schema Deck - Card Embedded}]
+const cardSchema = new mongoose.Schema({
+    // Contenuto
+    front: { type: String, required: true, maxlength: 2000 },
+    back:  { type: String, required: true, maxlength: 4000 },
+    
+    // Parametri SM-2
+    easinessFactor: { type: Number, default: 2.5, min: 1.3 },
+    interval:       { type: Number, default: 0 },
+    repetitions:    { type: Number, default: 0 },
+    nextReviewDate: { type: Date, default: Date.now },
+    status: { type: String, enum: ['new','learning','review','mastered'] },
+    
+    // Parametri FSRS
+    stability: { type: Number, default: 0.4 },
+    
+    // Parametri Leitner
+    box: { type: Number, default: 1, min: 1 },
+    
+    // History tracking
+    lastReviewed: Date,
+    reviewHistory: [{
+        date: Date,
+        rating: { type: Number, min: 1, max: 5 },
+        interval: Number,
+        easinessFactor: Number,
+        repetitions: Number,
+        algorithm: String
+    }],
+    
+    // Source Grounding (tracciamento fonte PDF)
+    sourceMetadata: {
+        pageNumber: { type: Number, required: true, min: 1 },
+        originalText: { type: String, required: true, minlength: 150 }
+    }
+}, { _id: true });
+\end{lstlisting}
+
+\textbf{Deck Schema (parent)}:
+
+\begin{lstlisting}[language=JavaScript]
+const deckSchema = new mongoose.Schema({
+    examId:     { type: ObjectId, ref: 'Exam', default: null, index: true },
+    folderId:   { type: ObjectId, ref: 'Folder', default: null, index: true },
+    title:      { type: String, required: true, maxlength: 120 },
+    description:{ type: String, maxlength: 500 },
+    pdfUrl:     { type: String, default: '' },
+    extractedText: { type: String, default: '', select: false },
+    tags:       { type: [String], default: [], validate: v => v.length <= 5 },
+    cards:      { type: [cardSchema], default: [] },
+    
+    // Algoritmo e AI Settings
+    algorithm:  { type: String, enum: ['sm2','fsrs','leitner','anki'], 
+                  default: 'sm2' },
+    aiSettings: {
+        style: { type: String, enum: ['comprehensive','conceptual','factual','application'] },
+        difficulty: { type: String, enum: ['easy','medium','hard','mixed'] },
+        questionTypes: { type: [String], default: ['definition','concept','relationship'] }
+    }
+}, { timestamps: true });
+\end{lstlisting}
+
+\subsection{Multi-Tenancy Implementation}\label{subsec:multitenancy}
+
+Il sistema implementa il multi-tenancy tramite \textbf{Row-Level Security}: ogni query include automaticamente il filtro user.
+
+\begin{lstlisting}[language=JavaScript, caption={Multi-Tenancy Plugin}]
+function multiTenancyPlugin(schema, options = {}) {
+    const tenantField = options.tenantField || 'user';
+    
+    // Aggiungi campo user a tutti i documenti
+    schema.add({
+        [tenantField]: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: options.required,
+            index: true
+        }
+    });
+    
+    // Pre-hook per auto-filtrare per tenant
+    schema.pre(['find', 'findOne', 'findOneAndUpdate', 'countDocuments'], 
+        function() {
+            const tenantScope = this.options?.tenantScope;
+            if (tenantScope?.userId) {
+                this.where({ [tenantField]: tenantScope.userId });
+            }
+        }
+    );
+}
+\end{lstlisting}
+
+\textbf{Tenant Context Middleware}:
+\begin{lstlisting}[language=JavaScript]
+function tenantContext(options = {}) {
+    return (req, res, next) => {
+        // Estrai userId dal JWT verificato da requireAuth
+        const userId = req.user?.id || req.user?._id;
+        
+        if (options.required && !userId) {
+            return res.status(401).json({ 
+                success: false, 
+                error: { message: 'Authentication required' } 
+            });
+        }
+        
+        // Espandi req con tenantScope
+        req.tenantScope = { userId };
+        next();
+    };
+}
+\end{lstlisting}
+
+\textbf{Utilizzo nelle routes}:
+\begin{lstlisting}[language=JavaScript]
+const { requireAuth } = require('../middleware/auth');
+const { tenantContext } = require('../middleware/tenantContext');
+
+router.use(requireAuth);
+router.use(tenantContext({ required: true }));
+
+router.get('/dashboard', studyController.getDashboard);
+// Ogni query nel controller avra' automaticamente filter: { user: userId }
+\end{lstlisting}
+
+\subsection{Service Layer: StudyService}\label{subsec:study-service}
+
+Il StudyService estende BaseService e implementa la business logic completa.
+
+\begin{lstlisting}[language=JavaScript, caption={StudyService - Architettura}]
+class StudyService extends BaseService {
+    constructor() {
+        super(Deck, {
+            searchFields: ['title', 'description', 'tags'],
+            defaultSort: { createdAt: -1 },
+            entityName: 'Mazzo',
+        });
+    }
+    
+    // ================================
+    // CRUD Deck
+    // ================================
+    async createDeck(tenantScope, { examId, title, description, tags }) {
+        // Validazione ownership esame se specificato
+        if (examId) {
+            await this._validateExamOwnership(tenantScope, examId);
+        }
+        
+        return this.create(tenantScope, {
+            examId: examId || null,
+            title,
+            description,
+            tags,
+        });
+    }
+    
+    async updateDeck(tenantScope, deckId, updates) {
+        const userId = this._getUserId(tenantScope);
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+        
+        if (!deck) throw AppError.notFound('Mazzo');
+        
+        // Gestione aggiornamento folderId
+        if (updates.folderId !== undefined) {
+            if (updates.folderId !== null && updates.folderId !== '') {
+                const Folder = require('../models/Folder');
+                const folder = await Folder.findOne({ 
+                    _id: updates.folderId, 
+                    user: userId 
+                });
+                if (!folder) throw AppError.notFound('Cartella');
+                deck.folderId = updates.folderId;
+            } else {
+                deck.folderId = null;
+            }
+        }
+        
+        // Gestione aggiornamento examId
+        if (updates.examId !== undefined) {
+            if (updates.examId !== null && updates.examId !== '') {
+                const exam = await Exam.findOne({ 
+                    _id: updates.examId, 
+                    user: userId 
+                });
+                if (!exam) throw AppError.notFound('Esame');
+                deck.examId = updates.examId;
+            } else {
+                deck.examId = null;
+            }
+        }
+        
+        await deck.save();
+        return this._serializeDeck(deck);
+    }
+}
+\end{lstlisting}
+
+\subsection{Spaced Repetition Algorithms}\label{subsec:algorithms}
+
+\subsubsection{Algoritmo SM-2 (Default)}
+
+L'algoritmo SM-2 e' implementato nella AlgorithmFactory:
+
+\begin{lstlisting}[language=JavaScript, caption={SM-2 Algorithm Implementation}]
+class SM2Algorithm {
+    processReview(card, quality) {
+        const MIN_EF = 1.3;
+        let { easinessFactor, interval, repetitions } = card;
+        
+        // Aggiorna easiness factor secondo formula SM-2
+        easinessFactor = Math.max(
+            MIN_EF,
+            easinessFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+        );
+        
+        // Calcola nuovo intervallo
+        if (quality < 3) {
+            // Risposta difficile: resetta
+            repetitions = 0;
+            interval = 1;
+        } else {
+            // Risposta corretta: incrementa intervallo
+            repetitions += 1;
+            if (repetitions === 1) interval = 1;
+            else if (repetitions === 2) interval = 6;
+            else interval = Math.round(interval * easinessFactor);
+        }
+        
+        // Calcola prossima data revisione
+        const nextReviewDate = new Date();
+        nextReviewDate.setDate(nextReviewDate.getDate() + interval);
+        
+        return {
+            easinessFactor,
+            interval,
+            repetitions,
+            nextReviewDate,
+            status: this._resolveStatus(quality, repetitions, interval)
+        };
+    }
+}
+\end{lstlisting}
+
+\textbf{Formula SM-2}:
+\begin{align}
+EF' &= EF + (0.1 - (5 - q) \times (0.08 + (5 - q) \times 0.02)) \\
+EF' &\geq 1.3 \\
+I_n &= \begin{cases} 
+1 & \text{if } n = 1 \\
+6 & \text{if } n = 2 \\
+I_{n-1} \times EF & \text{if } n > 2 \text{ and } q \geq 3 \\
+1 & \text{if } q < 3
+\end{cases}
+\end{align}
+
+Dove $q$ e' la qualita' della risposta (1-5) e $n$ e' il numero di ripetizioni.
+
+\subsubsection{Selezione Cards per Sessione}
+
+\begin{lstlisting}[language=JavaScript, caption={Session Card Selection}]
+_selectSessionCards({ cards, dueCards, mode, focus, limit, now }) {
+    // Cards effettivamente in scadenza
+    const due = cards.filter(c => new Date(c.nextReviewDate) <= now);
+    
+    switch (focus) {
+        case 'due':
+            // Solo cards in scadenza
+            return due.slice(0, limit);
+            
+        case 'weak':
+            // Cards con easiness factor basso (difficili)
+            return cards
+                .filter(c => c.easinessFactor < 2.0)
+                .sort((a, b) => a.easinessFactor - b.easinessFactor)
+                .slice(0, limit);
+                
+        case 'smart':
+        default:
+            // Priorita: due > new > weak
+            const newCards = cards.filter(c => c.status === 'new');
+            const weakCards = cards.filter(c => 
+                c.easinessFactor < 2.0 && !due.includes(c)
+            );
+            return [...due, ...newCards, ...weakCards].slice(0, limit);
+    }
+}
+\end{lstlisting}
+
+\subsection{AI Integration: Magic Generate}\label{subsec:magic-generate}
+
+Il sistema genera flashcard da PDF usando OpenAI con una pipeline multi-stage:
+
+\begin{lstlisting}[language=JavaScript, caption={Magic Generate V3 - Pipeline Completa}]
+async generateCardsFromPDF(tenantScope, deckId, pdfFilePath) {
+    const userId = this._getUserId(tenantScope);
+    
+    // 1. Verifica ownership
+    const deck = await Deck.findOne({ _id: deckId, user: userId });
+    if (!deck) throw AppError.notFound('Mazzo');
+    
+    // 2. Estrai testo dal PDF
+    const pdfBuffer = await fs.readFile(pdfFilePath);
+    const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
+    const pdfText = this._formatPdfTextWithPages(pdfData);
+    
+    if (!pdfText || pdfText.trim().length < 100) {
+        throw AppError.validation('PDF non contiene abbastanza testo');
+    }
+    
+    // 3. Analisi strutturale (Blueprint)
+    const blueprint = await this._analyzeDocumentStructure(pdfText);
+    
+    // 4. Semantic Chunking (12k caratteri per chunk)
+    const semanticChunks = this._createSemanticChunks(pdfText);
+    
+    // 5. Estrazione concetti locale (senza AI)
+    const globalConcepts = this._extractConceptsLocally(pdfText);
+    
+    // 6. Batch Generation (2 chunk per chiamata API)
+    const batches = this._createBatches(semanticChunks, BATCH_SIZE = 2);
+    let allGeneratedCards = [];
+    const usedConcepts = new Set(globalConcepts.slice(0, 10));
+    
+    for (const batch of batches) {
+        const targetCards = this._calculateBatchTarget(batch);
+        
+        const batchCards = await this._generateCardsBatch(
+            batch, blueprint, targetCards, usedConcepts
+        );
+        
+        // Traccia concetti usati per evitare duplicati
+        batchCards.forEach(card => {
+            const conceptKey = this._extractConceptKey(card.front);
+            if (conceptKey) usedConcepts.add(conceptKey);
+        });
+        
+        allGeneratedCards.push(...batchCards);
+    }
+    
+    // 7. Deduplica semantica (Jaccard similarity < 0.50)
+    const uniqueCards = this._deduplicateCards(allGeneratedCards);
+    
+    // 8. Validazione qualita' e salvataggio
+    const validCards = uniqueCards
+        .filter(card => this._validateCardQuality(card))
+        .slice(0, MAX_TOTAL_CARDS)
+        .map(card => ({
+            front: card.front.trim(),
+            back: card.back.trim(),
+            status: 'new',
+            nextReviewDate: new Date(),
+            easinessFactor: DEFAULT_EASINESS_FACTOR,
+            interval: 0,
+            repetitions: 0,
+        }));
+    
+    deck.cards.push(...validCards);
+    await deck.save();
+    
+    return { generatedCount: validCards.length, deck };
+}
+\end{lstlisting}
+
+\textbf{Prompt Engineering}:
+\begin{lstlisting}[language=bash]
+SYSTEM PROMPT:
+"Sei un esperto di didattica. Crea flashcard di alta qualita' dal testo 
+fornito. Regole:
+- Domande specifiche e non ambigue
+- Risposte concise ma complete  
+- Usa LaTeX per formule matematiche
+- Una domanda per concetto"
+
+USER PROMPT:
+"Crea {targetCards} flashcard da questa sezione:
+---
+{chunk.text}
+---
+
+Concetti gia' usati: {Array.from(usedConcepts).join(', ')}
+Tipo: {selectedQuestionType}
+
+Rispondi in JSON: { "flashcards": [{"front":"...","back":"..."}] }"
+\end{lstlisting}
+
+\subsection{API Endpoints}\label{subsec:api-endpoints}
+
+\begin{longtable}{|p{4cm}|p{1.5cm}|p{8cm}|}
+\hline
+\textbf{Endpoint} & \textbf{Method} & \textbf{Descrizione} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Endpoint} & \textbf{Method} & \textbf{Descrizione} \\
+\hline
+\endhead
+\texttt{/api/study/dashboard} & GET & Recupera tutti i deck con conteggio cards in scadenza \\
+\hline
+\texttt{/api/study/:id} & GET & Recupera singolo deck con tutte le cards \\
+\hline
+\texttt{/api/study} & POST & Crea nuovo deck \\
+\hline
+\texttt{/api/study/:id} & PATCH & Aggiorna deck (title, desc, tags, folderId, examId) \\
+\hline
+\texttt{/api/study/:id} & DELETE & Elimina deck \\
+\hline
+\texttt{/api/study/:id/session} & GET & Recupera sessione di studio \\
+\hline
+\texttt{/api/study/:id/cards} & POST & Aggiunge card al deck \\
+\hline
+\texttt{/api/study/:id/cards/:cardId} & PUT & Modifica card esistente \\
+\hline
+\texttt{/api/study/:id/cards/:cardId} & DELETE & Elimina card \\
+\hline
+\texttt{/api/study/:id/cards/reorder} & PUT & Riordina cards (array cardIds) \\
+\hline
+\texttt{/api/study/:id/cards/insert} & POST & Inserisce card in posizione specifica \\
+\hline
+\texttt{/api/study/:id/review} & POST & Processa review SM-2 (cardId, rating 1-5) \\
+\hline
+\texttt{/api/study/:id/verify-answer} & POST & Verifica risposta typing mode \\
+\hline
+\texttt{/api/study/:id/generate-pdf} & POST & Upload PDF + generazione AI \\
+\hline
+\texttt{/api/study/:id/chat} & POST & Chat con AI Tutor (RAG sul PDF) \\
+\hline
+\end{longtable}
+
+% ============================================
+% SEZIONE 3: FRONTEND
+% ============================================
+\section{Frontend Architecture}\label{sec:frontend}
+
+\subsection{Service Layer: studyService.ts}\label{subsec:frontend-service}
+
+Il frontend utilizza un Service Pattern con normalizzazione difensiva dei dati.
+
+\begin{lstlisting}[language=TypeScript, caption={StudyService - Frontend}]
+export interface Card {
+    id: string;
+    front: string;
+    back: string;
+    options?: string[];  // Per quiz mode
+    easinessFactor: number;
+    interval: number;
+    repetitions: number;
+    nextReviewDate: string;
+    status: CardStatus;
+    sourceMetadata?: {
+        pageNumber: number;
+        originalText: string;
+    };
+}
+
+export interface Deck {
+    id: string;
+    examId?: string;
+    folderId?: string | null;
+    title: string;
+    description?: string;
+    pdfUrl?: string | null;
+    tags: string[];
+    cards: Card[];
+    totalCards: number;
+    dueCount: number;
+    algorithm?: string;
+}
+
+class StudyService {
+    private baseUrl = '/study';
+    
+    // Normalizzazione difensiva
+    private normalizeCard(raw: any): Card {
+        let sourceMetadata: Card['sourceMetadata'] = undefined;
+        
+        // Supporta sia camelCase che snake_case
+        const sourceMeta = raw.sourceMetadata || raw.source_metadata;
+        if (sourceMeta && typeof sourceMeta === 'object') {
+            const pageNumber = Number.isFinite(Number(
+                sourceMeta.pageNumber ?? sourceMeta.page_number
+            )) ? Number(sourceMeta.pageNumber ?? sourceMeta.page_number) : undefined;
+            
+            const originalText = typeof (
+                sourceMeta.originalText ?? sourceMeta.original_text
+            ) === 'string' ? (sourceMeta.originalText ?? sourceMeta.original_text).trim() : undefined;
+            
+            if (pageNumber && pageNumber > 0 && originalText && originalText.length >= 20) {
+                sourceMetadata = { pageNumber, originalText };
+            }
+        }
+        
+        return {
+            id: raw.id || raw._id,
+            front: raw.front || '',
+            back: raw.back || '',
+            options: Array.isArray(raw.options) ? raw.options : undefined,
+            easinessFactor: safeNumber(raw.easinessFactor, 2.5),
+            interval: safeNumber(raw.interval, 0),
+            repetitions: safeNumber(raw.repetitions, 0),
+            nextReviewDate: raw.nextReviewDate || new Date().toISOString(),
+            status: raw.status || 'new',
+            sourceMetadata,
+        };
+    }
+    
+    async getSession(deckId: string, options: SessionOptions): Promise<StudySession> {
+        const params = new URLSearchParams();
+        if (options.mode) params.set('mode', options.mode);
+        if (options.focus) params.set('focus', options.focus);
+        if (options.limit) params.set('limit', String(options.limit));
+        
+        const response = await apiClient.get(
+            `${this.baseUrl}/${deckId}/session?${params}`
+        );
+        return normalizeSession(unwrap(response, 'Errore recupero sessione'));
+    }
+    
+    async submitReview(deckId: string, payload: ReviewPayload): Promise<ReviewResult> {
+        const response = await apiClient.post(
+            `${this.baseUrl}/${deckId}/review`, 
+            payload
+        );
+        return unwrap(response, 'Errore salvataggio review');
+    }
+}
+\end{lstlisting}
+
+\subsection{API Client con Mutex Pattern}\label{subsec:api-client}
+
+Il client API implementa il Mutex Pattern per gestire il refresh token.
+
+\begin{lstlisting}[language=TypeScript, caption={Mutex Pattern per Refresh Token}]
+// Stato del mutex
+let isRefreshing = false;
+let isSessionDead = false;
+let failedQueue: Array<{ resolve: Function; reject: Function }> = [];
+
+// Processa la coda delle richieste in attesa
+const processQueue = (error: Error | null, token: string | null = null) => {
+    failedQueue.forEach(prom => {
+        error ? prom.reject(error) : prom.resolve(token);
+    });
+    failedQueue = [];
+};
+
+// Response Interceptor
+axiosInstance.interceptors.response.use(
+    (response) => response,
+    async (error: AxiosError) => {
+        const originalRequest = error.config as InternalAxiosRequestConfig & { 
+            _retry?: boolean 
+        };
+        
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            // Se sessione morta, rifiuta immediatamente
+            if (isSessionDead) return Promise.reject(error);
+            
+            // CASO 1: Refresh gia' in corso -> metti in coda
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(() => axiosInstance(originalRequest));
+            }
+            
+            // CASO 2: Primo refresh -> acquisisci lock
+            originalRequest._retry = true;
+            isRefreshing = true;
+            
+            try {
+                await axiosInstance.post('/auth/refresh');
+                processQueue(null, null);
+                return axiosInstance(originalRequest);
+            } catch (refreshError) {
+                processQueue(refreshError as Error, null);
+                isSessionDead = true;
+                emitToast.error('Sessione scaduta. Effettua login.');
+                window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+                return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+        
+        return Promise.reject(error);
+    }
+);
+\end{lstlisting}
+
+\subsection{Componente DeckCard}\label{subsec:deckcard-component}
+
+Il componente DeckCard e' ottimizzato con React.memo.
+
+\begin{lstlisting}[language=TypeScript, caption={DeckCard Component}]
+export interface DeckCardProps {
+    deck: Deck;
+    onStudy: (deckId: string) => void;
+    onMagicGenerate: (deck: Deck) => void;
+    onAddCard: (deckId: string) => void;
+    onViewDetail: (deckId: string) => void;
+    onDelete: (deck: Deck) => void;
+    onDragStart?: () => void;
+    onDragEnd?: () => void;
+    onTogglePin?: (deck: Deck) => void;
+}
+
+const DeckCardComponent: React.FC<DeckCardProps> = ({
+    deck, onStudy, onMagicGenerate, onAddCard,
+    onViewDetail, onDelete, onTogglePin,
+    onDragStart: onDragStartProp, onDragEnd: onDragEndProp
+}) => {
+    const [showMenu, setShowMenu] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    
+    // Computed values
+    const hasDueCards = (deck.dueCount ?? 0) > 0;
+    const totalCards = deck.totalCards ?? deck.cards?.length ?? 0;
+    const masteredCards = deck.cards?.filter(
+        c => c.status === 'mastered'
+    ).length ?? 0;
+    const masteryPercent = totalCards > 0 
+        ? Math.round((masteredCards / totalCards) * 100) 
+        : 0;
+    
+    // Theme calcolato dal titolo (consistente)
+    const theme = useMemo(() => getDeckTheme(deck), [deck.title]);
+    
+    // Drag & Drop
+    const handleDragStart = useCallback((e: React.DragEvent) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('deckId', deck.id);
+        
+        // Anteprima personalizzata
+        const dragPreview = document.createElement('div');
+        dragPreview.innerHTML = `
+            <div style="padding: 12px; background: rgba(139, 92, 246, 0.95);">
+                <span>${deck.title}</span>
+            </div>
+        `;
+        document.body.appendChild(dragPreview);
+        e.dataTransfer.setDragImage(dragPreview, 100, 40);
+        
+        setTimeout(() => document.body.removeChild(dragPreview), 0);
+        setIsDragging(true);
+        onDragStartProp?.();
+    }, [deck.id, deck.title, onDragStartProp]);
+    
+    return (
+        <motion.div
+            animate={{
+                scale: isDragging ? 0.95 : 1,
+                opacity: isDragging ? 0.6 : 1,
+                rotateZ: isDragging ? 2 : 0
+            }}
+            draggable
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            className={...}
+        >
+            {/* Badges */}
+            {deck.pinned && (
+                <motion.div className="badge-pinned">⭐</motion.div>
+            )}
+            {hasDueCards && (
+                <motion.div className="badge-due">
+                    <Clock className="w-3 h-3" />
+                    {deck.dueCount} da ripassare
+                </motion.div>
+            )}
+            
+            {/* Content */}
+            <DeckCardHeader deck={deck} theme={theme} />
+            <DeckCardProgress masteryPercent={masteryPercent} />
+            <DeckCardActions 
+                deck={deck} 
+                onStudy={onStudy}
+                onMagicGenerate={onMagicGenerate}
+            />
+        </motion.div>
+    );
+};
+
+// Memoizzazione per prevenire re-render
+export const DeckCard = React.memo(DeckCardComponent);
+\end{lstlisting}
+
+\subsection{Flusso Sessione di Studio}\label{subsec:study-session}
+
+\begin{lstlisting}[language=TypeScript, caption={Study Session Flow}]
+// 1. Caricamento sessione
+const loadSession = async () => {
+    const session = await studyService.getSession(deckId, {
+        mode: selectedMode,      // 'flashcard' | 'quiz' | 'typing'
+        focus: selectedFocus,    // 'smart' | 'due' | 'weak' | 'all'
+        limit: cardLimit,        // numero max cards
+        direction: cardDirection // 'front' | 'back' | 'mixed'
+    });
+    setCards(session.cards);
+    setCurrentIndex(0);
+};
+
+// 2. Review di una card
+const handleReview = async (rating: ReviewRating) => {
+    // rating: 1 (Again), 3 (Good), 5 (Easy)
+    const result = await studyService.submitReview(deckId, {
+        cardId: currentCard.id,
+        rating
+    });
+    
+    // Aggiorna stato locale
+    updateCardInState(result.card);
+    
+    // Prossima card o completamento
+    if (currentIndex < cards.length - 1) {
+        setCurrentIndex(i => i + 1);
+    } else {
+        completeSession();
+    }
+};
+
+// 3. Completamento sessione
+const completeSession = async () => {
+    await studyService.completeSession(deckId, {
+        mode: selectedMode,
+        stats: {
+            correct: correctCount,
+            wrong: wrongCount,
+            timeSeconds: elapsedTime
+        }
+    });
+    navigate('/study');
+};
+\end{lstlisting}
+
+% ============================================
+% SEZIONE 4: COMUNICAZIONE
+% ============================================
+\section{Flussi di Comunicazione}\label{sec:communication}
+
+\subsection{Sequence: Review Card}
+
+Il flusso completo di una review:
+
+\begin{enumerate}
+    \item \textbf{User} clicca rating (1-5) sulla Flashcard UI
+    \item \textbf{StudySessionPage} chiama studyService.submitReview(deckId, payload)
+    \item \textbf{studyService} invia POST /api/study/:id/review con CSRF token
+    \item \textbf{studyController} valida input e chiama studyService.processCardReview()
+    \item \textbf{StudyService} recupera deck da MongoDB con filter \{user: userId\}
+    \item \textbf{StudyService} chiama AlgorithmFactory.processReview(card, rating, 'sm2')
+    \item \textbf{SM2Algorithm} calcola nuovi parametri (EF', interval, nextReviewDate)
+    \item \textbf{StudyService} salva deck aggiornato con await deck.save()
+    \item \textbf{StudyService} ritorna \{card, stats\} al controller
+    \item \textbf{Controller} ritorna JSON \{success: true, data: result\}
+    \item \textbf{studyService} normalizza la risposta
+    \item \textbf{StudySessionPage} aggiorna stato e mostra prossima card
+\end{enumerate}
+
+\subsection{Sequence: Magic Generate}
+
+Il flusso di generazione AI da PDF:
+
+\begin{enumerate}
+    \item \textbf{User} seleziona file PDF e clicca "Generate"
+    \item \textbf{UI} chiama studyService.generateFromPDF(deckId, file)
+    \item \textbf{studyService} crea FormData e invia POST /:id/generate-pdf
+    \item \textbf{multer middleware} salva file su disco (uploads/pdfs/)
+    \item \textbf{aiLimiter} verifica rate limit (10 chiamate/ora)
+    \item \textbf{studyController.uploadAndGenerate} chiama studyService.generateCardsFromPDF()
+    \item \textbf{StudyService}:
+    \begin{itemize}
+        \item Parsa PDF con pdf-parse
+        \item Analizza struttura documento con OpenAI
+        \item Divide in semantic chunks (12k char)
+        \item Genera flashcard in batch (2 chunk/chiamata)
+        \item Deduplica con Jaccard similarity
+    \end{itemize}
+    \item \textbf{StudyService} salva cards nel deck MongoDB
+    \item \textbf{Controller} ritorna \{generatedCount, deck\}
+    \item \textbf{UI} aggiorna lista cards con nuove flashcard
+\end{enumerate}
+
+% ============================================
+% SEZIONE 5: SICUREZZA
+% ============================================
+\section{Sicurezza}\label{sec:security}
+
+\subsection{Authentication Stack}
+
+\begin{lstlisting}[language=JavaScript]
+// 1. requireAuth - Verifica JWT
+router.use(requireAuth);
+
+// 2. tenantContext - Estrae userId dal JWT
+router.use(tenantContext({ required: true }));
+
+// 3. Rate Limiting per operazioni costose
+router.post('/:id/generate-pdf', aiLimiter, handler);
+router.post('/exam-solver', examSolverLimiter, handler);
+
+// 4. CSRF Protection
+app.use('/api', ensureCsrfCookie);
+app.use('/api', requireCsrf);
+\end{lstlisting}
+
+\subsection{Input Validation}
+
+\begin{lstlisting}[language=JavaScript]
+// Card content validation
+if (!front?.trim() || front.length > 2000) {
+    throw AppError.validation('Front: max 2000 caratteri');
+}
+if (!back?.trim() || back.length > 4000) {
+    throw AppError.validation('Back: max 4000 caratteri');
+}
+
+// File upload validation
+const maxSize = 10 * 1024 * 1024; // 10MB
+if (req.file.size > maxSize) {
+    throw AppError.validation('File troppo grande');
+}
+
+// PDF magic bytes check
+const pdfValidation = await validatePdfFile(filePath);
+if (!pdfValidation.isValid) {
+    throw AppError.validation(`PDF corrotto: ${pdfValidation.error}`);
+}
+\end{lstlisting}
+
+\subsection{Data Isolation}
+
+\begin{lstlisting}[language=JavaScript]
+// Esempio: Trova deck per ID (con tenant isolation)
+const deck = await Deck.findOne({ 
+    _id: deckId, 
+    user: userId  // CRITICO: Isolamento dati
+});
+
+// Se il deck non esiste O non appartiene all'utente -> 404
+if (!deck) {
+    throw AppError.notFound('Mazzo');
+}
+\end{lstlisting}
+
+% ============================================
+% SEZIONE 6: CONFIGURAZIONE
+% ============================================
+\section{Configurazione}\label{sec:config}
+
+\begin{longtable}{|p{4.5cm}|p{2.5cm}|p{7cm}|}
+\hline
+\textbf{Variabile} & \textbf{Default} & \textbf{Descrizione} \\
+\hline
+\endfirsthead
+OPENAI\_API\_KEY & required & API Key per OpenAI \\
+\hline
+OPENAI\_MODEL & gpt-4o-mini & Modello LLM \\
+\hline
+MONGO\_URI & required & Connection string MongoDB \\
+\hline
+JWT\_SECRET & required & Secret per firma JWT \\
+\hline
+JWT\_EXPIRES\_IN & 15m & Durata access token \\
+\hline
+JWT\_REFRESH\_EXPIRES\_IN & 7d & Durata refresh token \\
+\hline
+CSRF\_SECRET & required & Secret per CSRF tokens \\
+\hline
+RATE\_LIMIT\_AI\_MAX & 10 & Max chiamate AI/ora per utente \\
+\hline
+\end{longtable}
+
+% ============================================
+% APPENDICE
+% ============================================
+\appendix
+\section{Glossario}\label{app:glossary}
+
+\begin{description}[leftmargin=*]
+    \item[SM-2] Algorithm di Spaced Repetition sviluppato da Piotr Wozniak.
+    \item[FSRS] Free Spaced Repetition Scheduler - Algoritmo ML-based.
+    \item[Source Grounding] Tracciamento del testo originale nel PDF.
+    \item[Semantic Chunking] Divisione documento in segmenti significativi.
+    \item[Multi-Tenancy] Isolamento dati per utente.
+    \item[Easiness Factor] Parametro SM-2 (default 2.5).
+\end{description}
+
+\end{document}

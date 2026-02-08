@@ -1,14 +1,10 @@
 /**
- * 🛤️ ROUTES AUTENTICAZIONE
+ * 🛤️ ROUTES AUTENTICAZIONE - Enhanced Security Version
  * 
- * Struttura RESTful:
- * POST   /api/auth/register  - Registrazione
- * POST   /api/auth/login     - Login
- * POST   /api/auth/logout    - Logout
- * POST   /api/auth/refresh   - Rinnova token
- * GET    /api/auth/me        - Profilo utente
- * PUT    /api/auth/password  - Cambia password
- * GET    /api/auth/check     - Verifica autenticazione
+ * Aggiunte:
+ * - Routes 2FA
+ * - Audit logging endpoints
+ * - Device management
  */
 
 const express = require('express');
@@ -16,10 +12,12 @@ const router = express.Router();
 
 // Controllers
 const authController = require('../controllers/authController');
+const twoFactorController = require('../controllers/twoFactorController');
+const auditController = require('../controllers/auditController');
 
 // Middleware
 const { requireAuth, optionalAuth } = require('../middleware/auth');
-const { authLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
 
 // Validators
 const {
@@ -31,90 +29,64 @@ const {
     resetPasswordConfirmSchema,
 } = require('../validators/authValidators');
 
-// Rate limiter dedicato per email verification (previene brute force token)
-const { passwordResetLimiter } = require('../middleware/rateLimiter');
-
 // ==========================================
-// PUBLIC ROUTES (no auth required)
+// PUBLIC ROUTES
 // ==========================================
 
-/**
- * @route   POST /api/auth/register
- * @desc    Registra nuovo utente
- * @access  Public
- */
 router.post(
     '/register',
-    authLimiter,                          // Rate limit anti-brute force
-    validateMiddleware(registerSchema),   // Validazione Zod
+    authLimiter,
+    validateMiddleware(registerSchema),
     authController.register
 );
 
-/**
- * @route   GET /api/auth/csrf
- * @desc    Ottieni CSRF token
- * @access  Public
- */
-router.get(
-    '/csrf',
-    authController.getCsrfToken
-);
+router.get('/csrf', authController.getCsrfToken);
 
-/**
- * @route   POST /api/auth/login
- * @desc    Login utente
- * @access  Public
- */
 router.post(
     '/login',
-    authLimiter,                        // Rate limit anti-brute force
-    validateMiddleware(loginSchema),    // Validazione Zod
+    authLimiter,
+    validateMiddleware(loginSchema),
     authController.login
 );
 
-/**
- * @route   POST /api/auth/refresh
- * @desc    Rinnova access token
- * @access  Public (richiede refresh token cookie)
- * @security Protetto con rate limiting per evitare token refresh attacks
- */
-router.post(
-    '/refresh',
-    authLimiter,                   // Rate limit anti-brute force
-    authController.refresh
-);
+router.post('/refresh', authLimiter, authController.refresh);
 
 // ==========================================
-// PROTECTED ROUTES (auth required)
+// 2FA ROUTES
 // ==========================================
 
-/**
- * @route   POST /api/auth/logout
- * @desc    Logout utente
- * @access  Private
- */
 router.post(
-    '/logout',
-    optionalAuth,  // Opzionale perché vogliamo cancellare i cookie anche se token scaduto
-    authController.logout
-);
-
-/**
- * @route   GET /api/auth/me
- * @desc    Ottieni profilo utente corrente
- * @access  Private
- */
-router.get(
-    '/me',
+    '/2fa/setup',
     requireAuth,
-    authController.getProfile
+    twoFactorController.setup2FA
 );
 
-/**
- * @route   PUT /api/auth/password
- * @desc    Cambia password
- * @access  Private
- */
+router.post(
+    '/2fa/verify-setup',
+    requireAuth,
+    twoFactorController.verifyAndEnable2FA
+);
+
+router.post(
+    '/2fa/disable',
+    requireAuth,
+    twoFactorController.disable2FA
+);
+
+router.get(
+    '/2fa/status',
+    requireAuth,
+    twoFactorController.get2FAStatus
+);
+
+// ==========================================
+// PROTECTED ROUTES
+// ==========================================
+
+router.post('/logout', optionalAuth, authController.logout);
+
+router.get('/me', requireAuth, authController.getProfile);
+
 router.put(
     '/password',
     requireAuth,
@@ -122,72 +94,75 @@ router.put(
     authController.changePassword
 );
 
-/**
- * @route   GET /api/auth/check
- * @desc    Verifica se utente è autenticato
- * @access  Private
- */
-router.get(
-    '/check',
-    requireAuth,
-    authController.checkAuth
-);
+router.get('/check', requireAuth, authController.checkAuth);
 
 // ==========================================
-// EMAIL VERIFICATION ROUTES
+// EMAIL VERIFICATION
 // ==========================================
 
-/**
- * @route   POST /api/auth/verify-email
- * @desc    Verifica indirizzo email con token
- * @access  Public
- * @security Rate limiting per prevenire brute force sul token
- */
-router.post(
-    '/verify-email',
-    authLimiter, // Previene brute force sul token di verifica
-    authController.verifyEmail
-);
+router.post('/verify-email', authLimiter, authController.verifyEmail);
 
-/**
- * @route   POST /api/auth/resend-verification
- * @desc    Reinvia email di verifica
- * @access  Private
- * @security Rate limiting per prevenire email bombing
- */
 router.post(
     '/resend-verification',
     requireAuth,
-    passwordResetLimiter, // Usa stesso limiter (3 req/ora) per prevenire spam
+    passwordResetLimiter,
     authController.resendVerification
 );
 
 // ==========================================
-// PASSWORD RESET ROUTES
+// PASSWORD RESET
 // ==========================================
 
-/**
- * @route   POST /api/auth/forgot-password
- * @desc    Richiedi reset password (invia email)
- * @access  Public
- */
 router.post(
     '/forgot-password',
-    authLimiter, // Rate limit per prevenire spam
+    authLimiter,
     validateMiddleware(resetPasswordRequestSchema),
     authController.forgotPassword
 );
 
-/**
- * @route   POST /api/auth/reset-password
- * @desc    Completa reset password con nuovo password
- * @access  Public
- */
 router.post(
     '/reset-password',
     authLimiter,
     validateMiddleware(resetPasswordConfirmSchema),
     authController.resetPassword
+);
+
+// ==========================================
+// AUDIT LOG ROUTES
+// ==========================================
+
+router.get(
+    '/audit-logs',
+    requireAuth,
+    auditController.getUserAuditLogs
+);
+
+router.get(
+    '/audit-logs/stats',
+    requireAuth,
+    auditController.getUserSecurityStats
+);
+
+// ==========================================
+// DEVICE MANAGEMENT
+// ==========================================
+
+router.get(
+    '/devices',
+    requireAuth,
+    auditController.getUserDevices
+);
+
+router.delete(
+    '/devices/:fingerprint',
+    requireAuth,
+    auditController.revokeDevice
+);
+
+router.post(
+    '/devices/:fingerprint/trust',
+    requireAuth,
+    auditController.trustDevice
 );
 
 module.exports = router;

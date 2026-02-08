@@ -1,7 +1,39 @@
-import React, { useState, useRef, useEffect } from 'react';
+/**
+ * EXAM CARD - Card esame migliorata con più informazioni visive
+ * 
+ * Mostra:
+ * - Icona dinamica in base alla materia
+ * - Titolo, descrizione e stato
+ * - Mini distribuzione delle carte (new/learning/review/mastered)
+ * - Statistiche principali
+ * - Timeline scadenza visiva
+ * - Badge carte da ripassare
+ */
+
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, TrendingUp, ArrowRight, Layers, FileText, Target, MoreVertical, Trash2, RotateCcw } from 'lucide-react';
+import {
+    Calendar,
+    TrendingUp,
+    ArrowRight,
+    Layers,
+    FileText,
+    Target,
+    MoreVertical,
+    Trash2,
+    RotateCcw,
+    Clock,
+    Sparkles,
+    BookOpen,
+    GraduationCap,
+    Trophy,
+    AlertCircle,
+    CheckCircle,
+    Archive,
+    XCircle,
+} from 'lucide-react';
 import type { Exam } from '../../types/exam';
+import type { Deck } from '../../services/studyService';
 import { getExamIcon, getExamColors } from './utils/examIcons';
 
 // ============================================
@@ -14,6 +46,7 @@ interface ExamCardProps {
     totalCards: number;
     dueCards: number;
     masteryPercent: number;
+    decks?: Deck[]; // Opzionale per statistiche dettagliate
     onClick: () => void;
     onDelete?: (examId: string) => void;
     onReactivate?: (examId: string) => void;
@@ -29,19 +62,35 @@ export const ExamCard: React.FC<ExamCardProps> = ({
     totalCards,
     dueCards,
     masteryPercent,
+    decks = [],
     onClick,
     onDelete,
     onReactivate,
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+
     const deadlineDate = new Date(exam.deadline);
     const daysUntilDeadline = Math.ceil((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     const isUrgent = daysUntilDeadline <= 7 && daysUntilDeadline >= 0;
+    const isOverdue = daysUntilDeadline < 0;
 
     // Rileva materia e icona automaticamente
     const ExamIcon = getExamIcon(exam.title, exam.description);
     const examColors = getExamColors(exam.title, exam.description);
+
+    // Calcola distribuzione delle carte
+    const distribution = useMemo(() => {
+        const examDecks = decks.filter(d => d.examId === exam.id);
+        const allCards = examDecks.flatMap(d => d.cards || []);
+        
+        return {
+            new: allCards.filter(c => c.status === 'new').length,
+            learning: allCards.filter(c => c.status === 'learning').length,
+            review: allCards.filter(c => c.status === 'review').length,
+            mastered: allCards.filter(c => c.status === 'mastered').length,
+        };
+    }, [decks, exam.id]);
 
     // Chiudi menu quando si clicca fuori
     useEffect(() => {
@@ -58,10 +107,74 @@ export const ExamCard: React.FC<ExamCardProps> = ({
         };
     }, [isMenuOpen]);
 
-    const isCompleted = exam.status === 'passed' || exam.status === 'failed' || exam.status === 'archived' || exam.status === 'completed';
+    // Determina lo stato visualizzato
+    const statusConfig = useMemo(() => {
+        switch (exam.status) {
+            case 'passed':
+                return {
+                    label: 'Superato',
+                    icon: CheckCircle,
+                    color: 'text-emerald-400',
+                    bgColor: 'bg-emerald-500/20',
+                    borderColor: 'border-emerald-500/40',
+                };
+            case 'failed':
+                return {
+                    label: 'Non Superato',
+                    icon: XCircle,
+                    color: 'text-rose-400',
+                    bgColor: 'bg-rose-500/20',
+                    borderColor: 'border-rose-500/40',
+                };
+            case 'archived':
+                return {
+                    label: 'Archiviato',
+                    icon: Archive,
+                    color: 'text-slate-400',
+                    bgColor: 'bg-slate-500/20',
+                    borderColor: 'border-slate-500/40',
+                };
+            case 'completed':
+                return {
+                    label: 'Completato',
+                    icon: CheckCircle,
+                    color: 'text-blue-400',
+                    bgColor: 'bg-blue-500/20',
+                    borderColor: 'border-blue-500/40',
+                };
+            default:
+                if (isOverdue) {
+                    return {
+                        label: 'Scaduto',
+                        icon: AlertCircle,
+                        color: 'text-red-400',
+                        bgColor: 'bg-red-500/20',
+                        borderColor: 'border-red-500/40',
+                    };
+                }
+                if (isUrgent) {
+                    return {
+                        label: 'Urgente',
+                        icon: AlertCircle,
+                        color: 'text-orange-400',
+                        bgColor: 'bg-orange-500/20',
+                        borderColor: 'border-orange-500/40',
+                    };
+                }
+                return {
+                    label: 'In Corso',
+                    icon: Sparkles,
+                    color: examColors.color,
+                    bgColor: examColors.bgColor,
+                    borderColor: examColors.borderColor,
+                };
+        }
+    }, [exam.status, isOverdue, isUrgent, examColors]);
+
+    const isCompleted = ['passed', 'failed', 'archived', 'completed'].includes(exam.status);
 
     const handleDeleteClick = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Previeni il click sulla card
+        e.stopPropagation();
         setIsMenuOpen(false);
         if (onDelete) {
             onDelete(exam.id);
@@ -69,7 +182,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
     };
 
     const handleReactivateClick = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Previeni il click sulla card
+        e.stopPropagation();
         setIsMenuOpen(false);
         if (onReactivate) {
             onReactivate(exam.id);
@@ -77,55 +190,78 @@ export const ExamCard: React.FC<ExamCardProps> = ({
     };
 
     const handleMenuClick = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Previeni il click sulla card
+        e.stopPropagation();
         setIsMenuOpen(!isMenuOpen);
+    };
+
+    // Calcola percentuali per la barra di distribuzione
+    const distTotal = totalCards || 1;
+    const distPercentages = {
+        new: (distribution.new / distTotal) * 100,
+        learning: (distribution.learning / distTotal) * 100,
+        review: (distribution.review / distTotal) * 100,
+        mastered: (distribution.mastered / distTotal) * 100,
     };
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.02, y: -4 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.01, y: -2 }}
+            whileTap={{ scale: 0.99 }}
             onClick={onClick}
             className={`
                 relative rounded-2xl border overflow-hidden cursor-pointer
                 transition-all duration-300
-                ${isUrgent
-                    ? 'border-orange-500/50 bg-gradient-to-br from-orange-500/15 via-orange-500/5 to-transparent shadow-lg shadow-orange-500/10'
-                    : 'border-primary-500/30 bg-gradient-to-br from-primary-500/10 via-primary-500/5 to-transparent'
+                ${isUrgent || isOverdue
+                    ? 'border-orange-500/40 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent shadow-lg shadow-orange-500/10'
+                    : isCompleted
+                        ? 'border-white/10 bg-gradient-to-br from-white/5 to-transparent opacity-80'
+                        : 'border-primary-500/30 bg-gradient-to-br from-primary-500/10 via-primary-500/5 to-transparent'
                 }
-                hover:border-primary-500/60 hover:shadow-xl hover:shadow-primary-500/20
+                hover:border-primary-500/50 hover:shadow-xl hover:shadow-primary-500/15
                 backdrop-blur-sm
             `}
         >
-            {/* Header con Icona e Titolo */}
-            <div className="p-6 pb-4">
-                <div className="flex items-start gap-4 mb-5">
-                    {/* Icona Esame - Dinamica in base alla materia */}
+            {/* Header con Icona, Titolo e Stato */}
+            <div className="p-5 pb-4">
+                <div className="flex items-start gap-4 mb-4">
+                    {/* Icona Esame */}
                     <div className={`
-                        p-3.5 rounded-xl flex-shrink-0 border-2
-                        ${isUrgent
-                            ? 'bg-orange-500/20 border-orange-500/40'
-                            : `${examColors.bgColor} ${examColors.borderColor}`
-                        }
+                        p-3 rounded-xl flex-shrink-0 border-2
+                        ${statusConfig.bgColor} ${statusConfig.borderColor}
                     `}>
-                        <ExamIcon className={`w-7 h-7 ${isUrgent ? 'text-orange-400' : examColors.color}`} />
+                        <ExamIcon className={`w-6 h-6 ${statusConfig.color}`} />
                     </div>
                     
                     {/* Titolo e Descrizione */}
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-white text-xl mb-2 truncate leading-tight">
-                            {exam.title}
-                        </h3>
-                        {exam.description && (
-                            <p className="text-sm text-white/60 line-clamp-2 leading-relaxed">
-                                {exam.description}
-                            </p>
-                        )}
+                        <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-bold text-white text-lg truncate leading-tight">
+                                {exam.title}
+                            </h3>
+                        </div>
+                        
+                        {/* Stato Badge */}
+                        <div className="flex items-center gap-2">
+                            <span className={`
+                                px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide
+                                ${statusConfig.bgColor} ${statusConfig.color} border ${statusConfig.borderColor}
+                                flex items-center gap-1
+                            `}>
+                                <statusConfig.icon className="w-3 h-3" />
+                                {statusConfig.label}
+                            </span>
+                            
+                            {dueCards > 0 && !isCompleted && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                                    {dueCards} da ripassare
+                                </span>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Context Menu Button */}
+                    {/* Context Menu */}
                     {onDelete && (
                         <div className="relative flex-shrink-0" ref={menuRef}>
                             <motion.button
@@ -141,10 +277,9 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                 `}
                                 aria-label="Menu opzioni"
                             >
-                                <MoreVertical className="w-5 h-5" />
+                                <MoreVertical className="w-4 h-4" />
                             </motion.button>
 
-                            {/* Dropdown Menu */}
                             <AnimatePresence>
                                 {isMenuOpen && (
                                     <motion.div
@@ -152,7 +287,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: -8, scale: 0.95 }}
                                         transition={{ duration: 0.15 }}
-                                        className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-white/15 bg-gradient-to-br from-white/[0.12] to-white/[0.06] shadow-2xl shadow-black/60 overflow-hidden z-50 backdrop-blur-xl"
+                                        className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-white/15 bg-slate-900 shadow-2xl shadow-black/60 overflow-hidden z-50"
                                     >
                                         {isCompleted && onReactivate && (
                                             <button
@@ -160,7 +295,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                                 className="w-full flex items-center gap-3 px-4 py-3 text-left text-blue-400 hover:bg-blue-500/15 transition-colors border-b border-white/10"
                                             >
                                                 <RotateCcw className="w-4 h-4" />
-                                                <span className="text-sm font-medium">Riattiva Esame</span>
+                                                <span className="text-sm font-medium">Riattiva</span>
                                             </button>
                                         )}
                                         {onDelete && (
@@ -169,7 +304,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                                 className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/15 transition-colors"
                                             >
                                                 <Trash2 className="w-4 h-4" />
-                                                <span className="text-sm font-medium">Elimina Esame</span>
+                                                <span className="text-sm font-medium">Elimina</span>
                                             </button>
                                         )}
                                     </motion.div>
@@ -179,101 +314,150 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                     )}
                 </div>
 
-                {/* Statistiche Principali - Layout Migliorato */}
-                <div className="grid grid-cols-2 gap-3 mb-5">
-                    {/* Mazzi */}
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Layers className="w-4 h-4 text-primary-400" />
-                            <span className="text-xs font-medium text-white/60 uppercase tracking-wide">Mazzi</span>
-                        </div>
-                        <p className="text-2xl font-bold text-white">{deckCount}</p>
-                    </div>
-                    
-                    {/* Carte */}
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                        <div className="flex items-center gap-2 mb-2">
-                            <FileText className="w-4 h-4 text-blue-400" />
-                            <span className="text-xs font-medium text-white/60 uppercase tracking-wide">Carte</span>
-                        </div>
-                        <p className="text-2xl font-bold text-white">{totalCards}</p>
-                    </div>
-                </div>
+                {/* Descrizione */}
+                {exam.description && (
+                    <p className="text-sm text-white/50 line-clamp-2 leading-relaxed mb-4">
+                        {exam.description}
+                    </p>
+                )}
 
-                {/* Progress Bar - Solo se ci sono carte */}
+                {/* Mini Distribuzione Carte (se ci sono carte) */}
                 {totalCards > 0 && (
-                    <div className="space-y-2.5 mb-5">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Target className="w-4 h-4 text-emerald-400" />
-                                <span className="text-sm font-semibold text-white/80">Padronanza</span>
-                            </div>
-                            <span className="text-lg font-bold text-white">{masteryPercent}%</span>
+                    <div className="mb-4">
+                        <div className="flex items-center justify-between text-xs mb-2">
+                            <span className="text-white/40 flex items-center gap-1.5">
+                                <FileText className="w-3.5 h-3.5" />
+                                {totalCards} carte
+                            </span>
+                            <span className={`
+                                font-medium
+                                ${masteryPercent >= 80 ? 'text-emerald-400' : masteryPercent >= 50 ? 'text-amber-400' : 'text-white/60'}
+                            `}>
+                                {masteryPercent}% padronanza
+                            </span>
                         </div>
-                        <div className="h-3 bg-white/10 rounded-full overflow-hidden shadow-inner">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${masteryPercent}%` }}
-                                transition={{ duration: 1, ease: 'easeOut' }}
-                                className={`h-full rounded-full shadow-lg ${
-                                    masteryPercent >= 80
-                                        ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600'
-                                        : masteryPercent >= 50
-                                        ? 'bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600'
-                                        : 'bg-gradient-to-r from-primary-400 via-primary-500 to-primary-600'
-                                }`}
-                            />
+                        
+                        {/* Barra Distribuzione */}
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden flex">
+                            {distribution.new > 0 && (
+                                <div 
+                                    className="h-full bg-blue-500"
+                                    style={{ width: `${distPercentages.new}%` }}
+                                    title={`${distribution.new} nuove`}
+                                />
+                            )}
+                            {distribution.learning > 0 && (
+                                <div 
+                                    className="h-full bg-amber-500"
+                                    style={{ width: `${distPercentages.learning}%` }}
+                                    title={`${distribution.learning} in apprendimento`}
+                                />
+                            )}
+                            {distribution.review > 0 && (
+                                <div 
+                                    className="h-full bg-orange-500"
+                                    style={{ width: `${distPercentages.review}%` }}
+                                    title={`${distribution.review} da ripassare`}
+                                />
+                            )}
+                            {distribution.mastered > 0 && (
+                                <div 
+                                    className="h-full bg-emerald-500"
+                                    style={{ width: `${distPercentages.mastered}%` }}
+                                    title={`${distribution.mastered} padroneggiate`}
+                                />
+                            )}
+                        </div>
+                        
+                        {/* Legenda mini */}
+                        <div className="flex items-center gap-3 mt-2 text-[10px] text-white/40">
+                            {distribution.new > 0 && (
+                                <span className="flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                    {distribution.new} nuove
+                                </span>
+                            )}
+                            {distribution.mastered > 0 && (
+                                <span className="flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    {distribution.mastered} ok
+                                </span>
+                            )}
+                            {dueCards > 0 && (
+                                <span className="flex items-center gap-1 text-orange-400 ml-auto">
+                                    <Clock className="w-3 h-3" />
+                                    {dueCards} da fare
+                                </span>
+                            )}
                         </div>
                     </div>
                 )}
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                        <Layers className="w-4 h-4 text-primary-400" />
+                        <div>
+                            <p className="text-lg font-bold text-white leading-none">{deckCount}</p>
+                            <p className="text-[10px] text-white/50 uppercase tracking-wide">Mazzi</p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                        <Target className="w-4 h-4 text-emerald-400" />
+                        <div>
+                            <p className="text-lg font-bold text-white leading-none">{masteryPercent}%</p>
+                            <p className="text-[10px] text-white/50 uppercase tracking-wide">Padronanza</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {/* Footer con Scadenza e Azioni */}
-            <div className="px-6 py-4 border-t border-white/10 bg-white/5">
+            {/* Footer con Scadenza */}
+            <div className="px-5 py-3 border-t border-white/10 bg-white/[0.03]">
                 <div className="flex items-center justify-between">
                     {/* Scadenza */}
                     <div className="flex items-center gap-2.5">
                         <div className={`
-                            p-2 rounded-lg
-                            ${isUrgent
-                                ? 'bg-orange-500/20 border border-orange-500/30'
-                                : 'bg-white/5 border border-white/10'
+                            p-1.5 rounded-lg
+                            ${isOverdue
+                                ? 'bg-red-500/20 border border-red-500/30'
+                                : isUrgent
+                                    ? 'bg-orange-500/20 border border-orange-500/30'
+                                    : 'bg-white/5 border border-white/10'
                             }
                         `}>
-                            <Calendar className={`w-4 h-4 ${isUrgent ? 'text-orange-400' : 'text-white/60'}`} />
+                            <Calendar className={`w-3.5 h-3.5 ${isOverdue ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-white/60'}`} />
                         </div>
                         <div>
-                            <p className="text-xs text-white/50 mb-0.5">Scadenza</p>
-                            <p className={`text-sm font-bold ${isUrgent ? 'text-orange-400' : 'text-white/80'}`}>
-                                {daysUntilDeadline >= 0
-                                    ? `${daysUntilDeadline} ${daysUntilDeadline === 1 ? 'giorno' : 'giorni'}`
-                                    : 'Scaduto'
+                            <p className="text-[10px] text-white/40 uppercase tracking-wide">Scadenza</p>
+                            <p className={`text-sm font-semibold ${isOverdue ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-white/80'}`}>
+                                {isOverdue 
+                                    ? `Scaduto (${Math.abs(daysUntilDeadline)}gg fa)`
+                                    : daysUntilDeadline === 0 
+                                        ? 'Oggi!'
+                                        : daysUntilDeadline === 1 
+                                            ? 'Domani'
+                                            : `${daysUntilDeadline} giorni`
                                 }
                             </p>
                         </div>
                     </div>
 
-                    {/* Badge Da Ripassare e Freccia */}
-                    <div className="flex items-center gap-3">
-                        {dueCards > 0 && (
-                            <div className="px-3 py-1.5 rounded-full bg-orange-500/20 border-2 border-orange-500/40 shadow-lg shadow-orange-500/20">
-                                <span className="text-xs font-bold text-orange-300">
-                                    {dueCards} da ripassare
-                                </span>
-                            </div>
-                        )}
-                        <div className={`
-                            p-2 rounded-lg transition-colors
-                            ${isUrgent
-                                ? 'bg-orange-500/10 border border-orange-500/30'
-                                : 'bg-primary-500/10 border border-primary-500/30'
-                            }
-                        `}>
-                            <ArrowRight className={`w-5 h-5 ${isUrgent ? 'text-orange-400' : 'text-primary-400'}`} />
-                        </div>
+                    {/* Freccia */}
+                    <div className={`
+                        p-2 rounded-lg transition-colors
+                        ${isUrgent || isOverdue
+                            ? 'bg-orange-500/10 border border-orange-500/30'
+                            : 'bg-primary-500/10 border border-primary-500/30'
+                        }
+                    `}>
+                        <ArrowRight className={`w-4 h-4 ${isUrgent || isOverdue ? 'text-orange-400' : 'text-primary-400'}`} />
                     </div>
                 </div>
             </div>
         </motion.div>
     );
 };
+
+export default ExamCard;

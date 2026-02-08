@@ -462,6 +462,79 @@ const deleteAccount = asyncHandler(async (req, res) => {
     });
 });
 
+// ==========================================
+// AVATAR
+// ==========================================
+
+const path = require('path');
+const fs = require('fs').promises;
+
+/**
+ * POST /api/settings/avatar
+ * Upload avatar utente
+ */
+const uploadAvatar = asyncHandler(async (req, res) => {
+    // req.file è popolato da multer middleware
+    if (!req.file) {
+        throw new AppError('Nessun file caricato', 400, 'NO_FILE');
+    }
+
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+        // Elimina il file caricato se l'utente non esiste
+        await fs.unlink(req.file.path).catch(() => {});
+        throw new AppError('Utente non trovato', 404, 'USER_NOT_FOUND');
+    }
+
+    // Elimina avatar precedente se esiste
+    if (user.profile?.avatar) {
+        const oldAvatarPath = path.join(__dirname, '..', 'uploads', 'avatars', path.basename(user.profile.avatar));
+        await fs.unlink(oldAvatarPath).catch(() => {});
+    }
+
+    // Costruisci URL dell'avatar
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+    // Aggiorna il profilo utente
+    user.profile = user.profile || {};
+    user.profile.avatar = avatarUrl;
+    await user.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Avatar caricato con successo',
+        data: { avatarUrl },
+    });
+});
+
+/**
+ * DELETE /api/settings/avatar
+ * Elimina avatar utente
+ */
+const deleteAvatar = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+        throw new AppError('Utente non trovato', 404, 'USER_NOT_FOUND');
+    }
+
+    // Se c'è un avatar, elimina il file
+    if (user.profile?.avatar) {
+        const avatarPath = path.join(__dirname, '..', 'uploads', 'avatars', path.basename(user.profile.avatar));
+        await fs.unlink(avatarPath).catch(() => {});
+        
+        // Rimuovi il riferimento dal profilo
+        user.profile.avatar = undefined;
+        await user.save();
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Avatar eliminato con successo',
+    });
+});
+
 module.exports = {
     getProfile,
     updateProfile,
@@ -474,4 +547,6 @@ module.exports = {
     checkImportData,
     importData,
     deleteAccount,
+    uploadAvatar,
+    deleteAvatar,
 };

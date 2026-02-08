@@ -14,6 +14,7 @@ import { SettingsTooltip } from '../SettingsTooltip';
 
 interface SettingsFieldProps {
     label: string;
+    description?: string;
     icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
     required?: boolean;
     error?: string;
@@ -26,6 +27,7 @@ interface SettingsFieldProps {
 
 export const SettingsField: React.FC<SettingsFieldProps> = ({
     label,
+    description,
     icon: Icon,
     required = false,
     error,
@@ -48,6 +50,10 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({
                     />
                 )}
             </label>
+            
+            {description && (
+                <p className="text-xs text-white/60 -mt-1.5">{description}</p>
+            )}
             
             {children}
             

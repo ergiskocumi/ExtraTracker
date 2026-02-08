@@ -123,4 +123,59 @@ router.post('/import', largeBodyParser('50mb'), settingsController.importData);
  */
 router.delete('/account', settingsController.deleteAccount);
 
+// ==========================================
+// AVATAR
+// ==========================================
+
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Assicurati che la cartella esista
+const avatarUploadDir = path.join(__dirname, '..', 'uploads', 'avatars');
+if (!fs.existsSync(avatarUploadDir)) {
+    fs.mkdirSync(avatarUploadDir, { recursive: true });
+}
+
+// Configurazione multer per avatar
+const avatarStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, avatarUploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, `avatar-${req.user.id}-${uniqueSuffix}${ext}`);
+    },
+});
+
+const avatarUpload = multer({
+    storage: avatarStorage,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB max
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Formato file non supportato. Usa JPG, PNG, WebP o GIF.'), false);
+        }
+    },
+});
+
+/**
+ * @route   POST /api/settings/avatar
+ * @desc    Upload avatar utente
+ * @access  Private
+ */
+router.post('/avatar', avatarUpload.single('avatar'), settingsController.uploadAvatar);
+
+/**
+ * @route   DELETE /api/settings/avatar
+ * @desc    Elimina avatar utente
+ * @access  Private
+ */
+router.delete('/avatar', settingsController.deleteAvatar);
+
 module.exports = router;

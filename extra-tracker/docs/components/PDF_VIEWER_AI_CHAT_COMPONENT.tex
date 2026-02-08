@@ -1,0 +1,630 @@
+\documentclass[11pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{fontspec}
+
+% Page geometry
+\geometry{margin=2.5cm}
+
+% Colors
+\definecolor{primary}{RGB}{99,102,241}
+\definecolor{secondary}{RGB}{139,92,246}
+\definecolor{codebg}{RGB}{248,248,252}
+\definecolor{darkbg}{RGB}{30,30,40}
+\definecolor{textgray}{RGB}{100,100,120}
+
+% TikZ libraries
+\usetikzlibrary{shapes,arrows,positioning,calc,fit,backgrounds,shadows}
+
+% Listings configuration
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\small\ttfamily,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    commentstyle=\color{textgray},
+    frame=single,
+    keepspaces=true,
+    keywordstyle=\color{primary}\bfseries,
+    language=JavaScript,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    title=\lstname,
+    xleftmargin=15pt,
+    framexleftmargin=15pt
+}
+
+% Headers
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{textgray}{Silvi - PDF Viewer + AI Chat}}
+\fancyhead[R]{\textcolor{textgray}{\thepage}}
+\fancyfoot[C]{\textcolor{textgray}{Documentazione Tecnica}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+% Section styling
+\titleformat{\section}{\Large\bfseries\color{primary}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{secondary}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{textgray}}{\thesubsubsection}{1em}{}
+
+% Document info
+\title{
+    \vspace{-2cm}
+    \begin{tikzpicture}
+        \node[rectangle, rounded corners=10pt, fill=darkbg, minimum width=0.9\textwidth, minimum height=3cm] (box) {};
+        \node[below=0.3cm of box.north, text=white, font=\Huge\bfseries] {PDF Viewer + AI Chat};
+        \node[below=1.5cm of box.north, text=white!70, font=\large] {Visualizzazione PDF e Tutoring AI con RAG};
+    \end{tikzpicture}
+    \vspace{1cm}
+}
+\author{Silvi Documentation Team}
+\date{Febbraio 2026}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vspace{2cm}
+
+\tableofcontents
+\newpage
+
+%==============================================================================
+\section{Introduzione}
+%==============================================================================
+
+\subsection{Panoramica}
+
+Il componente \textbf{PDF Viewer + AI Chat} implementa un sistema completo di visualizzazione PDF integrato con un \textbf{tutoring AI contestuale} basato sulla tecnologia RAG (Retrieval Augmented Generation).
+
+\subsubsection{Funzionalità Principali}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{PDF Viewer}: Due implementazioni ottimizzate per diversi casi d'uso
+    \item \textbf{AI Tutoring}: Chat contestuale basata sul contenuto del PDF (RAG)
+    \item \textbf{Vector Search}: Ricerca semantica con embeddings (Pinecone + OpenAI)
+    \item \textbf{Source Grounding}: Tracciamento della fonte per ogni risposta
+    \item \textbf{Performance}: Caching LRU per il parsing PDF
+\end{itemize}
+
+\subsection{Stack Tecnologico}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Componente} & \textbf{Tecnologia} \\
+\midrule
+PDF Rendering & \texttt{react-pdf} + \texttt{@react-pdf-viewer} \\
+Vector DB & Pinecone \\
+Embeddings & OpenAI \texttt{text-embedding-3-small} \\
+Text Splitting & LangChain \texttt{RecursiveCharacterTextSplitter} \\
+AI Model & OpenAI GPT-4o-mini \\
+Caching & In-memory LRU con TTL \\
+\bottomrule
+\end{tabular}
+\caption{Stack tecnologico del componente PDF + AI}
+\end{table}
+
+\subsection{Architettura Generale}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=0.8cm,
+    box/.style={rectangle, rounded corners, draw=primary, fill=primary!10, minimum width=2.8cm, minimum height=0.8cm, font=\small},
+    smallbox/.style={rectangle, rounded corners, draw=secondary, fill=secondary!10, minimum width=2.5cm, minimum height=0.6cm, font=\scriptsize},
+    arrow/.style={->, >=stealth, thick, primary},
+    label/.style={font=\tiny, text=textgray}
+]
+
+% Frontend column
+\node[box] (frontend) {Frontend};
+\node[smallbox, below=0.4cm of frontend] (viewer) {PDFViewer};
+\node[smallbox, below=0.3cm of viewer] (chat) {PDFChat};
+
+% Backend column
+\node[box, right=2.5cm of frontend] (backend) {Backend};
+\node[smallbox, below=0.4cm of backend] (express) {Express};
+\node[smallbox, below=0.3cm of express] (asktutor) {askTutor()};
+
+% Services
+\node[box, right=2.5cm of backend] (services) {Services};
+\node[smallbox, below=0.4cm of services] (cache) {PDF Cache};
+\node[smallbox, below=0.3cm of cache] (vector) {Vector Store};
+
+% External
+\node[box, right=2.5cm of services] (external) {External};
+\node[smallbox, below=0.4cm of external] (pinecone) {Pinecone};
+\node[smallbox, below=0.3cm of pinecone] (openai) {OpenAI};
+
+% Arrows
+\draw[arrow, <->] (viewer.east) -- node[above, label] {PDF URL} (express.west);
+\draw[arrow, <->] (chat.east) -- node[below, label] {/api/chat} (asktutor.west);
+\draw[arrow, ->] (asktutor.east) -- node[above, label] {Parse} (cache.west);
+\draw[arrow, ->] (cache.east) -- node[above, label] {Query} (vector.west);
+\draw[arrow, ->] (vector.east) -- node[above, label] {Search} (pinecone.west);
+\draw[arrow, ->] (asktutor.north) |- ++(0,0.5) -| node[above, label] {RAG} (openai.north);
+
+\end{tikzpicture}
+\end{center}
+
+%==============================================================================
+\section{Architettura RAG}
+%==============================================================================
+
+\subsection{Retrieval Augmented Generation (RAG)}
+
+Il sistema RAG combina \textbf{retrieval} di documenti con \textbf{generazione} testuale:
+
+\begin{enumerate}
+    \item \textbf{Ingestion}: Il PDF viene caricato, parsato e diviso in chunk
+    \item \textbf{Vectorization}: Ogni chunk viene convertito in embedding
+    \item \textbf{Storage}: Gli embeddings vengono salvati in Pinecone
+    \item \textbf{Query}: La domanda dell'utente viene convertita in embedding
+    \item \textbf{Retrieval}: Si cercano i chunk più simili nel vector store
+    \item \textbf{Generation}: Il contesto + domanda viene inviato a GPT-4o-mini
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=0.6cm,
+    phase/.style={rectangle, rounded corners=5pt, draw=primary, fill=primary!5, minimum width=2.2cm, minimum height=0.6cm, font=\scriptsize, align=center},
+    arrow/.style={->, >=stealth, thick, primary}
+]
+
+% Ingestion row
+\node[phase] (upload) {PDF Upload};
+\node[phase, right=0.4cm of upload] (parse) {Parse\\(pdf-parse)};
+\node[phase, right=0.4cm of parse] (split) {Split\\(1000 chars)};
+\node[phase, right=0.4cm of split] (embed) {Embed\\(OpenAI)};
+\node[phase, right=0.4cm of embed] (store) {Store\\(Pinecone)};
+
+% Query row
+\node[phase, below=1.2cm of upload] (question) {Question};
+\node[phase, right=0.4cm of question] (qembed) {Embed\\(OpenAI)};
+\node[phase, right=0.4cm of qembed] (search) {Search\\(Pinecone)};
+\node[phase, right=0.4cm of search] (context) {Context\\(topK=5)};
+\node[phase, right=0.4cm of context] (generate) {Generate\\(GPT-4o)};
+
+% Arrows
+\draw[arrow] (upload) -- (parse);
+\draw[arrow] (parse) -- (split);
+\draw[arrow] (split) -- (embed);
+\draw[arrow] (embed) -- (store);
+
+\draw[arrow] (question) -- (qembed);
+\draw[arrow] (qembed) -- (search);
+\draw[arrow] (search) -- (context);
+\draw[arrow] (context) -- (generate);
+
+% Dotted connection
+\draw[dashed, gray, thick] (store) -- (search);
+
+\end{tikzpicture}
+\end{center}
+
+%==============================================================================
+\section{PDF Viewer Frontend}
+%==============================================================================
+
+\subsection{FluidPDFViewer (react-pdf)}
+
+Visualizzatore PDF ``fluido'' con \textbf{lazy loading} delle pagine e \textbf{responsive} width.
+
+\subsubsection{Caratteristiche}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Lazy Loading}: Solo le pagine visibili vengono renderizzate
+    \item \textbf{Responsive}: Adattamento automatico alla larghezza del contenitore
+    \item \textbf{Worker CDN}: Configurazione worker PDF.js da CDN per evitare problemi MIME/CORS
+    \item \textbf{Error Classification}: Categorizzazione errori per messaggi user-friendly
+\end{itemize}
+
+\begin{lstlisting}[language=JavaScript, caption={Lazy Loading Logic}]
+const usePageVisibility = (numPages, containerRef) => {
+  const [visiblePages, setVisiblePages] = useState(new Set());
+
+  useEffect(() => {
+    // Carica le prime 5 pagine immediatamente
+    const initialPages = new Set();
+    for (let i = 1; i <= Math.min(5, numPages); i++) {
+      initialPages.add(i);
+    }
+    setVisiblePages(initialPages);
+
+    const handleScroll = () => {
+      const scrollTop = containerRef.current.scrollTop;
+      const currentPage = Math.floor(scrollTop / 1000) + 1;
+      
+      setVisiblePages(prev => {
+        const newVisiblePages = new Set(prev);
+        // Pre-loading: corrente + 2 precedenti + 5 successive
+        for (let i = Math.max(1, currentPage - 2); 
+             i <= Math.min(numPages, currentPage + 5); i++) {
+          newVisiblePages.add(i);
+        }
+        return newVisiblePages;
+      });
+    };
+
+    // Throttle con requestAnimationFrame
+    containerRef.current.addEventListener('scroll', handleScroll);
+  }, [numPages]);
+
+  return visiblePages;
+};
+\end{lstlisting}
+
+\subsection{PDFReader (@react-pdf-viewer)}
+
+Visualizzatore PDF avanzato con funzionalità professionali.
+
+\subsubsection{Caratteristiche}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Plugin Architecture}: defaultLayout, pageNavigation, search
+    \item \textbf{Theme Adaptation}: Sincronizzazione dark/light mode via MutationObserver
+    \item \textbf{Imperative API}: \texttt{jumpToPage}, \texttt{highlightText}, \texttt{jumpToPageAndHighlight}
+    \item \textbf{Worker Fallback}: Switch da locale a CDN worker su errori MIME/CORS
+\end{itemize}
+
+\begin{lstlisting}[language=JavaScript, caption={Imperative API Ref}]
+export interface PDFReaderRef {
+  jumpToPage: (pageIndex: number) => void;
+  highlightText: (text: string, options?: SearchOptions) => void;
+  jumpToPageAndHighlight: (pageNumber: number, text: string) => void;
+}
+
+// Expose methods
+useImperativeHandle(ref, () => ({
+  jumpToPage: (pageIndex) => {
+    pageNavigationPluginInstance.jumpToPage(pageIndex);
+  },
+  highlightText: (text, options) => {
+    searchPluginInstance.highlight(text, options);
+  },
+  jumpToPageAndHighlight: (pageNumber, text) => {
+    pageNavigationPluginInstance.jumpToPage(pageNumber - 1);
+    setTimeout(() => {
+      searchPluginInstance.highlight(text, { caseSensitive: false });
+    }, 300);
+  },
+}));
+\end{lstlisting}
+
+%==============================================================================
+\section{AI Chat Component}
+%==============================================================================
+
+\subsection{PDFChat}
+
+Componente chat che utilizza RAG per rispondere basandosi sul PDF caricato.
+
+\subsubsection{Key Features}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Context Window}: Mantiene ultimi 12 messaggi come history
+    \item \textbf{Grounding Constraint}: System prompt restringe risposte al contenuto PDF
+    \item \textbf{Rate Limiting}: Gestita dal backend (\texttt{aiLimiter})
+    \item \textbf{Error Handling}: Visualizzazione messaggi errore user-friendly
+\end{itemize}
+
+\begin{lstlisting}[language=JavaScript, caption={Send Message con RAG}]
+const sendMessage = useCallback(async (raw: string) => {
+  const content = raw.trim();
+  
+  // Aggiungi messaggio utente
+  setMessages(prev => [...prev, { role: 'user', content }]);
+  setIsSending(true);
+
+  try {
+    // Prepara history (ultimi 12 messaggi)
+    const history = messagesRef.current
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .slice(-12);
+
+    // Chiama API RAG
+    const reply = await studyService.askTutor(deckId, content, history);
+    
+    // Aggiungi risposta AI
+    setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+  } catch (err) {
+    setError(err?.message || 'Errore nella chat');
+  } finally {
+    setIsSending(false);
+  }
+}, [deckId]);
+\end{lstlisting}
+
+%==============================================================================
+\section{Vector Store Service}
+%==============================================================================
+
+\subsection{Pinecone + LangChain Integration}
+
+Servizio per la gestione degli embeddings e la ricerca vettoriale.
+
+\begin{lstlisting}[language=JavaScript, caption={Vector Store Service}]
+const DEFAULT_EMBED_MODEL = 'text-embedding-3-small';
+const DEFAULT_TOP_K = 5;
+
+// Configurazione Text Splitter
+const getTextSplitter = async () => {
+  const { RecursiveCharacterTextSplitter } = 
+    await import('langchain/text_splitter');
+  return new RecursiveCharacterTextSplitter({
+    chunkSize: 1000,
+    chunkOverlap: 200,
+  });
+};
+
+// Ingestion: PDF -> Chunks -> Embeddings -> Pinecone
+const ingestDeck = async (deckId, text) => {
+  const splitter = await getTextSplitter();
+  const chunks = await splitter.splitText(text);
+  
+  const [index, embeddings] = await Promise.all([
+    getPineconeIndex(), 
+    getEmbedder()
+  ]);
+
+  const vectors = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const values = await embeddings.embedQuery(chunks[i]);
+    vectors.push({
+      id: `${deckId}-${Date.now()}-${i}`,
+      values,
+      metadata: { deckId, text: chunks[i], chunkIndex: i },
+    });
+  }
+
+  await index.upsert(vectors);
+  return { deckId, vectors: vectors.length };
+};
+
+// Query: Question -> Embedding -> Similarity Search
+const queryDeck = async (deckId, question, topK = DEFAULT_TOP_K) => {
+  const [index, embeddings] = await Promise.all([
+    getPineconeIndex(), 
+    getEmbedder()
+  ]);
+  
+  const queryVector = await embeddings.embedQuery(question);
+  
+  const result = await index.query({
+    vector: queryVector,
+    topK,
+    includeMetadata: true,
+    filter: { deckId },  // Filtro per deck specifico
+  });
+
+  return result.matches
+    .map(m => m.metadata?.text)
+    .filter(Boolean);
+};
+\end{lstlisting}
+
+%==============================================================================
+\section{PDF Cache Service}
+%==============================================================================
+
+\subsection{LRU Cache con TTL}
+
+Servizio di caching in-memory per il parsing PDF.
+
+\subsubsection{Caratteristiche}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Chiave Cache}: Hash MD5 del file
+    \item \textbf{TTL}: 5 minuti
+    \item \textbf{Max Size}: 50 PDF
+    \item \textbf{Eviction}: LRU (Least Recently Used)
+    \item \textbf{Stats}: Hits, misses, evictions per monitoring
+\end{itemize}
+
+\begin{lstlisting}[language=JavaScript, caption={PDF Cache Service}]
+class PDFCacheService {
+  constructor() {
+    this.cache = new Map();
+    this.MAX_CACHE_SIZE = 50;
+    this.TTL = 5 * 60 * 1000; // 5 minuti
+    
+    this.stats = { hits: 0, misses: 0, evictions: 0 };
+  }
+
+  async parsePDF(filePath, buffer = null) {
+    // Calcola hash per cache key
+    const hash = buffer 
+      ? crypto.createHash('md5').update(buffer).digest('hex')
+      : await this._getFileHash(filePath);
+    
+    const cacheKey = `pdf_${hash}`;
+    
+    // Check cache
+    const cached = this.cache.get(cacheKey);
+    if (cached) {
+      this.stats.hits++;
+      this._touchEntry(cacheKey);
+      return cached.data;
+    }
+    
+    // Cache MISS: parsa PDF
+    this.stats.misses++;
+    const pdfData = await pdfParse(buffer || await fs.readFile(filePath));
+    
+    // Evict se necessario
+    this._evictIfNeeded();
+    
+    // Salva in cache
+    this.cache.set(cacheKey, {
+      data: pdfData,
+      timestamp: Date.now(),
+    });
+    
+    return pdfData;
+  }
+
+  _evictIfNeeded() {
+    if (this.cache.size >= this.MAX_CACHE_SIZE) {
+      const entries = [...this.cache.entries()];
+      const oldest = entries.sort((a, b) => 
+        a[1].timestamp - b[1].timestamp)[0];
+      
+      this.cache.delete(oldest[0]);
+      this.stats.evictions++;
+    }
+  }
+}
+\end{lstlisting}
+
+%==============================================================================
+\section{Backend Integration}
+%==============================================================================
+
+\subsection{askTutor Service}
+
+Servizio backend che implementa il RAG per la chat AI.
+
+\begin{lstlisting}[language=JavaScript, caption={askTutor - RAG Implementation}]
+async askTutor(tenantScope, deckId, message, history = []) {
+  // 1. Validazioni
+  if (!message || message.length > 2000) {
+    throw AppError.validation('Messaggio non valido');
+  }
+
+  // 2. Recupera deck e verifica testo estratto
+  const deck = await Deck.findOne({ _id: deckId, user: userId });
+  if (!deck.extractedText || deck.extractedText.length < 100) {
+    throw AppError.validation('Testo PDF non disponibile');
+  }
+
+  // 3. QUERY VETTORIALE: Trova chunk rilevanti
+  const relevantChunks = await vectorStoreService.queryDeck(
+    deckId, message.trim(), 5
+  );
+  
+  if (!relevantChunks || relevantChunks.length === 0) {
+    return "Non ho trovato informazioni rilevanti nel PDF...";
+  }
+
+  // 4. ASSEMBLY CONTEXTO
+  const context = relevantChunks.join('\n\n---\n\n');
+  const truncatedContext = context.length > 4000 
+    ? context.substring(0, 4000) + '...' 
+    : context;
+
+  // 5. COSTRUZIONE MESSAGGI
+  const systemPrompt = `Sei un tutor AI che risponde SOLO basandosi 
+sul contenuto fornito.
+REGOLE:
+1. Rispondi SOLO usando le informazioni nel contesto
+2. Se l'info non e' nel contesto, dillo chiaramente
+3. Non fare supposizioni oltre il testo fornito`;
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...history.slice(-12),
+    { role: 'user', content: `CONTESTO: ${truncatedContext}\n\nDOMANDA: ${message}` }
+  ];
+
+  // 6. CHIAMATA OPENAI
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages,
+    max_tokens: 1000,
+    temperature: 0.3,  // Bassa temperatura per factual
+  });
+
+  return completion.choices[0].message.content.trim();
+}
+\end{lstlisting}
+
+%==============================================================================
+\section{API Endpoints}
+%==============================================================================
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llp{6cm}}
+\toprule
+\textbf{Endpoint} & \textbf{Method} & \textbf{Descrizione} \\
+\midrule
+\texttt{/api/study/:id/generate-pdf} & POST & Upload PDF + generazione flashcard AI \\
+\texttt{/api/study/:id/chat} & POST & Chat AI Tutor con RAG \\
+\texttt{/api/study/:id/answer-question} & POST & Risposta a domanda d'esame (contesto PDF) \\
+\bottomrule
+\end{tabular}
+\caption{API Endpoints per PDF + AI}
+\end{table}
+
+%==============================================================================
+\section{Glossario}
+%==============================================================================
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lp{9cm}}
+\toprule
+\textbf{Termine} & \textbf{Definizione} \\
+\midrule
+\textbf{RAG} & Retrieval Augmented Generation - tecnica che combina retrieval di documenti con generazione testuale \\
+\textbf{Embedding} & Rappresentazione vettoriale di un testo che cattura il significato semantico \\
+\textbf{Vector Store} & Database specializzato per la ricerca per similarità tra vettori \\
+\textbf{Chunking} & Divisione di un testo lungo in segmenti più piccoli per l'elaborazione \\
+\textbf{Similarity Search} & Ricerca dei vettori più simili a una query (coseno similarity) \\
+\textbf{Source Grounding} & Ancoraggio della risposta AI al documento fonte \\
+\textbf{LRU Cache} & Least Recently Used - strategia di caching che elimina prima gli elementi meno usati \\
+\textbf{TTL} & Time To Live - durata di vita di un elemento in cache \\
+\bottomrule
+\end{tabular}
+\caption{Glossario dei termini tecnici}
+\end{table}
+
+%==============================================================================
+\section{Configurazione Environment}
+%==============================================================================
+
+\begin{lstlisting}[language=bash, caption={Variabili d'ambiente richieste}]
+# Vector Store (Pinecone)
+PINECONE_API_KEY=pc_xxx...
+PINECONE_INDEX=silvi-vectors
+
+# Embeddings (OpenAI)
+OPENAI_API_KEY=sk-...
+OPENAI_EMBED_MODEL=text-embedding-3-small
+
+# AI Model
+OPENAI_MODEL=gpt-4o-mini
+\end{lstlisting}
+
+\vfill
+
+\begin{center}
+\textcolor{textgray}{\rule{0.5\textwidth}{0.5pt}}
+
+\textit{Documento generato automaticamente da Kimi Code CLI}
+
+\textcolor{textgray}{Febbraio 2026}
+\end{center}
+
+\end{document}

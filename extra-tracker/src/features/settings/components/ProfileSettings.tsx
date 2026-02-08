@@ -13,15 +13,18 @@ import { SettingsInput, SettingsTextarea } from './fields';
 import { useFormValidation } from '../hooks/useFormValidation';
 import { commonRules, validationSchemas } from '../utils/validation';
 import { SettingsError, SettingsSuccess } from './feedback';
+import { AvatarUpload } from './AvatarUpload';
 
 interface ProfileSettingsProps {
     profile: UserProfile;
     accountEmail?: string;
     onSave: (data: Partial<UserProfile>) => Promise<boolean>;
     status: FormStatus;
+    onAvatarUpload?: (file: File) => Promise<string | null>;
+    onAvatarDelete?: () => Promise<boolean>;
 }
 
-export const ProfileSettings = ({ profile, accountEmail, onSave, status }: ProfileSettingsProps) => {
+export const ProfileSettings = ({ profile, accountEmail, onSave, status, onAvatarUpload, onAvatarDelete }: ProfileSettingsProps) => {
     const [formData, setFormData] = useState<UserProfile>(profile);
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -57,7 +60,6 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
         // Validazione finale
         const errors = validation.validateForm(formData);
         if (Object.keys(errors).length > 0) {
-            // Gli errori sono già gestiti dal hook
             return;
         }
 
@@ -81,6 +83,14 @@ export const ProfileSettings = ({ profile, accountEmail, onSave, status }: Profi
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Avatar Upload Section */}
+            <AvatarUpload
+                currentAvatarUrl={profile.avatar}
+                displayName={profile.displayName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Utente'}
+                onUpload={onAvatarUpload}
+                onDelete={onAvatarDelete}
+            />
+
             {/* Email Account (Read-only) */}
             {accountEmail && (
                 <div className="rounded-2xl border border-white/[0.1] bg-white/[0.03] p-4 flex items-center gap-3">

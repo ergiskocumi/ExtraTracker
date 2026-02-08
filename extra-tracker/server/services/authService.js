@@ -1,30 +1,34 @@
 /**
- * 🔧 SERVIZIO AUTENTICAZIONE
+ * 🔧 SERVIZIO AUTENTICAZIONE - Enhanced Security Version
  * 
- * Questo layer contiene la logica PURA (no HTTP, no Express)
- * Vantaggi:
- * 1. Testabile: puoi testare senza simulare richieste HTTP
- * 2. Riutilizzabile: può essere usato da CLI, worker, etc.
- * 3. Separazione responsabilità: controller gestisce HTTP, service la logica
+ * Aggiornamenti:
+ * - JWT con jti, iss, aud claims
+ * - Audit logging integrato
+ * - Supporto 2FA/TOTP
+ * - Device fingerprinting
  */
 
 const argon2 = require('argon2');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { authenticator } = require('otplib');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const securityConfig = require('../config/security');
 const { MAX_ACTIVE_SESSIONS } = require('../config/security');
 const { getRedisClient, getRedisAvailable } = require('../config/redis');
 const { encryptString, decryptString } = require('../utils/encryption');
+const auditService = require('./auditService');
 
 // Durata grace period per race condition (30 secondi)
 const GRACE_PERIOD_MS = 30 * 1000;
 
+// JWT Claims Constants
+const JWT_ISSUER = 'silvi-api';
+const JWT_AUDIENCE = 'silvi-app';
+
 /**
  * Utility per estrarre informazioni dispositivo da request
- * @param {object} req - Express request object
- * @returns {object} - { device, userAgent, ip }
  */
 const getDeviceInfo = (req) => {
     const userAgent = req.headers['user-agent'] || 'Unknown';
@@ -43,110 +47,74 @@ const getDeviceInfo = (req) => {
     return { device, userAgent, ip };
 };
 
+/**
+ * Genera device fingerprint univoco
+ */
+const generateDeviceFingerprint = (req) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const acceptLanguage = req.headers['accept-language'] || '';
+    const ip = req.ip || req.socket?.remoteAddress || '';
+    
+    // Crea fingerprint da componenti stabili
+    const components = [
+        userAgent,
+        acceptLanguage,
+        ip.replace('::ffff:', ''), // Normalizza IPv6
+    ].join('|');
+    
+    return crypto.createHash('sha256').update(components).digest('hex');
+};
+
 class AuthService {
     // ==========================================
     // TOKEN BLACKLIST (Redis)
     // ==========================================
 
-    /**
-     * Aggiungi token alla blacklist (revoca immediata)
-     * Usa Redis per performance (cache-aside pattern)
-     * TTL = durata access token (15 minuti) per pulizia automatica
-     * 
-     * @param {string} token - Access token da revocare
-     * @param {number} ttlSeconds - TTL in secondi (default: 15 minuti)
-     * @returns {Promise<void>}
-     */
     async addToBlacklist(token, ttlSeconds = 15 * 60) {
-        if (!getRedisAvailable()) {
-            // Se Redis non disponibile, salta blacklist (fallback graceful)
-            // In produzione, Redis dovrebbe essere sempre disponibile
-            return;
-        }
+        if (!getRedisAvailable()) return;
 
         try {
             const redisClient = getRedisClient();
             if (!redisClient) return;
 
-            // Hash del token come chiave (più sicuro che salvare token completo)
-            const tokenHash = crypto
-                .createHash('sha256')
-                .update(token)
-                .digest('hex');
-
-            // Salva in Redis con TTL (pulizia automatica dopo scadenza)
+            const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
             await redisClient.setEx(`blacklist:${tokenHash}`, ttlSeconds, '1');
         } catch (error) {
-            // Log errore ma non bloccare la richiesta (fail-open)
             console.error('❌ Errore aggiunta token a blacklist:', error.message);
         }
     }
 
-    /**
-     * Verifica se token è nella blacklist
-     * 
-     * @param {string} token - Access token da verificare
-     * @returns {Promise<boolean>} - true se token è revocato
-     */
     async isTokenBlacklisted(token) {
-        if (!getRedisAvailable()) {
-            // Se Redis non disponibile, assume token valido (fallback graceful)
-            return false;
-        }
+        if (!getRedisAvailable()) return false;
 
         try {
             const redisClient = getRedisClient();
             if (!redisClient) return false;
 
-            // Hash del token come chiave
-            const tokenHash = crypto
-                .createHash('sha256')
-                .update(token)
-                .digest('hex');
-
-            // Verifica se esiste in Redis
+            const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
             const result = await redisClient.get(`blacklist:${tokenHash}`);
             return result === '1';
         } catch (error) {
-            // Log errore ma assume token valido (fail-open)
             console.error('❌ Errore verifica blacklist:', error.message);
             return false;
         }
     }
 
-    /**
-     * Aggiungi tutti i token di un utente alla blacklist (ban utente)
-     * Revoca immediata di tutti gli access token attivi
-     * 
-     * @param {string} userId - ID utente da bannare
-     * @returns {Promise<void>}
-     */
     async blacklistUserTokens(userId) {
-        if (!getRedisAvailable()) {
-            return;
-        }
+        if (!getRedisAvailable()) return;
 
         try {
             const redisClient = getRedisClient();
             if (!redisClient) return;
 
-            // Aggiungi userId alla blacklist (controllo veloce in requireAuth)
-            // TTL = durata massima access token (15 minuti)
             await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
         } catch (error) {
             console.error('❌ Errore blacklist utente:', error.message);
         }
     }
 
-    /**
-     * Verifica se utente è bannato (isActive: false)
-     * 
-     * @param {string} userId - ID utente da verificare
-     * @returns {Promise<boolean>} - true se utente è bannato
-     */
     async isUserBlacklisted(userId) {
         if (!getRedisAvailable()) {
-            // Se Redis non disponibile, controlla DB (più lento ma sicuro)
             const user = await User.findById(userId).select('isActive');
             return user ? !user.isActive : false;
         }
@@ -154,29 +122,22 @@ class AuthService {
         try {
             const redisClient = getRedisClient();
             if (!redisClient) {
-                // Fallback a DB se Redis non disponibile
                 const user = await User.findById(userId).select('isActive');
                 return user ? !user.isActive : false;
             }
 
-            // Controlla cache Redis (veloce)
             const result = await redisClient.get(`blacklist:user:${userId}`);
-            if (result === '1') {
-                return true;
-            }
+            if (result === '1') return true;
 
-            // Se non in cache, controlla DB e aggiorna cache
             const user = await User.findById(userId).select('isActive');
             const isBanned = user ? !user.isActive : false;
 
             if (isBanned) {
-                // Aggiorna cache per prossime richieste
                 await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
             }
 
             return isBanned;
         } catch (error) {
-            // Fallback a DB in caso di errore Redis
             console.error('❌ Errore verifica blacklist utente:', error.message);
             const user = await User.findById(userId).select('isActive');
             return user ? !user.isActive : false;
@@ -187,35 +148,23 @@ class AuthService {
     // SESSION MANAGEMENT
     // ==========================================
 
-    /**
-     * Pulisci sessioni scadute (refresh token scaduti oltre 7 giorni)
-     * @param {User} user - Oggetto utente
-     */
     cleanExpiredSessions(user) {
-        if (!user.refreshTokens || user.refreshTokens.length === 0) {
-            return;
-        }
+        if (!user.refreshTokens || user.refreshTokens.length === 0) return;
 
         const now = Date.now();
         const refreshTokenExpiryMs = securityConfig.jwt.refreshTokenExpiry 
             ? this.parseExpiryToMs(securityConfig.jwt.refreshTokenExpiry)
-            : 7 * 24 * 60 * 60 * 1000; // Default 7 giorni
+            : 7 * 24 * 60 * 60 * 1000;
 
-        // Rimuovi sessioni scadute (createdAt + expiry < now)
         user.refreshTokens = user.refreshTokens.filter(session => {
             const createdAt = new Date(session.createdAt).getTime();
             return (createdAt + refreshTokenExpiryMs) > now;
         });
     }
 
-    /**
-     * Converte stringa expiry (es. '7d') in millisecondi
-     * @param {string} expiry - Stringa tipo '7d', '15m', etc.
-     * @returns {number} - Millisecondi
-     */
     parseExpiryToMs(expiry) {
         const match = expiry.match(/^(\d+)([smhd])$/);
-        if (!match) return 7 * 24 * 60 * 60 * 1000; // Default 7 giorni
+        if (!match) return 7 * 24 * 60 * 60 * 1000;
 
         const value = parseInt(match[1]);
         const unit = match[2];
@@ -233,17 +182,6 @@ class AuthService {
     // PASSWORD HASHING (Argon2)
     // ==========================================
 
-    /**
-     * Hash password con Argon2id
-     * 
-     * Perché Argon2id?
-     * - Resiste a GPU attacks (memory-hard)
-     * - Resiste a side-channel attacks
-     * - Vincitore Password Hashing Competition 2015
-     * 
-     * @param {string} password - Password in chiaro
-     * @returns {Promise<string>} - Hash della password
-     */
     async hashPassword(password) {
         return argon2.hash(password, {
             type: argon2.argon2id,
@@ -254,37 +192,28 @@ class AuthService {
         });
     }
 
-    /**
-     * Verifica password contro hash
-     * 
-     * @param {string} hash - Hash salvato nel DB
-     * @param {string} password - Password da verificare
-     * @returns {Promise<boolean>}
-     */
     async verifyPassword(hash, password) {
         try {
             return await argon2.verify(hash, password);
         } catch {
-            // In caso di errore (hash corrotto), ritorna false
             return false;
         }
     }
 
     // ==========================================
-    // JWT TOKEN MANAGEMENT
+    // JWT TOKEN MANAGEMENT (Enhanced)
     // ==========================================
 
-    /**
-     * Genera Access Token (breve durata)
-     * 
-     * @param {object} user - Oggetto utente
-     * @returns {string} - JWT token
-     */
-    generateAccessToken(user) {
+    generateAccessToken(user, options = {}) {
         const payload = {
-            sub: user._id.toString(), // Subject: ID utente
+            iss: JWT_ISSUER,           // Issuer
+            aud: JWT_AUDIENCE,         // Audience
+            sub: user._id.toString(),  // Subject
             email: user.email,
             type: 'access',
+            jti: crypto.randomUUID(),  // JWT ID univoco per tracciamento
+            iat: Math.floor(Date.now() / 1000),
+            ...(options.deviceFingerprint && { dfp: options.deviceFingerprint }),
         };
 
         return jwt.sign(payload, securityConfig.jwt.secret, {
@@ -293,22 +222,17 @@ class AuthService {
         });
     }
 
-    /**
-     * Genera Refresh Token (lunga durata)
-     * Il refresh token è un JWT + random string per extra sicurezza
-     * 
-     * @param {object} user - Oggetto utente
-     * @param {object} deviceInfo - { device, userAgent, ip }
-     * @returns {{ token: string, hash: string, sessionData: object }}
-     */
     async generateRefreshToken(user, deviceInfo = {}) {
-        // Parte random per unicità
         const randomPart = crypto.randomBytes(32).toString('hex');
+        const jti = crypto.randomUUID();
 
         const payload = {
+            iss: JWT_ISSUER,
+            aud: JWT_AUDIENCE,
             sub: user._id.toString(),
             type: 'refresh',
-            jti: randomPart, // JWT ID unico
+            jti,
+            iat: Math.floor(Date.now() / 1000),
         };
 
         const token = jwt.sign(payload, securityConfig.jwt.secret, {
@@ -316,15 +240,11 @@ class AuthService {
             algorithm: securityConfig.jwt.algorithm,
         });
 
-        // Hash del token per salvarlo nel DB (non salvare mai token in chiaro!)
-        const hash = crypto
-            .createHash('sha256')
-            .update(token)
-            .digest('hex');
+        const hash = crypto.createHash('sha256').update(token).digest('hex');
 
-        // Dati sessione da salvare nel DB
         const sessionData = {
             hash,
+            jti, // Salva jti per correlazione
             device: deviceInfo.device || 'Unknown',
             userAgent: encryptString(deviceInfo.userAgent || 'Unknown'),
             ip: encryptString(deviceInfo.ip || 'Unknown'),
@@ -332,23 +252,24 @@ class AuthService {
             lastUsedAt: new Date(),
         };
 
-        return { token, hash, sessionData };
+        return { token, hash, sessionData, jti };
     }
 
-    /**
-     * Verifica un token JWT
-     * 
-     * @param {string} token - Token da verificare
-     * @param {string} expectedType - 'access' o 'refresh'
-     * @returns {object} - Payload decodificato
-     */
     verifyToken(token, expectedType = 'access') {
         try {
             const payload = jwt.verify(token, securityConfig.jwt.secret, {
                 algorithms: [securityConfig.jwt.algorithm],
             });
 
-            // Verifica tipo token
+            // Verifica issuer e audience
+            if (payload.iss !== JWT_ISSUER) {
+                throw AppError.unauthorized('Token issuer non valido');
+            }
+            
+            if (payload.aud !== JWT_AUDIENCE) {
+                throw AppError.unauthorized('Token audience non valido');
+            }
+
             if (payload.type !== expectedType) {
                 throw AppError.unauthorized('Token non valido');
             }
@@ -369,30 +290,93 @@ class AuthService {
     }
 
     // ==========================================
-    // BUSINESS LOGIC
+    // 2FA / TOTP METHODS
     // ==========================================
 
     /**
-     * Registra nuovo utente
-     * 
-     * @param {object} data - { email, password, acceptTerms }
-     * @param {object} deviceInfo - { device, userAgent, ip } (opzionale)
-     * @returns {Promise<{ user: User, accessToken: string, refreshToken: string }>}
+     * Genera secret TOTP per setup 2FA
      */
-    async register(data, deviceInfo = {}) {
+    generateTwoFactorSecret() {
+        const secret = authenticator.generateSecret();
+        const backupCodes = this.generateBackupCodes();
+        
+        return {
+            secret,
+            backupCodes,
+        };
+    }
+
+    /**
+     * Genera URL per QR code
+     */
+    generateTotpUrl(secret, email, appName = 'Silvi AI') {
+        return authenticator.keyuri(email, appName, secret);
+    }
+
+    /**
+     * Verifica codice TOTP
+     */
+    verifyTwoFactorCode(secret, code) {
+        try {
+            return authenticator.verify({ token: code, secret });
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Genera backup codes (10 codici monouso)
+     */
+    generateBackupCodes() {
+        const codes = [];
+        for (let i = 0; i < 10; i++) {
+            // 8 caratteri alfanumerici, formattati come XXXX-XXXX
+            const code = crypto.randomBytes(4).toString('hex').toUpperCase();
+            codes.push(`${code.slice(0, 4)}-${code.slice(4, 8)}`);
+        }
+        return codes;
+    }
+
+    /**
+     * Hash backup codes per salvataggio sicuro
+     */
+    async hashBackupCodes(codes) {
+        const hashed = [];
+        for (const code of codes) {
+            const hash = await this.hashPassword(code.replace('-', ''));
+            hashed.push(hash);
+        }
+        return hashed;
+    }
+
+    /**
+     * Verifica backup code
+     */
+    async verifyBackupCode(code, hashedCodes) {
+        const cleanCode = code.replace(/-/g, '').toUpperCase();
+        
+        for (const hash of hashedCodes) {
+            if (await this.verifyPassword(hash, cleanCode)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ==========================================
+    // BUSINESS LOGIC
+    // ==========================================
+
+    async register(data, deviceInfo = {}, req = null) {
         const { email, password, acceptTerms } = data;
 
-        // Verifica email non esistente
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            // Messaggio generico per non rivelare se email esiste
             throw AppError.conflict('Impossibile completare la registrazione');
         }
 
-        // Hash password
         const hashedPassword = await this.hashPassword(password);
 
-        // Crea utente
         const user = new User({
             email,
             password: hashedPassword,
@@ -401,45 +385,57 @@ class AuthService {
                 termsAcceptedAt: new Date(),
                 privacyVersion: '1.0',
             },
-            refreshTokens: [], // Inizializza array vuoto
+            refreshTokens: [],
         });
 
         await user.save();
 
-        // Genera token con device info
-        const accessToken = this.generateAccessToken(user);
+        const deviceFingerprint = req ? generateDeviceFingerprint(req) : null;
+        const accessToken = this.generateAccessToken(user, { deviceFingerprint });
         const { token: refreshToken, sessionData } = await this.generateRefreshToken(user, deviceInfo);
 
-        // Aggiungi nuova sessione usando operatore atomico (evita conflitti di versione)
         await User.updateOne(
             { _id: user._id },
-            {
-                $push: { refreshTokens: sessionData }
-            }
+            { $push: { refreshTokens: sessionData } }
         );
+
+        // Audit log
+        if (req) {
+            await auditService.log({
+                userId: user._id,
+                userEmail: user.email,
+                action: 'REGISTER',
+                description: 'Nuovo account registrato',
+                ip: deviceInfo.ip || req.ip,
+                userAgent: deviceInfo.userAgent || req.headers['user-agent'],
+                deviceFingerprint,
+                success: true,
+                sessionId: sessionData.jti,
+            });
+        }
 
         return { user, accessToken, refreshToken };
     }
 
-    /**
-     * Login utente
-     * 
-     * @param {object} data - { email, password }
-     * @param {object} deviceInfo - { device, userAgent, ip } (opzionale)
-     * @returns {Promise<{ user: User, accessToken: string, refreshToken: string }>}
-     */
-    async login(data, deviceInfo = {}) {
-        const { email, password } = data;
+    async login(data, deviceInfo = {}, req = null) {
+        const { email, password, twoFactorCode } = data;
 
-        // Trova utente con campi nascosti
         const user = await User.findForLogin(email);
 
-        // Messaggio generico per non rivelare se email esiste
         if (!user) {
+            // Audit log per tentativo fallito
+            if (req) {
+                await auditService.logLogin({
+                    userEmail: email,
+                    ip: deviceInfo.ip || req.ip,
+                    userAgent: deviceInfo.userAgent || req.headers['user-agent'],
+                    success: false,
+                    failureReason: 'Email non trovata',
+                });
+            }
             throw AppError.unauthorized('Email o password non corretti');
         }
 
-        // Verifica se account bloccato
         if (user.isLocked) {
             const minutesLeft = Math.ceil((user.lockUntil - Date.now()) / 60000);
             throw AppError.unauthorized(
@@ -447,47 +443,91 @@ class AuthService {
             );
         }
 
-        // Verifica password
         const isValidPassword = await this.verifyPassword(user.password, password);
 
         if (!isValidPassword) {
-            // Incrementa tentativi falliti
             await user.incrementFailedAttempts();
+            
+            // Audit log
+            if (req) {
+                await auditService.logLogin({
+                    userId: user._id,
+                    userEmail: user.email,
+                    ip: deviceInfo.ip || req.ip,
+                    userAgent: deviceInfo.userAgent || req.headers['user-agent'],
+                    success: false,
+                    failureReason: 'Password non corretta',
+                });
+            }
+            
             throw AppError.unauthorized('Email o password non corretti');
         }
 
-        // Login riuscito: resetta contatore
+        // Verifica 2FA se abilitato
+        if (user.twoFactorEnabled) {
+            if (!twoFactorCode) {
+                throw AppError.unauthorized('REQUIRES_2FA');
+            }
+
+            const isValid2FA = this.verifyTwoFactorCode(user.twoFactorSecret, twoFactorCode);
+            
+            if (!isValid2FA) {
+                // Prova con backup codes
+                const isValidBackup = await this.verifyBackupCode(
+                    twoFactorCode, 
+                    user.twoFactorBackupCodes || []
+                );
+
+                if (!isValidBackup) {
+                    await auditService.log2FA({
+                        userId: user._id,
+                        userEmail: user.email,
+                        action: '2FA_VERIFICATION',
+                        ip: deviceInfo.ip || req.ip,
+                        userAgent: deviceInfo.userAgent || req.headers['user-agent'],
+                        success: false,
+                        failureReason: 'Codice non valido',
+                    });
+                    
+                    throw AppError.unauthorized('Codice 2FA non valido');
+                }
+
+                // Backup code usato con successo
+                await auditService.log2FA({
+                    userId: user._id,
+                    userEmail: user.email,
+                    action: '2FA_BACKUP_USED',
+                    ip: deviceInfo.ip || req.ip,
+                    userAgent: deviceInfo.userAgent || req.headers['user-agent'],
+                    success: true,
+                });
+            }
+        }
+
         await user.resetFailedAttempts();
 
-        // Genera token con device info
-        const accessToken = this.generateAccessToken(user);
+        const deviceFingerprint = req ? generateDeviceFingerprint(req) : null;
+        const accessToken = this.generateAccessToken(user, { deviceFingerprint });
         const { token: refreshToken, sessionData } = await this.generateRefreshToken(user, deviceInfo);
 
-        // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
-        // MongoDB non permette $push e $pull sullo stesso array nella stessa operazione
+        // Gestione sessioni
         const refreshTokenExpiryMs = securityConfig.jwt.refreshTokenExpiry 
             ? this.parseExpiryToMs(securityConfig.jwt.refreshTokenExpiry)
             : 7 * 24 * 60 * 60 * 1000;
         const expiryDate = new Date(Date.now() - refreshTokenExpiryMs);
 
-        // 1. Pulisci le sessioni scadute (Safe to do first)
         await User.updateOne(
             { _id: user._id },
             {
                 $pull: {
-                    refreshTokens: {
-                        createdAt: { $lt: expiryDate }
-                    }
+                    refreshTokens: { createdAt: { $lt: expiryDate } }
                 }
             }
         );
 
-        // 2. Aggiungi la nuova sessione e applica il limite FIFO (usando la pipeline atomica)
-        // Nota: La pipeline gestisce sia l'inserimento che il taglio dell'array in un colpo solo
         const updatedUser = await User.findOneAndUpdate(
             { _id: user._id },
             [
-                // Aggiungi la nuova sessione
                 {
                     $set: {
                         refreshTokens: {
@@ -495,7 +535,6 @@ class AuthService {
                         }
                     }
                 },
-                // Applica il limite FIFO (tieni solo gli ultimi MAX_ACTIVE_SESSIONS)
                 {
                     $set: {
                         refreshTokens: {
@@ -521,92 +560,80 @@ class AuthService {
             { new: true }
         );
 
-        // Aggiorna oggetto user locale con risultato
         if (updatedUser) {
             Object.assign(user, updatedUser.toObject());
+        }
+
+        // Audit log
+        if (req) {
+            await auditService.logLogin({
+                userId: user._id,
+                userEmail: user.email,
+                ip: deviceInfo.ip || req.ip,
+                userAgent: deviceInfo.userAgent || req.headers['user-agent'],
+                deviceFingerprint,
+                success: true,
+                sessionId: sessionData.jti,
+            });
+
+            // Verifica attività sospetta
+            const suspiciousCheck = await auditService.detectSuspiciousActivity(
+                user._id,
+                deviceInfo.ip || req.ip,
+                deviceFingerprint
+            );
+
+            if (suspiciousCheck.isSuspicious) {
+                await auditService.logSuspiciousActivity({
+                    userId: user._id,
+                    userEmail: user.email,
+                    ip: deviceInfo.ip || req.ip,
+                    userAgent: deviceInfo.userAgent || req.headers['user-agent'],
+                    reason: 'Login da nuovo dispositivo o location insolita',
+                    metadata: suspiciousCheck.details,
+                });
+            }
         }
 
         return { user, accessToken, refreshToken };
     }
 
-    /**
-     * Refresh access token usando refresh token
-     * Implementa grace period per gestire race conditions
-     * 
-     * @param {string} refreshToken - Refresh token attuale
-     * @param {object} deviceInfo - { device, userAgent, ip } (opzionale)
-     * @returns {Promise<{ user: User, accessToken: string, newRefreshToken: string }>}
-     */
     async refreshAccessToken(refreshToken, deviceInfo = {}) {
-        // Verifica refresh token
         const payload = this.verifyToken(refreshToken, 'refresh');
-
-        // Trova utente con array refreshTokens e gracePeriodTokens
         const user = await User.findByRefreshToken(payload.sub);
+        
         if (!user) {
             throw AppError.unauthorized('Sessione non valida');
         }
 
-        // Verifica hash del refresh token
-        const tokenHash = crypto
-            .createHash('sha256')
-            .update(refreshToken)
-            .digest('hex');
-
-        // Pulisci token scaduti dal grace period
+        const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
         user.cleanExpiredGracePeriodTokens();
-
-        // Pulisci sessioni scadute (refresh token scaduti)
         this.cleanExpiredSessions(user);
 
-        // Trova sessione specifica nell'array
         const session = user.findSessionByHash(tokenHash);
         
-        // Se non trovato nelle sessioni attive, controlla grace period
         if (!session) {
             const graceToken = user.findInGracePeriod(tokenHash);
             
             if (graceToken) {
-                // Token nel grace period: è una race condition legittima
-                // Genera nuovi token senza invalidare nulla
                 const newAccessToken = this.generateAccessToken(user);
                 const { token: newRefreshToken } = await this.generateRefreshToken(user, deviceInfo);
-                
-                // Rimuovi dal grace period (già usato)
                 await user.removeFromGracePeriod(tokenHash);
-                
                 return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
             }
             
-            // Token non trovato né in sessioni attive né in grace period
-            // Possibile furto o token già invalidato
-            // Invalida tutte le sessioni per sicurezza (usa operatori atomici)
             await User.updateOne(
                 { _id: user._id },
-                {
-                    $set: { 
-                        refreshTokens: [],
-                        gracePeriodTokens: []
-                    }
-                }
+                { $set: { refreshTokens: [], gracePeriodTokens: [] } }
             );
             throw AppError.unauthorized('Sessione non valida o scaduta');
         }
 
-        // Aggiorna lastUsedAt per questa sessione (operatore atomico)
         await User.updateOne(
-            { 
-                _id: user._id,
-                'refreshTokens.hash': tokenHash
-            },
-            {
-                $set: {
-                    'refreshTokens.$.lastUsedAt': new Date()
-                }
-            }
+            { _id: user._id, 'refreshTokens.hash': tokenHash },
+            { $set: { 'refreshTokens.$.lastUsedAt': new Date() } }
         );
 
-        // Genera nuovi token (rotation) - mantieni stesso device info
         const newAccessToken = this.generateAccessToken(user);
         const sessionUserAgent = decryptString(session.userAgent);
         const sessionIp = decryptString(session.ip);
@@ -618,24 +645,13 @@ class AuthService {
                 ip: deviceInfo.ip || sessionIp,
             });
 
-        // IMPORTANTE: Aggiungi vecchio token al grace period PRIMA di rimuoverlo
-        // Questo previene race conditions se arrivano richieste concorrenti
-        // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
         const graceExpiresAt = new Date(Date.now() + GRACE_PERIOD_MS);
         
-        // 1. Pulisci token scaduti dal grace period (Safe to do first)
         await User.updateOne(
             { _id: user._id },
-            {
-                $pull: {
-                    gracePeriodTokens: {
-                        expiresAt: { $lt: new Date() }
-                    }
-                }
-            }
+            { $pull: { gracePeriodTokens: { expiresAt: { $lt: new Date() } } } }
         );
         
-        // 2. Aggiungi nuovo token al grace period
         await User.updateOne(
             { _id: user._id },
             {
@@ -648,13 +664,10 @@ class AuthService {
             }
         );
 
-        // Rimuovi vecchia sessione e aggiungi nuova (rotation) usando operatori atomici
-        // Usa aggregation pipeline per garantire atomicità e limite FIFO
         const updatedUser = await User.findOneAndUpdate(
             { _id: user._id },
             [
                 {
-                    // Rimuovi vecchia sessione
                     $set: {
                         refreshTokens: {
                             $filter: {
@@ -666,7 +679,6 @@ class AuthService {
                     }
                 },
                 {
-                    // Aggiungi nuova sessione
                     $set: {
                         refreshTokens: {
                             $concatArrays: ['$refreshTokens', [newSessionData]]
@@ -674,7 +686,6 @@ class AuthService {
                     }
                 },
                 {
-                    // Applica limite FIFO se necessario
                     $set: {
                         refreshTokens: {
                             $cond: {
@@ -699,7 +710,6 @@ class AuthService {
             { new: true }
         );
 
-        // Aggiorna oggetto user locale per coerenza
         if (updatedUser) {
             Object.assign(user, updatedUser.toObject());
         }
@@ -707,96 +717,119 @@ class AuthService {
         return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
     }
 
-    /**
-     * Logout utente (invalida refresh token specifico o tutti)
-     * 
-     * @param {string} userId - ID utente
-     * @param {string} refreshToken - Refresh token da invalidare (opzionale, se non fornito invalida tutti)
-     * @returns {Promise<void>}
-     */
-    async logout(userId, refreshToken = null, accessToken = null) {
+    async logout(userId, refreshToken = null, accessToken = null, req = null) {
         const user = await User.findById(userId).select('+refreshTokens');
         
-        if (!user) {
-            return; // Utente non trovato, niente da fare
-        }
+        if (!user) return;
 
-        // Aggiungi access token alla blacklist (revoca immediata)
         if (accessToken) {
             await this.addToBlacklist(accessToken);
         }
 
         if (refreshToken) {
-            // Invalida solo la sessione specifica
-            const tokenHash = crypto
-                .createHash('sha256')
-                .update(refreshToken)
-                .digest('hex');
+            const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
             await user.removeSessionByHash(tokenHash);
+            
+            // Audit log
+            if (req) {
+                await auditService.logLogout({
+                    userId,
+                    userEmail: user.email,
+                    ip: req.ip,
+                    userAgent: req.headers['user-agent'],
+                    allDevices: false,
+                });
+            }
         } else {
-            // Invalida tutte le sessioni (logout da tutti i dispositivi)
             await user.removeAllSessions();
-            // Aggiungi utente alla blacklist per revocare tutti i token attivi
             await this.blacklistUserTokens(userId);
+            
+            // Audit log
+            if (req) {
+                await auditService.logLogout({
+                    userId,
+                    userEmail: user.email,
+                    ip: req.ip,
+                    userAgent: req.headers['user-agent'],
+                    allDevices: true,
+                });
+            }
         }
     }
 
-    /**
-     * Cambia password
-     * 
-     * @param {string} userId - ID utente
-     * @param {string} currentPassword - Password attuale
-     * @param {string} newPassword - Nuova password
-     */
-    async changePassword(userId, currentPassword, newPassword) {
-        const user = await User.findById(userId).select('+password');
+    async changePassword(userId, currentPassword, newPassword, req = null) {
+        const user = await User.findById(userId).select('+password +passwordHistory');
         
         if (!user) {
             throw AppError.notFound('Utente');
         }
 
-        // Verifica password attuale
         const isValid = await this.verifyPassword(user.password, currentPassword);
         if (!isValid) {
+            if (req) {
+                await auditService.logPasswordChange({
+                    userId,
+                    userEmail: user.email,
+                    ip: req.ip,
+                    userAgent: req.headers['user-agent'],
+                    success: false,
+                    failureReason: 'Password attuale non corretta',
+                });
+            }
             throw AppError.unauthorized('Password attuale non corretta');
         }
 
-        // Hash nuova password
-        const hashedPassword = await this.hashPassword(newPassword);
-        
-        // Invalida tutti i refresh token (force re-login da tutti i dispositivi)
-        // Usa operatore atomico per evitare conflitti di versione
-        await User.updateOne(
-            { _id: userId },
-            {
-                $set: { 
-                    password: hashedPassword,
-                    refreshTokens: []
-                }
+        // Verifica che nuova password non sia nello storico
+        const isInHistory = await user.isPasswordInHistory(newPassword);
+        if (isInHistory) {
+            if (req) {
+                await auditService.logPasswordChange({
+                    userId,
+                    userEmail: user.email,
+                    ip: req.ip,
+                    userAgent: req.headers['user-agent'],
+                    success: false,
+                    failureReason: 'Password già utilizzata in precedenza',
+                });
             }
-        );
-    }
-
-    /**
-     * Ottieni profilo utente corrente
-     * 
-     * @param {string} userId - ID utente
-     * @returns {Promise<User>}
-     */
-    async getProfile(userId) {
-        const user = await User.findById(userId);
-        
-        if (!user) {
-            throw AppError.notFound('Utente');
+            throw AppError.badRequest('Non puoi riutilizzare una password precedente');
         }
 
+        const hashedPassword = await this.hashPassword(newPassword);
+        
+        // Aggiungi password attuale allo storico prima di aggiornare
+        await user.addToPasswordHistory(user.password);
+        
+        await User.updateOne(
+            { _id: userId },
+            { $set: { 
+                password: hashedPassword, 
+                refreshTokens: [],
+                passwordChangedAt: new Date(),
+            }}
+        );
+
+        // Audit log
+        if (req) {
+            await auditService.logPasswordChange({
+                userId,
+                userEmail: user.email,
+                ip: req.ip,
+                userAgent: req.headers['user-agent'],
+                success: true,
+            });
+        }
+    }
+
+    async getProfile(userId) {
+        const user = await User.findById(userId);
+        if (!user) throw AppError.notFound('Utente');
         return user;
     }
 }
 
-// Crea singleton
 const authService = new AuthService();
 
-// Esporta singleton e utility
 module.exports = authService;
 module.exports.getDeviceInfo = getDeviceInfo;
+module.exports.generateDeviceFingerprint = generateDeviceFingerprint;

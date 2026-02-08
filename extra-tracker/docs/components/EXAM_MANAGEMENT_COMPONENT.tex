@@ -1,0 +1,875 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================
+% PACCHETTI
+% ============================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{float}
+\usepackage{enumitem}
+
+% ============================================
+% CONFIGURAZIONE
+% ============================================
+\geometry{margin=2.5cm}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+    pdftitle={Exam Management Component - Technical Documentation}
+}
+
+% Colori
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{darkblue}{rgb}{0.0,0.0,0.6}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+
+% Stile codice
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    numbers=left,
+    numbersep=5pt
+}
+\lstset{style=mystyle}
+
+% Tikz
+\usetikzlibrary{shapes.geometric, arrows, positioning}
+
+% Stile titoli
+\titleformat{\section}{\Large\bfseries\color{darkblue}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{darkblue}}{\thesubsection}{1em}{}
+
+% Header
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{Exam Management Component}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Titolo
+\title{
+    \Huge\textbf{Exam Management Component}\\[0.5em]
+    \Large\textit{Documentazione Tecnica Completa}\\[1em]
+    \large Silvi - Exam Planning \& Study Organization
+}
+\author{
+    \textbf{Extra Tracker Development Team}\\
+    \texttt{Versione 1.0 - Febbraio 2026}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+
+\begin{abstract}
+\noindent
+Documentazione tecnica del componente \textbf{Exam Management} di Silvi. Il sistema permette agli studenti di organizzare i propri esami, associare mazzi di flashcard, tracciare il progresso di studio e gestire le scadenze. Include funzionalita' di pianificazione, filtri per stato (attivo/urgente/completato), statistiche di padronanza e integrazione con il sistema di studio.
+\end{abstract}
+
+\vfill
+\newpage
+
+\tableofcontents
+\newpage
+
+% ============================================
+% SEZIONE 1: INTRODUZIONE
+% ============================================
+\section{Introduzione}\label{sec:intro}
+
+\subsection{Panoramica}
+
+Il componente \textbf{Exam Management} gestisce il ciclo di vita completo degli esami:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Creazione Esami}: Titolo, descrizione, data scadenza
+    \item \textbf{Associazione Decks}: Collegamento mazzi di studio all'esame
+    \item \textbf{Tracciamento Progresso}: Percentuale padronanza, carte da ripassare
+    \item \textbf{Gestione Scadenze}: Badge urgenti, notifiche scadenza imminente
+    \item \textbf{Stati Esame}: Active, Urgent, Completed, Passed, Failed, Archived
+    \item \textbf{Statistiche}: Deck count, total cards, mastery percent, card distribution
+\end{itemize}
+
+\subsection{Relazioni con Altri Componenti}
+
+\begin{center}
+\begin{tikzpicture}[
+    box/.style={rectangle, rounded corners, draw=darkblue, fill=blue!5, 
+                minimum width=2.8cm, minimum height=1cm, align=center, font=\small},
+    arrow/.style={->, >=stealth, thick}
+]
+    \node[box] (exam) at (0,0) {\textbf{Exam}\\Management};
+    \node[box] (deck) at (5,0) {\textbf{Deck}\\Flashcards};
+    \node[box] (study) at (10,0) {\textbf{Study}\\Session};
+    \node[box] (auth) at (0,-2.5) {\textbf{Auth}\\User};
+    \node[box] (folder) at (5,-2.5) {\textbf{Folder}\\Organization};
+    
+    \draw[arrow] (exam) -- (deck) node[midway,above,font=\tiny] {examId};
+    \draw[arrow] (deck) -- (study) node[midway,above,font=\tiny] {cards};
+    \draw[arrow] (auth) -- (exam) node[midway,left,font=\tiny] {user};
+    \draw[arrow] (folder) -- (deck) node[midway,below,font=\tiny] {folderId};
+    \draw[arrow, dashed] (exam) -- (study) node[midway,right,font=\tiny] { aggregated stats};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Struttura File}
+
+\begin{lstlisting}[language=bash]
+# BACKEND
+server/
+|-- models/
+|   |-- Exam.js                 # Schema esame con outcome
+|-- controllers/
+|   |-- examsController.js      # CRUD esami
+|-- routes/
+|   |-- exams.js                # /api/exams/*
+
+# FRONTEND
+src/features/study/
+|-- types/
+|   |-- exam.ts                 # TypeScript definitions
+|-- services/
+|   |-- examService.ts          # API client
+|-- components/
+|   |-- Exams/
+|   |   |-- ExamsView.tsx       # Lista esami principale
+|   |   |-- ExamCard.tsx        # Card singolo esame
+|   |   |-- ExamsFilters.tsx    # Filtri e ordinamento
+|   |   |-- utils/
+|   |   |   |-- examIcons.tsx   # Icone dinamiche per materia
+\end{lstlisting}
+
+% ============================================
+% SEZIONE 2: DATA MODEL
+% ============================================
+\section{Data Model}\label{sec:model}
+
+\subsection{Exam Schema}
+
+\begin{lstlisting}[language=JavaScript, caption={Exam Model - server/models/Exam.js}]
+const outcomeSchema = new mongoose.Schema({
+    grade: {
+        type: Number,
+        default: null,
+        min: [0, 'Il voto non puo essere negativo'],
+    },
+    date: {
+        type: Date,
+        default: null,
+    },
+    notes: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [1000, 'Le note non possono superare 1000 caratteri'],
+    },
+    difficulties: [{  // Tag difficolta' segnalate
+        type: String,
+        trim: true,
+    }],
+}, { _id: false });
+
+const examSchema = new mongoose.Schema({
+    title: { 
+        type: String, 
+        required: [true, 'Il titolo e obbligatorio'],
+        trim: true,
+        maxlength: [120, 'Il titolo non puo superare 120 caratteri'],
+    },
+    description: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [1000, 'La descrizione non puo superare 1000 caratteri'],
+    },
+    deadline: {
+        type: Date,
+        required: [true, 'La data dell\'esame e obbligatoria'],
+    },
+    status: {
+        type: String,
+        enum: ['active', 'passed', 'failed', 'archived', 'completed'],
+        default: 'active',
+    },
+    outcome: {
+        type: outcomeSchema,
+        default: null,
+    },
+}, { timestamps: true });
+
+// Indici
+examSchema.index({ user: 1, deadline: 1 });
+
+// Multi-tenancy
+examSchema.plugin(multiTenancyPlugin, {
+    tenantField: 'user',
+    required: true,
+});
+\end{lstlisting}
+
+\subsection{TypeScript Types}
+
+\begin{lstlisting}[language=TypeScript, caption={Exam Types - src/features/study/types/exam.ts}]
+export type ExamStatus = 'active' | 'passed' | 'failed' | 'archived' | 'completed';
+
+export interface ExamOutcome {
+    grade?: number;
+    date: string;
+    notes?: string;
+    difficulties?: string[];  // Per recovery plan
+}
+
+export interface Exam {
+    id: string;
+    title: string;
+    description?: string;
+    deadline: string;  // ISO date
+    status: ExamStatus;
+    outcome?: ExamOutcome | null;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface CreateExamPayload {
+    title: string;
+    description?: string;
+    deadline: string;
+}
+
+export interface UpdateExamPayload {
+    title?: string;
+    description?: string;
+    deadline?: string;
+    status?: ExamStatus;
+    outcome?: ExamOutcome | null;
+}
+\end{lstlisting}
+
+% ============================================
+% SEZIONE 3: BACKEND API
+% ============================================
+\section{Backend API}\label{sec:backend}
+
+\subsection{Controller}
+
+\begin{lstlisting}[language=JavaScript, caption={Exams Controller - server/controllers/examsController.js}]
+const Exam = require('../models/Exam');
+const Deck = require('../models/Deck');
+
+// GET /api/exams - Tutti gli esami
+const getAllExams = asyncHandler(async (req, res) => {
+    const userId = req.tenantScope.userId;
+    const exams = await Exam.find({ user: userId })
+        .sort({ createdAt: -1 });
+    res.json({ success: true, data: exams });
+});
+
+// GET /api/exams/:id - Singolo esame
+const getExamById = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.tenantScope.userId;
+    
+    const exam = await Exam.findOne({ _id: id, user: userId });
+    if (!exam) throw AppError.notFound('Esame non trovato');
+    
+    res.json({ success: true, data: exam });
+});
+
+// POST /api/exams - Crea esame
+const createExam = asyncHandler(async (req, res) => {
+    const { title, description, deadline, status, outcome } = req.body;
+    const userId = req.tenantScope.userId;
+    
+    if (!title?.trim()) throw AppError.validation('Il titolo e obbligatorio');
+    if (!deadline) throw AppError.validation('La data e obbligatoria');
+    
+    const exam = await Exam.create({
+        title: title.trim(),
+        description: description?.trim() || '',
+        deadline: new Date(deadline),
+        status: status || 'active',
+        outcome: outcome || null,
+        user: userId,
+    });
+    
+    res.status(201).json({ success: true, data: exam });
+});
+
+// PATCH /api/exams/:id - Aggiorna esame
+const updateExam = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const updates = req.body;
+    const userId = req.tenantScope.userId;
+    
+    const exam = await Exam.findOne({ _id: id, user: userId });
+    if (!exam) throw AppError.notFound('Esame non trovato');
+    
+    // Aggiorna campi
+    if (updates.title !== undefined) exam.title = updates.title.trim();
+    if (updates.description !== undefined) exam.description = updates.description?.trim() || '';
+    if (updates.deadline !== undefined) exam.deadline = new Date(updates.deadline);
+    if (updates.status !== undefined) exam.status = updates.status;
+    if (updates.outcome !== undefined) exam.outcome = updates.outcome;
+    
+    await exam.save();
+    res.json({ success: true, data: exam });
+});
+
+// DELETE /api/exams/:id - Elimina esame
+const deleteExam = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.tenantScope.userId;
+    
+    const exam = await Exam.findOne({ _id: id, user: userId });
+    if (!exam) throw AppError.notFound('Esame non trovato');
+    
+    // IMPORTANTE: Rimuovi examId dai deck associati
+    await Deck.updateMany(
+        { user: userId, examId: id },
+        { $unset: { examId: 1 } }
+    );
+    
+    await exam.deleteOne();
+    res.json({ success: true, message: 'Esame eliminato' });
+});
+\end{lstlisting}
+
+\subsection{Routes}
+
+\begin{lstlisting}[language=JavaScript, caption={Exam Routes - server/routes/exams.js}]
+const express = require('express');
+const router = express.Router();
+const { requireAuth } = require('../middleware/auth');
+const { tenantContext } = require('../middleware/tenantContext');
+const examsController = require('../controllers/examsController');
+
+// Proteggi tutte le routes
+router.use(requireAuth);
+router.use(tenantContext({ required: true }));
+
+router.get('/', examsController.getAllExams);
+router.post('/', examsController.createExam);
+router.get('/:id', examsController.getExamById);
+router.patch('/:id', examsController.updateExam);
+router.delete('/:id', examsController.deleteExam);
+
+module.exports = router;
+\end{lstlisting}
+
+% ============================================
+% SEZIONE 4: FRONTEND
+% ============================================
+\section{Frontend Architecture}\label{sec:frontend}
+
+\subsection{Service Layer}
+
+\begin{lstlisting}[language=TypeScript, caption={Exam Service - src/features/study/services/examService.ts}]
+import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
+import type { Exam, CreateExamPayload, UpdateExamPayload } from '../types/exam';
+
+const unwrap = <T>(response: ApiResponse<T>, fallbackMessage: string): T => {
+    if (!response.success || response.data === undefined) {
+        throw new Error(response.error?.message || response.message || fallbackMessage);
+    }
+    return response.data;
+};
+
+const examService = {
+    async getAll(): Promise<Exam[]> {
+        const response = await apiClient.get<Exam[]>('/exams');
+        return unwrap(response, 'Errore nel recupero degli esami');
+    },
+
+    async getById(id: string): Promise<Exam> {
+        const response = await apiClient.get<Exam>(`/exams/${id}`);
+        return unwrap(response, `Errore nel recupero esame ${id}`);
+    },
+
+    async create(payload: CreateExamPayload): Promise<Exam> {
+        const response = await apiClient.post<Exam>('/exams', payload);
+        return unwrap(response, 'Errore nella creazione dell\'esame');
+    },
+
+    async update(id: string, payload: UpdateExamPayload): Promise<Exam> {
+        const response = await apiClient.patch<Exam>(`/exams/${id}`, payload);
+        return unwrap(response, `Errore nell'aggiornamento esame ${id}`);
+    },
+
+    async delete(id: string): Promise<void> {
+        const response = await apiClient.delete<null>(`/exams/${id}`);
+        unwrap(response, `Errore nell'eliminazione esame ${id}`);
+    },
+};
+
+export default examService;
+\end{lstlisting}
+
+\subsection{ExamCard Component}
+
+\begin{lstlisting}[language=TypeScript, caption={ExamCard - src/features/study/components/Exams/ExamCard.tsx}]
+interface ExamCardProps {
+    exam: Exam;
+    deckCount: number;
+    totalCards: number;
+    dueCards: number;
+    masteryPercent: number;
+    decks?: Deck[];
+    onClick: () => void;
+    onDelete?: (examId: string) => void;
+    onReactivate?: (examId: string) => void;
+}
+
+export const ExamCard: React.FC<ExamCardProps> = ({
+    exam, deckCount, totalCards, dueCards, masteryPercent,
+    decks = [], onClick, onDelete, onReactivate
+}) => {
+    // Calcola giorni alla scadenza
+    const deadlineDate = new Date(exam.deadline);
+    const daysUntil = Math.ceil(
+        (deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    const isUrgent = daysUntil <= 7 && daysUntil >= 0;
+    const isOverdue = daysUntil < 0;
+    
+    // Distribuzione carte per status
+    const distribution = useMemo(() => {
+        const examDecks = decks.filter(d => d.examId === exam.id);
+        const allCards = examDecks.flatMap(d => d.cards || []);
+        
+        return {
+            new: allCards.filter(c => c.status === 'new').length,
+            learning: allCards.filter(c => c.status === 'learning').length,
+            review: allCards.filter(c => c.status === 'review').length,
+            mastered: allCards.filter(c => c.status === 'mastered').length,
+        };
+    }, [decks, exam.id]);
+    
+    // Configurazione status badge
+    const statusConfig = useMemo(() => {
+        switch (exam.status) {
+            case 'passed':
+                return { label: 'Superato', icon: CheckCircle, color: 'text-emerald-400' };
+            case 'failed':
+                return { label: 'Non Superato', icon: XCircle, color: 'text-rose-400' };
+            case 'archived':
+                return { label: 'Archiviato', icon: Archive, color: 'text-slate-400' };
+            default:
+                if (isOverdue) return { label: 'Scaduto', icon: AlertCircle, color: 'text-red-400' };
+                if (isUrgent) return { label: 'Urgente', icon: AlertCircle, color: 'text-orange-400' };
+                return { label: 'In Corso', icon: Sparkles, color: 'text-primary-400' };
+        }
+    }, [exam.status, isOverdue, isUrgent]);
+    
+    return (
+        <motion.div
+            whileHover={{ scale: 1.01, y: -2 }}
+            onClick={onClick}
+            className={`
+                rounded-2xl border overflow-hidden cursor-pointer
+                ${isUrgent || isOverdue
+                    ? 'border-orange-500/40 bg-gradient-to-br from-orange-500/10'
+                    : 'border-primary-500/30 bg-gradient-to-br from-primary-500/10'
+                }
+            `}
+        >
+            {/* Header */}
+            <div className="p-5">
+                <div className="flex items-start gap-4 mb-4">
+                    {/* Icona dinamica */}
+                    <div className={`p-3 rounded-xl ${statusConfig.bgColor}`}>
+                        <ExamIcon className={`w-6 h-6 ${statusConfig.color}`} />
+                    </div>
+                    
+                    <div className="flex-1">
+                        <h3 className="font-bold text-white text-lg">{exam.title}</h3>
+                        <span className={`
+                            px-2 py-0.5 rounded-full text-[10px] font-bold
+                            ${statusConfig.bgColor} ${statusConfig.color}
+                        `}>
+                            <statusConfig.icon className="w-3 h-3" />
+                            {statusConfig.label}
+                        </span>
+                    </div>
+                </div>
+                
+                {/* Barra distribuzione carte */}
+                {totalCards > 0 && (
+                    <div className="mb-4">
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden flex">
+                            {distribution.new > 0 && (
+                                <div className="h-full bg-blue-500" 
+                                     style={{ width: `${(distribution.new/totalCards)*100}%` }} />
+                            )}
+                            {distribution.learning > 0 && (
+                                <div className="h-full bg-amber-500" 
+                                     style={{ width: `${(distribution.learning/totalCards)*100}%` }} />
+                            )}
+                            {distribution.review > 0 && (
+                                <div className="h-full bg-orange-500" 
+                                     style={{ width: `${(distribution.review/totalCards)*100}%` }} />
+                            )}
+                            {distribution.mastered > 0 && (
+                                <div className="h-full bg-emerald-500" 
+                                     style={{ width: `${(distribution.mastered/totalCards)*100}%` }} />
+                            )}
+                        </div>
+                    </div>
+                )}
+                
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                        <Layers className="w-4 h-4 text-primary-400" />
+                        <p className="text-lg font-bold text-white">{deckCount}</p>
+                        <p className="text-[10px] text-white/50">Mazzi</p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                        <Target className="w-4 h-4 text-emerald-400" />
+                        <p className="text-lg font-bold text-white">{masteryPercent}%</p>
+                        <p className="text-[10px] text-white/50">Padronanza</p>
+                    </div>
+                </div>
+            </div>
+            
+            {/* Footer - Scadenza */}
+            <div className="px-5 py-3 border-t border-white/10 bg-white/[0.03]">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <Calendar className={`w-3.5 h-3.5 ${isOverdue ? 'text-red-400' : 'text-white/60'}`} />
+                        <p className={`text-sm font-semibold ${isOverdue ? 'text-red-400' : 'text-white/80'}`}>
+                            {isOverdue 
+                                ? `Scaduto (${Math.abs(daysUntil)}gg fa)`
+                                : daysUntil === 0 ? 'Oggi!'
+                                : daysUntil === 1 ? 'Domani'
+                                : `${daysUntil} giorni`
+                            }
+                        </p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-primary-400" />
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+\end{lstlisting}
+
+\subsection{ExamsView - Lista Principale}
+
+\begin{lstlisting}[language=TypeScript, caption={ExamsView - Lista e Filtri}]
+export const ExamsView: React.FC<ExamsViewProps> = ({
+    decks, onCreateExam, onExamClick, onDeckUpdate, ...
+}) => {
+    const [exams, setExams] = useState<Exam[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortBy, setSortBy] = useState<ExamSortOption>('recent');
+    const [filter, setFilter] = useState<ExamFilterOption>('all');
+    
+    // Carica esami
+    useEffect(() => {
+        loadExams();
+    }, []);
+    
+    const loadExams = async () => {
+        try {
+            setIsLoading(true);
+            const allExams = await examService.getAll();
+            setExams(allExams);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    // Calcola statistiche per esame
+    const getExamStats = (examId: string) => {
+        const examDecks = decks.filter(d => d.examId === examId);
+        const totalCards = examDecks.reduce((sum, d) => sum + (d.totalCards || 0), 0);
+        const dueCards = examDecks.reduce((sum, d) => sum + (d.dueCount || 0), 0);
+        const masteredCards = examDecks.reduce(
+            (sum, d) => sum + (d.cards?.filter(c => c.status === 'mastered').length || 0), 
+            0
+        );
+        const masteryPercent = totalCards > 0 
+            ? Math.round((masteredCards / totalCards) * 100) 
+            : 0;
+        
+        return { deckCount: examDecks.length, totalCards, dueCards, masteryPercent };
+    };
+    
+    // Filtra e ordina
+    const filteredAndSortedExams = useMemo(() => {
+        let filtered = [...exams];
+        const now = Date.now();
+        
+        // Filtro per ricerca
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(exam =>
+                exam.title.toLowerCase().includes(query) ||
+                exam.description?.toLowerCase().includes(query)
+            );
+        }
+        
+        // Filtro per stato
+        if (filter === 'urgent') {
+            filtered = filtered.filter(exam => {
+                if (exam.status !== 'active') return false;
+                const deadline = new Date(exam.deadline).getTime();
+                const daysUntil = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+                return daysUntil <= 7 && daysUntil >= 0;
+            });
+        } else if (filter === 'upcoming') {
+            filtered = filtered.filter(exam => {
+                if (exam.status !== 'active') return false;
+                const deadline = new Date(exam.deadline).getTime();
+                const daysUntil = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+                return daysUntil > 7;
+            });
+        } else if (filter === 'completed') {
+            filtered = filtered.filter(exam => 
+                ['completed', 'passed', 'failed', 'archived'].includes(exam.status)
+            );
+        } else if (filter === 'all') {
+            filtered = filtered.filter(exam => exam.status === 'active');
+        }
+        
+        // Ordinamento
+        filtered.sort((a, b) => {
+            switch (sortBy) {
+                case 'recent':
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                case 'deadline':
+                    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+                case 'name':
+                    return a.title.localeCompare(b.title);
+                case 'mastery': {
+                    const aStats = getExamStats(a.id);
+                    const bStats = getExamStats(b.id);
+                    return bStats.masteryPercent - aStats.masteryPercent;
+                }
+                case 'cards': {
+                    const aStats = getExamStats(a.id);
+                    const bStats = getExamStats(b.id);
+                    return bStats.totalCards - aStats.totalCards;
+                }
+                default: return 0;
+            }
+        });
+        
+        return filtered;
+    }, [exams, searchQuery, filter, sortBy, decks]);
+    
+    // Render
+    return (
+        <div className="space-y-6">
+            <ExamsFilters 
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                filter={filter}
+                onFilterChange={setFilter}
+            />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredAndSortedExams.map(exam => {
+                    const stats = getExamStats(exam.id);
+                    return (
+                        <ExamCard
+                            key={exam.id}
+                            exam={exam}
+                            {...stats}
+                            onClick={() => onExamClick(exam.id)}
+                        />
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+\end{lstlisting}
+
+% ============================================
+% SEZIONE 5: BUSINESS LOGIC
+% ============================================
+\section{Business Logic}\label{sec:business}
+
+\subsection{Calcolo Statistiche Aggregated}
+
+Le statistiche di un esame sono calcolate aggregando i dati di tutti i deck associati:
+
+\begin{lstlisting}[language=TypeScript]
+// Calcolo statistiche esame
+const getExamStats = (examId: string, decks: Deck[]) => {
+    // Filtra deck associati all'esame
+    const examDecks = decks.filter(d => d.examId === examId);
+    
+    // Conteggio mazzi
+    const deckCount = examDecks.length;
+    
+    // Conteggio totale carte
+    const totalCards = examDecks.reduce(
+        (sum, deck) => sum + (deck.totalCards || deck.cards?.length || 0), 
+        0
+    );
+    
+    // Carte da ripassare (in scadenza)
+    const dueCards = examDecks.reduce(
+        (sum, deck) => sum + (deck.dueCount || 0), 
+        0
+    );
+    
+    // Carte padroneggiate
+    const masteredCards = examDecks.reduce((sum, deck) => {
+        return sum + (deck.cards?.filter(c => c.status === 'mastered').length || 0);
+    }, 0);
+    
+    // Percentuale padronanza
+    const masteryPercent = totalCards > 0 
+        ? Math.round((masteredCards / totalCards) * 100) 
+        : 0;
+    
+    return { deckCount, totalCards, dueCards, masteryPercent };
+};
+\end{lstlisting}
+
+\subsection{Filtraggio per Scadenza}
+
+\begin{lstlisting}[language=TypeScript]
+// Logica filtri scadenza
+const now = Date.now();
+
+// Urgente: entro 7 giorni
+const isUrgent = (exam: Exam) => {
+    if (exam.status !== 'active') return false;
+    const deadline = new Date(exam.deadline).getTime();
+    const daysUntil = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+    return daysUntil <= 7 && daysUntil >= 0;
+};
+
+// Prossimi: dopo 7 giorni
+const isUpcoming = (exam: Exam) => {
+    if (exam.status !== 'active') return false;
+    const deadline = new Date(exam.deadline).getTime();
+    const daysUntil = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+    return daysUntil > 7;
+};
+
+// Scaduto: deadline passata
+const isOverdue = (exam: Exam) => {
+    const deadline = new Date(exam.deadline).getTime();
+    return deadline < now;
+};
+\end{lstlisting}
+
+\subsection{Visualizzazione Scadenza}
+
+\begin{lstlisting}[language=TypeScript]
+// Formattazione human-readable scadenza
+const formatDeadline = (deadline: string): string => {
+    const deadlineDate = new Date(deadline);
+    const daysUntil = Math.ceil(
+        (deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    
+    if (daysUntil < 0) {
+        return `Scaduto (${Math.abs(daysUntil)}gg fa)`;
+    }
+    if (daysUntil === 0) return 'Oggi!';
+    if (daysUntil === 1) return 'Domani';
+    if (daysUntil <= 7) return `${daysUntil} giorni (urgente)`;
+    return `${daysUntil} giorni`;
+};
+\end{lstlisting}
+
+% ============================================
+% SEZIONE 6: API ENDPOINTS
+% ============================================
+\section{API Endpoints}\label{sec:endpoints}
+
+\begin{longtable}{|p{4cm}|p{1.5cm}|p{8cm}|}
+\hline
+\textbf{Endpoint} & \textbf{Method} & \textbf{Descrizione} \\
+\hline
+\endfirsthead
+\texttt{/api/exams} & GET & Lista tutti gli esami dell'utente \\
+\hline
+\texttt{/api/exams/:id} & GET & Dettaglio singolo esame \\
+\hline
+\texttt{/api/exams} & POST & Crea nuovo esame \\
+\hline
+\texttt{/api/exams/:id} & PATCH & Aggiorna esame (titolo, deadline, status, outcome) \\
+\hline
+\texttt{/api/exams/:id} & DELETE & Elimina esame e rimuove associazioni deck \\
+\hline
+\end{longtable}
+
+% ============================================
+% APPENDICE
+% ============================================
+\appendix
+\section{Sequence Diagram}
+
+\textbf{Creazione Esame}:
+\begin{enumerate}
+    \item User clicca "Crea Esame" nel frontend
+    \item Modale apre con form (titolo, descrizione, deadline)
+    \item User submit → \texttt{examService.create(payload)}
+    \item POST /api/exams con JWT e CSRF token
+    \item Controller valida input
+    \item Exam.create() con userId dal tenantScope
+    \item Ritorna 201 Created
+    \item Frontend aggiorna lista esami
+\end{enumerate}
+
+\textbf{Eliminazione Esame}:
+\begin{enumerate}
+    \item User clicca menu → Elimina su ExamCard
+    \item Conferma modale mostra warning: "X deck saranno disassociati"
+    \item User conferma → \texttt{examService.delete(id)}
+    \item DELETE /api/exams/:id
+    \item Controller: Deck.updateMany() rimuove examId dai deck associati
+    \item Controller: exam.deleteOne()
+    \item Ritorna 200 Success
+    \item Frontend rimuove esame dalla lista (optimistic UI)
+\end{enumerate}
+
+\section{Glossario}
+
+\begin{description}
+    \item[Mastery Percent] Percentuale carte padroneggiate (status = mastered)
+    \item[Due Cards] Carte in scadenza per ripasso (nextReviewDate <= now)
+    \item[Exam Outcome] Risultato esame (grade, date, notes, difficulties)
+    \item[Urgent] Scadenza entro 7 giorni
+    \item[Recovery Plan] Piano di ripasso basato sulle difficulties segnalate
+\end{description}
+
+\end{document}

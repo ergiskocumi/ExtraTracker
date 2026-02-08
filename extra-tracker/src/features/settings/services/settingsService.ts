@@ -343,6 +343,33 @@ class SettingsService {
             confirmation,
         });
     }
+
+    // ==========================================
+    // AVATAR
+    // ==========================================
+
+    /**
+     * Upload avatar utente
+     * @param file File immagine dell'avatar
+     * @returns URL dell'avatar caricato
+     */
+    async uploadAvatar(file: File): Promise<ApiResponse<{ avatarUrl: string }>> {
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        return apiClient.post<{ avatarUrl: string }>(`${this.baseUrl}/avatar`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    }
+
+    /**
+     * Elimina avatar utente
+     */
+    async deleteAvatar(): Promise<ApiResponse<void>> {
+        return apiClient.delete(`${this.baseUrl}/avatar`);
+    }
 }
 
 export const settingsService = new SettingsService();

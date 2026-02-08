@@ -110,14 +110,17 @@ export const useDashboardCalculations = ({
             .slice(0, 3);
     }, [activeDecks]);
 
-    // Calcola statistiche per ogni giorno della settimana
+    // Calcola statistiche per ogni giorno della settimana (Lunedi-Domenica)
     const weeklyStudyPlan = useMemo(() => {
         const today = new Date();
+        const todayDay = today.getDay(); // 0=Dom, 1=Lun, ..., 6=Sab
+        // Calcola offset per portare Lunedi come giorno 0
+        const mondayOffset = todayDay === 0 ? -6 : 1 - todayDay;
         const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
+        startOfWeek.setDate(today.getDate() + mondayOffset);
         startOfWeek.setHours(0, 0, 0, 0);
 
-        const weekDays = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        const weekDays = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
         const weekData = weekDays.map((dayName, index) => {
             const dayDate = new Date(startOfWeek);
             dayDate.setDate(startOfWeek.getDate() + index);
@@ -150,13 +153,19 @@ export const useDashboardCalculations = ({
                 });
             });
 
+            // isToday: confronta la data del giorno con oggi
+            const isSameDay =
+                dayDate.getFullYear() === today.getFullYear() &&
+                dayDate.getMonth() === today.getMonth() &&
+                dayDate.getDate() === today.getDate();
+
             return {
                 dayName,
                 date: dayDate,
                 dueCards,
                 newCards,
                 completedCards,
-                isToday: index === today.getDay(),
+                isToday: isSameDay,
             };
         });
 

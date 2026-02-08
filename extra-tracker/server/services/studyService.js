@@ -757,6 +757,9 @@ class StudyService extends BaseService {
         if (algorithmResult.box !== undefined) {
             card.box = algorithmResult.box;
         }
+        if (algorithmResult.difficulty !== undefined) {
+            card.difficulty = algorithmResult.difficulty;
+        }
         card.interval = algorithmResult.interval;
         card.repetitions = algorithmResult.repetitions;
         card.nextReviewDate = algorithmResult.nextReviewDate;

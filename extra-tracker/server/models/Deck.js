@@ -54,10 +54,16 @@ const cardSchema = new mongoose.Schema({
         enum: ['new', 'learning', 'review', 'mastered'],
         default: 'new',
     },
-    // FSRS parameter
+    // FSRS parameters
     stability: {
         type: Number,
         default: 0.4,
+    },
+    difficulty: {
+        type: Number,
+        default: 5,
+        min: [0, 'La difficoltà minima è 0'],
+        max: [10, 'La difficoltà massima è 10'],
     },
     // Leitner parameter
     box: {

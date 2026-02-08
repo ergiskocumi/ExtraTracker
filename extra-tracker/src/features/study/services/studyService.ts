@@ -5,7 +5,7 @@ export type { Tag } from './tagsService';
 // TYPES
 // ============================================
 
-export type ReviewRating = 1 | 3 | 5;
+export type ReviewRating = 1 | 2 | 3 | 4 | 5;
 export type CardStatus = 'new' | 'learning' | 'review' | 'mastered';
 export type StudyMode = 'flashcard' | 'quiz' | 'typing' | 'mix' | 'sprint' | 'focus' | 'exam';
 export type SessionFocus = 'smart' | 'due' | 'weak' | 'all';
@@ -49,6 +49,13 @@ export interface Deck {
     createdAt?: string;
     updatedAt?: string;
     pinned?: boolean; // Preferiti - da implementare nel backend
+    // Impostazioni deck
+    algorithm?: 'sm2' | 'fsrs' | 'leitner' | 'anki';
+    aiSettings?: {
+        style?: 'comprehensive' | 'conceptual' | 'factual' | 'application';
+        difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
+        questionTypes?: string[];
+    };
 }
 
 export interface ChatMessage {
@@ -212,6 +219,10 @@ const normalizeCard = (raw: any): Card => {
 
 const normalizeDeck = (raw: any): Deck => {
     const cards = Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [];
+    
+    // Normalizza le impostazioni (supporta sia camelCase che snake_case dal backend)
+    const aiSettings = raw.aiSettings || raw.ai_settings;
+    
     return {
         id: raw.id || raw._id?.toString() || raw._id,
         examId: raw.examId?.toString() || raw.examId,
@@ -225,6 +236,13 @@ const normalizeDeck = (raw: any): Deck => {
         dueCount: safeNumber(raw.dueCount, cards.length),
         createdAt: raw.createdAt,
         updatedAt: raw.updatedAt,
+        // Impostazioni
+        algorithm: raw.algorithm,
+        aiSettings: aiSettings ? {
+            style: aiSettings.style,
+            difficulty: aiSettings.difficulty,
+            questionTypes: aiSettings.questionTypes || aiSettings.question_types,
+        } : undefined,
     };
 };
 
@@ -541,7 +559,17 @@ class StudyService {
      * Aggiorna le impostazioni del deck (algoritmo e AI)
      */
     async updateDeckSettings(deckId: string, settings: DeckSettings): Promise<Deck> {
-        const response = await apiClient.put<any>(`${this.baseUrl}/${deckId}/settings`, settings);
+        // Converti da camelCase a snake_case per il backend
+        const payload = {
+            algorithm: settings.algorithm,
+            ai_settings: settings.aiSettings ? {
+                style: settings.aiSettings.style,
+                difficulty: settings.aiSettings.difficulty,
+                question_types: settings.aiSettings.questionTypes,
+            } : undefined,
+        };
+        
+        const response = await apiClient.put<any>(`${this.baseUrl}/${deckId}/settings`, payload);
         const raw = unwrap(response, 'Errore nell\'aggiornamento delle impostazioni');
         return normalizeDeck(raw);
     }

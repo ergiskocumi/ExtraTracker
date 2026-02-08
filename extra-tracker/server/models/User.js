@@ -1,44 +1,97 @@
 /**
- * 👤 MODELLO UTENTE MONGOOSE
+ * 👤 MODELLO UTENTE MONGOOSE - Enhanced Security Version
  * 
- * Principi GDPR applicati:
- * 1. Minimizzazione dati: solo email e password hashata
- * 2. Nessun tracciamento IP persistente
- * 3. Campo per consenso esplicito
- * 4. Timestamps per audit trail
+ * Aggiornamenti:
+ * - Campi 2FA/TOTP
+ * - Trusted devices
+ * - Password history
+ * - Audit timestamps
  */
 
 const mongoose = require('mongoose');
+const argon2 = require('argon2');
 
 const userSchema = new mongoose.Schema(
     {
-        // Email: unico identificatore (no username per privacy)
+        // Email: unico identificatore
         email: {
             type: String,
             required: [true, 'Email obbligatoria'],
             unique: true,
             lowercase: true,
             trim: true,
-            // Index per query veloci
-            index: true,
-            // Validazione formato (backup, Zod fa il lavoro principale)
             match: [/^\S+@\S+\.\S+$/, 'Formato email non valido'],
         },
 
-        // Password: SEMPRE hashata, mai in chiaro
+        // Password: SEMPRE hashata
         password: {
             type: String,
             required: [true, 'Password obbligatoria'],
-            // Non includere password nelle query di default
             select: false,
         },
 
-        // Ruolo utente per permessi
+        // Storico password (ultime 5 per prevenire riutilizzo)
+        passwordHistory: [{
+            hash: String,
+            changedAt: { type: Date, default: Date.now },
+        }],
+
+        // Data ultimo cambio password
+        passwordChangedAt: {
+            type: Date,
+            default: Date.now,
+        },
+
+        // Ruolo utente
         role: {
             type: String,
             enum: ['user', 'admin'],
             default: 'user',
         },
+
+        // ==========================================
+        // 2FA / TOTP
+        // ==========================================
+        twoFactorEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        
+        twoFactorSecret: {
+            type: String,
+            select: false, // Non includere nelle query di default
+        },
+        
+        twoFactorBackupCodes: [{
+            type: String,
+            select: false,
+        }],
+        
+        twoFactorSetupAt: {
+            type: Date,
+        },
+
+        // ==========================================
+        // TRUSTED DEVICES
+        // ==========================================
+        trustedDevices: [{
+            fingerprint: {
+                type: String,
+                required: true,
+            },
+            name: String, // "Chrome su Windows", "iPhone Safari"
+            browser: String,
+            os: String,
+            ip: String,
+            trustedAt: {
+                type: Date,
+                default: Date.now,
+            },
+            lastUsedAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }],
 
         // ==========================================
         // PROFILO UTENTE
@@ -68,7 +121,7 @@ const userSchema = new mongoose.Schema(
                 maxlength: [500, 'Bio troppo lunga'],
             },
             avatar: {
-                type: String, // URL avatar o base64
+                type: String,
             },
             company: {
                 type: String,
@@ -94,7 +147,6 @@ const userSchema = new mongoose.Schema(
         // PREFERENZE UTENTE
         // ==========================================
         preferences: {
-            // Preferenze generali
             language: {
                 type: String,
                 enum: ['it', 'en', 'es', 'de', 'fr'],
@@ -114,8 +166,6 @@ const userSchema = new mongoose.Schema(
                 enum: ['24h', '12h'],
                 default: '24h',
             },
-            
-            // Preferenze valuta/pagamenti
             currency: {
                 type: String,
                 enum: ['EUR', 'USD', 'GBP', 'CHF'],
@@ -126,8 +176,6 @@ const userSchema = new mongoose.Schema(
                 min: 0,
                 default: 0,
             },
-            
-            // Preferenze tema/UI
             theme: {
                 type: String,
                 enum: ['dark', 'light', 'system'],
@@ -137,8 +185,6 @@ const userSchema = new mongoose.Schema(
                 type: Boolean,
                 default: false,
             },
-            
-            // Preferenze dashboard
             dashboardLayout: {
                 type: String,
                 enum: ['default', 'compact', 'expanded'],
@@ -150,123 +196,80 @@ const userSchema = new mongoose.Schema(
             },
             defaultView: {
                 type: String,
-                enum: ['dashboard', 'timeline'],
+                enum: ['dashboard', 'calendar', 'list'],
                 default: 'dashboard',
             },
-            
-            // Preferenze lavoro
             weekStartsOn: {
                 type: Number,
-                enum: [0, 1], // 0 = Domenica, 1 = Lunedì
-                default: 1,
+                min: 0,
+                max: 6,
+                default: 1, // Lunedì
             },
-            workingDays: {
-                type: [Number],
-                default: [1, 2, 3, 4, 5], // Lun-Ven
-            },
-        },
-
-        // ==========================================
-        // PREFERENZE NOTIFICHE
-        // ==========================================
-        notifications: {
-            email: {
-                enabled: {
-                    type: Boolean,
-                    default: true,
+            workingDays: [{
+                type: Number,
+                min: 0,
+                max: 6,
+            }],
+            // Preferenze notifiche
+            notifications: {
+                email: {
+                    enabled: { type: Boolean, default: true },
+                    weeklyReport: { type: Boolean, default: true },
+                    projectUpdates: { type: Boolean, default: false },
+                    securityAlerts: { type: Boolean, default: true }, // Nuovo
                 },
-                weeklyReport: {
-                    type: Boolean,
-                    default: true,
-                },
-                projectUpdates: {
-                    type: Boolean,
-                    default: false,
-                },
-            },
-            push: {
-                enabled: {
-                    type: Boolean,
-                    default: false,
-                },
-                dailyReminder: {
-                    type: Boolean,
-                    default: false,
-                },
-                reminderTime: {
-                    type: String,
-                    default: '09:00',
+                push: {
+                    enabled: { type: Boolean, default: false },
+                    dailyReminder: { type: Boolean, default: false },
+                    reminderTime: { type: String, default: '09:00' },
                 },
             },
         },
 
-        // Array di refresh tokens per supportare multi-device
-        // Ogni elemento rappresenta una sessione attiva su un dispositivo
+        // ==========================================
+        // SESSION MANAGEMENT
+        // ==========================================
         refreshTokens: [{
-            hash: {
-                type: String,
-                required: true,
-            },
-            device: {
-                type: String,
-                required: true,
-                trim: true,
-            },
-            userAgent: {
-                type: String,
-                trim: true,
-            },
-            ip: {
-                type: String,
-                trim: true,
-            },
-            createdAt: {
-                type: Date,
-                default: Date.now,
-            },
-            lastUsedAt: {
-                type: Date,
-                default: Date.now,
-            },
+            hash: { type: String, required: true },
+            jti: String,
+            device: String,
+            userAgent: String,
+            ip: String,
+            createdAt: { type: Date, default: Date.now },
+            lastUsedAt: { type: Date, default: Date.now },
         }],
 
-        // Grace period tokens: token vecchi ancora validi per breve periodo
-        // Previene race conditions durante refresh token rotation
-        // Formato: [{ hash: String, expiresAt: Date }]
         gracePeriodTokens: [{
-            hash: {
-                type: String,
-                required: true,
-            },
-            expiresAt: {
-                type: Date,
-                required: true,
-            },
+            hash: { type: String, required: true },
+            expiresAt: { type: Date, required: true },
         }],
 
-        // Stato account
-        isActive: {
-            type: Boolean,
-            default: true,
+        maxSessions: {
+            type: Number,
+            default: 5,
         },
 
-        // Verifica email (opzionale, consigliato per produzione)
+        // ==========================================
+        // EMAIL VERIFICATION
+        // ==========================================
         isEmailVerified: {
             type: Boolean,
             default: false,
         },
 
-        // Token per verifica email
         emailVerificationToken: {
             type: String,
             select: false,
         },
+
         emailVerificationExpires: {
             type: Date,
             select: false,
         },
 
-        // Token per reset password
+        // ==========================================
+        // PASSWORD RESET
+        // ==========================================
         passwordResetToken: {
             type: String,
             select: false,
@@ -277,351 +280,332 @@ const userSchema = new mongoose.Schema(
             select: false,
         },
 
-        // GDPR: Consenso esplicito con timestamp
+        // ==========================================
+        // ACCOUNT SECURITY
+        // ==========================================
+        isActive: {
+            type: Boolean,
+            default: true,
+        },
+
+        isLocked: {
+            type: Boolean,
+            default: false,
+        },
+
+        lockUntil: {
+            type: Date,
+        },
+
+        failedLoginAttempts: {
+            type: Number,
+            default: 0,
+        },
+
+        lastFailedLogin: {
+            type: Date,
+        },
+
+        // ==========================================
+        // GDPR & CONSENT
+        // ==========================================
         consent: {
             termsAccepted: {
                 type: Boolean,
-                required: true,
+                default: false,
             },
             termsAcceptedAt: {
                 type: Date,
-                required: true,
             },
-            // Privacy policy version accettata
             privacyVersion: {
                 type: String,
                 default: '1.0',
             },
+            marketingEmails: {
+                type: Boolean,
+                default: false,
+            },
+            analyticsConsent: {
+                type: Boolean,
+                default: true,
+            },
         },
 
-        // Ultimo login (per audit, senza IP)
+        // Timestamps
         lastLoginAt: {
             type: Date,
         },
 
-        // Contatore tentativi login falliti (per lockout)
-        failedLoginAttempts: {
-            type: Number,
-            default: 0,
-            select: false,
+        lastLoginIp: {
+            type: String,
         },
 
-        // Lockout fino a questa data
-        lockUntil: {
+        createdAt: {
             type: Date,
-            select: false,
+            default: Date.now,
+        },
+
+        updatedAt: {
+            type: Date,
+            default: Date.now,
+        },
+
+        // Soft delete per GDPR
+        deletedAt: {
+            type: Date,
+            default: null,
+        },
+
+        deletedReason: {
+            type: String,
         },
     },
     {
-        // Timestamps automatici (createdAt, updatedAt)
         timestamps: true,
-
-        // Virtual fields non salvati nel DB
-        toJSON: {
-            virtuals: true,
-            // Rimuovi campi sensibili quando converti in JSON
-            transform: (doc, ret) => {
-                delete ret.password;
-                delete ret.refreshTokens;  // Array di sessioni sensibile
-                delete ret.gracePeriodTokens;  // Grace period tokens sensibili
-                delete ret.__v;
-                delete ret.failedLoginAttempts;
-                delete ret.lockUntil;
-                delete ret.passwordResetToken;
-                delete ret.passwordResetExpires;
-                delete ret.emailVerificationToken;
-                delete ret.emailVerificationExpires;
-                return ret;
-            },
-        },
     }
 );
-
-// ==========================================
-// PRE-SAVE HOOK: Limite FIFO Sessioni
-// ==========================================
-
-/**
- * Pre-save hook: garantisce che l'array refreshTokens non superi mai il limite
- * Previene DoS e crescita infinita dell'array
- */
-userSchema.pre('save', function (next) {
-    if (!this.refreshTokens || this.refreshTokens.length === 0) {
-        return next();
-    }
-
-    const { MAX_ACTIVE_SESSIONS } = require('../config/security');
-    
-    // Se supera il limite, rimuovi le sessioni più vecchie (FIFO)
-    if (this.refreshTokens.length > MAX_ACTIVE_SESSIONS) {
-        // Ordina per lastUsedAt (più vecchia prima)
-        this.refreshTokens.sort((a, b) => {
-            const dateA = new Date(a.lastUsedAt || a.createdAt);
-            const dateB = new Date(b.lastUsedAt || b.createdAt);
-            return dateA - dateB;
-        });
-        
-        // Mantieni solo le MAX_ACTIVE_SESSIONS più recenti
-        this.refreshTokens = this.refreshTokens.slice(-MAX_ACTIVE_SESSIONS);
-    }
-
-    next();
-});
 
 // ==========================================
 // INDEXES
 // ==========================================
 
-// Index composto per query frequenti
-userSchema.index({ email: 1, isActive: 1 });
+// Index per query email (login)
+userSchema.index({ email: 1 });
+
+// Index per verifica email
+userSchema.index({ emailVerificationToken: 1 });
+
+// Index per password reset
+userSchema.index({ passwordResetToken: 1 });
+
+// Index per utenti attivi
+userSchema.index({ isActive: 1, isEmailVerified: 1 });
+
+// Index per trusted devices
+userSchema.index({ 'trustedDevices.fingerprint': 1 });
 
 // ==========================================
-// VIRTUAL FIELDS
-// ==========================================
-
-// Verifica se account è bloccato
-userSchema.virtual('isLocked').get(function () {
-    return !!(this.lockUntil && this.lockUntil > Date.now());
-});
-
-// ==========================================
-// INSTANCE METHODS
-// ==========================================
-
-/**
- * Incrementa tentativi login falliti
- */
-userSchema.methods.incrementFailedAttempts = async function () {
-    // Se lockout è scaduto, resetta
-    if (this.lockUntil && this.lockUntil < Date.now()) {
-        return this.updateOne({
-            $set: { failedLoginAttempts: 1 },
-            $unset: { lockUntil: 1 },
-        });
-    }
-
-    // Incrementa contatore
-    const updates = { $inc: { failedLoginAttempts: 1 } };
-
-    // Se raggiunti 5 tentativi, blocca per 15 minuti
-    if (this.failedLoginAttempts + 1 >= 5) {
-        updates.$set = { lockUntil: Date.now() + 15 * 60 * 1000 };
-    }
-
-    return this.updateOne(updates);
-};
-
-/**
- * Resetta tentativi falliti dopo login riuscito
- */
-userSchema.methods.resetFailedAttempts = async function () {
-    return this.updateOne({
-        $set: { failedLoginAttempts: 0, lastLoginAt: new Date() },
-        $unset: { lockUntil: 1 },
-    });
-};
-
-// ==========================================
-// STATIC METHODS
+// METHODS
 // ==========================================
 
 /**
  * Trova utente per login (include campi nascosti)
  */
-userSchema.statics.findForLogin = function (email) {
-    return this.findOne({ email, isActive: true })
-        .select('+password +failedLoginAttempts +lockUntil');
+userSchema.statics.findForLogin = function(email) {
+    return this.findOne({ email: email.toLowerCase() }).select('+password +twoFactorSecret +twoFactorBackupCodes');
 };
 
 /**
- * Trova utente per refresh token (include array refreshTokens e gracePeriodTokens)
+ * Trova utente da refresh token
  */
-userSchema.statics.findByRefreshToken = function (userId) {
-    return this.findOne({ _id: userId, isActive: true })
-        .select('+refreshTokens +gracePeriodTokens');
+userSchema.statics.findByRefreshToken = function(userId) {
+    return this.findById(userId).select('+refreshTokens +gracePeriodTokens +twoFactorEnabled +twoFactorSecret');
 };
 
 /**
- * Trova token nel grace period (per gestire race conditions)
+ * Incrementa tentativi di login falliti
  */
-userSchema.methods.findInGracePeriod = function (tokenHash) {
-    if (!this.gracePeriodTokens || this.gracePeriodTokens.length === 0) {
-        return null;
+userSchema.methods.incrementFailedAttempts = async function() {
+    this.failedLoginAttempts += 1;
+    this.lastFailedLogin = new Date();
+
+    // Blocca account dopo 5 tentativi falliti
+    if (this.failedLoginAttempts >= 5) {
+        this.isLocked = true;
+        this.lockUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minuti
     }
-    // Cerca token e verifica che non sia scaduto
-    const graceToken = this.gracePeriodTokens.find(
-        gt => gt.hash === tokenHash && gt.expiresAt > new Date()
-    );
-    return graceToken || null;
+
+    await this.save();
 };
 
 /**
- * Aggiungi token al grace period (durata in millisecondi, default 30 secondi)
- * Usa operatori atomici MongoDB per evitare conflitti di versione
+ * Resetta tentativi falliti
  */
-userSchema.methods.addToGracePeriod = async function (tokenHash, gracePeriodMs = 30000) {
-    const expiresAt = new Date(Date.now() + gracePeriodMs);
-    
-    // CORREZIONE: Separiamo le operazioni per evitare conflitto MongoDB
-    // MongoDB non permette $push e $pull sullo stesso array nella stessa operazione
-    
-    // 1. Pulisci token scaduti dal grace period (Safe to do first)
-    await User.updateOne(
-        { _id: this._id },
-        {
-            $pull: {
-                gracePeriodTokens: {
-                    expiresAt: { $lt: new Date() }
-                }
-            }
-        }
-    );
-    
-    // 2. Aggiungi nuovo token al grace period
-    await User.updateOne(
-        { _id: this._id },
-        {
-            $push: {
-                gracePeriodTokens: {
-                    hash: tokenHash,
-                    expiresAt: expiresAt,
-                }
-            }
-        }
-    );
-    
-    // Aggiorna oggetto locale per coerenza
-    if (!this.gracePeriodTokens) {
-        this.gracePeriodTokens = [];
-    }
-    this.gracePeriodTokens.push({
-        hash: tokenHash,
-        expiresAt: expiresAt,
-    });
-    this.cleanExpiredGracePeriodTokens();
-    
-    return this;
+userSchema.methods.resetFailedAttempts = async function() {
+    this.failedLoginAttempts = 0;
+    this.lastFailedLogin = undefined;
+    this.isLocked = false;
+    this.lockUntil = undefined;
+    this.lastLoginAt = new Date();
+    await this.save();
 };
 
 /**
- * Rimuovi token dal grace period
- * Usa operatore atomico MongoDB per evitare conflitti di versione
+ * Verifica se account è bloccato
  */
-userSchema.methods.removeFromGracePeriod = async function (tokenHash) {
-    // Usa operatore atomico $pull
-    await User.updateOne(
-        { _id: this._id },
-        {
-            $pull: {
-                gracePeriodTokens: { hash: tokenHash }
-            }
-        }
-    );
+userSchema.methods.isAccountLocked = function() {
+    if (!this.isLocked || !this.lockUntil) return false;
     
-    // Aggiorna oggetto locale per coerenza
-    if (this.gracePeriodTokens) {
-        this.gracePeriodTokens = this.gracePeriodTokens.filter(
-            gt => gt.hash !== tokenHash
-        );
+    // Sblocca automaticamente se lock è scaduto
+    if (this.lockUntil < Date.now()) {
+        this.isLocked = false;
+        this.lockUntil = undefined;
+        this.failedLoginAttempts = 0;
+        return false;
     }
     
-    return this;
+    return true;
+};
+
+/**
+ * Trova sessione da hash
+ */
+userSchema.methods.findSessionByHash = function(hash) {
+    if (!this.refreshTokens) return null;
+    return this.refreshTokens.find(session => session.hash === hash);
+};
+
+/**
+ * Trova in grace period
+ */
+userSchema.methods.findInGracePeriod = function(hash) {
+    if (!this.gracePeriodTokens) return null;
+    return this.gracePeriodTokens.find(token => token.hash === hash && token.expiresAt > Date.now());
+};
+
+/**
+ * Rimuovi da grace period
+ */
+userSchema.methods.removeFromGracePeriod = async function(hash) {
+    this.gracePeriodTokens = this.gracePeriodTokens.filter(
+        token => token.hash !== hash
+    );
+    await this.save();
 };
 
 /**
  * Pulisci token scaduti dal grace period
  */
-userSchema.methods.cleanExpiredGracePeriodTokens = function () {
-    if (!this.gracePeriodTokens) {
-        return;
-    }
-    
-    const now = new Date();
+userSchema.methods.cleanExpiredGracePeriodTokens = function() {
+    if (!this.gracePeriodTokens) return;
     this.gracePeriodTokens = this.gracePeriodTokens.filter(
-        gt => gt.expiresAt > now
+        token => token.expiresAt > Date.now()
     );
 };
 
 /**
- * Trova sessione specifica per hash token
+ * Rimuovi sessione da hash
  */
-userSchema.methods.findSessionByHash = function (tokenHash) {
-    if (!this.refreshTokens || this.refreshTokens.length === 0) {
-        return null;
-    }
-    return this.refreshTokens.find(session => session.hash === tokenHash);
+userSchema.methods.removeSessionByHash = async function(hash) {
+    this.refreshTokens = this.refreshTokens.filter(
+        session => session.hash !== hash
+    );
+    await this.save();
 };
 
 /**
- * Rimuovi sessione specifica per hash token
- * Usa operatore atomico MongoDB per evitare conflitti di versione
+ * Rimuovi tutte le sessioni
  */
-userSchema.methods.removeSessionByHash = async function (tokenHash) {
-    // Usa operatore atomico $pull
-    await User.updateOne(
-        { _id: this._id },
-        {
-            $pull: {
-                refreshTokens: { hash: tokenHash }
-            }
-        }
-    );
-    
-    // Aggiorna oggetto locale per coerenza
-    if (this.refreshTokens) {
-        this.refreshTokens = this.refreshTokens.filter(
-            session => session.hash !== tokenHash
-        );
-    }
-    
-    return this;
-};
-
-/**
- * Rimuovi tutte le sessioni (logout da tutti i dispositivi)
- * Usa operatore atomico MongoDB per evitare conflitti di versione
- */
-userSchema.methods.removeAllSessions = async function () {
-    // Usa operatore atomico $set
-    await User.updateOne(
-        { _id: this._id },
-        {
-            $set: { refreshTokens: [] }
-        }
-    );
-    
-    // Aggiorna oggetto locale per coerenza
+userSchema.methods.removeAllSessions = async function() {
     this.refreshTokens = [];
-    
-    return this;
+    this.gracePeriodTokens = [];
+    this.trustedDevices = []; // Revoca anche dispositivi trusted
+    await this.save();
 };
 
 /**
- * Aggiorna lastUsedAt per una sessione
- * Usa operatore atomico MongoDB per evitare conflitti di versione
+ * Aggiungi dispositivo trusted
  */
-userSchema.methods.updateSessionLastUsed = async function (tokenHash) {
-    // Usa operatore atomico $set con posizionamento array
-    await User.updateOne(
-        { 
-            _id: this._id,
-            'refreshTokens.hash': tokenHash
-        },
-        {
-            $set: {
-                'refreshTokens.$.lastUsedAt': new Date()
-            }
-        }
+userSchema.methods.addTrustedDevice = async function(deviceInfo) {
+    // Rimuovi duplicati
+    this.trustedDevices = this.trustedDevices.filter(
+        d => d.fingerprint !== deviceInfo.fingerprint
     );
     
-    // Aggiorna oggetto locale per coerenza
-    const session = this.findSessionByHash(tokenHash);
-    if (session) {
-        session.lastUsedAt = new Date();
+    // Aggiungi nuovo
+    this.trustedDevices.push({
+        ...deviceInfo,
+        trustedAt: new Date(),
+        lastUsedAt: new Date(),
+    });
+    
+    // Mantieni solo ultimi 10 dispositivi
+    if (this.trustedDevices.length > 10) {
+        this.trustedDevices = this.trustedDevices.slice(-10);
     }
     
-    return this;
+    await this.save();
 };
+
+/**
+ * Verifica se dispositivo è trusted
+ */
+userSchema.methods.isTrustedDevice = function(fingerprint) {
+    return this.trustedDevices.some(d => d.fingerprint === fingerprint);
+};
+
+/**
+ * Revoca dispositivo trusted
+ */
+userSchema.methods.revokeTrustedDevice = async function(fingerprint) {
+    this.trustedDevices = this.trustedDevices.filter(
+        d => d.fingerprint !== fingerprint
+    );
+    await this.save();
+};
+
+/**
+ * Aggiungi password allo storico
+ */
+userSchema.methods.addToPasswordHistory = async function(passwordHash) {
+    this.passwordHistory.push({
+        hash: passwordHash,
+        changedAt: new Date(),
+    });
+    
+    // Mantieni solo ultime 5
+    if (this.passwordHistory.length > 5) {
+        this.passwordHistory = this.passwordHistory.slice(-5);
+    }
+    
+    this.passwordChangedAt = new Date();
+    await this.save();
+};
+
+/**
+ * Verifica se password è nello storico
+ */
+userSchema.methods.isPasswordInHistory = async function(password) {
+    for (const entry of this.passwordHistory) {
+        try {
+            const isMatch = await argon2.verify(entry.hash, password);
+            if (isMatch) return true;
+        } catch {
+            // Se l'hash è corrotto, ignora
+            continue;
+        }
+    }
+    return false;
+};
+
+/**
+ * Soft delete (GDPR)
+ */
+userSchema.methods.softDelete = async function(reason) {
+    this.deletedAt = new Date();
+    this.deletedReason = reason;
+    this.email = `deleted_${this._id}_${this.email}`; // Anonimizza email
+    this.isActive = false;
+    
+    // Rimuovi dati sensibili
+    this.password = undefined;
+    this.refreshTokens = [];
+    this.twoFactorSecret = undefined;
+    this.twoFactorBackupCodes = [];
+    this.trustedDevices = [];
+    
+    await this.save();
+};
+
+// ==========================================
+// PRE/POST HOOKS
+// ==========================================
+
+// Aggiorna updatedAt prima di ogni save
+userSchema.pre('save', function(next) {
+    this.updatedAt = Date.now();
+    next();
+});
 
 const User = mongoose.model('User', userSchema);
 
