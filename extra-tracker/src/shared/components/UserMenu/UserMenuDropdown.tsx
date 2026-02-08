@@ -1,11 +1,10 @@
 /**
- * USER MENU DROPDOWN - Versione Migliorata
+ * USER MENU DROPDOWN - Versione Pulita
  *
  * Menu utente moderno con:
  * - Avatar foto profilo con bordo animato
- * - Indicatore stato online/offline con animazione pulse
  * - Design glassmorphism avanzato
- * - Animazioni fluide e performanti
+ * - Animazioni fluide
  */
 
 import { useState, useRef, useEffect, memo } from 'react';
@@ -19,8 +18,6 @@ import {
     FiChevronDown,
     FiBookOpen,
     FiShield,
-    FiWifi,
-    FiWifiOff,
 } from 'react-icons/fi';
 import { useAuth } from '../../../features/auth/context/AuthContext';
 import { useSettings } from '../../../features/settings/context/SettingsContext';
@@ -45,15 +42,13 @@ interface MenuCategory {
 }
 
 // ============================================
-// AVATAR COMPONENT CON STATO ONLINE
+// AVATAR COMPONENT
 // ============================================
 
 interface UserAvatarProps {
     avatarUrl?: string;
     initials: string;
     size?: 'sm' | 'md' | 'lg';
-    showStatus?: boolean;
-    isOnline?: boolean;
     isAnimated?: boolean;
 }
 
@@ -61,94 +56,50 @@ const UserAvatar = memo(({
     avatarUrl,
     initials,
     size = 'md',
-    showStatus = true,
-    isOnline = true,
     isAnimated = true,
 }: UserAvatarProps) => {
     const sizeClasses = {
-        sm: { container: 'w-8 h-8', text: 'text-xs', status: 'w-2.5 h-2.5', border: 'border-2' },
-        md: { container: 'w-9 h-9', text: 'text-sm', status: 'w-3 h-3', border: 'border-2' },
-        lg: { container: 'w-16 h-16', text: 'text-xl', status: 'w-4 h-4', border: 'border-[3px]' },
+        sm: { container: 'w-8 h-8', text: 'text-xs' },
+        md: { container: 'w-9 h-9', text: 'text-sm' },
+        lg: { container: 'w-16 h-16', text: 'text-xl' },
     };
 
     const s = sizeClasses[size];
 
     return (
-        <div className="relative inline-flex">
-            {/* Avatar Container con bordo animato */}
-            <motion.div
-                className={`relative ${s.container} rounded-xl overflow-hidden shadow-lg`}
-                whileHover={isAnimated ? { scale: 1.05 } : undefined}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+        <motion.div
+            className={`relative ${s.container} rounded-xl overflow-hidden shadow-lg`}
+            whileHover={isAnimated ? { scale: 1.05 } : undefined}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+        >
+            {/* Bordo gradiente animato */}
+            <div 
+                className="absolute inset-0 rounded-xl z-0"
+                style={{
+                    background: 'linear-gradient(135deg, var(--primary-500) 0%, var(--violet-500) 50%, var(--primary-600) 100%)',
+                    padding: '2px',
+                }}
             >
-                {/* Bordo gradiente animato */}
-                <div 
-                    className="absolute inset-0 rounded-xl z-0"
-                    style={{
-                        background: 'linear-gradient(135deg, var(--primary-500) 0%, var(--violet-500) 50%, var(--primary-600) 100%)',
-                        padding: '2px',
-                    }}
-                >
-                    <div className="w-full h-full rounded-xl bg-gradient-to-br from-primary-500 to-violet-600" />
-                </div>
+                <div className="w-full h-full rounded-xl bg-gradient-to-br from-primary-500 to-violet-600" />
+            </div>
 
-                {/* Immagine o Iniziali */}
-                <div className="absolute inset-[2px] rounded-[10px] overflow-hidden bg-gradient-to-br from-primary-500 to-violet-600 flex items-center justify-center">
-                    {avatarUrl ? (
-                        <img
-                            src={avatarUrl}
-                            alt="Avatar"
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                                // Se l'immagine fallisce, mostra le iniziali
-                                (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                        />
-                    ) : null}
-                    <span className={`${s.text} font-bold text-white drop-shadow-md ${avatarUrl ? 'hidden' : 'block'}`}>
-                        {initials}
-                    </span>
-                </div>
-            </motion.div>
-
-            {/* Indicatore Stato Online */}
-            {showStatus && (
-                <div className={`absolute -bottom-0.5 -right-0.5 ${s.border} border-[var(--bg-surface)] rounded-full`}>
-                    <motion.div
-                        className={`${s.status} rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                        animate={isOnline ? {
-                            scale: [1, 1.2, 1],
-                            opacity: [1, 0.8, 1],
-                        } : {}}
-                        transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                        }}
-                        style={{
-                            boxShadow: isOnline 
-                                ? '0 0 8px rgba(16, 185, 129, 0.6)' 
-                                : '0 0 8px rgba(245, 158, 11, 0.6)',
+            {/* Immagine o Iniziali */}
+            <div className="absolute inset-[2px] rounded-[10px] overflow-hidden bg-gradient-to-br from-primary-500 to-violet-600 flex items-center justify-center">
+                {avatarUrl ? (
+                    <img
+                        src={avatarUrl}
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
                         }}
                     />
-                    {/* Anello esterno animato per stato online */}
-                    {isOnline && (
-                        <motion.div
-                            className="absolute inset-0 rounded-full bg-emerald-500/30"
-                            animate={{
-                                scale: [1, 1.5],
-                                opacity: [0.6, 0],
-                            }}
-                            transition={{
-                                duration: 1.5,
-                                repeat: Infinity,
-                                ease: 'easeOut',
-                            }}
-                        />
-                    )}
-                </div>
-            )}
-        </div>
+                ) : null}
+                <span className={`${s.text} font-bold text-white drop-shadow-md ${avatarUrl ? 'hidden' : 'block'}`}>
+                    {initials}
+                </span>
+            </div>
+        </motion.div>
     );
 });
 
@@ -241,7 +192,6 @@ export const UserMenuDropdown = memo(() => {
     const { profile } = useSettings();
 
     const [isOpen, setIsOpen] = useState(false);
-    const [isOnline, setIsOnline] = useState(true);
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Check if user is admin
@@ -261,21 +211,6 @@ export const UserMenuDropdown = memo(() => {
         if (firstName && lastName) return `${firstName} ${lastName}`;
         return user?.email || 'User';
     })();
-
-    // Monitora stato connessione
-    useEffect(() => {
-        const handleOnline = () => setIsOnline(true);
-        const handleOffline = () => setIsOnline(false);
-
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
-        setIsOnline(navigator.onLine);
-
-        return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
-        };
-    }, []);
 
     // Menu categories
     const menuCategories: MenuCategory[] = [
@@ -364,7 +299,7 @@ export const UserMenuDropdown = memo(() => {
 
     return (
         <div className="relative" ref={menuRef}>
-            {/* Trigger Button - Versione Migliorata */}
+            {/* Trigger Button */}
             <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -379,13 +314,11 @@ export const UserMenuDropdown = memo(() => {
                     boxShadow: isOpen ? '0 0 20px var(--primary-500/10)' : 'none',
                 }}
             >
-                {/* Avatar con Foto e Stato */}
+                {/* Avatar */}
                 <UserAvatar
                     avatarUrl={profile?.avatar}
                     initials={userInitials}
                     size="md"
-                    isOnline={isOnline}
-                    showStatus={true}
                 />
 
                 {/* User Info (desktop only) */}
@@ -393,19 +326,9 @@ export const UserMenuDropdown = memo(() => {
                     <p className="text-sm font-medium truncate max-w-[100px]" style={{ color: 'var(--text-primary)' }}>
                         {profile?.firstName || 'Utente'}
                     </p>
-                    <div className="flex items-center gap-1">
-                        {isOnline ? (
-                            <FiWifi size={10} className="text-emerald-500" />
-                        ) : (
-                            <FiWifiOff size={10} className="text-amber-500" />
-                        )}
-                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                            {isOnline ? 'Online' : 'Offline'}
-                        </p>
-                    </div>
                 </div>
 
-                {/* Chevron animato */}
+                {/* Chevron */}
                 <motion.div
                     animate={{ rotate: isOpen ? 180 : 0 }}
                     transition={{ duration: 0.2 }}
@@ -431,7 +354,7 @@ export const UserMenuDropdown = memo(() => {
                                 className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
                             />
                             
-                            {/* Sidebar a destra */}
+                            {/* Sidebar */}
                             <motion.div
                                 initial={{ x: '100%', opacity: 0 }}
                                 animate={{ x: 0, opacity: 1 }}
@@ -462,33 +385,24 @@ export const UserMenuDropdown = memo(() => {
 
                                     {/* Content */}
                                     <div className="flex-1 overflow-hidden">
-                                        {/* ===== USER PROFILE SECTION ===== */}
+                                        {/* User Profile Section */}
                                         <div className="relative p-5 overflow-hidden">
-                                            {/* Background geometric shapes */}
+                                            {/* Background */}
                                             <div className="absolute inset-0 pointer-events-none">
                                                 <div className="absolute top-0 right-0 w-36 h-36 bg-primary-500/15 rounded-[32px] blur-3xl transform translate-x-1/2 -translate-y-1/2 rotate-12" />
                                                 <div className="absolute bottom-0 left-0 w-28 h-28 bg-violet-500/12 rounded-[26px] blur-2xl transform -translate-x-1/2 translate-y-1/2 -rotate-12" />
                                             </div>
 
                                             <div className="relative z-10">
-                                                {/* User header con avatar grande */}
                                                 <div className="flex items-start gap-4 mb-5">
                                                     <UserAvatar
                                                         avatarUrl={profile?.avatar}
                                                         initials={userInitials}
                                                         size="lg"
-                                                        isOnline={isOnline}
-                                                        showStatus={true}
                                                     />
                                                     <div className="flex-1 min-w-0 pt-1">
                                                         <p className="text-lg font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{userLabel}</p>
                                                         <p className="text-xs truncate mt-1" style={{ color: 'var(--text-muted)' }}>{user?.email}</p>
-                                                        <div className="flex items-center gap-1.5 mt-2">
-                                                            <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                                                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                                                {isOnline ? 'Connesso' : 'Non in linea'}
-                                                            </span>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -497,7 +411,7 @@ export const UserMenuDropdown = memo(() => {
                                         {/* Divider */}
                                         <div className="h-px mx-4" style={{ background: 'var(--border-subtle)' }} />
 
-                                        {/* ===== MENU ITEMS ===== */}
+                                        {/* Menu Items */}
                                         <div className="py-3">
                                             {menuCategories.map((category, catIndex) => (
                                                 <div key={category.label}>
@@ -525,7 +439,7 @@ export const UserMenuDropdown = memo(() => {
                                         </div>
                                     </div>
 
-                                    {/* ===== LOGOUT SECTION ===== */}
+                                    {/* Logout Section */}
                                     <div className="p-4" style={{ borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)' }}>
                                         <motion.button
                                             whileHover={{ scale: 1.01, x: 2 }}
