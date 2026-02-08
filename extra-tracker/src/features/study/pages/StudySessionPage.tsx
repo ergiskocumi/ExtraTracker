@@ -93,6 +93,10 @@ export const StudySessionPage: React.FC = () => {
     const limit = mode === 'exam' ? questionCount : LENGTH_TO_LIMIT[length];
     const timeLimitSeconds = timeLimitMinutes > 0 ? timeLimitMinutes * 60 : null;
 
+    // Exam-specific params (examType e examDifficulty)
+    const examType = searchParams.get('examType') || undefined;
+    const examDifficulty = searchParams.get('examDifficulty') || undefined;
+
     // State
     const [session, setSession] = useState<StudySession | null>(null);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -113,12 +117,18 @@ export const StudySessionPage: React.FC = () => {
         easy: 0,
     });
 
+    // Pausa/Resume state (solo per mode='exam')
+    const [showResumeModal, setShowResumeModal] = useState(false);
+    const [savedProgress, setSavedProgress] = useState<any | null>(null);
+    const [answersHistory, setAnswersHistory] = useState<Array<{ cardId: string; rating: number; timestamp: Date }>>([]);
+    const [wrongAnswersForReview, setWrongAnswersForReview] = useState<Array<{ front: string; back: string }>>([]);
+
     // Refs
     const isCompleteRef = useRef(false);
     const hasLoadedRef = useRef(false);
     const hasStudiedRef = useRef(false);
     const timerRef = useRef<ReturnType<typeof intervalId> | null>(null);
-    const sessionKey = deckId ? `${deckId}-${mode}-${focus}-${length}-${questionCount}-${timeLimitMinutes}-${direction}` : null;
+    const sessionKey = deckId ? `${deckId}-${mode}-${focus}-${length}-${questionCount}-${timeLimitMinutes}-${direction}-${examType}-${examDifficulty}` : null;
 
     // ============================================
     // SESSION LOADING
@@ -142,11 +152,32 @@ export const StudySessionPage: React.FC = () => {
 
             try {
                 setIsLoading(true);
+
+                // Se mode='exam', controlla se esiste progresso salvato
+                if (mode === 'exam') {
+                    try {
+                        const progress = await studyService.getExamProgress(deckId);
+                        if (progress) {
+                            console.log('[StudySessionPage] Found saved exam progress, showing resume modal');
+                            setSavedProgress(progress);
+                            setShowResumeModal(true);
+                            setIsLoading(false);
+                            return; // Aspetta che l'utente scelga se riprendere o ricominciare
+                        }
+                    } catch (err: any) {
+                        // Se non c'è progresso salvato (404), continua con nuova sessione
+                        console.log('[StudySessionPage] No saved progress found, starting new session');
+                    }
+                }
+
+                // Carica nuova sessione
                 const data = await studyService.getSession(deckId, {
                     mode, focus, limit,
                     timeLimitMinutes: timeLimitMinutes || undefined,
                     questionCount: questionCount || undefined,
                     direction,
+                    examType,
+                    examDifficulty,
                 });
 
                 if (data.cards.length === 0) {
@@ -156,10 +187,18 @@ export const StudySessionPage: React.FC = () => {
                 }
 
                 // Apply adaptive ordering for quiz mode
-                const orderedCards = mode === 'quiz' 
-                    ? selectCardsForQuiz(data.cards, limit).cards 
+                const orderedCards = mode === 'quiz'
+                    ? selectCardsForQuiz(data.cards, limit).cards
                     : data.cards;
                 const cardModes = data.cardModes ?? buildFallbackCardModes(orderedCards, mode);
+
+                // DEBUG: Check if cards have isTrueFalse flag
+                console.log('[StudySessionPage] Session loaded:', {
+                    examType,
+                    totalCards: orderedCards.length,
+                    firstCard: orderedCards[0],
+                    hasIsTrueFalse: !!(orderedCards[0] as any)?.isTrueFalse
+                });
 
                 setSession({ ...data, cards: orderedCards, cardModes });
                 setStats({ total: orderedCards.length, hard: 0, good: 0, easy: 0 });
@@ -173,7 +212,127 @@ export const StudySessionPage: React.FC = () => {
         };
 
         loadSession();
-    }, [sessionKey, deckId, mode, focus, length, questionCount, timeLimitMinutes, direction, navigate]);
+    }, [sessionKey, deckId, mode, focus, length, questionCount, timeLimitMinutes, direction, examType, examDifficulty, navigate]);
+
+    // ============================================
+    // PAUSA/RESUME HANDLERS (solo per mode='exam')
+    // ============================================
+
+    const handleResumeExam = useCallback(async () => {
+        if (!savedProgress || !deckId) return;
+
+        try {
+            setIsLoading(true);
+
+            // Ricarica la sessione completa dal backend
+            const data = await studyService.getSession(deckId, savedProgress.examConfig);
+
+            if (data.cards.length === 0) {
+                emitToast.error('Sessione non più valida');
+                await studyService.clearExamProgress(deckId);
+                navigate(`/study/deck/${deckId}`);
+                return;
+            }
+
+            // Ricostruisci lo stato dall'ultimo checkpoint
+            const orderedCards = data.cards;
+            const cardModes = data.cardModes ?? buildFallbackCardModes(orderedCards, mode);
+
+            setSession({ ...data, cards: orderedCards, cardModes });
+            setCurrentCardIndex(savedProgress.currentCardIndex || 0);
+            setStats({
+                total: orderedCards.length,
+                hard: savedProgress.stats?.hard || 0,
+                good: savedProgress.stats?.good || 0,
+                easy: savedProgress.stats?.easy || 0,
+            });
+            setElapsedSeconds(savedProgress.elapsedSeconds || 0);
+            setAnswersHistory(savedProgress.answers || []);
+            setShowResumeModal(false);
+            hasLoadedRef.current = true;
+
+            emitToast.success('Esame ripreso!');
+        } catch (err: any) {
+            setError(err.message || 'Errore nel ripristino');
+            emitToast.error('Impossibile riprendere l\'esame');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [savedProgress, deckId, mode, navigate]);
+
+    const handleStartFresh = useCallback(async () => {
+        if (!deckId) return;
+
+        try {
+            setIsLoading(true);
+
+            // Cancella il progresso salvato
+            await studyService.clearExamProgress(deckId);
+            setSavedProgress(null);
+            setShowResumeModal(false);
+
+            console.log('[StudySessionPage] Starting fresh exam with current parameters');
+
+            // Carica nuova sessione con i parametri CORRENTI (dalla URL)
+            const data = await studyService.getSession(deckId, {
+                mode, focus, limit,
+                timeLimitMinutes: timeLimitMinutes || undefined,
+                questionCount: questionCount || undefined,
+                direction,
+                examType,
+                examDifficulty,
+            });
+
+            if (data.cards.length === 0) {
+                emitToast.info('Nessuna carta da studiare!');
+                navigate(`/study/deck/${deckId}`);
+                return;
+            }
+
+            const orderedCards = data.cards;
+            const cardModes = data.cardModes ?? buildFallbackCardModes(orderedCards, mode);
+
+            setSession({ ...data, cards: orderedCards, cardModes });
+            setStats({ total: orderedCards.length, hard: 0, good: 0, easy: 0 });
+            hasLoadedRef.current = true;
+
+            emitToast.success('Nuovo esame iniziato!');
+        } catch (err: any) {
+            emitToast.error('Errore nell\'avvio del nuovo esame');
+            setError(err.message || 'Errore nel caricamento');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [deckId, mode, focus, limit, timeLimitMinutes, questionCount, direction, examType, examDifficulty, navigate]);
+
+    const handlePauseExam = useCallback(async () => {
+        if (!session || !deckId || mode !== 'exam') return;
+
+        try {
+            const sessionCardIds = session.cards.map(card => card.id);
+
+            await studyService.saveExamProgress(deckId, {
+                examConfig: {
+                    mode, focus, length,
+                    timeLimitMinutes: timeLimitMinutes || undefined,
+                    questionCount: questionCount || undefined,
+                    direction,
+                    examType,
+                    examDifficulty,
+                },
+                currentCardIndex,
+                stats: { hard: stats.hard, good: stats.good, easy: stats.easy },
+                elapsedSeconds,
+                answers: answersHistory,
+                sessionCardIds,
+            });
+
+            emitToast.success('Progresso salvato!');
+            navigate(`/study/deck/${deckId}`);
+        } catch (err: any) {
+            emitToast.error('Errore nel salvataggio del progresso');
+        }
+    }, [session, deckId, mode, focus, length, timeLimitMinutes, questionCount, direction, examType, examDifficulty, currentCardIndex, stats, elapsedSeconds, answersHistory, navigate]);
 
     // ============================================
     // TIMER
@@ -223,6 +382,82 @@ export const StudySessionPage: React.FC = () => {
         setIsFlipped(true);
     }, [isFlashcardMode, isFlipped, isSubmitting]);
 
+    const handleComplete = useCallback(async () => {
+        if (!session || !deckId || isCompleteRef.current) return;
+
+        isCompleteRef.current = true;
+        setIsComplete(true);
+        globalCompletedSessions.add(sessionKey!);
+
+        try {
+            // Prepara dettagli risposte sbagliate (rating <= 2) per il riepilogo
+            const answersDetails = answersHistory
+                .map(answer => {
+                    const card = session.cards.find(c => c.id === answer.cardId);
+                    if (!card) return null;
+                    return {
+                        cardId: answer.cardId,
+                        front: card.front,
+                        back: card.back,
+                        rating: answer.rating,
+                        correct: answer.rating > 2,
+                    };
+                })
+                .filter(Boolean) as any[];
+
+            // Estrai solo le domande sbagliate per SessionComplete
+            const wrongAnswers = answersDetails
+                .filter(a => !a.correct)
+                .map(a => ({ front: a.front, back: a.back }));
+
+            setWrongAnswersForReview(wrongAnswers);
+
+            await studyService.completeSession(deckId, {
+                mode,
+                stats: {
+                    correct: stats.good + stats.easy,
+                    wrong: stats.hard,
+                    timeSeconds: elapsedSeconds,
+                },
+                answersDetails: mode === 'exam' ? answersDetails : undefined,
+            });
+
+            // Cancella il progresso salvato se è un esame
+            if (mode === 'exam') {
+                await studyService.clearExamProgress(deckId).catch(err => {
+                    console.error('Error clearing exam progress:', err);
+                });
+            }
+        } catch (err) {
+            console.error('Error completing session:', err);
+        }
+    }, [session, deckId, mode, stats, elapsedSeconds, sessionKey, answersHistory, setWrongAnswersForReview]);
+
+    // Refs per evitare stale closure in handleNext
+    const sessionRef = useRef(session);
+    const currentCardIndexRef = useRef(currentCardIndex);
+    
+    useEffect(() => {
+        sessionRef.current = session;
+    }, [session]);
+    
+    useEffect(() => {
+        currentCardIndexRef.current = currentCardIndex;
+    }, [currentCardIndex]);
+
+    // Funzione per avanzare alla prossima carta o completare la sessione
+    // Usata da QuizView e TypingView per gestire manualmente l'avanzamento
+    const handleNext = useCallback(() => {
+        if (isCompleteRef.current || !sessionRef.current) return;
+
+        const nextIndex = currentCardIndexRef.current + 1;
+        if (nextIndex >= sessionRef.current.cards.length) {
+            handleComplete();
+        } else {
+            setCurrentCardIndex(nextIndex);
+        }
+    }, [handleComplete]);
+
     const handleRate = useCallback(async (rating: ReviewRating) => {
         if (!session || !currentCard || isSubmitting || isCompleteRef.current) return;
 
@@ -244,50 +479,63 @@ export const StudySessionPage: React.FC = () => {
             }));
             hasStudiedRef.current = true;
 
-            // Wait for exit animation
-            await new Promise(resolve => setTimeout(resolve, 400));
-
-            // Advance or complete
-            const nextIndex = currentCardIndex + 1;
-            if (nextIndex >= session.cards.length) {
-                handleComplete();
-            } else {
-                setIsFlipped(false);
-                setExitDirection(null);
-                setCurrentCardIndex(nextIndex);
+            // Salva risposta nell'history (per pausa/resume esame)
+            if (mode === 'exam') {
+                setAnswersHistory(prev => [
+                    ...prev,
+                    { cardId: currentCard.id, rating, timestamp: new Date() }
+                ]);
             }
+
+            // Auto-advance alla prossima carta (con delay per animazione)
+            setTimeout(() => {
+                const nextIndex = currentCardIndex + 1;
+                if (nextIndex >= session.cards.length) {
+                    handleComplete();
+                } else {
+                    setCurrentCardIndex(nextIndex);
+                    setIsFlipped(false);
+                    setExitDirection(null);
+                }
+            }, 800); // 800ms delay per mostrare l'animazione corretta/sbagliata
+
         } catch (err) {
             emitToast.error('Errore nel salvataggio');
             setExitDirection(null);
         } finally {
             setIsSubmitting(false);
         }
-    }, [session, currentCard, isSubmitting, currentCardIndex]);
+    }, [session, currentCard, isSubmitting, currentCardIndex, mode, handleComplete]);
 
-    const handleComplete = useCallback(async () => {
-        if (!session || !deckId || isCompleteRef.current) return;
+    const handleBack = useCallback(async () => {
+        // Se è un esame e ci sono progressi, salva prima di uscire
+        if (mode === 'exam' && session && deckId && currentCardIndex > 0) {
+            try {
+                const sessionCardIds = session.cards.map(card => card.id);
 
-        isCompleteRef.current = true;
-        setIsComplete(true);
-        globalCompletedSessions.add(sessionKey!);
+                await studyService.saveExamProgress(deckId, {
+                    examConfig: {
+                        mode, focus, length, timeLimitMinutes, questionCount, direction,
+                        examType, examDifficulty,
+                    },
+                    currentCardIndex,
+                    stats,
+                    elapsedSeconds,
+                    answers: answersHistory,
+                    sessionCardIds,
+                    pausedAt: new Date().toISOString(),
+                });
 
-        try {
-            await studyService.completeSession(deckId, {
-                mode,
-                stats: {
-                    correct: stats.good + stats.easy,
-                    wrong: stats.hard,
-                    timeSeconds: elapsedSeconds,
-                },
-            });
-        } catch (err) {
-            console.error('Error completing session:', err);
+                console.log('[StudySessionPage] Progress saved on exit');
+                emitToast.success('Progresso salvato! Puoi riprendere l\'esame quando vuoi.');
+            } catch (err) {
+                console.error('[StudySessionPage] Error saving progress on exit:', err);
+                // Continua comunque con l'uscita
+            }
         }
-    }, [session, deckId, mode, stats, elapsedSeconds, sessionKey]);
 
-    const handleBack = useCallback(() => {
         navigate(deckId ? `/study/deck/${deckId}` : '/study');
-    }, [navigate, deckId]);
+    }, [navigate, deckId, mode, session, currentCardIndex, stats, elapsedSeconds, answersHistory, focus, length, timeLimitMinutes, questionCount, direction, examType, examDifficulty]);
 
     const handleRestart = useCallback(() => {
         window.location.reload();
@@ -306,7 +554,8 @@ export const StudySessionPage: React.FC = () => {
         );
     }
 
-    if (error || !session) {
+    // Non mostrare errore se il modal di resume è aperto (session può essere null in quel caso)
+    if ((error || !session) && !showResumeModal) {
         return (
             <div className="fixed inset-0 top-16 z-50 flex flex-col items-center justify-center bg-slate-950 gap-4 p-4">
                 <p className="text-red-400 text-lg">{error || 'Sessione non trovata'}</p>
@@ -331,7 +580,75 @@ export const StudySessionPage: React.FC = () => {
                     durationSeconds={elapsedSeconds}
                     onRestart={handleRestart}
                     onBack={handleBack}
+                    wrongAnswers={mode === 'exam' ? wrongAnswersForReview : undefined}
+                    isExamMode={mode === 'exam'}
                 />
+            </div>
+        );
+    }
+
+    // Resume Modal (modale per riprendere esame)
+    if (showResumeModal && savedProgress) {
+        return (
+            <div className="fixed inset-0 top-16 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm">
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="max-w-lg w-full mx-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl"
+                >
+                    <h2 className="text-2xl font-bold text-white mb-4">Esame in pausa</h2>
+                    <p className="text-white/70 mb-6 leading-relaxed">
+                        Hai un esame in pausa su questo mazzo. Vuoi riprendere da dove avevi lasciato o ricominciare da capo?
+                    </p>
+
+                    <div className="bg-white/5 rounded-xl p-4 mb-6 space-y-2 text-sm">
+                        <div className="flex justify-between text-white/60">
+                            <span>Progresso:</span>
+                            <span className="text-white font-medium">
+                                {savedProgress.currentCardIndex + 1} / {savedProgress.sessionCardIds?.length || 0}
+                            </span>
+                        </div>
+                        <div className="flex justify-between text-white/60">
+                            <span>Tempo trascorso:</span>
+                            <span className="text-white font-medium">
+                                {Math.floor(savedProgress.elapsedSeconds / 60)}:{(savedProgress.elapsedSeconds % 60).toString().padStart(2, '0')}
+                            </span>
+                        </div>
+                        <div className="flex justify-between text-white/60">
+                            <span>In pausa dal:</span>
+                            <span className="text-white font-medium">
+                                {new Date(savedProgress.pausedAt).toLocaleString('it-IT', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <button
+                            onClick={handleStartFresh}
+                            className="flex-1 px-6 py-3 rounded-xl font-semibold
+                                bg-white/10 text-white/80 hover:bg-white/20
+                                border border-white/10 hover:border-white/20
+                                transition-all"
+                        >
+                            Ricomincia
+                        </button>
+                        <button
+                            onClick={handleResumeExam}
+                            className="flex-1 px-6 py-3 rounded-xl font-semibold
+                                bg-gradient-to-r from-indigo-500 to-indigo-600 text-white
+                                hover:from-indigo-600 hover:to-indigo-700
+                                shadow-lg shadow-indigo-500/25
+                                transition-all"
+                        >
+                            Riprendi
+                        </button>
+                    </div>
+                </motion.div>
             </div>
         );
     }
@@ -373,6 +690,16 @@ export const StudySessionPage: React.FC = () => {
                         </div>
                     )}
 
+                    {/* Bottone Pausa (solo per mode='exam') */}
+                    {mode === 'exam' && (
+                        <button
+                            onClick={handlePauseExam}
+                            className="px-4 py-2 rounded-lg text-sm font-medium text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all"
+                        >
+                            Pausa
+                        </button>
+                    )}
+
                     <button
                         onClick={handleBack}
                         className="p-2 text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
@@ -407,10 +734,11 @@ export const StudySessionPage: React.FC = () => {
                     {cardMode === 'quiz' && currentCard && (
                         <motion.div
                             key={currentCard.id}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 overflow-auto p-4 sm:p-8"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                            className="absolute inset-0 flex flex-col p-3 sm:p-6 lg:p-8"
                         >
                             <QuizView
                                 card={currentCard}
@@ -419,14 +747,17 @@ export const StudySessionPage: React.FC = () => {
                                 correctAnswer={currentCard.back}
                                 isSubmitting={isSubmitting}
                                 onSubmitReview={handleRate}
-                                onNext={() => {
-                                    const nextIndex = currentCardIndex + 1;
-                                    if (nextIndex >= session.cards.length) {
-                                        handleComplete();
-                                    } else {
-                                        setCurrentCardIndex(nextIndex);
-                                    }
-                                }}
+                                onNext={handleNext}
+                                isTrueFalse={(() => {
+                                    const flag = (currentCard as any).isTrueFalse ?? false;
+                                    console.log('[StudySessionPage] Rendering QuizView:', {
+                                        cardId: currentCard.id,
+                                        isTrueFalse: flag,
+                                        options: currentCard.options,
+                                        front: currentCard.front.substring(0, 50) + '...'
+                                    });
+                                    return flag;
+                                })()}
                             />
                         </motion.div>
                     )}
@@ -434,10 +765,11 @@ export const StudySessionPage: React.FC = () => {
                     {cardMode === 'typing' && displayCard && (
                         <motion.div
                             key={currentCard?.id}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 overflow-auto p-4 sm:p-8"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                            className="absolute inset-0 flex flex-col p-3 sm:p-6 lg:p-8"
                         >
                             <TypingView
                                 card={currentCard!}
@@ -449,14 +781,7 @@ export const StudySessionPage: React.FC = () => {
                                     return { correct: answer.toLowerCase().trim() === expected.toLowerCase().trim(), similarity: 1 };
                                 }}
                                 onSubmitReview={handleRate}
-                                onNext={() => {
-                                    const nextIndex = currentCardIndex + 1;
-                                    if (nextIndex >= session.cards.length) {
-                                        handleComplete();
-                                    } else {
-                                        setCurrentCardIndex(nextIndex);
-                                    }
-                                }}
+                                onNext={handleNext}
                             />
                         </motion.div>
                     )}
