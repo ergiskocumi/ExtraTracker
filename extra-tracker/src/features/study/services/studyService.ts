@@ -109,6 +109,13 @@ export interface SessionCompletePayload {
         wrong: number;
         timeSeconds: number;
     };
+    answersDetails?: Array<{
+        cardId: string;
+        front: string;
+        back: string;
+        rating: number;
+        correct: boolean;
+    }>;
 }
 
 export interface SessionRequestOptions {
@@ -118,6 +125,8 @@ export interface SessionRequestOptions {
     timeLimitMinutes?: number;
     questionCount?: number;
     direction?: SessionDirection;
+    examType?: string;
+    examDifficulty?: string;
 }
 
 export interface SessionCompleteResult {
@@ -413,6 +422,8 @@ class StudyService {
         if (options.timeLimitMinutes) params.set('time', String(options.timeLimitMinutes));
         if (options.questionCount) params.set('questions', String(options.questionCount));
         if (options.direction) params.set('direction', options.direction);
+        if (options.examType) params.set('examType', options.examType);
+        if (options.examDifficulty) params.set('examDifficulty', options.examDifficulty);
 
         const query = params.toString();
         const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/session${query ? `?${query}` : ''}`);
@@ -751,6 +762,38 @@ class StudyService {
                 processingTimeMs: 0,
             },
         };
+    }
+
+    /**
+     * 💾 Salva il progresso di un esame in corso per pausa/resume
+     */
+    async saveExamProgress(deckId: string, progressData: {
+        examConfig: any;
+        currentCardIndex: number;
+        stats: { hard: number; good: number; easy: number };
+        elapsedSeconds: number;
+        answers: Array<{ cardId: string; rating: number; timestamp: Date }>;
+        sessionCardIds: string[];
+    }): Promise<{ success: boolean; message: string; pausedAt: Date }> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/exam-progress`, progressData);
+        return unwrap(response, 'Errore nel salvataggio del progresso');
+    }
+
+    /**
+     * 📥 Recupera il progresso salvato di un esame
+     */
+    async getExamProgress(deckId: string): Promise<any | null> {
+        const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/exam-progress`);
+        const data = unwrap(response, 'Errore nel recupero del progresso');
+        return data || null;
+    }
+
+    /**
+     * 🗑️ Cancella il progresso salvato di un esame
+     */
+    async clearExamProgress(deckId: string): Promise<{ success: boolean; message: string }> {
+        const response = await apiClient.delete<any>(`${this.baseUrl}/${deckId}/exam-progress`);
+        return unwrap(response, 'Errore nella cancellazione del progresso');
     }
 }
 
