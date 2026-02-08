@@ -13,13 +13,14 @@ import { SettingsField } from './SettingsField';
 
 interface SettingsToggleProps {
     label: string;
-    name: string;
+    name?: string;
     checked: boolean;
     onChange: (checked: boolean) => void;
     icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
     required?: boolean;
     error?: string;
     hint?: string;
+    description?: string;
     tooltipTitle?: string;
     tooltipContent?: string;
     disabled?: boolean;
@@ -35,6 +36,7 @@ export const SettingsToggle: React.FC<SettingsToggleProps> = ({
     required = false,
     error,
     hint,
+    description,
     tooltipTitle,
     tooltipContent,
     disabled = false,
@@ -43,6 +45,7 @@ export const SettingsToggle: React.FC<SettingsToggleProps> = ({
     return (
         <SettingsField
             label={label}
+            description={description}
             icon={icon}
             required={required}
             error={error}
