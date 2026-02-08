@@ -85,55 +85,40 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
             let top = 0;
             let left = 0;
 
-            if (position !== 'center') {
-                switch (position) {
-                    case 'top':
-                        top = rect.top - 20;
-                        left = rect.left + rect.width / 2;
-                        break;
-                    case 'bottom':
-                        top = rect.bottom + 20;
-                        left = rect.left + rect.width / 2;
-                        break;
-                    case 'left':
-                        top = rect.top + rect.height / 2;
-                        left = rect.left - 20;
-                        break;
-                    case 'right':
-                        top = rect.top + rect.height / 2;
-                        left = rect.right + 20;
-                        break;
-                }
+            switch (position) {
+                case 'top':
+                    top = rect.top - 20;
+                    left = rect.left + rect.width / 2;
+                    break;
+                case 'bottom':
+                    top = rect.bottom + 20;
+                    left = rect.left + rect.width / 2;
+                    break;
+                case 'left':
+                    top = rect.top + rect.height / 2;
+                    left = rect.left - 20;
+                    break;
+                case 'right':
+                    top = rect.top + rect.height / 2;
+                    left = rect.right + 20;
+                    break;
+            }
 
-                // Applica offset
-                top += offset.y;
-                left += offset.x;
+            // Applica offset
+            top += offset.y;
+            left += offset.x;
 
-                // Centra il tooltip orizzontalmente se necessario
-                if (tooltipRef.current && (position === 'top' || position === 'bottom')) {
-                    const tooltipWidth = tooltipRef.current.offsetWidth || 320;
-                    left -= tooltipWidth / 2;
-                }
-            } else {
-                top = window.innerHeight / 2;
-                left = window.innerWidth / 2;
+            // Centra il tooltip orizzontalmente se necessario
+            if (tooltipRef.current && (position === 'top' || position === 'bottom')) {
+                const tooltipWidth = tooltipRef.current.offsetWidth || 320;
+                left -= tooltipWidth / 2;
             }
 
             // Assicura che il tooltip sia visibile
-            if (position !== 'center') {
-                const tooltipHeight = tooltipRef.current?.offsetHeight || 200;
-                const tooltipWidth = tooltipRef.current?.offsetWidth || 320;
-                
-                top = Math.max(20, Math.min(top, window.innerHeight - tooltipHeight - 20));
-                left = Math.max(20, Math.min(left, window.innerWidth - tooltipWidth - 20));
-            } else {
-                if (tooltipRef.current) {
-                    const tooltipWidth = tooltipRef.current.offsetWidth || 320;
-                    const tooltipHeight = tooltipRef.current.offsetHeight || 200;
-                    left -= tooltipWidth / 2;
-                    top -= tooltipHeight / 2;
-                }
-            }
+            const tooltipHeight = tooltipRef.current?.offsetHeight || 200;
+            const tooltipWidth = tooltipRef.current?.offsetWidth || 320;
+            top = Math.max(20, Math.min(top, window.innerHeight - tooltipHeight - 20));
+            left = Math.max(20, Math.min(left, window.innerWidth - tooltipWidth - 20));
 
             setTooltipPosition({ top, left });
         } catch (err) {
