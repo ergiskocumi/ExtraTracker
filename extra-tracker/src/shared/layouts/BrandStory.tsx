@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { Logo } from '../components/Brand/Logo';
 import { X, Sparkles, Layers, Fingerprint, ChevronRight, Quote } from 'lucide-react';
 
 type StoryChapter = 'intro' | 'logo' | 'grid';
+const CHAPTER_EASE: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
 
 // Animation variants
-const backdropVariants = {
+const backdropVariants: Variants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { duration: 0.4 } },
   exit: { opacity: 0, transition: { duration: 0.3, delay: 0.1 } }
 };
 
-const modalVariants = {
+const modalVariants: Variants = {
   hidden: { opacity: 0, scale: 0.9, y: 40 },
   visible: { 
     opacity: 1, 
@@ -33,7 +34,7 @@ const modalVariants = {
   }
 };
 
-const chapterVariants = {
+const chapterVariants: Variants = {
   enter: (direction: number) => ({
     x: direction > 0 ? 60 : -60,
     opacity: 0
@@ -43,7 +44,7 @@ const chapterVariants = {
     opacity: 1,
     transition: { 
       duration: 0.5,
-      ease: [0.25, 0.46, 0.45, 0.94]
+      ease: CHAPTER_EASE
     }
   },
   exit: (direction: number) => ({
@@ -58,7 +59,7 @@ const floatAnimation = {
   transition: {
     duration: 4,
     repeat: Infinity,
-    ease: "easeInOut"
+    ease: 'easeInOut' as const
   }
 };
 
