@@ -180,38 +180,20 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
     const getVariantClasses = (variant: ActionButton['variant']) => {
         switch (variant) {
             case 'primary':
-                return `
-                    bg-gradient-to-r from-primary-500 to-primary-600 
-                    text-white font-semibold
-                    shadow-lg shadow-primary-500/30 hover:shadow-primary-500/40
-                    border-0
-                `;
+                return 'exam-quick-action exam-quick-action--primary';
             case 'secondary':
-                return `
-                    bg-gradient-to-r from-emerald-500 to-emerald-600 
-                    text-white font-semibold
-                    shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40
-                    border-0
-                `;
+                return 'exam-quick-action exam-quick-action--secondary';
             case 'outline':
-                return `
-                    bg-white/5 hover:bg-white/10
-                    text-white font-medium
-                    border border-white/20 hover:border-white/30
-                `;
+                return 'exam-quick-action exam-quick-action--outline';
             case 'ghost':
             default:
-                return `
-                    bg-transparent hover:bg-white/5
-                    text-white/70 hover:text-white
-                    border border-transparent hover:border-white/10
-                `;
+                return 'exam-quick-action exam-quick-action--ghost';
         }
     };
 
     return (
         <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wide mb-3">
+            <h3 className="exam-quick-actions-title text-sm font-semibold uppercase tracking-wide mb-3">
                 Azioni Rapide
             </h3>
             
@@ -228,15 +210,16 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
                     className={`
                         w-full flex items-center gap-4 p-4 rounded-xl
                         transition-all duration-200
+                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/45 focus-visible:ring-offset-2
                         disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100
                         ${getVariantClasses(action.variant)}
                     `}
                 >
                     <div className={`
-                        p-2.5 rounded-lg flex-shrink-0
+                        exam-quick-action-icon p-2.5 rounded-lg flex-shrink-0
                         ${action.variant === 'primary' || action.variant === 'secondary'
-                            ? 'bg-white/20' 
-                            : 'bg-white/10'
+                            ? 'exam-quick-action-icon--solid' 
+                            : 'exam-quick-action-icon--subtle'
                         }
                     `}>
                         <action.icon className="w-5 h-5" />
@@ -247,10 +230,10 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
                             <span className="font-semibold truncate">{action.label}</span>
                             {action.badge !== undefined && (
                                 <span className={`
-                                    px-2 py-0.5 rounded-full text-xs font-bold
+                                    exam-quick-action-badge px-2 py-0.5 rounded-full text-xs font-bold
                                     ${action.variant === 'primary' 
-                                        ? 'bg-white/20 text-white' 
-                                        : 'bg-orange-500/20 text-orange-400'
+                                        ? 'exam-quick-action-badge--primary' 
+                                        : 'exam-quick-action-badge--accent'
                                     }
                                 `}>
                                     {action.badge}
@@ -259,10 +242,10 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
                         </div>
                         {action.description && (
                             <p className={`
-                                text-xs mt-0.5 truncate
+                                exam-quick-action-description text-xs mt-0.5 truncate
                                 ${action.variant === 'primary' || action.variant === 'secondary'
-                                    ? 'text-white/80' 
-                                    : 'text-white/50'
+                                    ? 'exam-quick-action-description--solid' 
+                                    : 'exam-quick-action-description--subtle'
                                 }
                             `}>
                                 {action.description}
