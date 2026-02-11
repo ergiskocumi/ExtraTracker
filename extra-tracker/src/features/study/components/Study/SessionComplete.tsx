@@ -56,10 +56,10 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
 
     // Performance message
     const getPerformanceMessage = () => {
-        if (accuracy >= 90) return { text: 'Eccezionale!', color: 'text-emerald-400', emoji: '🏆' };
-        if (accuracy >= 70) return { text: 'Ottimo lavoro!', color: 'text-blue-400', emoji: '⭐' };
-        if (accuracy >= 50) return { text: 'Buon progresso!', color: 'text-amber-400', emoji: '👍' };
-        return { text: 'Continua a studiare!', color: 'text-orange-400', emoji: '💪' };
+        if (accuracy >= 90) return { text: 'Eccezionale!', color: 'text-emerald-600 dark:text-emerald-400', emoji: '🏆' };
+        if (accuracy >= 70) return { text: 'Ottimo lavoro!', color: 'text-blue-600 dark:text-blue-400', emoji: '⭐' };
+        if (accuracy >= 50) return { text: 'Buon progresso!', color: 'text-amber-600 dark:text-amber-400', emoji: '👍' };
+        return { text: 'Continua a studiare!', color: 'text-orange-600 dark:text-orange-400', emoji: '💪' };
     };
 
     const performance = getPerformanceMessage();
@@ -69,30 +69,30 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
             icon: Target,
             label: 'Carte studiate',
             value: totalCards,
-            color: 'text-primary-400',
+            color: 'text-primary-600 dark:text-primary-400',
         },
         {
             icon: Trophy,
             label: 'Risposte corrette',
             value: correctCount,
-            color: 'text-emerald-400',
+            color: 'text-emerald-600 dark:text-emerald-400',
         },
         {
             icon: Zap,
             label: 'Da rivedere',
             value: wrongCount,
-            color: 'text-orange-400',
+            color: 'text-orange-600 dark:text-orange-400',
         },
         {
             icon: Clock,
             label: 'Tempo impiegato',
             value: `${durationMinutes}m`,
-            color: 'text-blue-400',
+            color: 'text-blue-600 dark:text-blue-400',
         },
     ];
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="study-complete min-h-screen flex items-center justify-center p-4">
             <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -128,7 +128,7 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4 }}
-                        className="text-white/60"
+                        className="text-theme-secondary"
                     >
                         Hai completato la sessione di studio
                     </motion.p>
@@ -147,11 +147,11 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.6 + index * 0.1 }}
-                            className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center"
+                            className="study-complete-stat-card p-4 rounded-2xl bg-theme-card border border-theme-default text-center"
                         >
                             <stat.icon className={`w-6 h-6 ${stat.color} mx-auto mb-2`} />
-                            <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-                            <div className="text-xs text-white/50">{stat.label}</div>
+                            <div className="text-2xl font-bold text-theme-primary mb-1">{stat.value}</div>
+                            <div className="text-xs text-theme-muted">{stat.label}</div>
                         </motion.div>
                     ))}
                 </motion.div>
@@ -161,13 +161,13 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.9 }}
-                    className="mb-8 p-6 rounded-2xl bg-white/5 border border-white/10"
+                    className="mb-8 p-6 rounded-2xl bg-theme-card border border-theme-default"
                 >
                     <div className="flex items-center justify-between mb-3">
-                        <span className="text-white/70">Precisione</span>
+                        <span className="text-theme-secondary">Precisione</span>
                         <span className={`text-xl font-bold ${performance.color}`}>{accuracy}%</span>
                     </div>
-                    <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-3 bg-theme-surface rounded-full overflow-hidden">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${accuracy}%` }}
@@ -191,10 +191,10 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                         transition={{ delay: 1 }}
                         className="mb-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-3"
                     >
-                        <Clock className="w-5 h-5 text-blue-400" />
+                        <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         <div>
-                            <div className="text-white/70 text-sm">Tempo medio per domanda</div>
-                            <div className="text-blue-400 font-bold text-lg">{avgTimePerCard}s</div>
+                            <div className="text-theme-secondary text-sm">Tempo medio per domanda</div>
+                            <div className="text-blue-600 dark:text-blue-400 font-bold text-lg">{avgTimePerCard}s</div>
                         </div>
                     </motion.div>
                 )}
@@ -209,23 +209,23 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                     >
                         <button
                             onClick={() => setShowWrongAnswers(!showWrongAnswers)}
-                            className="w-full p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/15 transition-all flex items-center justify-between"
+                            className="w-full p-4 rounded-2xl bg-orange-500/10 border border-orange-500/25 hover:bg-orange-500/15 transition-all flex items-center justify-between"
                         >
                             <div className="flex items-center gap-3">
-                                <AlertCircle className="w-5 h-5 text-orange-400" />
+                                <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                                 <div className="text-left">
-                                    <div className="text-white font-semibold">
+                                    <div className="text-theme-primary font-semibold">
                                         Domande da rivedere ({wrongAnswers.length})
                                     </div>
-                                    <div className="text-white/50 text-sm">
+                                    <div className="text-theme-muted text-sm">
                                         Clicca per vedere le risposte corrette
                                     </div>
                                 </div>
                             </div>
                             {showWrongAnswers ? (
-                                <ChevronUp className="w-5 h-5 text-white/50" />
+                                <ChevronUp className="w-5 h-5 text-theme-muted" />
                             ) : (
-                                <ChevronDown className="w-5 h-5 text-white/50" />
+                                <ChevronDown className="w-5 h-5 text-theme-muted" />
                             )}
                         </button>
 
@@ -244,15 +244,15 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: index * 0.05 }}
-                                            className="p-4 rounded-xl bg-white/5 border border-white/10"
+                                            className="p-4 rounded-xl bg-theme-card border border-theme-default"
                                         >
                                             <div className="mb-2">
-                                                <div className="text-white/50 text-xs mb-1">Domanda</div>
-                                                <div className="text-white">{answer.front}</div>
+                                                <div className="text-theme-muted text-xs mb-1">Domanda</div>
+                                                <div className="text-theme-primary">{answer.front}</div>
                                             </div>
-                                            <div className="pt-2 border-t border-white/10">
-                                                <div className="text-emerald-400/70 text-xs mb-1">Risposta corretta</div>
-                                                <div className="text-emerald-400 font-medium">{answer.back}</div>
+                                            <div className="pt-2 border-t border-theme-default">
+                                                <div className="text-emerald-600/80 dark:text-emerald-400/80 text-xs mb-1">Risposta corretta</div>
+                                                <div className="text-emerald-600 dark:text-emerald-400 font-medium">{answer.back}</div>
                                             </div>
                                         </motion.div>
                                     ))}
@@ -285,7 +285,7 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={onRestart}
-                        className="w-full sm:w-auto px-8 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold flex items-center justify-center gap-2"
+                        className="w-full sm:w-auto px-8 py-3 rounded-xl bg-theme-surface hover:bg-theme-card border border-theme-default text-theme-primary font-semibold flex items-center justify-center gap-2"
                     >
                         <RotateCcw className="w-5 h-5" />
                         <span>Nuova sessione</span>
@@ -295,7 +295,7 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={onBack}
-                        className="w-full sm:w-auto px-8 py-3 rounded-xl border border-white/20 text-white/70 hover:text-white hover:bg-white/5 flex items-center justify-center gap-2"
+                        className="w-full sm:w-auto px-8 py-3 rounded-xl border border-theme-default text-theme-secondary hover:text-theme-primary hover:bg-theme-surface flex items-center justify-center gap-2"
                     >
                         <Home className="w-5 h-5" />
                         <span>Torna al mazzo</span>

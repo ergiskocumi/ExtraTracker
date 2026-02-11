@@ -59,21 +59,21 @@ export const StudyProgress: React.FC<StudyProgressProps> = ({
     });
 
     return (
-        <div className="w-full max-w-3xl mx-auto space-y-4">
+        <div className="study-progress w-full max-w-3xl mx-auto space-y-4">
             {/* Top row: Title & Timer */}
             <div className="flex items-center justify-between px-2">
                 <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-semibold text-white truncate max-w-[200px] sm:max-w-sm">
+                    <h2 className="text-lg font-semibold text-theme-primary truncate max-w-[200px] sm:max-w-sm">
                         {deckTitle}
                     </h2>
-                    <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/60 capitalize">
+                    <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-theme-surface border border-theme-default text-xs text-theme-muted capitalize">
                         {mode}
                     </span>
                 </div>
                 
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
-                    <Clock className="w-4 h-4 text-white/50" />
-                    <span className="text-sm font-mono text-white/80">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-theme-surface border border-theme-default">
+                    <Clock className="w-4 h-4 text-theme-muted" />
+                    <span className="text-sm font-mono text-theme-secondary">
                         {formatTime(elapsedSeconds)}
                     </span>
                 </div>
@@ -82,7 +82,7 @@ export const StudyProgress: React.FC<StudyProgressProps> = ({
             {/* Progress bar with segments */}
             <div className="relative">
                 {/* Background track */}
-                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="study-progress-track h-2 bg-theme-surface rounded-full overflow-hidden">
                     <motion.div
                         className="h-full bg-gradient-to-r from-primary-500 via-primary-400 to-primary-500"
                         initial={{ width: 0 }}
@@ -96,12 +96,12 @@ export const StudyProgress: React.FC<StudyProgressProps> = ({
                     {segments.map((segment, i) => (
                         <motion.div
                             key={i}
-                            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                            className={`study-progress-dot w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                                 segment.isCompleted 
-                                    ? 'bg-white scale-100' 
+                                    ? 'study-progress-dot--completed scale-100' 
                                     : segment.isCurrent
-                                        ? 'bg-primary-400 scale-125 ring-2 ring-primary-400/30'
-                                        : 'bg-white/20 scale-75'
+                                        ? 'study-progress-dot--current scale-125 ring-2 ring-primary-500/30'
+                                        : 'study-progress-dot--pending scale-75'
                             }`}
                             initial={false}
                             animate={{
@@ -117,17 +117,17 @@ export const StudyProgress: React.FC<StudyProgressProps> = ({
                 <div className="flex items-center gap-4 sm:gap-6">
                     {/* Remaining */}
                     <div className="flex items-center gap-2">
-                        <Target className="w-4 h-4 text-white/40" />
-                        <span className="text-sm text-white/60">
-                            <span className="font-semibold text-white">{remaining}</span> rimaste
+                        <Target className="w-4 h-4 text-theme-muted" />
+                        <span className="text-sm text-theme-secondary">
+                            <span className="font-semibold text-theme-primary">{remaining}</span> rimaste
                         </span>
                     </div>
 
                     {/* Correct */}
                     {correctCount > 0 && (
                         <div className="hidden sm:flex items-center gap-2">
-                            <Trophy className="w-4 h-4 text-emerald-400" />
-                            <span className="text-sm text-emerald-400">
+                            <Trophy className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-sm text-emerald-600 dark:text-emerald-400">
                                 <span className="font-semibold">{correctCount}</span> ok
                             </span>
                         </div>
@@ -136,8 +136,8 @@ export const StudyProgress: React.FC<StudyProgressProps> = ({
                     {/* Wrong */}
                     {wrongCount > 0 && (
                         <div className="hidden sm:flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-orange-400" />
-                            <span className="text-sm text-orange-400">
+                            <Zap className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                            <span className="text-sm text-orange-600 dark:text-orange-400">
                                 <span className="font-semibold">{wrongCount}</span> difficili
                             </span>
                         </div>
@@ -145,7 +145,7 @@ export const StudyProgress: React.FC<StudyProgressProps> = ({
                 </div>
 
                 {/* Percentage */}
-                <span className="text-sm font-medium text-white/60">
+                <span className="text-sm font-medium text-theme-muted">
                     {Math.round(progress)}%
                 </span>
             </div>
