@@ -74,37 +74,37 @@ export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
     ];
 
     return (
-        <div className="dashboard-widget dashboard-widget--stats grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <div className="dashboard-widget dashboard-widget--stats grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
             {stats.map((stat, index) => (
                 <motion.div
                     key={stat.label}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="dashboard-widget-card dashboard-widget-card--stat relative overflow-hidden rounded-2xl border border-theme-default bg-theme-card p-5 transition-all hover:bg-theme-surface hover:border-theme-strong"
+                    className="dashboard-widget-card dashboard-widget-card--stat relative overflow-hidden rounded-2xl border border-theme-default bg-theme-card p-4 sm:p-5 transition-all hover:bg-theme-surface hover:border-theme-strong"
                 >
                     {/* Gradient accent */}
                     <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${stat.color}`} />
                     
                     {/* Icon */}
-                    <div className={`dashboard-stat-icon-shell w-10 h-10 rounded-xl ${stat.bgColor} flex items-center justify-center mb-3`}>
+                    <div className={`dashboard-stat-icon-shell w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${stat.bgColor} flex items-center justify-center mb-2.5 sm:mb-3`}>
                         <stat.icon className={stat.iconColor} size={20} />
                     </div>
                     
                     {/* Content */}
-                    <p className="text-xs font-semibold tracking-wide uppercase text-theme-secondary mb-1">
+                    <p className="dashboard-stat-label dashboard-meta-text text-xs font-semibold tracking-wide uppercase text-theme-secondary mb-1">
                         {stat.label}
                     </p>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-bold text-theme-primary">{stat.value}</span>
+                        <span className="dashboard-stat-value text-xl sm:text-2xl font-bold text-theme-primary">{stat.value}</span>
                         {stat.suffix && (
-                            <span className="text-sm text-theme-secondary">{stat.suffix}</span>
+                            <span className="dashboard-stat-suffix dashboard-meta-text text-xs sm:text-sm text-theme-secondary">{stat.suffix}</span>
                         )}
                     </div>
                     
                     {/* Trend indicator */}
                     {stat.trend && (
-                        <div className={`dashboard-stat-trend flex items-center gap-1 mt-2 text-xs ${
+                        <div className={`dashboard-stat-trend dashboard-meta-text flex items-center gap-1 mt-2 text-[11px] sm:text-xs ${
                             stat.trendPositive ? 'dashboard-stat-trend--positive text-emerald-600 dark:text-emerald-400' : 'dashboard-stat-trend--negative text-rose-600 dark:text-rose-400'
                         }`}>
                             <FiTrendingUp size={12} className={stat.trendPositive ? '' : 'rotate-180'} />
