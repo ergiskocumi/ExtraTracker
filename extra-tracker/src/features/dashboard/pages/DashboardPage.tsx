@@ -39,11 +39,11 @@ const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
 };
 
-// Calcola il colore in base all'urgenza - These accent colors stay same across themes
-const getUrgencyColor = (days: number) => {
-    if (days <= 3) return 'text-orange-500 bg-orange-500/15 border-orange-500/30'; // Urgente/Attenzione
-    if (days <= 7) return 'text-amber-500 bg-amber-500/15 border-amber-500/30';   // Vicino/Energia
-    return 'text-emerald-500 bg-emerald-500/15 border-emerald-500/30';           // Tranquillo/Focus
+// Calcola il tono in base all'urgenza
+const getUrgencyTone = (days: number) => {
+    if (days <= 3) return 'dashboard-urgency-badge dashboard-urgency-badge--critical';
+    if (days <= 7) return 'dashboard-urgency-badge dashboard-urgency-badge--warning';
+    return 'dashboard-urgency-badge dashboard-urgency-badge--calm';
 };
 
 export const DashboardPage = () => {
@@ -148,7 +148,7 @@ export const DashboardPage = () => {
 
             {/* Recent decks - Card Vivaci & Glass */}
             <section
-                className="dashboard-panel relative rounded-3xl backdrop-blur-md p-6 sm:p-8 overflow-hidden group/section border border-theme-default bg-theme-surface shadow-theme-md"
+                className="dashboard-panel dashboard-panel--recent relative rounded-3xl backdrop-blur-md p-6 sm:p-8 overflow-hidden group/section border border-theme-default bg-theme-surface shadow-theme-md"
                 data-tutorial="recent-decks"
             >
                 {/* Subtle gradient overlay */}
@@ -179,14 +179,14 @@ export const DashboardPage = () => {
                                         </h3>
                                         {/* Badge da ripassare */}
                                         {hasDueCards && (
-                                            <span className="dashboard-due-badge shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-500/20 text-orange-500 border border-orange-500/30">
+                                            <span className="dashboard-due-badge shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30">
                                                 {deck.dueCount} da fare
                                             </span>
                                         )}
                                     </div>
                                     
                                     {examTitle && (
-                                        <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-theme-surface border border-theme-default text-theme-muted">
+                                        <div className="dashboard-deck-exam-pill mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-theme-surface border border-theme-default text-theme-secondary">
                                             {examTitle}
                                         </div>
                                     )}
@@ -199,6 +199,7 @@ export const DashboardPage = () => {
                                         onMouseEnter={pagePreloaders.studySession}
                                         onFocus={pagePreloaders.studySession}
                                         className={`dashboard-card-cta w-full py-3 px-4 rounded-xl text-sm font-semibold tracking-wide transition-all duration-300 border
+                                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent
                                                  ${hasDueCards ? 'dashboard-card-cta--accent' : 'dashboard-card-cta--quiet'}
                                                  ${hasDueCards
                                                     ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 hover:shadow-[0_0_15px_rgba(16,185,129,0.3)]'
@@ -216,7 +217,7 @@ export const DashboardPage = () => {
                             <p className="text-theme-muted font-light">Nessun mazzo recente. Inizia a studiare!</p>
                             <button 
                                 onClick={() => navigate('/study')}
-                                className="dashboard-empty-cta mt-4 text-sm text-primary-500 hover:text-primary-400 font-medium"
+                                className="dashboard-empty-cta mt-4 text-sm text-primary-600 hover:text-primary-500 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2"
                             >
                                 + Crea nuovo mazzo
                             </button>
@@ -244,7 +245,7 @@ export const DashboardPage = () => {
                     <div className="relative space-y-3">
                         {upcomingExams.map((exam) => {
                             const days = getDaysRemaining(exam.deadline);
-                            const urgencyClass = getUrgencyColor(days);
+                            const urgencyTone = getUrgencyTone(days);
                             
                             return (
                                 <div
@@ -252,17 +253,17 @@ export const DashboardPage = () => {
                                     className="dashboard-exam-row group flex items-center gap-4 rounded-2xl border border-theme-subtle bg-theme-card p-4 transition-all hover:bg-theme-surface hover:border-theme-default hover:shadow-theme-md"
                                 >
                                     {/* Days Badge - Dynamic Color */}
-                                    <div className={`h-12 w-12 rounded-2xl flex flex-col items-center justify-center border shadow-sm transition-transform group-hover:scale-105 ${urgencyClass}`}>
+                                    <div className={`dashboard-exam-days h-12 w-12 rounded-2xl flex flex-col items-center justify-center border shadow-sm transition-transform group-hover:scale-105 ${urgencyTone}`}>
                                         <span className="text-lg font-bold leading-none">{days}</span>
-                                        <span className="text-[9px] font-medium uppercase opacity-80">gg</span>
+                                        <span className="dashboard-exam-days-unit text-[9px] font-semibold uppercase">gg</span>
                                     </div>
                                     
                                     <div className="min-w-0 flex-1">
                                         <div className="flex justify-between items-start">
-                                            <h4 className="text-theme-primary font-semibold truncate group-hover:text-primary-500 transition-colors">
+                                            <h4 className="dashboard-exam-title text-theme-primary font-semibold truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                                                 {exam.title}
                                             </h4>
-                                            <span className="dashboard-exam-date text-xs text-theme-muted font-mono">
+                                            <span className="dashboard-exam-date text-xs text-theme-secondary font-mono">
                                                 {formatDate(exam.deadline)}
                                             </span>
                                         </div>
@@ -270,11 +271,11 @@ export const DashboardPage = () => {
                                         <div className="flex items-center gap-2 mt-1">
                                             <div className="dashboard-exam-progress-track h-1 w-full max-w-[100px] rounded-full overflow-hidden" style={{ background: 'var(--border-default)' }}>
                                                 <div 
-                                                    className="h-full bg-primary-500 rounded-full opacity-50 group-hover:opacity-100 transition-opacity" 
+                                                    className="dashboard-exam-progress-fill h-full bg-primary-500 rounded-full transition-opacity" 
                                                     style={{ width: `${Math.max(10, 100 - (days * 2))}%` }} 
                                                 />
                                             </div>
-                                            <span className="dashboard-exam-meta text-xs text-theme-muted font-medium whitespace-nowrap">
+                                            <span className="dashboard-exam-meta text-xs text-theme-secondary font-medium whitespace-nowrap">
                                                 {days === 0 ? 'Oggi!' : `mancano ${days} gg`}
                                             </span>
                                         </div>
