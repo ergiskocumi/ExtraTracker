@@ -49,6 +49,7 @@ describe('DashboardPage theme contract', () => {
                     id: 'deck-1',
                     title: 'Anatomia',
                     dueCount: 5,
+                    examId: 'exam-1',
                     tags: [],
                     cards: [],
                     totalCards: 24,
@@ -78,12 +79,16 @@ describe('DashboardPage theme contract', () => {
         expect(container.querySelector('.dashboard-greeting-subtitle')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-section-title')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-panel')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-panel--recent')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-panel--exams')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-deck-card')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-due-badge')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-deck-exam-pill')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-card-cta')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-exam-row')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-urgency-badge')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-exam-progress-track')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-exam-progress-fill')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-main-cta-title')).toBeInTheDocument();
 
         const mainCta = screen.getByRole('button', { name: /Vai agli Esami/i });
