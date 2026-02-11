@@ -320,22 +320,27 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
         });
     }
 
-    try {
-        const result = await studyService.generateCardsFromPDF(
-            req.tenantScope,
-            req.params.id,
-            req.file.path
-        );
-
-        res.json({
-            success: true,
-            data: result,
-            message: `✨ Generate ${result.generatedCount} flashcard con successo!`,
-        });
-    } finally {
-        // Cleanup: rimuovi file temporaneo dopo elaborazione
+    // Validazione integrità PDF (magic bytes + struttura base)
+    const pdfValidation = await validatePdfFile(req.file.path);
+    if (!pdfValidation.isValid) {
         await fs.unlink(req.file.path).catch(() => {});
+        return res.status(400).json({
+            success: false,
+            error: { message: `PDF corrotto: ${pdfValidation.error}` },
+        });
     }
+
+    const result = await studyService.generateCardsFromPDF(
+        req.tenantScope,
+        req.params.id,
+        req.file.path
+    );
+
+    res.json({
+        success: true,
+        data: result,
+        message: `✨ Generate ${result.generatedCount} flashcard con successo!`,
+    });
 });
 
 /**
