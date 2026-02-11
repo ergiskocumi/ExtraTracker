@@ -5,7 +5,7 @@ import { BrandStory } from './BrandStory';
 
 export const AuthLayout: React.FC = () => {
   return (
-    <div className="relative min-h-screen w-full overflow-hidden font-sans text-white">
+    <div className="auth-layout relative min-h-screen w-full overflow-hidden font-sans text-theme-primary">
       {/* Background tematico Time Tracking */}
       <TimeTrackingBackground />
 

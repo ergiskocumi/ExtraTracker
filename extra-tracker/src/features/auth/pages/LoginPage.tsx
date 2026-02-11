@@ -19,9 +19,9 @@ const FeatureBadge: React.FC<{ icon: React.ReactNode; text: string; delay: numbe
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.5 }}
-    className="flex items-center gap-2 text-sm text-white/50"
+    className="login-feature-badge flex items-center gap-2 text-sm text-theme-muted"
   >
-    <span className="p-1.5 rounded-lg bg-white/5 text-primary-400">
+    <span className="login-feature-badge-icon p-1.5 rounded-lg bg-theme-surface border border-theme-subtle text-primary-500">
       {icon}
     </span>
     <span>{text}</span>
@@ -83,7 +83,7 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="w-full max-w-md mx-auto">
+        <div className="login-page w-full max-w-md mx-auto">
             {/* Logo & Header */}
             <motion.div 
                 className="text-center mb-8"
@@ -96,11 +96,11 @@ export const LoginPage = () => {
                     transition={{ type: 'spring', stiffness: 300 }}
                     className="flex justify-center mb-6"
                 >
-                    <Logo size="2xl" variant="full" className="text-white" />
+                    <Logo size="2xl" variant="full" className="text-theme-primary" />
                 </motion.div>
 
                 <motion.h1 
-                    className="text-3xl font-bold text-white mb-2"
+                    className="text-3xl font-bold text-theme-primary mb-2"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2 }}
@@ -109,7 +109,7 @@ export const LoginPage = () => {
                 </motion.h1>
 
                 <motion.p 
-                    className="text-white/50 text-base"
+                    className="text-theme-secondary text-base"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
@@ -144,15 +144,15 @@ export const LoginPage = () => {
 
             {/* Main Card */}
             <motion.div 
-                className="relative"
+                className="relative login-shell"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
             >
                 {/* Glow effect */}
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary-500/30 via-violet-500/30 to-primary-500/30 rounded-2xl blur opacity-30" />
+                <div className="login-card-glow absolute -inset-0.5 bg-gradient-to-r from-primary-500/30 via-violet-500/30 to-primary-500/30 rounded-2xl blur opacity-30" />
                 
-                <div className="relative rounded-2xl bg-dark-400/80 backdrop-blur-xl border border-white/10 p-6 sm:p-8 overflow-hidden">
+                <div className="login-card relative rounded-2xl bg-theme-elevated backdrop-blur-xl border border-theme-default p-6 sm:p-8 overflow-hidden shadow-theme-md">
                     {/* Subtle gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 via-transparent to-violet-500/5 pointer-events-none" />
                     
@@ -180,12 +180,12 @@ export const LoginPage = () => {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.3 }}
                         >
-                            <label className="block mb-2 text-sm font-medium text-white/80">
+                            <label className="block mb-2 text-sm font-medium text-theme-secondary">
                                 Email
                             </label>
                             <div className="relative group">
                                 <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${
-                                    focusedField === 'email' ? 'text-primary-400' : 'text-white/40'
+                                    focusedField === 'email' ? 'text-primary-500' : 'text-theme-muted'
                                 }`}>
                                     <FiMail size={18} />
                                 </div>
@@ -197,11 +197,11 @@ export const LoginPage = () => {
                                     onFocus={() => setFocusedField('email')}
                                     onBlur={() => setFocusedField(null)}
                                     placeholder="nome@esempio.it"
-                                    className={`w-full pl-11 pr-4 py-3 rounded-xl bg-dark-300/50 border transition-all duration-200 outline-none
+                                    className={`login-input w-full pl-11 pr-4 py-3 rounded-xl bg-theme-base border transition-all duration-200 outline-none
                                         ${fieldErrors.email 
                                             ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
-                                            : 'border-white/10 focus:border-primary-500/50 focus:ring-2 focus:ring-primary-500/20 hover:border-white/20'
-                                        } text-white placeholder-white/30`}
+                                            : 'border-theme-default focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/20 hover:border-theme-strong'
+                                        } text-theme-primary placeholder:text-theme-muted`}
                                     autoComplete="email"
                                 />
                             </div>
@@ -223,12 +223,12 @@ export const LoginPage = () => {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.4 }}
                         >
-                            <label className="block mb-2 text-sm font-medium text-white/80">
+                            <label className="block mb-2 text-sm font-medium text-theme-secondary">
                                 Password
                             </label>
                             <div className="relative group">
                                 <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${
-                                    focusedField === 'password' ? 'text-primary-400' : 'text-white/40'
+                                    focusedField === 'password' ? 'text-primary-500' : 'text-theme-muted'
                                 }`}>
                                     <FiLock size={18} />
                                 </div>
@@ -240,17 +240,17 @@ export const LoginPage = () => {
                                     onFocus={() => setFocusedField('password')}
                                     onBlur={() => setFocusedField(null)}
                                     placeholder="••••••••"
-                                    className={`w-full pl-11 pr-11 py-3 rounded-xl bg-dark-300/50 border transition-all duration-200 outline-none
+                                    className={`login-input w-full pl-11 pr-11 py-3 rounded-xl bg-theme-base border transition-all duration-200 outline-none
                                         ${fieldErrors.password 
                                             ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
-                                            : 'border-white/10 focus:border-primary-500/50 focus:ring-2 focus:ring-primary-500/20 hover:border-white/20'
-                                        } text-white placeholder-white/30`}
+                                            : 'border-theme-default focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/20 hover:border-theme-strong'
+                                        } text-theme-primary placeholder:text-theme-muted`}
                                     autoComplete="current-password"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-white/40 hover:text-white/70 transition-colors rounded-lg hover:bg-white/5"
+                                    className="login-password-toggle absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-theme-muted hover:text-theme-primary transition-colors rounded-lg hover:bg-theme-surface"
                                 >
                                     {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
                                 </button>
@@ -276,7 +276,7 @@ export const LoginPage = () => {
                         >
                             <Link
                                 to="/forgot-password"
-                                className="text-sm text-primary-400 hover:text-primary-300 transition-colors"
+                                className="text-sm text-primary-600 hover:text-primary-500 transition-colors"
                             >
                                 Password dimenticata?
                             </Link>
@@ -291,7 +291,7 @@ export const LoginPage = () => {
                             transition={{ delay: 0.6 }}
                             whileHover={isLoading ? {} : { scale: 1.01 }}
                             whileTap={isLoading ? {} : { scale: 0.99 }}
-                            className={`relative w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-semibold text-base transition-all overflow-hidden
+                            className={`login-submit-btn keep-light-text relative w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-semibold text-base transition-all overflow-hidden
                                 ${isLoading
                                     ? 'bg-primary-500/50 cursor-not-allowed text-white/70'
                                     : 'bg-primary-600 hover:bg-primary-500 text-white shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40'
@@ -313,16 +313,16 @@ export const LoginPage = () => {
 
                     {/* Divider */}
                     <motion.div 
-                        className="relative my-6"
+                        className="login-divider relative my-6"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.7 }}
                     >
                         <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-white/10" />
+                            <div className="w-full border-t border-theme-default" />
                         </div>
                         <div className="relative flex justify-center">
-                            <span className="px-4 text-xs text-white/40 bg-dark-400/80">oppure</span>
+                            <span className="px-4 text-xs text-theme-muted bg-theme-elevated">oppure</span>
                         </div>
                     </motion.div>
 
@@ -333,11 +333,11 @@ export const LoginPage = () => {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.8 }}
                     >
-                        <p className="text-sm text-white/60">
+                        <p className="text-sm text-theme-secondary">
                             Non hai un account?{' '}
                             <Link
                                 to="/register"
-                                className="text-primary-400 hover:text-primary-300 font-semibold transition-colors"
+                                className="text-primary-600 hover:text-primary-500 font-semibold transition-colors"
                             >
                                 Registrati ora
                             </Link>
@@ -348,15 +348,15 @@ export const LoginPage = () => {
 
             {/* Footer */}
             <motion.p 
-                className="mt-6 text-center text-xs text-white/40"
+                className="mt-6 text-center text-xs text-theme-muted"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.9 }}
             >
                 Accedendo, accetti i{' '}
-                <a href="/terms" className="text-white/60 hover:text-white/80 transition-colors">Termini</a>
+                <a href="/terms" className="text-theme-secondary hover:text-theme-primary transition-colors">Termini</a>
                 {' '}e la{' '}
-                <a href="/privacy" className="text-white/60 hover:text-white/80 transition-colors">Privacy</a>
+                <a href="/privacy" className="text-theme-secondary hover:text-theme-primary transition-colors">Privacy</a>
             </motion.p>
         </div>
     );

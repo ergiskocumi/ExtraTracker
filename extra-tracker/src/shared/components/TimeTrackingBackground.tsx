@@ -108,7 +108,7 @@ const ProgressBar: React.FC<{
   delay: number;
 }> = ({ x, y, width, delay }) => (
   <motion.div
-    className="absolute h-1 rounded-full overflow-hidden bg-white/5"
+    className="time-tracking-progress-track absolute h-1 rounded-full overflow-hidden bg-theme-surface"
     style={{
       left: x,
       top: y,
@@ -140,7 +140,7 @@ const FloatingIcon: React.FC<{
   children: React.ReactNode;
 }> = ({ x, y, delay, children }) => (
   <motion.div
-    className="absolute text-white/10"
+    className="time-tracking-icon absolute text-theme-muted"
     style={{ left: x, top: y }}
     initial={{ opacity: 0, y: 20 }}
     animate={{ 
@@ -194,9 +194,9 @@ export const TimeTrackingBackground: React.FC = () => {
   }, []);
 
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden bg-dark-500">
+    <div className="time-tracking-bg fixed inset-0 -z-10 overflow-hidden bg-theme-base">
       {/* Gradient base */}
-      <div className="absolute inset-0 bg-gradient-to-br from-dark-400 via-dark-500 to-dark-600" />
+      <div className="time-tracking-bg-gradient absolute inset-0" style={{ background: 'var(--gradient-bg)' }} />
       
       {/* Gradient accent */}
       <div 
@@ -212,11 +212,11 @@ export const TimeTrackingBackground: React.FC = () => {
 
       {/* Grid pattern sottile */}
       <div 
-        className="absolute inset-0 opacity-[0.02]"
+        className="time-tracking-grid absolute inset-0 opacity-[0.02]"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(255,255,255,0.5) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255,255,255,0.5) 1px, transparent 1px)
+            linear-gradient(to right, var(--border-default) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--border-default) 1px, transparent 1px)
           `,
           backgroundSize: '60px 60px',
         }}
