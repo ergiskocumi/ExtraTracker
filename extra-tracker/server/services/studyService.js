@@ -36,6 +36,7 @@ const MAX_TUTOR_CONTEXT_LENGTH = 50000;
 const MAX_TUTOR_MESSAGE_LENGTH = 2000;
 const MAX_TUTOR_HISTORY_MESSAGES = 12;
 const MAX_TUTOR_HISTORY_MESSAGE_LENGTH = 1000;
+const PDF_UPLOADS_DIR = path.join(__dirname, '..', 'uploads', 'pdfs');
 const QUIZ_FALLBACK_OPTIONS = [
     'Nessuna delle precedenti',
     'Altro',
@@ -479,6 +480,8 @@ class StudyService extends BaseService {
             throw AppError.notFound('Mazzo');
         }
 
+        await this._ensureDeckPdfUrlIntegrity(deck);
+
         return deck.toJSON();
     }
 
@@ -507,6 +510,8 @@ class StudyService extends BaseService {
         if (!deck) {
             throw AppError.notFound('Mazzo');
         }
+
+        await this._ensureDeckPdfUrlIntegrity(deck);
 
         const deckJson = deck.toJSON();
         const cards = Array.isArray(deckJson.cards) ? deckJson.cards : [];
@@ -956,10 +961,7 @@ class StudyService extends BaseService {
             throw AppError.validation('Path PDF non valido');
         }
 
-        const pdfFileName = path.basename(pdfFilePath);
-        const pdfUrl = `/uploads/pdfs/${pdfFileName}`;
-        deck.pdfUrl = pdfUrl;
-        await deck.save({ validateModifiedOnly: true });
+        const nextPdfUrl = `/uploads/pdfs/${path.basename(pdfFilePath)}`;
 
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'analyzing', message: 'Analisi documento...' });
 
@@ -986,6 +988,7 @@ class StudyService extends BaseService {
         }
 
         const normalizedText = this._normalizeExtractedText(pdfText);
+        deck.pdfUrl = nextPdfUrl;
         deck.extractedText = this._truncateText(normalizedText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
         await deck.save({ validateModifiedOnly: true });
 
@@ -2561,10 +2564,10 @@ Genera una risposta per OGNI domanda nella lista.`;
         // Salva anche il testo estratto del materiale di studio
         deck.extractedText = this._truncateText(normalizedSourceText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
         
-        // Salva il PDF del materiale se non esiste già
-        if (!deck.pdfUrl) {
-            const sourceFileName = path.basename(sourceFilePath);
-            deck.pdfUrl = `/uploads/pdfs/${sourceFileName}`;
+        // Salva/ripara il PDF del materiale se manca o è diventato non valido
+        const hasValidDeckPdf = await this._isDeckPdfUrlValid(deck.pdfUrl);
+        if (!hasValidDeckPdf) {
+            deck.pdfUrl = `/uploads/pdfs/${path.basename(sourceFilePath)}`;
         }
 
         await deck.save();
@@ -2904,10 +2907,10 @@ Genera una risposta per OGNI domanda nella lista.`;
         // Salva anche il testo estratto del materiale di studio
         deck.extractedText = this._truncateText(normalizedSourceText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
         
-        // Salva il PDF del materiale se non esiste già
-        if (!deck.pdfUrl) {
-            const sourceFileName = path.basename(sourceFilePath);
-            deck.pdfUrl = `/uploads/pdfs/${sourceFileName}`;
+        // Salva/ripara il PDF del materiale se manca o è diventato non valido
+        const hasValidDeckPdf = await this._isDeckPdfUrlValid(deck.pdfUrl);
+        if (!hasValidDeckPdf) {
+            deck.pdfUrl = `/uploads/pdfs/${path.basename(sourceFilePath)}`;
         }
 
         await deck.save();
@@ -2981,6 +2984,101 @@ Genera una risposta per OGNI domanda nella lista.`;
     // =========================================
     // PRIVATE HELPERS
     // =========================================
+
+    _resolveDeckId(deck) {
+        if (!deck) return '';
+        if (deck._id) return String(deck._id);
+        if (deck.id) return String(deck.id);
+        return '';
+    }
+
+    _resolvePdfAbsolutePath(pdfUrl) {
+        if (!pdfUrl || typeof pdfUrl !== 'string') return null;
+        const fileName = path.basename(pdfUrl.trim());
+        if (!fileName || !fileName.toLowerCase().endsWith('.pdf')) return null;
+        return path.join(PDF_UPLOADS_DIR, fileName);
+    }
+
+    async _fileExists(filePath) {
+        if (!filePath || typeof filePath !== 'string') return false;
+        try {
+            await fs.access(filePath);
+            return true;
+        } catch (_err) {
+            return false;
+        }
+    }
+
+    async _isDeckPdfUrlValid(pdfUrl) {
+        const absolutePath = this._resolvePdfAbsolutePath(pdfUrl);
+        if (!absolutePath) return false;
+        return this._fileExists(absolutePath);
+    }
+
+    _extractDeckPdfTimestamp(fileName, deckId) {
+        if (!fileName || !deckId) return 0;
+        const prefix = `${deckId}-`;
+        if (!fileName.startsWith(prefix) || !fileName.toLowerCase().endsWith('.pdf')) {
+            return 0;
+        }
+        const timestampPart = fileName.slice(prefix.length, -4);
+        const parsed = Number(timestampPart);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    async _findLatestDeckPdfUrl(deckId) {
+        if (!deckId) return null;
+
+        let files = [];
+        try {
+            files = await fs.readdir(PDF_UPLOADS_DIR);
+        } catch (err) {
+            console.warn('[StudyService] Impossibile leggere directory PDF uploads:', err.message);
+            return null;
+        }
+
+        const prefix = `${deckId}-`;
+        const candidates = files.filter((fileName) => (
+            fileName.startsWith(prefix) && fileName.toLowerCase().endsWith('.pdf')
+        ));
+
+        if (candidates.length === 0) return null;
+
+        candidates.sort((a, b) => {
+            const tsA = this._extractDeckPdfTimestamp(a, deckId);
+            const tsB = this._extractDeckPdfTimestamp(b, deckId);
+            if (tsA !== tsB) return tsB - tsA;
+            return b.localeCompare(a);
+        });
+
+        return `/uploads/pdfs/${candidates[0]}`;
+    }
+
+    async _ensureDeckPdfUrlIntegrity(deck) {
+        if (!deck) return false;
+
+        const currentPdfUrl = typeof deck.pdfUrl === 'string' ? deck.pdfUrl.trim() : '';
+        if (!currentPdfUrl) return false;
+
+        const hasCurrentPdf = await this._isDeckPdfUrlValid(currentPdfUrl);
+        if (hasCurrentPdf) return false;
+
+        const deckId = this._resolveDeckId(deck);
+        const recoveredPdfUrl = await this._findLatestDeckPdfUrl(deckId);
+        const nextPdfUrl = recoveredPdfUrl || '';
+        if (nextPdfUrl === currentPdfUrl) return false;
+
+        deck.pdfUrl = nextPdfUrl;
+        await deck.save({ validateModifiedOnly: true });
+
+        console.warn('[StudyService] Riparato pdfUrl non valido', {
+            deckId,
+            previousPdfUrl: currentPdfUrl,
+            recoveredPdfUrl: nextPdfUrl || null,
+        });
+
+        return true;
+    }
 
     async _validateExamOwnership(tenantScope, examId) {
         const userId = this._getUserId(tenantScope);
