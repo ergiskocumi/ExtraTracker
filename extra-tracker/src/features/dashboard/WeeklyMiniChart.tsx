@@ -49,16 +49,16 @@ export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-primary-500/20 flex items-center justify-center">
-                        <FiTrendingUp className="text-primary-400" size={16} />
+                        <FiTrendingUp className="text-primary-700 dark:text-primary-400" size={16} />
                     </div>
                     <div>
                         <h3 className="font-semibold text-theme-primary">Ultimi 7 Giorni</h3>
-                        <p className="text-xs text-theme-muted">Andamento ore lavorate</p>
+                        <p className="text-xs text-theme-secondary">Andamento ore lavorate</p>
                     </div>
                 </div>
                 <div className="text-right">
                     <p className="text-lg font-bold text-theme-primary">{totalWeekHours.toFixed(1)}h</p>
-                    <p className="text-xs text-theme-muted">totale</p>
+                    <p className="text-xs text-theme-secondary">totale</p>
                 </div>
             </div>
 
@@ -74,12 +74,12 @@ export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
                                 initial={{ height: 0 }}
                                 animate={{ height: `${heightPercent}%` }}
                                 transition={{ delay: 0.3 + index * 0.05, duration: 0.5 }}
-                                className={`w-full rounded-t-lg relative group cursor-pointer ${
+                                className={`dashboard-chart-bar w-full rounded-t-lg relative group cursor-pointer ${
                                     isToday
-                                        ? 'bg-gradient-to-t from-primary-500 to-primary-400'
+                                        ? 'dashboard-chart-bar--today bg-gradient-to-t from-primary-600 to-primary-400'
                                         : day.hours > 0
-                                            ? 'bg-gradient-to-t from-primary-500/30 to-primary-400/40'
-                                            : 'bg-theme-surface'
+                                            ? 'dashboard-chart-bar--value bg-gradient-to-t from-primary-500/45 to-primary-400/60'
+                                            : 'dashboard-chart-bar--empty bg-theme-surface'
                                 }`}
                                 style={{ minHeight: day.hours > 0 ? '8px' : '4px' }}
                             >
@@ -99,8 +99,8 @@ export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
                     const isToday = index === 6;
                     return (
                         <div key={day.date} className="flex-1 text-center">
-                            <p className={`text-xs capitalize ${
-                                isToday ? 'text-primary-500 font-semibold' : 'text-theme-muted'
+                            <p className={`dashboard-chart-day-label text-xs capitalize ${
+                                isToday ? 'text-primary-700 dark:text-primary-400 font-semibold' : 'text-theme-secondary'
                             }`}>
                                 {day.dayName}
                             </p>
@@ -112,7 +112,7 @@ export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
             {/* Average Line Indicator */}
             <div className="mt-4 pt-3 border-t border-theme-default">
                 <div className="flex items-center justify-between">
-                    <span className="text-xs text-theme-muted">Media giornaliera</span>
+                    <span className="text-xs text-theme-secondary">Media giornaliera</span>
                     <span className="text-sm font-semibold text-theme-primary">{avgDailyHours.toFixed(1)}h</span>
                 </div>
             </div>
