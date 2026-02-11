@@ -10,11 +10,11 @@ const PDFReaderLazy = lazy(() => import('./PDFReader')) as React.LazyExoticCompo
 
 const PDFReaderFallback: React.FC<{ className?: string }> = ({ className }) => (
     <div
-        className={`flex h-full w-full items-center justify-center bg-zinc-950/40 ${className ?? ''}`.trim()}
+        className={`flex h-full w-full items-center justify-center bg-theme-elevated text-theme-secondary ${className ?? ''}`.trim()}
         aria-busy="true"
         aria-live="polite"
     >
-        <div className="text-xs text-white/60">Caricamento PDF...</div>
+        <div className="text-xs text-theme-secondary">Caricamento PDF...</div>
     </div>
 );
 

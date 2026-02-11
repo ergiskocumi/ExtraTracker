@@ -1,0 +1,130 @@
+.pdf-reader-shell {
+    border: 1px solid var(--border-default);
+    border-radius: 1rem;
+    overflow: hidden;
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-sm);
+}
+
+.pdf-reader-dark {
+    --pdf-viewer-bg: #0f1220;
+    --pdf-page-bg: #0b0f19;
+    --pdf-toolbar-bg: rgba(15, 18, 32, 0.94);
+    --pdf-sidebar-bg: rgba(15, 18, 32, 0.98);
+    --pdf-border: rgba(255, 255, 255, 0.12);
+    --pdf-text: rgba(255, 255, 255, 0.92);
+    --pdf-text-muted: rgba(255, 255, 255, 0.68);
+    --pdf-button-hover: rgba(255, 255, 255, 0.09);
+}
+
+.pdf-reader-light {
+    --pdf-viewer-bg: #f8fafc;
+    --pdf-page-bg: #edf2f8;
+    --pdf-toolbar-bg: rgba(255, 255, 255, 0.96);
+    --pdf-sidebar-bg: rgba(255, 255, 255, 0.98);
+    --pdf-border: rgba(15, 23, 42, 0.14);
+    --pdf-text: #1e293b;
+    --pdf-text-muted: #475569;
+    --pdf-button-hover: rgba(15, 23, 42, 0.06);
+}
+
+.pdf-reader-shell .rpv-core__viewer,
+.pdf-reader-shell .rpv-core__inner-pages {
+    background-color: var(--pdf-viewer-bg) !important;
+    color: var(--pdf-text) !important;
+}
+
+.pdf-reader-shell .rpv-core__page-layer {
+    background-color: var(--pdf-page-bg) !important;
+    transition: background-color 0.12s ease;
+}
+
+.pdf-reader-shell .rpv-default-layout__toolbar {
+    background: var(--pdf-toolbar-bg) !important;
+    border-bottom: 1px solid var(--pdf-border) !important;
+    color: var(--pdf-text) !important;
+}
+
+.pdf-reader-shell .rpv-default-layout__toolbar button,
+.pdf-reader-shell .rpv-default-layout__toolbar .rpv-core__minimal-button,
+.pdf-reader-shell .rpv-default-layout__toolbar .rpv-core__button {
+    color: var(--pdf-text) !important;
+}
+
+.pdf-reader-shell .rpv-default-layout__toolbar button:hover,
+.pdf-reader-shell .rpv-default-layout__toolbar .rpv-core__minimal-button:hover,
+.pdf-reader-shell .rpv-default-layout__toolbar .rpv-core__button:hover {
+    background-color: var(--pdf-button-hover) !important;
+}
+
+.pdf-reader-shell .rpv-core__icon,
+.pdf-reader-shell .rpv-core__icon svg {
+    color: var(--pdf-text) !important;
+    fill: currentColor !important;
+    stroke: currentColor !important;
+}
+
+.pdf-reader-shell .rpv-default-layout__sidebar,
+.pdf-reader-shell .rpv-default-layout__sidebar-tabs {
+    background: var(--pdf-sidebar-bg) !important;
+    border-right: 1px solid var(--pdf-border) !important;
+}
+
+.pdf-reader-shell .rpv-default-layout__sidebar-tab,
+.pdf-reader-shell .rpv-default-layout__sidebar-tab button {
+    color: var(--pdf-text-muted) !important;
+}
+
+.pdf-reader-shell .rpv-default-layout__sidebar-tab--active {
+    background: rgba(139, 92, 246, 0.14) !important;
+}
+
+.pdf-reader-shell .rpv-default-layout__toolbar .rpv-core__textbox,
+.pdf-reader-shell .rpv-default-layout__toolbar input,
+.pdf-reader-shell .rpv-default-layout__toolbar select {
+    background: var(--pdf-viewer-bg) !important;
+    border: 1px solid var(--pdf-border) !important;
+    color: var(--pdf-text) !important;
+    border-radius: 0.55rem !important;
+}
+
+.pdf-reader-shell .rpv-default-layout__toolbar input::placeholder {
+    color: var(--pdf-text-muted) !important;
+}
+
+.pdf-reader-shell .rpv-menu__body,
+.pdf-reader-shell .rpv-menu,
+.pdf-reader-shell .rpv-popup__body {
+    background: var(--pdf-sidebar-bg) !important;
+    border: 1px solid var(--pdf-border) !important;
+    color: var(--pdf-text) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.pdf-reader-shell .rpv-menu__item,
+.pdf-reader-shell .rpv-menu__item-label {
+    color: var(--pdf-text) !important;
+}
+
+.pdf-reader-shell .rpv-menu__item:hover {
+    background: var(--pdf-button-hover) !important;
+}
+
+.pdf-reader-shell .rpv-menu__separator {
+    border-color: var(--pdf-border) !important;
+}
+
+.pdf-reader-shell .rpv-search__highlight {
+    background-color: rgba(139, 92, 246, 0.45) !important;
+    border-radius: 2px !important;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.28) !important;
+}
+
+.pdf-reader-shell .rpv-search__highlight--current {
+    background-color: rgba(139, 92, 246, 0.72) !important;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.45), 0 3px 10px rgba(139, 92, 246, 0.28) !important;
+}
+
+.pdf-reader-shell .rpv-search__highlights > div {
+    background-color: rgba(139, 92, 246, 0.42) !important;
+}
