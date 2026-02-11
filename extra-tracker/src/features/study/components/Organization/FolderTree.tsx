@@ -34,6 +34,7 @@ import {
 import { foldersService, type Folder as FolderType } from '../../services/foldersService';
 import { emitToast } from '../../../../shared/components/toast';
 import { getFolderTheme } from '../../utils/folderTheme';
+import { studyOrgButtonClass } from '../utils/studyButtonClasses';
 
 interface FolderStats {
     totalCards: number;
@@ -266,7 +267,10 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                     e.stopPropagation();
                                     onToggle();
                                 }}
-                                className="study-org-btn study-org-btn--icon w-4 h-4 rounded-sm flex items-center justify-center mr-2 flex-shrink-0"
+                                className={studyOrgButtonClass(
+                                    'icon',
+                                    'w-4 h-4 rounded-sm flex items-center justify-center mr-2 flex-shrink-0'
+                                )}
                             >
                                 {isExpanded ? (
                                     <ChevronDown className="w-3 h-3" />
@@ -357,7 +361,10 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                 e.stopPropagation();
                                 setShowMenu(!showMenu);
                             }}
-                            className="study-org-btn study-org-btn--icon opacity-0 group-hover:opacity-100 p-1 rounded transition-all"
+                            className={studyOrgButtonClass(
+                                'icon',
+                                'opacity-0 group-hover:opacity-100 p-1 rounded transition-all'
+                            )}
                         >
                             <MoreVertical className="w-3.5 h-3.5" />
                         </button>
@@ -419,7 +426,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                         e.stopPropagation();
                                         handleStartRename();
                                     }}
-                                    className="study-org-btn study-org-btn--menu w-full flex items-center gap-2 px-4 py-2 text-sm"
+                                    className={studyOrgButtonClass('menu', 'w-full flex items-center gap-2 px-4 py-2 text-sm')}
                                 >
                                     <Edit2 className="w-4 h-4" />
                                     Rinomina
@@ -430,7 +437,10 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                         handleDelete();
                                     }}
                                     disabled={isDeleting}
-                                    className="study-org-btn study-org-btn--menu study-org-btn--menu-danger w-full flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-50"
+                                    className={studyOrgButtonClass(
+                                        'menuDanger',
+                                        'w-full flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-50'
+                                    )}
                                 >
                                     <Trash2 className="w-4 h-4" />
                                     Elimina

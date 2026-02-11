@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Tag as TagIcon, Plus, X } from 'lucide-react';
 import { tagsService, type Tag } from '../../services/tagsService';
 import { emitToast } from '../../../../shared/components/toast';
+import { classList, studyOrgButtonClass } from '../utils/studyButtonClasses';
 
 interface TagCloudProps {
     tags: Tag[];
@@ -65,7 +66,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                         whileHover={{ scale: 1.1, rotate: 90 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => setIsCreating(true)}
-                        className="study-org-btn study-org-btn--create p-1.5 rounded-full"
+                        className={studyOrgButtonClass('create', 'p-1.5 rounded-full')}
                     >
                         <Plus className="w-3.5 h-3.5" />
                     </motion.button>
@@ -105,10 +106,10 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                                         whileHover={{ scale: 1.15 }}
                                         whileTap={{ scale: 0.9 }}
                                         onClick={() => setNewTagColor(color)}
-                                        className={`
-                                            study-org-btn study-org-color-chip w-6 h-6 rounded-full border-2 transition-all
-                                            ${newTagColor === color ? 'study-org-color-chip--selected scale-110' : ''}
-                                        `}
+                                        className={classList(
+                                            studyOrgButtonClass('base', 'study-org-color-chip w-6 h-6 rounded-full border-2 transition-all'),
+                                            newTagColor === color && 'study-org-color-chip--selected scale-110'
+                                        )}
                                         style={{ backgroundColor: color }}
                                     />
                                 ))}
@@ -123,7 +124,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleCreateTag}
-                                className="study-org-btn study-org-btn--create flex-1 px-3 py-1.5 text-xs font-medium rounded-lg"
+                                className={studyOrgButtonClass('create', 'flex-1 px-3 py-1.5 text-xs font-medium rounded-lg')}
                             >
                                 Crea
                             </button>
@@ -132,7 +133,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                                     setIsCreating(false);
                                     setNewTagName('');
                                 }}
-                                className="study-org-btn study-org-btn--cancel px-3 py-1.5 text-xs font-medium rounded-lg"
+                                className={studyOrgButtonClass('cancel', 'px-3 py-1.5 text-xs font-medium rounded-lg')}
                             >
                                 Annulla
                             </button>
@@ -153,7 +154,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                         <p className="text-xs text-white/40 mb-2">Nessun tag ancora</p>
                         <button
                             onClick={() => setIsCreating(true)}
-                            className="study-org-btn study-org-btn--text text-xs"
+                            className={studyOrgButtonClass('text', 'text-xs')}
                         >
                             Crea il tuo primo tag →
                         </button>
@@ -167,14 +168,10 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                                 whileHover={{ x: 4 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={() => onTagToggle(tag.name)}
-                                className={`
-                                    study-org-btn w-full flex items-center gap-2 px-3 py-2 rounded-lg
-                                    transition-all duration-200 touch-manipulation min-h-[40px]
-                                    ${isSelected
-                                        ? 'study-org-btn--tag-selected'
-                                        : 'study-org-btn--tag'
-                                    }
-                                `}
+                                className={studyOrgButtonClass(
+                                    isSelected ? 'tagSelected' : 'tag',
+                                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 touch-manipulation min-h-[40px]'
+                                )}
                             >
                                 <motion.div
                                     whileHover={{ scale: 1.1 }}
