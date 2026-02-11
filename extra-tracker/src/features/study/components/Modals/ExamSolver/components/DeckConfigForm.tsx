@@ -5,7 +5,7 @@
 import { motion } from 'framer-motion';
 import { Plus, FileText, AlertCircle, Sparkles, Loader2 } from 'lucide-react';
 import type { DeckConfigFormProps } from '../ExamSolverModal.types';
-import { examSolverButtonClass } from '../../../utils/studyButtonClasses';
+import { examSolverButtonClass, examSolverFieldClass } from '../../../utils/studyButtonClasses';
 
 // ============================================
 // COMPONENT
@@ -84,7 +84,7 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                                 value={deckTitle}
                                 onChange={(e) => setDeckTitle(e.target.value)}
                                 placeholder="Es: Esame Matematica - Domande e Risposte"
-                                className="w-full px-4 py-3 rounded-xl bg-zinc-900/60 border border-white/10 text-white placeholder-white/30 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                                className={examSolverFieldClass('default', 'w-full px-4 py-3 rounded-xl')}
                             />
                         </div>
                         
@@ -93,7 +93,7 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                                 Esame associato
                             </label>
                             {isLoadingExams ? (
-                                <div className="px-4 py-3 rounded-xl bg-zinc-900/60 border border-white/10 flex items-center gap-2">
+                                <div className={examSolverFieldClass('default', 'px-4 py-3 rounded-xl flex items-center gap-2')}>
                                     <Loader2 className="w-4 h-4 text-white/60 animate-spin" />
                                     <span className="text-sm text-white/60">Caricamento esami...</span>
                                 </div>
@@ -101,7 +101,7 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                                 <select
                                     value={selectedExamId}
                                     onChange={(e) => setSelectedExamId(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl bg-zinc-900/60 border border-white/10 text-white focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                                    className={examSolverFieldClass('default', 'w-full px-4 py-3 rounded-xl')}
                                 >
                                     <option value="">Seleziona un esame...</option>
                                     {exams.map((exam) => (
@@ -133,7 +133,7 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                         <select
                             value={selectedDeckId}
                             onChange={(e) => setSelectedDeckId(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl bg-zinc-900/60 border border-white/10 text-white focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                            className={examSolverFieldClass('default', 'w-full px-4 py-3 rounded-xl')}
                         >
                             <option value="">Seleziona un mazzo...</option>
                             {existingDecks.map((deck) => (

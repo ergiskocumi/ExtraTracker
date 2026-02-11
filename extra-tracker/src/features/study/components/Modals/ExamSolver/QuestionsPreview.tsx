@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, Square, Search, AlertCircle, RotateCcw } from 'lucide-react';
 import { QuestionsSkeleton } from './QuestionsSkeleton';
 import type { QuestionsPreviewProps } from './ExamSolverModal.types';
-import { examSolverButtonClass } from '../../utils/studyButtonClasses';
+import { examSolverBadgeClass, examSolverButtonClass, examSolverFieldClass } from '../../utils/studyButtonClasses';
 
 // Re-export for convenience
 export type { QuestionsPreviewProps };
@@ -335,11 +335,9 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                         <motion.div
                             initial={{ scale: 0.9 }}
                             animate={{ scale: 1 }}
-                            className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/30"
+                            className={examSolverBadgeClass('warning', 'px-4 py-2 rounded-xl text-sm font-semibold')}
                         >
-                            <span className="text-sm font-semibold text-amber-300">
-                                {filteredSelectedCount} di {filteredQuestions.length} selezionate
-                            </span>
+                            <span>{filteredSelectedCount} di {filteredQuestions.length} selezionate</span>
                         </motion.div>
                     </div>
                 </div>
@@ -353,7 +351,7 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Cerca domande..."
-                            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900/60 border border-white/10 text-white placeholder-white/30 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all text-sm"
+                            className={examSolverFieldClass('compact', 'w-full pl-10 pr-4 py-2.5 rounded-xl text-sm')}
                         />
                     </div>
                     <div className="flex items-center gap-2">
@@ -443,8 +441,8 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                                 {groupedQuestions.map((group, groupIdx) => (
                                     <div key={`group-${groupIdx}`} className="space-y-2">
                                         {group.questions.length > 1 && (
-                                            <div className="px-3 py-1.5 rounded-lg bg-zinc-800/40 border border-white/5">
-                                                <p className="text-xs font-medium text-white/60">
+                                            <div className={examSolverBadgeClass('neutral', 'px-3 py-1.5 rounded-lg text-xs font-medium')}>
+                                                <p>
                                                     {group.questions.length} domande simili
                                                 </p>
                                             </div>

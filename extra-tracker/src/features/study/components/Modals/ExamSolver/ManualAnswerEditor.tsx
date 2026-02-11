@@ -11,7 +11,7 @@ import { Save, Search, Check, Loader2, AlertCircle } from 'lucide-react';
 import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
 import type { ManualAnswerEditorProps, FlashcardWithId } from './ExamSolverModal.types';
-import { examSolverButtonClass } from '../../utils/studyButtonClasses';
+import { classList, examSolverButtonClass, examSolverFieldClass } from '../../utils/studyButtonClasses';
 
 // Re-export for convenience
 export type { ManualAnswerEditorProps, FlashcardWithId };
@@ -249,14 +249,10 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                                     placeholder="Inserisci la risposta manualmente..."
                                     rows={4}
                                     maxLength={1000}
-                                    className={`
-                                        w-full px-4 py-3 rounded-xl bg-zinc-950/60 border text-white placeholder-white/30
-                                        focus:outline-none focus:ring-2 transition-all resize-none
-                                        ${validation.valid || answer.length === 0
-                                            ? 'border-white/10 focus:border-amber-500/50 focus:ring-amber-500/20'
-                                            : 'border-amber-500/50 focus:border-amber-500 focus:ring-amber-500/30'
-                                        }
-                                    `}
+                                    className={classList(
+                                        examSolverFieldClass('textarea', 'w-full px-4 py-3 rounded-xl resize-none'),
+                                        !validation.valid && answer.length > 0 && 'border-amber-500/55'
+                                    )}
                                 />
                                 {!validation.valid && answer.length > 0 && (
                                     <p className="text-xs text-amber-400 flex items-center gap-1">
