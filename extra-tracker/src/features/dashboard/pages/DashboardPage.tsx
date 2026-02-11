@@ -114,7 +114,7 @@ export const DashboardPage = () => {
     };
 
     return (
-        <div className="dashboard-page space-y-8">
+        <div className="dashboard-page space-y-6 md:space-y-8">
             {/* Ambient Glow Background - Subtle, theme-aware via CSS variables */}
             <div className="fixed top-0 left-0 right-0 h-[500px] pointer-events-none z-[-1] opacity-40">
                 <div 
@@ -129,7 +129,7 @@ export const DashboardPage = () => {
 
             {/* Welcome Section */}
             <section className="dashboard-greeting space-y-2 relative" data-tutorial="greeting">
-                <h1 className="text-4xl md:text-5xl font-bold text-theme-primary tracking-tight leading-snug pb-1">
+                <h1 className="dashboard-hero-title text-3xl sm:text-4xl md:text-5xl font-bold text-theme-primary tracking-tight leading-snug pb-1">
                     <span className="opacity-90">{getGreeting()},</span>{' '}
                     <button
                         type="button"
@@ -141,25 +141,25 @@ export const DashboardPage = () => {
                     </button>
                     .
                 </h1>
-                <p className="dashboard-greeting-subtitle text-theme-secondary text-xl md:text-2xl font-light tracking-wide max-w-2xl">
+                <p className="dashboard-greeting-subtitle dashboard-caption-text text-theme-secondary text-lg sm:text-xl md:text-2xl font-light tracking-wide max-w-2xl">
                     Pronto a concentrarti? Ecco cosa c'è in programma oggi.
                 </p>
             </section>
 
             {/* Recent decks - Card Vivaci & Glass */}
             <section
-                className="dashboard-panel dashboard-panel--recent relative rounded-3xl backdrop-blur-md p-6 sm:p-8 overflow-hidden group/section border border-theme-default bg-theme-surface shadow-theme-md"
+                className="dashboard-panel dashboard-panel--recent relative rounded-3xl backdrop-blur-md p-5 sm:p-8 overflow-hidden group/section border border-theme-default bg-theme-surface shadow-theme-md"
                 data-tutorial="recent-decks"
             >
                 {/* Subtle gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent opacity-50 pointer-events-none rounded-3xl" />
                 
-                <h2 className="dashboard-section-title relative mb-6 text-sm font-bold uppercase tracking-widest text-theme-muted flex items-center gap-2">
+                <h2 className="dashboard-section-title dashboard-meta-text relative mb-5 sm:mb-6 text-sm font-bold uppercase tracking-widest text-theme-muted flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(52,211,153,0.5)]"></span>
                     Attività Recenti
                 </h2>
                 
-                <div className="relative grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="relative grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
                     {recentDecks.map((deck) => {
                         const examTitle = getExamTitleForDeck(deck);
                         const hasDueCards = deck.dueCount > 0;
@@ -167,38 +167,38 @@ export const DashboardPage = () => {
                         return (
                             <div
                                 key={deck.id}
-                                className="dashboard-deck-card group relative flex flex-col justify-between min-h-[180px] p-6 rounded-2xl border border-theme-default bg-theme-card hover:bg-theme-surface transition-all duration-300 hover:-translate-y-1 hover:shadow-theme-lg hover:border-theme-strong overflow-hidden"
+                                className="dashboard-deck-card group relative flex flex-col justify-between min-h-[172px] sm:min-h-[180px] p-5 sm:p-6 rounded-2xl border border-theme-default bg-theme-card hover:bg-theme-surface transition-all duration-300 hover:-translate-y-1 hover:shadow-theme-lg hover:border-theme-strong overflow-hidden"
                             >
                                 {/* Decorative gradient blob on hover */}
                                 <div className="absolute -top-10 -right-10 w-20 h-20 bg-primary-500/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                                 <div className="relative z-10">
                                     <div className="flex justify-between items-start gap-2">
-                                        <h3 className="text-xl font-bold text-theme-primary group-hover:text-primary-500 transition-colors truncate">
+                                        <h3 className="dashboard-deck-title text-lg sm:text-xl font-bold text-theme-primary group-hover:text-primary-500 transition-colors truncate">
                                             {deck.title}
                                         </h3>
                                         {/* Badge da ripassare */}
                                         {hasDueCards && (
-                                            <span className="dashboard-due-badge shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30">
+                                            <span className="dashboard-due-badge dashboard-badge-label shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30">
                                                 {deck.dueCount} da fare
                                             </span>
                                         )}
                                     </div>
                                     
                                     {examTitle && (
-                                        <div className="dashboard-deck-exam-pill mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-theme-surface border border-theme-default text-theme-secondary">
+                                        <div className="dashboard-deck-exam-pill dashboard-meta-text mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-theme-surface border border-theme-default text-theme-secondary">
                                             {examTitle}
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="relative z-10 mt-6 flex justify-center">
+                                <div className="relative z-10 mt-5 sm:mt-6 flex justify-center">
                                     <button
                                         type="button"
                                         onClick={() => navigate(`/study/${deck.id}/session?mode=flashcard`)}
                                         onMouseEnter={pagePreloaders.studySession}
                                         onFocus={pagePreloaders.studySession}
-                                        className={`dashboard-card-cta w-full py-3 px-4 rounded-xl text-sm font-semibold tracking-wide transition-all duration-300 border
+                                        className={`dashboard-card-cta w-full py-2.5 sm:py-3 px-4 rounded-xl text-sm font-semibold tracking-wide transition-all duration-300 border
                                                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent
                                                  ${hasDueCards ? 'dashboard-card-cta--accent' : 'dashboard-card-cta--quiet'}
                                                  ${hasDueCards
@@ -214,7 +214,7 @@ export const DashboardPage = () => {
                     })}
                     {!isLoading && recentDecks.length === 0 && (
                         <div className="dashboard-empty-state col-span-full py-10 text-center rounded-2xl border border-dashed border-theme-default bg-theme-surface">
-                            <p className="text-theme-muted font-light">Nessun mazzo recente. Inizia a studiare!</p>
+                            <p className="dashboard-caption-text text-theme-muted font-light">Nessun mazzo recente. Inizia a studiare!</p>
                             <button 
                                 onClick={() => navigate('/study')}
                                 className="dashboard-empty-cta mt-4 text-sm text-primary-600 hover:text-primary-500 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2"
@@ -227,22 +227,22 @@ export const DashboardPage = () => {
             </section>
 
             {/* Bottom Section: Exams & Motivation */}
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
                 {/* Prossimi Esami - Focus & Urgency */}
                 <div
-                    className="dashboard-panel dashboard-panel--exams relative rounded-3xl backdrop-blur-md p-6 sm:p-8 transition-all duration-300 border border-theme-default bg-theme-surface shadow-theme-md hover:border-theme-strong"
+                    className="dashboard-panel dashboard-panel--exams relative rounded-3xl backdrop-blur-md p-5 sm:p-8 transition-all duration-300 border border-theme-default bg-theme-surface shadow-theme-md hover:border-theme-strong"
                     data-tutorial="upcoming-exams"
                 >
                     <div className="absolute inset-0 bg-gradient-to-bl from-orange-500/5 to-transparent opacity-30 pointer-events-none rounded-3xl" />
 
-                    <h2 className="dashboard-section-title relative mb-6 flex items-center gap-3 text-sm font-bold uppercase tracking-widest text-theme-muted">
+                    <h2 className="dashboard-section-title dashboard-meta-text relative mb-5 sm:mb-6 flex items-center gap-3 text-sm font-bold uppercase tracking-widest text-theme-muted">
                         <div className="p-1.5 rounded-lg bg-theme-surface border border-theme-default text-primary-500">
                             <TargetIcon size={16} />
                         </div>
                         Prossimi Esami
                     </h2>
 
-                    <div className="relative space-y-3">
+                    <div className="relative space-y-2.5 sm:space-y-3">
                         {upcomingExams.map((exam) => {
                             const days = getDaysRemaining(exam.deadline);
                             const urgencyTone = getUrgencyTone(days);
@@ -250,11 +250,11 @@ export const DashboardPage = () => {
                             return (
                                 <div
                                     key={exam.id}
-                                    className="dashboard-exam-row group flex items-center gap-4 rounded-2xl border border-theme-subtle bg-theme-card p-4 transition-all hover:bg-theme-surface hover:border-theme-default hover:shadow-theme-md"
+                                    className="dashboard-exam-row group flex items-center gap-3 sm:gap-4 rounded-2xl border border-theme-subtle bg-theme-card p-3.5 sm:p-4 transition-all hover:bg-theme-surface hover:border-theme-default hover:shadow-theme-md"
                                 >
                                     {/* Days Badge - Dynamic Color */}
                                     <div className={`dashboard-exam-days h-12 w-12 rounded-2xl flex flex-col items-center justify-center border shadow-sm transition-transform group-hover:scale-105 ${urgencyTone}`}>
-                                        <span className="text-lg font-bold leading-none">{days}</span>
+                                        <span className="dashboard-exam-days-value text-lg font-bold leading-none">{days}</span>
                                         <span className="dashboard-exam-days-unit text-[9px] font-semibold uppercase">gg</span>
                                     </div>
                                     
@@ -263,7 +263,7 @@ export const DashboardPage = () => {
                                             <h4 className="dashboard-exam-title text-theme-primary font-semibold truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                                                 {exam.title}
                                             </h4>
-                                            <span className="dashboard-exam-date text-xs text-theme-secondary font-mono">
+                                            <span className="dashboard-exam-date dashboard-meta-text text-xs text-theme-secondary font-mono">
                                                 {formatDate(exam.deadline)}
                                             </span>
                                         </div>
@@ -275,7 +275,7 @@ export const DashboardPage = () => {
                                                     style={{ width: `${Math.max(10, 100 - (days * 2))}%` }} 
                                                 />
                                             </div>
-                                            <span className="dashboard-exam-meta text-xs text-theme-secondary font-medium whitespace-nowrap">
+                                            <span className="dashboard-exam-meta dashboard-meta-text text-xs text-theme-secondary font-medium whitespace-nowrap">
                                                 {days === 0 ? 'Oggi!' : `mancano ${days} gg`}
                                             </span>
                                         </div>
@@ -284,7 +284,7 @@ export const DashboardPage = () => {
                             );
                         })}
                         {!isLoading && upcomingExams.length === 0 && (
-                            <p className="text-theme-muted text-center py-4 font-light">Tutto tranquillo! Nessun esame in vista.</p>
+                            <p className="dashboard-caption-text text-theme-muted text-center py-4 font-light">Tutto tranquillo! Nessun esame in vista.</p>
                         )}
                     </div>
                 </div>
@@ -294,7 +294,7 @@ export const DashboardPage = () => {
                     type="button"
                     data-tutorial="exams-cta"
                     onClick={() => navigate('/study')}
-                    className="dashboard-main-cta group relative rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center p-8 transition-all duration-500 hover:shadow-[0_0_40px_rgba(124,58,237,0.3)] hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-primary-500/30"
+                    className="dashboard-main-cta group relative rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center p-6 sm:p-8 transition-all duration-500 hover:shadow-[0_0_40px_rgba(124,58,237,0.3)] hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-primary-500/30"
                 >
                     {/* Background with animated gradient */}
                     <div className="absolute inset-0 bg-gradient-to-br from-primary-600 to-violet-700 opacity-90 transition-opacity group-hover:opacity-100" />
@@ -307,8 +307,8 @@ export const DashboardPage = () => {
                             <TargetIcon size={32} className="keep-light-text text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.5)]" />
                         </div>
                         <div>
-                            <h3 className="dashboard-main-cta-title keep-light-text text-2xl font-bold text-white mb-1 tracking-tight">Vai agli Esami</h3>
-                            <p className="dashboard-main-cta-subtitle keep-light-text text-primary-100 text-sm font-medium">Gestisci e pianifica il tuo successo</p>
+                            <h3 className="dashboard-main-cta-title keep-light-text text-xl sm:text-2xl font-bold text-white mb-1 tracking-tight">Vai agli Esami</h3>
+                            <p className="dashboard-main-cta-subtitle dashboard-caption-text keep-light-text text-primary-100 text-sm font-medium">Gestisci e pianifica il tuo successo</p>
                         </div>
                     </div>
                 </button>
