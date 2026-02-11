@@ -1776,6 +1776,108 @@ ol ol li::before {
   box-shadow: var(--shadow-md);
 }
 
+/* Study session: shared */
+.study-progress-dot--completed,
+.study-progress-dot--current {
+  background: var(--primary-500);
+}
+
+.study-progress-dot--pending {
+  background: var(--border-default);
+}
+
+[data-theme="dark"] .study-resume-overlay {
+  background: rgba(2, 6, 23, 0.94);
+}
+
+/* Study session: light mode */
+[data-theme="light"] .study-session-root,
+[data-theme="light"] .study-session-overlay {
+  background: var(--gradient-bg);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .study-resume-overlay {
+  background: rgba(242, 246, 252, 0.92);
+}
+
+[data-theme="light"] .study-session-header,
+[data-theme="light"] .study-session-footer {
+  background: rgba(246, 249, 255, 0.92);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .study-resume-panel {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="light"] .study-resume-stats {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+[data-theme="light"] .study-session-timer {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+[data-theme="light"] .study-session-timer--warning {
+  background: rgba(251, 113, 133, 0.16);
+}
+
+[data-theme="light"] .study-progress-track {
+  background: rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] .study-card-face--front {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.98), rgba(244, 247, 255, 0.94));
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="light"] .study-card-face--back {
+  background: linear-gradient(140deg, rgba(248, 250, 255, 0.96), rgba(241, 237, 255, 0.95));
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: 0 16px 34px -18px rgba(76, 29, 149, 0.35);
+}
+
+[data-theme="light"] .study-card-label {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="light"] .study-card-toggle {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .study-card-toggle:hover {
+  background: #ffffff;
+  border-color: var(--border-strong);
+}
+
+[data-theme="light"] .study-card-kbd,
+[data-theme="light"] .study-controls-kbd {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+[data-theme="light"] .study-card-footer-hint,
+[data-theme="light"] .study-card-back-footer {
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .study-controls-option {
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="light"] .study-controls-option:hover {
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme="light"] .study-complete-stat-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--border-default);
+}
+
 /* Tables */
 [data-theme="light"] .table-modern {
   background: rgba(255, 255, 255, 0.94);

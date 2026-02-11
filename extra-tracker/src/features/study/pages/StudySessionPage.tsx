@@ -547,9 +547,9 @@ export const StudySessionPage: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="fixed inset-0 top-16 z-50 flex flex-col items-center justify-center bg-slate-950 gap-4">
+            <div className="study-session-overlay fixed inset-0 top-16 z-50 flex flex-col items-center justify-center bg-theme-base gap-4">
                 <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
-                <p className="text-white/50 text-sm">Caricamento sessione...</p>
+                <p className="text-theme-muted text-sm">Caricamento sessione...</p>
             </div>
         );
     }
@@ -557,11 +557,11 @@ export const StudySessionPage: React.FC = () => {
     // Non mostrare errore se il modal di resume è aperto (session può essere null in quel caso)
     if ((error || !session) && !showResumeModal) {
         return (
-            <div className="fixed inset-0 top-16 z-50 flex flex-col items-center justify-center bg-slate-950 gap-4 p-4">
+            <div className="study-session-overlay fixed inset-0 top-16 z-50 flex flex-col items-center justify-center bg-theme-base gap-4 p-4">
                 <p className="text-red-400 text-lg">{error || 'Sessione non trovata'}</p>
                 <button
                     onClick={handleBack}
-                    className="px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold"
+                    className="px-6 py-3 rounded-xl bg-primary-600 hover:bg-primary-500 text-white font-semibold transition-colors"
                 >
                     Torna al mazzo
                 </button>
@@ -572,7 +572,7 @@ export const StudySessionPage: React.FC = () => {
     // Session complete screen
     if (isComplete) {
         return (
-            <div className="fixed inset-0 top-16 z-50 bg-slate-950">
+            <div className="study-session-overlay fixed inset-0 top-16 z-50 bg-theme-base">
                 <SessionComplete
                     totalCards={stats.total}
                     correctCount={stats.good + stats.easy}
@@ -590,33 +590,33 @@ export const StudySessionPage: React.FC = () => {
     // Resume Modal (modale per riprendere esame)
     if (showResumeModal && savedProgress) {
         return (
-            <div className="fixed inset-0 top-16 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm">
+            <div className="study-resume-overlay fixed inset-0 top-16 z-50 flex items-center justify-center backdrop-blur-sm">
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="max-w-lg w-full mx-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl"
+                    className="study-resume-panel max-w-lg w-full mx-4 bg-theme-elevated backdrop-blur-xl border border-theme-default rounded-3xl p-8 shadow-theme-lg"
                 >
-                    <h2 className="text-2xl font-bold text-white mb-4">Esame in pausa</h2>
-                    <p className="text-white/70 mb-6 leading-relaxed">
+                    <h2 className="text-2xl font-bold text-theme-primary mb-4">Esame in pausa</h2>
+                    <p className="text-theme-secondary mb-6 leading-relaxed">
                         Hai un esame in pausa su questo mazzo. Vuoi riprendere da dove avevi lasciato o ricominciare da capo?
                     </p>
 
-                    <div className="bg-white/5 rounded-xl p-4 mb-6 space-y-2 text-sm">
-                        <div className="flex justify-between text-white/60">
+                    <div className="study-resume-stats bg-theme-surface rounded-xl p-4 mb-6 space-y-2 text-sm border border-theme-default">
+                        <div className="flex justify-between text-theme-muted">
                             <span>Progresso:</span>
-                            <span className="text-white font-medium">
+                            <span className="text-theme-primary font-medium">
                                 {savedProgress.currentCardIndex + 1} / {savedProgress.sessionCardIds?.length || 0}
                             </span>
                         </div>
-                        <div className="flex justify-between text-white/60">
+                        <div className="flex justify-between text-theme-muted">
                             <span>Tempo trascorso:</span>
-                            <span className="text-white font-medium">
+                            <span className="text-theme-primary font-medium">
                                 {Math.floor(savedProgress.elapsedSeconds / 60)}:{(savedProgress.elapsedSeconds % 60).toString().padStart(2, '0')}
                             </span>
                         </div>
-                        <div className="flex justify-between text-white/60">
+                        <div className="flex justify-between text-theme-muted">
                             <span>In pausa dal:</span>
-                            <span className="text-white font-medium">
+                            <span className="text-theme-primary font-medium">
                                 {new Date(savedProgress.pausedAt).toLocaleString('it-IT', {
                                     day: 'numeric',
                                     month: 'short',
@@ -631,8 +631,8 @@ export const StudySessionPage: React.FC = () => {
                         <button
                             onClick={handleStartFresh}
                             className="flex-1 px-6 py-3 rounded-xl font-semibold
-                                bg-white/10 text-white/80 hover:bg-white/20
-                                border border-white/10 hover:border-white/20
+                                bg-theme-surface text-theme-secondary hover:bg-theme-card
+                                border border-theme-default hover:border-theme-strong
                                 transition-all"
                         >
                             Ricomincia
@@ -656,13 +656,13 @@ export const StudySessionPage: React.FC = () => {
     const timerWarning = timeLeft !== null && timeLeft <= 60;
 
     return (
-        <div className="fixed inset-0 top-16 z-50 bg-slate-950 flex flex-col">
+        <div className="study-session-root fixed inset-0 top-16 z-50 bg-theme-base flex flex-col">
             {/* Header */}
-            <header className="flex-none px-4 sm:px-6 py-3 border-b border-white/[0.06] bg-slate-950/80 backdrop-blur-xl">
+            <header className="study-session-header flex-none px-4 sm:px-6 py-3 border-b border-theme-default bg-theme-base backdrop-blur-xl">
                 <div className="max-w-4xl mx-auto flex items-center gap-4">
                     <button
                         onClick={handleBack}
-                        className="flex items-center gap-2 text-white/60 hover:text-white transition-colors p-2 -ml-2 rounded-lg hover:bg-white/5"
+                        className="flex items-center gap-2 text-theme-muted hover:text-theme-primary transition-colors p-2 -ml-2 rounded-lg hover:bg-theme-surface"
                     >
                         <ArrowLeft className="w-5 h-5" />
                         <span className="hidden sm:inline text-sm font-medium">Esci</span>
@@ -681,10 +681,10 @@ export const StudySessionPage: React.FC = () => {
                     </div>
 
                     {timeLeft !== null && (
-                        <div className={`px-3 py-1.5 rounded-full border text-sm font-mono ${
+                        <div className={`study-session-timer px-3 py-1.5 rounded-full border text-sm font-mono ${
                             timerWarning
-                                ? 'border-rose-500/40 bg-rose-500/15 text-rose-400 animate-pulse'
-                                : 'border-white/10 bg-white/5 text-white/70'
+                                ? 'study-session-timer--warning border-rose-500/40 bg-rose-500/15 text-rose-600 dark:text-rose-400 animate-pulse'
+                                : 'border-theme-default bg-theme-surface text-theme-secondary'
                         }`}>
                             {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                         </div>
@@ -694,7 +694,7 @@ export const StudySessionPage: React.FC = () => {
                     {mode === 'exam' && (
                         <button
                             onClick={handlePauseExam}
-                            className="px-4 py-2 rounded-lg text-sm font-medium text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all"
+                            className="px-4 py-2 rounded-lg text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/50 transition-all"
                         >
                             Pausa
                         </button>
@@ -702,7 +702,7 @@ export const StudySessionPage: React.FC = () => {
 
                     <button
                         onClick={handleBack}
-                        className="p-2 text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                        className="p-2 text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-lg transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -790,7 +790,7 @@ export const StudySessionPage: React.FC = () => {
 
             {/* Controls */}
             {isFlashcardMode && (
-                <footer className="flex-none px-4 sm:px-6 py-4 sm:py-6 border-t border-white/[0.06] bg-slate-950/80 backdrop-blur-xl">
+                <footer className="study-session-footer flex-none px-4 sm:px-6 py-4 sm:py-6 border-t border-theme-default bg-theme-base backdrop-blur-xl">
                     <StudyControls
                         onRate={handleRate}
                         disabled={isSubmitting}
