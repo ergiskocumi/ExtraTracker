@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, Square, Search, AlertCircle, RotateCcw } from 'lucide-react';
 import { QuestionsSkeleton } from './QuestionsSkeleton';
 import type { QuestionsPreviewProps } from './ExamSolverModal.types';
+import { examSolverButtonClass } from '../../utils/studyButtonClasses';
 
 // Re-export for convenience
 export type { QuestionsPreviewProps };
@@ -358,13 +359,16 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleSelectAll}
-                            className="exam-solver-btn exam-solver-btn--ghost px-3 py-2 rounded-lg text-xs font-medium"
+                            className={examSolverButtonClass('ghost', 'px-3 py-2 rounded-lg text-xs font-medium')}
                         >
                             {filteredSelectedCount === filteredQuestions.length ? 'Deseleziona' : 'Seleziona tutte'}
                         </button>
                         <button
                             onClick={handleInvertSelection}
-                            className="exam-solver-btn exam-solver-btn--ghost px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5"
+                            className={examSolverButtonClass(
+                                'ghost',
+                                'px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5'
+                            )}
                             title="Inverti selezione"
                         >
                             <RotateCcw className="w-3.5 h-3.5" />
@@ -480,14 +484,17 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
             <div className="flex gap-3">
                 <button
                     onClick={onBack}
-                    className="exam-solver-btn exam-solver-btn--neutral flex-1 px-4 py-3 rounded-xl font-medium"
+                    className={examSolverButtonClass('neutral', 'flex-1 px-4 py-3 rounded-xl font-medium')}
                 >
                     Indietro
                 </button>
                 <button
                     onClick={onNext}
                     disabled={selectedIndices.size === 0}
-                    className="exam-solver-btn exam-solver-btn--primary flex-1 px-4 py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className={examSolverButtonClass(
+                        'primary',
+                        'flex-1 px-4 py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+                    )}
                 >
                     Continua ({selectedIndices.size} selezionate)
                     <motion.span

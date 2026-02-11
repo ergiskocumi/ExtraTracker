@@ -7,6 +7,7 @@ import { CheckCircle2, AlertCircle, Loader2, Clock } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { ManualAnswerEditor } from '../ManualAnswerEditor';
 import type { ProgressViewProps } from '../ExamSolverModal.types';
+import { examSolverButtonClass } from '../../../utils/studyButtonClasses';
 
 // ============================================
 // COMPONENT
@@ -154,7 +155,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                         <div className="pt-4 border-t border-white/5">
                             <button
                                 onClick={() => setShowCancelConfirm(true)}
-                                className="exam-solver-btn exam-solver-btn--danger-soft w-full px-4 py-2.5 rounded-xl font-medium"
+                                className={examSolverButtonClass('dangerSoft', 'w-full px-4 py-2.5 rounded-xl font-medium')}
                             >
                                 Annulla Generazione
                             </button>
@@ -191,13 +192,13 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                                             setShowCancelConfirm(false);
                                             onCancel();
                                         }}
-                                        className="exam-solver-btn exam-solver-btn--danger flex-1 px-4 py-2.5 rounded-xl font-medium"
+                                        className={examSolverButtonClass('danger', 'flex-1 px-4 py-2.5 rounded-xl font-medium')}
                                     >
                                         Sì, Annulla
                                     </button>
                                     <button
                                         onClick={() => setShowCancelConfirm(false)}
-                                        className="exam-solver-btn exam-solver-btn--neutral flex-1 px-4 py-2.5 rounded-xl font-medium"
+                                        className={examSolverButtonClass('neutral', 'flex-1 px-4 py-2.5 rounded-xl font-medium')}
                                     >
                                         No, Continua
                                     </button>
@@ -292,13 +293,13 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                                     onClose();
                                 }
                             }}
-                            className="exam-solver-btn exam-solver-btn--primary flex-1 px-4 py-3 rounded-xl font-semibold"
+                            className={examSolverButtonClass('primary', 'flex-1 px-4 py-3 rounded-xl font-semibold')}
                         >
                             Vai al Mazzo
                         </button>
                         <button
                             onClick={onClose}
-                            className="exam-solver-btn exam-solver-btn--neutral flex-1 px-4 py-3 rounded-xl font-medium"
+                            className={examSolverButtonClass('neutral', 'flex-1 px-4 py-3 rounded-xl font-medium')}
                         >
                             Chiudi
                         </button>
@@ -322,7 +323,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                     </div>
                     <button
                         onClick={onRetry}
-                        className="exam-solver-btn exam-solver-btn--neutral px-4 py-2 rounded-xl text-sm font-medium"
+                        className={examSolverButtonClass('neutral', 'px-4 py-2 rounded-xl text-sm font-medium')}
                     >
                         Riprova
                     </button>

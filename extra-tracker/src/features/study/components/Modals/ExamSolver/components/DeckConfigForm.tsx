@@ -5,6 +5,7 @@
 import { motion } from 'framer-motion';
 import { Plus, FileText, AlertCircle, Sparkles, Loader2 } from 'lucide-react';
 import type { DeckConfigFormProps } from '../ExamSolverModal.types';
+import { examSolverButtonClass } from '../../../utils/studyButtonClasses';
 
 // ============================================
 // COMPONENT
@@ -159,14 +160,17 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
             <div className="flex gap-3">
                 <button
                     onClick={onBack}
-                    className="exam-solver-btn exam-solver-btn--neutral flex-1 px-4 py-3 rounded-xl font-medium"
+                    className={examSolverButtonClass('neutral', 'flex-1 px-4 py-3 rounded-xl font-medium')}
                 >
                     Indietro
                 </button>
                 <button
                     onClick={onGenerate}
                     disabled={!canGenerate}
-                    className="exam-solver-btn exam-solver-btn--primary flex-1 px-4 py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className={examSolverButtonClass(
+                        'primary',
+                        'flex-1 px-4 py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+                    )}
                 >
                     Genera Flashcard
                     <Sparkles className="w-4 h-4" />

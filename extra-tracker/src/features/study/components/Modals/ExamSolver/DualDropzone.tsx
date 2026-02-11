@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FileQuestion, BookOpen, Trash2 } from 'lucide-react';
 import type { DropzoneConfig } from './ExamSolverModal.types';
 import { validateFileSize } from './utils/fileValidation';
+import { examSolverButtonClass } from '../../utils/studyButtonClasses';
 
 // Re-export for convenience
 export type { DropzoneConfig };
@@ -294,7 +295,10 @@ const SingleDropzone: React.FC<SingleDropzoneProps> = ({ config, dropzone, error
                             e.stopPropagation();
                             config.onFileRemove();
                         }}
-                        className="exam-solver-btn exam-solver-btn--danger-soft px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
+                        className={examSolverButtonClass(
+                            'dangerSoft',
+                            'px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5'
+                        )}
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                         Rimuovi

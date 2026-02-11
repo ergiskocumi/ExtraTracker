@@ -9,6 +9,7 @@ import { SourceViewer } from './SourceViewer';
 import { studyService } from '../../../../services/studyService';
 import { emitToast } from '../../../../../../shared/components/toast';
 import type { ReviewAnswersProps, FlashcardWithId } from '../ExamSolverModal.types';
+import { examSolverButtonClass } from '../../../utils/studyButtonClasses';
 
 // ============================================
 // COMPONENT
@@ -271,7 +272,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                     <button
                         onClick={handleBulkApprove}
                         disabled={isBulkSaving}
-                        className="exam-solver-btn exam-solver-btn--success-soft px-4 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+                        className={examSolverButtonClass(
+                            'successSoft',
+                            'px-4 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2'
+                        )}
                     >
                         <CheckCircle2 className="w-4 h-4" />
                         Approva Tutte Alta Confidence ({highConfidenceCards.length})
@@ -325,7 +329,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                         <>
                                             <button
                                                 onClick={() => handleEdit(card.id)}
-                                                className="exam-solver-btn exam-solver-btn--icon p-1.5 rounded-lg"
+                                                className={examSolverButtonClass('icon', 'p-1.5 rounded-lg')}
                                                 title="Modifica"
                                             >
                                                 <Edit2 className="w-4 h-4" />
@@ -333,7 +337,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                             <button
                                                 onClick={() => handleRegenerate(card)}
                                                 disabled={isRegenerating}
-                                                className="exam-solver-btn exam-solver-btn--icon p-1.5 rounded-lg disabled:opacity-50"
+                                                className={examSolverButtonClass(
+                                                    'icon',
+                                                    'p-1.5 rounded-lg disabled:opacity-50'
+                                                )}
                                                 title="Rigenera"
                                             >
                                                 <RefreshCw className={`w-4 h-4 ${isRegenerating ? 'animate-spin' : ''}`} />
@@ -344,7 +351,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                             <button
                                                 onClick={() => handleSaveEdit(card.id)}
                                                 disabled={savingState === 'saving'}
-                                                className="exam-solver-btn exam-solver-btn--success-soft px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 flex items-center gap-1.5"
+                                                className={examSolverButtonClass(
+                                                    'successSoft',
+                                                    'px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 flex items-center gap-1.5'
+                                                )}
                                             >
                                                 {savingState === 'saving' ? (
                                                     <>
@@ -365,7 +375,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                             </button>
                                             <button
                                                 onClick={() => handleCancelEdit(card.id)}
-                                                className="exam-solver-btn exam-solver-btn--neutral px-3 py-1.5 rounded-lg text-xs font-medium"
+                                                className={examSolverButtonClass(
+                                                    'neutral',
+                                                    'px-3 py-1.5 rounded-lg text-xs font-medium'
+                                                )}
                                             >
                                                 Annulla
                                             </button>
@@ -422,7 +435,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                         {sourceFileUrl && card.pageNumber && (
                                             <button
                                                 onClick={() => handleViewSource(card)}
-                                                className="exam-solver-btn exam-solver-btn--info-soft flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
+                                                className={examSolverButtonClass(
+                                                    'infoSoft',
+                                                    'flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5'
+                                                )}
                                                 title="Visualizza nel PDF"
                                             >
                                                 <ExternalLink className="w-3.5 h-3.5" />
@@ -443,7 +459,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onBack}
-                            className="exam-solver-btn exam-solver-btn--neutral px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2"
+                            className={examSolverButtonClass(
+                                'neutral',
+                                'px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2'
+                            )}
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Indietro
@@ -451,11 +470,11 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                         <button
                             onClick={onSave}
                             disabled={!canSave}
-                            className={`exam-solver-btn px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 ${
-                                canSave
-                                    ? 'exam-solver-btn--primary'
-                                    : 'exam-solver-btn--neutral cursor-not-allowed'
-                            }`}
+                            className={examSolverButtonClass(
+                                canSave ? 'primary' : 'neutral',
+                                'px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2',
+                                !canSave && 'cursor-not-allowed'
+                            )}
                         >
                             <Save className="w-4 h-4" />
                             Salva nel Mazzo

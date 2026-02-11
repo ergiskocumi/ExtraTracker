@@ -22,6 +22,7 @@ import { DeckConfigForm } from './components/DeckConfigForm';
 import { ProgressView } from './components/ProgressView';
 import { ReviewAnswers } from './components/ReviewAnswers';
 import type { ExamSolverModalProps, DropzoneConfig } from './ExamSolverModal.types';
+import { examSolverButtonClass } from '../../utils/studyButtonClasses';
 
 // ============================================
 // COMPONENT
@@ -159,7 +160,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                     onClick={() => {
                                         restoreFromCache(cachedSession);
                                     }}
-                                    className="exam-solver-btn exam-solver-btn--info-soft flex-1 px-4 py-2.5 rounded-xl font-medium"
+                                    className={examSolverButtonClass('infoSoft', 'flex-1 px-4 py-2.5 rounded-xl font-medium')}
                                 >
                                     Ripristina Sessione
                                 </button>
@@ -167,7 +168,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                     onClick={() => {
                                         resetToDefault();
                                     }}
-                                    className="exam-solver-btn exam-solver-btn--neutral flex-1 px-4 py-2.5 rounded-xl font-medium"
+                                    className={examSolverButtonClass('neutral', 'flex-1 px-4 py-2.5 rounded-xl font-medium')}
                                 >
                                     Inizia Nuova
                                 </button>
@@ -228,7 +229,10 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                         <button
                             onClick={handleClose}
                             disabled={!canClose}
-                            className="exam-solver-btn exam-solver-btn--icon p-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={examSolverButtonClass(
+                                'icon',
+                                'p-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed'
+                            )}
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -258,7 +262,10 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         onClick={extractQuestions}
-                                        className="exam-solver-btn exam-solver-btn--primary w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2"
+                                        className={examSolverButtonClass(
+                                            'primary',
+                                            'w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2'
+                                        )}
                                     >
                                         Avanti
                                         <ChevronRight className="w-4 h-4" />

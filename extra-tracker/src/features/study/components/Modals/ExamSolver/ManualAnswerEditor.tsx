@@ -11,6 +11,7 @@ import { Save, Search, Check, Loader2, AlertCircle } from 'lucide-react';
 import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
 import type { ManualAnswerEditorProps, FlashcardWithId } from './ExamSolverModal.types';
+import { examSolverButtonClass } from '../../utils/studyButtonClasses';
 
 // Re-export for convenience
 export type { ManualAnswerEditorProps, FlashcardWithId };
@@ -179,7 +180,10 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                     {completedCount > 0 && (
                         <button
                             onClick={saveAll}
-                            className="exam-solver-btn exam-solver-btn--success-soft px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
+                            className={examSolverButtonClass(
+                                'successSoft',
+                                'px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5'
+                            )}
                         >
                             <Save className="w-3.5 h-3.5" />
                             Salva tutte
@@ -267,7 +271,10 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                                 <button
                                     onClick={() => saveAnswer(card.id, answer)}
                                     disabled={!validation.valid || isSaving}
-                                    className="exam-solver-btn exam-solver-btn--warning-soft px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                                    className={examSolverButtonClass(
+                                        'warningSoft',
+                                        'px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5'
+                                    )}
                                 >
                                     {isSaving ? (
                                         <>
@@ -286,7 +293,10 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                                         const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(card.front)}`;
                                         window.open(searchUrl, '_blank');
                                     }}
-                                    className="exam-solver-btn exam-solver-btn--info-soft px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
+                                    className={examSolverButtonClass(
+                                        'infoSoft',
+                                        'px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5'
+                                    )}
                                 >
                                     <Search className="w-3.5 h-3.5" />
                                     Cerca su Google
