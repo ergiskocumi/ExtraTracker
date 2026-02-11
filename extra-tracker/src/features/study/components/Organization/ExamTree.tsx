@@ -104,7 +104,7 @@ const ExamItem: React.FC<ExamItemProps> = ({
                                 e.stopPropagation();
                                 onToggle();
                             }}
-                            className="w-4 h-4 rounded-sm flex items-center justify-center mr-2 text-white/40 hover:text-white transition-colors flex-shrink-0"
+                            className="study-org-btn study-org-btn--icon w-4 h-4 rounded-sm flex items-center justify-center mr-2 flex-shrink-0"
                         >
                             {isExpanded ? (
                                 <ChevronDown className="w-3 h-3" />
