@@ -46,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className={`${HEADER_STYLES.badge.display} ${HEADER_STYLES.badge.padding} ${HEADER_STYLES.badge.borderRadius} ${HEADER_STYLES.badge.background} ${HEADER_STYLES.badge.border} ${HEADER_STYLES.badge.text}`}>
                         {TEXT_CONTENT.header.cardCount(cardCount)}
                     </span>
-                    <span className="text-[11px] text-white/40 uppercase tracking-[0.2em] hidden sm:inline">Focus & Flow</span>
+                    <span className="text-[11px] text-theme-muted uppercase tracking-[0.2em] hidden sm:inline">Focus & Flow</span>
                 </div>
                 <div className={`${HEADER_STYLES.container.layout} ${HEADER_STYLES.container.gap}`}>
                     {showBackButton && onNavigateBack && (
@@ -72,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
                     )}
                 </div>
             </div>
-            <div className="mx-4 mt-2 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent opacity-60" />
+            <div className="mx-4 mt-2 h-px bg-gradient-to-r from-transparent via-primary-500/45 to-transparent opacity-70" />
         </motion.div>
     );
 };
