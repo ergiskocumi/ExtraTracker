@@ -1635,13 +1635,39 @@ ol ol li::before {
   box-shadow: 0 14px 30px -18px rgba(15, 23, 42, 0.28), 0 3px 8px rgba(15, 23, 42, 0.08);
 }
 
+[data-theme="light"] .dashboard-page .dashboard-hero-title {
+  color: var(--text-primary);
+  letter-spacing: -0.024em;
+  line-height: 1.12;
+}
+
 [data-theme="light"] .dashboard-page .dashboard-greeting-subtitle {
   color: var(--text-secondary);
+  line-height: 1.38;
+  max-width: 36ch;
 }
 
 [data-theme="light"] .dashboard-page .dashboard-section-title {
   color: var(--text-secondary);
   letter-spacing: 0.12em;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+[data-theme="light"] .dashboard-page .dashboard-meta-text {
+  color: var(--text-secondary);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+[data-theme="light"] .dashboard-page .dashboard-caption-text {
+  color: #3f4d63;
+  line-height: 1.42;
+}
+
+[data-theme="light"] .dashboard-page .dashboard-badge-label {
+  letter-spacing: 0.04em;
+  font-weight: 700;
 }
 
 [data-theme="light"] .dashboard-page .dashboard-panel--recent {
@@ -1690,6 +1716,7 @@ ol ol li::before {
   background: rgba(255, 255, 255, 0.96);
   border-color: var(--border-default);
   color: var(--text-secondary);
+  line-height: 1.35;
 }
 
 [data-theme="light"] .dashboard-page .dashboard-due-badge {
@@ -1701,14 +1728,25 @@ ol ol li::before {
 [data-theme="light"] .dashboard-page .dashboard-exam-date,
 [data-theme="light"] .dashboard-page .dashboard-exam-meta {
   color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.2;
 }
 
 [data-theme="light"] .dashboard-page .dashboard-exam-title {
   color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.28;
 }
 
 [data-theme="light"] .dashboard-page .dashboard-urgency-badge {
   font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+[data-theme="light"] .dashboard-page .dashboard-exam-days-value {
+  color: currentColor;
+  letter-spacing: -0.01em;
+  line-height: 1;
 }
 
 [data-theme="light"] .dashboard-page .dashboard-urgency-badge--critical {
@@ -1812,6 +1850,19 @@ ol ol li::before {
   box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.24);
 }
 
+[data-theme="light"] .dashboard-widget .dashboard-widget-title {
+  color: var(--text-primary);
+  font-size: 0.97rem;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+[data-theme="light"] .dashboard-widget .dashboard-widget-caption {
+  color: #435268;
+  font-weight: 500;
+  line-height: 1.36;
+}
+
 [data-theme="light"] .dashboard-widget .dashboard-widget-card--stat {
   background: rgba(255, 255, 255, 0.95);
   border-color: var(--border-subtle);
@@ -1827,8 +1878,23 @@ ol ol li::before {
   border: 1px solid rgba(15, 23, 42, 0.12);
 }
 
+[data-theme="light"] .dashboard-widget .dashboard-stat-label {
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+}
+
+[data-theme="light"] .dashboard-widget .dashboard-stat-value {
+  color: var(--text-primary);
+  line-height: 1.12;
+}
+
+[data-theme="light"] .dashboard-widget .dashboard-stat-suffix {
+  color: var(--text-secondary);
+}
+
 [data-theme="light"] .dashboard-widget .dashboard-stat-trend {
   font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 [data-theme="light"] .dashboard-widget .dashboard-stat-trend--positive {
@@ -1863,6 +1929,16 @@ ol ol li::before {
   border: 1px solid rgba(37, 99, 235, 0.24);
 }
 
+[data-theme="light"] .dashboard-widget .dashboard-action-title {
+  color: var(--text-primary);
+  line-height: 1.22;
+}
+
+[data-theme="light"] .dashboard-widget .dashboard-action-meta {
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
 [data-theme="light"] .dashboard-widget .dashboard-action-copy {
   color: var(--text-secondary);
 }
@@ -1877,12 +1953,44 @@ ol ol li::before {
 
 [data-theme="light"] .dashboard-widget .dashboard-chart-day-label {
   color: var(--text-secondary);
+  letter-spacing: 0.01em;
 }
 
 [data-theme="light"] .dashboard-widget .dashboard-chart-tooltip {
   background: #ffffff;
   border-color: var(--border-default);
   box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 768px) {
+  [data-theme="light"] .dashboard-page .dashboard-hero-title {
+    letter-spacing: -0.018em;
+    line-height: 1.16;
+  }
+
+  [data-theme="light"] .dashboard-page .dashboard-greeting-subtitle {
+    line-height: 1.42;
+    max-width: 32ch;
+  }
+
+  [data-theme="light"] .dashboard-page .dashboard-section-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.11em;
+  }
+
+  [data-theme="light"] .dashboard-page .dashboard-exam-date,
+  [data-theme="light"] .dashboard-page .dashboard-exam-meta {
+    font-size: 0.72rem;
+  }
+
+  [data-theme="light"] .dashboard-widget .dashboard-widget-title {
+    font-size: 0.93rem;
+  }
+
+  [data-theme="light"] .dashboard-widget .dashboard-meta-text,
+  [data-theme="light"] .dashboard-widget .dashboard-caption-text {
+    line-height: 1.4;
+  }
 }
 
 /* Study session: shared */
