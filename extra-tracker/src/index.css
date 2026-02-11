@@ -2214,6 +2214,115 @@ ol ol li::before {
   border-color: rgba(220, 38, 38, 0.3);
 }
 
+/* Exam Solver fields + badges */
+.exam-solver-field {
+  background: rgba(24, 24, 27, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.95);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.exam-solver-field::placeholder {
+  color: rgba(255, 255, 255, 0.36);
+}
+
+.exam-solver-field:focus {
+  outline: none;
+  border-color: rgba(245, 158, 11, 0.52);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.22);
+}
+
+.exam-solver-field--compact {
+  border-radius: 0.68rem;
+}
+
+.exam-solver-field--textarea {
+  line-height: 1.5;
+}
+
+.exam-solver-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.exam-solver-badge--success {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.34);
+}
+
+.exam-solver-badge--warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.36);
+}
+
+.exam-solver-badge--info {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.34);
+}
+
+.exam-solver-badge--danger {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.34);
+}
+
+.exam-solver-badge--neutral {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.82);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme="light"] .exam-solver-field {
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .exam-solver-field::placeholder {
+  color: #64748b;
+}
+
+[data-theme="light"] .exam-solver-field:focus {
+  border-color: rgba(234, 88, 12, 0.42);
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
+}
+
+[data-theme="light"] .exam-solver-badge--success {
+  background: rgba(16, 185, 129, 0.2);
+  color: #065f46;
+  border-color: rgba(5, 150, 105, 0.34);
+}
+
+[data-theme="light"] .exam-solver-badge--warning {
+  background: rgba(249, 115, 22, 0.18);
+  color: #c2410c;
+  border-color: rgba(234, 88, 12, 0.3);
+}
+
+[data-theme="light"] .exam-solver-badge--info {
+  background: rgba(59, 130, 246, 0.18);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+[data-theme="light"] .exam-solver-badge--danger {
+  background: rgba(248, 113, 113, 0.18);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+[data-theme="light"] .exam-solver-badge--neutral {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
 /* Organization action buttons */
 .study-org-btn {
   border: 1px solid transparent;
@@ -2307,6 +2416,58 @@ ol ol li::before {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
 }
 
+.study-org-field {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.95);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.study-org-field::placeholder {
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.study-org-field:focus {
+  outline: none;
+  border-color: rgba(139, 92, 246, 0.6);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.24);
+}
+
+.study-org-field--inline {
+  border-radius: 0.4rem;
+}
+
+.study-org-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.study-org-badge--count {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.74);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.study-org-badge--due {
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.study-org-badge--due-critical {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.32);
+}
+
+.study-org-badge--subtle {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.54);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 [data-theme="light"] .study-org-btn--icon {
   color: var(--text-muted);
 }
@@ -2386,6 +2547,45 @@ ol ol li::before {
 [data-theme="light"] .study-org-color-chip--selected {
   border-color: rgba(15, 23, 42, 0.64);
   box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.22);
+}
+
+[data-theme="light"] .study-org-field {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .study-org-field::placeholder {
+  color: #64748b;
+}
+
+[data-theme="light"] .study-org-field:focus {
+  border-color: rgba(124, 58, 237, 0.44);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.18);
+}
+
+[data-theme="light"] .study-org-badge--count {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .study-org-badge--due {
+  background: rgba(124, 58, 237, 0.16);
+  color: #6d28d9;
+  border-color: rgba(124, 58, 237, 0.28);
+}
+
+[data-theme="light"] .study-org-badge--due-critical {
+  background: rgba(249, 115, 22, 0.18);
+  color: #c2410c;
+  border-color: rgba(234, 88, 12, 0.28);
+}
+
+[data-theme="light"] .study-org-badge--subtle {
+  background: rgba(255, 255, 255, 0.84);
+  color: #64748b;
+  border-color: rgba(148, 163, 184, 0.3);
 }
 
 /* Dashboard widgets: QuickStats, WeeklyMiniChart, QuickActions */
