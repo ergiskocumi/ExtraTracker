@@ -43,7 +43,7 @@ export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5"
+            className="dashboard-widget dashboard-widget--chart rounded-2xl border border-theme-default bg-theme-card p-5"
         >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
@@ -52,13 +52,13 @@ export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
                         <FiTrendingUp className="text-primary-400" size={16} />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-white">Ultimi 7 Giorni</h3>
-                        <p className="text-xs text-white/50">Andamento ore lavorate</p>
+                        <h3 className="font-semibold text-theme-primary">Ultimi 7 Giorni</h3>
+                        <p className="text-xs text-theme-muted">Andamento ore lavorate</p>
                     </div>
                 </div>
                 <div className="text-right">
-                    <p className="text-lg font-bold text-white">{totalWeekHours.toFixed(1)}h</p>
-                    <p className="text-xs text-white/50">totale</p>
+                    <p className="text-lg font-bold text-theme-primary">{totalWeekHours.toFixed(1)}h</p>
+                    <p className="text-xs text-theme-muted">totale</p>
                 </div>
             </div>
 
@@ -78,14 +78,14 @@ export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
                                     isToday
                                         ? 'bg-gradient-to-t from-primary-500 to-primary-400'
                                         : day.hours > 0
-                                            ? 'bg-gradient-to-t from-white/20 to-white/30'
-                                            : 'bg-white/[0.05]'
+                                            ? 'bg-gradient-to-t from-primary-500/30 to-primary-400/40'
+                                            : 'bg-theme-surface'
                                 }`}
                                 style={{ minHeight: day.hours > 0 ? '8px' : '4px' }}
                             >
                                 {/* Tooltip */}
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-lg bg-dark-700 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                    <p className="font-semibold text-white">{day.hours.toFixed(1)}h</p>
+                                <div className="dashboard-chart-tooltip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 border border-theme-default bg-theme-elevated shadow-theme-md">
+                                    <p className="font-semibold text-theme-primary">{day.hours.toFixed(1)}h</p>
                                 </div>
                             </motion.div>
                         </div>
@@ -100,7 +100,7 @@ export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
                     return (
                         <div key={day.date} className="flex-1 text-center">
                             <p className={`text-xs capitalize ${
-                                isToday ? 'text-primary-400 font-semibold' : 'text-white/50'
+                                isToday ? 'text-primary-500 font-semibold' : 'text-theme-muted'
                             }`}>
                                 {day.dayName}
                             </p>
@@ -110,10 +110,10 @@ export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
             </div>
 
             {/* Average Line Indicator */}
-            <div className="mt-4 pt-3 border-t border-white/[0.06]">
+            <div className="mt-4 pt-3 border-t border-theme-default">
                 <div className="flex items-center justify-between">
-                    <span className="text-xs text-white/50">Media giornaliera</span>
-                    <span className="text-sm font-semibold text-white">{avgDailyHours.toFixed(1)}h</span>
+                    <span className="text-xs text-theme-muted">Media giornaliera</span>
+                    <span className="text-sm font-semibold text-theme-primary">{avgDailyHours.toFixed(1)}h</span>
                 </div>
             </div>
         </motion.div>

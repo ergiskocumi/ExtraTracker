@@ -74,14 +74,14 @@ export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
     ];
 
     return (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <div className="dashboard-widget dashboard-widget--stats grid grid-cols-2 gap-4 lg:grid-cols-3">
             {stats.map((stat, index) => (
                 <motion.div
                     key={stat.label}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="relative overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5 hover:bg-white/[0.05] transition-colors"
+                    className="dashboard-widget-card dashboard-widget-card--stat relative overflow-hidden rounded-2xl border border-theme-default bg-theme-card p-5 transition-colors hover:bg-theme-surface"
                 >
                     {/* Gradient accent */}
                     <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${stat.color}`} />
@@ -92,20 +92,20 @@ export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
                     </div>
                     
                     {/* Content */}
-                    <p className="text-xs font-medium tracking-wide uppercase text-white/50 mb-1">
+                    <p className="text-xs font-medium tracking-wide uppercase text-theme-muted mb-1">
                         {stat.label}
                     </p>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-bold text-white">{stat.value}</span>
+                        <span className="text-2xl font-bold text-theme-primary">{stat.value}</span>
                         {stat.suffix && (
-                            <span className="text-sm text-white/50">{stat.suffix}</span>
+                            <span className="text-sm text-theme-muted">{stat.suffix}</span>
                         )}
                     </div>
                     
                     {/* Trend indicator */}
                     {stat.trend && (
                         <div className={`flex items-center gap-1 mt-2 text-xs ${
-                            stat.trendPositive ? 'text-emerald-400' : 'text-red-400'
+                            stat.trendPositive ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
                         }`}>
                             <FiTrendingUp size={12} className={stat.trendPositive ? '' : 'rotate-180'} />
                             <span>{stat.trend} vs mese prec.</span>

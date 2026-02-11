@@ -18,7 +18,7 @@ export const QuickActions = ({ logs, onDuplicate }: QuickActionsProps) => {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5"
+            className="dashboard-widget dashboard-widget--actions rounded-2xl border border-theme-default bg-theme-card p-5"
         >
             {/* Header */}
             <div className="flex items-center gap-2 mb-4">
@@ -26,15 +26,15 @@ export const QuickActions = ({ logs, onDuplicate }: QuickActionsProps) => {
                     <FiZap className="text-amber-400" size={16} />
                 </div>
                 <div>
-                    <h3 className="font-semibold text-white">Azioni Rapide</h3>
-                    <p className="text-xs text-white/50">Duplica i tuoi log recenti</p>
+                    <h3 className="font-semibold text-theme-primary">Azioni Rapide</h3>
+                    <p className="text-xs text-theme-muted">Duplica i tuoi log recenti</p>
                 </div>
             </div>
 
             {/* Recent Logs - Quick Duplicate */}
             {recentLogs.length > 0 ? (
                 <div>
-                    <p className="flex items-center gap-1 mb-3 text-xs font-medium text-white/60">
+                    <p className="flex items-center gap-1 mb-3 text-xs font-medium text-theme-muted">
                         <FiCalendar size={12} />
                         Duplica recenti
                     </p>
@@ -48,29 +48,29 @@ export const QuickActions = ({ logs, onDuplicate }: QuickActionsProps) => {
                                 <button
                                     key={log.id}
                                     onClick={() => onDuplicate(log)}
-                                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition-colors group"
+                                    className="dashboard-action-item w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-theme-subtle bg-theme-surface hover:bg-theme-card hover:border-theme-default transition-colors group"
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/30 to-blue-600/30 flex items-center justify-center">
-                                            <span className="text-xs font-bold text-blue-300">
+                                            <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
                                                 {log.title?.charAt(0) || 'L'}
                                             </span>
                                         </div>
                                         <div className="text-left">
-                                            <p className="text-sm font-medium text-white">{log.title || 'Log di lavoro'}</p>
-                                            <p className="text-xs text-white/50">
+                                            <p className="text-sm font-medium text-theme-primary">{log.title || 'Log di lavoro'}</p>
+                                            <p className="text-xs text-theme-muted">
                                                 {log.startTime} - {log.endTime} ({hours.toFixed(1)}h)
                                             </p>
                                         </div>
                                     </div>
-                                    <FiCopy className="text-white/30 group-hover:text-primary-400 transition-colors" size={16} />
+                                    <FiCopy className="text-theme-muted group-hover:text-primary-500 transition-colors" size={16} />
                                 </button>
                             );
                         })}
                     </div>
                 </div>
             ) : (
-                <p className="text-sm text-white/40 text-center py-4">
+                <p className="text-sm text-theme-muted text-center py-4">
                     Nessun log recente da duplicare
                 </p>
             )}

@@ -128,7 +128,7 @@ export const DashboardPage = () => {
             </div>
 
             {/* Welcome Section */}
-            <section className="space-y-2 relative" data-tutorial="greeting">
+            <section className="dashboard-greeting space-y-2 relative" data-tutorial="greeting">
                 <h1 className="text-4xl md:text-5xl font-bold text-theme-primary tracking-tight leading-snug pb-1">
                     <span className="opacity-90">{getGreeting()},</span>{' '}
                     <button
@@ -141,7 +141,7 @@ export const DashboardPage = () => {
                     </button>
                     .
                 </h1>
-                <p className="text-theme-secondary text-xl md:text-2xl font-light tracking-wide max-w-2xl">
+                <p className="dashboard-greeting-subtitle text-theme-secondary text-xl md:text-2xl font-light tracking-wide max-w-2xl">
                     Pronto a concentrarti? Ecco cosa c'è in programma oggi.
                 </p>
             </section>
@@ -154,7 +154,7 @@ export const DashboardPage = () => {
                 {/* Subtle gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent opacity-50 pointer-events-none rounded-3xl" />
                 
-                <h2 className="relative mb-6 text-sm font-bold uppercase tracking-widest text-theme-muted flex items-center gap-2">
+                <h2 className="dashboard-section-title relative mb-6 text-sm font-bold uppercase tracking-widest text-theme-muted flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(52,211,153,0.5)]"></span>
                     Attività Recenti
                 </h2>
@@ -179,7 +179,7 @@ export const DashboardPage = () => {
                                         </h3>
                                         {/* Badge da ripassare */}
                                         {hasDueCards && (
-                                            <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-500/20 text-orange-500 border border-orange-500/30">
+                                            <span className="dashboard-due-badge shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-500/20 text-orange-500 border border-orange-500/30">
                                                 {deck.dueCount} da fare
                                             </span>
                                         )}
@@ -234,7 +234,7 @@ export const DashboardPage = () => {
                 >
                     <div className="absolute inset-0 bg-gradient-to-bl from-orange-500/5 to-transparent opacity-30 pointer-events-none rounded-3xl" />
 
-                    <h2 className="relative mb-6 flex items-center gap-3 text-sm font-bold uppercase tracking-widest text-theme-muted">
+                    <h2 className="dashboard-section-title relative mb-6 flex items-center gap-3 text-sm font-bold uppercase tracking-widest text-theme-muted">
                         <div className="p-1.5 rounded-lg bg-theme-surface border border-theme-default text-primary-500">
                             <TargetIcon size={16} />
                         </div>
@@ -262,19 +262,19 @@ export const DashboardPage = () => {
                                             <h4 className="text-theme-primary font-semibold truncate group-hover:text-primary-500 transition-colors">
                                                 {exam.title}
                                             </h4>
-                                            <span className="text-xs text-theme-muted font-mono">
+                                            <span className="dashboard-exam-date text-xs text-theme-muted font-mono">
                                                 {formatDate(exam.deadline)}
                                             </span>
                                         </div>
                                         
                                         <div className="flex items-center gap-2 mt-1">
-                                            <div className="h-1 w-full max-w-[100px] rounded-full overflow-hidden" style={{ background: 'var(--border-default)' }}>
+                                            <div className="dashboard-exam-progress-track h-1 w-full max-w-[100px] rounded-full overflow-hidden" style={{ background: 'var(--border-default)' }}>
                                                 <div 
                                                     className="h-full bg-primary-500 rounded-full opacity-50 group-hover:opacity-100 transition-opacity" 
                                                     style={{ width: `${Math.max(10, 100 - (days * 2))}%` }} 
                                                 />
                                             </div>
-                                            <span className="text-xs text-theme-muted font-medium whitespace-nowrap">
+                                            <span className="dashboard-exam-meta text-xs text-theme-muted font-medium whitespace-nowrap">
                                                 {days === 0 ? 'Oggi!' : `mancano ${days} gg`}
                                             </span>
                                         </div>
@@ -306,8 +306,8 @@ export const DashboardPage = () => {
                             <TargetIcon size={32} className="keep-light-text text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.5)]" />
                         </div>
                         <div>
-                            <h3 className="keep-light-text text-2xl font-bold text-white mb-1 tracking-tight">Vai agli Esami</h3>
-                            <p className="keep-light-text text-primary-100 text-sm font-medium">Gestisci e pianifica il tuo successo</p>
+                            <h3 className="dashboard-main-cta-title keep-light-text text-2xl font-bold text-white mb-1 tracking-tight">Vai agli Esami</h3>
+                            <p className="dashboard-main-cta-subtitle keep-light-text text-primary-100 text-sm font-medium">Gestisci e pianifica il tuo successo</p>
                         </div>
                     </div>
                 </button>
