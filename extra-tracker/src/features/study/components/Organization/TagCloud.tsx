@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Tag as TagIcon, Plus, X } from 'lucide-react';
 import { tagsService, type Tag } from '../../services/tagsService';
 import { emitToast } from '../../../../shared/components/toast';
-import { classList, studyOrgButtonClass } from '../utils/studyButtonClasses';
+import { classList, studyOrgBadgeClass, studyOrgButtonClass, studyOrgFieldClass } from '../utils/studyButtonClasses';
 
 interface TagCloudProps {
     tags: Tag[];
@@ -87,7 +87,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                             value={newTagName}
                             onChange={(e) => setNewTagName(e.target.value)}
                             placeholder="Nome tag..."
-                            className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
+                            className={studyOrgFieldClass('default', 'w-full px-3 py-2 text-sm rounded-lg')}
                             autoFocus
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
@@ -185,7 +185,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                                     <motion.span
                                         initial={{ scale: 0.8 }}
                                         animate={{ scale: 1 }}
-                                        className="text-xs text-white/40 px-1.5 py-0.5 rounded-full bg-white/5 font-medium"
+                                        className={studyOrgBadgeClass('subtle', 'text-xs px-1.5 py-0.5 rounded-full')}
                                     >
                                         {tag.count}
                                     </motion.span>

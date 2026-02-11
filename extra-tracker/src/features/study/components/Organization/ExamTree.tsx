@@ -23,7 +23,7 @@ import {
 import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
 import { getExamIcon, getExamColors } from '../Exams/utils/examIcons';
-import { studyOrgButtonClass } from '../utils/studyButtonClasses';
+import { studyOrgBadgeClass, studyOrgButtonClass } from '../utils/studyButtonClasses';
 
 interface ExamStats {
     deckCount: number;
@@ -142,18 +142,17 @@ const ExamItem: React.FC<ExamItemProps> = ({
                     <div className="flex items-center gap-2 flex-shrink-0">
                         {/* Badge mazzi */}
                         {stats.deckCount > 0 && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-white/60">
+                            <span className={studyOrgBadgeClass('count', 'text-xs px-1.5 py-0.5 rounded')}>
                                 {stats.deckCount}
                             </span>
                         )}
                         
                         {/* Badge carte da ripassare */}
                         {stats.dueCards > 0 && (
-                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                                isCritical
-                                    ? 'bg-amber-500/20 text-amber-400' 
-                                    : 'bg-violet-500/20 text-violet-400'
-                            }`}>
+                            <span className={studyOrgBadgeClass(
+                                isCritical ? 'dueCritical' : 'due',
+                                'text-xs px-1.5 py-0.5 rounded'
+                            )}>
                                 {stats.dueCards}
                             </span>
                         )}
@@ -264,7 +263,10 @@ const ExamItem: React.FC<ExamItemProps> = ({
                                         </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             {deckDueCount > 0 && (
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 group-hover:bg-amber-500/30 transition-colors">
+                                                <span className={studyOrgBadgeClass(
+                                                    'dueCritical',
+                                                    'text-[10px] px-1.5 py-0.5 rounded group-hover:bg-amber-500/30 transition-colors'
+                                                )}>
                                                     {deckDueCount}
                                                 </span>
                                             )}

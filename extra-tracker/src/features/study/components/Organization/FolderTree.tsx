@@ -34,7 +34,7 @@ import {
 import { foldersService, type Folder as FolderType } from '../../services/foldersService';
 import { emitToast } from '../../../../shared/components/toast';
 import { getFolderTheme } from '../../utils/folderTheme';
-import { studyOrgButtonClass } from '../utils/studyButtonClasses';
+import { studyOrgBadgeClass, studyOrgButtonClass, studyOrgFieldClass } from '../utils/studyButtonClasses';
 
 interface FolderStats {
     totalCards: number;
@@ -310,7 +310,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                         }
                                     }}
                                     onBlur={handleRename}
-                                    className="flex-1 px-2 py-0.5 text-sm bg-white/10 border border-violet-500/50 rounded text-white placeholder-white/30 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
+                                    className={studyOrgFieldClass('inline', 'flex-1 px-2 py-0.5 text-sm rounded')}
                                     onClick={(e) => e.stopPropagation()}
                                 />
                             ) : (
@@ -325,18 +325,17 @@ const FolderItem: React.FC<FolderItemProps> = ({
                     <div className="flex items-center gap-2 flex-shrink-0">
                         {/* Badge con numero mazzi */}
                         {hasDecks && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-white/60">
+                            <span className={studyOrgBadgeClass('count', 'text-xs px-1.5 py-0.5 rounded')}>
                                 {folderStats?.totalDecks || folder.count || 0}
                             </span>
                         )}
                         
                         {/* Badge con carte da ripassare (solo quando > 0) */}
                         {folderStats && folderStats.dueCards > 0 && (
-                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                                isCritical
-                                    ? 'bg-amber-500/20 text-amber-400' 
-                                    : 'bg-violet-500/20 text-violet-400'
-                            }`}>
+                            <span className={studyOrgBadgeClass(
+                                isCritical ? 'dueCritical' : 'due',
+                                'text-xs px-1.5 py-0.5 rounded'
+                            )}>
                                 {folderStats.dueCards}
                             </span>
                         )}
