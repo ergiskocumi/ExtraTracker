@@ -358,13 +358,13 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleSelectAll}
-                            className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-colors text-xs font-medium"
+                            className="exam-solver-btn exam-solver-btn--ghost px-3 py-2 rounded-lg text-xs font-medium"
                         >
                             {filteredSelectedCount === filteredQuestions.length ? 'Deseleziona' : 'Seleziona tutte'}
                         </button>
                         <button
                             onClick={handleInvertSelection}
-                            className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-colors text-xs font-medium flex items-center gap-1.5"
+                            className="exam-solver-btn exam-solver-btn--ghost px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5"
                             title="Inverti selezione"
                         >
                             <RotateCcw className="w-3.5 h-3.5" />
@@ -480,14 +480,14 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
             <div className="flex gap-3">
                 <button
                     onClick={onBack}
-                    className="flex-1 px-4 py-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white font-medium transition-colors"
+                    className="exam-solver-btn exam-solver-btn--neutral flex-1 px-4 py-3 rounded-xl font-medium"
                 >
                     Indietro
                 </button>
                 <button
                     onClick={onNext}
                     disabled={selectedIndices.size === 0}
-                    className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="exam-solver-btn exam-solver-btn--primary flex-1 px-4 py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Continua ({selectedIndices.size} selezionate)
                     <motion.span

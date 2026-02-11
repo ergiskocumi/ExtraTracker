@@ -159,14 +159,14 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
             <div className="flex gap-3">
                 <button
                     onClick={onBack}
-                    className="flex-1 px-4 py-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white font-medium transition-colors"
+                    className="exam-solver-btn exam-solver-btn--neutral flex-1 px-4 py-3 rounded-xl font-medium"
                 >
                     Indietro
                 </button>
                 <button
                     onClick={onGenerate}
                     disabled={!canGenerate}
-                    className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="exam-solver-btn exam-solver-btn--primary flex-1 px-4 py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Genera Flashcard
                     <Sparkles className="w-4 h-4" />

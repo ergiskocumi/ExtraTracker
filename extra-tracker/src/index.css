@@ -2053,6 +2053,341 @@ ol ol li::before {
   color: var(--text-secondary);
 }
 
+/* Exam Solver buttons */
+.exam-solver-btn {
+  border: 1px solid transparent;
+  color: #ffffff;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.exam-solver-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.exam-solver-btn--primary {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  box-shadow: 0 16px 28px -16px rgba(234, 88, 12, 0.64);
+}
+
+.exam-solver-btn--neutral {
+  background: rgba(24, 24, 27, 0.74);
+  color: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.exam-solver-btn--neutral:hover {
+  background: rgba(39, 39, 42, 0.86);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.exam-solver-btn--ghost {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.78);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.exam-solver-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.96);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.exam-solver-btn--icon {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  border-color: transparent;
+}
+
+.exam-solver-btn--icon:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.exam-solver-btn--success-soft {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.34);
+}
+
+.exam-solver-btn--success-soft:hover {
+  background: rgba(16, 185, 129, 0.26);
+}
+
+.exam-solver-btn--warning-soft {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.38);
+}
+
+.exam-solver-btn--warning-soft:hover {
+  background: rgba(245, 158, 11, 0.28);
+}
+
+.exam-solver-btn--info-soft {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.38);
+}
+
+.exam-solver-btn--info-soft:hover {
+  background: rgba(59, 130, 246, 0.28);
+}
+
+.exam-solver-btn--danger-soft {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.34);
+}
+
+.exam-solver-btn--danger-soft:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.exam-solver-btn--danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 14px 26px -16px rgba(220, 38, 38, 0.62);
+}
+
+[data-theme="light"] .exam-solver-btn--primary,
+[data-theme="light"] .exam-solver-btn--danger {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+[data-theme="light"] .exam-solver-btn--neutral {
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+  box-shadow: 0 8px 18px -14px rgba(15, 23, 42, 0.42);
+}
+
+[data-theme="light"] .exam-solver-btn--neutral:hover {
+  background: #ffffff;
+  border-color: var(--border-strong);
+}
+
+[data-theme="light"] .exam-solver-btn--ghost {
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .exam-solver-btn--ghost:hover {
+  background: #ffffff;
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+[data-theme="light"] .exam-solver-btn--icon {
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .exam-solver-btn--icon:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .exam-solver-btn--success-soft {
+  background: rgba(16, 185, 129, 0.2);
+  color: #065f46;
+  border-color: rgba(5, 150, 105, 0.36);
+}
+
+[data-theme="light"] .exam-solver-btn--warning-soft {
+  background: rgba(249, 115, 22, 0.16);
+  color: #c2410c;
+  border-color: rgba(234, 88, 12, 0.32);
+}
+
+[data-theme="light"] .exam-solver-btn--info-soft {
+  background: rgba(59, 130, 246, 0.16);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.32);
+}
+
+[data-theme="light"] .exam-solver-btn--danger-soft {
+  background: rgba(248, 113, 113, 0.16);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+/* Organization action buttons */
+.study-org-btn {
+  border: 1px solid transparent;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.study-org-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.study-org-btn--icon {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.study-org-btn--icon:hover {
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.study-org-btn--menu {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.study-org-btn--menu:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.study-org-btn--menu-danger {
+  color: #f87171;
+}
+
+.study-org-btn--menu-danger:hover {
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.study-org-btn--create {
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+  border-color: rgba(139, 92, 246, 0.34);
+}
+
+.study-org-btn--create:hover {
+  background: rgba(139, 92, 246, 0.3);
+}
+
+.study-org-btn--cancel {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.study-org-btn--cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.study-org-btn--text {
+  background: transparent;
+  color: #a78bfa;
+}
+
+.study-org-btn--text:hover {
+  color: #c4b5fd;
+}
+
+.study-org-btn--tag {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  border-color: transparent;
+}
+
+.study-org-btn--tag:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.study-org-btn--tag-selected {
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+  border-color: rgba(139, 92, 246, 0.32);
+  box-shadow: 0 10px 18px -16px rgba(124, 58, 237, 0.56);
+}
+
+.study-org-color-chip {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.study-org-color-chip--selected {
+  border-color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="light"] .study-org-btn--icon {
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .study-org-btn--icon:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.88);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .study-org-btn--menu {
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .study-org-btn--menu:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="light"] .study-org-btn--menu-danger {
+  color: #b91c1c;
+}
+
+[data-theme="light"] .study-org-btn--menu-danger:hover {
+  background: rgba(248, 113, 113, 0.14);
+}
+
+[data-theme="light"] .study-org-btn--create {
+  background: rgba(124, 58, 237, 0.16);
+  color: #6d28d9;
+  border-color: rgba(124, 58, 237, 0.32);
+}
+
+[data-theme="light"] .study-org-btn--create:hover {
+  background: rgba(124, 58, 237, 0.22);
+}
+
+[data-theme="light"] .study-org-btn--cancel {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .study-org-btn--cancel:hover {
+  background: #ffffff;
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+[data-theme="light"] .study-org-btn--text {
+  color: #6d28d9;
+}
+
+[data-theme="light"] .study-org-btn--text:hover {
+  color: #5b21b6;
+}
+
+[data-theme="light"] .study-org-btn--tag {
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .study-org-btn--tag:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .study-org-btn--tag-selected {
+  background: rgba(124, 58, 237, 0.16);
+  color: #6d28d9;
+  border-color: rgba(124, 58, 237, 0.32);
+}
+
+[data-theme="light"] .study-org-color-chip {
+  border-color: rgba(15, 23, 42, 0.18);
+}
+
+[data-theme="light"] .study-org-color-chip--selected {
+  border-color: rgba(15, 23, 42, 0.64);
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.22);
+}
+
 /* Dashboard widgets: QuickStats, WeeklyMiniChart, QuickActions */
 [data-theme="light"] .dashboard-widget {
   background: rgba(255, 255, 255, 0.93);

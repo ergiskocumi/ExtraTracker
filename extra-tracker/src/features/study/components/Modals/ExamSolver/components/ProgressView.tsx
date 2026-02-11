@@ -154,7 +154,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                         <div className="pt-4 border-t border-white/5">
                             <button
                                 onClick={() => setShowCancelConfirm(true)}
-                                className="w-full px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-medium transition-colors"
+                                className="exam-solver-btn exam-solver-btn--danger-soft w-full px-4 py-2.5 rounded-xl font-medium"
                             >
                                 Annulla Generazione
                             </button>
@@ -191,13 +191,13 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                                             setShowCancelConfirm(false);
                                             onCancel();
                                         }}
-                                        className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
+                                        className="exam-solver-btn exam-solver-btn--danger flex-1 px-4 py-2.5 rounded-xl font-medium"
                                     >
                                         Sì, Annulla
                                     </button>
                                     <button
                                         onClick={() => setShowCancelConfirm(false)}
-                                        className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium transition-colors border border-white/10"
+                                        className="exam-solver-btn exam-solver-btn--neutral flex-1 px-4 py-2.5 rounded-xl font-medium"
                                     >
                                         No, Continua
                                     </button>
@@ -292,13 +292,13 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                                     onClose();
                                 }
                             }}
-                            className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all"
+                            className="exam-solver-btn exam-solver-btn--primary flex-1 px-4 py-3 rounded-xl font-semibold"
                         >
                             Vai al Mazzo
                         </button>
                         <button
                             onClick={onClose}
-                            className="flex-1 px-4 py-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white font-medium transition-colors"
+                            className="exam-solver-btn exam-solver-btn--neutral flex-1 px-4 py-3 rounded-xl font-medium"
                         >
                             Chiudi
                         </button>
@@ -322,7 +322,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                     </div>
                     <button
                         onClick={onRetry}
-                        className="px-4 py-2 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white text-sm font-medium transition-colors"
+                        className="exam-solver-btn exam-solver-btn--neutral px-4 py-2 rounded-xl text-sm font-medium"
                     >
                         Riprova
                     </button>

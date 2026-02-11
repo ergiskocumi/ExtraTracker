@@ -114,9 +114,9 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                            className="exam-solver-btn exam-solver-btn--icon p-2 rounded-lg"
                         >
-                            <X className="w-5 h-5 text-white/60" />
+                            <X className="w-5 h-5" />
                         </button>
                     </div>
 
@@ -173,7 +173,7 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
                             </p>
                             <button
                                 onClick={onClose}
-                                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium transition-colors"
+                                className="exam-solver-btn exam-solver-btn--neutral px-4 py-2 rounded-lg text-sm font-medium"
                             >
                                 Chiudi
                             </button>

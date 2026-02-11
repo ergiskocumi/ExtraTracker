@@ -271,7 +271,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                     <button
                         onClick={handleBulkApprove}
                         disabled={isBulkSaving}
-                        className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex items-center gap-2"
+                        className="exam-solver-btn exam-solver-btn--success-soft px-4 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
                     >
                         <CheckCircle2 className="w-4 h-4" />
                         Approva Tutte Alta Confidence ({highConfidenceCards.length})
@@ -325,18 +325,18 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                         <>
                                             <button
                                                 onClick={() => handleEdit(card.id)}
-                                                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                                                className="exam-solver-btn exam-solver-btn--icon p-1.5 rounded-lg"
                                                 title="Modifica"
                                             >
-                                                <Edit2 className="w-4 h-4 text-white/60" />
+                                                <Edit2 className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleRegenerate(card)}
                                                 disabled={isRegenerating}
-                                                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+                                                className="exam-solver-btn exam-solver-btn--icon p-1.5 rounded-lg disabled:opacity-50"
                                                 title="Rigenera"
                                             >
-                                                <RefreshCw className={`w-4 h-4 text-white/60 ${isRegenerating ? 'animate-spin' : ''}`} />
+                                                <RefreshCw className={`w-4 h-4 ${isRegenerating ? 'animate-spin' : ''}`} />
                                             </button>
                                         </>
                                     ) : (
@@ -344,7 +344,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                             <button
                                                 onClick={() => handleSaveEdit(card.id)}
                                                 disabled={savingState === 'saving'}
-                                                className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                                                className="exam-solver-btn exam-solver-btn--success-soft px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 flex items-center gap-1.5"
                                             >
                                                 {savingState === 'saving' ? (
                                                     <>
@@ -365,7 +365,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                             </button>
                                             <button
                                                 onClick={() => handleCancelEdit(card.id)}
-                                                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white/70 text-xs font-medium transition-colors"
+                                                className="exam-solver-btn exam-solver-btn--neutral px-3 py-1.5 rounded-lg text-xs font-medium"
                                             >
                                                 Annulla
                                             </button>
@@ -422,7 +422,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                         {sourceFileUrl && card.pageNumber && (
                                             <button
                                                 onClick={() => handleViewSource(card)}
-                                                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 text-xs font-medium transition-colors flex items-center gap-1.5"
+                                                className="exam-solver-btn exam-solver-btn--info-soft flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
                                                 title="Visualizza nel PDF"
                                             >
                                                 <ExternalLink className="w-3.5 h-3.5" />
@@ -443,7 +443,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onBack}
-                            className="px-4 py-2 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white text-sm font-medium transition-colors flex items-center gap-2"
+                            className="exam-solver-btn exam-solver-btn--neutral px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2"
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Indietro
@@ -451,10 +451,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                         <button
                             onClick={onSave}
                             disabled={!canSave}
-                            className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                            className={`exam-solver-btn px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 ${
                                 canSave
-                                    ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40'
-                                    : 'bg-zinc-800 text-white/40 cursor-not-allowed'
+                                    ? 'exam-solver-btn--primary'
+                                    : 'exam-solver-btn--neutral cursor-not-allowed'
                             }`}
                         >
                             <Save className="w-4 h-4" />

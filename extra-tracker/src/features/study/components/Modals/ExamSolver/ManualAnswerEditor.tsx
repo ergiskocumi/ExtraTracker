@@ -179,7 +179,7 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                     {completedCount > 0 && (
                         <button
                             onClick={saveAll}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 text-xs font-medium transition-colors flex items-center gap-1.5"
+                            className="exam-solver-btn exam-solver-btn--success-soft px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
                         >
                             <Save className="w-3.5 h-3.5" />
                             Salva tutte
@@ -267,7 +267,7 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                                 <button
                                     onClick={() => saveAnswer(card.id, answer)}
                                     disabled={!validation.valid || isSaving}
-                                    className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                                    className="exam-solver-btn exam-solver-btn--warning-soft px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                                 >
                                     {isSaving ? (
                                         <>
@@ -286,7 +286,7 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                                         const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(card.front)}`;
                                         window.open(searchUrl, '_blank');
                                     }}
-                                    className="px-3 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 text-xs font-medium transition-colors flex items-center gap-1.5"
+                                    className="exam-solver-btn exam-solver-btn--info-soft px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
                                 >
                                     <Search className="w-3.5 h-3.5" />
                                     Cerca su Google
