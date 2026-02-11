@@ -56,12 +56,16 @@ describe('Dashboard widgets theme contract', () => {
         expect(container.querySelector('.dashboard-widget--stats')).toBeInTheDocument();
         expect(container.querySelectorAll('.dashboard-widget-card--stat').length).toBeGreaterThan(0);
         expect(container.querySelector('.dashboard-stat-icon-shell')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-stat-label')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-stat-value')).toBeInTheDocument();
     });
 
     it('renders WeeklyMiniChart with themed tooltip shell', () => {
         const { container } = render(<WeeklyMiniChart logs={logs} />);
 
         expect(container.querySelector('.dashboard-widget--chart')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-widget-title')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-widget-caption')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-chart-bar')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-chart-day-label')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-chart-tooltip')).toBeInTheDocument();
@@ -72,6 +76,8 @@ describe('Dashboard widgets theme contract', () => {
         const { container } = render(<QuickActions logs={logs} onDuplicate={onDuplicate} />);
 
         expect(container.querySelector('.dashboard-widget--actions')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-widget-title')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-widget-caption')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-action-item')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-action-avatar')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-action-copy')).toBeInTheDocument();

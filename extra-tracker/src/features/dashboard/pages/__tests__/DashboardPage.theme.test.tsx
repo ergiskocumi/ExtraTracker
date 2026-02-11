@@ -76,17 +76,22 @@ describe('DashboardPage theme contract', () => {
         await screen.findByText('Anatomia');
 
         expect(container.querySelector('.dashboard-greeting')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-hero-title')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-greeting-subtitle')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-caption-text')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-section-title')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-panel')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-panel--recent')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-panel--exams')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-deck-card')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-deck-title')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-due-badge')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-badge-label')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-deck-exam-pill')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-card-cta')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-exam-row')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-urgency-badge')).toBeInTheDocument();
+        expect(container.querySelector('.dashboard-exam-days-value')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-exam-progress-track')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-exam-progress-fill')).toBeInTheDocument();
         expect(container.querySelector('.dashboard-main-cta-title')).toBeInTheDocument();
