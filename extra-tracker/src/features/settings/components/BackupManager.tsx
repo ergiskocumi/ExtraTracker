@@ -441,7 +441,7 @@ export const BackupManager = () => {
 
                                                     <div>
                                                         <div className="flex items-center gap-2">
-                                                            <h4 className="font-semibold text-gray-900">
+                                                            <h4 className="font-semibold text-theme-primary">
                                                                 {backup.name}
                                                             </h4>
                                                             {backup.isLocked && (
@@ -484,7 +484,7 @@ export const BackupManager = () => {
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                                                     <div>
                                                         <p className="text-gray-600 font-medium">Record</p>
-                                                        <p className="text-gray-900 font-semibold">
+                                                        <p className="text-theme-primary font-semibold">
                                                             {backup.statistics.totalRecords}
                                                         </p>
                                                     </div>
@@ -492,7 +492,7 @@ export const BackupManager = () => {
                                                         <p className="text-gray-600 font-medium">
                                                             Compressione
                                                         </p>
-                                                        <p className="text-gray-900 font-semibold">
+                                                        <p className="text-theme-primary font-semibold">
                                                             {backup.statistics.compressionRatio.toFixed(1)}%
                                                         </p>
                                                     </div>
@@ -500,7 +500,7 @@ export const BackupManager = () => {
                                                         <p className="text-gray-600 font-medium">
                                                             Tempo creazione
                                                         </p>
-                                                        <p className="text-gray-900 font-semibold">
+                                                        <p className="text-theme-primary font-semibold">
                                                             {backup.statistics.duration}ms
                                                         </p>
                                                     </div>
