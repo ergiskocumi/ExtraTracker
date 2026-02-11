@@ -1635,6 +1635,14 @@ ol ol li::before {
   box-shadow: var(--shadow-md);
 }
 
+[data-theme="light"] .dashboard-page .dashboard-greeting-subtitle {
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .dashboard-page .dashboard-section-title {
+  color: var(--text-muted);
+}
+
 [data-theme="light"] .dashboard-page .dashboard-panel--exams {
   background: rgba(255, 255, 255, 0.88);
 }
@@ -1662,6 +1670,21 @@ ol ol li::before {
 
 [data-theme="light"] .dashboard-page .dashboard-exam-row > div:first-child {
   box-shadow: 0 8px 18px -14px rgba(15, 23, 42, 0.55);
+}
+
+[data-theme="light"] .dashboard-page .dashboard-due-badge {
+  background: rgba(251, 146, 60, 0.24);
+  color: #9a3412;
+  border-color: rgba(251, 146, 60, 0.46);
+}
+
+[data-theme="light"] .dashboard-page .dashboard-exam-date,
+[data-theme="light"] .dashboard-page .dashboard-exam-meta {
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .dashboard-page .dashboard-exam-progress-track {
+  background: rgba(15, 23, 42, 0.14) !important;
 }
 
 [data-theme="light"] .dashboard-page .dashboard-card-cta--quiet {
@@ -1708,6 +1731,49 @@ ol ol li::before {
 
 [data-theme="light"] .dashboard-page .dashboard-main-cta .keep-light-text {
   color: #ffffff !important;
+}
+
+[data-theme="light"] .dashboard-page .dashboard-main-cta-title,
+[data-theme="light"] .dashboard-page .dashboard-main-cta-subtitle {
+  color: #ffffff !important;
+}
+
+/* Dashboard widgets: QuickStats, WeeklyMiniChart, QuickActions */
+[data-theme="light"] .dashboard-widget {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="light"] .dashboard-widget .dashboard-widget-card--stat {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border-subtle);
+}
+
+[data-theme="light"] .dashboard-widget .dashboard-widget-card--stat:hover {
+  background: #ffffff;
+  border-color: var(--border-strong);
+}
+
+[data-theme="light"] .dashboard-widget .dashboard-action-item {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] .dashboard-widget .dashboard-action-item:hover {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.24);
+}
+
+[data-theme="light"] .dashboard-widget .dashboard-action-item:focus-visible {
+  outline: 2px solid rgba(124, 58, 237, 0.3);
+  outline-offset: 1px;
+}
+
+[data-theme="light"] .dashboard-widget .dashboard-chart-tooltip {
+  background: #ffffff;
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-md);
 }
 
 /* Tables */
