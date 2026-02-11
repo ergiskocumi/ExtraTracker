@@ -8,6 +8,7 @@ import { ToastProvider } from "./shared/components/toast";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ScrollToTop } from "./shared/components/ScrollToTop";
 import { TutorialProvider } from "./shared/context/TutorialContext.tsx";
+import { bootstrapTheme } from "./shared/utils/theme";
 // Silenzia tutti i log nel browser - i log devono essere gestiti solo dal backend
 import "./shared/utils/logger";
 // Stili KaTeX per il rendering delle formule matematiche nelle flashcard
@@ -38,8 +39,8 @@ const queryClient = new QueryClient({
  * ma AuthProvider PUÒ usare i toast.
  */
 
-// OTTIMIZZATO: Performance monitoring
-const appStartTime = performance.now();
+// Sincronizza tema e classe dark prima del primo render React
+bootstrapTheme('dark');
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
