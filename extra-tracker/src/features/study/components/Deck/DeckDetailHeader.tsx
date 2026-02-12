@@ -15,20 +15,13 @@ import {
     ArrowLeft,
     Play,
     FileQuestion,
-    Plus,
-    BookOpen,
-    Zap,
     Target,
     Clock,
-    Sparkles,
     Layers,
     GraduationCap,
-    MoreVertical,
-    Trash2,
-    Edit3,
     FileText,
 } from 'lucide-react';
-import type { Deck, Card } from '../../services/studyService';
+import type { Deck } from '../../services/studyService';
 import { getDeckTheme } from '../DeckCard/utils/deckTheme';
 
 // ============================================
@@ -64,13 +57,9 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
     onBack,
     onStudy,
     onExamSolver,
-    onAddCard,
     onReadPdf,
-    onMagicGenerate,
-    onDeleteDeck,
-    onEditDeck,
 }) => {
-    const theme = useMemo(() => getDeckTheme(deck), [deck.title]);
+    const theme = useMemo(() => getDeckTheme(deck), [deck]);
 
     // Calcola statistiche
     const stats = useMemo(() => {
@@ -122,23 +111,26 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
             label: 'Da Ripassare',
             value: stats.dueCount,
             icon: Clock,
-            color: hasDueCards ? 'text-orange-400' : 'text-white/50',
-            bgColor: hasDueCards ? 'bg-orange-500/15' : 'bg-white/5',
+            color: hasDueCards ? 'text-orange-700 dark:text-orange-300' : 'text-theme-muted',
+            bgColor: hasDueCards ? 'bg-orange-500/15' : 'bg-theme-surface',
         },
         {
             label: 'Padronanza',
             value: `${stats.masteryPercent}%`,
             icon: Target,
-            color: stats.masteryPercent >= 80 ? 'text-emerald-400' : stats.masteryPercent >= 50 ? 'text-amber-400' : 'text-white/50',
-            bgColor: stats.masteryPercent >= 80 ? 'bg-emerald-500/15' : stats.masteryPercent >= 50 ? 'bg-amber-500/15' : 'bg-white/5',
+            color: stats.masteryPercent >= 80
+                ? 'text-emerald-700 dark:text-emerald-300'
+                : stats.masteryPercent >= 50
+                    ? 'text-amber-700 dark:text-amber-300'
+                    : 'text-theme-secondary',
+            bgColor: stats.masteryPercent >= 80 ? 'bg-emerald-500/15' : stats.masteryPercent >= 50 ? 'bg-amber-500/15' : 'bg-theme-surface',
         },
     ];
 
     return (
         <div className={`
-            relative overflow-hidden rounded-3xl border ${theme.borderColor}
-            bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-transparent
-            backdrop-blur-sm
+            relative overflow-hidden rounded-3xl border border-theme-default
+            bg-theme-card backdrop-blur-sm shadow-theme-sm
         `}>
             {/* Background Decoration */}
             <div className="absolute inset-0 opacity-30 pointer-events-none">
@@ -155,7 +147,7 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                                 whileHover={{ scale: 1.05, x: -2 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={onBack}
-                                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all flex-shrink-0 mt-1"
+                                className="p-3 rounded-xl bg-theme-surface hover:bg-theme-card border border-theme-default text-theme-secondary hover:text-theme-primary transition-all flex-shrink-0 mt-1"
                                 aria-label="Torna indietro"
                             >
                                 <ArrowLeft className="w-5 h-5" />
@@ -163,18 +155,18 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
 
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3 mb-2">
-                                    <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">
+                                    <h1 className="text-2xl sm:text-3xl font-bold text-theme-primary truncate">
                                         {deck.title}
                                     </h1>
                                     {hasDueCards && (
-                                        <span className="px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold border border-orange-500/30 flex-shrink-0">
+                                        <span className="px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-700 dark:text-orange-300 text-xs font-bold border border-orange-500/30 flex-shrink-0">
                                             {stats.dueCount} da fare
                                         </span>
                                     )}
                                 </div>
                                 
                                 {deck.description && (
-                                    <p className="text-white/60 text-sm sm:text-base leading-relaxed">
+                                    <p className="text-theme-secondary text-sm sm:text-base leading-relaxed">
                                         {deck.description}
                                     </p>
                                 )}
@@ -185,7 +177,7 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                                         {deck.tags.map((tag, i) => (
                                             <span
                                                 key={i}
-                                                className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/60"
+                                                className="px-2.5 py-1 rounded-full bg-theme-surface border border-theme-default text-xs text-theme-secondary"
                                             >
                                                 {tag}
                                             </span>
@@ -203,7 +195,7 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={onReadPdf}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 hover:border-white/20 transition-all"
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-theme-surface hover:bg-theme-card text-theme-primary border border-theme-default hover:border-theme-strong transition-all"
                             >
                                 <FileText className="w-4 h-4" />
                                 <span className="hidden sm:inline text-sm font-medium">PDF</span>
@@ -232,7 +224,7 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                                 transition-all shadow-lg
                                 ${hasCards 
                                     ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-primary-500/30 hover:shadow-primary-500/40' 
-                                    : 'bg-white/5 text-white/40 cursor-not-allowed'
+                                    : 'bg-theme-surface border border-theme-default text-theme-muted cursor-not-allowed'
                                 }
                             `}
                         >
@@ -250,15 +242,15 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
-                            className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/[0.08] transition-colors"
+                            className="p-4 rounded-2xl bg-theme-surface border border-theme-default hover:bg-theme-card transition-colors"
                         >
                             <div className="flex items-center gap-3">
                                 <div className={`p-2.5 rounded-xl ${stat.bgColor}`}>
                                     <stat.icon className={`w-5 h-5 ${stat.color}`} />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white">{stat.value}</p>
-                                    <p className="text-xs text-white/50 uppercase tracking-wide">{stat.label}</p>
+                                    <p className="text-2xl font-bold text-theme-primary">{stat.value}</p>
+                                    <p className="text-xs text-theme-secondary uppercase tracking-wide">{stat.label}</p>
                                 </div>
                             </div>
                         </motion.div>
@@ -269,16 +261,16 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                 {hasCards && (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
-                            <span className="text-white/60 flex items-center gap-2">
+                            <span className="text-theme-secondary flex items-center gap-2">
                                 <GraduationCap className="w-4 h-4" />
                                 Distribuzione Carte
                             </span>
-                            <span className="text-white/40 text-xs">
+                            <span className="text-theme-muted text-xs">
                                 {stats.newCards} nuove · {stats.learning} in studio · {stats.review} da ripassare · {stats.mastered} padroneggiate
                             </span>
                         </div>
                         
-                        <div className="h-3 bg-white/10 rounded-full overflow-hidden flex">
+                        <div className="h-3 bg-theme-elevated rounded-full overflow-hidden flex border border-theme-default">
                             {stats.newCards > 0 && (
                                 <motion.div
                                     initial={{ width: 0 }}
@@ -320,25 +312,25 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                         {/* Legend */}
                         <div className="flex flex-wrap gap-4 text-xs">
                             {stats.newCards > 0 && (
-                                <span className="flex items-center gap-1.5 text-white/50">
+                                <span className="flex items-center gap-1.5 text-theme-secondary">
                                     <span className="w-2 h-2 rounded-full bg-blue-500" />
                                     Nuove ({stats.newCards})
                                 </span>
                             )}
                             {stats.learning > 0 && (
-                                <span className="flex items-center gap-1.5 text-white/50">
+                                <span className="flex items-center gap-1.5 text-theme-secondary">
                                     <span className="w-2 h-2 rounded-full bg-amber-500" />
                                     Studio ({stats.learning})
                                 </span>
                             )}
                             {stats.review > 0 && (
-                                <span className="flex items-center gap-1.5 text-white/50">
+                                <span className="flex items-center gap-1.5 text-theme-secondary">
                                     <span className="w-2 h-2 rounded-full bg-orange-500" />
                                     Ripasso ({stats.review})
                                 </span>
                             )}
                             {stats.mastered > 0 && (
-                                <span className="flex items-center gap-1.5 text-white/50">
+                                <span className="flex items-center gap-1.5 text-theme-secondary">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
                                     Padroneggiate ({stats.mastered})
                                 </span>
@@ -349,17 +341,17 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
 
                 {/* Progress Bar - Mastery */}
                 {hasCards && (
-                    <div className="mt-6 pt-6 border-t border-white/10">
+                    <div className="mt-6 pt-6 border-t border-theme-default">
                         <div className="flex items-center justify-between text-sm mb-2">
-                            <span className="text-white/60">Progresso Padronanza</span>
+                            <span className="text-theme-secondary">Progresso Padronanza</span>
                             <span className={`
                                 font-bold
-                                ${stats.masteryPercent >= 80 ? 'text-emerald-400' : stats.masteryPercent >= 50 ? 'text-amber-400' : 'text-white/70'}
+                                ${stats.masteryPercent >= 80 ? 'text-emerald-700 dark:text-emerald-300' : stats.masteryPercent >= 50 ? 'text-amber-700 dark:text-amber-300' : 'text-theme-primary'}
                             `}>
                                 {stats.masteryPercent}%
                             </span>
                         </div>
-                        <div className="h-2.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-2.5 bg-theme-elevated border border-theme-default rounded-full overflow-hidden">
                             <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${stats.masteryPercent}%` }}

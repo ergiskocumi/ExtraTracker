@@ -123,7 +123,7 @@ const SortableItemComponent: React.FC<SortableItemProps> = ({
                 {/* Numero card in modalità grid - discreto, in alto a sinistra, visibile solo su hover */}
                 {!isEditing && (
                     <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <span className="text-xs font-medium text-theme-muted bg-black/30 px-2 py-1 rounded-full select-none">
+                        <span className="text-xs font-medium text-theme-muted bg-theme-surface border border-theme-default px-2 py-1 rounded-full select-none">
                             #{index + 1}
                         </span>
                     </div>

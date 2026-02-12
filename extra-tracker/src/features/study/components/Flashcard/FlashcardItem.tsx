@@ -236,7 +236,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
 
     const cardBackground = useMemo((): string => {
         if (isEditing) {
-            return 'rgba(255, 255, 255, 0.06)';
+            return 'var(--bg-surface)';
         }
 
         return isSourceActive

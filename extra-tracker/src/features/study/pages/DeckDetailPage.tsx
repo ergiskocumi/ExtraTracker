@@ -176,10 +176,10 @@ export const DeckDetailPage: React.FC = () => {
     // Loading state
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center bg-theme-base">
                 <div className="flex flex-col items-center gap-4">
                     <div className="animate-spin w-10 h-10 border-3 border-primary-500 border-t-transparent rounded-full" />
-                    <p className="text-white/50 text-sm">Caricamento mazzo...</p>
+                    <p className="text-theme-secondary text-sm">Caricamento mazzo...</p>
                 </div>
             </div>
         );
@@ -188,7 +188,7 @@ export const DeckDetailPage: React.FC = () => {
     // Error state
     if (error || !deck) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 bg-theme-base">
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -198,7 +198,7 @@ export const DeckDetailPage: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                 </motion.div>
-                <p className="text-white/70 text-lg">{error || 'Mazzo non trovato'}</p>
+                <p className="text-theme-secondary text-lg">{error || 'Mazzo non trovato'}</p>
                 <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -212,7 +212,7 @@ export const DeckDetailPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen px-4 sm:px-6 py-6 sm:py-8">
+        <div className="min-h-screen bg-theme-base text-theme-primary px-4 sm:px-6 py-6 sm:py-8">
             <div className="w-full max-w-[1920px] mx-auto">
                 <DeckDetailContent
                     deck={deck}
@@ -272,13 +272,13 @@ export const DeckDetailPage: React.FC = () => {
                             initial={{ scale: 0.95, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 rounded-2xl border border-white/10 shadow-2xl"
+                            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-theme-elevated rounded-2xl border border-theme-default shadow-theme-lg"
                         >
-                            <div className="sticky top-0 bg-slate-900/95 backdrop-blur-xl border-b border-white/10 p-6 flex items-center justify-between z-10">
-                                <h2 className="text-xl font-bold text-white">Impostazioni Mazzo</h2>
+                            <div className="sticky top-0 bg-theme-elevated/95 backdrop-blur-xl border-b border-theme-default p-6 flex items-center justify-between z-10">
+                                <h2 className="text-xl font-bold text-theme-primary">Impostazioni Mazzo</h2>
                                 <button
                                     onClick={() => setIsSettingsOpen(false)}
-                                    className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-all"
+                                    className="p-2 rounded-lg hover:bg-theme-surface text-theme-secondary hover:text-theme-primary transition-all"
                                 >
                                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

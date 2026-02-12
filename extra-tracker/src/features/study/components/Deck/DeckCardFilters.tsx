@@ -67,15 +67,15 @@ const FILTER_TABS: FilterTab[] = [
         key: 'all',
         label: 'Tutte',
         icon: Layers,
-        color: 'text-white',
-        bgColor: 'bg-white/10',
-        borderColor: 'border-white/20',
+        color: 'text-theme-primary',
+        bgColor: 'bg-theme-surface',
+        borderColor: 'border-theme-strong',
     },
     {
         key: 'new',
         label: 'Nuove',
         icon: Sparkles,
-        color: 'text-blue-400',
+        color: 'text-blue-700 dark:text-blue-300',
         bgColor: 'bg-blue-500/15',
         borderColor: 'border-blue-500/30',
     },
@@ -83,7 +83,7 @@ const FILTER_TABS: FilterTab[] = [
         key: 'learning',
         label: 'Studio',
         icon: BookOpen,
-        color: 'text-amber-400',
+        color: 'text-amber-700 dark:text-amber-300',
         bgColor: 'bg-amber-500/15',
         borderColor: 'border-amber-500/30',
     },
@@ -91,7 +91,7 @@ const FILTER_TABS: FilterTab[] = [
         key: 'review',
         label: 'Ripasso',
         icon: GraduationCap,
-        color: 'text-orange-400',
+        color: 'text-orange-700 dark:text-orange-300',
         bgColor: 'bg-orange-500/15',
         borderColor: 'border-orange-500/30',
     },
@@ -99,7 +99,7 @@ const FILTER_TABS: FilterTab[] = [
         key: 'mastered',
         label: 'Padroneggiate',
         icon: Trophy,
-        color: 'text-emerald-400',
+        color: 'text-emerald-700 dark:text-emerald-300',
         bgColor: 'bg-emerald-500/15',
         borderColor: 'border-emerald-500/30',
     },
@@ -153,7 +153,7 @@ export const DeckCardFilters: React.FC<DeckCardFiltersProps> = ({
                                 transition-all duration-200 border
                                 ${isActive
                                     ? `${tab.bgColor} ${tab.color} ${tab.borderColor} shadow-lg`
-                                    : 'bg-white/5 text-white/60 border-transparent hover:bg-white/10 hover:text-white/80'
+                                    : 'bg-theme-card text-theme-secondary border-theme-default hover:bg-theme-surface hover:text-theme-primary'
                                 }
                             `}
                         >
@@ -161,7 +161,7 @@ export const DeckCardFilters: React.FC<DeckCardFiltersProps> = ({
                             <span>{tab.label}</span>
                             <span className={`
                                 ml-1 px-2 py-0.5 rounded-full text-xs font-bold
-                                ${isActive ? 'bg-white/20' : 'bg-white/10 text-white/50'}
+                                ${isActive ? 'bg-theme-elevated text-theme-primary border border-theme-default' : 'bg-theme-elevated text-theme-muted border border-theme-default'}
                             `}>
                                 {count}
                             </span>
@@ -174,7 +174,7 @@ export const DeckCardFilters: React.FC<DeckCardFiltersProps> = ({
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 {/* Search Input */}
                 <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-theme-muted" />
                     <input
                         type="text"
                         value={searchQuery}
@@ -182,16 +182,16 @@ export const DeckCardFilters: React.FC<DeckCardFiltersProps> = ({
                         placeholder="Cerca carte..."
                         className="
                             w-full pl-12 pr-10 py-3 rounded-xl
-                            bg-white/5 border border-white/10
-                            text-white placeholder:text-white/40
+                            bg-theme-card border border-theme-default
+                            text-theme-primary placeholder:text-theme-muted
                             focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20
-                            transition-all
+                            transition-all hover:bg-theme-surface
                         "
                     />
                     {searchQuery && (
                         <button
                             onClick={() => onSearchChange('')}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-white/40 hover:text-white/80 transition-all"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-theme-surface text-theme-muted hover:text-theme-primary transition-all"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -207,35 +207,35 @@ export const DeckCardFilters: React.FC<DeckCardFiltersProps> = ({
                             onChange={(e) => onSortChange(e.target.value as SortOption)}
                             className="
                                 appearance-none pl-10 pr-8 py-3 rounded-xl
-                                bg-white/5 border border-white/10
-                                text-white text-sm
+                                bg-theme-card border border-theme-default
+                                text-theme-primary text-sm
                                 focus:border-primary-500/50 focus:outline-none
-                                cursor-pointer hover:bg-white/10 transition-all
+                                cursor-pointer hover:bg-theme-surface transition-all
                             "
                         >
                             {SORT_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value} className="bg-slate-900">
+                                <option key={opt.value} value={opt.value} className="bg-theme-elevated">
                                     {opt.label}
                                 </option>
                             ))}
                         </select>
-                        <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                        <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted pointer-events-none" />
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                            <svg className="w-4 h-4 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-4 h-4 text-theme-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                         </div>
                     </div>
 
                     {/* View Mode Toggle */}
-                    <div className="flex items-center p-1 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center p-1 rounded-xl bg-theme-card border border-theme-default">
                         <button
                             onClick={() => onViewModeChange('grid')}
                             className={`
                                 p-2.5 rounded-lg transition-all
                                 ${viewMode === 'grid'
-                                    ? 'bg-primary-500 text-white shadow-lg'
-                                    : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                                    ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
+                                    : 'text-theme-muted hover:text-theme-primary hover:bg-theme-surface'
                                 }
                             `}
                             aria-label="Vista griglia"
@@ -247,8 +247,8 @@ export const DeckCardFilters: React.FC<DeckCardFiltersProps> = ({
                             className={`
                                 p-2.5 rounded-lg transition-all
                                 ${viewMode === 'list'
-                                    ? 'bg-primary-500 text-white shadow-lg'
-                                    : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                                    ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
+                                    : 'text-theme-muted hover:text-theme-primary hover:bg-theme-surface'
                                 }
                             `}
                             aria-label="Vista lista"
@@ -265,8 +265,8 @@ export const DeckCardFilters: React.FC<DeckCardFiltersProps> = ({
                             onClick={clearFilters}
                             className="
                                 flex items-center gap-2 px-4 py-3 rounded-xl
-                                bg-white/5 hover:bg-white/10 border border-white/10
-                                text-white/60 hover:text-white text-sm font-medium
+                                bg-theme-card hover:bg-theme-surface border border-theme-default
+                                text-theme-secondary hover:text-theme-primary text-sm font-medium
                                 transition-all
                             "
                         >
