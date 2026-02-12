@@ -330,10 +330,16 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
         });
     }
 
+    const requestedMaxCards = Number(req.body?.maxCards);
+    const maxCards = Number.isFinite(requestedMaxCards) && requestedMaxCards > 0
+        ? requestedMaxCards
+        : undefined;
+
     const result = await studyService.generateCardsFromPDF(
         req.tenantScope,
         req.params.id,
-        req.file.path
+        req.file.path,
+        { maxCards }
     );
 
     res.json({

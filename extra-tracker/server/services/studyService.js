@@ -60,7 +60,15 @@ const BATCH_SIZE = 2;
 // Target dinamico - qualità > quantità
 const MIN_CARDS_PER_CHUNK = 2;        // Minimo 2 card per chunk (qualità)
 const MAX_CARDS_PER_CHUNK = 10;       // Massimo 10 card per singola chiamata
-const MAX_TOTAL_CARDS = 80;           // Cap totale (meno card ma migliori)
+const DEFAULT_MAX_TOTAL_CARDS = 140;  // Default più alto rispetto a 80
+const MAX_TOTAL_CARDS_HARD_CAP = 260; // Limite di sicurezza assoluto
+const ENV_MAX_TOTAL_CARDS = Number.parseInt(
+    process.env.STUDY_GENERATION_MAX_CARDS || String(DEFAULT_MAX_TOTAL_CARDS),
+    10
+);
+const MAX_TOTAL_CARDS = Number.isFinite(ENV_MAX_TOTAL_CARDS) && ENV_MAX_TOTAL_CARDS > 0
+    ? Math.min(MAX_TOTAL_CARDS_HARD_CAP, Math.max(40, ENV_MAX_TOTAL_CARDS))
+    : DEFAULT_MAX_TOTAL_CARDS;
 
 // Deduplica semantica - soglia più aggressiva per rimuovere più duplicati
 const SIMILARITY_THRESHOLD = 0.50;    // Soglia Jaccard (più bassa = più aggressiva)
@@ -948,8 +956,9 @@ class StudyService extends BaseService {
      * 4. Deduplica semantica post-generazione
      * 5. Validazione qualità più rigorosa
      */
-    async generateCardsFromPDF(tenantScope, deckId, pdfFilePath) {
+    async generateCardsFromPDF(tenantScope, deckId, pdfFilePath, options = {}) {
         const userId = this._getUserId(tenantScope);
+        const generationCardCap = this._resolveGenerationCardCap(options?.maxCards);
 
         // 1. Verifica mazzo
         const deck = await Deck.findOne({ _id: deckId, user: userId });
@@ -1114,7 +1123,7 @@ class StudyService extends BaseService {
         // 9. Validazione finale e salvataggio
         const validCards = uniqueCards
             .filter(card => this._validateCardQuality(card))
-            .slice(0, MAX_TOTAL_CARDS)
+            .slice(0, generationCardCap)
             .map(card => {
                 const cardData = {
                     front: card.front.trim(),
@@ -1169,6 +1178,7 @@ class StudyService extends BaseService {
                 totalBatches: batches.length,
                 duplicatesRemoved: removedCount,
                 conceptsExtracted: globalConcepts.length,
+                maxCardsApplied: generationCardCap,
             }
         };
     }
@@ -3169,10 +3179,13 @@ Genera una risposta per OGNI domanda nella lista.`;
      */
     _normalizeGeneratedCard(card) {
         if (!card || typeof card !== 'object') return {};
+
+        const rawFront = card.front ?? card.question ?? card.q;
+        const rawBack = card.back ?? card.answer ?? card.a;
         
         const normalized = {
-            front: card.front ?? card.question ?? card.q,
-            back: card.back ?? card.answer ?? card.a,
+            front: this._sanitizeGeneratedCardText(rawFront, { isFront: true }),
+            back: this._sanitizeGeneratedCardText(rawBack, { isFront: false }),
         };
 
         // Gestisci source_metadata se presente
@@ -3197,6 +3210,34 @@ Genera una risposta per OGNI domanda nella lista.`;
         }
 
         return normalized;
+    }
+
+    /**
+     * Pulisce prefissi generati dall'AI (es. "1. ", "Q:", "Domanda:").
+     * Riduce rumore visivo nelle carte senza alterare il contenuto sostanziale.
+     */
+    _sanitizeGeneratedCardText(value, { isFront = false } = {}) {
+        if (value === null || value === undefined) return '';
+        if (typeof value !== 'string') return String(value).trim();
+
+        let cleaned = value
+            .replace(/\r\n/g, '\n')
+            .replace(/^\s+|\s+$/g, '');
+
+        cleaned = cleaned.replace(/^["'`]+|["'`]+$/g, '').trim();
+
+        if (isFront) {
+            cleaned = cleaned
+                .replace(/^(?:domanda|question|quesito|q)\s*[:\-]\s*/i, '')
+                .replace(/^\s*(?:\d{1,3}\s*[\.\)]|[-*•▪]+)\s+/, '')
+                .trim();
+        } else {
+            cleaned = cleaned
+                .replace(/^(?:risposta|answer|a)\s*[:\-]\s*/i, '')
+                .trim();
+        }
+
+        return cleaned;
     }
 
     _cleanJSON(dirtyJSON) {
@@ -4075,6 +4116,20 @@ Genera una risposta per OGNI domanda nella lista.`;
 
     _toNumber(value, fallback = 0) {
         return Number.isFinite(Number(value)) ? Number(value) : fallback;
+    }
+
+    /**
+     * Risolve il cap finale di carte per una generazione PDF.
+     * - default: MAX_TOTAL_CARDS (config/env)
+     * - richiesta client: clamp [20, MAX_TOTAL_CARDS]
+     */
+    _resolveGenerationCardCap(requestedMaxCards = 0) {
+        const parsed = this._toNumber(requestedMaxCards, 0);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+            return MAX_TOTAL_CARDS;
+        }
+
+        return Math.min(MAX_TOTAL_CARDS, Math.max(20, Math.round(parsed)));
     }
 
     // =========================================
