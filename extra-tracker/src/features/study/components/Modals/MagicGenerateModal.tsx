@@ -53,6 +53,8 @@ type ProgressData = {
 };
 
 let logIdCounter = 0;
+const CARD_TARGET_OPTIONS = [80, 120, 160, 200] as const;
+const DEFAULT_TARGET_CARDS = 120;
 
 export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     isOpen,
@@ -63,6 +65,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
 }) => {
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [maxCards, setMaxCards] = useState<number>(DEFAULT_TARGET_CARDS);
     const [progress, setProgress] = useState<ProgressData>({ step: 'idle' });
     const [error, setError] = useState<string | null>(null);
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -92,6 +95,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     useEffect(() => {
         if (isOpen) {
             setFile(null);
+            setMaxCards(DEFAULT_TARGET_CARDS);
             setProgress({ step: 'idle' });
             setError(null);
             setLogs([]);
@@ -298,7 +302,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
             addLogMemo('Inizio caricamento PDF...', 'info', Upload);
             startTimeRef.current = Date.now();
 
-            await studyService.generateFromPDF(deckId, file);
+            await studyService.generateFromPDF(deckId, file, { maxCards });
             addLogMemo('File caricato con successo', 'success', CheckCircle2);
             // Il progresso continuerà tramite SSE
         } catch (err: any) {
@@ -307,7 +311,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
             addLogMemo(`Errore: ${err.message || 'Generazione fallita'}`, 'warning', AlertCircle);
             emitToast.error(err.message || 'Generazione fallita');
         }
-    }, [file, deckId]);
+    }, [file, deckId, maxCards, addLogMemo]);
 
     const formatTime = (seconds: number) => {
         if (seconds < 60) return `${seconds}s`;
@@ -548,6 +552,31 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                                         <p className="text-sm text-red-400">{error}</p>
                                     </motion.div>
                                 )}
+
+                                <div className="p-3 rounded-xl bg-zinc-900/60 border border-white/5">
+                                    <label className="block text-xs font-medium text-white/70 mb-2">
+                                        Quantità target flashcard
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {CARD_TARGET_OPTIONS.map((option) => (
+                                            <button
+                                                key={option}
+                                                type="button"
+                                                onClick={() => setMaxCards(option)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                                    maxCards === option
+                                                        ? 'bg-primary-500/20 border-primary-500/40 text-primary-300'
+                                                        : 'bg-zinc-800/60 border-white/10 text-white/70 hover:bg-zinc-800/80 hover:text-white'
+                                                }`}
+                                            >
+                                                {option}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[11px] text-white/45 mt-2">
+                                        La generazione si adatta al contenuto, ma non supererà il target scelto.
+                                    </p>
+                                </div>
 
                                 {file && (
                                     <motion.button

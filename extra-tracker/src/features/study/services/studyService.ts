@@ -475,11 +475,12 @@ class StudyService {
      * 🪄 MAGIC GENERATE - Genera flashcard da PDF usando AI
      * 
      * Carica un file PDF e usa OpenAI per generare automaticamente
-     * 10-15 flashcard di qualità basate sul contenuto.
+     * un numero dinamico di flashcard di qualità basate sul contenuto.
      */
     async generateFromPDF(
         deckId: string,
-        file: File
+        file: File,
+        options: { maxCards?: number } = {}
     ): Promise<{ generatedCount: number; deck: Deck; totalChunks?: number; totalTextLength?: number }> {
         // Validazione client-side
         if (!file) {
@@ -495,6 +496,9 @@ class StudyService {
         // Costruisci FormData per upload
         const formData = new FormData();
         formData.append('pdf', file);
+        if (Number.isFinite(options.maxCards) && Number(options.maxCards) > 0) {
+            formData.append('maxCards', String(Math.round(Number(options.maxCards))));
+        }
 
         console.log('📤 Uploading PDF:', file.name, file.size, 'bytes');
 
