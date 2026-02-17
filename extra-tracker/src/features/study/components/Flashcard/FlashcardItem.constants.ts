@@ -41,11 +41,11 @@ export const CARD_STYLES = {
     base: {
         borderRadius: 'rounded-xl',
         padding: 'p-3.5 md:p-4',
-        border: 'border border-white/[0.05]',
+        border: 'border border-theme-default',
         transition: 'transition-colors duration-200',
         hover: {
-            border: 'hover:border-white/[0.12]',
-            shadow: 'hover:shadow-[0_6px_18px_rgba(0,0,0,0.22)]',
+            border: 'hover:border-theme-strong',
+            shadow: 'hover:shadow-theme-md',
         },
     },
     sourceActive: {
@@ -54,8 +54,9 @@ export const CARD_STYLES = {
         background: 'bg-violet-500/10',
     },
     default: {
-        border: 'border-white/[0.05]',
-        background: 'bg-white/[0.02]',
+        border: 'border-theme-default',
+        background: 'bg-theme-card',
+        shadow: 'shadow-theme-sm',
     },
 } as const;
 
@@ -63,18 +64,18 @@ export const BADGE_STYLES = {
     question: {
         size: 'w-7 h-7 md:w-8 md:h-8',
         borderRadius: 'rounded-full',
-        background: 'bg-violet-500/15',
-        border: 'border border-violet-500/30',
-        text: 'text-[10px] font-semibold text-violet-200',
-        shadow: '',
+        background: 'bg-violet-500/25',
+        border: 'border border-violet-500/40',
+        text: 'text-xs font-bold text-violet-700',
+        shadow: 'shadow-sm',
     },
     answer: {
         size: 'w-7 h-7 md:w-8 md:h-8',
         borderRadius: 'rounded-full',
-        background: 'bg-amber-500/10',
-        border: 'border border-amber-500/25',
-        text: 'text-[10px] font-semibold text-amber-200',
-        shadow: '',
+        background: 'bg-amber-500/25',
+        border: 'border border-amber-500/40',
+        text: 'text-xs font-bold text-amber-700',
+        shadow: 'shadow-sm',
     },
 } as const;
 
