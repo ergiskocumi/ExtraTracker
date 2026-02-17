@@ -39,25 +39,23 @@ export const ANIMATION_CONFIG = {
 
 export const CARD_STYLES = {
     base: {
-        borderRadius: 'rounded-2xl',
-        padding: 'p-5 md:p-6', 
-        border: 'border border-theme-default',
-        shadow: 'shadow-theme-sm',
+        borderRadius: 'rounded-xl',
+        padding: 'p-3.5 md:p-4',
+        border: 'border border-white/[0.05]',
         transition: 'transition-colors duration-200',
-        height: 'h-auto flex flex-col',
         hover: {
-            border: 'hover:border-theme-strong',
-            shadow: 'hover:shadow-theme-md',
+            border: 'hover:border-white/[0.12]',
+            shadow: 'hover:shadow-[0_6px_18px_rgba(0,0,0,0.22)]',
         },
     },
     sourceActive: {
-        border: 'border-primary-500/45',
-        shadow: 'shadow-[0_0_18px_rgba(124,58,237,0.22)]',
-        background: 'rgba(124, 58, 237, 0.12)', // CSS value for inline style
+        border: 'border-violet-500/40',
+        shadow: 'shadow-[0_0_16px_rgba(139,92,246,0.25)]',
+        background: 'bg-violet-500/10',
     },
     default: {
-        border: 'border-theme-default',
-        background: 'var(--bg-card)', // Use CSS variable for theme-aware background
+        border: 'border-white/[0.05]',
+        background: 'bg-white/[0.02]',
     },
 } as const;
 
@@ -65,9 +63,9 @@ export const BADGE_STYLES = {
     question: {
         size: 'w-7 h-7 md:w-8 md:h-8',
         borderRadius: 'rounded-full',
-        background: 'bg-primary-500/15',
-        border: 'border border-primary-500/35',
-        text: 'text-[10px] font-semibold text-primary-700 dark:text-primary-200',
+        background: 'bg-violet-500/15',
+        border: 'border border-violet-500/30',
+        text: 'text-[10px] font-semibold text-violet-200',
         shadow: '',
     },
     answer: {
@@ -75,7 +73,7 @@ export const BADGE_STYLES = {
         borderRadius: 'rounded-full',
         background: 'bg-amber-500/10',
         border: 'border border-amber-500/25',
-        text: 'text-[10px] font-semibold text-amber-700 dark:text-amber-200',
+        text: 'text-[10px] font-semibold text-amber-200',
         shadow: '',
     },
 } as const;
@@ -89,12 +87,12 @@ export const BUTTON_STYLES = {
         active: 'active:scale-95',
     },
     edit: {
-        border: 'border-theme-default',
-        background: 'bg-theme-surface',
-        text: 'text-theme-secondary',
+        border: 'border-white/[0.08]',
+        background: 'bg-white/[0.05]',
+        text: 'text-white/70',
         hover: {
-            text: 'hover:text-theme-primary',
-            background: 'hover:bg-theme-card',
+            text: 'hover:text-white',
+            background: 'hover:bg-white/[0.10]',
         },
     },
     delete: {
@@ -136,12 +134,12 @@ export const BUTTON_STYLES = {
         },
     },
     cancel: {
-        border: 'border-theme-default',
-        background: 'bg-theme-surface',
-        text: 'text-theme-secondary',
+        border: 'border-white/[0.08]',
+        background: 'bg-white/[0.05]',
+        text: 'text-slate-300',
         hover: {
-            text: 'hover:text-theme-primary',
-            background: 'hover:bg-theme-card',
+            text: 'hover:text-white',
+            background: 'hover:bg-white/[0.10]',
         },
         disabled: {
             opacity: 'disabled:opacity-50',
@@ -170,15 +168,15 @@ export const INPUT_STYLES = {
         padding: 'p-3',
         borderRadius: 'rounded-xl',
         fontSize: 'text-sm md:text-base',
-        background: 'bg-theme-surface',
-        border: 'border border-theme-default',
-        backdrop: '',
-        text: 'text-theme-primary',
-        placeholder: 'placeholder:text-theme-muted',
+        background: 'bg-white/[0.05]',
+        border: 'border border-white/[0.08]',
+        backdrop: 'backdrop-blur-sm',
+        text: 'text-white',
+        placeholder: 'placeholder:text-slate-400',
         focus: {
             outline: 'focus:outline-none',
-            ring: 'focus:ring-2 focus:ring-primary-500/30',
-            border: 'focus:border-primary-500/60',
+            ring: 'focus:ring-2 focus:ring-violet-500/50',
+            border: 'focus:border-violet-500/60',
         },
         transition: 'transition-all duration-300',
     },
@@ -256,10 +254,10 @@ export const LAYOUT = {
         paddingTop: 'pt-3',
     },
     text: {
-        question: 'text-sm md:text-base font-semibold leading-relaxed text-theme-primary',
-        answer: 'text-sm md:text-base leading-relaxed whitespace-pre-wrap text-theme-secondary',
+        question: 'text-sm md:text-base font-semibold leading-relaxed text-white',
+        answer: 'text-sm md:text-base leading-relaxed whitespace-pre-wrap text-white/80',
     },
     divider: {
-        border: 'border-t border-theme-default',
+        border: 'border-t border-white/[0.08]',
     },
 } as const;
