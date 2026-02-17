@@ -1,11 +1,12 @@
 /**
- * 📝 GLOBAL FEEDBACK MODAL - Modal globale per feedback
+ * GLOBAL FEEDBACK MODAL - Modal globale per feedback
  *
  * Versione del modal che:
  * - Si connette al FeedbackContext
  * - Supporta minimizzazione per fare screenshot
  * - Supporta paste da clipboard (Ctrl+V)
  * - Può essere richiamato da qualsiasi parte dell'app
+ * - Theme-aware (light/dark via CSS variables)
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -68,13 +69,6 @@ export const GlobalFeedbackModal: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const formRef = useRef<HTMLDivElement>(null);
 
-    // Reset form when modal opens
-    useEffect(() => {
-        if (isOpen && !isMinimized) {
-            // Don't reset if just maximizing
-        }
-    }, [isOpen]);
-
     // Full reset when modal closes
     useEffect(() => {
         if (!isOpen) {
@@ -101,7 +95,6 @@ export const GlobalFeedbackModal: React.FC = () => {
                 if (item.type.startsWith('image/')) {
                     const file = item.getAsFile();
                     if (file) {
-                        // Rename pasted images
                         const timestamp = Date.now();
                         const newFile = new File(
                             [file],
@@ -257,9 +250,9 @@ export const GlobalFeedbackModal: React.FC = () => {
 
     const getFileIcon = (file: File) => {
         if (file.type.startsWith('image/')) {
-            return <Image className="w-4 h-4 text-blue-400" />;
+            return <Image className="w-4 h-4" style={{ color: 'var(--info)' }} />;
         }
-        return <FileText className="w-4 h-4 text-orange-400" />;
+        return <FileText className="w-4 h-4 text-orange-500" />;
     };
 
     const formatFileSize = (bytes: number): string => {
@@ -268,11 +261,13 @@ export const GlobalFeedbackModal: React.FC = () => {
         return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
 
+    const macKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl';
+
     return (
         <AnimatePresence>
             {isOpen && (
                 <>
-                    {/* Minimized State - Small floating card */}
+                    {/* Minimized State */}
                     {isMinimized ? (
                         <motion.div
                             initial={{ opacity: 0, y: 20, scale: 0.9 }}
@@ -280,29 +275,47 @@ export const GlobalFeedbackModal: React.FC = () => {
                             exit={{ opacity: 0, y: 20, scale: 0.9 }}
                             className="fixed bottom-6 right-6 z-50"
                         >
-                            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/10 bg-dark-400/95 backdrop-blur-xl shadow-2xl">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/15">
-                                    <Bug className="w-5 h-5 text-primary-400" />
+                            <div
+                                className="flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl"
+                                style={{
+                                    background: 'var(--bg-elevated)',
+                                    border: '1px solid var(--border-default)',
+                                    boxShadow: 'var(--shadow-lg)',
+                                }}
+                            >
+                                <div
+                                    className="flex h-10 w-10 items-center justify-center rounded-xl"
+                                    style={{ background: 'rgba(124, 58, 237, 0.12)' }}
+                                >
+                                    <Bug className="w-5 h-5 text-primary-500" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-white">
+                                    <p
+                                        className="text-sm font-medium"
+                                        style={{ color: 'var(--text-primary)' }}
+                                    >
                                         Feedback in corso
                                     </p>
-                                    <p className="text-xs text-white/50">
+                                    <p
+                                        className="text-xs"
+                                        style={{ color: 'var(--text-muted)' }}
+                                    >
                                         Fai lo screenshot, poi torna qui
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-1 ml-2">
                                     <button
                                         onClick={toggleMinimize}
-                                        className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                                        className="p-2 rounded-lg transition-colors"
+                                        style={{ color: 'var(--text-muted)' }}
                                         title="Espandi"
                                     >
                                         <Maximize2 className="w-4 h-4" />
                                     </button>
                                     <button
                                         onClick={closeFeedback}
-                                        className="p-2 rounded-lg hover:bg-red-500/20 text-white/60 hover:text-red-400 transition-colors"
+                                        className="p-2 rounded-lg hover:bg-red-500/10 transition-colors hover:text-red-500"
+                                        style={{ color: 'var(--text-muted)' }}
                                         title="Chiudi"
                                     >
                                         <X className="w-4 h-4" />
@@ -320,7 +333,8 @@ export const GlobalFeedbackModal: React.FC = () => {
                         >
                             {/* Backdrop */}
                             <motion.div
-                                className="absolute inset-0 bg-black/80 backdrop-blur-lg"
+                                className="absolute inset-0"
+                                style={{ background: 'var(--bg-overlay)', backdropFilter: 'blur(8px)' }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
@@ -337,24 +351,38 @@ export const GlobalFeedbackModal: React.FC = () => {
                                 animate={{ scale: 1, y: 0, opacity: 1 }}
                                 exit={{ scale: 0.95, y: 12, opacity: 0 }}
                                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                                className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.03] shadow-xl"
+                                className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl"
+                                style={{
+                                    background: 'var(--bg-elevated)',
+                                    border: '1px solid var(--border-default)',
+                                    boxShadow: 'var(--shadow-lg)',
+                                }}
                             >
                                 {/* Header */}
-                                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                                <div
+                                    className="flex items-center justify-between px-6 py-4"
+                                    style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                                >
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/15">
-                                            <Bug className="w-5 h-5 text-primary-400" />
+                                        <div
+                                            className="flex h-10 w-10 items-center justify-center rounded-xl"
+                                            style={{ background: 'rgba(124, 58, 237, 0.12)' }}
+                                        >
+                                            <Bug className="w-5 h-5 text-primary-500" />
                                         </div>
                                         <div>
                                             <h2
                                                 id="feedback-modal-title"
-                                                className="text-lg font-semibold text-white"
+                                                className="text-lg font-semibold"
+                                                style={{ color: 'var(--text-primary)' }}
                                             >
                                                 Segnala un problema
                                             </h2>
-                                            <p className="text-sm text-white/60">
-                                                {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+V
-                                                per incollare screenshot
+                                            <p
+                                                className="text-sm"
+                                                style={{ color: 'var(--text-muted)' }}
+                                            >
+                                                {macKey}+V per incollare screenshot
                                             </p>
                                         </div>
                                     </div>
@@ -362,7 +390,8 @@ export const GlobalFeedbackModal: React.FC = () => {
                                         <button
                                             onClick={toggleMinimize}
                                             disabled={isSubmitting}
-                                            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white"
+                                            className="p-2 rounded-lg transition-colors disabled:opacity-50"
+                                            style={{ color: 'var(--text-muted)' }}
                                             title="Minimizza per fare screenshot"
                                         >
                                             <Minimize2 className="w-5 h-5" />
@@ -370,7 +399,8 @@ export const GlobalFeedbackModal: React.FC = () => {
                                         <button
                                             onClick={closeFeedback}
                                             disabled={isSubmitting}
-                                            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white"
+                                            className="p-2 rounded-lg transition-colors disabled:opacity-50"
+                                            style={{ color: 'var(--text-muted)' }}
                                         >
                                             <X className="w-5 h-5" />
                                         </button>
@@ -378,15 +408,27 @@ export const GlobalFeedbackModal: React.FC = () => {
                                 </div>
 
                                 {/* Tip Banner */}
-                                <div className="mx-6 mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                                <div
+                                    className="mx-6 mt-4 p-3 rounded-xl"
+                                    style={{
+                                        background: 'rgba(245, 158, 11, 0.08)',
+                                        border: '1px solid rgba(245, 158, 11, 0.2)',
+                                    }}
+                                >
                                     <div className="flex items-start gap-2">
-                                        <Camera className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                                        <p className="text-xs text-amber-200/90">
+                                        <Camera className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                                             <strong>Tip:</strong> Clicca su{' '}
                                             <Minimize2 className="w-3 h-3 inline" /> per minimizzare,
                                             fai lo screenshot, poi{' '}
-                                            <span className="font-mono bg-white/10 px-1 rounded">
-                                                {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+V
+                                            <span
+                                                className="font-mono px-1 rounded text-[11px]"
+                                                style={{
+                                                    background: 'var(--bg-surface)',
+                                                    border: '1px solid var(--border-subtle)',
+                                                }}
+                                            >
+                                                {macKey}+V
                                             </span>{' '}
                                             per incollarlo qui.
                                         </p>
@@ -397,8 +439,11 @@ export const GlobalFeedbackModal: React.FC = () => {
                                 <form onSubmit={handleSubmit} className="p-6 space-y-5">
                                     {/* Titolo */}
                                     <div>
-                                        <label className="block text-sm font-medium text-white/80 mb-2">
-                                            Titolo <span className="text-red-400">*</span>
+                                        <label
+                                            className="block text-sm font-medium mb-2"
+                                            style={{ color: 'var(--text-secondary)' }}
+                                        >
+                                            Titolo <span className="text-red-500">*</span>
                                         </label>
                                         <input
                                             type="text"
@@ -406,57 +451,82 @@ export const GlobalFeedbackModal: React.FC = () => {
                                             onChange={(e) => setTitle(e.target.value)}
                                             placeholder="Breve descrizione del problema"
                                             maxLength={200}
-                                            className={`w-full input ${
-                                                errors.title ? 'border-red-500/50' : ''
-                                            }`}
+                                            className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all"
+                                            style={{
+                                                background: 'var(--bg-input)',
+                                                border: errors.title
+                                                    ? '1px solid var(--error)'
+                                                    : '1px solid var(--border-default)',
+                                                color: 'var(--text-primary)',
+                                            }}
+                                            onFocus={(e) => {
+                                                e.currentTarget.style.borderColor = 'var(--border-focus)';
+                                                e.currentTarget.style.boxShadow = 'var(--shadow-glow)';
+                                            }}
+                                            onBlur={(e) => {
+                                                e.currentTarget.style.borderColor = errors.title
+                                                    ? 'var(--error)'
+                                                    : 'var(--border-default)';
+                                                e.currentTarget.style.boxShadow = 'none';
+                                            }}
                                         />
                                         {errors.title && (
-                                            <p className="mt-1 text-sm text-red-400">{errors.title}</p>
+                                            <p className="mt-1 text-sm" style={{ color: 'var(--error)' }}>
+                                                {errors.title}
+                                            </p>
                                         )}
-                                        <p className="mt-1 text-xs text-white/40">
+                                        <p className="mt-1 text-xs" style={{ color: 'var(--text-disabled)' }}>
                                             {title.length}/200 caratteri
                                         </p>
                                     </div>
 
-                                    {/* Tipo e Priorità */}
+                                    {/* Tipo e Priorita */}
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-white/80 mb-2">
+                                            <label
+                                                className="block text-sm font-medium mb-2"
+                                                style={{ color: 'var(--text-secondary)' }}
+                                            >
                                                 Tipo
                                             </label>
                                             <select
                                                 value={type}
                                                 onChange={(e) => setType(e.target.value as FeedbackType)}
-                                                className="w-full select"
+                                                className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all cursor-pointer"
+                                                style={{
+                                                    background: 'var(--bg-input)',
+                                                    border: '1px solid var(--border-default)',
+                                                    color: 'var(--text-primary)',
+                                                }}
                                             >
                                                 {TYPE_OPTIONS.map((opt) => (
-                                                    <option
-                                                        key={opt.value}
-                                                        value={opt.value}
-                                                        className="bg-dark-300"
-                                                    >
+                                                    <option key={opt.value} value={opt.value}>
                                                         {opt.label}
                                                     </option>
                                                 ))}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-white/80 mb-2">
-                                                Priorità
+                                            <label
+                                                className="block text-sm font-medium mb-2"
+                                                style={{ color: 'var(--text-secondary)' }}
+                                            >
+                                                Priorita
                                             </label>
                                             <select
                                                 value={priority}
                                                 onChange={(e) =>
                                                     setPriority(e.target.value as FeedbackPriority)
                                                 }
-                                                className="w-full select"
+                                                className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all cursor-pointer"
+                                                style={{
+                                                    background: 'var(--bg-input)',
+                                                    border: '1px solid var(--border-default)',
+                                                    color: 'var(--text-primary)',
+                                                }}
                                             >
                                                 {PRIORITY_OPTIONS.map((opt) => (
-                                                    <option
-                                                        key={opt.value}
-                                                        value={opt.value}
-                                                        className="bg-dark-300"
-                                                    >
+                                                    <option key={opt.value} value={opt.value}>
                                                         {opt.label}
                                                     </option>
                                                 ))}
@@ -466,8 +536,11 @@ export const GlobalFeedbackModal: React.FC = () => {
 
                                     {/* Descrizione */}
                                     <div>
-                                        <label className="block text-sm font-medium text-white/80 mb-2">
-                                            Descrizione <span className="text-red-400">*</span>
+                                        <label
+                                            className="block text-sm font-medium mb-2"
+                                            style={{ color: 'var(--text-secondary)' }}
+                                        >
+                                            Descrizione <span className="text-red-500">*</span>
                                         </label>
                                         <textarea
                                             value={description}
@@ -475,23 +548,41 @@ export const GlobalFeedbackModal: React.FC = () => {
                                             placeholder="Descrivi il problema in dettaglio. Includi passi per riprodurlo, comportamento atteso vs effettivo..."
                                             rows={4}
                                             maxLength={5000}
-                                            className={`w-full input resize-none ${
-                                                errors.description ? 'border-red-500/50' : ''
-                                            }`}
+                                            className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all resize-none"
+                                            style={{
+                                                background: 'var(--bg-input)',
+                                                border: errors.description
+                                                    ? '1px solid var(--error)'
+                                                    : '1px solid var(--border-default)',
+                                                color: 'var(--text-primary)',
+                                            }}
+                                            onFocus={(e) => {
+                                                e.currentTarget.style.borderColor = 'var(--border-focus)';
+                                                e.currentTarget.style.boxShadow = 'var(--shadow-glow)';
+                                            }}
+                                            onBlur={(e) => {
+                                                e.currentTarget.style.borderColor = errors.description
+                                                    ? 'var(--error)'
+                                                    : 'var(--border-default)';
+                                                e.currentTarget.style.boxShadow = 'none';
+                                            }}
                                         />
                                         {errors.description && (
-                                            <p className="mt-1 text-sm text-red-400">
+                                            <p className="mt-1 text-sm" style={{ color: 'var(--error)' }}>
                                                 {errors.description}
                                             </p>
                                         )}
-                                        <p className="mt-1 text-xs text-white/40">
+                                        <p className="mt-1 text-xs" style={{ color: 'var(--text-disabled)' }}>
                                             {description.length}/5000 caratteri
                                         </p>
                                     </div>
 
                                     {/* File Upload */}
                                     <div>
-                                        <label className="block text-sm font-medium text-white/80 mb-2">
+                                        <label
+                                            className="block text-sm font-medium mb-2"
+                                            style={{ color: 'var(--text-secondary)' }}
+                                        >
                                             Screenshot / Allegati
                                         </label>
                                         <div
@@ -499,39 +590,58 @@ export const GlobalFeedbackModal: React.FC = () => {
                                             onDragLeave={handleDragLeave}
                                             onDrop={handleDrop}
                                             onClick={() => fileInputRef.current?.click()}
-                                            className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
-                                                isDragging
-                                                    ? 'border-primary-500 bg-primary-500/10'
-                                                    : 'border-white/20 hover:border-white/40 hover:bg-white/5'
-                                            }`}
+                                            className="border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all"
+                                            style={{
+                                                borderColor: isDragging
+                                                    ? 'rgb(124, 58, 237)'
+                                                    : 'var(--border-default)',
+                                                background: isDragging
+                                                    ? 'rgba(124, 58, 237, 0.06)'
+                                                    : 'transparent',
+                                            }}
                                         >
                                             <div className="flex items-center justify-center gap-4">
                                                 <div className="flex flex-col items-center">
                                                     <Upload
-                                                        className={`w-6 h-6 mb-1 ${
-                                                            isDragging ? 'text-primary-400' : 'text-white/40'
-                                                        }`}
+                                                        className="w-6 h-6 mb-1"
+                                                        style={{
+                                                            color: isDragging
+                                                                ? 'rgb(124, 58, 237)'
+                                                                : 'var(--text-disabled)',
+                                                        }}
                                                     />
-                                                    <p className="text-xs text-white/60">
+                                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                                                         Trascina o{' '}
-                                                        <span className="text-primary-400">clicca</span>
+                                                        <span className="text-primary-500">clicca</span>
                                                     </p>
                                                 </div>
-                                                <div className="w-px h-8 bg-white/10" />
+                                                <div
+                                                    className="w-px h-8"
+                                                    style={{ background: 'var(--border-subtle)' }}
+                                                />
                                                 <div className="flex flex-col items-center">
-                                                    <Clipboard className="w-6 h-6 mb-1 text-white/40" />
-                                                    <p className="text-xs text-white/60">
-                                                        <span className="font-mono bg-white/10 px-1 rounded text-[10px]">
-                                                            {navigator.platform.includes('Mac')
-                                                                ? '⌘'
-                                                                : 'Ctrl'}
-                                                            +V
+                                                    <Clipboard
+                                                        className="w-6 h-6 mb-1"
+                                                        style={{ color: 'var(--text-disabled)' }}
+                                                    />
+                                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                                        <span
+                                                            className="font-mono px-1 rounded text-[10px]"
+                                                            style={{
+                                                                background: 'var(--bg-surface)',
+                                                                border: '1px solid var(--border-subtle)',
+                                                            }}
+                                                        >
+                                                            {macKey}+V
                                                         </span>{' '}
                                                         incolla
                                                     </p>
                                                 </div>
                                             </div>
-                                            <p className="text-[10px] text-white/30 mt-2">
+                                            <p
+                                                className="text-[10px] mt-2"
+                                                style={{ color: 'var(--text-disabled)' }}
+                                            >
                                                 PNG, JPEG, GIF, PDF - Max 5MB, max 3 file
                                             </p>
                                             <input
@@ -550,9 +660,12 @@ export const GlobalFeedbackModal: React.FC = () => {
                                                 {files.map((file, index) => (
                                                     <div
                                                         key={index}
-                                                        className="flex items-center gap-3 p-2.5 rounded-lg bg-white/5 border border-white/10"
+                                                        className="flex items-center gap-3 p-2.5 rounded-lg"
+                                                        style={{
+                                                            background: 'var(--bg-surface)',
+                                                            border: '1px solid var(--border-subtle)',
+                                                        }}
                                                     >
-                                                        {/* Thumbnail for images */}
                                                         {file.type.startsWith('image/') ? (
                                                             <img
                                                                 src={URL.createObjectURL(file)}
@@ -560,22 +673,32 @@ export const GlobalFeedbackModal: React.FC = () => {
                                                                 className="w-10 h-10 rounded-lg object-cover"
                                                             />
                                                         ) : (
-                                                            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                                                            <div
+                                                                className="w-10 h-10 rounded-lg flex items-center justify-center"
+                                                                style={{ background: 'var(--bg-surface-hover)' }}
+                                                            >
                                                                 {getFileIcon(file)}
                                                             </div>
                                                         )}
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-sm text-white truncate">
+                                                            <p
+                                                                className="text-sm truncate"
+                                                                style={{ color: 'var(--text-primary)' }}
+                                                            >
                                                                 {file.name}
                                                             </p>
-                                                            <p className="text-xs text-white/40">
+                                                            <p
+                                                                className="text-xs"
+                                                                style={{ color: 'var(--text-disabled)' }}
+                                                            >
                                                                 {formatFileSize(file.size)}
                                                             </p>
                                                         </div>
                                                         <button
                                                             type="button"
                                                             onClick={() => removeFile(index)}
-                                                            className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/60 hover:text-red-400 transition-colors"
+                                                            className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors hover:text-red-500"
+                                                            style={{ color: 'var(--text-muted)' }}
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
@@ -586,12 +709,19 @@ export const GlobalFeedbackModal: React.FC = () => {
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                                    <div
+                                        className="flex justify-end gap-3 pt-4"
+                                        style={{ borderTop: '1px solid var(--border-subtle)' }}
+                                    >
                                         <button
                                             type="button"
                                             onClick={closeFeedback}
                                             disabled={isSubmitting}
-                                            className="px-4 py-2.5 rounded-xl border border-white/10 text-white/70 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+                                            className="px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50"
+                                            style={{
+                                                border: '1px solid var(--border-default)',
+                                                color: 'var(--text-secondary)',
+                                            }}
                                         >
                                             Annulla
                                         </button>
