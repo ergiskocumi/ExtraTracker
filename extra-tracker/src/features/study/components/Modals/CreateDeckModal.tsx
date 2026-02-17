@@ -219,7 +219,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/70 backdrop-blur-md"
+                        className="absolute inset-0 bg-theme-overlay backdrop-blur-md"
                     />
 
                     {/* Modal */}
@@ -229,29 +229,25 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                         exit={{ scale: 0.9, opacity: 0, y: 30 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                         onClick={e => e.stopPropagation()}
-                        className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/[0.1]"
-                        style={{
-                            background: 'linear-gradient(145deg, rgba(30, 27, 50, 0.98) 0%, rgba(18, 16, 32, 0.98) 100%)',
-                            boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.05) inset'
-                        }}
+                        className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-theme-default bg-theme-elevated shadow-xl"
                     >
-                        {/* Decorative gradient */}
-                        <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-primary-500/20 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+                        {/* Decorative gradient (theme-safe) */}
+                        <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-primary-500/15 via-primary-500/5 to-transparent rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
 
                         {/* Header */}
-                        <div className="relative px-6 pt-6 pb-4 border-b border-white/[0.08]">
+                        <div className="relative px-6 pt-6 pb-4 border-b border-theme-subtle">
                             <div className="flex items-center gap-4">
-                                <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-500/20 to-primary-600/10 border border-primary-500/20">
-                                    <FiLayers className="w-6 h-6 text-primary-400" />
+                                <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-primary-500/10 border border-primary-500/20">
+                                    <FiLayers className="w-6 h-6 text-primary-500" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-white">Nuovo Mazzo</h2>
-                                    <p className="text-sm text-white/50">Crea un set di flashcards</p>
+                                    <h2 className="text-xl font-bold text-theme-primary">Nuovo Mazzo</h2>
+                                    <p className="text-sm text-theme-secondary">Crea un set di flashcards per studiare in modo efficace</p>
                                 </div>
                             </div>
                             <button
                                 onClick={handleClose}
-                                className="absolute top-6 right-6 p-2 rounded-xl hover:bg-white/[0.08] transition-colors text-white/50 hover:text-white"
+                                className="absolute top-6 right-6 p-2 rounded-xl bg-theme-surface hover:bg-theme-card border-theme-subtle text-theme-secondary hover:text-theme-primary transition-colors"
                             >
                                 <FiX className="w-5 h-5" />
                             </button>
@@ -266,7 +262,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}
-                                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
+                                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm"
                                     >
                                         <FiAlertCircle className="w-4 h-4 flex-shrink-0" />
                                         {error}
@@ -276,13 +272,16 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
 
                             {/* Exam Selection */}
                             <div className="space-y-2">
-                                <label className="flex items-center gap-2 text-sm font-medium text-white/70">
-                                    <FiTarget className="w-4 h-4" />
+                                <label className="flex items-center gap-2 text-sm font-medium text-theme-primary">
+                                    <FiTarget className="w-4 h-4 text-theme-secondary" />
                                     Esame associato
                                 </label>
+                                <p className="text-xs text-theme-muted">
+                                    Associa il mazzo a un esame per organizzare le carte e tracciare i progressi.
+                                </p>
 
                                 {isLoadingExams ? (
-                                    <div className="h-14 rounded-xl bg-white/[0.03] animate-pulse" />
+                                    <div className="h-14 rounded-xl bg-theme-surface border border-theme-subtle animate-pulse" />
                                 ) : (
                                     <div className="relative">
                                         {/* Custom Dropdown */}
@@ -290,18 +289,18 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                             type="button"
                                             onClick={() => setIsExamDropdownOpen(!isExamDropdownOpen)}
                                             className={`
-                                                w-full px-4 py-3.5 rounded-xl text-left transition-all flex items-center justify-between
+                                                w-full px-4 py-3.5 rounded-xl text-left transition-all flex items-center justify-between border
                                                 ${selectedExam
-                                                    ? 'bg-primary-500/10 border-primary-500/30 text-white'
-                                                    : 'bg-white/[0.03] border-white/[0.08] text-white/50'
+                                                    ? 'bg-primary-500/10 border-primary-500/30 text-theme-primary'
+                                                    : 'bg-theme-surface border-theme-default text-theme-muted'
                                                 }
-                                                border hover:border-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20
+                                                hover:border-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20
                                             `}
                                         >
                                             <span className="truncate">
                                                 {selectedExam ? selectedExam.title : 'Seleziona un esame...'}
                                             </span>
-                                            <FiChevronDown className={`w-5 h-5 transition-transform ${isExamDropdownOpen ? 'rotate-180' : ''}`} />
+                                            <FiChevronDown className={`w-5 h-5 text-theme-secondary transition-transform ${isExamDropdownOpen ? 'rotate-180' : ''}`} />
                                         </button>
 
                                         {/* Dropdown Menu */}
@@ -311,12 +310,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                     initial={{ opacity: 0, y: -10 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     exit={{ opacity: 0, y: -10 }}
-                                                    className="absolute z-10 w-full mt-2 py-2 rounded-xl border border-white/[0.1] overflow-hidden"
-                                                    style={{
-                                                        background: 'rgba(25, 23, 40, 0.98)',
-                                                        backdropFilter: 'blur(20px)',
-                                                        boxShadow: '0 15px 40px -10px rgba(0,0,0,0.5)'
-                                                    }}
+                                                    className="absolute z-10 w-full mt-2 py-2 rounded-xl border border-theme-default bg-theme-elevated shadow-xl overflow-hidden"
                                                 >
                                                     {exams.length > 0 ? (
                                                         <div className="max-h-48 overflow-y-auto">
@@ -331,35 +325,35 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                                     className={`
                                                                         w-full px-4 py-3 text-left flex items-center gap-3 transition-colors
                                                                         ${selectedExamId === exam.id
-                                                                            ? 'bg-primary-500/20 text-white'
-                                                                            : 'text-white/70 hover:bg-white/[0.06]'
+                                                                            ? 'bg-primary-500/15 text-theme-primary'
+                                                                            : 'text-theme-secondary hover:bg-theme-surface'
                                                                         }
                                                                     `}
                                                                 >
-                                                                    <FiTarget className={`w-4 h-4 ${selectedExamId === exam.id ? 'text-primary-400' : 'text-white/40'}`} />
+                                                                    <FiTarget className={`w-4 h-4 ${selectedExamId === exam.id ? 'text-primary-500' : 'text-theme-muted'}`} />
                                                                     <span className="flex-1 truncate">{exam.title}</span>
                                                                     {selectedExamId === exam.id && (
-                                                                        <FiCheck className="w-4 h-4 text-primary-400" />
+                                                                        <FiCheck className="w-4 h-4 text-primary-500" />
                                                                     )}
                                                                 </button>
                                                             ))}
                                                         </div>
                                                     ) : (
-                                                        <div className="px-4 py-6 text-center text-white/40 text-sm">
+                                                        <div className="px-4 py-6 text-center text-theme-muted text-sm">
                                                             <FiTarget className="w-8 h-8 mx-auto mb-2 opacity-50" />
                                                             Nessun esame trovato
                                                         </div>
                                                     )}
 
                                                     {/* Create Exam Button */}
-                                                    <div className="border-t border-white/[0.08] mt-2 pt-2 px-2">
+                                                    <div className="border-t border-theme-subtle mt-2 pt-2 px-2">
                                                         <button
                                                             type="button"
                                                             onClick={() => {
                                                                 setShowQuickExamForm(true);
                                                                 setIsExamDropdownOpen(false);
                                                             }}
-                                                            className="w-full px-4 py-3 rounded-lg flex items-center gap-3 text-primary-400 hover:bg-primary-500/10 transition-colors text-sm font-medium"
+                                                            className="w-full px-4 py-3 rounded-lg flex items-center gap-3 text-primary-500 hover:bg-primary-500/10 transition-colors text-sm font-medium"
                                                         >
                                                             <FiPlus className="w-4 h-4" />
                                                             Crea nuovo Esame
@@ -381,13 +375,13 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                             className="overflow-hidden"
                                         >
                                             <div className="mt-3 p-4 rounded-xl bg-primary-500/5 border border-primary-500/20 space-y-4">
-                                                <p className="text-xs font-medium text-primary-400 uppercase tracking-wider">
+                                                <p className="text-xs font-medium text-primary-500 uppercase tracking-wider">
                                                     Nuovo Esame
                                                 </p>
                                                 
                                                 {/* Nome Esame */}
                                                 <div className="space-y-2">
-                                                    <label className="text-xs text-white/60 font-medium">
+                                                    <label className="text-xs text-theme-secondary font-medium">
                                                         Nome Esame
                                                     </label>
                                                     <input
@@ -395,25 +389,24 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                         value={quickExam.title}
                                                         onChange={e => setQuickExam({ ...quickExam, title: e.target.value })}
                                                         placeholder="es. Analisi Matematica I"
-                                                        className="w-full px-3 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/30 text-sm focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                                        className="w-full px-3 py-2.5 bg-theme-surface border border-theme-default rounded-lg text-theme-primary placeholder:text-theme-muted text-sm focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
                                                         autoFocus
                                                     />
                                                 </div>
 
                                                 {/* Data di Scadenza */}
                                                 <div className="space-y-2">
-                                                    <label className="text-xs text-white/60 font-medium">
-                                                        Data Esame <span className="text-red-400">*</span>
+                                                    <label className="text-xs text-theme-secondary font-medium">
+                                                        Data Esame <span className="text-red-500">*</span>
                                                     </label>
                                                     <input
                                                         type="date"
                                                         value={quickExam.deadline}
                                                         onChange={e => setQuickExam({ ...quickExam, deadline: e.target.value })}
                                                         min={new Date().toISOString().split('T')[0]}
-                                                        className="w-full px-3 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white text-sm focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all
-                                                                   [color-scheme:dark]"
+                                                        className="w-full px-3 py-2.5 bg-theme-surface border border-theme-default rounded-lg text-theme-primary text-sm focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all [color-scheme:dark]"
                                                     />
-                                                    <p className="text-xs text-white/40">
+                                                    <p className="text-xs text-theme-muted">
                                                         Seleziona la data del tuo esame
                                                     </p>
                                                 </div>
@@ -421,7 +414,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                 {/* Error Message */}
                                                 {error && error.includes('scadenza') && (
                                                     <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/30">
-                                                        <p className="text-xs text-red-400">{error}</p>
+                                                        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
                                                     </div>
                                                 )}
 
@@ -431,7 +424,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                         type="button"
                                                         onClick={handleCreateQuickExam}
                                                         disabled={!quickExam.title.trim() || !quickExam.deadline || isCreatingExam}
-                                                        className="flex-1 px-4 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors"
+                                                        className="flex-1 px-4 py-2.5 rounded-lg bg-primary-500 text-white keep-light-text text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors"
                                                     >
                                                         {isCreatingExam ? (
                                                             <motion.div
@@ -458,7 +451,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                                 })()
                                                             });
                                                         }}
-                                                        className="px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors"
+                                                        className="px-4 py-2.5 rounded-lg bg-theme-surface border border-theme-default text-theme-secondary text-sm font-medium hover:bg-theme-card transition-colors"
                                                     >
                                                         Annulla
                                                     </button>
@@ -471,46 +464,55 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
 
                             {/* Deck Title */}
                             <div className="space-y-2">
-                                <label className="flex items-center gap-2 text-sm font-medium text-white/70">
-                                    <FiBookOpen className="w-4 h-4" />
+                                <label className="flex items-center gap-2 text-sm font-medium text-theme-primary">
+                                    <FiBookOpen className="w-4 h-4 text-theme-secondary" />
                                     Nome del Mazzo
-                                    <span className="text-red-400">*</span>
+                                    <span className="text-red-500">*</span>
                                 </label>
+                                <p className="text-xs text-theme-muted">
+                                    Un titolo breve e riconoscibile per trovare subito il mazzo (es. argomento o materia).
+                                </p>
                                 <input
                                     type="text"
                                     value={title}
                                     onChange={e => setTitle(e.target.value)}
                                     placeholder="es. Vocabolario JavaScript"
-                                    className="w-full px-4 py-3.5 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder-white/30 focus:border-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                    className="w-full px-4 py-3.5 bg-theme-surface border border-theme-default rounded-xl text-theme-primary placeholder:text-theme-muted focus:border-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
                                 />
                             </div>
 
                             {/* Description */}
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-white/70">
+                                <label className="text-sm font-medium text-theme-primary">
                                     Descrizione (opzionale)
                                 </label>
+                                <p className="text-xs text-theme-muted">
+                                    Puoi aggiungere una breve descrizione per ricordare l’obiettivo del mazzo.
+                                </p>
                                 <textarea
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
                                     placeholder="Aggiungi una descrizione..."
                                     rows={2}
-                                    className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder-white/30 focus:border-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-theme-surface border border-theme-default rounded-xl text-theme-primary placeholder:text-theme-muted focus:border-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all resize-none"
                                 />
                             </div>
 
                             {/* Tags */}
                             <div className="space-y-2">
-                                <label className="flex items-center gap-2 text-sm font-medium text-white/70">
-                                    <FiTag className="w-4 h-4" />
+                                <label className="flex items-center gap-2 text-sm font-medium text-theme-primary">
+                                    <FiTag className="w-4 h-4 text-theme-secondary" />
                                     Tags (opzionale)
                                 </label>
+                                <p className="text-xs text-theme-muted">
+                                    Inserisci parole chiave separate da virgola per filtrare e cercare i mazzi più velocemente.
+                                </p>
                                 <input
                                     type="text"
                                     value={tags}
                                     onChange={e => setTags(e.target.value)}
                                     placeholder="javascript, react, hooks (separati da virgola)"
-                                    className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder-white/30 focus:border-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                    className="w-full px-4 py-3 bg-theme-surface border border-theme-default rounded-xl text-theme-primary placeholder:text-theme-muted focus:border-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
                                 />
                             </div>
 
@@ -519,7 +521,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                 <button
                                     type="button"
                                     onClick={handleClose}
-                                    className="flex-1 px-5 py-3.5 rounded-xl bg-white/[0.05] text-white/70 hover:bg-white/[0.08] hover:text-white font-medium transition-all"
+                                    className="flex-1 px-5 py-3.5 rounded-xl bg-theme-surface border border-theme-default text-theme-secondary hover:bg-theme-card hover:text-theme-primary font-medium transition-all"
                                 >
                                     Annulla
                                 </button>
@@ -528,7 +530,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                     disabled={!title.trim() || isSubmitting}
                                     whileHover={{ scale: 1.01 }}
                                     whileTap={{ scale: 0.99 }}
-                                    className="flex-1 px-5 py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold shadow-lg shadow-primary-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all flex items-center justify-center gap-2"
+                                    className="flex-1 px-5 py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white keep-light-text font-semibold shadow-lg shadow-primary-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all flex items-center justify-center gap-2"
                                 >
                                     {isSubmitting ? (
                                         <>
