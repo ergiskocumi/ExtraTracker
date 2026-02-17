@@ -6,7 +6,6 @@ describe('DeckCardFilters theme contract', () => {
     it('renders semantic theme classes for active tab and search controls', () => {
         const onFilterChange = vi.fn();
         const onSearchChange = vi.fn();
-        const onViewModeChange = vi.fn();
         const onSortChange = vi.fn();
 
         render(
@@ -15,8 +14,6 @@ describe('DeckCardFilters theme contract', () => {
                 onFilterChange={onFilterChange}
                 searchQuery=""
                 onSearchChange={onSearchChange}
-                viewMode="grid"
-                onViewModeChange={onViewModeChange}
                 sortBy="order"
                 onSortChange={onSortChange}
                 counts={{ all: 12, new: 5, learning: 3, review: 2, mastered: 2 }}
@@ -30,8 +27,5 @@ describe('DeckCardFilters theme contract', () => {
         const searchInput = screen.getByPlaceholderText(/cerca carte/i);
         expect(searchInput).toHaveClass('bg-theme-card');
         expect(searchInput).toHaveClass('border-theme-default');
-
-        fireEvent.click(screen.getByRole('button', { name: /vista lista/i }));
-        expect(onViewModeChange).toHaveBeenCalledWith('list');
     });
 });

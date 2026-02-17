@@ -207,7 +207,7 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={onExamSolver}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all"
+                                className="keep-light-text flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all"
                             >
                                 <FileQuestion className="w-4 h-4" />
                                 <span className="hidden sm:inline">Exam Solver</span>
@@ -223,7 +223,7 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                                 flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold
                                 transition-all shadow-lg
                                 ${hasCards 
-                                    ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-primary-500/30 hover:shadow-primary-500/40' 
+                                    ? 'keep-light-text bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-primary-500/30 hover:shadow-primary-500/40' 
                                     : 'bg-theme-surface border border-theme-default text-theme-muted cursor-not-allowed'
                                 }
                             `}

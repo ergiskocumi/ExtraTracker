@@ -5,7 +5,10 @@
       "Bash(npx tsc:*)",
       "mcp__ide__getDiagnostics",
       "Bash(wc:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

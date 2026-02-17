@@ -24,7 +24,7 @@ import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { DeckDetailHeader } from './DeckDetailHeader';
 import { DeckStatsPanel } from './DeckStatsPanel';
-import { DeckCardFilters, type FilterStatus, type ViewMode, type SortOption } from './DeckCardFilters';
+import { DeckCardFilters, type FilterStatus, type SortOption } from './DeckCardFilters';
 import { CardEditorModal } from './CardEditorModal';
 import { FlashcardItem } from '../Flashcard/FlashcardItem';
 
@@ -65,10 +65,9 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
     onShare,
     onResetProgress,
 }) => {
-    // Filter & View State
+    // Filter & sort state (solo vista lista)
     const [filter, setFilter] = useState<FilterStatus>('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [sortBy, setSortBy] = useState<SortOption>('order');
 
     // Editor State
@@ -238,21 +237,13 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                         onFilterChange={setFilter}
                         searchQuery={searchQuery}
                         onSearchChange={setSearchQuery}
-                        viewMode={viewMode}
-                        onViewModeChange={setViewMode}
                         sortBy={sortBy}
                         onSortChange={setSortBy}
                         counts={stats}
                     />
 
-                    {/* Cards Grid/List */}
-                    <div className={`
-                        rounded-2xl border border-theme-default bg-theme-card overflow-hidden min-h-[500px] p-4
-                        ${viewMode === 'grid' 
-                            ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start auto-rows-min' 
-                            : 'flex flex-col gap-3'
-                        }
-                    `}>
+                    {/* Cards List */}
+                    <div className="rounded-2xl border border-theme-default bg-theme-surface overflow-hidden min-h-[500px] p-4 sm:p-5 flex flex-col gap-4">
                         <AnimatePresence mode="popLayout">
                             {filteredCards.length === 0 ? (
                                 <motion.div
@@ -297,7 +288,6 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                                 filteredCards.map((card, index) => (
                                     <motion.div
                                         key={card.id}
-                                        className={viewMode === 'grid' ? 'self-start' : ''}
                                         layout
                                         initial={{ opacity: 0, scale: 0.9 }}
                                         animate={{ opacity: 1, scale: 1 }}

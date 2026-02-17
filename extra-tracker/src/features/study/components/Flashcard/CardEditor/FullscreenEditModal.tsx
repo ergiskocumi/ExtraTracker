@@ -172,7 +172,7 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                         {/* ── Header ─────────────────────────────────────── */}
                         <div className="flex items-center justify-between px-5 py-3.5 border-b border-theme-subtle bg-theme-surface flex-shrink-0">
                             <div className="flex items-center gap-3">
-                                <h2 id="fse-title" className="text-sm font-semibold text-theme-primary">
+                                <h2 id="fse-title" className="text-base font-semibold text-theme-primary">
                                     {title}
                                 </h2>
 
@@ -191,22 +191,13 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                             </div>
 
                             <div className="flex items-center gap-1.5">
-                                {/* Shortcut hint */}
-                                <span className="hidden sm:flex items-center gap-1 text-[10px] text-theme-muted mr-2">
-                                    <kbd className="px-1.5 py-0.5 bg-theme-surface border border-theme-default rounded text-[10px] font-sans">Ctrl+Enter</kbd>
-                                    <span>salva</span>
-                                    <span className="mx-1 opacity-40">·</span>
-                                    <kbd className="px-1.5 py-0.5 bg-theme-surface border border-theme-default rounded text-[10px] font-sans">Esc</kbd>
-                                    <span>chiudi</span>
-                                </span>
-
                                 <Tooltip text="Chiudi senza salvare (Esc)">
                                     <button
                                         type="button"
                                         onClick={handleCancel}
                                         disabled={isSaving}
                                         aria-label="Chiudi"
-                                        className="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all disabled:opacity-50"
+                                        className="p-2 rounded-lg text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/15 hover:border-red-500/30 transition-all disabled:opacity-50"
                                     >
                                         <X className="w-4 h-4" />
                                     </button>
@@ -224,8 +215,8 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                                     <ColumnBadge label="Domanda" sub="fronte" color="violet" />
                                 </div>
 
-                                {/* Editor */}
-                                <div className="flex-1 overflow-auto px-4 pb-4">
+                                {/* Editor — solo scroll verticale, niente barra orizzontale */}
+                                <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 pb-4">
                                     <RichTextEditor
                                         key="front"
                                         value={front}
@@ -248,8 +239,8 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                                     <ColumnBadge label="Risposta" sub="retro" color="emerald" />
                                 </div>
 
-                                {/* Editor */}
-                                <div className="flex-1 overflow-auto px-4 pb-4">
+                                {/* Editor — solo scroll verticale, niente barra orizzontale */}
+                                <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 pb-4">
                                     <RichTextEditor
                                         key="back"
                                         value={back}
@@ -266,7 +257,19 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                         </div>
 
                         {/* ── Footer ─────────────────────────────────────── */}
-                        <div className="flex items-center justify-end gap-2.5 px-5 py-3 border-t border-theme-subtle bg-theme-surface flex-shrink-0">
+                        <div className="flex items-center justify-between gap-4 px-5 py-3 border-t border-theme-subtle bg-theme-surface flex-shrink-0">
+                            {/* Shortcut pills — in basso a sinistra, non cliccabili */}
+                            <div className="hidden sm:flex items-center gap-2" role="group" aria-label="Scorciatoie da tastiera">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-[11px] font-medium text-violet-700 dark:text-violet-300 cursor-default select-none">
+                                    <kbd className="px-1 py-0.5 rounded bg-violet-500/20 font-sans text-[10px]">Ctrl+Enter</kbd>
+                                    salva
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-[11px] font-medium text-violet-700 dark:text-violet-300 cursor-default select-none">
+                                    <kbd className="px-1 py-0.5 rounded bg-violet-500/20 font-sans text-[10px]">Esc</kbd>
+                                    chiudi
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2.5 ml-auto">
                             <Tooltip text="Annulla e chiudi (Esc)" side="top">
                                 <button
                                     type="button"
@@ -283,7 +286,7 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                                     type="button"
                                     onClick={handleSave}
                                     disabled={!canSave || isSaving || disabled}
-                                    className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-md shadow-violet-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+                                    className="keep-light-text flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-md shadow-violet-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                 >
                                     {isSaving ? (
                                         <>
@@ -298,6 +301,7 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                                     )}
                                 </button>
                             </Tooltip>
+                            </div>
                         </div>
                     </motion.div>
                 </div>

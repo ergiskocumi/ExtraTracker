@@ -1,19 +1,17 @@
 /**
- * DECK CARD FILTERS - Filtri migliorati per le carte del mazzo
- * 
+ * DECK CARD FILTERS - Filtri per le carte del mazzo
+ *
  * Features:
  * - Tab visivi con conteggi e colori
  * - Barra di ricerca con highlight
- * - Toggle vista griglia/lista
  * - Ordinamento
+ * - Vista lista unica (no toggle griglia/lista)
  */
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
     Search,
-    LayoutGrid,
-    List,
     ArrowUpDown,
     Sparkles,
     BookOpen,
@@ -28,7 +26,6 @@ import {
 // ============================================
 
 export type FilterStatus = 'all' | 'new' | 'learning' | 'review' | 'mastered';
-export type ViewMode = 'grid' | 'list';
 export type SortOption = 'order' | 'created' | 'alphabetical' | 'interval';
 
 interface DeckCardFiltersProps {
@@ -36,8 +33,6 @@ interface DeckCardFiltersProps {
     onFilterChange: (filter: FilterStatus) => void;
     searchQuery: string;
     onSearchChange: (query: string) => void;
-    viewMode: ViewMode;
-    onViewModeChange: (mode: ViewMode) => void;
     sortBy: SortOption;
     onSortChange: (sort: SortOption) => void;
     counts: {
@@ -121,8 +116,6 @@ export const DeckCardFilters: React.FC<DeckCardFiltersProps> = ({
     onFilterChange,
     searchQuery,
     onSearchChange,
-    viewMode,
-    onViewModeChange,
     sortBy,
     onSortChange,
     counts,
@@ -225,36 +218,6 @@ export const DeckCardFilters: React.FC<DeckCardFiltersProps> = ({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                         </div>
-                    </div>
-
-                    {/* View Mode Toggle */}
-                    <div className="flex items-center p-1 rounded-xl bg-theme-card border border-theme-default">
-                        <button
-                            onClick={() => onViewModeChange('grid')}
-                            className={`
-                                p-2.5 rounded-lg transition-all
-                                ${viewMode === 'grid'
-                                    ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
-                                    : 'text-theme-muted hover:text-theme-primary hover:bg-theme-surface'
-                                }
-                            `}
-                            aria-label="Vista griglia"
-                        >
-                            <LayoutGrid className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => onViewModeChange('list')}
-                            className={`
-                                p-2.5 rounded-lg transition-all
-                                ${viewMode === 'list'
-                                    ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
-                                    : 'text-theme-muted hover:text-theme-primary hover:bg-theme-surface'
-                                }
-                            `}
-                            aria-label="Vista lista"
-                        >
-                            <List className="w-4 h-4" />
-                        </button>
                     </div>
 
                     {/* Clear Filters */}

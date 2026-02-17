@@ -360,7 +360,10 @@
   .bg-theme-card {
     background: var(--bg-card);
   }
-  
+  .bg-theme-overlay {
+    background: var(--bg-overlay);
+  }
+
   /* Borders */
   .border-theme-subtle {
     border-color: var(--border-subtle);

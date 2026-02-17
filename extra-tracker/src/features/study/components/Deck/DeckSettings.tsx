@@ -177,30 +177,30 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
     return (
         <div className="space-y-6">
             {/* Sezione Esame Associato */}
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <FiBookOpen className="w-5 h-5" />
+            <div className="rounded-2xl border border-theme-default bg-theme-card p-6">
+                <h3 className="text-lg font-semibold text-theme-primary mb-4 flex items-center gap-2">
+                    <FiBookOpen className="w-5 h-5 text-theme-secondary" />
                     Esame Associato
                 </h3>
-                <p className="text-sm text-white/60 mb-4">
+                <p className="text-sm text-theme-secondary mb-4">
                     Cambia l'esame a cui è associato questo mazzo. Il mazzo verrà spostato dal vecchio esame al nuovo.
                 </p>
-                
+
                 {loadingExams ? (
                     <div className="flex items-center justify-center py-4">
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="w-5 h-5 border-2 border-theme-default border-t-primary-500 rounded-full animate-spin" />
                     </div>
                 ) : (
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-white/80 mb-2">
+                            <label className="block text-sm font-medium text-theme-primary mb-2">
                                 Seleziona Esame
                             </label>
                             <select
                                 value={selectedExamId || ''}
                                 onChange={(e) => setSelectedExamId(e.target.value)}
                                 disabled={savingExam}
-                                className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full px-4 py-2.5 rounded-xl bg-theme-surface border border-theme-default text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {exams.length === 0 ? (
                                     <option value="">Nessun esame disponibile</option>
@@ -213,22 +213,22 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                                 )}
                             </select>
                         </div>
-                        
+
                         {currentExam && (
-                            <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3">
-                                <p className="text-sm text-blue-300">
+                            <div className="rounded-xl border border-primary-500/30 bg-primary-500/10 p-3">
+                                <p className="text-sm text-primary-700 dark:text-primary-300">
                                     <span className="font-semibold">Esame corrente:</span> {currentExam.title}
                                 </p>
                             </div>
                         )}
-                        
+
                         {selectedExamId && selectedExamId !== deck.examId && (
                             <motion.button
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={handleExamChange}
                                 disabled={savingExam || !selectedExamId}
-                                className="w-full px-4 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                className="keep-light-text w-full px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             >
                                 {savingExam ? (
                                     <>
@@ -248,16 +248,16 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
             </div>
 
             {/* Algoritmo */}
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+            <div className="rounded-2xl border border-theme-default bg-theme-card p-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <FiZap className="w-5 h-5" />
+                    <h3 className="text-lg font-semibold text-theme-primary flex items-center gap-2">
+                        <FiZap className="w-5 h-5 text-theme-secondary" />
                         Algoritmo di Spaced Repetition
                     </h3>
                     <button
                         type="button"
                         onClick={() => setShowAlgorithmInfo(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-primary-400 hover:text-primary-300 hover:bg-primary-500/10 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:bg-primary-500/10 transition-colors"
                     >
                         <FiInfo className="w-4 h-4" />
                         <span>Scopri di più</span>
@@ -270,7 +270,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                             className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
                                 settings.algorithm === algo
                                     ? 'border-primary-500 bg-primary-500/10'
-                                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                                    : 'border-theme-default bg-theme-surface hover:bg-theme-card'
                             }`}
                         >
                             <input
@@ -279,13 +279,13 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                                 value={algo}
                                 checked={settings.algorithm === algo}
                                 onChange={() => setSettings({ ...settings, algorithm: algo })}
-                                className="mt-1"
+                                className="mt-1 accent-primary-500"
                             />
                             <div className="flex-1">
-                                <div className="font-semibold text-white mb-1 uppercase">
+                                <div className="font-semibold text-theme-primary mb-1 uppercase">
                                     {algo.toUpperCase()}
                                 </div>
-                                <div className="text-sm text-white/60">
+                                <div className="text-sm text-theme-secondary">
                                     {algorithmDescriptions[algo]}
                                 </div>
                             </div>
@@ -295,15 +295,15 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
             </div>
 
             {/* Impostazioni AI */}
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <FiCpu className="w-5 h-5" />
+            <div className="rounded-2xl border border-theme-default bg-theme-card p-6">
+                <h3 className="text-lg font-semibold text-theme-primary mb-4 flex items-center gap-2">
+                    <FiCpu className="w-5 h-5 text-theme-secondary" />
                     Impostazioni Generazione AI
                 </h3>
 
                 {/* Stile */}
                 <div className="mb-6">
-                    <label className="block text-sm font-medium text-white/80 mb-2">
+                    <label className="block text-sm font-medium text-theme-primary mb-2">
                         Stile delle Domande
                     </label>
                     <select
@@ -317,7 +317,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                                 },
                             })
                         }
-                        className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-4 py-2.5 rounded-xl bg-theme-surface border border-theme-default text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500/50"
                     >
                         {Object.entries(styleDescriptions).map(([value, desc]) => (
                             <option key={value} value={value}>
@@ -329,7 +329,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
 
                 {/* Difficoltà */}
                 <div className="mb-6">
-                    <label className="block text-sm font-medium text-white/80 mb-2">
+                    <label className="block text-sm font-medium text-theme-primary mb-2">
                         Difficoltà
                     </label>
                     <select
@@ -343,7 +343,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                                 },
                             })
                         }
-                        className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-4 py-2.5 rounded-xl bg-theme-surface border border-theme-default text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500/50"
                     >
                         <option value="easy">Facile - Domande semplici e dirette</option>
                         <option value="medium">Media - Difficoltà bilanciata</option>
@@ -354,7 +354,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
 
                 {/* Tipi di Domande */}
                 <div>
-                    <label className="block text-sm font-medium text-white/80 mb-2">
+                    <label className="block text-sm font-medium text-theme-primary mb-2">
                         Tipi di Domande
                     </label>
                     <div className="space-y-2">
@@ -367,7 +367,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                         ].map((type) => (
                             <label
                                 key={type.value}
-                                className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 cursor-pointer"
+                                className="flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-surface cursor-pointer transition-colors"
                             >
                                 <input
                                     type="checkbox"
@@ -385,9 +385,9 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                                             },
                                         });
                                     }}
-                                    className="rounded"
+                                    className="rounded accent-primary-500"
                                 />
-                                <span className="text-sm text-white/80">{type.label}</span>
+                                <span className="text-sm text-theme-primary">{type.label}</span>
                             </label>
                         ))}
                     </div>
@@ -395,9 +395,9 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
             </div>
 
             {/* Info */}
-            <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 flex items-start gap-3">
-                <FiInfo className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-300">
+            <div className="rounded-xl border border-primary-500/30 bg-primary-500/10 p-4 flex items-start gap-3">
+                <FiInfo className="w-5 h-5 text-primary-600 dark:text-primary-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-primary-700 dark:text-primary-300">
                     <p className="font-semibold mb-1">Nota</p>
                     <p>
                         Le impostazioni AI si applicano solo alle nuove flashcard generate da PDF.
@@ -412,11 +412,11 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSave}
                 disabled={saving}
-                className="w-full px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="keep-light-text w-full px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
                 {saving ? (
                     <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-theme-default border-t-primary-500 rounded-full animate-spin" />
                         <span>Salvataggio...</span>
                     </>
                 ) : (
