@@ -21,7 +21,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
 import { Save, X, Columns, Rows, Eye, EyeOff } from 'lucide-react';
-import { MarkdownEditor } from './MarkdownEditor';
+import { RichTextEditor as MarkdownEditor } from './RichTextEditor';
 import { EditorPreview } from './EditorPreview';
 import { useAutoSave } from './useAutoSave';
 
