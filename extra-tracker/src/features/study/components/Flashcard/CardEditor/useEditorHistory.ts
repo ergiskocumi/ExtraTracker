@@ -49,22 +49,8 @@ export const useEditorHistory = (
         updateMeta();
     }, [updateMeta, value]);
 
-    // Reset history only on first mount or when resetKey changes (e.g. switch card/tab), NOT on every value change.
-    // Otherwise every keystroke would clear undo history and could cause focus/input issues.
-    const prevResetKeyRef = useRef<typeof resetKey>(resetKey);
-    const hasInitializedResetRef = useRef(false);
     useEffect(() => {
-        if (!hasInitializedResetRef.current) {
-            hasInitializedResetRef.current = true;
-            resetHistory();
-            return;
-        }
-
-        const keyChanged = prevResetKeyRef.current !== resetKey;
-        if (keyChanged) {
-            prevResetKeyRef.current = resetKey;
-            resetHistory();
-        }
+        resetHistory();
     }, [resetKey, resetHistory]);
 
     useEffect(() => {
