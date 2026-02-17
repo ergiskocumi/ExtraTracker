@@ -5,6 +5,9 @@ export type { CardEditorProps, EditorLayout } from './CardEditor';
 export { MarkdownEditor } from './MarkdownEditor';
 export type { MarkdownEditorProps, ToolbarVisibility } from './MarkdownEditor';
 
+export { RichTextEditor } from './RichTextEditor';
+export type { RichTextEditorProps } from './RichTextEditor';
+
 export { EditorPreview } from './EditorPreview';
 export type { EditorPreviewProps } from './EditorPreview';
 
@@ -18,3 +21,4 @@ export { useAutoSave } from './useAutoSave';
 // Sub-components
 export { LaTeXModal } from './LaTeXModal';
 export { Toolbar } from './Toolbar';
+export { Tooltip } from './Tooltip';
