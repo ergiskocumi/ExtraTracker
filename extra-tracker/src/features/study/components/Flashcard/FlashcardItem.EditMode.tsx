@@ -11,7 +11,7 @@ import React, { useCallback, memo } from 'react';
 import { FiX, FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG, BUTTON_STYLES, TEXT_CONTENT, ICON_SIZES, LAYOUT } from './FlashcardItem.constants';
-import { MarkdownEditor } from './CardEditor';
+import { RichTextEditor as MarkdownEditor } from './CardEditor';
 
 // ============================================
 // TYPES
