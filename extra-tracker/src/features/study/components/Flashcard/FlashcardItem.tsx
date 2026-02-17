@@ -8,7 +8,7 @@
  * @module FlashcardItem
  */
 
-import React, { useEffect, useState, useCallback, memo, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import type { Card } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
@@ -17,7 +17,6 @@ import { validateCardContent, isTemporaryCard, getButtonState, shouldHandleCardC
 import type { FlashcardItemProps } from './FlashcardItem.types';
 import { ViewMode } from './FlashcardItem.ViewMode';
 import { EditMode } from './FlashcardItem.EditMode';
-import { FullscreenEditModal } from './CardEditor';
 
 // ============================================
 // COMPONENT
@@ -42,14 +41,12 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     onShowSource,
     isSourceActive = false,
     onEditingChange,
-    compactMode = false,
 }) => {
     // ============================================
     // STATE
     // ============================================
 
     const [isEditing, setIsEditing] = useState(initialEditing);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [tempFront, setTempFront] = useState(card.front);
     const [tempBack, setTempBack] = useState(card.back);
     const [isSaving, setIsSaving] = useState(false);
@@ -100,27 +97,13 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
 
     /**
      * Starts editing mode.
-     * For existing cards: opens fullscreen modal unless in compactMode (cinema view)
-     * For new/temporary cards: uses inline editing
      */
     const handleStartEdit = useCallback(() => {
-        if (isTemporaryCard(card.id)) {
-            // New card: use inline editing
-            setTempFront(card.front);
-            setTempBack(card.back);
-            setIsEditing(true);
-            onEditingChange?.(true);
-        } else if (compactMode) {
-            // Cinema mode: use inline editing instead of fullscreen modal
-            setTempFront(card.front);
-            setTempBack(card.back);
-            setIsEditing(true);
-            onEditingChange?.(true);
-        } else {
-            // Normal mode: open fullscreen modal
-            setIsModalOpen(true);
-        }
-    }, [card.id, card.front, card.back, onEditingChange, compactMode]);
+        setTempFront(card.front);
+        setTempBack(card.back);
+        setIsEditing(true);
+        onEditingChange?.(true);
+    }, [card.front, card.back, onEditingChange]);
 
     /**
      * Cancels editing and resets to original values.
@@ -190,59 +173,30 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
         }
     }, [onShowSource, card]);
 
-    /**
-     * Handles save from fullscreen modal.
-     */
-    const handleModalSave = useCallback(async (front: string, back: string) => {
-        try {
-            await onUpdate(card.id, front, back);
-            emitToast.success(TEXT_CONTENT.toast.success.message, {
-                title: TEXT_CONTENT.toast.success.title,
-                duration: TEXT_CONTENT.toast.success.duration,
-            });
-            setIsModalOpen(false);
-        } catch (error) {
-            const errorMessage = error instanceof Error
-                ? error.message
-                : TEXT_CONTENT.toast.error.message;
-
-            emitToast.error(errorMessage, {
-                title: TEXT_CONTENT.toast.error.title,
-                duration: TEXT_CONTENT.toast.error.duration,
-            });
-            throw error; // Re-throw so modal knows save failed
-        }
-    }, [card.id, onUpdate]);
-
     // ============================================
-    // STYLE COMPUTATION (memoized for performance)
+    // STYLE COMPUTATION
     // ============================================
 
-    const cardClasses = useMemo((): string => {
-        // @ts-ignore - height property added to constant
-        const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding} ${CARD_STYLES.base.shadow} ${CARD_STYLES.base.height || ''}`;
+    const getCardClasses = (): string => {
+        const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding}`;
         // Disable hover effects and transitions during editing for better UX
-        const interactive = !isEditing
-            ? `${CARD_STYLES.base.transition} ${CARD_STYLES.base.hover.border} ${CARD_STYLES.base.hover.shadow}`
+        const interactive = !isEditing 
+            ? `${CARD_STYLES.base.transition} ${CARD_STYLES.base.hover.border} ${CARD_STYLES.base.hover.shadow}` 
             : '';
         const cursor = onClick && !isEditing ? 'cursor-pointer' : '';
-        const border = isSourceActive
-            ? CARD_STYLES.sourceActive.border
+        const border = isSourceActive 
+            ? CARD_STYLES.sourceActive.border 
             : CARD_STYLES.default.border;
         const shadow = isSourceActive && !isEditing ? CARD_STYLES.sourceActive.shadow : '';
-
+        
         return `${base} ${interactive} ${cursor} ${border} ${shadow}`.trim();
-    }, [isEditing, onClick, isSourceActive]);
+    };
 
-    const cardBackground = useMemo((): string => {
-        if (isEditing) {
-            return 'var(--bg-surface)';
-        }
-
-        return isSourceActive
-            ? CARD_STYLES.sourceActive.background
+    const getCardBackground = (): string => {
+        return isSourceActive 
+            ? CARD_STYLES.sourceActive.background 
             : CARD_STYLES.default.background;
-    }, [isEditing, isSourceActive]);
+    };
 
     // ============================================
     // RENDER
@@ -276,8 +230,8 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     if (isEditing) {
         return (
             <div
-                className={`group ${cardClasses}`}
-                style={{ background: cardBackground }}
+                className={getCardClasses()}
+                style={{ background: getCardBackground() }}
                 // No onClick during editing to prevent any interaction conflicts
             >
                 {cardContent}
@@ -287,29 +241,16 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
 
     // Use motion.div for view mode to enable smooth animations
     return (
-        <>
-            <motion.div
-                initial={ANIMATION_CONFIG.card.initial}
-                animate={ANIMATION_CONFIG.card.animate}
-                exit={ANIMATION_CONFIG.card.exit}
-                className={`group ${cardClasses}`}
-                style={{ background: cardBackground }}
-                onClick={handleCardClick}
-            >
-                {cardContent}
-            </motion.div>
-
-            {/* Fullscreen Edit Modal for existing cards */}
-            <FullscreenEditModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                frontContent={card.front}
-                backContent={card.back}
-                onSave={handleModalSave}
-                title="Modifica Flashcard"
-                showPreview={true}
-            />
-        </>
+        <motion.div
+            initial={ANIMATION_CONFIG.card.initial}
+            animate={ANIMATION_CONFIG.card.animate}
+            exit={ANIMATION_CONFIG.card.exit}
+            className={getCardClasses()}
+            style={{ background: getCardBackground() }}
+            onClick={handleCardClick}
+        >
+            {cardContent}
+        </motion.div>
     );
 });
 
