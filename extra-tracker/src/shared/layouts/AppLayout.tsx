@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { FloatingGenerationIndicator } from '../../features/study/components/Generation';
 const FloatingFeedbackButton = lazy(() =>
     import('../../features/feedback/components/FloatingFeedbackButton').then((m) => ({
         default: m.FloatingFeedbackButton,
@@ -83,7 +84,7 @@ const Header = memo(() => {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                         >
-                            <Logo size="md" variant="with-version" animated={true} />
+                            <Logo size="md" variant="full" animated={true} />
                         </motion.div>
                     </Link>
 
@@ -146,6 +147,7 @@ export const AppLayout = () => {
                 <FloatingFeedbackButton />
                 <GlobalFeedbackModal />
                 <TutorialManager />
+                <FloatingGenerationIndicator />
             </Suspense>
         </div>
     );

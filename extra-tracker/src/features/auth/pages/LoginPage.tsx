@@ -149,15 +149,15 @@ export const LoginPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
             >
-                {/* Glow effect */}
-                <div className="login-card-glow absolute -inset-0.5 bg-gradient-to-r from-primary-500/30 via-violet-500/30 to-primary-500/30 rounded-2xl blur opacity-30" />
+                {/* Glow effect - gradient from theme vars (index.css) */}
+                <div className="login-card-glow absolute -inset-0.5 rounded-2xl blur opacity-30" />
                 
-                <div className="login-card relative rounded-2xl bg-theme-elevated backdrop-blur-xl border border-theme-default p-6 sm:p-8 overflow-hidden shadow-theme-md">
-                    {/* Subtle gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 via-transparent to-violet-500/5 pointer-events-none" />
+                <div className="login-card relative rounded-2xl bg-theme-elevated backdrop-blur-xl border border-theme-default px-4 py-6 sm:p-8 overflow-hidden shadow-theme-md">
+                    {/* Subtle gradient overlay - from theme vars */}
+                    <div className="login-card-overlay absolute inset-0 pointer-events-none" />
                     
-                    {/* Decorative corner accent */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                    {/* Decorative corner accent - from theme vars */}
+                    <div className="login-card-corner absolute top-0 right-0 w-32 h-32 rounded-bl-full pointer-events-none" />
 
                     {/* Error Banner */}
                     {error && (
@@ -165,9 +165,11 @@ export const LoginPage = () => {
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20"
+                            role="alert"
+                            aria-live="assertive"
                         >
                             <div className="flex items-center gap-2 text-red-400">
-                                <FiAlertCircle size={18} />
+                                <FiAlertCircle size={18} aria-hidden="true" />
                                 <p className="text-sm">{error}</p>
                             </div>
                         </motion.div>
@@ -192,6 +194,7 @@ export const LoginPage = () => {
                                 <input
                                     type="email"
                                     name="email"
+                                    id="login-email"
                                     value={formData.email}
                                     onChange={handleChange}
                                     onFocus={() => setFocusedField('email')}
@@ -203,15 +206,20 @@ export const LoginPage = () => {
                                             : 'border-theme-default focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/20 hover:border-theme-strong'
                                         } text-theme-primary placeholder:text-theme-muted`}
                                     autoComplete="email"
+                                    aria-invalid={!!fieldErrors.email}
+                                    aria-describedby={fieldErrors.email ? 'email-error' : undefined}
                                 />
                             </div>
                             {fieldErrors.email && (
-                                <motion.p 
+                                <motion.p
+                                    id="email-error"
                                     className="mt-2 text-xs text-red-400 flex items-center gap-1"
                                     initial={{ opacity: 0, y: -5 }}
                                     animate={{ opacity: 1, y: 0 }}
+                                    role="alert"
+                                    aria-live="polite"
                                 >
-                                    <FiAlertCircle size={12} />
+                                    <FiAlertCircle size={12} aria-hidden="true" />
                                     {fieldErrors.email}
                                 </motion.p>
                             )}
@@ -235,6 +243,7 @@ export const LoginPage = () => {
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     name="password"
+                                    id="login-password"
                                     value={formData.password}
                                     onChange={handleChange}
                                     onFocus={() => setFocusedField('password')}
@@ -246,22 +255,29 @@ export const LoginPage = () => {
                                             : 'border-theme-default focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/20 hover:border-theme-strong'
                                         } text-theme-primary placeholder:text-theme-muted`}
                                     autoComplete="current-password"
+                                    aria-invalid={!!fieldErrors.password}
+                                    aria-describedby={fieldErrors.password ? 'password-error' : undefined}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="login-password-toggle absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-theme-muted hover:text-theme-primary transition-colors rounded-lg hover:bg-theme-surface"
+                                    className="login-password-toggle absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-theme-muted hover:text-theme-primary transition-colors rounded-lg hover:bg-theme-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                    aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
+                                    aria-pressed={showPassword}
                                 >
-                                    {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                                 </button>
                             </div>
                             {fieldErrors.password && (
-                                <motion.p 
+                                <motion.p
+                                    id="password-error"
                                     className="mt-2 text-xs text-red-400 flex items-center gap-1"
                                     initial={{ opacity: 0, y: -5 }}
                                     animate={{ opacity: 1, y: 0 }}
+                                    role="alert"
+                                    aria-live="polite"
                                 >
-                                    <FiAlertCircle size={12} />
+                                    <FiAlertCircle size={12} aria-hidden="true" />
                                     {fieldErrors.password}
                                 </motion.p>
                             )}

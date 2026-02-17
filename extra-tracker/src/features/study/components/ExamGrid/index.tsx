@@ -60,18 +60,20 @@ export const ExamGrid: React.FC<ExamGridProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-white/50" />
-                    <h3 className="text-sm font-semibold text-white/70">
+                    <GraduationCap className="w-4 h-4 text-theme-muted" aria-hidden />
+                    <h3 className="text-sm font-semibold text-theme-primary">
                         I tuoi Esami
                     </h3>
-                    <span className="text-xs text-white/30">
+                    <span className="text-xs text-theme-muted">
                         ({activeExams.length} attivi)
                     </span>
                 </div>
                 {completedExams.length > 0 && (
                     <button
+                        type="button"
                         onClick={toggleCompleted}
-                        className="flex items-center gap-1 text-xs text-white/40 hover:text-white/60 transition-colors"
+                        className="flex items-center gap-1 text-xs text-theme-muted hover:text-theme-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                        aria-expanded={showCompleted}
                     >
                         {showCompleted ? 'Nascondi' : 'Mostra'} completati ({completedExams.length})
                         {showCompleted ? (
@@ -118,9 +120,9 @@ export const ExamGrid: React.FC<ExamGridProps> = ({
                         className="space-y-2 overflow-hidden"
                     >
                         <div className="flex items-center gap-3 pt-2">
-                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                            <span className="text-xs text-white/30 font-medium">Completati</span>
-                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--border-default)] to-transparent" />
+                            <span className="text-xs text-theme-muted font-medium">Completati</span>
+                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--border-default)] to-transparent" />
                         </div>
                         {completedExams.map((exam, index) => {
                             const stats = getExamStats(exam.id);

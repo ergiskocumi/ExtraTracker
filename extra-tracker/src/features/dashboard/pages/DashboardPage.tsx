@@ -135,7 +135,8 @@ export const DashboardPage = () => {
                         type="button"
                         data-tutorial="user-menu"
                         onClick={() => navigate('/settings')}
-                        className="dashboard-user-link bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-violet-400 hover:from-primary-400 hover:to-violet-300 transition-all duration-300 focus:outline-none pb-1"
+                        className="dashboard-user-link bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-violet-400 hover:from-primary-400 hover:to-violet-300 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:rounded pb-1"
+                        aria-label={`Vai alle impostazioni, utente ${userName}`}
                     >
                         {userName}
                     </button>
@@ -260,9 +261,9 @@ export const DashboardPage = () => {
                                     
                                     <div className="min-w-0 flex-1">
                                         <div className="flex justify-between items-start">
-                                            <h4 className="dashboard-exam-title text-theme-primary font-semibold truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                                            <h3 className="dashboard-exam-title text-theme-primary font-semibold truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                                                 {exam.title}
-                                            </h4>
+                                            </h3>
                                             <span className="dashboard-exam-date dashboard-meta-text text-xs text-theme-secondary font-mono">
                                                 {formatDate(exam.deadline)}
                                             </span>

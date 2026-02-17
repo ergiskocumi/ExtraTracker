@@ -84,6 +84,12 @@
   /* Selection */
   --selection-bg: rgba(124, 58, 237, 0.5);
   --selection-text: #ffffff;
+
+  /* Theme toggle - both states available in all themes */
+  --theme-toggle-bg-dark: linear-gradient(180deg, #0f172a 0%, #1e293b 30%, #0f172a 100%);
+  --theme-toggle-shadow-dark: inset 0 2px 6px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+  --theme-toggle-bg-light: linear-gradient(180deg, #0ea5e9 0%, #38bdf8 40%, #7dd3fc 100%);
+  --theme-toggle-shadow-light: inset 0 2px 6px rgba(255,255,255,0.4), 0 2px 8px rgba(14, 165, 233, 0.4);
 }
 
 /* ============================================
@@ -160,6 +166,7 @@
   /* Selection */
   --selection-bg: rgba(124, 58, 237, 0.25);
   --selection-text: #1a1a2e;
+
 }
 
 @layer base {
@@ -363,6 +370,27 @@
   }
   .border-theme-strong {
     border-color: var(--border-strong);
+  }
+
+  /* Login card gradients (theme-aware, avoid inline recalc) */
+  .login-card-glow {
+    background: linear-gradient(to right, var(--gradient-mesh-1), var(--gradient-mesh-2), var(--gradient-mesh-1));
+  }
+  .login-card-overlay {
+    background: linear-gradient(to bottom right, var(--gradient-mesh-4), transparent, var(--gradient-mesh-3));
+  }
+  .login-card-corner {
+    background: linear-gradient(to bottom left, var(--gradient-mesh-1), transparent);
+  }
+
+  /* Theme toggle track - CSS variables instead of inline styles */
+  .theme-toggle-is-dark {
+    background: var(--theme-toggle-bg-dark) !important;
+    box-shadow: var(--theme-toggle-shadow-dark) !important;
+  }
+  .theme-toggle-is-light {
+    background: var(--theme-toggle-bg-light) !important;
+    box-shadow: var(--theme-toggle-shadow-light) !important;
   }
   
   /* Shadows */
@@ -861,6 +889,30 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Screen reader only - accessible but visually hidden */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .not-sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
   }
 
   /* Custom scrollbar for dark theme */

@@ -6,7 +6,7 @@
  * sortable. Handles the transform and transition styles automatically.
  */
 
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Card } from '../../services/studyService';
@@ -27,10 +27,8 @@ interface SortableItemProps {
 
 /**
  * Drag Handle Icon Component
- * HOISTED: Definito fuori dal componente per evitare ri-creazione ad ogni render
- * @see rendering-hoist-jsx
  */
-const DragHandleIcon = memo<{ className?: string }>(({ className = "w-4 h-4" }) => (
+const DragHandleIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
     <svg
         className={className}
         viewBox="0 0 24 24"
@@ -47,16 +45,9 @@ const DragHandleIcon = memo<{ className?: string }>(({ className = "w-4 h-4" }) 
         <circle cx="15" cy="12" r="1" />
         <circle cx="15" cy="19" r="1" />
     </svg>
-));
+);
 
-DragHandleIcon.displayName = 'DragHandleIcon';
-
-/**
- * SortableItem Component
- * MEMOIZED: Previene re-render non necessari durante il drag
- * @see rerender-memo
- */
-const SortableItemComponent: React.FC<SortableItemProps> = ({
+export const SortableItem: React.FC<SortableItemProps> = ({
     card,
     index,
     totalCards,
@@ -123,7 +114,7 @@ const SortableItemComponent: React.FC<SortableItemProps> = ({
                 {/* Numero card in modalità grid - discreto, in alto a sinistra, visibile solo su hover */}
                 {!isEditing && (
                     <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <span className="text-xs font-medium text-theme-muted bg-theme-surface border border-theme-default px-2 py-1 rounded-full select-none">
+                        <span className="text-xs font-medium text-white/30 bg-black/30 px-2 py-1 rounded-full select-none">
                             #{index + 1}
                         </span>
                     </div>
@@ -155,11 +146,11 @@ const SortableItemComponent: React.FC<SortableItemProps> = ({
                 {/* Drag Handle and Number - More subtle, only visible on hover */}
                 {!isEditing && (
                     <div className="flex flex-col items-center gap-2 pt-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                        <div className="p-1 text-theme-muted">
+                        <div className="p-1 text-white/20">
                             <DragHandleIcon className="w-4 h-4" />
                         </div>
                         {/* Numero card - discreto ma visibile */}
-                        <span className="text-xs font-medium text-theme-muted select-none">
+                        <span className="text-xs font-medium text-white/30 select-none">
                             #{index + 1}
                         </span>
                     </div>
@@ -182,12 +173,5 @@ const SortableItemComponent: React.FC<SortableItemProps> = ({
         </div>
     );
 };
-
-/**
- * Memoized export - previene re-render quando le props non cambiano
- * @see rerender-memo
- */
-export const SortableItem = memo(SortableItemComponent);
-SortableItem.displayName = 'SortableItem';
 
 export default SortableItem;

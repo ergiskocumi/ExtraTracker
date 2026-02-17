@@ -38,19 +38,11 @@ export const ThemeToggle = () => {
         <motion.button
             type="button"
             onClick={toggleTheme}
-            className="relative w-20 h-10 rounded-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+            className={`relative w-20 h-10 rounded-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${isDark ? 'theme-toggle-is-dark' : 'theme-toggle-is-light'}`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             aria-label={isDark ? 'Passa al tema chiaro' : 'Passa al tema scuro'}
             title={isDark ? 'Tema chiaro' : 'Tema scuro'}
-            style={{
-                background: isDark 
-                    ? 'linear-gradient(180deg, #0f172a 0%, #1e293b 30%, #0f172a 100%)' 
-                    : 'linear-gradient(180deg, #0ea5e9 0%, #38bdf8 40%, #7dd3fc 100%)',
-                boxShadow: isDark
-                    ? 'inset 0 2px 6px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4)'
-                    : 'inset 0 2px 6px rgba(255,255,255,0.4), 0 2px 8px rgba(14, 165, 233, 0.4)',
-            }}
         >
             {/* Background Elements */}
             <AnimatePresence mode="wait">
