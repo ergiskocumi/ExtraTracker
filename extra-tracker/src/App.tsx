@@ -10,6 +10,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
 import { FeedbackProvider } from './features/feedback/context/FeedbackContext';
+import { FlashcardGenerationProvider } from './features/study/context/FlashcardGenerationContext';
 import { ProtectedRoute } from './features/auth/context/AuthContext';
 import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
@@ -72,7 +73,9 @@ function App() {
                             <SettingsProvider>
                                 <WorkLogProvider>
                                     <FeedbackProvider>
-                                        <AppLayout />
+                                        <FlashcardGenerationProvider>
+                                            <AppLayout />
+                                        </FlashcardGenerationProvider>
                                     </FeedbackProvider>
                                 </WorkLogProvider>
                             </SettingsProvider>
