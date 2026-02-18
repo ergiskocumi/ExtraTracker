@@ -220,7 +220,7 @@ export const DashboardPage = () => {
                                 onClick={() => navigate('/study')}
                                 className="dashboard-empty-cta mt-4 text-sm text-primary-600 hover:text-primary-500 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2"
                             >
-                                + Crea nuovo mazzo
+                                + Crea nuovo esame
                             </button>
                         </div>
                     )}
