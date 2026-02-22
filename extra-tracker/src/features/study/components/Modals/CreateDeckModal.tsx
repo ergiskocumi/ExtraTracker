@@ -1,9 +1,12 @@
 /**
- * CreateDeckModal – Creazione mazzo con nuovo esame.
- * Flusso: crea un nuovo esame (nome + data) e poi il mazzo associato.
+ * CreateDeckModal – Creazione capitolo/mazzo associato a un esame.
+ *
+ * Modalità:
+ * - default (nessun presetExamId): flusso completo 3-step (esame + capitolo + tag)
+ * - chapter-only (presetExamId fornito): salta Step 1, crea solo il capitolo associato
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiX,
@@ -42,6 +45,8 @@ interface CreateDeckModalProps {
     onClose: () => void;
     onSubmit: (data: CreateDeckPayload) => Promise<void>;
     onExamCreated?: () => void;
+    /** Quando fornito, il modale opera in modalità "chapter-only": salta Step 1 */
+    presetExamId?: string;
 }
 
 interface QuickExamForm {
@@ -58,9 +63,12 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
     onClose,
     onSubmit,
     onExamCreated,
+    presetExamId,
 }) => {
-    const [selectedExamId, setSelectedExamId] = useState('');
-    const [showQuickExamForm, setShowQuickExamForm] = useState(true);
+    const isChapterOnly = !!presetExamId;
+
+    const [selectedExamId, setSelectedExamId] = useState(presetExamId ?? '');
+    const [showQuickExamForm, setShowQuickExamForm] = useState(!presetExamId);
     const [quickExam, setQuickExam] = useState<QuickExamForm>({
         title: '',
         deadline: getDefaultDeadline(),
@@ -72,6 +80,14 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
     const [showTagsSection, setShowTagsSection] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Sincronizza lo stato quando il modale viene aperto (gestisce il cambio di presetExamId)
+    useEffect(() => {
+        if (isOpen) {
+            setSelectedExamId(presetExamId ?? '');
+            setShowQuickExamForm(!presetExamId);
+        }
+    }, [isOpen, presetExamId]);
 
 
     const handleCreateQuickExam = async () => {
@@ -142,11 +158,11 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
         setTitle('');
         setTags('');
         setShowTagsSection(false);
-        setSelectedExamId('');
-        setShowQuickExamForm(true);
+        setSelectedExamId(presetExamId ?? '');
+        setShowQuickExamForm(!presetExamId);
         setQuickExam({ title: '', deadline: getDefaultDeadline() });
         setError(null);
-    }, []);
+    }, [presetExamId]);
 
     const handleClose = () => {
         resetForm();
@@ -199,8 +215,14 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                     <FiLayers className="w-6 h-6 text-primary-500" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-theme-primary">Nuovo Esame</h2>
-                                    <p className="text-sm text-theme-secondary">Crea un nuovo esame: aggiungi nome, data e il primo mazzo di flashcards per organizzare lo studio</p>
+                                    <h2 className="text-xl font-bold text-theme-primary">
+                                        {isChapterOnly ? 'Nuovo Capitolo' : 'Nuovo Esame'}
+                                    </h2>
+                                    <p className="text-sm text-theme-secondary">
+                                        {isChapterOnly
+                                            ? 'Aggiungi un capitolo di flashcards a questo esame'
+                                            : 'Crea un nuovo esame: aggiungi nome, data e il primo mazzo di flashcards per organizzare lo studio'}
+                                    </p>
                                 </div>
                             </div>
                             <button
@@ -228,11 +250,13 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                             </AnimatePresence>
 
                             <div className="flex flex-col relative">
-                                {/* Linea verticale continua (dietro i cerchi) */}
-                                <div className="absolute left-4 top-0 bottom-0 w-0.5 -translate-x-1/2 bg-theme-subtle z-0 pointer-events-none" />
+                                {/* Linea verticale continua – nascosta in chapter-only (solo 1 step visibile) */}
+                                {!isChapterOnly && (
+                                    <div className="absolute left-4 top-0 bottom-0 w-0.5 -translate-x-1/2 bg-theme-subtle z-0 pointer-events-none" />
+                                )}
 
-                                {/* Riga 1: Esame – timeline centrata sul blocco nome/data */}
-                                <div className="flex items-stretch gap-4">
+                                {/* Riga 1: Esame – nascosta in modalità chapter-only */}
+                                {!isChapterOnly && <div className="flex items-stretch gap-4">
                                     <div className="flex flex-col items-center w-8 shrink-0 py-4 relative z-10">
                                         <div className="flex-1 min-h-2 shrink-0 w-0.5 rounded-full bg-transparent" aria-hidden />
                                         <div
@@ -330,7 +354,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                             )}
                                         </AnimatePresence>
                                     </div>
-                                </div>
+                                </div>}
 
                                 {/* Riga 2: Nuovo Capitolo – timeline centrata sul campo nome */}
                                 <div className="flex items-stretch gap-4">
@@ -343,7 +367,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                     : 'bg-theme-surface border border-theme-default text-theme-muted'
                                             }`}
                                         >
-                                            2
+                                            {isChapterOnly ? 1 : 2}
                                         </div>
                                         <div className="flex-1 min-h-2 shrink-0 w-0.5 rounded-full bg-transparent" aria-hidden />
                                     </div>
@@ -377,7 +401,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                     : 'bg-theme-surface border border-theme-default text-theme-muted'
                                             }`}
                                         >
-                                            3
+                                            {isChapterOnly ? 2 : 3}
                                         </div>
                                         <div className="flex-1 min-h-2 shrink-0 w-0.5 rounded-full bg-transparent" aria-hidden />
                                     </div>

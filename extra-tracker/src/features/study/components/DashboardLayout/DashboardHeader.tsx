@@ -11,9 +11,11 @@ interface DashboardHeaderProps {
     onBackToExams?: () => void; // Callback per tornare agli esami
     onCompleteExam?: () => void; // Callback per completare l'esame
     selectedExamId?: string | null; // ID dell'esame selezionato (per mostrare il pulsante)
+    /** Apre il modale per aggiungere un capitolo all'esame corrente */
+    onCreateChapter?: () => void;
 }
 
-export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ 
+export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     onCreateDeck,
     onExamSolver,
     selectedFolderName,
@@ -22,6 +24,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     onBackToExams,
     onCompleteExam,
     selectedExamId,
+    onCreateChapter,
 }) => {
     const actionButtonBaseClass = `
         exam-header-btn
@@ -143,11 +146,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 
                 <motion.button
                     whileTap={{ scale: 0.95 }}
-                    onClick={onCreateDeck}
+                    onClick={selectedExamName ? (onCreateChapter ?? onCreateDeck) : onCreateDeck}
                     className={`${actionButtonBaseClass} exam-header-btn--new font-bold md:py-4`}
                 >
                     <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                    <span>Nuovo Esame</span>
+                    <span>{selectedExamName ? 'Nuovo Capitolo' : 'Nuovo Esame'}</span>
                 </motion.button>
             </div>
         </div>
