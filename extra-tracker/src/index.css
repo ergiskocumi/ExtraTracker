@@ -530,6 +530,7 @@
     background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%);
     color: white;
     box-shadow: 0 4px 16px -4px rgba(124, 58, 237, 0.4);
+    border-radius: 1rem; /* bordi arrotondati (rounded-2xl) */
   }
 
   .btn-primary:hover {
@@ -1501,6 +1502,19 @@ ol ol li::before {
 
 [data-theme="light"] [class*="bg-dark-"] {
   background-color: var(--bg-elevated);
+}
+
+/* Settings page – titolo e indicatore attivo in violet/primary solo in light */
+[data-theme="light"] .settings-page-title {
+  background: linear-gradient(to right, var(--primary-500), var(--primary-600)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+}
+
+[data-theme="light"] .settings-sidebar-active-dot {
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600)) !important;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.5) !important;
 }
 
 /* ====================================

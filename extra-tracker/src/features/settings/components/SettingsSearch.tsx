@@ -8,6 +8,9 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Search, ArrowRight } from 'lucide-react';
 
+const overlayTransition = { type: 'tween', duration: 0.2, ease: [0.32, 0.72, 0, 1] };
+const modalTransition = { type: 'tween', duration: 0.25, ease: [0.32, 0.72, 0, 1] };
+
 interface SearchableItem {
     id: string;
     label: string;
@@ -28,7 +31,6 @@ const searchableItems: SearchableItem[] = [
     // Preferences
     { id: 'language', label: 'Lingua', description: 'Lingua dell\'interfaccia', category: 'preferences', keywords: ['lingua', 'language', 'idioma'] },
     { id: 'theme', label: 'Tema', description: 'Tema scuro o chiaro', category: 'preferences', keywords: ['tema', 'theme', 'dark', 'light'] },
-    { id: 'currency', label: 'Valuta', description: 'Valuta predefinita', category: 'preferences', keywords: ['valuta', 'currency', 'euro', 'dollar'] },
     { id: 'timeFormat', label: 'Formato ora', description: 'Formato 12h o 24h', category: 'preferences', keywords: ['ora', 'time', 'formato'] },
     { id: 'defaultView', label: 'Vista predefinita', description: 'Pagina iniziale', category: 'preferences', keywords: ['vista', 'view', 'dashboard', 'home'] },
     
@@ -100,26 +102,26 @@ export const SettingsSearch = ({ onSelect, isOpen, onClose }: SettingsSearchProp
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, filteredItems, selectedIndex, onSelect, onClose]);
 
-    if (!isOpen) return null;
-
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4"
+            transition={overlayTransition}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
             onClick={onClose}
         >
             <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.94 }}
+                transition={modalTransition}
                 onClick={(e) => e.stopPropagation()}
                 className="w-full max-w-2xl rounded-3xl border border-white/[0.15] bg-white/[0.06] backdrop-blur-xl shadow-2xl overflow-hidden card"
             >
-                {/* Search Input */}
-                <div className="flex items-center gap-3 p-4 border-b border-white/[0.1]">
-                    <Search className="w-5 h-5 text-white/50" />
+                {/* Search Input – theme-aware (light = testo nero) */}
+                <div className="flex items-center gap-3 p-4 border-b border-[var(--border-subtle)]">
+                    <Search className="w-5 h-5 shrink-0" style={{ color: 'var(--text-muted)' }} />
                     <input
                         ref={inputRef}
                         type="text"
@@ -129,10 +131,11 @@ export const SettingsSearch = ({ onSelect, isOpen, onClose }: SettingsSearchProp
                             setSelectedIndex(0);
                         }}
                         placeholder="Cerca impostazioni... (es. password, tema, lingua)"
-                        className="flex-1 bg-transparent text-white placeholder-white/40 focus:outline-none text-lg"
+                        className="flex-1 bg-transparent focus:outline-none text-lg placeholder-[var(--text-placeholder)]"
+                        style={{ color: 'var(--text-primary)' }}
                     />
-                    <div className="flex items-center gap-2 text-xs text-white/40">
-                        <kbd className="px-2 py-1 rounded bg-white/[0.1] border border-white/[0.1]">Esc</kbd>
+                    <div className="flex items-center gap-2 text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
+                        <kbd className="px-2 py-1 rounded-md bg-[var(--bg-surface)] border border-[var(--border-subtle)]">Esc</kbd>
                         <span>per chiudere</span>
                     </div>
                 </div>
@@ -198,8 +201,9 @@ export const SettingsSearch = ({ onSelect, isOpen, onClose }: SettingsSearchProp
                                 {['password', 'tema', 'lingua', 'esporta'].map((suggestion) => (
                                     <button
                                         key={suggestion}
+                                        type="button"
                                         onClick={() => setQuery(suggestion)}
-                                        className="px-3 py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:bg-white/[0.1] hover:text-white text-sm transition-colors"
+                                        className="px-4 py-2 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] text-sm font-medium transition-colors"
                                     >
                                         {suggestion}
                                     </button>

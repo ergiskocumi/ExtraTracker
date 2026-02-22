@@ -296,7 +296,7 @@ export const SettingsPage = () => {
                             <motion.h1
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent"
+                                className="settings-page-title text-4xl sm:text-5xl font-bold bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent"
                             >
                                 Impostazioni
                             </motion.h1>
@@ -311,42 +311,48 @@ export const SettingsPage = () => {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            {/* Undo/Redo */}
-                            <div className="hidden sm:flex items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                            {/* Undo/Redo – stile Apple, adatta a light/dark (come la barra di ricerca) */}
+                            <div className="hidden sm:flex items-center gap-0.5 p-1 rounded-full border backdrop-blur-sm transition-[background-color,border-color] duration-200 bg-[var(--bg-input)] hover:bg-[var(--bg-surface-hover)] border-[var(--border-subtle)] hover:border-[var(--border-default)] shadow-[var(--shadow-sm)]">
                                 <motion.button
+                                    type="button"
                                     onClick={undoState.undo}
                                     disabled={!undoState.canUndo}
-                                    whileHover={{ scale: undoState.canUndo ? 1.1 : 1 }}
-                                    whileTap={{ scale: undoState.canUndo ? 0.9 : 1 }}
-                                    className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                                    whileHover={{ scale: undoState.canUndo ? 1.08 : 1 }}
+                                    whileTap={{ scale: undoState.canUndo ? 0.95 : 1 }}
+                                    className="p-2.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:ring-inset"
                                     title="Annulla (Ctrl+Z)"
+                                    aria-label="Annulla (Ctrl+Z)"
                                 >
                                     <Undo2 className="w-4 h-4" />
                                 </motion.button>
-                                <div className="w-px h-4 bg-white/10" />
+                                <div className="w-px h-4 bg-[var(--border-subtle)]" aria-hidden />
                                 <motion.button
+                                    type="button"
                                     onClick={undoState.redo}
                                     disabled={!undoState.canRedo}
-                                    whileHover={{ scale: undoState.canRedo ? 1.1 : 1 }}
-                                    whileTap={{ scale: undoState.canRedo ? 0.9 : 1 }}
-                                    className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                                    whileHover={{ scale: undoState.canRedo ? 1.08 : 1 }}
+                                    whileTap={{ scale: undoState.canRedo ? 0.95 : 1 }}
+                                    className="p-2.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:ring-inset"
                                     title="Ripristina (Ctrl+Shift+Z)"
+                                    aria-label="Ripristina (Ctrl+Shift+Z)"
                                 >
                                     <Redo2 className="w-4 h-4" />
                                 </motion.button>
                             </div>
 
-                            {/* Search */}
+                            {/* Search bar – stile Apple, adatta a light/dark */}
                             <motion.button
+                                type="button"
                                 onClick={() => setIsSearchOpen(true)}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all text-white/70 hover:text-white"
+                                whileHover={{ scale: 1.01 }}
+                                whileTap={{ scale: 0.99 }}
+                                className="flex items-center gap-3 min-w-[220px] sm:min-w-[280px] pl-4 pr-3 py-2.5 rounded-full border backdrop-blur-sm transition-[background-color,border-color,color,box-shadow] duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:ring-offset-2 bg-[var(--bg-input)] hover:bg-[var(--bg-surface-hover)] border-[var(--border-subtle)] hover:border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] shadow-[var(--shadow-sm)]"
+                                aria-label="Cerca nelle impostazioni (Ctrl+K)"
                             >
-                                <Search className="w-4 h-4" />
-                                <span className="text-sm font-medium hidden sm:inline">Cerca</span>
-                                <kbd className="hidden md:flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.08] text-[10px] text-white/50">
-                                    {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}K
+                                <Search className="w-4 h-4 flex-shrink-0 opacity-70" />
+                                <span className="flex-1 text-left text-sm font-medium truncate">Cerca nelle impostazioni</span>
+                                <kbd className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium flex-shrink-0 bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]">
+                                    {typeof navigator !== 'undefined' && navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}K
                                 </kbd>
                             </motion.button>
                         </div>
@@ -424,12 +430,17 @@ export const SettingsPage = () => {
                 )}
             </ModernSettingsLayout>
 
-            {/* Search Modal */}
-            <SettingsSearch
-                isOpen={isSearchOpen}
-                onClose={() => setIsSearchOpen(false)}
-                onSelect={handleSearchSelect}
-            />
+            {/* Search Modal – AnimatePresence per uscita fluida */}
+            <AnimatePresence mode="wait">
+                {isSearchOpen && (
+                    <SettingsSearch
+                        key="settings-search-modal"
+                        isOpen={isSearchOpen}
+                        onClose={() => setIsSearchOpen(false)}
+                        onSelect={handleSearchSelect}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Confirm Modal */}
             {confirmModal.isOpen && confirmModal.config && (

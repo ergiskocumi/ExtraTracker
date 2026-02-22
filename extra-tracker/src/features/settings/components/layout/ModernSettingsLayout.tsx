@@ -305,7 +305,7 @@ export const ModernSettingsLayout: React.FC<ModernSettingsLayoutProps> = ({
                                                         animate={{ scale: 1, opacity: 1 }}
                                                         exit={{ scale: 0, opacity: 0 }}
                                                         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                                                        className="w-2 h-2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+                                                        className="settings-sidebar-active-dot w-2 h-2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]"
                                                     />
                                                 )}
                                             </AnimatePresence>

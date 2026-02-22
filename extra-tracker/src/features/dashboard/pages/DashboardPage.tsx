@@ -295,16 +295,13 @@ export const DashboardPage = () => {
                     type="button"
                     data-tutorial="exams-cta"
                     onClick={() => navigate('/study')}
-                    className="dashboard-main-cta group relative rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center p-6 sm:p-8 transition-all duration-500 hover:shadow-[0_0_40px_rgba(124,58,237,0.3)] hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-primary-500/30"
+                    className="dashboard-main-cta relative rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center p-6 sm:p-8 transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-primary-500/30"
                 >
-                    {/* Background with animated gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary-600 to-violet-700 opacity-90 transition-opacity group-hover:opacity-100" />
-                    
-                    {/* Shine effect */}
-                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]" />
+                    {/* Background gradient - nessuna animazione hover */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary-600 to-violet-700 opacity-95" />
 
                     <div className="relative z-10 flex flex-col items-center gap-4">
-                        <div className="h-16 w-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm shadow-inner group-hover:scale-110 transition-transform duration-300">
+                        <div className="h-16 w-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm shadow-inner">
                             <TargetIcon size={32} className="keep-light-text text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.5)]" />
                         </div>
                         <div>
