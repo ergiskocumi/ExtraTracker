@@ -45,10 +45,10 @@ const getPasswordStrength = (password: string): { strength: number; label: strin
 };
 
 export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsProps) => {
-    const [formData, setFormData] = useState({ 
-        currentPassword: '', 
-        newPassword: '', 
-        confirmPassword: '' 
+    const [formData, setFormData] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
     });
 
     // Sistema di validazione standardizzato
@@ -68,13 +68,13 @@ export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsP
         const { name, value } = e.target;
         const newFormData = { ...formData, [name]: value };
         setFormData(newFormData);
-        
+
         // Validazione in tempo reale
         if (name === 'newPassword') {
             // Valida la nuova password
             const error = validation.validateField(name, value);
             validation.setError(name, error);
-            
+
             // Valida anche la conferma se esiste (con la nuova password)
             if (newFormData.confirmPassword) {
                 const confirmError = commonRules.passwordMatch(value)(newFormData.confirmPassword);
@@ -92,18 +92,18 @@ export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsP
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Validazione finale - aggiorna le regole per confirmPassword con la password corrente
         const finalErrors: Record<string, string> = {};
-        
+
         // Valida currentPassword
         const currentError = commonRules.required('Password attuale')(formData.currentPassword);
         if (currentError) finalErrors.currentPassword = currentError;
-        
+
         // Valida newPassword
         const newError = validation.validateField('newPassword', formData.newPassword);
         if (newError) finalErrors.newPassword = newError;
-        
+
         // Valida confirmPassword con la password corrente
         const confirmError = commonRules.passwordMatch(formData.newPassword)(formData.confirmPassword);
         if (confirmError) finalErrors.confirmPassword = confirmError;
@@ -111,7 +111,7 @@ export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsP
             const requiredError = commonRules.required('Conferma password')(formData.confirmPassword);
             if (requiredError) finalErrors.confirmPassword = requiredError;
         }
-        
+
         if (Object.keys(finalErrors).length > 0) {
             Object.entries(finalErrors).forEach(([key, value]) => {
                 validation.setError(key as keyof typeof formData, value);
@@ -216,23 +216,23 @@ export const SecuritySettings = ({ onChangePassword, status }: SecuritySettingsP
                 )}
             </AnimatePresence>
 
-            {/* Submit Button */}
             <div className="flex items-center justify-between pt-4 border-t border-white/[0.08]">
                 <p className="text-sm text-white/50">
-                    {formData.newPassword && formData.confirmPassword && !validation.errors.confirmPassword
-                        ? 'Pronto per aggiornare'
-                        : 'Compila tutti i campi'}
+                    {!formData.newPassword && !formData.currentPassword && !formData.confirmPassword
+                        ? '' // Don't show anything initially
+                        : formData.newPassword && formData.confirmPassword && !validation.errors.confirmPassword
+                            ? 'Pronto per aggiornare'
+                            : 'Compila tutti i campi richiesti'}
                 </p>
                 <motion.button
-                type="submit"
+                    type="submit"
                     disabled={status.loading || validation.hasErrors || !formData.newPassword}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`btn-primary px-6 py-3 ${
-                        validation.hasErrors || !formData.newPassword
+                    className={`btn-primary px-6 py-3 ${validation.hasErrors || !formData.newPassword
                             ? 'opacity-50 cursor-not-allowed'
                             : ''
-                    }`}
+                        }`}
                 >
                     {status.loading ? (
                         <span className="flex items-center gap-2">

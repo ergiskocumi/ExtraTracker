@@ -49,14 +49,14 @@ const menuItemVariants = {
 
 const contentVariants = {
     initial: { opacity: 0, y: 20, scale: 0.98 },
-    animate: { 
-        opacity: 1, 
-        y: 0, 
+    animate: {
+        opacity: 1,
+        y: 0,
         scale: 1,
     },
-    exit: { 
-        opacity: 0, 
-        y: -20, 
+    exit: {
+        opacity: 0,
+        y: -20,
         scale: 0.98,
     },
 };
@@ -163,7 +163,7 @@ export const ModernSettingsLayout: React.FC<ModernSettingsLayoutProps> = ({
                         </div>
                     </motion.div>
                 )}
-                
+
                 {isOnline && pendingCount > 0 && (
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
@@ -236,8 +236,8 @@ export const ModernSettingsLayout: React.FC<ModernSettingsLayoutProps> = ({
                                             className={`
                                                 w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl 
                                                 transition-all duration-300 text-left group relative overflow-hidden
-                                                ${isActive 
-                                                    ? 'text-white' 
+                                                ${isActive
+                                                    ? 'text-white'
                                                     : 'text-white/60 hover:text-white hover:bg-white/[0.04]'
                                                 }
                                             `}
@@ -266,8 +266,8 @@ export const ModernSettingsLayout: React.FC<ModernSettingsLayoutProps> = ({
                                                 }}
                                                 className={`
                                                     relative z-10 p-2.5 rounded-xl flex-shrink-0
-                                                    ${isActive 
-                                                        ? `bg-gradient-to-br ${tab.gradient} shadow-lg shadow-${tab.color.split('-')[1]}-500/25` 
+                                                    ${isActive
+                                                        ? `bg-gradient-to-br ${tab.gradient} shadow-lg shadow-${tab.color.split('-')[1]}-500/25`
                                                         : 'bg-white/[0.06] group-hover:bg-white/[0.10]'
                                                     }
                                                 `}
@@ -320,7 +320,7 @@ export const ModernSettingsLayout: React.FC<ModernSettingsLayoutProps> = ({
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.4 }}
-                            className="mt-4 p-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm"
+                            className="mt-6 mb-6 p-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm"
                         >
                             <p className="text-xs text-white/40">
                                 <span className="text-white/60 font-medium">Pro tip:</span> Usa{' '}
@@ -358,8 +358,8 @@ export const ModernSettingsLayout: React.FC<ModernSettingsLayoutProps> = ({
                                         className={`
                                             flex items-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap
                                             transition-all duration-300 flex-shrink-0
-                                            ${isActive 
-                                                ? `bg-gradient-to-r ${tab.gradient} text-white shadow-lg` 
+                                            ${isActive
+                                                ? `bg-gradient-to-r ${tab.gradient} text-white shadow-lg`
                                                 : 'bg-white/[0.05] text-white/60 border border-white/[0.08]'
                                             }
                                         `}

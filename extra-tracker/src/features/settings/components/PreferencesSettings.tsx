@@ -6,12 +6,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    Globe, 
-    Palette, 
-    DollarSign, 
-    Clock, 
-    Layout, 
+import {
+    Globe,
+    Palette,
+    DollarSign,
+    Clock,
+    Layout,
     CheckCircle2,
     RotateCcw
 } from 'lucide-react';
@@ -120,49 +120,49 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                         tooltipTitle="Tema applicazione"
                         tooltipContent="Il tema viene applicato immediatamente. 'System' segue le preferenze del tuo sistema operativo"
                     />
-                        {/* Theme Preview */}
-                        {formData.theme && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                className="mt-3 p-3 rounded-xl border bg-theme-surface"
-                                style={{ borderColor: 'var(--border-default)' }}
-                            >
-                                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Anteprima:</p>
-                                <div 
-                                    className="flex items-center gap-2 p-2 rounded-lg transition-all duration-300"
-                                    style={{
-                                        background: formData.theme === 'dark' 
-                                            ? 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%)'
-                                            : formData.theme === 'light'
+                    {/* Theme Preview */}
+                    {formData.theme && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="mt-3 p-3 rounded-xl border bg-theme-surface"
+                            style={{ borderColor: 'var(--border-default)' }}
+                        >
+                            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Anteprima:</p>
+                            <div
+                                className="flex items-center gap-2 p-2 rounded-lg transition-all duration-300"
+                                style={{
+                                    background: formData.theme === 'dark'
+                                        ? 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%)'
+                                        : formData.theme === 'light'
                                             ? 'linear-gradient(135deg, #f8f7f5 0%, #ffffff 100%)'
                                             : 'linear-gradient(135deg, #0a0a1a 0%, #f8f7f5 100%)',
-                                        color: formData.theme === 'dark' 
-                                            ? '#ffffff'
-                                            : formData.theme === 'light'
+                                    color: formData.theme === 'dark'
+                                        ? '#ffffff'
+                                        : formData.theme === 'light'
                                             ? '#1a1a2e'
                                             : '#ffffff',
-                                        border: '1px solid var(--border-default)'
-                                    }}
-                                >
-                                    <div 
-                                        className="w-2 h-2 rounded-full opacity-60"
-                                        style={{
-                                            background: formData.theme === 'dark' 
-                                                ? '#8b5cf6'
-                                                : formData.theme === 'light'
+                                    border: '1px solid var(--border-default)'
+                                }}
+                            >
+                                <div
+                                    className="w-2 h-2 rounded-full opacity-60"
+                                    style={{
+                                        background: formData.theme === 'dark'
+                                            ? '#8b5cf6'
+                                            : formData.theme === 'light'
                                                 ? '#7c3aed'
                                                 : '#8b5cf6'
-                                        }}
-                                    />
-                                    <span className="text-xs font-medium">
-                                        {formData.theme === 'dark' && 'Tema scuro'}
-                                        {formData.theme === 'light' && 'Tema chiaro'}
-                                        {formData.theme === 'system' && 'Tema sistema'}
-                                    </span>
-                                </div>
-                            </motion.div>
-                        )}
+                                    }}
+                                />
+                                <span className="text-xs font-medium">
+                                    {formData.theme === 'dark' && 'Tema scuro'}
+                                    {formData.theme === 'light' && 'Tema chiaro'}
+                                    {formData.theme === 'system' && 'Tema sistema'}
+                                </span>
+                            </div>
+                        </motion.div>
+                    )}
                 </div>
             </div>
 
@@ -264,9 +264,8 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                     disabled={status.loading || !hasChanges}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`btn-primary px-6 py-3 ${
-                        !hasChanges ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
+                    className={`btn-primary px-6 py-3 ${!hasChanges ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                 >
                     {status.loading ? (
                         <span className="flex items-center gap-2">
@@ -278,7 +277,7 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
                             Salvataggio...
                         </span>
                     ) : (
-                        'Salva preferenze'
+                        'Salva modifiche'
                     )}
                 </motion.button>
             </div>

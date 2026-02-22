@@ -3,9 +3,9 @@ import { useSettings } from '../../features/settings/context/SettingsContext';
 
 export const ThemeToggle = () => {
     const { preferences, updatePreferences } = useSettings();
-    
+
     const currentTheme = preferences?.theme || 'dark';
-    const isDark = currentTheme === 'dark' || 
+    const isDark = currentTheme === 'dark' ||
         (currentTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     const toggleTheme = () => {
@@ -54,8 +54,8 @@ export const ThemeToggle = () => {
                     >
                         {/* Luna Glow */}
                         <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-60">
-                            <div className="absolute top-[-10px] left-[-10px] w-[70px] h-[70px] rounded-full" 
-                                 style={{ background: 'radial-gradient(circle, rgba(148,163,184,0.4) 0%, rgba(148,163,184,0.1) 50%, transparent 70%)', filter: 'blur(6px)' }} />
+                            <div className="absolute top-[-10px] left-[-10px] w-[70px] h-[70px] rounded-full"
+                                style={{ background: 'radial-gradient(circle, rgba(148,163,184,0.4) 0%, rgba(148,163,184,0.1) 50%, transparent 70%)', filter: 'blur(6px)' }} />
                         </div>
 
                         {/* Stars Layer */}
@@ -83,7 +83,7 @@ export const ThemeToggle = () => {
                                     fill="#ffffff"
                                     animate={{
                                         opacity: [0.2, 1, 0.2],
-                                        r: [star.size * 0.7, star.size * 1.3, star.size * 0.7]
+                                        scale: [0.7, 1.3, 0.7]
                                     }}
                                     transition={{
                                         duration: 2 + Math.random() * 2,
@@ -91,7 +91,7 @@ export const ThemeToggle = () => {
                                         delay: star.delay,
                                         ease: "easeInOut"
                                     }}
-                                    style={{ filter: "url(#star-glow)" }}
+                                    style={{ transformOrigin: `${star.x}px ${star.y}px`, filter: "url(#star-glow)" }}
                                 />
                             ))}
 
@@ -118,14 +118,14 @@ export const ThemeToggle = () => {
                     >
                         {/* Sole Glow */}
                         <div className="absolute top-0 right-0 w-full h-full pointer-events-none opacity-80">
-                            <div className="absolute top-[-20px] right-[-10px] w-[80px] h-[80px] rounded-full" 
-                                 style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.6) 0%, rgba(251,191,36,0.1) 40%, transparent 70%)', filter: 'blur(8px)' }} />
+                            <div className="absolute top-[-20px] right-[-10px] w-[80px] h-[80px] rounded-full"
+                                style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.6) 0%, rgba(251,191,36,0.1) 40%, transparent 70%)', filter: 'blur(8px)' }} />
                         </div>
 
                         {/* Clouds Layer */}
                         <svg viewBox="0 0 100 50" className="absolute inset-0 w-full h-full">
                             {/* Cloud back */}
-                            <motion.g 
+                            <motion.g
                                 fill="rgba(255, 255, 255, 0.65)"
                                 animate={{ x: [0, 6, 0] }}
                                 transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
@@ -138,7 +138,7 @@ export const ThemeToggle = () => {
                             </motion.g>
 
                             {/* Cloud mid */}
-                            <motion.g 
+                            <motion.g
                                 fill="rgba(255, 255, 255, 0.85)"
                                 animate={{ x: [0, -8, 0] }}
                                 transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
@@ -151,7 +151,7 @@ export const ThemeToggle = () => {
                             </motion.g>
 
                             {/* Cloud front */}
-                            <motion.g 
+                            <motion.g
                                 fill="#ffffff"
                                 animate={{ x: [0, 10, 0] }}
                                 transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
@@ -182,11 +182,11 @@ export const ThemeToggle = () => {
                     damping: 25,
                 }}
                 style={{
-                    background: isDark 
-                        ? 'linear-gradient(145deg, #f8fafc 0%, #cbd5e1 50%, #94a3b8 100%)' 
+                    background: isDark
+                        ? 'linear-gradient(145deg, #f8fafc 0%, #cbd5e1 50%, #94a3b8 100%)'
                         : 'linear-gradient(145deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)',
-                    boxShadow: isDark 
-                        ? '0 3px 10px rgba(0,0,0,0.5), inset 0 2px 2px rgba(255,255,255,0.8)' 
+                    boxShadow: isDark
+                        ? '0 3px 10px rgba(0,0,0,0.5), inset 0 2px 2px rgba(255,255,255,0.8)'
                         : '0 3px 10px rgba(245,158,11,0.6), inset 0 2px 2px rgba(255,255,255,0.8)',
                 }}
             >
@@ -204,7 +204,7 @@ export const ThemeToggle = () => {
                                     <stop offset="100%" stopColor="#475569" stopOpacity="0.3" />
                                 </linearGradient>
                             </defs>
-                            
+
                             {/* Moon Craters */}
                             <g fill="url(#crater-shadow)">
                                 <circle cx="35" cy="40" r="10" />
@@ -214,7 +214,7 @@ export const ThemeToggle = () => {
                                 <circle cx="30" cy="70" r="6" />
                                 <circle cx="45" cy="18" r="4" />
                             </g>
-                            
+
                             {/* Crater Highlights */}
                             <g fill="#FFFFFF" opacity="0.3">
                                 <circle cx="34" cy="38" r="9.5" />
@@ -234,11 +234,11 @@ export const ThemeToggle = () => {
                                     <stop offset="100%" stopColor="#FBC02D" />
                                 </radialGradient>
                             </defs>
-                            
+
                             {/* Animated Sun Rays */}
-                            <motion.g 
-                                stroke="#FFF59D" 
-                                strokeWidth="5.5" 
+                            <motion.g
+                                stroke="#FFF59D"
+                                strokeWidth="5.5"
                                 strokeLinecap="round"
                                 animate={{ rotate: 360 }}
                                 transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
@@ -254,7 +254,7 @@ export const ThemeToggle = () => {
                                 <line x1="23.13" y1="76.87" x2="31.62" y2="68.38" />
                                 <line x1="76.87" y1="23.13" x2="68.38" y2="31.62" />
                             </motion.g>
-                            
+
                             {/* Sun Core */}
                             <circle cx="50" cy="50" r="21" fill="url(#sun-core)" className="drop-shadow-md" />
                         </svg>
@@ -263,7 +263,7 @@ export const ThemeToggle = () => {
 
                 {/* Outer Shine */}
                 <div className="absolute inset-0 rounded-full shadow-[inset_0_4px_6px_rgba(255,255,255,0.4)] pointer-events-none" />
-                <div 
+                <div
                     className="absolute top-1 left-1 w-3 h-3 rounded-full bg-white/70"
                     style={{ filter: 'blur(1.5px)' }}
                 />

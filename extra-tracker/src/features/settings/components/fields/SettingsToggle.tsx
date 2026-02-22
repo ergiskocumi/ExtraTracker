@@ -54,7 +54,7 @@ export const SettingsToggle: React.FC<SettingsToggleProps> = ({
             tooltipContent={tooltipContent}
         >
             <button
-                id={id || `setting-${name}`}
+                id={id || (name ? `setting-${name}` : undefined)}
                 type="button"
                 onClick={() => !disabled && onChange(!checked)}
                 disabled={disabled}
