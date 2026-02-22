@@ -1556,6 +1556,43 @@ ol ol li::before {
   border-color: var(--border-strong);
 }
 
+/* Calendario settimanale – celle giorno: bordi arrotondati e ben visibili in light */
+[data-theme="light"] .weekly-calendar-day-cell {
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] .weekly-calendar-day-cell--default {
+  border: 1px solid var(--border-default) !important;
+  background: var(--bg-surface) !important;
+}
+
+[data-theme="light"] .weekly-calendar-day-cell--default:hover {
+  background: var(--bg-surface-hover) !important;
+  border-color: var(--border-strong) !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .weekly-calendar-day-cell .weekly-calendar-day-name:not(.text-primary-400) {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="light"] .weekly-calendar-day-cell .weekly-calendar-day-num {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .weekly-calendar-day-cell .weekly-calendar-day-bar {
+  background: var(--border-subtle) !important;
+}
+
+[data-theme="light"] .weekly-calendar-day-cell .weekly-calendar-day-due:not(.text-orange-400) {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="light"] .weekly-calendar-day-cell .weekly-calendar-day-extra {
+  color: var(--text-muted) !important;
+}
+
 /* Flashcard specific */
 [data-theme="light"] .flashcard-content {
   color: var(--text-primary);

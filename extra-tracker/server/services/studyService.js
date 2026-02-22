@@ -86,9 +86,30 @@ const QUESTION_TYPES = {
 // =========================================
 // CONFIGURAZIONE MODELLO AI
 // =========================================
-const ACTIVE_AI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const FALLBACK_AI_MODEL = 'gpt-5.2';
+const KNOWN_OPENAI_MODELS = new Set([
+    'gpt-4o',
+    'gpt-4o-mini',
+    'gpt-5.2',
+    'gpt-4-turbo',
+    'gpt-4-turbo-preview',
+    'gpt-4',
+    'gpt-3.5-turbo',
+    'o1',
+    'o1-mini',
+]);
+const envModel = (process.env.OPENAI_MODEL || FALLBACK_AI_MODEL).trim();
+const ACTIVE_AI_MODEL = KNOWN_OPENAI_MODELS.has(envModel) ? envModel : FALLBACK_AI_MODEL;
+
+function getValidModel(envValue) {
+    const v = (envValue || ACTIVE_AI_MODEL).trim();
+    return KNOWN_OPENAI_MODELS.has(v) ? v : ACTIVE_AI_MODEL;
+}
 
 if (!global.__studyServiceModelLogged) {
+    if (envModel !== ACTIVE_AI_MODEL) {
+        console.warn(`⚠️ OPENAI_MODEL="${envModel}" non valido o non disponibile; uso fallback: ${ACTIVE_AI_MODEL}`);
+    }
     console.log(`🤖 StudyService usando modello: ${ACTIVE_AI_MODEL}`);
     global.__studyServiceModelLogged = true;
 }
@@ -1839,7 +1860,7 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
             }
         }
 
-        const model = process.env.OPENAI_CHAT_MODEL || ACTIVE_AI_MODEL;
+        const model = getValidModel(process.env.OPENAI_CHAT_MODEL);
         const contextLimit = model.includes('gpt-3.5') ? 15000 : 50000;
 
         if (!context) {
@@ -2005,7 +2026,7 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
             }
         }
 
-        const model = process.env.OPENAI_CHAT_MODEL || ACTIVE_AI_MODEL;
+        const model = getValidModel(process.env.OPENAI_CHAT_MODEL);
         const contextLimit = model.includes('gpt-3.5') ? 15000 : 50000;
 
         if (!context) {
