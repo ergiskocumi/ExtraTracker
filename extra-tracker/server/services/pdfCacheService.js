@@ -109,39 +109,81 @@ class PDFCacheService {
 
         if (!content.items || content.items.length === 0) return '';
 
-        let text = '';
-        let lastY = null;
-        let lastX = null;
-        let lastWidth = 0;
+        const items = content.items
+            .filter((item) => typeof item?.str === 'string' && item.str.trim().length > 0)
+            .map((item) => {
+                const x = Number(item.transform?.[4] ?? 0);
+                const y = Number(item.transform?.[5] ?? 0);
+                const width = Math.max(0, Number(item.width ?? 0));
+                const heightFromTransform = Math.abs(Number(item.transform?.[3] ?? 0));
+                const height = Math.max(1, Number(item.height ?? heightFromTransform ?? 1));
+                return {
+                    str: item.str.replace(/\s+/g, ' ').trim(),
+                    x,
+                    y,
+                    width,
+                    height,
+                };
+            });
 
-        for (const item of content.items) {
-            if (!item.str && item.str !== '') continue;
+        if (items.length === 0) return '';
 
-            const x = item.transform[4];
-            const y = item.transform[5];
+        const avgHeight = items.reduce((sum, item) => sum + item.height, 0) / items.length;
+        const lineTolerance = Math.max(1.5, Math.min(4.5, avgHeight * 0.45));
 
-            if (lastY !== null) {
-                const yDiff = Math.abs(y - lastY);
-                if (yDiff > 2) {
-                    // Nuova riga
-                    text += '\n';
-                } else if (lastX !== null) {
-                    // Stessa riga - aggiungi spazio se c'e' un gap orizzontale significativo
-                    const expectedX = lastX + lastWidth;
-                    const gap = x - expectedX;
-                    if (gap > item.height * 0.3) {
-                        text += ' ';
-                    }
+        // Ordina in ordine di lettura: righe dall'alto verso il basso, poi da sinistra a destra.
+        items.sort((a, b) => {
+            const yDiff = Math.abs(b.y - a.y);
+            if (yDiff > lineTolerance) return b.y - a.y;
+            return a.x - b.x;
+        });
+
+        const lines = [];
+        let current = { y: items[0].y, items: [items[0]] };
+
+        for (let i = 1; i < items.length; i++) {
+            const item = items[i];
+            if (Math.abs(item.y - current.y) <= lineTolerance) {
+                current.items.push(item);
+                current.y = (current.y + item.y) / 2;
+            } else {
+                lines.push(current);
+                current = { y: item.y, items: [item] };
+            }
+        }
+        lines.push(current);
+
+        const pageLines = [];
+        for (const line of lines) {
+            line.items.sort((a, b) => a.x - b.x);
+
+            let lineText = '';
+            let lastRight = null;
+            let prev = null;
+
+            for (const item of line.items) {
+                if (!item.str) continue;
+
+                if (lastRight !== null && prev) {
+                    const gap = item.x - lastRight;
+                    const threshold = Math.max(0.25, Math.min(2.5, ((prev.height + item.height) / 2) * 0.12));
+                    if (gap > threshold) lineText += ' ';
                 }
+
+                lineText += item.str;
+                lastRight = item.x + item.width;
+                prev = item;
             }
 
-            text += item.str;
-            lastY = y;
-            lastX = x;
-            lastWidth = item.width || 0;
+            const cleanedLine = lineText.replace(/\s+/g, ' ').trim();
+            if (!cleanedLine) continue;
+
+            // Evita duplicati consecutivi generati da text-layer sovrapposti.
+            if (pageLines.length > 0 && pageLines[pageLines.length - 1] === cleanedLine) continue;
+            pageLines.push(cleanedLine);
         }
 
-        return text;
+        return pageLines.join('\n');
     }
 
     /**
