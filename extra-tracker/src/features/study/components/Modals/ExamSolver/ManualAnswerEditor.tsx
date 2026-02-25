@@ -11,6 +11,7 @@ import { Save, Search, Check, Loader2, AlertCircle } from 'lucide-react';
 import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
 import type { ManualAnswerEditorProps, FlashcardWithId } from './ExamSolverModal.types';
+import { classList, examSolverButtonClass, examSolverFieldClass } from '../../utils/studyButtonClasses';
 
 // Re-export for convenience
 export type { ManualAnswerEditorProps, FlashcardWithId };
@@ -179,7 +180,10 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                     {completedCount > 0 && (
                         <button
                             onClick={saveAll}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 text-xs font-medium transition-colors flex items-center gap-1.5"
+                            className={examSolverButtonClass(
+                                'successSoft',
+                                'px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5'
+                            )}
                         >
                             <Save className="w-3.5 h-3.5" />
                             Salva tutte
@@ -245,14 +249,10 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                                     placeholder="Inserisci la risposta manualmente..."
                                     rows={4}
                                     maxLength={1000}
-                                    className={`
-                                        w-full px-4 py-3 rounded-xl bg-zinc-950/60 border text-white placeholder-white/30
-                                        focus:outline-none focus:ring-2 transition-all resize-none
-                                        ${validation.valid || answer.length === 0
-                                            ? 'border-white/10 focus:border-amber-500/50 focus:ring-amber-500/20'
-                                            : 'border-amber-500/50 focus:border-amber-500 focus:ring-amber-500/30'
-                                        }
-                                    `}
+                                    className={classList(
+                                        examSolverFieldClass('textarea', 'w-full px-4 py-3 rounded-xl resize-none'),
+                                        !validation.valid && answer.length > 0 && 'border-amber-500/55'
+                                    )}
                                 />
                                 {!validation.valid && answer.length > 0 && (
                                     <p className="text-xs text-amber-400 flex items-center gap-1">
@@ -267,7 +267,10 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                                 <button
                                     onClick={() => saveAnswer(card.id, answer)}
                                     disabled={!validation.valid || isSaving}
-                                    className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                                    className={examSolverButtonClass(
+                                        'warningSoft',
+                                        'px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5'
+                                    )}
                                 >
                                     {isSaving ? (
                                         <>
@@ -286,7 +289,10 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                                         const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(card.front)}`;
                                         window.open(searchUrl, '_blank');
                                     }}
-                                    className="px-3 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 text-xs font-medium transition-colors flex items-center gap-1.5"
+                                    className={examSolverButtonClass(
+                                        'infoSoft',
+                                        'px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5'
+                                    )}
                                 >
                                     <Search className="w-3.5 h-3.5" />
                                     Cerca su Google

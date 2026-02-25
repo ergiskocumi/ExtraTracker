@@ -24,7 +24,7 @@ import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { DeckDetailHeader } from './DeckDetailHeader';
 import { DeckStatsPanel } from './DeckStatsPanel';
-import { DeckCardFilters, type FilterStatus, type ViewMode, type SortOption } from './DeckCardFilters';
+import { DeckCardFilters, type FilterStatus, type SortOption } from './DeckCardFilters';
 import { CardEditorModal } from './CardEditorModal';
 import { FlashcardItem } from '../Flashcard/FlashcardItem';
 
@@ -65,10 +65,9 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
     onShare,
     onResetProgress,
 }) => {
-    // Filter & View State
+    // Filter & sort state (solo vista lista)
     const [filter, setFilter] = useState<FilterStatus>('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [sortBy, setSortBy] = useState<SortOption>('order');
 
     // Editor State
@@ -112,8 +111,11 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                 cards.sort((a, b) => a.front.localeCompare(b.front));
                 break;
             case 'created':
-                // Assuming cards have createdAt, otherwise keep order
-                cards.sort((a, b) => (b as any).createdAt - (a as any).createdAt);
+                cards.sort((a, b) => {
+                    const aTs = new Date((a as Card & { createdAt?: string }).createdAt || 0).getTime();
+                    const bTs = new Date((b as Card & { createdAt?: string }).createdAt || 0).getTime();
+                    return (Number.isFinite(bTs) ? bTs : 0) - (Number.isFinite(aTs) ? aTs : 0);
+                });
                 break;
             case 'interval':
                 cards.sort((a, b) => b.interval - a.interval);
@@ -211,8 +213,6 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
         }
     }, [currentCardIndex, deck.cards]);
 
-    const hasCards = stats.all > 0;
-
     return (
         <div className="space-y-6">
             {/* Header with Stats */}
@@ -237,21 +237,13 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                         onFilterChange={setFilter}
                         searchQuery={searchQuery}
                         onSearchChange={setSearchQuery}
-                        viewMode={viewMode}
-                        onViewModeChange={setViewMode}
                         sortBy={sortBy}
                         onSortChange={setSortBy}
                         counts={stats}
                     />
 
-                    {/* Cards Grid/List */}
-                    <div className={`
-                        rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden min-h-[500px] p-4
-                        ${viewMode === 'grid' 
-                            ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' 
-                            : 'flex flex-col gap-3'
-                        }
-                    `}>
+                    {/* Cards List */}
+                    <div className="rounded-2xl border border-theme-default bg-theme-surface overflow-hidden min-h-[500px] p-4 sm:p-5 flex flex-col gap-4">
                         <AnimatePresence mode="popLayout">
                             {filteredCards.length === 0 ? (
                                 <motion.div
@@ -259,14 +251,14 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                                     animate={{ opacity: 1, y: 0 }}
                                     className="col-span-full flex flex-col items-center justify-center py-16 text-center"
                                 >
-                                    <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+                                    <div className="w-20 h-20 rounded-2xl bg-theme-surface border border-theme-default flex items-center justify-center mb-4">
                                         {searchQuery ? (
-                                            <AlertCircle className="w-10 h-10 text-white/30" />
+                                            <AlertCircle className="w-10 h-10 text-theme-muted" />
                                         ) : (
-                                            <Sparkles className="w-10 h-10 text-primary-400/50" />
+                                            <Sparkles className="w-10 h-10 text-primary-500/70" />
                                         )}
                                     </div>
-                                    <h3 className="text-lg font-semibold text-white mb-2">
+                                    <h3 className="text-lg font-semibold text-theme-primary mb-2">
                                         {searchQuery 
                                             ? 'Nessuna carta trovata'
                                             : filter !== 'all'
@@ -274,7 +266,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                                                 : 'Nessuna carta'
                                         }
                                     </h3>
-                                    <p className="text-sm text-white/50 max-w-sm mb-6">
+                                    <p className="text-sm text-theme-secondary max-w-sm mb-6">
                                         {searchQuery 
                                             ? 'Prova a modificare i termini di ricerca'
                                             : 'Crea la tua prima carta per iniziare a studiare'
@@ -342,7 +334,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
 
             {/* Mobile Actions Drawer */}
             <div className="lg:hidden mt-6 space-y-3">
-                <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wide">
+                <h3 className="text-sm font-semibold text-theme-secondary uppercase tracking-wide">
                     Azioni Rapide
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
@@ -350,7 +342,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                         <motion.button
                             whileTap={{ scale: 0.98 }}
                             onClick={onSettings}
-                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80"
+                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-theme-card border border-theme-default text-theme-primary"
                         >
                             <Settings className="w-4 h-4" />
                             <span className="text-sm">Impostazioni</span>
@@ -360,7 +352,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                         <motion.button
                             whileTap={{ scale: 0.98 }}
                             onClick={onExport}
-                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80"
+                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-theme-card border border-theme-default text-theme-primary"
                         >
                             <Download className="w-4 h-4" />
                             <span className="text-sm">Esporta</span>
@@ -370,7 +362,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                         <motion.button
                             whileTap={{ scale: 0.98 }}
                             onClick={onShare}
-                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80"
+                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-theme-card border border-theme-default text-theme-primary"
                         >
                             <Share2 className="w-4 h-4" />
                             <span className="text-sm">Condividi</span>
@@ -380,7 +372,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                         <motion.button
                             whileTap={{ scale: 0.98 }}
                             onClick={onResetProgress}
-                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 text-orange-400"
+                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-theme-card border border-theme-default text-orange-600 dark:text-orange-300"
                         >
                             <RotateCcw className="w-4 h-4" />
                             <span className="text-sm">Reset</span>
@@ -412,16 +404,16 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className="w-full max-w-md p-6 rounded-2xl bg-slate-900 border border-white/10 shadow-2xl"
+                        className="w-full max-w-md p-6 rounded-2xl bg-theme-elevated border border-theme-default shadow-theme-lg"
                     >
-                        <h3 className="text-lg font-bold text-white mb-2">Elimina Carta</h3>
-                        <p className="text-white/60 text-sm mb-6">
+                        <h3 className="text-lg font-bold text-theme-primary mb-2">Elimina Carta</h3>
+                        <p className="text-theme-secondary text-sm mb-6">
                             Sei sicuro di voler eliminare questa carta? L'azione non può essere annullata.
                         </p>
                         <div className="flex items-center justify-end gap-3">
                             <button
                                 onClick={() => setDeletingCardId(null)}
-                                className="px-4 py-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                                className="px-4 py-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-surface border border-theme-default transition-all"
                             >
                                 Annulla
                             </button>

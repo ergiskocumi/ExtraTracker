@@ -36,15 +36,17 @@ export const ExamGridCard: React.FC<ExamGridCardProps> = ({
 
     return (
         <motion.button
+            type="button"
             onClick={handleClick}
             whileHover={{ scale: 1.01, x: 2 }}
             whileTap={{ scale: 0.99 }}
             className={`
-                w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl
+                w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl min-h-[56px] sm:min-h-[64px]
                 border transition-all duration-200 cursor-pointer text-left
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2
                 ${isUrgent
                     ? 'border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10'
-                    : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20'
+                    : 'border-theme-default bg-theme-card hover:bg-theme-surface hover:border-theme-strong'
                 }
             `}
         >
@@ -56,25 +58,25 @@ export const ExamGridCard: React.FC<ExamGridCardProps> = ({
                     : `${examColors.bgColor} ${examColors.borderColor}`
                 }
             `}>
-                <ExamIcon className={`w-5 h-5 ${isUrgent ? 'text-orange-400' : examColors.color}`} />
+                <ExamIcon className={`w-5 h-5 ${isUrgent ? 'text-orange-400' : examColors.color}`} aria-hidden />
             </div>
 
             {/* Title + deck count */}
             <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-semibold text-white truncate">
+                <h4 className="text-sm font-semibold text-theme-primary truncate">
                     {exam.title}
                 </h4>
-                <p className="text-xs text-white/40 mt-0.5">
+                <p className="text-xs text-theme-muted mt-0.5">
                     {deckCount} {deckCount === 1 ? 'mazzo' : 'mazzi'} &middot; {totalCards} carte
                 </p>
             </div>
 
             {/* Deadline countdown - hidden on mobile */}
             <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
-                <Calendar className={`w-3.5 h-3.5 ${isUrgent ? 'text-orange-400' : 'text-white/40'}`} />
+                <Calendar className={`w-3.5 h-3.5 ${isUrgent ? 'text-orange-400' : 'text-theme-muted'}`} aria-hidden />
                 <span className={`
                     text-xs font-medium
-                    ${isUrgent ? 'text-orange-400' : 'text-white/50'}
+                    ${isUrgent ? 'text-orange-400' : 'text-theme-muted'}
                 `}>
                     {daysUntilDeadline >= 0
                         ? `${daysUntilDeadline}g`
@@ -85,10 +87,10 @@ export const ExamGridCard: React.FC<ExamGridCardProps> = ({
 
             {/* Mastery bar */}
             <div className="hidden sm:flex flex-col items-end gap-1 flex-shrink-0 w-16">
-                <span className="text-[10px] font-bold text-white/50 tabular-nums">
+                <span className="text-[10px] font-bold text-theme-muted tabular-nums">
                     {masteryPercent}%
                 </span>
-                <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div className="w-full h-1.5 rounded-full bg-theme-surface overflow-hidden">
                     <div
                         className={`h-full rounded-full transition-all duration-500 ${
                             masteryPercent >= 80
@@ -112,7 +114,7 @@ export const ExamGridCard: React.FC<ExamGridCardProps> = ({
             )}
 
             {/* Arrow */}
-            <ArrowRight className="w-4 h-4 text-white/30 flex-shrink-0" />
+            <ArrowRight className="w-4 h-4 text-theme-muted flex-shrink-0" aria-hidden />
         </motion.button>
     );
 };

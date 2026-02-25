@@ -18,6 +18,7 @@ import {
     type AllSettingsData,
 } from '../services/settingsService';
 import { emitToast } from '../../../shared/components/toast';
+import { applyThemePreference } from '../../../shared/utils/theme';
 
 // ==========================================
 // TIPI
@@ -128,6 +129,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         error: null,
     });
 
+    const applyTheme = useCallback((theme: 'dark' | 'light' | 'system') => {
+        applyThemePreference(theme);
+    }, []);
+
     /**
      * Carica tutte le impostazioni dal server
      */
@@ -170,7 +175,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
                 error: err instanceof Error ? err.message : 'Errore nel caricamento impostazioni',
             }));
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, applyTheme]);
 
     /**
      * Aggiorna profilo utente
@@ -256,7 +261,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             }));
             return false;
         }
-    }, [state.preferences]);
+    }, [state.preferences, applyTheme]);
 
     /**
      * Aggiorna notifiche
@@ -435,20 +440,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         setState(prev => ({ ...prev, error: null }));
     }, []);
 
-    /**
-     * Applica tema al documento
-     */
-    const applyTheme = (theme: 'dark' | 'light' | 'system') => {
-        const root = document.documentElement;
-        
-        if (theme === 'system') {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-        } else {
-            root.setAttribute('data-theme', theme);
-        }
-    };
-
     // Carica impostazioni quando l'utente è autenticato
     useEffect(() => {
         if (isAuthenticated) {
@@ -464,8 +455,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
                 hasLoaded: false,
                 error: null,
             });
+
+            // Mantiene tema consistente anche nelle route pubbliche
+            applyTheme(defaultPreferences.theme);
         }
-    }, [isAuthenticated, loadSettings]);
+    }, [isAuthenticated, loadSettings, applyTheme]);
 
     // Ascolta cambio preferenza sistema per tema
     useEffect(() => {
@@ -475,7 +469,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             mediaQuery.addEventListener('change', handleChange);
             return () => mediaQuery.removeEventListener('change', handleChange);
         }
-    }, [state.preferences.theme]);
+    }, [state.preferences.theme, applyTheme]);
 
     const value: SettingsContextValue = {
         ...state,

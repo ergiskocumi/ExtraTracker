@@ -43,45 +43,45 @@ const RATING_OPTIONS: RatingOption[] = [
         value: 1,
         label: 'Non so',
         description: 'Non ricordavo affatto',
-        color: 'text-rose-400',
-        bgColor: 'bg-rose-500/20 hover:bg-rose-500/30',
-        borderColor: 'border-rose-500/40 hover:border-rose-500/60',
+        color: 'text-rose-600 dark:text-rose-400',
+        bgColor: 'bg-rose-500/15 hover:bg-rose-500/25',
+        borderColor: 'border-rose-500/35 hover:border-rose-500/55',
         icon: X,
     },
     {
         value: 2,
         label: 'Difficile',
         description: 'Con molta difficoltà',
-        color: 'text-orange-400',
-        bgColor: 'bg-orange-500/20 hover:bg-orange-500/30',
-        borderColor: 'border-orange-500/40 hover:border-orange-500/60',
+        color: 'text-orange-600 dark:text-orange-400',
+        bgColor: 'bg-orange-500/15 hover:bg-orange-500/25',
+        borderColor: 'border-orange-500/35 hover:border-orange-500/55',
         icon: AlertTriangle,
     },
     {
         value: 3,
         label: 'Ok',
         description: 'Con qualche esitazione',
-        color: 'text-amber-400',
-        bgColor: 'bg-amber-500/20 hover:bg-amber-500/30',
-        borderColor: 'border-amber-500/40 hover:border-amber-500/60',
+        color: 'text-amber-600 dark:text-amber-400',
+        bgColor: 'bg-amber-500/15 hover:bg-amber-500/25',
+        borderColor: 'border-amber-500/35 hover:border-amber-500/55',
         icon: Minus,
     },
     {
         value: 4,
         label: 'Bene',
         description: 'Ricordato correttamente',
-        color: 'text-sky-400',
-        bgColor: 'bg-sky-500/20 hover:bg-sky-500/30',
-        borderColor: 'border-sky-500/40 hover:border-sky-500/60',
+        color: 'text-sky-600 dark:text-sky-400',
+        bgColor: 'bg-sky-500/15 hover:bg-sky-500/25',
+        borderColor: 'border-sky-500/35 hover:border-sky-500/55',
         icon: ThumbsUp,
     },
     {
         value: 5,
         label: 'Perfetto',
         description: 'Risposta immediata',
-        color: 'text-emerald-400',
-        bgColor: 'bg-emerald-500/20 hover:bg-emerald-500/30',
-        borderColor: 'border-emerald-500/40 hover:border-emerald-500/60',
+        color: 'text-emerald-600 dark:text-emerald-400',
+        bgColor: 'bg-emerald-500/15 hover:bg-emerald-500/25',
+        borderColor: 'border-emerald-500/35 hover:border-emerald-500/55',
         icon: Check,
     },
 ];
@@ -120,7 +120,7 @@ export const StudyControls: React.FC<StudyControlsProps> = ({
     if (!visible) {
         return (
             <div className="h-24 flex items-center justify-center">
-                <p className="text-white/40 text-sm animate-pulse">
+                <p className="text-theme-muted text-sm animate-pulse">
                     Gira la carta per valutare
                 </p>
             </div>
@@ -128,7 +128,7 @@ export const StudyControls: React.FC<StudyControlsProps> = ({
     }
 
     return (
-        <div className="w-full max-w-3xl mx-auto space-y-3">
+        <div className="study-controls w-full max-w-3xl mx-auto space-y-3">
             {/* Rating buttons - 5 columns */}
             <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
                 {RATING_OPTIONS.map((option, index) => (
@@ -142,7 +142,7 @@ export const StudyControls: React.FC<StudyControlsProps> = ({
                         whileHover={{ scale: disabled ? 1 : 1.03, y: disabled ? 0 : -2 }}
                         whileTap={{ scale: disabled ? 1 : 0.97 }}
                         className={`
-                            relative group p-2 sm:p-4 rounded-xl sm:rounded-2xl border-2
+                            study-controls-option relative group p-2 sm:p-4 rounded-xl sm:rounded-2xl border-2
                             transition-all duration-200
                             ${option.bgColor} ${option.borderColor}
                             ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
@@ -159,17 +159,14 @@ export const StudyControls: React.FC<StudyControlsProps> = ({
                         </span>
 
                         {/* Description - hidden on small screens */}
-                        <span className="text-[10px] sm:text-xs text-white/50 block hidden sm:block">
+                        <span className="text-[10px] sm:text-xs text-theme-muted block hidden sm:block">
                             {option.description}
                         </span>
 
                         {/* Keyboard shortcut */}
-                        <kbd className="absolute top-1 right-1 sm:top-2 sm:right-2 px-1 sm:px-2 py-0.5 rounded bg-white/10 text-white/40 text-[10px] sm:text-xs font-mono hidden sm:block">
+                        <kbd className="study-controls-kbd absolute top-1 right-1 sm:top-2 sm:right-2 px-1 sm:px-2 py-0.5 rounded bg-theme-surface border border-theme-default text-theme-muted text-[10px] sm:text-xs font-mono hidden sm:block">
                             {option.value}
                         </kbd>
-
-                        {/* Hover glow effect */}
-                        <div className={`absolute inset-0 rounded-xl sm:rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-t ${option.bgColor} to-transparent -z-10`} />
                     </motion.button>
                 ))}
             </div>
@@ -184,28 +181,28 @@ export const StudyControls: React.FC<StudyControlsProps> = ({
                         whileTap={{ scale: disabled ? 1 : 0.95 }}
                         className="
                             flex items-center gap-2 px-4 py-2 rounded-xl
-                            text-white/40 hover:text-white/60
+                            text-theme-muted hover:text-theme-primary hover:bg-theme-surface
                             transition-all text-sm
                             disabled:opacity-40
                         "
                     >
                         <RotateCcw className="w-4 h-4" />
                         <span>Salta carta</span>
-                        <kbd className="hidden sm:inline px-1.5 py-0.5 rounded bg-white/10 text-white/30 text-xs font-mono">S</kbd>
+                        <kbd className="study-controls-kbd hidden sm:inline px-1.5 py-0.5 rounded bg-theme-surface border border-theme-default text-theme-muted text-xs font-mono">S</kbd>
                     </motion.button>
                 </div>
             )}
 
             {/* Keyboard hints */}
-            <div className="hidden sm:flex items-center justify-center gap-3 text-xs text-white/30">
+            <div className="hidden sm:flex items-center justify-center gap-3 text-xs text-theme-muted">
                 {RATING_OPTIONS.map((option) => (
                     <span key={option.value} className="flex items-center gap-1">
-                        <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/50 font-mono">{option.value}</kbd>
+                        <kbd className="study-controls-kbd px-1.5 py-0.5 rounded bg-theme-surface border border-theme-default text-theme-secondary font-mono">{option.value}</kbd>
                         {option.label}
                     </span>
                 ))}
                 <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/50 font-mono">Spazio</kbd>
+                    <kbd className="study-controls-kbd px-1.5 py-0.5 rounded bg-theme-surface border border-theme-default text-theme-secondary font-mono">Spazio</kbd>
                     Gira
                 </span>
             </div>

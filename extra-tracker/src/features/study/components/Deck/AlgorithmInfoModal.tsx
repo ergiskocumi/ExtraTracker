@@ -131,16 +131,16 @@ export const AlgorithmInfoModal: React.FC<AlgorithmInfoModalProps> = ({ isOpen, 
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 shadow-2xl"
+                        className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-theme-default bg-theme-elevated shadow-2xl"
                     >
                         {/* Header */}
-                        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/95 backdrop-blur-xl">
-                            <h2 className="text-lg font-bold text-white">
+                        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-theme-default bg-theme-elevated backdrop-blur-xl">
+                            <h2 className="text-lg font-bold text-theme-primary">
                                 Come funzionano gli algoritmi di studio
                             </h2>
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                                className="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-surface transition-colors"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -151,12 +151,12 @@ export const AlgorithmInfoModal: React.FC<AlgorithmInfoModalProps> = ({ isOpen, 
                             {ALGORITHMS.map((algo) => (
                                 <div
                                     key={algo.id}
-                                    className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-3"
+                                    className="rounded-xl border border-theme-default bg-theme-card p-5 space-y-3"
                                 >
                                     {/* Name and badge */}
                                     <div className="flex items-center gap-3">
                                         <algo.icon className={`w-5 h-5 ${algo.iconColor}`} />
-                                        <h3 className="text-base font-bold text-white">{algo.name}</h3>
+                                        <h3 className="text-base font-bold text-theme-primary">{algo.name}</h3>
                                         <span
                                             className={`px-2 py-0.5 rounded-full text-xs font-medium border ${algo.badgeColor}`}
                                         >
@@ -165,20 +165,20 @@ export const AlgorithmInfoModal: React.FC<AlgorithmInfoModalProps> = ({ isOpen, 
                                     </div>
 
                                     {/* Description */}
-                                    <p className="text-sm text-white/70 leading-relaxed">{algo.description}</p>
+                                    <p className="text-sm text-theme-secondary leading-relaxed">{algo.description}</p>
 
                                     {/* How it works */}
                                     <div>
-                                        <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-1">
+                                        <p className="text-xs font-semibold text-theme-muted uppercase tracking-wide mb-1">
                                             Come sceglie quando rivedere
                                         </p>
-                                        <p className="text-sm text-white/60">{algo.howItWorks}</p>
+                                        <p className="text-sm text-theme-secondary">{algo.howItWorks}</p>
                                     </div>
 
                                     {/* Recommended for */}
-                                    <div className="rounded-lg bg-white/5 px-3 py-2">
-                                        <p className="text-xs font-semibold text-white/50 mb-0.5">Consigliato per:</p>
-                                        <p className="text-sm text-white/80">{algo.recommendedFor}</p>
+                                    <div className="rounded-lg bg-theme-surface px-3 py-2 border border-theme-subtle">
+                                        <p className="text-xs font-semibold text-theme-muted mb-0.5">Consigliato per:</p>
+                                        <p className="text-sm text-theme-primary">{algo.recommendedFor}</p>
                                     </div>
 
                                     {/* Pro/Contro */}
@@ -188,7 +188,7 @@ export const AlgorithmInfoModal: React.FC<AlgorithmInfoModalProps> = ({ isOpen, 
                                                 <CheckCircle className="w-3 h-3" /> Pro
                                             </p>
                                             {algo.pros.map((pro, i) => (
-                                                <p key={i} className="text-xs text-white/60 pl-4">
+                                                <p key={i} className="text-xs text-theme-secondary pl-4">
                                                     {pro}
                                                 </p>
                                             ))}
@@ -198,7 +198,7 @@ export const AlgorithmInfoModal: React.FC<AlgorithmInfoModalProps> = ({ isOpen, 
                                                 <AlertCircle className="w-3 h-3" /> Contro
                                             </p>
                                             {algo.cons.map((con, i) => (
-                                                <p key={i} className="text-xs text-white/60 pl-4">
+                                                <p key={i} className="text-xs text-theme-secondary pl-4">
                                                     {con}
                                                 </p>
                                             ))}
@@ -208,27 +208,27 @@ export const AlgorithmInfoModal: React.FC<AlgorithmInfoModalProps> = ({ isOpen, 
                             ))}
 
                             {/* Comparison table */}
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-                                <h3 className="text-base font-bold text-white mb-4">Quale scegliere?</h3>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
+                            <div className="rounded-xl border border-theme-default bg-theme-card p-5">
+                                <h3 className="text-base font-bold text-theme-primary mb-4">Quale scegliere?</h3>
+                                <div className="overflow-x-auto rounded-xl border border-theme-default bg-theme-elevated shadow-theme-sm">
+                                    <table className="table-modern table-modern--compact">
                                         <thead>
-                                            <tr className="border-b border-white/10">
-                                                <th className="text-left py-2 pr-4 text-white/50 font-medium" />
-                                                <th className="text-center py-2 px-2 text-emerald-400 font-semibold">SM-2</th>
-                                                <th className="text-center py-2 px-2 text-violet-400 font-semibold">FSRS</th>
-                                                <th className="text-center py-2 px-2 text-amber-400 font-semibold">Leitner</th>
-                                                <th className="text-center py-2 px-2 text-sky-400 font-semibold">Anki</th>
+                                            <tr>
+                                                <th className="text-left font-medium text-theme-muted" />
+                                                <th className="text-center font-semibold text-emerald-500">SM-2</th>
+                                                <th className="text-center font-semibold text-violet-500">FSRS</th>
+                                                <th className="text-center font-semibold text-amber-500">Leitner</th>
+                                                <th className="text-center font-semibold text-sky-500">Anki</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {COMPARISON_ROWS.map((row) => (
-                                                <tr key={row.label} className="border-b border-white/5">
-                                                    <td className="py-2 pr-4 text-white/60 font-medium">{row.label}</td>
-                                                    <td className="py-2 px-2 text-center text-white/70">{row.sm2}</td>
-                                                    <td className="py-2 px-2 text-center text-white/70">{row.fsrs}</td>
-                                                    <td className="py-2 px-2 text-center text-white/70">{row.leitner}</td>
-                                                    <td className="py-2 px-2 text-center text-white/70">{row.anki}</td>
+                                                <tr key={row.label}>
+                                                    <td className="font-medium text-theme-secondary">{row.label}</td>
+                                                    <td className="text-center text-theme-secondary">{row.sm2}</td>
+                                                    <td className="text-center text-theme-secondary">{row.fsrs}</td>
+                                                    <td className="text-center text-theme-secondary">{row.leitner}</td>
+                                                    <td className="text-center text-theme-secondary">{row.anki}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, FileText, Search } from 'lucide-react';
 import PDFReader from '../../../PDF/PDFReaderLazy';
 import type { PDFReaderRef } from '../../../PDF/PDFReader';
+import { examSolverButtonClass } from '../../../utils/studyButtonClasses';
 
 // ============================================
 // TYPES
@@ -114,9 +115,9 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                            className={examSolverButtonClass('icon', 'p-2 rounded-lg')}
                         >
-                            <X className="w-5 h-5 text-white/60" />
+                            <X className="w-5 h-5" />
                         </button>
                     </div>
 
@@ -173,7 +174,7 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
                             </p>
                             <button
                                 onClick={onClose}
-                                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium transition-colors"
+                                className={examSolverButtonClass('neutral', 'px-4 py-2 rounded-lg text-sm font-medium')}
                             >
                                 Chiudi
                             </button>

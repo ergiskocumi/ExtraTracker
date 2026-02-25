@@ -10,7 +10,7 @@
 import React, { useState } from 'react';
 import { FiCheck, FiX } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { MarkdownEditor } from './CardEditor';
+import { RichTextEditor as MarkdownEditor } from './CardEditor';
 
 interface FlashcardInlineFormProps {
     /** Callback when the form is saved */

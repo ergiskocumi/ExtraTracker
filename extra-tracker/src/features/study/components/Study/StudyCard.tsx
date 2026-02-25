@@ -11,7 +11,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { Sparkles, RotateCcw, Brain, GraduationCap, Trophy, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, RotateCcw, Brain, Trophy, Eye, EyeOff } from 'lucide-react';
 import type { Card, CardStatus } from '../../services/studyService';
 import { CardContentRenderer } from '../Flashcard/CardContentRenderer';
 
@@ -36,25 +36,25 @@ const STATUS_CONFIG: Record<CardStatus, { label: string; icon: React.ElementType
     new: {
         label: 'Nuova',
         icon: Sparkles,
-        color: 'text-blue-400',
+        color: 'text-blue-600 dark:text-blue-400',
         bgColor: 'bg-blue-500/20',
     },
     learning: {
         label: 'In apprendimento',
         icon: Brain,
-        color: 'text-amber-400',
+        color: 'text-amber-600 dark:text-amber-400',
         bgColor: 'bg-amber-500/20',
     },
     review: {
         label: 'Da ripassare',
         icon: RotateCcw,
-        color: 'text-orange-400',
+        color: 'text-orange-600 dark:text-orange-400',
         bgColor: 'bg-orange-500/20',
     },
     mastered: {
         label: 'Padroneggiata',
         icon: Trophy,
-        color: 'text-emerald-400',
+        color: 'text-emerald-600 dark:text-emerald-400',
         bgColor: 'bg-emerald-500/20',
     },
 };
@@ -129,11 +129,11 @@ export const StudyCard: React.FC<StudyCardProps> = ({
     };
 
     return (
-        <div className="relative w-full max-w-2xl mx-auto perspective-1000">
+        <div className="study-card-shell relative w-full max-w-2xl mx-auto perspective-1000">
             {/* Progress indicator top */}
-            <div className="absolute -top-12 left-0 right-0 flex items-center justify-between text-sm text-white/50">
+            <div className="study-card-meta absolute -top-12 left-0 right-0 flex items-center justify-between text-sm text-theme-muted">
                 <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white">{cardNumber}</span>
+                    <span className="font-semibold text-theme-primary">{cardNumber}</span>
                     <span>/</span>
                     <span>{totalCards}</span>
                 </div>
@@ -170,10 +170,10 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                             WebkitBackfaceVisibility: 'hidden',
                         }}
                     >
-                        <div className="w-full h-full rounded-3xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-white/10 shadow-2xl overflow-hidden">
+                        <div className="study-card-face study-card-face--front w-full h-full rounded-3xl bg-theme-elevated border border-theme-default shadow-theme-lg overflow-hidden">
                             {/* Header */}
                             <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 flex items-center justify-between">
-                                <div className={`px-3 py-1.5 rounded-full ${statusConfig.bgColor} border border-white/10`}>
+                                <div className={`study-card-label px-3 py-1.5 rounded-full ${statusConfig.bgColor} border border-theme-default`}>
                                     <span className={`text-xs font-bold uppercase tracking-wider ${statusConfig.color}`}>
                                         Domanda
                                     </span>
@@ -183,7 +183,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                                         e.stopPropagation();
                                         setShowHint(!showHint);
                                     }}
-                                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 transition-all"
+                                    className="study-card-toggle p-2 rounded-xl bg-theme-surface hover:bg-theme-card text-theme-muted hover:text-theme-primary transition-all border border-theme-subtle"
                                 >
                                     {showHint ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
@@ -194,15 +194,15 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                                 <div className="text-center max-w-lg">
                                     <CardContentRenderer 
                                         content={card.front} 
-                                        className="text-xl sm:text-2xl md:text-3xl font-medium text-white leading-relaxed"
+                                        className="text-xl sm:text-2xl md:text-3xl font-medium text-theme-primary leading-relaxed"
                                     />
                                 </div>
                             </div>
 
                             {/* Footer hint */}
                             <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
-                                <p className="text-xs sm:text-sm text-white/40">
-                                    Clicca o premi <kbd className="px-2 py-1 rounded bg-white/10 text-white/60 font-mono text-xs mx-1">Spazio</kbd> per girare
+                                <p className="study-card-footer-hint text-xs sm:text-sm text-theme-muted">
+                                    Clicca o premi <kbd className="study-card-kbd px-2 py-1 rounded bg-theme-surface border border-theme-default text-theme-secondary font-mono text-xs mx-1">Spazio</kbd> per girare
                                 </p>
                             </div>
                         </div>
@@ -217,11 +217,11 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                             transform: 'rotateY(180deg)',
                         }}
                     >
-                        <div className="w-full h-full rounded-3xl bg-gradient-to-br from-primary-900/30 via-slate-900 to-slate-950 border border-primary-500/30 shadow-2xl shadow-primary-500/10 overflow-hidden">
+                        <div className="study-card-face study-card-face--back w-full h-full rounded-3xl bg-theme-card border border-primary-500/30 shadow-theme-lg overflow-hidden">
                             {/* Header */}
                             <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 flex items-center justify-between">
                                 <div className="px-3 py-1.5 rounded-full bg-primary-500/20 border border-primary-500/30">
-                                    <span className="text-xs font-bold uppercase tracking-wider text-primary-400">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">
                                         Risposta
                                     </span>
                                 </div>
@@ -232,14 +232,14 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                                 <div className="text-center max-w-lg overflow-y-auto max-h-full">
                                     <CardContentRenderer 
                                         content={card.back} 
-                                        className="text-lg sm:text-xl md:text-2xl font-medium text-white/90 leading-relaxed"
+                                        className="text-lg sm:text-xl md:text-2xl font-medium text-theme-primary leading-relaxed"
                                     />
                                 </div>
                             </div>
 
                             {/* Footer */}
                             <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
-                                <p className="text-xs sm:text-sm text-primary-400/70">
+                                <p className="study-card-back-footer text-xs sm:text-sm text-primary-600/80 dark:text-primary-400/70">
                                     Come è andata? Valuta la tua risposta
                                 </p>
                             </div>

@@ -68,23 +68,11 @@ const UserAvatar = memo(({
 
     return (
         <motion.div
-            className={`relative ${s.container} rounded-xl overflow-hidden shadow-lg`}
+            className={`relative ${s.container} rounded-xl overflow-hidden shadow-sm border border-slate-200/50 dark:border-slate-700/50`}
             whileHover={isAnimated ? { scale: 1.05 } : undefined}
             transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         >
-            {/* Bordo gradiente animato */}
-            <div 
-                className="absolute inset-0 rounded-xl z-0"
-                style={{
-                    background: 'linear-gradient(135deg, var(--primary-500) 0%, var(--violet-500) 50%, var(--primary-600) 100%)',
-                    padding: '2px',
-                }}
-            >
-                <div className="w-full h-full rounded-xl bg-gradient-to-br from-primary-500 to-violet-600" />
-            </div>
-
-            {/* Immagine o Iniziali */}
-            <div className="absolute inset-[2px] rounded-[10px] overflow-hidden bg-gradient-to-br from-primary-500 to-violet-600 flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-900 flex items-center justify-center">
                 {avatarUrl ? (
                     <img
                         src={avatarUrl}
@@ -95,7 +83,7 @@ const UserAvatar = memo(({
                         }}
                     />
                 ) : null}
-                <span className={`${s.text} font-bold text-white drop-shadow-md ${avatarUrl ? 'hidden' : 'block'}`}>
+                <span className={`${s.text} font-bold text-white drop-shadow-sm ${avatarUrl ? 'hidden' : 'block'}`}>
                     {initials}
                 </span>
             </div>
@@ -192,6 +180,7 @@ export const UserMenuDropdown = memo(() => {
     const { profile } = useSettings();
 
     const [isOpen, setIsOpen] = useState(false);
+    const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Check if user is admin
@@ -256,23 +245,23 @@ export const UserMenuDropdown = memo(() => {
             const scrollY = window.scrollY;
             const html = document.documentElement;
             const body = document.body;
-            
+
             const originalHtmlOverflow = html.style.overflow;
             const originalBodyOverflow = body.style.overflow;
-            
+
             html.style.overflow = 'hidden';
             body.style.overflow = 'hidden';
-            
+
             const preventScroll = (e: Event) => {
                 e.preventDefault();
                 e.stopPropagation();
             };
-            
+
             const preventScrollOptions = { passive: false, capture: true };
             document.addEventListener('wheel', preventScroll, preventScrollOptions);
             document.addEventListener('touchmove', preventScroll, preventScrollOptions);
             document.addEventListener('scroll', preventScroll, preventScrollOptions);
-            
+
             return () => {
                 html.style.overflow = originalHtmlOverflow;
                 body.style.overflow = originalBodyOverflow;
@@ -297,6 +286,21 @@ export const UserMenuDropdown = memo(() => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
+    // Escape chiude il lightbox avatar + lock scroll quando lightbox aperto
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setAvatarLightboxOpen(false);
+        };
+        if (avatarLightboxOpen) {
+            document.body.style.overflow = 'hidden';
+            document.addEventListener('keydown', handleEscape);
+        }
+        return () => {
+            document.body.style.overflow = '';
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [avatarLightboxOpen]);
+
     return (
         <div className="relative" ref={menuRef}>
             {/* Trigger Button */}
@@ -304,26 +308,38 @@ export const UserMenuDropdown = memo(() => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl transition-all duration-200 border backdrop-blur-xl"
-                style={{
-                    background: isOpen
-                        ? 'var(--bg-surface-hover)'
-                        : 'var(--bg-surface)',
-                    borderColor: isOpen ? 'var(--primary-500/30)' : 'var(--border-subtle)',
-                    color: 'var(--text-primary)',
-                    boxShadow: isOpen ? '0 0 20px var(--primary-500/10)' : 'none',
-                }}
+                className={`flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl transition-all duration-200 border backdrop-blur-xl ${isOpen
+                        ? 'bg-slate-100/90 border-slate-300 dark:bg-slate-800/90 dark:border-slate-600 shadow-md'
+                        : 'bg-white/60 border-slate-200/80 hover:bg-white shadow-sm dark:bg-slate-800/40 dark:border-slate-700/80 dark:hover:bg-slate-800/80'
+                    }`}
             >
-                {/* Avatar */}
-                <UserAvatar
-                    avatarUrl={profile?.avatar}
-                    initials={userInitials}
-                    size="md"
-                />
+                {/* Avatar - click apre fullscreen */}
+                <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (profile?.avatar) setAvatarLightboxOpen(true);
+                    }}
+                    onKeyDown={(e) => {
+                        if ((e.key === 'Enter' || e.key === ' ') && profile?.avatar) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setAvatarLightboxOpen(true);
+                        }
+                    }}
+                    className={profile?.avatar ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-xl' : ''}
+                >
+                    <UserAvatar
+                        avatarUrl={profile?.avatar}
+                        initials={userInitials}
+                        size="md"
+                    />
+                </div>
 
                 {/* User Info (desktop only) */}
                 <div className="hidden md:block text-left min-w-0">
-                    <p className="text-sm font-medium truncate max-w-[100px]" style={{ color: 'var(--text-primary)' }}>
+                    <p className="text-sm font-medium truncate max-w-[100px] text-slate-700 dark:text-slate-200">
                         {profile?.firstName || 'Utente'}
                     </p>
                 </div>
@@ -335,7 +351,7 @@ export const UserMenuDropdown = memo(() => {
                 >
                     <FiChevronDown
                         size={14}
-                        style={{ color: 'var(--text-muted)' }}
+                        className="text-slate-500 dark:text-slate-400"
                     />
                 </motion.div>
             </motion.button>
@@ -353,7 +369,7 @@ export const UserMenuDropdown = memo(() => {
                                 onClick={() => setIsOpen(false)}
                                 className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
                             />
-                            
+
                             {/* Sidebar */}
                             <motion.div
                                 initial={{ x: '100%', opacity: 0 }}
@@ -395,11 +411,24 @@ export const UserMenuDropdown = memo(() => {
 
                                             <div className="relative z-10">
                                                 <div className="flex items-start gap-4 mb-5">
-                                                    <UserAvatar
-                                                        avatarUrl={profile?.avatar}
-                                                        initials={userInitials}
-                                                        size="lg"
-                                                    />
+                                                    <div
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onClick={() => profile?.avatar && setAvatarLightboxOpen(true)}
+                                                        onKeyDown={(e) => {
+                                                            if ((e.key === 'Enter' || e.key === ' ') && profile?.avatar) {
+                                                                e.preventDefault();
+                                                                setAvatarLightboxOpen(true);
+                                                            }
+                                                        }}
+                                                        className={profile?.avatar ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-xl' : ''}
+                                                    >
+                                                        <UserAvatar
+                                                            avatarUrl={profile?.avatar}
+                                                            initials={userInitials}
+                                                            size="lg"
+                                                        />
+                                                    </div>
                                                     <div className="flex-1 min-w-0 pt-1">
                                                         <p className="text-lg font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{userLabel}</p>
                                                         <p className="text-xs truncate mt-1" style={{ color: 'var(--text-muted)' }}>{user?.email}</p>
@@ -466,6 +495,39 @@ export const UserMenuDropdown = memo(() => {
                 </AnimatePresence>,
                 document.body
             )}
+
+            {/* Lightbox avatar a schermo intero - click fuori chiude */}
+            {typeof window !== 'undefined' &&
+                createPortal(
+                    <AnimatePresence>
+                        {avatarLightboxOpen && profile?.avatar && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+                                onClick={() => setAvatarLightboxOpen(false)}
+                                role="button"
+                                tabIndex={0}
+                                aria-label="Chiudi anteprima avatar"
+                            >
+                                <motion.img
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.9, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    src={profile.avatar}
+                                    alt="Avatar a schermo intero"
+                                    className="max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+                                    onClick={(e) => e.stopPropagation()}
+                                    draggable={false}
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>,
+                    document.body
+                )}
         </div>
     );
 });

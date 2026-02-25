@@ -65,7 +65,7 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
                 <div className={`${BADGE_STYLES.question.size} ${BADGE_STYLES.question.borderRadius} ${BADGE_STYLES.question.background} ${BADGE_STYLES.question.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.question.text} flex-shrink-0 ${BADGE_STYLES.question.shadow} mt-0.5`}>
                     Q
                 </div>
-                <div className="flex-1 min-w-0 pt-0.5">
+                <div className="flex-1 min-w-0 pt-0.5 pr-0 sm:pr-28">
                     <CardContentRenderer
                         content={card.front}
                         variant="question"
@@ -75,7 +75,7 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
 
                 {/* Action Buttons */}
                 <div
-                    className={`absolute right-0 top-0 flex items-center ${LAYOUT.spacing.gapButtons} opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto transition-all duration-200 ease-out`}
+                    className={`absolute right-0 top-0 flex items-center ${LAYOUT.spacing.gapButtons} opacity-100 translate-x-0 pointer-events-auto sm:opacity-0 sm:translate-x-2 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:translate-x-0 sm:group-hover:pointer-events-auto transition-all duration-200 ease-out`}
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Show Source Button */}

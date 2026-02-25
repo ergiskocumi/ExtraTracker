@@ -48,8 +48,8 @@ export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
             suffix: '',
             icon: FiClock,
             color: 'from-blue-500 to-blue-600',
-            bgColor: 'bg-blue-500/10',
-            iconColor: 'text-blue-400',
+            bgColor: 'bg-blue-500/15 dark:bg-blue-500/12',
+            iconColor: 'text-blue-700 dark:text-blue-300',
             trend: Number(hoursTrend) > 0 ? `+${hoursTrend}%` : `${hoursTrend}%`,
             trendPositive: Number(hoursTrend) >= 0
         },
@@ -59,8 +59,8 @@ export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
             suffix: 'gg',
             icon: FiCalendar,
             color: 'from-purple-500 to-purple-600',
-            bgColor: 'bg-purple-500/10',
-            iconColor: 'text-purple-400',
+            bgColor: 'bg-purple-500/15 dark:bg-purple-500/12',
+            iconColor: 'text-violet-700 dark:text-violet-300',
         },
         {
             label: 'Media Giornaliera',
@@ -68,44 +68,44 @@ export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
             suffix: 'h/gg',
             icon: FiActivity,
             color: 'from-amber-500 to-amber-600',
-            bgColor: 'bg-amber-500/10',
-            iconColor: 'text-amber-400',
+            bgColor: 'bg-amber-500/15 dark:bg-amber-500/12',
+            iconColor: 'text-amber-700 dark:text-amber-300',
         }
     ];
 
     return (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <div className="dashboard-widget dashboard-widget--stats grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
             {stats.map((stat, index) => (
                 <motion.div
                     key={stat.label}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="relative overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5 hover:bg-white/[0.05] transition-colors"
+                    className="dashboard-widget-card dashboard-widget-card--stat relative overflow-hidden rounded-2xl border border-theme-default bg-theme-card p-4 sm:p-5 transition-all hover:bg-theme-surface hover:border-theme-strong"
                 >
                     {/* Gradient accent */}
                     <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${stat.color}`} />
                     
                     {/* Icon */}
-                    <div className={`w-10 h-10 rounded-xl ${stat.bgColor} flex items-center justify-center mb-3`}>
+                    <div className={`dashboard-stat-icon-shell w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${stat.bgColor} flex items-center justify-center mb-2.5 sm:mb-3`}>
                         <stat.icon className={stat.iconColor} size={20} />
                     </div>
                     
                     {/* Content */}
-                    <p className="text-xs font-medium tracking-wide uppercase text-white/50 mb-1">
+                    <p className="dashboard-stat-label dashboard-meta-text text-xs font-semibold tracking-wide uppercase text-theme-secondary mb-1">
                         {stat.label}
                     </p>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-bold text-white">{stat.value}</span>
+                        <span className="dashboard-stat-value text-xl sm:text-2xl font-bold text-theme-primary">{stat.value}</span>
                         {stat.suffix && (
-                            <span className="text-sm text-white/50">{stat.suffix}</span>
+                            <span className="dashboard-stat-suffix dashboard-meta-text text-xs sm:text-sm text-theme-secondary">{stat.suffix}</span>
                         )}
                     </div>
                     
                     {/* Trend indicator */}
                     {stat.trend && (
-                        <div className={`flex items-center gap-1 mt-2 text-xs ${
-                            stat.trendPositive ? 'text-emerald-400' : 'text-red-400'
+                        <div className={`dashboard-stat-trend dashboard-meta-text flex items-center gap-1 mt-2 text-[11px] sm:text-xs ${
+                            stat.trendPositive ? 'dashboard-stat-trend--positive text-emerald-600 dark:text-emerald-400' : 'dashboard-stat-trend--negative text-rose-600 dark:text-rose-400'
                         }`}>
                             <FiTrendingUp size={12} className={stat.trendPositive ? '' : 'rotate-180'} />
                             <span>{stat.trend} vs mese prec.</span>

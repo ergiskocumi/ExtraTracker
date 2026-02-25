@@ -11,9 +11,11 @@ interface DashboardHeaderProps {
     onBackToExams?: () => void; // Callback per tornare agli esami
     onCompleteExam?: () => void; // Callback per completare l'esame
     selectedExamId?: string | null; // ID dell'esame selezionato (per mostrare il pulsante)
+    /** Apre il modale per aggiungere un capitolo all'esame corrente */
+    onCreateChapter?: () => void;
 }
 
-export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ 
+export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     onCreateDeck,
     onExamSolver,
     selectedFolderName,
@@ -22,7 +24,17 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     onBackToExams,
     onCompleteExam,
     selectedExamId,
+    onCreateChapter,
 }) => {
+    const actionButtonBaseClass = `
+        exam-header-btn
+        flex items-center justify-center gap-2 sm:gap-2.5
+        px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl
+        font-semibold text-sm sm:text-base
+        transition-all touch-manipulation min-h-[44px] sm:min-h-[48px]
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/45 focus-visible:ring-offset-2
+    `;
+
     return (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="flex-1">
@@ -110,7 +122,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={onCompleteExam}
-                        className="flex items-center justify-center gap-2 px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold shadow-lg shadow-emerald-500/25 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
+                        className={`${actionButtonBaseClass} exam-header-btn--complete`}
                     >
                         <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                         <span className="hidden sm:inline">Concludi Esame</span>
@@ -124,7 +136,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={onExamSolver}
-                        className="flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
+                        className={`${actionButtonBaseClass} exam-header-btn--solver`}
                     >
                         <FileText className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                         <span className="hidden sm:inline">Risolvi Esame</span>
@@ -134,11 +146,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 
                 <motion.button
                     whileTap={{ scale: 0.95 }}
-                    onClick={onCreateDeck}
-                    className="flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-3 sm:py-3.5 md:py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-violet-500 to-violet-600 text-white font-bold shadow-xl shadow-violet-500/30 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px]"
+                    onClick={selectedExamName ? (onCreateChapter ?? onCreateDeck) : onCreateDeck}
+                    className={`${actionButtonBaseClass} exam-header-btn--new font-bold md:py-4`}
                 >
                     <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                    <span>Nuovo Esame</span>
+                    <span>{selectedExamName ? 'Nuovo Capitolo' : 'Nuovo Esame'}</span>
                 </motion.button>
             </div>
         </div>

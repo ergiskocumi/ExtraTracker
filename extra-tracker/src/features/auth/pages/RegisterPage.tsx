@@ -8,7 +8,7 @@
  * - Feedback errori in tempo reale
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -17,6 +17,7 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { registerSchema, type RegisterFormData } from '../validators/authValidators';
+import { Logo } from '../../../shared/components/Brand/Logo';
 
 // Password requirements per indicator visivo
 const PASSWORD_REQUIREMENTS = [
@@ -40,6 +41,16 @@ export const RegisterPage = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [showPasswordHints, setShowPasswordHints] = useState(false);
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+        () => (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    );
+
+    useEffect(() => {
+        const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const handler = () => setPrefersReducedMotion(mq.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
 
     // Calcola stato requisiti password
     const passwordStrength = useMemo(() => {
@@ -105,9 +116,9 @@ export const RegisterPage = () => {
         }
     };
 
-    // Password strength bar color
+    // Password strength bar color (theme-aware for contrast)
     const getStrengthColor = () => {
-        if (passwordStrength.score === 0) return 'bg-white/10';
+        if (passwordStrength.score === 0) return 'bg-theme-surface';
         if (passwordStrength.score <= 2) return 'bg-red-500';
         if (passwordStrength.score === 3) return 'bg-amber-500';
         return 'bg-emerald-500';
@@ -117,28 +128,30 @@ export const RegisterPage = () => {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-md"
+            className="w-full max-w-md mx-auto"
         >
-            {/* Icona e Titolo */}
+            {/* Logo e Titolo */}
             <div className="text-center mb-8">
-                <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30 mb-4">
-                    <FiUserPlus className="text-white" size={28} />
+                <div className="flex justify-center mb-4">
+                    <Logo size="2xl" variant="full" className="text-theme-primary" />
                 </div>
-                <h1 className="text-2xl font-bold text-white">Crea Account</h1>
-                <p className="text-white/60 mt-1">Inizia a tracciare il tuo lavoro</p>
+                <h1 className="text-2xl font-bold text-theme-primary">Crea Account</h1>
+                <p className="text-theme-secondary mt-1">Inizia a tracciare il tuo lavoro</p>
             </div>
 
                 {/* Form Card */}
-                <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-6">
+                <div className="rounded-2xl bg-theme-elevated backdrop-blur-xl border border-theme-default px-4 py-6 sm:p-6 shadow-theme-md">
                     {/* Error Banner */}
                     {error && (
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20"
+                            role="alert"
+                            aria-live="assertive"
                         >
                             <div className="flex items-center gap-2 text-red-400">
-                                <FiAlertCircle size={18} />
+                                <FiAlertCircle size={18} aria-hidden="true" />
                                 <p className="text-sm">{error}</p>
                             </div>
                         </motion.div>
@@ -147,37 +160,39 @@ export const RegisterPage = () => {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {/* Email */}
                         <div>
-                            <label className="block mb-2 text-sm font-medium text-white/70">
+                            <label className="block mb-2 text-sm font-medium text-theme-secondary">
                                 Email
                             </label>
                             <div className="relative">
-                                <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                                <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} aria-hidden="true" />
                                 <input
                                     type="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
                                     placeholder="nome@esempio.it"
-                                    className={`w-full pl-11 pr-4 py-3 rounded-xl bg-white/[0.05] border ${
+                                    className={`w-full pl-11 pr-4 py-3 rounded-xl bg-theme-base border ${
                                         fieldErrors.email 
-                                            ? 'border-red-500/50' 
-                                            : 'border-white/[0.08] focus:border-primary-500/50'
-                                    } text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all`}
+                                            ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
+                                            : 'border-theme-default focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/20 hover:border-theme-strong'
+                                    } text-theme-primary placeholder:text-theme-muted focus:outline-none transition-all`}
                                     autoComplete="email"
+                                    aria-invalid={fieldErrors.email ? 'true' : 'false'}
+                                    aria-describedby={fieldErrors.email ? 'email-error' : undefined}
                                 />
                             </div>
                             {fieldErrors.email && (
-                                <p className="mt-1.5 text-xs text-red-400">{fieldErrors.email}</p>
+                                <p id="email-error" className="mt-1.5 text-xs text-red-400" role="alert">{fieldErrors.email}</p>
                             )}
                         </div>
 
                         {/* Password */}
                         <div>
-                            <label className="block mb-2 text-sm font-medium text-white/70">
+                            <label className="block mb-2 text-sm font-medium text-theme-secondary">
                                 Password
                             </label>
                             <div className="relative">
-                                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} aria-hidden="true" />
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     name="password"
@@ -185,17 +200,21 @@ export const RegisterPage = () => {
                                     onChange={handleChange}
                                     onFocus={() => setShowPasswordHints(true)}
                                     placeholder="••••••••"
-                                    className={`w-full pl-11 pr-12 py-3 rounded-xl bg-white/[0.05] border ${
+                                    className={`w-full pl-11 pr-14 py-3 rounded-xl bg-theme-base border ${
                                         fieldErrors.password 
-                                            ? 'border-red-500/50' 
-                                            : 'border-white/[0.08] focus:border-primary-500/50'
-                                    } text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all`}
+                                            ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
+                                            : 'border-theme-default focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/20 hover:border-theme-strong'
+                                    } text-theme-primary placeholder:text-theme-muted focus:outline-none transition-all`}
                                     autoComplete="new-password"
+                                    aria-invalid={fieldErrors.password ? 'true' : 'false'}
+                                    aria-describedby={`${fieldErrors.password ? 'password-error ' : ''}password-requirements`}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-primary transition-colors rounded-lg hover:bg-theme-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-2 min-w-[44px] min-h-[44px] flex items-center justify-center p-1.5"
+                                    aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
+                                    aria-pressed={showPassword}
                                 >
                                     {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                                 </button>
@@ -204,10 +223,20 @@ export const RegisterPage = () => {
                             {/* Password Strength Bar */}
                             {formData.password && (
                                 <div className="mt-2">
-                                    <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                    <div
+                                        role="status"
+                                        aria-live="polite"
+                                        aria-atomic="true"
+                                        className="sr-only"
+                                    >
+                                        Requisiti password: {passwordStrength.score} su 4 soddisfatti
+                                        {passwordStrength.isValid ? '. Password valida.' : ''}
+                                    </div>
+                                    <div className="h-1.5 rounded-full bg-theme-surface overflow-hidden">
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${(passwordStrength.score / 4) * 100}%` }}
+                                            transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
                                             className={`h-full rounded-full ${getStrengthColor()}`}
                                         />
                                     </div>
@@ -219,16 +248,19 @@ export const RegisterPage = () => {
                                 <motion.div
                                     initial={{ opacity: 0, height: 0 }}
                                     animate={{ opacity: 1, height: 'auto' }}
-                                    className="mt-3 p-3 rounded-lg bg-white/[0.03] space-y-1"
+                                    className="mt-3 p-3 rounded-lg bg-theme-surface border border-theme-subtle space-y-1"
+                                    id="password-requirements"
+                                    role="status"
+                                    aria-live="polite"
                                 >
                                     {passwordStrength.requirements.map((req) => (
                                         <div
                                             key={req.id}
                                             className={`flex items-center gap-2 text-xs ${
-                                                req.passed ? 'text-emerald-400' : 'text-white/50'
+                                                req.passed ? 'text-emerald-500' : 'text-theme-muted'
                                             }`}
                                         >
-                                            {req.passed ? <FiCheck size={12} /> : <FiX size={12} />}
+                                            {req.passed ? <FiCheck size={12} aria-label="Requirement met" /> : <FiX size={12} aria-label="Requirement not met" />}
                                             <span>{req.label}</span>
                                         </div>
                                     ))}
@@ -236,42 +268,46 @@ export const RegisterPage = () => {
                             )}
 
                             {fieldErrors.password && (
-                                <p className="mt-1.5 text-xs text-red-400">{fieldErrors.password}</p>
+                                <p id="password-error" className="mt-1.5 text-xs text-red-400" role="alert">{fieldErrors.password}</p>
                             )}
                         </div>
 
                         {/* Confirm Password */}
                         <div>
-                            <label className="block mb-2 text-sm font-medium text-white/70">
+                            <label className="block mb-2 text-sm font-medium text-theme-secondary">
                                 Conferma Password
                             </label>
                             <div className="relative">
-                                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} aria-hidden="true" />
                                 <input
                                     type={showConfirmPassword ? 'text' : 'password'}
                                     name="confirmPassword"
                                     value={formData.confirmPassword}
                                     onChange={handleChange}
                                     placeholder="••••••••"
-                                    className={`w-full pl-11 pr-12 py-3 rounded-xl bg-white/[0.05] border ${
+                                    className={`w-full pl-11 pr-14 py-3 rounded-xl bg-theme-base border ${
                                         fieldErrors.confirmPassword 
-                                            ? 'border-red-500/50' 
+                                            ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
                                             : formData.confirmPassword && formData.password === formData.confirmPassword
-                                                ? 'border-emerald-500/50'
-                                                : 'border-white/[0.08] focus:border-primary-500/50'
-                                    } text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all`}
+                                                ? 'border-emerald-500/50 focus:border-emerald-500/60'
+                                                : 'border-theme-default focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/20 hover:border-theme-strong'
+                                    } text-theme-primary placeholder:text-theme-muted focus:outline-none transition-all`}
                                     autoComplete="new-password"
+                                    aria-invalid={fieldErrors.confirmPassword ? 'true' : 'false'}
+                                    aria-describedby={fieldErrors.confirmPassword ? 'confirm-password-error' : undefined}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-primary transition-colors rounded-lg hover:bg-theme-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-2 min-w-[44px] min-h-[44px] flex items-center justify-center p-1.5"
+                                    aria-label={showConfirmPassword ? 'Nascondi conferma password' : 'Mostra conferma password'}
+                                    aria-pressed={showConfirmPassword}
                                 >
                                     {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                                 </button>
                             </div>
                             {fieldErrors.confirmPassword && (
-                                <p className="mt-1.5 text-xs text-red-400">{fieldErrors.confirmPassword}</p>
+                                <p id="confirm-password-error" className="mt-1.5 text-xs text-red-400" role="alert">{fieldErrors.confirmPassword}</p>
                             )}
                         </div>
 
@@ -283,21 +319,24 @@ export const RegisterPage = () => {
                                     name="acceptTerms"
                                     checked={formData.acceptTerms}
                                     onChange={handleChange}
-                                    className="mt-0.5 w-5 h-5 rounded border-white/20 bg-white/5 text-primary-500 focus:ring-primary-500/50 focus:ring-offset-0"
+                                    className="mt-0.5 w-5 h-5 rounded border-theme-default bg-theme-base text-primary-500 focus:ring-primary-500/50 focus:ring-offset-0 min-w-[20px] min-h-[20px]"
+                                    aria-invalid={fieldErrors.acceptTerms ? 'true' : 'false'}
+                                    aria-describedby={fieldErrors.acceptTerms ? 'terms-error' : 'terms-links-note'}
                                 />
-                                <span className="text-sm text-white/70">
+                                <span className="text-sm text-theme-secondary">
                                     Accetto i{' '}
-                                    <a href="/terms" className="text-primary-400 hover:underline">
+                                    <a href="/terms" className="text-primary-600 hover:text-primary-500 hover:underline focus:outline-none focus:underline" target="_blank" rel="noopener noreferrer">
                                         Termini di Servizio
                                     </a>
                                     {' '}e la{' '}
-                                    <a href="/privacy" className="text-primary-400 hover:underline">
+                                    <a href="/privacy" className="text-primary-600 hover:text-primary-500 hover:underline focus:outline-none focus:underline" target="_blank" rel="noopener noreferrer">
                                         Privacy Policy
                                     </a>
+                                    <span id="terms-links-note" className="sr-only"> (i link si aprono in una nuova scheda)</span>
                                 </span>
                             </label>
                             {fieldErrors.acceptTerms && (
-                                <p className="text-xs text-red-400">{fieldErrors.acceptTerms}</p>
+                                <p id="terms-error" className="text-xs text-red-400" role="alert">{fieldErrors.acceptTerms}</p>
                             )}
                         </div>
 
@@ -328,12 +367,12 @@ export const RegisterPage = () => {
                     </form>
 
                     {/* Login Link */}
-                    <div className="mt-6 pt-6 border-t border-white/[0.06] text-center">
-                        <p className="text-sm text-white/60">
+                    <div className="mt-6 pt-6 border-t border-theme-subtle text-center">
+                        <p className="text-sm text-theme-secondary">
                             Hai già un account?{' '}
                             <Link
                                 to="/login"
-                                className="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                                className="text-primary-600 hover:text-primary-500 font-medium transition-colors focus:outline-none focus:underline"
                             >
                                 Accedi
                             </Link>
@@ -342,7 +381,7 @@ export const RegisterPage = () => {
                 </div>
 
                 {/* GDPR Notice */}
-                <p className="mt-6 text-center text-xs text-white/40 max-w-sm mx-auto">
+                <p className="mt-6 text-center text-xs text-theme-muted max-w-sm mx-auto">
                     Raccogliamo solo i dati essenziali (email e password hashata). 
                     Nessun tracciamento IP o fingerprinting.
                 </p>

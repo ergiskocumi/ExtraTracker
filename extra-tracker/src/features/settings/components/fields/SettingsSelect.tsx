@@ -64,13 +64,12 @@ export const SettingsSelect: React.FC<SettingsSelectProps> = ({
                 onChange={onChange}
                 disabled={disabled}
                 aria-label={label}
-                className={`w-full select ${
-                    error 
-                        ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30' 
+                className={`w-full select ${error
+                        ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30'
                         : value && !error
-                        ? 'border-emerald-500/30 focus:border-emerald-500/50'
-                        : ''
-                } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            ? 'border-primary-500/30 focus:border-primary-500/50'
+                            : ''
+                    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
                 {options.map(opt => (
                     <option key={opt.value} value={opt.value} className="bg-dark-300 text-white">

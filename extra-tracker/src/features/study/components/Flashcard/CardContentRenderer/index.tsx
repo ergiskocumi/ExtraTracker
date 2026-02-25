@@ -401,22 +401,20 @@ const createMarkdownComponents = (
 
     // Tabelle
     table: ({ children }) => (
-        <div className="overflow-x-auto mb-6 last:mb-0">
-            <table className="w-full border-collapse rounded-lg overflow-hidden">
+        <div className="overflow-x-auto mb-6 last:mb-0 rounded-xl border border-theme-default bg-theme-elevated shadow-theme-sm">
+            <table className="table-modern table-modern--compact">
                 {children}
             </table>
         </div>
     ),
-    thead: ({ children }) => (
-        <thead className="bg-slate-100 dark:bg-slate-800">{children}</thead>
-    ),
+    thead: ({ children }) => <thead>{children}</thead>,
     th: ({ children }) => (
-        <th className="px-4 py-3 text-left font-semibold border-b border-slate-200 dark:border-slate-700">
+        <th className="text-left font-semibold">
             {children}
         </th>
     ),
     td: ({ children }) => (
-        <td className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+        <td>
             {children}
         </td>
     ),
@@ -435,7 +433,7 @@ const createMarkdownComponents = (
 
     // Divisore
     hr: () => (
-        <hr className="my-6 border-t border-slate-200 dark:border-slate-700" />
+        <hr className="my-6 border-t border-theme-default" />
     ),
 });
 
@@ -447,7 +445,7 @@ const EmptyState: React.FC<{ className?: string }> = ({ className }) => (
     <div
         className={`
             flex items-center gap-2 py-3 px-4
-            text-slate-400 dark:text-slate-500 text-sm italic
+            text-theme-muted text-sm italic
             ${className}
         `}
     >

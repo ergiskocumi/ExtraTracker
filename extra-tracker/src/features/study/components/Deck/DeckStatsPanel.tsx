@@ -25,7 +25,7 @@ import {
     Share2,
     Settings,
 } from 'lucide-react';
-import type { Deck, Card } from '../../services/studyService';
+import type { Deck } from '../../services/studyService';
 
 // ============================================
 // TYPES
@@ -152,11 +152,11 @@ export const DeckStatsPanel: React.FC<DeckStatsPanelProps> = ({
 
     if (!stats) {
         return (
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center">
-                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                    <Target className="w-8 h-8 text-white/30" />
+            <div className="p-6 rounded-2xl bg-theme-card border border-theme-default text-center">
+                <div className="w-16 h-16 rounded-full bg-theme-surface border border-theme-default flex items-center justify-center mx-auto mb-4">
+                    <Target className="w-8 h-8 text-theme-muted" />
                 </div>
-                <p className="text-white/60 text-sm">Aggiungi carte per vedere le statistiche</p>
+                <p className="text-theme-secondary text-sm">Aggiungi carte per vedere le statistiche</p>
             </div>
         );
     }
@@ -166,7 +166,7 @@ export const DeckStatsPanel: React.FC<DeckStatsPanelProps> = ({
             {/* Study Tips */}
             {tips.length > 0 && (
                 <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wide flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-theme-secondary uppercase tracking-wide flex items-center gap-2">
                         <Sparkles className="w-4 h-4" />
                         Consigli
                     </h3>
@@ -204,20 +204,20 @@ export const DeckStatsPanel: React.FC<DeckStatsPanelProps> = ({
                                 <div className="flex-1 min-w-0">
                                     <h4 className={`
                                         text-sm font-semibold mb-1
-                                        ${tip.type === 'warning' ? 'text-orange-400' : ''}
-                                        ${tip.type === 'success' ? 'text-emerald-400' : ''}
-                                        ${tip.type === 'info' ? 'text-blue-400' : ''}
-                                        ${tip.type === 'tip' ? 'text-primary-400' : ''}
+                                        ${tip.type === 'warning' ? 'text-orange-700 dark:text-orange-300' : ''}
+                                        ${tip.type === 'success' ? 'text-emerald-700 dark:text-emerald-300' : ''}
+                                        ${tip.type === 'info' ? 'text-blue-700 dark:text-blue-300' : ''}
+                                        ${tip.type === 'tip' ? 'text-primary-700 dark:text-primary-300' : ''}
                                     `}>
                                         {tip.title}
                                     </h4>
-                                    <p className="text-xs text-white/60 leading-relaxed">
+                                    <p className="text-xs text-theme-secondary leading-relaxed">
                                         {tip.message}
                                     </p>
                                     {tip.action && (
                                         <button
                                             onClick={tip.action.onClick}
-                                            className="mt-2 text-xs font-medium text-white hover:text-primary-400 transition-colors"
+                                            className="mt-2 text-xs font-medium text-theme-primary hover:text-primary-600 dark:hover:text-primary-300 transition-colors"
                                         >
                                             {tip.action.label} →
                                         </button>
@@ -230,39 +230,39 @@ export const DeckStatsPanel: React.FC<DeckStatsPanelProps> = ({
             )}
 
             {/* Advanced Stats */}
-            <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-                <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <div className="p-5 rounded-2xl bg-theme-card border border-theme-default">
+                <h3 className="text-sm font-semibold text-theme-secondary uppercase tracking-wide mb-4 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4" />
                     Statistiche Avanzate
                 </h3>
                 
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-white/50 flex items-center gap-2">
+                        <span className="text-sm text-theme-secondary flex items-center gap-2">
                             <Clock className="w-4 h-4" />
                             Intervallo medio
                         </span>
-                        <span className="text-sm font-medium text-white">
+                        <span className="text-sm font-medium text-theme-primary">
                             {stats.avgInterval} giorni
                         </span>
                     </div>
                     
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-white/50 flex items-center gap-2">
+                        <span className="text-sm text-theme-secondary flex items-center gap-2">
                             <Brain className="w-4 h-4" />
                             Facilità media
                         </span>
-                        <span className="text-sm font-medium text-white">
+                        <span className="text-sm font-medium text-theme-primary">
                             {stats.avgEasiness}
                         </span>
                     </div>
                     
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-white/50 flex items-center gap-2">
+                        <span className="text-sm text-theme-secondary flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
                             Tempo stimato
                         </span>
-                        <span className="text-sm font-medium text-white">
+                        <span className="text-sm font-medium text-theme-primary">
                             ~{stats.estimatedStudyTime} min
                         </span>
                     </div>
@@ -271,7 +271,7 @@ export const DeckStatsPanel: React.FC<DeckStatsPanelProps> = ({
 
             {/* Quick Actions */}
             <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wide mb-3">
+                <h3 className="text-sm font-semibold text-theme-secondary uppercase tracking-wide mb-3">
                     Azioni
                 </h3>
                 
@@ -280,10 +280,10 @@ export const DeckStatsPanel: React.FC<DeckStatsPanelProps> = ({
                         whileHover={{ scale: 1.02, x: 2 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={onSettings}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-theme-card hover:bg-theme-surface border border-theme-default hover:border-theme-strong transition-all text-left"
                     >
-                        <Settings className="w-4 h-4 text-white/60" />
-                        <span className="text-sm text-white/80">Impostazioni mazzo</span>
+                        <Settings className="w-4 h-4 text-theme-secondary" />
+                        <span className="text-sm text-theme-primary">Impostazioni mazzo</span>
                     </motion.button>
                 )}
                 
@@ -292,10 +292,10 @@ export const DeckStatsPanel: React.FC<DeckStatsPanelProps> = ({
                         whileHover={{ scale: 1.02, x: 2 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={onExport}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-theme-card hover:bg-theme-surface border border-theme-default hover:border-theme-strong transition-all text-left"
                     >
-                        <Download className="w-4 h-4 text-white/60" />
-                        <span className="text-sm text-white/80">Esporta carte</span>
+                        <Download className="w-4 h-4 text-theme-secondary" />
+                        <span className="text-sm text-theme-primary">Esporta carte</span>
                     </motion.button>
                 )}
                 
@@ -304,10 +304,10 @@ export const DeckStatsPanel: React.FC<DeckStatsPanelProps> = ({
                         whileHover={{ scale: 1.02, x: 2 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={onShare}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-theme-card hover:bg-theme-surface border border-theme-default hover:border-theme-strong transition-all text-left"
                     >
-                        <Share2 className="w-4 h-4 text-white/60" />
-                        <span className="text-sm text-white/80">Condividi mazzo</span>
+                        <Share2 className="w-4 h-4 text-theme-secondary" />
+                        <span className="text-sm text-theme-primary">Condividi mazzo</span>
                     </motion.button>
                 )}
                 
@@ -316,10 +316,10 @@ export const DeckStatsPanel: React.FC<DeckStatsPanelProps> = ({
                         whileHover={{ scale: 1.02, x: 2 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={onResetProgress}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left group"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-theme-card hover:bg-theme-surface border border-theme-default hover:border-theme-strong transition-all text-left group"
                     >
-                        <RotateCcw className="w-4 h-4 text-white/60 group-hover:text-orange-400 transition-colors" />
-                        <span className="text-sm text-white/80 group-hover:text-orange-400 transition-colors">Reset progresso</span>
+                        <RotateCcw className="w-4 h-4 text-theme-secondary group-hover:text-orange-600 dark:group-hover:text-orange-300 transition-colors" />
+                        <span className="text-sm text-theme-primary group-hover:text-orange-700 dark:group-hover:text-orange-300 transition-colors">Reset progresso</span>
                     </motion.button>
                 )}
             </div>

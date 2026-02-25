@@ -35,7 +35,6 @@ vi.mock('../DeckCardFilters', () => ({
         onFilterChange,
         onSearchChange,
         onSortChange,
-        onViewModeChange,
     }: any) => (
         <div data-testid="mock-filters">
             <span data-testid="count-all">{counts.all}</span>
@@ -49,8 +48,6 @@ vi.mock('../DeckCardFilters', () => ({
             <button onClick={() => onSortChange('alphabetical')}>sort-alphabetical</button>
             <button onClick={() => onSortChange('created')}>sort-created</button>
             <button onClick={() => onSortChange('interval')}>sort-interval</button>
-            <button onClick={() => onViewModeChange('grid')}>view-grid</button>
-            <button onClick={() => onViewModeChange('list')}>view-list</button>
         </div>
     ),
 }));
@@ -215,9 +212,6 @@ describe('DeckDetailContent', () => {
 
         fireEvent.click(screen.getByText('search-clear'));
         await waitFor(() => expect(getRenderedCardOrder()).toHaveLength(3));
-
-        fireEvent.click(screen.getByText('view-list'));
-        fireEvent.click(screen.getByText('view-grid'));
     });
 
     it('creates a new card and calls addCard + toast success', async () => {

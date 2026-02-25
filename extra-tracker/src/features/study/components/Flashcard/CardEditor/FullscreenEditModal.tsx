@@ -1,53 +1,33 @@
 /**
- * FULLSCREEN EDIT MODAL - Professional Flashcard Editor
- * =====================================================
- *
- * Modal fullscreen per la modifica delle flashcard con:
- * - Editor a tutto schermo (95% viewport)
- * - Toolbar su singola riga
- * - Preview live opzionale
- * - Overlay con backdrop blur
- * - Bottoni azione fissi in basso
- *
- * @module FullscreenEditModal
+ * FULLSCREEN EDIT MODAL
+ * ──────────────────────
+ * Layout: Domanda (sx) | Risposta (dx) — editor WYSIWYG affiancati.
+ * Nessuna preview: l'utente modifica entrambi i campi direttamente.
+ * Tema-aware: usa classi bg-theme-* / text-theme-* ovunque.
  */
 
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { X, Save, Eye, EyeOff } from 'lucide-react';
-import { MarkdownEditor } from './MarkdownEditor';
-import { EditorPreview } from './EditorPreview';
+import { X, Save } from 'lucide-react';
+import { RichTextEditor } from './RichTextEditor';
+import { Tooltip } from './Tooltip';
 
-/** Selettore per la textarea dell'editor attivo (per focus esplicito). */
-const EDITOR_TEXTAREA_SELECTOR = '[data-fullscreen-edit-textarea]';
-
-// ============================================
-// TYPES
-// ============================================
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface FullscreenEditModalProps {
-    /** Modal aperto */
     isOpen: boolean;
-    /** Callback chiusura */
     onClose: () => void;
-    /** Contenuto fronte (domanda) */
     frontContent: string;
-    /** Contenuto retro (risposta) */
     backContent: string;
-    /** Callback salvataggio */
     onSave: (front: string, back: string) => Promise<void> | void;
-    /** Titolo modal */
     title?: string;
-    /** Mostra preview live */
+    /** @deprecated — la preview è stata rimossa, prop ignorata */
     showPreview?: boolean;
-    /** Disabilita interazioni */
     disabled?: boolean;
 }
 
-// ============================================
-// ANIMATIONS
-// ============================================
+// ── Animations ────────────────────────────────────────────────────────────────
 
 const overlayVariants: Variants = {
     hidden: { opacity: 0 },
@@ -56,32 +36,36 @@ const overlayVariants: Variants = {
 };
 
 const modalVariants: Variants = {
-    hidden: {
-        opacity: 0,
-        scale: 0.95,
-        y: 20,
-    },
+    hidden: { opacity: 0, scale: 0.97, y: 16 },
     visible: {
-        opacity: 1,
-        scale: 1,
-        y: 0,
-        transition: {
-            type: 'spring',
-            damping: 25,
-            stiffness: 300,
-        },
+        opacity: 1, scale: 1, y: 0,
+        transition: { type: 'spring', damping: 28, stiffness: 340 },
     },
-    exit: {
-        opacity: 0,
-        scale: 0.95,
-        y: 20,
-        transition: { duration: 0.2 },
-    },
+    exit: { opacity: 0, scale: 0.97, y: 16, transition: { duration: 0.18 } },
 };
 
-// ============================================
-// COMPONENT
-// ============================================
+// ── Pill badge per l'intestazione colonna ─────────────────────────────────────
+
+const ColumnBadge: React.FC<{
+    label: string;
+    sub: string;
+    color: 'violet' | 'emerald';
+}> = ({ label, sub, color }) => {
+    const ring = color === 'violet'
+        ? 'bg-violet-500/10 border-violet-500/25 text-violet-400'
+        : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400';
+    const dot = color === 'violet' ? 'bg-violet-400' : 'bg-emerald-400';
+
+    return (
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold ${ring}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+            <span>{label}</span>
+            <span className="opacity-50 font-normal">{sub}</span>
+        </div>
+    );
+};
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
     isOpen,
@@ -90,118 +74,72 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
     backContent,
     onSave,
     title = 'Modifica Flashcard',
-    showPreview: initialShowPreview = true,
     disabled = false,
 }) => {
-    // State
     const [front, setFront] = useState(frontContent);
     const [back, setBack] = useState(backContent);
     const [isSaving, setIsSaving] = useState(false);
-    const [showPreview, setShowPreview] = useState(initialShowPreview);
-    const [activeTab, setActiveTab] = useState<'front' | 'back'>('front');
-    const modalRef = useRef<HTMLDivElement>(null);
     const wasOpenRef = useRef(false);
-    const contentRef = useRef<HTMLDivElement>(null);
+    const modalRef = useRef<HTMLDivElement>(null);
 
-    const stopEventPropagation = useCallback((event: React.SyntheticEvent) => {
-        event.stopPropagation();
-    }, []);
+    const stopPropagation = useCallback((e: React.SyntheticEvent) => e.stopPropagation(), []);
 
-    // Focus esplicito sulla textarea all'apertura e al cambio tab (così l'editor riceve subito i tasti)
-    useEffect(() => {
-        if (!isOpen || !contentRef.current) return;
-        const timer = requestAnimationFrame(() => {
-            const textarea = contentRef.current?.querySelector(EDITOR_TEXTAREA_SELECTOR) as HTMLTextAreaElement | null;
-            if (textarea && typeof textarea.focus === 'function') {
-                textarea.focus();
-                textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-            }
-        });
-        return () => cancelAnimationFrame(timer);
-    }, [isOpen, activeTab]);
-
-    // Sync con props SOLO quando il modal si apre: così l'utente può modificare liberamente
-    // senza che un re-render del genitore sovrascriva il testo (Invio, frecce, ecc.)
+    // Sync solo all'apertura
     useEffect(() => {
         if (isOpen && !wasOpenRef.current) {
             setFront(frontContent);
             setBack(backContent);
-            setActiveTab('front');
         }
         wasOpenRef.current = isOpen;
     }, [isOpen, frontContent, backContent]);
 
-    // Blocca scroll body quando modal è aperto
+    // Blocca scroll body
     useEffect(() => {
         if (typeof document === 'undefined') return undefined;
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = '';
-        }
-        return () => {
-            document.body.style.overflow = '';
-        };
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
     }, [isOpen]);
 
-    // Escape per chiudere
+    // Escape
     useEffect(() => {
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && !isSaving) {
-                onClose();
-            }
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && !isSaving) onClose();
         };
-        if (isOpen) {
-            window.addEventListener('keydown', handleEscape);
-        }
-        return () => window.removeEventListener('keydown', handleEscape);
+        if (isOpen) window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
     }, [isOpen, isSaving, onClose]);
 
-    // Handlers
     const handleSave = useCallback(async () => {
         if (disabled || isSaving) return;
-
-        const trimmedFront = front.trim();
-        const trimmedBack = back.trim();
-
-        if (!trimmedFront || !trimmedBack) return;
-
+        const f = front.trim();
+        const b = back.trim();
+        if (!f || !b) return;
         setIsSaving(true);
         try {
-            await onSave(trimmedFront, trimmedBack);
+            await onSave(f, b);
             onClose();
-        } catch (error) {
-            console.error('[FullscreenEditModal] Save failed:', error);
+        } catch (err) {
+            console.error('[FullscreenEditModal] save error:', err);
         } finally {
             setIsSaving(false);
         }
     }, [front, back, onSave, onClose, disabled, isSaving]);
 
     const handleCancel = useCallback(() => {
-        if (isSaving) return;
-        onClose();
+        if (!isSaving) onClose();
     }, [isSaving, onClose]);
 
-    // Validazione
     const canSave = front.trim().length > 0 && back.trim().length > 0;
     const hasChanges = front !== frontContent || back !== backContent;
 
-    // Preview content based on active tab
-    const previewContent = activeTab === 'front' ? front : back;
-
     if (!isOpen) return null;
 
-    // Usa createPortal per renderizzare direttamente nel body
-    // Questo assicura che il modal sia SEMPRE sopra tutto
     const modalContent = (
         <AnimatePresence>
             {isOpen && (
                 <div
-                    className="fixed inset-0 flex items-center justify-center"
-                    style={{
-                        zIndex: 99999,  // Massimo z-index possibile
-                        isolation: 'isolate' // Crea nuovo stacking context
-                    }}
+                    className="fixed inset-0 flex items-center justify-center p-4"
+                    style={{ zIndex: 99999, isolation: 'isolate' }}
                 >
                     {/* Overlay */}
                     <motion.div
@@ -209,230 +147,160 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="absolute inset-0 bg-black/80 backdrop-blur-lg"
+                        className="absolute inset-0 bg-black/60 backdrop-blur-md"
                         onClick={handleCancel}
                         aria-hidden="true"
                     />
 
-                    {/* Modal - stile Word: quasi tutta la viewport, nessun max-width */}
+                    {/* Modal box — compatto */}
                     <motion.div
                         ref={modalRef}
                         variants={modalVariants}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        onKeyDownCapture={(event) => {
-                            stopEventPropagation(event);
-                            if (event.key === 'Escape') {
-                                handleCancel();
-                            }
-                        }}
-                        onPointerDownCapture={stopEventPropagation}
-                        onMouseDownCapture={stopEventPropagation}
-                        onTouchStartCapture={stopEventPropagation}
-                        className="relative z-10 w-[96vw] h-[96vh] max-w-[1920px] flex flex-col rounded-3xl border border-white/10 bg-[#0f1116] shadow-2xl overflow-hidden"
-                        style={{
-                            boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.05), 0 20px 60px -10px rgba(0, 0, 0, 0.6)',
-                        }}
+                        onKeyDownCapture={(e) => { stopPropagation(e); if (e.key === 'Escape') handleCancel(); }}
+                        onPointerDownCapture={stopPropagation}
+                        onMouseDownCapture={stopPropagation}
+                        onTouchStartCapture={stopPropagation}
+                        className="relative z-10 w-full max-w-5xl flex flex-col rounded-2xl border border-theme-default bg-theme-elevated shadow-theme-lg overflow-hidden"
+                        style={{ maxHeight: 'min(88vh, 760px)' }}
                         role="dialog"
                         aria-modal="true"
-                        aria-labelledby="modal-title"
+                        aria-labelledby="fse-title"
                     >
-                        {/* Header */}
-                        <div className="flex items-start justify-between px-8 py-6 flex-shrink-0">
-                            <div>
-                                <h2 id="modal-title" className="text-2xl font-bold text-white tracking-tight">
+                        {/* ── Header ─────────────────────────────────────── */}
+                        <div className="flex items-center justify-between px-5 py-3.5 border-b border-theme-subtle bg-theme-surface flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <h2 id="fse-title" className="text-base font-semibold text-theme-primary">
                                     {title}
                                 </h2>
-                                <p className="text-sm text-slate-400 mt-1 max-w-2xl">
-                                    Utilizza l'editor markdown potenziato per creare flashcard ricche di contenuti.
-                                    <span className="opacity-50 ml-2 hidden sm:inline">Supporta LaTeX, Code Blocks e tabelle.</span>
-                                </p>
-                            </div>
 
-                            <div className="flex items-center gap-3">
-                                {/* Preview Toggle */}
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPreview(!showPreview)}
-                                    className={`p-2.5 rounded-xl transition-all border ${
-                                        showPreview 
-                                            ? 'bg-white/5 text-white border-white/10' 
-                                            : 'bg-transparent text-slate-500 border-transparent hover:bg-white/5 hover:text-slate-300'
-                                    }`}
-                                    aria-label={showPreview ? 'Nascondi anteprima' : 'Mostra anteprima'}
-                                    title={showPreview ? 'Nascondi anteprima' : 'Mostra anteprima'}
-                                >
-                                    {showPreview ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-                                </button>
-
-                                {/* Close Button */}
-                                <button
-                                    type="button"
-                                    onClick={handleCancel}
-                                    disabled={isSaving}
-                                    className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/20 border border-transparent transition-all disabled:opacity-50"
-                                    aria-label="Chiudi"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Tab Switcher & Stats */}
-                        <div className="flex items-center justify-between px-8 pb-4 border-b border-white/5 flex-shrink-0">
-                            <div className="flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/5">
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveTab('front')}
-                                    className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                                        activeTab === 'front'
-                                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/20'
-                                            : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                    }`}
-                                >
-                                    Domanda
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveTab('back')}
-                                    className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                                        activeTab === 'back'
-                                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20'
-                                            : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                    }`}
-                                >
-                                    Risposta
-                                </button>
-                            </div>
-
-                            {/* Status indicators */}
-                            <div className="flex items-center gap-4 text-xs font-medium">
+                                {/* Stato modifiche */}
                                 {hasChanges ? (
-                                    <span className="flex items-center gap-2 text-amber-400 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                                        Modifiche non salvate
+                                    <span className="flex items-center gap-1.5 text-[11px] font-medium text-amber-500 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                        Non salvato
                                     </span>
                                 ) : (
-                                    <span className="flex items-center gap-2 text-slate-500 px-3 py-1.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                                        Tutto salvato
+                                    <span className="flex items-center gap-1.5 text-[11px] text-theme-muted">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-theme-muted/40" />
+                                        Salvato
                                     </span>
                                 )}
                             </div>
+
+                            <div className="flex items-center gap-1.5">
+                                <Tooltip text="Chiudi senza salvare (Esc)">
+                                    <button
+                                        type="button"
+                                        onClick={handleCancel}
+                                        disabled={isSaving}
+                                        aria-label="Chiudi"
+                                        className="p-2 rounded-lg text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/15 hover:border-red-500/30 transition-all disabled:opacity-50"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </Tooltip>
+                            </div>
                         </div>
 
-                        {/* Content Area */}
-                        <div ref={contentRef} className={`flex-1 overflow-hidden min-h-0 bg-[#0f1116] ${showPreview ? 'grid grid-cols-1 lg:grid-cols-2' : ''}`}>
-                            {/* Editor Panel */}
-                            <div className={`h-full overflow-hidden flex flex-col min-w-0 lg:min-w-[380px] ${showPreview ? 'border-r border-white/5' : ''}`}>
-                                <div className="flex-1 overflow-hidden p-6 min-h-0 relative">
-                                    {/* Background decoration */}
-                                    <div className="absolute inset-0 bg-gradient-to-b from-violet-500/5 to-transparent pointer-events-none" />
-                                    
-                                    <div className="relative h-full flex flex-col">
-                                        {activeTab === 'front' ? (
-                                            <MarkdownEditor
-                                                key="front-editor"
-                                                value={front}
-                                                onChange={setFront}
-                                                placeholder="# Scrivi qui la tua domanda..."
-                                                toolbarVisibility="always"
-                                                size="md"
-                                                autoFocus
-                                                disabled={disabled || isSaving}
-                                                onSave={canSave ? handleSave : undefined}
-                                                onCancel={handleCancel}
-                                                minRows={14}
-                                                textareaClassName="min-h-[50vh] resize-none bg-transparent border-none focus:ring-0 p-0 text-base leading-relaxed text-slate-200 font-mono"
-                                            />
-                                        ) : (
-                                            <MarkdownEditor
-                                                key="back-editor"
-                                                value={back}
-                                                onChange={setBack}
-                                                placeholder="Scrivi la risposta... Supporta **Markdown** e $LaTeX$"
-                                                toolbarVisibility="always"
-                                                size="md"
-                                                autoFocus
-                                                disabled={disabled || isSaving}
-                                                onSave={canSave ? handleSave : undefined}
-                                                onCancel={handleCancel}
-                                                minRows={14}
-                                                textareaClassName="min-h-[50vh] resize-none bg-transparent border-none focus:ring-0 p-0 text-base leading-relaxed text-slate-200 font-mono"
-                                            />
-                                        )}
-                                    </div>
+                        {/* ── Editor area — due colonne ───────────────────── */}
+                        <div className="flex-1 overflow-hidden min-h-0 grid grid-cols-1 md:grid-cols-2">
+
+                            {/* ── Colonna DOMANDA ── */}
+                            <div className="flex flex-col overflow-hidden border-b md:border-b-0 md:border-r border-theme-subtle">
+                                {/* Label colonna */}
+                                <div className="px-4 pt-3 pb-2 flex-shrink-0">
+                                    <ColumnBadge label="Domanda" sub="fronte" color="violet" />
+                                </div>
+
+                                {/* Editor — solo scroll verticale, niente barra orizzontale */}
+                                <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 pb-4">
+                                    <RichTextEditor
+                                        key="front"
+                                        value={front}
+                                        onChange={setFront}
+                                        placeholder="Scrivi la domanda..."
+                                        toolbarVisibility="always"
+                                        disabled={disabled || isSaving}
+                                        onSave={canSave ? handleSave : undefined}
+                                        onCancel={handleCancel}
+                                        autoFocus
+                                        minRows={10}
+                                    />
                                 </div>
                             </div>
 
-                            {/* Preview Panel */}
-                            {showPreview && (
-                                <div className="h-full overflow-hidden flex flex-col bg-[#0a0c10] min-w-0 lg:min-w-[380px]">
-                                    <div className="px-6 py-3 border-b border-white/5 flex-shrink-0 bg-[#0c0e12]">
-                                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                                            <Eye className="w-3.5 h-3.5 opacity-70" />
-                                            Anteprima Live {activeTab === 'front' ? '(Domanda)' : '(Risposta)'}
-                                        </span>
-                                    </div>
-                                    <div className="flex-1 overflow-auto p-8 min-h-0">
-                                        <div className="prose prose-invert prose-slate max-w-none">
-                                            <EditorPreview
-                                                content={previewContent}
-                                                visible={true}
-                                                label=""
-                                                minHeight="min-h-[50vh]"
-                                                emptyPlaceholder="Inizia a scrivere per vedere l'anteprima..."
-                                            />
-                                        </div>
-                                    </div>
+                            {/* ── Colonna RISPOSTA ── */}
+                            <div className="flex flex-col overflow-hidden">
+                                {/* Label colonna */}
+                                <div className="px-4 pt-3 pb-2 flex-shrink-0">
+                                    <ColumnBadge label="Risposta" sub="retro" color="emerald" />
                                 </div>
-                            )}
+
+                                {/* Editor — solo scroll verticale, niente barra orizzontale */}
+                                <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 pb-4">
+                                    <RichTextEditor
+                                        key="back"
+                                        value={back}
+                                        onChange={setBack}
+                                        placeholder="Scrivi la risposta..."
+                                        toolbarVisibility="always"
+                                        disabled={disabled || isSaving}
+                                        onSave={canSave ? handleSave : undefined}
+                                        onCancel={handleCancel}
+                                        minRows={10}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Footer - Action Buttons */}
-                        <div className="flex items-center justify-between px-8 py-5 border-t border-white/5 bg-[#12141a] flex-shrink-0">
-                            <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
-                                <span className="flex items-center gap-1.5">
-                                    <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded-md font-sans text-[10px]">Ctrl</kbd>
-                                    <span>+</span>
-                                    <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded-md font-sans text-[10px]">Enter</kbd>
-                                    <span className="ml-1 opacity-70">Salva</span>
+                        {/* ── Footer ─────────────────────────────────────── */}
+                        <div className="flex items-center justify-between gap-4 px-5 py-3 border-t border-theme-subtle bg-theme-surface flex-shrink-0">
+                            {/* Shortcut pills — in basso a sinistra, non cliccabili */}
+                            <div className="hidden sm:flex items-center gap-2" role="group" aria-label="Scorciatoie da tastiera">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-[11px] font-medium text-violet-700 dark:text-violet-300 cursor-default select-none">
+                                    <kbd className="px-1 py-0.5 rounded bg-violet-500/20 font-sans text-[10px]">Ctrl+Enter</kbd>
+                                    salva
                                 </span>
-                                <span className="w-1 h-1 rounded-full bg-white/10" />
-                                <span className="flex items-center gap-1.5">
-                                    <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded-md font-sans text-[10px]">Esc</kbd>
-                                    <span className="ml-1 opacity-70">Chiudi</span>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-[11px] font-medium text-violet-700 dark:text-violet-300 cursor-default select-none">
+                                    <kbd className="px-1 py-0.5 rounded bg-violet-500/20 font-sans text-[10px]">Esc</kbd>
+                                    chiudi
                                 </span>
                             </div>
-
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2.5 ml-auto">
+                            <Tooltip text="Annulla e chiudi (Esc)" side="top">
                                 <button
                                     type="button"
                                     onClick={handleCancel}
                                     disabled={isSaving}
-                                    className="px-6 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 border border-transparent transition-all disabled:opacity-50"
+                                    className="px-4 py-2 rounded-xl text-sm font-medium text-theme-muted hover:text-theme-primary border border-theme-default hover:border-theme-strong hover:bg-theme-surface transition-all disabled:opacity-50"
                                 >
                                     Annulla
                                 </button>
+                            </Tooltip>
+
+                            <Tooltip text={canSave ? 'Salva modifiche (Ctrl+Enter)' : 'Compila entrambi i campi per salvare'} side="top">
                                 <button
                                     type="button"
                                     onClick={handleSave}
                                     disabled={!canSave || isSaving || disabled}
-                                    className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 ring-1 ring-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
+                                    className="keep-light-text flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-md shadow-violet-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                 >
                                     {isSaving ? (
                                         <>
-                                            <div className="w-4 h-4 border-2 rounded-full border-white/30 border-t-white animate-spin" />
-                                            <span>Salvataggio...</span>
+                                            <span className="w-3.5 h-3.5 border-2 rounded-full border-white/30 border-t-white animate-spin" />
+                                            Salvataggio...
                                         </>
                                     ) : (
                                         <>
-                                            <Save className="w-4 h-4" />
-                                            <span>Salva Modifiche</span>
+                                            <Save className="w-3.5 h-3.5" />
+                                            Salva Modifiche
                                         </>
                                     )}
                                 </button>
+                            </Tooltip>
                             </div>
                         </div>
                     </motion.div>
@@ -441,19 +309,16 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
         </AnimatePresence>
     );
 
-    // Portal nel ROOT React (#root): così input/keydown (Invio, frecce, digitazione) arrivano
-    // al root e React li gestisce. Con portal su body gli eventi non raggiungevano il root.
     const portalTarget =
-        typeof document !== 'undefined' ? (document.getElementById('root') ?? document.body) : null;
+        typeof document !== 'undefined'
+            ? (document.getElementById('root') ?? document.body)
+            : null;
+
     if (!portalTarget) return null;
     return createPortal(modalContent, portalTarget);
 };
 
-/**
- * Memoized version
- */
 export const FullscreenEditModal = memo(FullscreenEditModalComponent);
-
 FullscreenEditModal.displayName = 'FullscreenEditModal';
 
 export default FullscreenEditModal;

@@ -7,6 +7,11 @@ Siamo allo stesso livello. Lavoriamo insieme per produrre codice production-read
 * **No Yes-Man**: Se la mia richiesta introduce un anti-pattern o viola i principi SOLID, bloccala e correggila tecnicamente.
 * **Focus**: Clean Architecture, Security, Type-Safety (Zod/TS), Performance.
 
+### Session / Task start (eri-skill)
+* **Prima di ogni task**: consultare `tasks/lessons.md` per pattern e lezioni apprese; per task non banali (3+ step o decisioni architetturali) usare plan mode e verificare il piano prima di implementare.
+* **Dopo correzioni utente**: aggiornare `tasks/lessons.md` con la lezione appresa.
+* **Verifica prima di chiudere**: build OK, test/log dove serve; "Un staff engineer approverebbe?".
+
 ## 2. 🧠 Workflow: The "Reflexion" Protocol (MANDATORY)
 Per ogni richiesta, esegui questi 3 step:
 

@@ -20,7 +20,7 @@ import { CinemaLayout } from '../layout/CinemaLayout';
 // CONSTANTS
 // ============================================
 
-const LOADING_SPINNER_SIZE = 8;
+const LOADING_SPINNER_SIZE_PX = 32;
 
 // ============================================
 // SUB-COMPONENTS
@@ -31,10 +31,13 @@ interface LoadingStateProps {
 }
 
 const LoadingState: React.FC<LoadingStateProps> = ({ message = 'Caricamento...' }) => (
-    <div className="fixed inset-0 h-screen w-screen bg-zinc-950 text-white flex items-center justify-center">
+    <div className="fixed inset-0 h-screen w-screen bg-theme-base text-theme-primary flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-            <div className={`animate-spin w-${LOADING_SPINNER_SIZE} h-${LOADING_SPINNER_SIZE} border-2 border-white/20 border-t-white rounded-full`} />
-            <p className="text-white/60 text-sm">{message}</p>
+            <div
+                className="animate-spin border-2 border-theme-default border-t-primary-500 rounded-full"
+                style={{ width: `${LOADING_SPINNER_SIZE_PX}px`, height: `${LOADING_SPINNER_SIZE_PX}px` }}
+            />
+            <p className="text-theme-secondary text-sm">{message}</p>
         </div>
     </div>
 );
@@ -45,12 +48,12 @@ interface ErrorStateProps {
 }
 
 const ErrorState: React.FC<ErrorStateProps> = ({ error, onNavigateBack }) => (
-    <div className="fixed inset-0 h-screen w-screen bg-zinc-950 text-white flex flex-col items-center justify-center">
-        <FiAlertCircle className="w-12 h-12 text-red-400 mb-4" />
-        <p className="text-white/60 mb-6 text-center px-4">{error}</p>
+    <div className="fixed inset-0 h-screen w-screen bg-theme-base text-theme-primary flex flex-col items-center justify-center">
+        <FiAlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mb-4" />
+        <p className="text-theme-secondary mb-6 text-center px-4">{error}</p>
         <button
             onClick={onNavigateBack}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-theme-surface border border-theme-default hover:bg-theme-card hover:border-theme-strong text-theme-primary transition-all"
         >
             <FiArrowLeft className="w-4 h-4" />
             Torna ai Mazzi

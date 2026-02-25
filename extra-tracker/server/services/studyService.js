@@ -36,6 +36,7 @@ const MAX_TUTOR_CONTEXT_LENGTH = 50000;
 const MAX_TUTOR_MESSAGE_LENGTH = 2000;
 const MAX_TUTOR_HISTORY_MESSAGES = 12;
 const MAX_TUTOR_HISTORY_MESSAGE_LENGTH = 1000;
+const PDF_UPLOADS_DIR = path.join(__dirname, '..', 'uploads', 'pdfs');
 const QUIZ_FALLBACK_OPTIONS = [
     'Nessuna delle precedenti',
     'Altro',
@@ -59,7 +60,15 @@ const BATCH_SIZE = 2;
 // Target dinamico - qualità > quantità
 const MIN_CARDS_PER_CHUNK = 2;        // Minimo 2 card per chunk (qualità)
 const MAX_CARDS_PER_CHUNK = 10;       // Massimo 10 card per singola chiamata
-const MAX_TOTAL_CARDS = 80;           // Cap totale (meno card ma migliori)
+const DEFAULT_MAX_TOTAL_CARDS = 140;  // Default più alto rispetto a 80
+const MAX_TOTAL_CARDS_HARD_CAP = 260; // Limite di sicurezza assoluto
+const ENV_MAX_TOTAL_CARDS = Number.parseInt(
+    process.env.STUDY_GENERATION_MAX_CARDS || String(DEFAULT_MAX_TOTAL_CARDS),
+    10
+);
+const MAX_TOTAL_CARDS = Number.isFinite(ENV_MAX_TOTAL_CARDS) && ENV_MAX_TOTAL_CARDS > 0
+    ? Math.min(MAX_TOTAL_CARDS_HARD_CAP, Math.max(40, ENV_MAX_TOTAL_CARDS))
+    : DEFAULT_MAX_TOTAL_CARDS;
 
 // Deduplica semantica - soglia più aggressiva per rimuovere più duplicati
 const SIMILARITY_THRESHOLD = 0.50;    // Soglia Jaccard (più bassa = più aggressiva)
@@ -77,9 +86,30 @@ const QUESTION_TYPES = {
 // =========================================
 // CONFIGURAZIONE MODELLO AI
 // =========================================
-const ACTIVE_AI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const FALLBACK_AI_MODEL = 'gpt-5.2';
+const KNOWN_OPENAI_MODELS = new Set([
+    'gpt-4o',
+    'gpt-4o-mini',
+    'gpt-5.2',
+    'gpt-4-turbo',
+    'gpt-4-turbo-preview',
+    'gpt-4',
+    'gpt-3.5-turbo',
+    'o1',
+    'o1-mini',
+]);
+const envModel = (process.env.OPENAI_MODEL || FALLBACK_AI_MODEL).trim();
+const ACTIVE_AI_MODEL = KNOWN_OPENAI_MODELS.has(envModel) ? envModel : FALLBACK_AI_MODEL;
+
+function getValidModel(envValue) {
+    const v = (envValue || ACTIVE_AI_MODEL).trim();
+    return KNOWN_OPENAI_MODELS.has(v) ? v : ACTIVE_AI_MODEL;
+}
 
 if (!global.__studyServiceModelLogged) {
+    if (envModel !== ACTIVE_AI_MODEL) {
+        console.warn(`⚠️ OPENAI_MODEL="${envModel}" non valido o non disponibile; uso fallback: ${ACTIVE_AI_MODEL}`);
+    }
     console.log(`🤖 StudyService usando modello: ${ACTIVE_AI_MODEL}`);
     global.__studyServiceModelLogged = true;
 }
@@ -479,6 +509,8 @@ class StudyService extends BaseService {
             throw AppError.notFound('Mazzo');
         }
 
+        await this._ensureDeckPdfUrlIntegrity(deck);
+
         return deck.toJSON();
     }
 
@@ -507,6 +539,8 @@ class StudyService extends BaseService {
         if (!deck) {
             throw AppError.notFound('Mazzo');
         }
+
+        await this._ensureDeckPdfUrlIntegrity(deck);
 
         const deckJson = deck.toJSON();
         const cards = Array.isArray(deckJson.cards) ? deckJson.cards : [];
@@ -943,8 +977,9 @@ class StudyService extends BaseService {
      * 4. Deduplica semantica post-generazione
      * 5. Validazione qualità più rigorosa
      */
-    async generateCardsFromPDF(tenantScope, deckId, pdfFilePath) {
+    async generateCardsFromPDF(tenantScope, deckId, pdfFilePath, options = {}) {
         const userId = this._getUserId(tenantScope);
+        const generationCardCap = this._resolveGenerationCardCap(options?.maxCards);
 
         // 1. Verifica mazzo
         const deck = await Deck.findOne({ _id: deckId, user: userId });
@@ -956,10 +991,7 @@ class StudyService extends BaseService {
             throw AppError.validation('Path PDF non valido');
         }
 
-        const pdfFileName = path.basename(pdfFilePath);
-        const pdfUrl = `/uploads/pdfs/${pdfFileName}`;
-        deck.pdfUrl = pdfUrl;
-        await deck.save({ validateModifiedOnly: true });
+        const nextPdfUrl = `/uploads/pdfs/${path.basename(pdfFilePath)}`;
 
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'analyzing', message: 'Analisi documento...' });
 
@@ -986,6 +1018,7 @@ class StudyService extends BaseService {
         }
 
         const normalizedText = this._normalizeExtractedText(pdfText);
+        deck.pdfUrl = nextPdfUrl;
         deck.extractedText = this._truncateText(normalizedText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
         await deck.save({ validateModifiedOnly: true });
 
@@ -1111,7 +1144,7 @@ class StudyService extends BaseService {
         // 9. Validazione finale e salvataggio
         const validCards = uniqueCards
             .filter(card => this._validateCardQuality(card))
-            .slice(0, MAX_TOTAL_CARDS)
+            .slice(0, generationCardCap)
             .map(card => {
                 const cardData = {
                     front: card.front.trim(),
@@ -1166,6 +1199,7 @@ class StudyService extends BaseService {
                 totalBatches: batches.length,
                 duplicatesRemoved: removedCount,
                 conceptsExtracted: globalConcepts.length,
+                maxCardsApplied: generationCardCap,
             }
         };
     }
@@ -1826,7 +1860,7 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
             }
         }
 
-        const model = process.env.OPENAI_CHAT_MODEL || ACTIVE_AI_MODEL;
+        const model = getValidModel(process.env.OPENAI_CHAT_MODEL);
         const contextLimit = model.includes('gpt-3.5') ? 15000 : 50000;
 
         if (!context) {
@@ -1992,7 +2026,7 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
             }
         }
 
-        const model = process.env.OPENAI_CHAT_MODEL || ACTIVE_AI_MODEL;
+        const model = getValidModel(process.env.OPENAI_CHAT_MODEL);
         const contextLimit = model.includes('gpt-3.5') ? 15000 : 50000;
 
         if (!context) {
@@ -2561,10 +2595,10 @@ Genera una risposta per OGNI domanda nella lista.`;
         // Salva anche il testo estratto del materiale di studio
         deck.extractedText = this._truncateText(normalizedSourceText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
         
-        // Salva il PDF del materiale se non esiste già
-        if (!deck.pdfUrl) {
-            const sourceFileName = path.basename(sourceFilePath);
-            deck.pdfUrl = `/uploads/pdfs/${sourceFileName}`;
+        // Salva/ripara il PDF del materiale se manca o è diventato non valido
+        const hasValidDeckPdf = await this._isDeckPdfUrlValid(deck.pdfUrl);
+        if (!hasValidDeckPdf) {
+            deck.pdfUrl = `/uploads/pdfs/${path.basename(sourceFilePath)}`;
         }
 
         await deck.save();
@@ -2904,10 +2938,10 @@ Genera una risposta per OGNI domanda nella lista.`;
         // Salva anche il testo estratto del materiale di studio
         deck.extractedText = this._truncateText(normalizedSourceText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
         
-        // Salva il PDF del materiale se non esiste già
-        if (!deck.pdfUrl) {
-            const sourceFileName = path.basename(sourceFilePath);
-            deck.pdfUrl = `/uploads/pdfs/${sourceFileName}`;
+        // Salva/ripara il PDF del materiale se manca o è diventato non valido
+        const hasValidDeckPdf = await this._isDeckPdfUrlValid(deck.pdfUrl);
+        if (!hasValidDeckPdf) {
+            deck.pdfUrl = `/uploads/pdfs/${path.basename(sourceFilePath)}`;
         }
 
         await deck.save();
@@ -2981,6 +3015,101 @@ Genera una risposta per OGNI domanda nella lista.`;
     // =========================================
     // PRIVATE HELPERS
     // =========================================
+
+    _resolveDeckId(deck) {
+        if (!deck) return '';
+        if (deck._id) return String(deck._id);
+        if (deck.id) return String(deck.id);
+        return '';
+    }
+
+    _resolvePdfAbsolutePath(pdfUrl) {
+        if (!pdfUrl || typeof pdfUrl !== 'string') return null;
+        const fileName = path.basename(pdfUrl.trim());
+        if (!fileName || !fileName.toLowerCase().endsWith('.pdf')) return null;
+        return path.join(PDF_UPLOADS_DIR, fileName);
+    }
+
+    async _fileExists(filePath) {
+        if (!filePath || typeof filePath !== 'string') return false;
+        try {
+            await fs.access(filePath);
+            return true;
+        } catch (_err) {
+            return false;
+        }
+    }
+
+    async _isDeckPdfUrlValid(pdfUrl) {
+        const absolutePath = this._resolvePdfAbsolutePath(pdfUrl);
+        if (!absolutePath) return false;
+        return this._fileExists(absolutePath);
+    }
+
+    _extractDeckPdfTimestamp(fileName, deckId) {
+        if (!fileName || !deckId) return 0;
+        const prefix = `${deckId}-`;
+        if (!fileName.startsWith(prefix) || !fileName.toLowerCase().endsWith('.pdf')) {
+            return 0;
+        }
+        const timestampPart = fileName.slice(prefix.length, -4);
+        const parsed = Number(timestampPart);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    async _findLatestDeckPdfUrl(deckId) {
+        if (!deckId) return null;
+
+        let files = [];
+        try {
+            files = await fs.readdir(PDF_UPLOADS_DIR);
+        } catch (err) {
+            console.warn('[StudyService] Impossibile leggere directory PDF uploads:', err.message);
+            return null;
+        }
+
+        const prefix = `${deckId}-`;
+        const candidates = files.filter((fileName) => (
+            fileName.startsWith(prefix) && fileName.toLowerCase().endsWith('.pdf')
+        ));
+
+        if (candidates.length === 0) return null;
+
+        candidates.sort((a, b) => {
+            const tsA = this._extractDeckPdfTimestamp(a, deckId);
+            const tsB = this._extractDeckPdfTimestamp(b, deckId);
+            if (tsA !== tsB) return tsB - tsA;
+            return b.localeCompare(a);
+        });
+
+        return `/uploads/pdfs/${candidates[0]}`;
+    }
+
+    async _ensureDeckPdfUrlIntegrity(deck) {
+        if (!deck) return false;
+
+        const currentPdfUrl = typeof deck.pdfUrl === 'string' ? deck.pdfUrl.trim() : '';
+        if (!currentPdfUrl) return false;
+
+        const hasCurrentPdf = await this._isDeckPdfUrlValid(currentPdfUrl);
+        if (hasCurrentPdf) return false;
+
+        const deckId = this._resolveDeckId(deck);
+        const recoveredPdfUrl = await this._findLatestDeckPdfUrl(deckId);
+        const nextPdfUrl = recoveredPdfUrl || '';
+        if (nextPdfUrl === currentPdfUrl) return false;
+
+        deck.pdfUrl = nextPdfUrl;
+        await deck.save({ validateModifiedOnly: true });
+
+        console.warn('[StudyService] Riparato pdfUrl non valido', {
+            deckId,
+            previousPdfUrl: currentPdfUrl,
+            recoveredPdfUrl: nextPdfUrl || null,
+        });
+
+        return true;
+    }
 
     async _validateExamOwnership(tenantScope, examId) {
         const userId = this._getUserId(tenantScope);
@@ -3071,10 +3200,13 @@ Genera una risposta per OGNI domanda nella lista.`;
      */
     _normalizeGeneratedCard(card) {
         if (!card || typeof card !== 'object') return {};
+
+        const rawFront = card.front ?? card.question ?? card.q;
+        const rawBack = card.back ?? card.answer ?? card.a;
         
         const normalized = {
-            front: card.front ?? card.question ?? card.q,
-            back: card.back ?? card.answer ?? card.a,
+            front: this._sanitizeGeneratedCardText(rawFront, { isFront: true }),
+            back: this._sanitizeGeneratedCardText(rawBack, { isFront: false }),
         };
 
         // Gestisci source_metadata se presente
@@ -3099,6 +3231,34 @@ Genera una risposta per OGNI domanda nella lista.`;
         }
 
         return normalized;
+    }
+
+    /**
+     * Pulisce prefissi generati dall'AI (es. "1. ", "Q:", "Domanda:").
+     * Riduce rumore visivo nelle carte senza alterare il contenuto sostanziale.
+     */
+    _sanitizeGeneratedCardText(value, { isFront = false } = {}) {
+        if (value === null || value === undefined) return '';
+        if (typeof value !== 'string') return String(value).trim();
+
+        let cleaned = value
+            .replace(/\r\n/g, '\n')
+            .replace(/^\s+|\s+$/g, '');
+
+        cleaned = cleaned.replace(/^["'`]+|["'`]+$/g, '').trim();
+
+        if (isFront) {
+            cleaned = cleaned
+                .replace(/^(?:domanda|question|quesito|q)\s*[:\-]\s*/i, '')
+                .replace(/^\s*(?:\d{1,3}\s*[\.\)]|[-*•▪]+)\s+/, '')
+                .trim();
+        } else {
+            cleaned = cleaned
+                .replace(/^(?:risposta|answer|a)\s*[:\-]\s*/i, '')
+                .trim();
+        }
+
+        return cleaned;
     }
 
     _cleanJSON(dirtyJSON) {
@@ -3977,6 +4137,20 @@ Genera una risposta per OGNI domanda nella lista.`;
 
     _toNumber(value, fallback = 0) {
         return Number.isFinite(Number(value)) ? Number(value) : fallback;
+    }
+
+    /**
+     * Risolve il cap finale di carte per una generazione PDF.
+     * - default: MAX_TOTAL_CARDS (config/env)
+     * - richiesta client: clamp [20, MAX_TOTAL_CARDS]
+     */
+    _resolveGenerationCardCap(requestedMaxCards = 0) {
+        const parsed = this._toNumber(requestedMaxCards, 0);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+            return MAX_TOTAL_CARDS;
+        }
+
+        return Math.min(MAX_TOTAL_CARDS, Math.max(20, Math.round(parsed)));
     }
 
     // =========================================

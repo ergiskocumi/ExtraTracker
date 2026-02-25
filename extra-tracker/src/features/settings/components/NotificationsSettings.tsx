@@ -227,7 +227,7 @@ export const NotificationsSettings = ({ notifications, onSave, status }: Notific
                             Salvataggio...
                         </span>
                     ) : (
-                        'Salva preferenze'
+                        'Salva modifiche'
                     )}
                 </motion.button>
             </div>

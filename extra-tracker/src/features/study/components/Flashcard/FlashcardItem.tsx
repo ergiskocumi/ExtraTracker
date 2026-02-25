@@ -8,7 +8,7 @@
  * @module FlashcardItem
  */
 
-import React, { useEffect, useState, useCallback, memo, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import type { Card } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
@@ -100,24 +100,21 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
 
     /**
      * Starts editing mode.
-     * For existing cards: opens fullscreen modal unless in compactMode (cinema view)
-     * For new/temporary cards: uses inline editing
+     * For existing cards: opens fullscreen modal (editor fatto bene) unless compactMode (cinema).
+     * For new/temporary cards or compactMode: uses inline editing.
      */
     const handleStartEdit = useCallback(() => {
         if (isTemporaryCard(card.id)) {
-            // New card: use inline editing
             setTempFront(card.front);
             setTempBack(card.back);
             setIsEditing(true);
             onEditingChange?.(true);
         } else if (compactMode) {
-            // Cinema mode: use inline editing instead of fullscreen modal
             setTempFront(card.front);
             setTempBack(card.back);
             setIsEditing(true);
             onEditingChange?.(true);
         } else {
-            // Normal mode: open fullscreen modal
             setIsModalOpen(true);
         }
     }, [card.id, card.front, card.back, onEditingChange, compactMode]);
@@ -171,12 +168,17 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
 
     /**
      * Handles card click (only when not editing).
+     * When not compactMode: opens fullscreen modal (editor fatto bene).
+     * When compactMode: delegates to parent onClick if provided.
      */
     const handleCardClick = useCallback((e: React.MouseEvent) => {
-        if (shouldHandleCardClick(e, isEditing) && onClick) {
+        if (!shouldHandleCardClick(e, isEditing)) return;
+        if (!compactMode && !isTemporaryCard(card.id)) {
+            setIsModalOpen(true);
+        } else if (onClick) {
             onClick(card);
         }
-    }, [isEditing, onClick, card]);
+    }, [isEditing, onClick, card, compactMode]);
 
     /**
      * Handles show source button click.
@@ -191,7 +193,7 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     }, [onShowSource, card]);
 
     /**
-     * Handles save from fullscreen modal.
+     * Salvataggio dalla modale fullscreen.
      */
     const handleModalSave = useCallback(async (front: string, back: string) => {
         try {
@@ -205,44 +207,41 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
             const errorMessage = error instanceof Error
                 ? error.message
                 : TEXT_CONTENT.toast.error.message;
-
             emitToast.error(errorMessage, {
                 title: TEXT_CONTENT.toast.error.title,
                 duration: TEXT_CONTENT.toast.error.duration,
             });
-            throw error; // Re-throw so modal knows save failed
+            throw error;
         }
     }, [card.id, onUpdate]);
 
     // ============================================
-    // STYLE COMPUTATION (memoized for performance)
+    // STYLE COMPUTATION
     // ============================================
 
-    const cardClasses = useMemo((): string => {
-        // @ts-ignore - height property added to constant
-        const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding} ${CARD_STYLES.base.shadow} ${CARD_STYLES.base.height || ''}`;
+    const getCardClasses = (): string => {
+        const base = `${CARD_STYLES.base.borderRadius} ${CARD_STYLES.base.border} ${CARD_STYLES.base.padding}`;
         // Disable hover effects and transitions during editing for better UX
-        const interactive = !isEditing
-            ? `${CARD_STYLES.base.transition} ${CARD_STYLES.base.hover.border} ${CARD_STYLES.base.hover.shadow}`
+        const interactive = !isEditing 
+            ? `${CARD_STYLES.base.transition} ${CARD_STYLES.base.hover.border} ${CARD_STYLES.base.hover.shadow}` 
             : '';
         const cursor = onClick && !isEditing ? 'cursor-pointer' : '';
-        const border = isSourceActive
-            ? CARD_STYLES.sourceActive.border
+        const border = isSourceActive 
+            ? CARD_STYLES.sourceActive.border 
             : CARD_STYLES.default.border;
-        const shadow = isSourceActive && !isEditing ? CARD_STYLES.sourceActive.shadow : '';
-
+        const shadow = isSourceActive && !isEditing 
+            ? CARD_STYLES.sourceActive.shadow 
+            : !isEditing ? CARD_STYLES.default.shadow : '';
+        
         return `${base} ${interactive} ${cursor} ${border} ${shadow}`.trim();
-    }, [isEditing, onClick, isSourceActive]);
+    };
 
-    const cardBackground = useMemo((): string => {
-        if (isEditing) {
-            return 'rgba(255, 255, 255, 0.06)';
-        }
-
-        return isSourceActive
-            ? CARD_STYLES.sourceActive.background
+    const getCardBackground = (): string => {
+        if (isEditing) return 'var(--bg-surface)';
+        return isSourceActive 
+            ? CARD_STYLES.sourceActive.background 
             : CARD_STYLES.default.background;
-    }, [isEditing, isSourceActive]);
+    };
 
     // ============================================
     // RENDER
@@ -276,8 +275,8 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
     if (isEditing) {
         return (
             <div
-                className={`group ${cardClasses}`}
-                style={{ background: cardBackground }}
+                className={getCardClasses()}
+                style={{ background: getCardBackground() }}
                 // No onClick during editing to prevent any interaction conflicts
             >
                 {cardContent}
@@ -285,21 +284,21 @@ export const FlashcardItem: React.FC<FlashcardItemProps> = memo(({
         );
     }
 
-    // Use motion.div for view mode to enable smooth animations
+    // Use motion.div for view mode + FullscreenEditModal per modifica con editor completo
     return (
         <>
             <motion.div
                 initial={ANIMATION_CONFIG.card.initial}
                 animate={ANIMATION_CONFIG.card.animate}
                 exit={ANIMATION_CONFIG.card.exit}
-                className={`group ${cardClasses}`}
-                style={{ background: cardBackground }}
+                className={getCardClasses()}
+                style={{ background: getCardBackground() }}
                 onClick={handleCardClick}
             >
                 {cardContent}
             </motion.div>
 
-            {/* Fullscreen Edit Modal for existing cards */}
+            {/* Modale fullscreen con editor Markdown (usata quando non in compactMode) */}
             <FullscreenEditModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}

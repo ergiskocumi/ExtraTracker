@@ -22,6 +22,7 @@ import { DeckConfigForm } from './components/DeckConfigForm';
 import { ProgressView } from './components/ProgressView';
 import { ReviewAnswers } from './components/ReviewAnswers';
 import type { ExamSolverModalProps, DropzoneConfig } from './ExamSolverModal.types';
+import { examSolverButtonClass } from '../../utils/studyButtonClasses';
 
 // ============================================
 // COMPONENT
@@ -159,7 +160,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                     onClick={() => {
                                         restoreFromCache(cachedSession);
                                     }}
-                                    className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+                                    className={examSolverButtonClass('infoSoft', 'flex-1 px-4 py-2.5 rounded-xl font-medium')}
                                 >
                                     Ripristina Sessione
                                 </button>
@@ -167,7 +168,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                     onClick={() => {
                                         resetToDefault();
                                     }}
-                                    className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium transition-colors border border-white/10"
+                                    className={examSolverButtonClass('neutral', 'flex-1 px-4 py-2.5 rounded-xl font-medium')}
                                 >
                                     Inizia Nuova
                                 </button>
@@ -228,9 +229,12 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                         <button
                             onClick={handleClose}
                             disabled={!canClose}
-                            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={examSolverButtonClass(
+                                'icon',
+                                'p-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed'
+                            )}
                         >
-                            <X className="w-5 h-5 text-white/60" />
+                            <X className="w-5 h-5" />
                         </button>
                     </div>
 
@@ -258,7 +262,10 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         onClick={extractQuestions}
-                                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all flex items-center justify-center gap-2"
+                                        className={examSolverButtonClass(
+                                            'primary',
+                                            'w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2'
+                                        )}
                                     >
                                         Avanti
                                         <ChevronRight className="w-4 h-4" />

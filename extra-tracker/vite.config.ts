@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    dedupe: ['@tiptap/react', '@tiptap/pm', '@tiptap/starter-kit'],
+  },
   define: {
     // Read version from environment variable (VITE_APP_VERSION) or fallback to package.json
     // Priority: VITE_APP_VERSION > npm_package_version > default fallback

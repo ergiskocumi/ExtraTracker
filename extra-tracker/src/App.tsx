@@ -10,6 +10,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
 import { FeedbackProvider } from './features/feedback/context/FeedbackContext';
+import { FlashcardGenerationProvider } from './features/study/context/FlashcardGenerationContext';
 import { ProtectedRoute } from './features/auth/context/AuthContext';
 import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
@@ -36,13 +37,13 @@ const AdminFeedbackPage = lazy(() => import('./features/feedback/pages/AdminFeed
 
 // Loading fallback component
 const PageLoader = () => (
-    <div className="min-h-screen flex items-center justify-center bg-dark-500">
-        <div className="w-12 h-12 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen flex items-center justify-center bg-theme-base transition-colors">
+        <div className="w-12 h-12 border-2 border-primary-500/70 border-t-transparent rounded-full animate-spin" />
     </div>
 );
 
 const HomeRedirect = () => {
-    const { preferences, hasLoaded } = useSettings();
+    const { hasLoaded } = useSettings();
 
     // Evita redirect "a caso" prima di aver caricato le preferenze reali dal backend.
     if (!hasLoaded) return null;
@@ -72,7 +73,9 @@ function App() {
                             <SettingsProvider>
                                 <WorkLogProvider>
                                     <FeedbackProvider>
-                                        <AppLayout />
+                                        <FlashcardGenerationProvider>
+                                            <AppLayout />
+                                        </FlashcardGenerationProvider>
                                     </FeedbackProvider>
                                 </WorkLogProvider>
                             </SettingsProvider>

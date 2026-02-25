@@ -14,7 +14,7 @@
  * before any conditional returns.
  */
 
-import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Worker, Viewer } from '@react-pdf-viewer/core';
 import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
 import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation';
@@ -26,6 +26,7 @@ import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 import '@react-pdf-viewer/page-navigation/lib/styles/index.css';
 import '@react-pdf-viewer/search/lib/styles/index.css';
+import './pdfReaderTheme.css';
 
 // ============================================
 // TYPES
@@ -185,10 +186,10 @@ interface PDFLoadingStateProps {
 }
 
 const PDFLoadingState: React.FC<PDFLoadingStateProps> = ({ progress }) => (
-    <div className="h-full w-full flex items-center justify-center text-white/60">
-        <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-2 border-white/20 border-t-violet-400 rounded-full animate-spin" />
-            <p className="text-xs sm:text-sm">
+    <div className="h-full w-full flex items-center justify-center text-theme-secondary">
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-theme-default bg-theme-surface px-5 py-4 shadow-theme-sm">
+            <div className="w-10 h-10 border-2 border-theme-default border-t-primary-500 rounded-full animate-spin" />
+            <p className="text-xs sm:text-sm text-theme-secondary">
                 {typeof progress === 'number' ? `Caricamento PDF... ${Math.round(progress)}%` : 'Caricamento PDF...'}
             </p>
         </div>
@@ -201,6 +202,7 @@ interface PDFErrorStateProps {
     onSwitchWorker?: () => void;
     canSwitchWorker: boolean;
     onReportError?: (error: Error) => void;
+    pdfUrl?: string | null;
 }
 
 const PDFErrorState: React.FC<PDFErrorStateProps> = ({
@@ -209,6 +211,7 @@ const PDFErrorState: React.FC<PDFErrorStateProps> = ({
     onSwitchWorker,
     canSwitchWorker,
     onReportError,
+    pdfUrl,
 }) => {
     useEffect(() => {
         onReportError?.(error);
@@ -217,30 +220,38 @@ const PDFErrorState: React.FC<PDFErrorStateProps> = ({
     const showWorkerSwitch = canSwitchWorker && isWorkerError(error);
 
     return (
-        <div className="h-full w-full flex items-center justify-center text-white/70 px-6">
-            <div className="max-w-md text-center space-y-4">
-                <div className="w-12 h-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center mx-auto">
+        <div className="h-full w-full flex items-center justify-center text-theme-secondary px-6">
+            <div className="max-w-md text-center space-y-4 rounded-2xl border border-theme-default bg-theme-surface p-6 shadow-theme-md">
+                <div className="w-12 h-12 rounded-full border border-theme-default bg-theme-elevated flex items-center justify-center mx-auto">
                     <span className="text-lg">⚠️</span>
                 </div>
                 <div className="space-y-2">
-                    <p className="text-sm font-semibold text-white">Errore nel caricamento del PDF</p>
-                    <p className="text-xs text-white/50 break-words">
+                    <p className="text-sm font-semibold text-theme-primary">Errore nel caricamento del PDF</p>
+                    <p className="text-xs text-theme-secondary break-words">
                         {error.message || 'Errore sconosciuto'}
                     </p>
                 </div>
                 <div className="flex items-center justify-center gap-2">
                     <button
                         onClick={onRetry}
-                        className="px-3 py-2 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 transition"
+                        className="px-3 py-2 rounded-lg text-xs font-semibold bg-theme-elevated hover:bg-theme-card border border-theme-default hover:border-theme-strong text-theme-primary transition"
                     >
                         Riprova
                     </button>
                     {showWorkerSwitch && onSwitchWorker && (
                         <button
                             onClick={onSwitchWorker}
-                            className="px-3 py-2 rounded-lg text-xs font-semibold bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 hover:border-violet-500/50 transition"
+                            className="px-3 py-2 rounded-lg text-xs font-semibold bg-primary-500/15 hover:bg-primary-500/25 border border-primary-500/35 hover:border-primary-500/55 text-theme-primary transition"
                         >
                             Usa worker esterno
+                        </button>
+                    )}
+                    {pdfUrl && (
+                        <button
+                            onClick={() => window.open(pdfUrl, '_blank', 'noopener,noreferrer')}
+                            className="px-3 py-2 rounded-lg text-xs font-semibold bg-theme-elevated hover:bg-theme-card border border-theme-default hover:border-theme-strong text-theme-primary transition"
+                        >
+                            Apri PDF
                         </button>
                     )}
                 </div>
@@ -303,6 +314,14 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
     }, []);
 
     const canSwitchWorker = workerUrl !== CDN_WORKER_URL;
+    const normalizedPdfUrl = useMemo(() => {
+        if (!pdfUrl || typeof pdfUrl !== 'string') return null;
+        const trimmed = pdfUrl.trim();
+        if (!trimmed) return null;
+        if (/^https?:\/\//i.test(trimmed)) return trimmed;
+        if (trimmed.startsWith('/')) return trimmed;
+        return `/${trimmed}`;
+    }, [pdfUrl]);
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
@@ -382,7 +401,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
 
     // LINE 3: Pinch-to-Zoom handler (trackpad)
     useEffect(() => {
-        if (!pdfUrl || !containerRef.current) return;
+        if (!normalizedPdfUrl || !containerRef.current) return;
 
         const container = containerRef.current;
         let lastWheelTime = 0;
@@ -483,32 +502,31 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                 clearTimeout(zoomTimeoutRef.current);
             }
         };
-    }, [pdfUrl, defaultLayoutPluginInstance]);
+    }, [normalizedPdfUrl, defaultLayoutPluginInstance]);
 
     // LINE 4: Now we can safely handle conditional logic and early returns
     // All hooks have been called, so React's hook order is preserved
-    if (!pdfUrl) {
+    if (!normalizedPdfUrl) {
         return (
-            <div className={`h-full w-full flex flex-col items-center justify-center text-white/40 gap-3 ${className}`}>
-                <div className="w-16 h-16 rounded-full border-2 border-violet-500/20 bg-violet-500/5 backdrop-blur-xl flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
-                    <svg className="w-8 h-8 text-violet-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className={`h-full w-full flex flex-col items-center justify-center text-theme-secondary gap-3 ${className}`}>
+                <div className="w-16 h-16 rounded-full border-2 border-primary-500/25 bg-primary-500/8 backdrop-blur-xl flex items-center justify-center shadow-theme-sm">
+                    <svg className="w-8 h-8 text-primary-500/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                 </div>
-                <p className="text-sm text-slate-400">Nessun PDF disponibile</p>
+                <p className="text-sm text-theme-secondary">Nessun PDF disponibile</p>
             </div>
         );
     }
 
     // LINE 5: Main render - all hooks have been called
     const themeClass = isDarkMode ? 'pdf-reader-dark' : 'pdf-reader-light';
-    const viewerBackground = isDarkMode ? '#0a0a0a' : '#ffffff';
-    const pageBackground = isDarkMode ? '#1a1a1a' : '#f5f5f5';
+    const viewerBackground = isDarkMode ? '#0f1220' : '#f8fafc';
 
     return (
         <div 
             ref={containerRef}
-            className={`h-full w-full ${themeClass} ${className}`}
+            className={`h-full w-full pdf-reader-shell ${themeClass} ${className}`}
         >
             <Worker workerUrl={workerUrl}>
                 <div
@@ -520,7 +538,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                 >
                     <Viewer
                         key={`pdf-viewer-${viewerKey}`}
-                        fileUrl={pdfUrl}
+                        fileUrl={normalizedPdfUrl}
                         plugins={[
                             defaultLayoutPluginInstance,
                             pageNavigationPluginInstance,
@@ -542,6 +560,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                                 onSwitchWorker={canSwitchWorker ? handleSwitchWorker : undefined}
                                 canSwitchWorker={canSwitchWorker}
                                 onReportError={onError}
+                                pdfUrl={normalizedPdfUrl}
                             />
                         )}
                         onDocumentLoad={(e) => {
@@ -553,252 +572,6 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                     />
                 </div>
             </Worker>
-            {/* Dynamic Theme Styles */}
-            <style>{`
-                /* Dark Mode Styles */
-                .pdf-reader-dark .rpv-core__viewer {
-                    background-color: #0a0a0a !important;
-                }
-                .pdf-reader-dark .rpv-core__inner-pages {
-                    background-color: #0a0a0a !important;
-                }
-                .pdf-reader-dark .rpv-core__page-layer {
-                    background-color: #1a1a1a !important;
-                }
-                .pdf-reader-dark .rpv-core__text-layer {
-                    color: transparent !important;
-                }
-                .pdf-reader-dark .rpv-core__text-layer span {
-                    color: transparent !important;
-                }
-                /* Toolbar dark mode */
-                .pdf-reader-dark .rpv-default-layout__toolbar {
-                    background-color: #1a1a1a !important;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-                }
-                .pdf-reader-dark .rpv-default-layout__toolbar button {
-                    color: #ffffff !important;
-                }
-                .pdf-reader-dark .rpv-default-layout__toolbar button:hover {
-                    background-color: rgba(255, 255, 255, 0.1) !important;
-                }
-                .pdf-reader-dark .rpv-core__icon {
-                    color: #ffffff !important;
-                }
-                /* Sidebar dark mode */
-                .pdf-reader-dark .rpv-default-layout__sidebar {
-                    background-color: #1a1a1a !important;
-                    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-                }
-                .pdf-reader-dark .rpv-default-layout__sidebar-tabs {
-                    background-color: #1a1a1a !important;
-                }
-                .pdf-reader-dark .rpv-default-layout__sidebar-tab {
-                    color: #ffffff !important;
-                }
-                .pdf-reader-dark .rpv-default-layout__sidebar-tab--active {
-                    background-color: rgba(139, 92, 246, 0.2) !important;
-                }
-
-                /* Light Mode Styles */
-                .pdf-reader-light .rpv-core__viewer {
-                    background-color: #ffffff !important;
-                }
-                .pdf-reader-light .rpv-core__inner-pages {
-                    background-color: #ffffff !important;
-                }
-                .pdf-reader-light .rpv-core__page-layer {
-                    background-color: #f5f5f5 !important;
-                }
-                .pdf-reader-light .rpv-core__text-layer {
-                    color: transparent !important;
-                }
-                .pdf-reader-light .rpv-core__text-layer span {
-                    color: transparent !important;
-                }
-                /* Toolbar light mode - CRITICAL: icons must be dark */
-                .pdf-reader-light .rpv-default-layout__toolbar {
-                    background-color: #f9fafb !important;
-                    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
-                }
-                .pdf-reader-light .rpv-default-layout__toolbar button {
-                    color: #1f2937 !important;
-                }
-                .pdf-reader-light .rpv-default-layout__toolbar button:hover {
-                    background-color: rgba(0, 0, 0, 0.05) !important;
-                }
-                .pdf-reader-light .rpv-core__icon {
-                    color: #1f2937 !important;
-                }
-                .pdf-reader-light .rpv-core__icon svg {
-                    fill: #1f2937 !important;
-                    stroke: #1f2937 !important;
-                }
-                /* Sidebar light mode */
-                .pdf-reader-light .rpv-default-layout__sidebar {
-                    background-color: #f9fafb !important;
-                    border-right: 1px solid rgba(0, 0, 0, 0.1) !important;
-                }
-                .pdf-reader-light .rpv-default-layout__sidebar-tabs {
-                    background-color: #f9fafb !important;
-                }
-                .pdf-reader-light .rpv-default-layout__sidebar-tab {
-                    color: #1f2937 !important;
-                }
-                .pdf-reader-light .rpv-default-layout__sidebar-tab--active {
-                    background-color: rgba(139, 92, 246, 0.1) !important;
-                }
-
-                /* Fix Black Flash on Zoom - White background during canvas redraw */
-                .rpv-core__page-layer {
-                    background-color: var(--page-bg, #f5f5f5) !important;
-                    transition: background-color 0.1s ease;
-                }
-                .pdf-reader-dark .rpv-core__page-layer {
-                    --page-bg: #1a1a1a;
-                }
-                .pdf-reader-light .rpv-core__page-layer {
-                    --page-bg: #f5f5f5;
-                }
-
-                /* ===== SEARCH HIGHLIGHT STYLES - VIOLET ===== */
-                /* Main highlight styling - visible violet background */
-                .rpv-search__highlight {
-                    background-color: rgba(139, 92, 246, 0.45) !important;
-                    border-radius: 2px !important;
-                    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3) !important;
-                }
-
-                /* Current/active highlight - brighter */
-                .rpv-search__highlight--current {
-                    background-color: rgba(139, 92, 246, 0.7) !important;
-                    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.5), 0 2px 8px rgba(139, 92, 246, 0.4) !important;
-                }
-
-                /* Alternative class names that the library might use */
-                .rpv-search__highlights {
-                    pointer-events: none;
-                }
-
-                .rpv-search__highlights > div {
-                    background-color: rgba(139, 92, 246, 0.45) !important;
-                    border-radius: 2px !important;
-                }
-
-                /* Dark mode specific - slightly brighter for visibility */
-                .pdf-reader-dark .rpv-search__highlight {
-                    background-color: rgba(139, 92, 246, 0.55) !important;
-                    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.4) !important;
-                }
-
-                .pdf-reader-dark .rpv-search__highlight--current {
-                    background-color: rgba(139, 92, 246, 0.8) !important;
-                    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.6), 0 2px 10px rgba(139, 92, 246, 0.5) !important;
-                }
-
-                .pdf-reader-dark .rpv-search__highlights > div {
-                    background-color: rgba(139, 92, 246, 0.55) !important;
-                }
-
-                /* Light mode - ensure contrast */
-                .pdf-reader-light .rpv-search__highlight {
-                    background-color: rgba(139, 92, 246, 0.4) !important;
-                    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25) !important;
-                }
-
-                .pdf-reader-light .rpv-search__highlight--current {
-                    background-color: rgba(139, 92, 246, 0.6) !important;
-                    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.4), 0 2px 8px rgba(139, 92, 246, 0.3) !important;
-                }
-
-                .pdf-reader-light .rpv-search__highlights > div {
-                    background-color: rgba(139, 92, 246, 0.4) !important;
-                }
-
-                /* ===== MENU DROPDOWN STYLES - FIX LIGHT MODE VISIBILITY ===== */
-                /* Menu dropdown dark mode - mantiene stile scuro */
-                .pdf-reader-dark .rpv-default-layout__menu,
-                .pdf-reader-dark .rpv-menu,
-                .pdf-reader-dark .rpv-menu__body,
-                .pdf-reader-dark [class*="rpv-menu"],
-                .pdf-reader-dark [class*="menu"] {
-                    background-color: #1a1a1a !important;
-                    color: #ffffff !important;
-                    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-                }
-                .pdf-reader-dark .rpv-menu__item,
-                .pdf-reader-dark [class*="menu__item"] {
-                    color: #ffffff !important;
-                }
-                .pdf-reader-dark .rpv-menu__item:hover,
-                .pdf-reader-dark [class*="menu__item"]:hover {
-                    background-color: rgba(255, 255, 255, 0.1) !important;
-                }
-
-                /* Menu dropdown light mode - CRITICAL: sfondo chiaro e testo scuro */
-                .pdf-reader-light .rpv-default-layout__menu,
-                .pdf-reader-light .rpv-menu,
-                .pdf-reader-light .rpv-menu__body,
-                .pdf-reader-light [class*="rpv-menu"],
-                .pdf-reader-light [class*="menu"],
-                /* Popup/Overlay che contiene il menu */
-                .pdf-reader-light .rpv-popup__body,
-                .pdf-reader-light [class*="popup__body"],
-                .pdf-reader-light .rpv-core__display--block,
-                .pdf-reader-light [class*="display--block"] {
-                    background-color: #ffffff !important;
-                    color: #1f2937 !important;
-                    border: 1px solid rgba(0, 0, 0, 0.1) !important;
-                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-                }
-                .pdf-reader-light .rpv-menu__item,
-                .pdf-reader-light [class*="menu__item"],
-                .pdf-reader-light .rpv-menu__item-label,
-                .pdf-reader-light [class*="menu__item-label"],
-                .pdf-reader-light .rpv-popup__body *,
-                .pdf-reader-light [class*="popup__body"] * {
-                    color: #1f2937 !important;
-                }
-                .pdf-reader-light .rpv-menu__item:hover,
-                .pdf-reader-light [class*="menu__item"]:hover {
-                    background-color: rgba(0, 0, 0, 0.05) !important;
-                    color: #111827 !important;
-                }
-                .pdf-reader-light .rpv-menu__item--checked,
-                .pdf-reader-light [class*="menu__item--checked"] {
-                    background-color: rgba(139, 92, 246, 0.1) !important;
-                    color: #6b21a8 !important;
-                }
-                /* Icone nel menu light mode */
-                .pdf-reader-light .rpv-menu__icon,
-                .pdf-reader-light [class*="menu__icon"],
-                .pdf-reader-light .rpv-core__icon,
-                .pdf-reader-light .rpv-popup__body .rpv-core__icon,
-                .pdf-reader-light [class*="popup__body"] .rpv-core__icon {
-                    color: #1f2937 !important;
-                }
-                .pdf-reader-light .rpv-menu__icon svg,
-                .pdf-reader-light [class*="menu__icon"] svg,
-                .pdf-reader-light .rpv-popup__body svg,
-                .pdf-reader-light [class*="popup__body"] svg {
-                    fill: #1f2937 !important;
-                    stroke: #1f2937 !important;
-                }
-                /* Separatori nel menu */
-                .pdf-reader-light .rpv-menu__separator,
-                .pdf-reader-light [class*="menu__separator"] {
-                    border-color: rgba(0, 0, 0, 0.1) !important;
-                }
-                /* Testo generico nei popup/menu */
-                .pdf-reader-light .rpv-popup__body,
-                .pdf-reader-light [class*="popup__body"] {
-                    background-color: #ffffff !important;
-                }
-                .pdf-reader-light .rpv-popup__body *,
-                .pdf-reader-light [class*="popup__body"] * {
-                    color: #1f2937 !important;
-                }
-            `}</style>
         </div>
     );
 });

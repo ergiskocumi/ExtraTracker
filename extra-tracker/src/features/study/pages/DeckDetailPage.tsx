@@ -176,10 +176,10 @@ export const DeckDetailPage: React.FC = () => {
     // Loading state
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center bg-theme-base">
                 <div className="flex flex-col items-center gap-4">
                     <div className="animate-spin w-10 h-10 border-3 border-primary-500 border-t-transparent rounded-full" />
-                    <p className="text-white/50 text-sm">Caricamento mazzo...</p>
+                    <p className="text-theme-secondary text-sm">Caricamento mazzo...</p>
                 </div>
             </div>
         );
@@ -188,7 +188,7 @@ export const DeckDetailPage: React.FC = () => {
     // Error state
     if (error || !deck) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 bg-theme-base">
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -198,7 +198,7 @@ export const DeckDetailPage: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                 </motion.div>
-                <p className="text-white/70 text-lg">{error || 'Mazzo non trovato'}</p>
+                <p className="text-theme-secondary text-lg">{error || 'Mazzo non trovato'}</p>
                 <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -212,7 +212,7 @@ export const DeckDetailPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen px-4 sm:px-6 py-6 sm:py-8">
+        <div className="min-h-screen bg-theme-base text-theme-primary px-4 sm:px-6 py-6 sm:py-8">
             <div className="w-full max-w-[1920px] mx-auto">
                 <DeckDetailContent
                     deck={deck}
@@ -265,27 +265,41 @@ export const DeckDetailPage: React.FC = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay backdrop-blur-sm"
                         onClick={(e) => e.target === e.currentTarget && setIsSettingsOpen(false)}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="deck-settings-title"
                     >
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 rounded-2xl border border-white/10 shadow-2xl"
+                            transition={{ type: 'tween', duration: 0.2 }}
+                            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-theme-elevated rounded-2xl border border-theme-default shadow-theme-lg flex flex-col"
                         >
-                            <div className="sticky top-0 bg-slate-900/95 backdrop-blur-xl border-b border-white/10 p-6 flex items-center justify-between z-10">
-                                <h2 className="text-xl font-bold text-white">Impostazioni Mazzo</h2>
+                            <div className="sticky top-0 bg-theme-elevated/95 backdrop-blur-xl border-b border-theme-default px-6 py-5 flex items-center justify-between z-10 shrink-0">
+                                <h2 id="deck-settings-title" className="text-xl font-bold text-theme-primary flex items-center gap-3">
+                                    <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-500/15 text-primary-600 dark:text-primary-400">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </span>
+                                    Impostazioni mazzo
+                                </h2>
                                 <button
+                                    type="button"
                                     onClick={() => setIsSettingsOpen(false)}
-                                    className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-all"
+                                    className="p-2.5 rounded-xl hover:bg-theme-surface text-theme-secondary hover:text-theme-primary transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                                    aria-label="Chiudi impostazioni"
                                 >
-                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
                             </div>
-                            <div className="p-6">
+                            <div className="p-6 pt-5 overflow-y-auto">
                                 <DeckSettings
                                     deck={deck}
                                     onUpdate={(updatedDeck) => {

@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Tag as TagIcon, Plus, X } from 'lucide-react';
 import { tagsService, type Tag } from '../../services/tagsService';
 import { emitToast } from '../../../../shared/components/toast';
+import { classList, studyOrgBadgeClass, studyOrgButtonClass, studyOrgFieldClass } from '../utils/studyButtonClasses';
 
 interface TagCloudProps {
     tags: Tag[];
@@ -65,9 +66,9 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                         whileHover={{ scale: 1.1, rotate: 90 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => setIsCreating(true)}
-                        className="p-1.5 rounded-full bg-violet-500/20 hover:bg-violet-500/30 transition-colors border border-violet-500/30"
+                        className={studyOrgButtonClass('create', 'p-1.5 rounded-full')}
                     >
-                        <Plus className="w-3.5 h-3.5 text-violet-300" />
+                        <Plus className="w-3.5 h-3.5" />
                     </motion.button>
                 )}
             </div>
@@ -86,7 +87,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                             value={newTagName}
                             onChange={(e) => setNewTagName(e.target.value)}
                             placeholder="Nome tag..."
-                            className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
+                            className={studyOrgFieldClass('default', 'w-full px-3 py-2 text-sm rounded-lg')}
                             autoFocus
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
@@ -105,10 +106,10 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                                         whileHover={{ scale: 1.15 }}
                                         whileTap={{ scale: 0.9 }}
                                         onClick={() => setNewTagColor(color)}
-                                        className={`
-                                            w-6 h-6 rounded-full border-2 transition-all
-                                            ${newTagColor === color ? 'border-white scale-110 ring-2 ring-white/50' : 'border-white/20'}
-                                        `}
+                                        className={classList(
+                                            studyOrgButtonClass('base', 'study-org-color-chip w-6 h-6 rounded-full border-2 transition-all'),
+                                            newTagColor === color && 'study-org-color-chip--selected scale-110'
+                                        )}
                                         style={{ backgroundColor: color }}
                                     />
                                 ))}
@@ -123,7 +124,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleCreateTag}
-                                className="flex-1 px-3 py-1.5 text-xs font-medium bg-violet-500/20 text-violet-300 rounded-lg hover:bg-violet-500/30 transition-colors"
+                                className={studyOrgButtonClass('create', 'flex-1 px-3 py-1.5 text-xs font-medium rounded-lg')}
                             >
                                 Crea
                             </button>
@@ -132,7 +133,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                                     setIsCreating(false);
                                     setNewTagName('');
                                 }}
-                                className="px-3 py-1.5 text-xs font-medium bg-white/5 text-white/60 rounded-lg hover:bg-white/10 transition-colors"
+                                className={studyOrgButtonClass('cancel', 'px-3 py-1.5 text-xs font-medium rounded-lg')}
                             >
                                 Annulla
                             </button>
@@ -153,7 +154,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                         <p className="text-xs text-white/40 mb-2">Nessun tag ancora</p>
                         <button
                             onClick={() => setIsCreating(true)}
-                            className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+                            className={studyOrgButtonClass('text', 'text-xs')}
                         >
                             Crea il tuo primo tag →
                         </button>
@@ -167,14 +168,10 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                                 whileHover={{ x: 4 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={() => onTagToggle(tag.name)}
-                                className={`
-                                    w-full flex items-center gap-2 px-3 py-2 rounded-lg
-                                    transition-all duration-200 touch-manipulation min-h-[40px]
-                                    ${isSelected
-                                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30 shadow-lg shadow-violet-500/10'
-                                        : 'hover:bg-white/5 text-white/70 hover:text-white border border-transparent'
-                                    }
-                                `}
+                                className={studyOrgButtonClass(
+                                    isSelected ? 'tagSelected' : 'tag',
+                                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 touch-manipulation min-h-[40px]'
+                                )}
                             >
                                 <motion.div
                                     whileHover={{ scale: 1.1 }}
@@ -188,7 +185,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                                     <motion.span
                                         initial={{ scale: 0.8 }}
                                         animate={{ scale: 1 }}
-                                        className="text-xs text-white/40 px-1.5 py-0.5 rounded-full bg-white/5 font-medium"
+                                        className={studyOrgBadgeClass('subtle', 'text-xs px-1.5 py-0.5 rounded-full')}
                                     >
                                         {tag.count}
                                     </motion.span>

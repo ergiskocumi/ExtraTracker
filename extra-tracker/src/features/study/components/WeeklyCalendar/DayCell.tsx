@@ -50,13 +50,14 @@ export const DayCell: React.FC<DayCellProps> = ({
             whileHover={{ scale: 1.04, y: -2 }}
             whileTap={{ scale: 0.97 }}
             className={`
-                relative flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl
+                weekly-calendar-day-cell
+                relative flex flex-col items-center gap-1 p-2 sm:p-3 rounded-2xl
                 transition-all duration-200 cursor-pointer min-w-0 w-full
                 ${isSelected
                     ? 'ring-2 ring-primary-500/40 bg-primary-500/10 border border-primary-500/30'
                     : isToday
                         ? 'border border-primary-500/60 bg-gradient-to-b from-primary-500/15 to-primary-500/5'
-                        : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20'
+                        : 'weekly-calendar-day-cell--default border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20'
                 }
             `}
             role="gridcell"
@@ -72,7 +73,7 @@ export const DayCell: React.FC<DayCellProps> = ({
 
             {/* Day name */}
             <span className={`
-                text-[10px] sm:text-xs font-semibold uppercase tracking-wider
+                weekly-calendar-day-name text-[10px] sm:text-xs font-semibold uppercase tracking-wider
                 ${isToday ? 'text-primary-400' : 'text-white/50'}
             `}>
                 {dayName}
@@ -80,14 +81,14 @@ export const DayCell: React.FC<DayCellProps> = ({
 
             {/* Day number */}
             <span className={`
-                text-base sm:text-lg font-bold leading-none
+                weekly-calendar-day-num text-base sm:text-lg font-bold leading-none
                 ${isToday ? 'text-white' : isSelected ? 'text-white/90' : 'text-white/70'}
             `}>
                 {dayNumber}
             </span>
 
             {/* Workload bar */}
-            <div className="w-full h-1 sm:h-1.5 rounded-full bg-white/10 overflow-hidden mt-0.5">
+            <div className="weekly-calendar-day-bar w-full h-1 sm:h-1.5 rounded-full bg-white/10 overflow-hidden mt-0.5">
                 {dueCards > 0 && (
                     <motion.div
                         initial={{ width: 0 }}
@@ -109,7 +110,7 @@ export const DayCell: React.FC<DayCellProps> = ({
             {/* Due count */}
             {dueCards > 0 && (
                 <span className={`
-                    text-[10px] sm:text-xs font-bold tabular-nums
+                    weekly-calendar-day-due text-[10px] sm:text-xs font-bold tabular-nums
                     ${intensity > 0.6 ? 'text-orange-400' : 'text-white/60'}
                 `}>
                     {dueCards}
@@ -127,7 +128,7 @@ export const DayCell: React.FC<DayCellProps> = ({
                         />
                     ))}
                     {extraDots > 0 && (
-                        <span className="text-[8px] text-white/40 font-medium ml-0.5">
+                        <span className="weekly-calendar-day-extra text-[8px] text-white/40 font-medium ml-0.5">
                             +{extraDots}
                         </span>
                     )}

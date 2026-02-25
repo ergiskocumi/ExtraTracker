@@ -36,6 +36,7 @@ export const DecksDashboardPage: React.FC = () => {
     const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showCompletionModal, setShowCompletionModal] = useState(false);
+    const [isCreateExamModalOpen, setIsCreateExamModalOpen] = useState(false);
 
     // Sidebar organization state (kept for DashboardLayout compatibility)
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -188,9 +189,10 @@ export const DecksDashboardPage: React.FC = () => {
             onTagToggle={handleTagToggle}
             onDeckDrop={handlers.handleDeckDrop}
             onRefresh={handleRefreshOrganization}
-            onCreateDeck={() => handlers.setIsCreateModalOpen(true)}
+            onCreateDeck={() => setIsCreateExamModalOpen(true)}
             onExamSolver={() => handlers.handleExamSolver()}
-            onCreateExam={() => handlers.setIsCreateModalOpen(true)}
+            onCreateExam={() => setIsCreateExamModalOpen(true)}
+            onCreateChapter={() => handlers.setIsCreateModalOpen(true)}
             selectedExamName={selectedExam?.title || null}
             onBackToExams={handleBackToExams}
             onCompleteExam={() => setShowCompletionModal(true)}
@@ -259,12 +261,16 @@ export const DecksDashboardPage: React.FC = () => {
 
             {/* ═══ MODALS ═══ */}
             <DashboardModals
+                isCreateExamModalOpen={isCreateExamModalOpen}
+                onCreateExamModalClose={() => setIsCreateExamModalOpen(false)}
+                onExamOnlyCreated={() => refreshExams()}
                 isCreateModalOpen={handlers.isCreateModalOpen}
                 onCreateModalClose={() => handlers.setIsCreateModalOpen(false)}
                 onCreateDeck={handlers.handleCreateDeck}
                 onExamCreated={() => {
                     refreshExams();
                 }}
+                presetExamId={selectedExamId ?? undefined}
                 isAddCardModalOpen={handlers.isAddCardModalOpen}
                 selectedDeck={handlers.selectedDeck}
                 onAddCardModalClose={() => {

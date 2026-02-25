@@ -181,10 +181,18 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
 
     return (
         <div
-            className="fixed left-0 right-0 bottom-0 bg-[#0a0a0f] text-white overflow-hidden flex flex-col"
+            className="fixed left-0 right-0 bottom-0 bg-theme-base text-theme-primary overflow-hidden flex flex-col"
             style={{ top: 'var(--app-header-height, 56px)' }}
         >
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.12),_transparent_55%),radial-gradient(ellipse_at_bottom,_rgba(99,102,241,0.08),_transparent_60%)]" />
+            <div
+                className="pointer-events-none absolute inset-0"
+                style={{
+                    background: `
+                        radial-gradient(ellipse at top, var(--gradient-mesh-1), transparent 55%),
+                        radial-gradient(ellipse at bottom, var(--gradient-mesh-2), transparent 60%)
+                    `,
+                }}
+            />
             {/* Main Body - Container principale con stile moderno */}
             <div className="flex-1 w-full h-full overflow-hidden">
                 <motion.div
@@ -198,37 +206,41 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                         <Panel 
                             defaultSize={PANEL_SIZES.LEFT_DEFAULT} 
                             minSize={PANEL_SIZES.LEFT_MIN} 
-                            className="h-full w-full overflow-hidden min-w-0"
+                            className="h-full w-full overflow-hidden min-w-0 pr-1 sm:pr-2"
                         >
-                            <PDFPanel 
-                                pdfSrc={pdfSrc} 
-                                pdfReaderRef={pdfReaderRef}
-                                onSearchError={handleSearchError}
-                            />
+                            <div className="h-full w-full rounded-2xl border border-theme-default bg-theme-elevated shadow-theme-md overflow-hidden">
+                                <PDFPanel 
+                                    pdfSrc={pdfSrc} 
+                                    pdfReaderRef={pdfReaderRef}
+                                    onSearchError={handleSearchError}
+                                />
+                            </div>
                         </Panel>
 
                         {/* Resize Handle - Stile moderno discreto */}
-                        <Separator className="w-2 bg-transparent cursor-col-resize relative group">
-                            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-white/10 group-hover:bg-violet-400/60 transition-colors" />
+                        <Separator className="w-2 sm:w-3 bg-transparent cursor-col-resize relative group">
+                            <div className="absolute inset-y-2 left-1/2 -translate-x-1/2 w-px bg-theme-surface group-hover:bg-primary-500/70 transition-colors rounded-full" />
                         </Separator>
 
                         {/* Pannello Destro - Tools (Flashcards & Chat) */}
                         <Panel 
                             defaultSize={PANEL_SIZES.RIGHT_DEFAULT} 
                             minSize={PANEL_SIZES.RIGHT_MIN} 
-                            className="h-full overflow-hidden min-w-0"
+                            className="h-full overflow-hidden min-w-0 pl-1 sm:pl-2"
                         >
-                            <StudySidebar
-                                deck={deck}
-                                pdfSrc={pdfSrc}
-                                onAddCard={handleAddCard}
-                                onUpdateCard={handleUpdateCard}
-                                compactMode={true}
-                                onNavigateBack={handleNavigateBack}
-                                onDeckUpdate={onDeckUpdate}
-                                onShowSource={handleShowSource}
-                                activeSourceCardId={activeSourceCardId}
-                            />
+                            <div className="h-full rounded-2xl border border-theme-default bg-theme-elevated shadow-theme-md overflow-hidden">
+                                <StudySidebar
+                                    deck={deck}
+                                    pdfSrc={pdfSrc}
+                                    onAddCard={handleAddCard}
+                                    onUpdateCard={handleUpdateCard}
+                                    compactMode={true}
+                                    onNavigateBack={handleNavigateBack}
+                                    onDeckUpdate={onDeckUpdate}
+                                    onShowSource={handleShowSource}
+                                    activeSourceCardId={activeSourceCardId}
+                                />
+                            </div>
                         </Panel>
                     </Group>
                 </motion.div>

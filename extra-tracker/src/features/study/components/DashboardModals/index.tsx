@@ -1,5 +1,6 @@
 import React from 'react';
 import { CreateDeckModal } from '../Modals/CreateDeckModal';
+import { CreateExamOnlyModal } from '../Modals/CreateExamOnlyModal';
 import { AddCardModal } from '../AddCardModal';
 import { MagicGenerateModal } from '../Modals/MagicGenerateModal';
 import { ExamSolverModal, type ExamSolverStats } from '../Modals/ExamSolver';
@@ -8,11 +9,18 @@ import { ConfirmationModal } from '../../../../shared/components/ConfirmationMod
 import type { Deck, CreateDeckPayload, AddCardPayload } from '../../services/studyService';
 
 interface DashboardModalsProps {
-    // Create Deck Modal
+    // Create Exam Only Modal (da /study senza esame selezionato)
+    isCreateExamModalOpen: boolean;
+    onCreateExamModalClose: () => void;
+    onExamOnlyCreated?: () => void;
+
+    // Create Deck/Chapter Modal (con esame pre-selezionato o flusso completo)
     isCreateModalOpen: boolean;
     onCreateModalClose: () => void;
     onCreateDeck: (data: CreateDeckPayload) => Promise<void>;
-    onExamCreated?: () => void; // Callback quando viene creato un nuovo esame
+    onExamCreated?: () => void;
+    /** Esame già selezionato: mostra solo il form capitolo, salta Step 1 */
+    presetExamId?: string;
 
     // Add Card Modal
     isAddCardModalOpen: boolean;
@@ -46,10 +54,14 @@ interface DashboardModalsProps {
 }
 
 export const DashboardModals: React.FC<DashboardModalsProps> = ({
+    isCreateExamModalOpen,
+    onCreateExamModalClose,
+    onExamOnlyCreated,
     isCreateModalOpen,
     onCreateModalClose,
     onCreateDeck,
     onExamCreated,
+    presetExamId,
     isAddCardModalOpen,
     selectedDeck,
     onAddCardModalClose,
@@ -73,11 +85,20 @@ export const DashboardModals: React.FC<DashboardModalsProps> = ({
 }) => {
     return (
         <>
+            {/* Modale esame-only: da /study senza esame selezionato */}
+            <CreateExamOnlyModal
+                isOpen={isCreateExamModalOpen}
+                onClose={onCreateExamModalClose}
+                onSuccess={onExamOnlyCreated}
+            />
+
+            {/* Modale capitolo: con presetExamId salta Step 1; senza, flusso completo */}
             <CreateDeckModal
                 isOpen={isCreateModalOpen}
                 onClose={onCreateModalClose}
                 onSubmit={onCreateDeck}
                 onExamCreated={onExamCreated}
+                presetExamId={presetExamId}
             />
 
             <AddCardModal

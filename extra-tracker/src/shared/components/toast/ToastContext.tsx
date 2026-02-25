@@ -292,8 +292,9 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
         <ToastContext.Provider value={contextValue}>
             {children}
             
-            {/* Toast Container - Portal fixed */}
+            {/* Toast Container - Portal fixed; role="status" for live announcements (WCAG) */}
             <div
+                role="status"
                 aria-live="polite"
                 aria-label="Notifiche"
                 className={`

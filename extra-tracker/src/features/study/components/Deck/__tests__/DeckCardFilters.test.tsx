@@ -7,8 +7,6 @@ const buildProps = () => ({
     onFilterChange: vi.fn(),
     searchQuery: '',
     onSearchChange: vi.fn(),
-    viewMode: 'grid' as const,
-    onViewModeChange: vi.fn(),
     sortBy: 'order' as const,
     onSortChange: vi.fn(),
     counts: {
@@ -56,25 +54,12 @@ describe('DeckCardFilters', () => {
         expect(props.onSearchChange).toHaveBeenCalledWith('');
     });
 
-    it('changes sort and toggles grid/list view', () => {
+    it('changes sort option', () => {
         const props = buildProps();
-        const { rerender } = render(<DeckCardFilters {...props} />);
+        render(<DeckCardFilters {...props} />);
 
         fireEvent.change(screen.getByRole('combobox'), { target: { value: 'interval' } });
         expect(props.onSortChange).toHaveBeenCalledWith('interval');
-
-        fireEvent.click(screen.getByLabelText(/Vista lista/i));
-        expect(props.onViewModeChange).toHaveBeenCalledWith('list');
-
-        rerender(
-            <DeckCardFilters
-                {...props}
-                viewMode="list"
-            />
-        );
-
-        fireEvent.click(screen.getByLabelText(/Vista griglia/i));
-        expect(props.onViewModeChange).toHaveBeenCalledWith('grid');
     });
 
     it('shows clear filters CTA only with active filter/search and resets both', () => {

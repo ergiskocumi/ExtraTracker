@@ -24,6 +24,26 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
     onMagicGenerate,
     onAddCard,
 }) => {
+    const primaryButtonBaseClass = `
+        study-deck-primary-btn
+        w-full flex items-center justify-center gap-2 sm:gap-2.5
+        px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
+        font-semibold text-sm sm:text-base transition-all
+        active:scale-[0.98] touch-manipulation
+        min-h-[48px] sm:min-h-[52px]
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/45 focus-visible:ring-offset-2
+    `;
+
+    const secondaryButtonBaseClass = `
+        study-deck-secondary-btn
+        flex items-center justify-center gap-1 sm:gap-1.5
+        px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg
+        font-medium text-[10px] sm:text-xs transition-all
+        active:scale-[0.95] touch-manipulation
+        min-h-[36px] sm:min-h-[40px]
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/35 focus-visible:ring-offset-2
+    `;
+
     return (
         <div className="space-y-2 sm:space-y-2.5 mt-auto">
             {/* Primary CTA: Study / Review / Magic Generate */}
@@ -38,15 +58,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                         }}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        className="
-                            relative w-full flex items-center justify-center gap-2 sm:gap-2.5 
-                            px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                            font-semibold text-sm sm:text-base transition-all
-                            bg-gradient-to-r from-amber-500 to-orange-600 text-white 
-                            shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40
-                            touch-manipulation min-h-[48px] sm:min-h-[52px]
-                            overflow-hidden
-                        "
+                        className={`${primaryButtonBaseClass} study-deck-primary-btn--ai relative overflow-hidden`}
                     >
                         {/* Effetto shimmer glitterato arancione */}
                         <motion.div
@@ -159,16 +171,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                             e.stopPropagation();
                             onAddCard(deck.id);
                         }}
-                        className="
-                            w-full flex items-center justify-center gap-1.5 sm:gap-2 
-                            px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl
-                            font-medium text-xs sm:text-sm transition-all
-                            bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80
-                            border border-white/10 hover:border-white/20
-                            active:scale-[0.95] touch-manipulation
-                            min-h-[36px] sm:min-h-[40px]
-                            opacity-60 hover:opacity-100
-                        "
+                        className="study-deck-secondary-btn study-deck-secondary-btn--wide w-full flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-medium text-xs sm:text-sm transition-all active:scale-[0.95] touch-manipulation min-h-[36px] sm:min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/35 focus-visible:ring-offset-2"
                         title="Aggiungi carta"
                     >
                         <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -189,15 +192,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                                 }}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
-                                className="
-                                    w-full flex items-center justify-center gap-2 sm:gap-2.5 
-                                    px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                    font-semibold text-sm sm:text-base transition-all
-                                    bg-gradient-to-r from-indigo-500 to-violet-600 text-white 
-                                    shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40
-                                    active:scale-[0.98] touch-manipulation
-                                    min-h-[48px] sm:min-h-[52px]
-                                "
+                                className={`${primaryButtonBaseClass} study-deck-primary-btn--focus`}
                             >
                                 <Monitor className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                                 <span>Focus & Flow</span>
@@ -210,16 +205,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                                         e.stopPropagation();
                                         onStudy(deck.id);
                                     }}
-                                    className="
-                                        flex-1 flex items-center justify-center gap-1 sm:gap-1.5 
-                                        px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg
-                                        font-medium text-[10px] sm:text-xs transition-all
-                                        bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80
-                                        border border-white/10 hover:border-white/20
-                                        active:scale-[0.95] touch-manipulation
-                                        min-h-[36px] sm:min-h-[40px]
-                                        opacity-60 hover:opacity-100
-                                    "
+                                    className={`${secondaryButtonBaseClass} study-deck-secondary-btn--compact flex-1`}
                                     title="Ripassa (Flashcards)"
                                 >
                                     <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
@@ -230,17 +216,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                                         e.stopPropagation();
                                         onMagicGenerate(deck);
                                     }}
-                                    className="
-                                        flex-1 flex items-center justify-center 
-                                        px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg
-                                        font-medium text-[9px] sm:text-[10px] transition-all
-                                        bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80
-                                        border border-white/10 hover:border-white/20
-                                        active:scale-[0.95] touch-manipulation
-                                        min-h-[36px] sm:min-h-[40px]
-                                        opacity-60 hover:opacity-100
-                                        text-center leading-tight
-                                    "
+                                    className={`${secondaryButtonBaseClass} study-deck-secondary-btn--compact study-deck-secondary-btn--ai flex-1 text-[9px] sm:text-[10px] text-center leading-tight`}
                                     title="Magic AI"
                                 >
                                     <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
@@ -251,16 +227,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                                         e.stopPropagation();
                                         onAddCard(deck.id);
                                     }}
-                                    className="
-                                        flex-1 flex items-center justify-center gap-1 sm:gap-1.5 
-                                        px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg
-                                        font-medium text-[10px] sm:text-xs transition-all
-                                        bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80
-                                        border border-white/10 hover:border-white/20
-                                        active:scale-[0.95] touch-manipulation
-                                        min-h-[36px] sm:min-h-[40px]
-                                        opacity-60 hover:opacity-100
-                                    "
+                                    className={`${secondaryButtonBaseClass} study-deck-secondary-btn--compact flex-1`}
                                     title="Aggiungi carta"
                                 >
                                     <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
@@ -278,14 +245,10 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                                     onStudy(deck.id);
                                 }}
                                 className={`
-                                    w-full flex items-center justify-center gap-2 sm:gap-2.5 
-                                    px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-                                    font-semibold text-sm sm:text-base transition-all
-                                    active:scale-[0.98] touch-manipulation
-                                    min-h-[48px] sm:min-h-[52px]
+                                    ${primaryButtonBaseClass}
                                     ${hasDueCards
-                                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40'
-                                        : 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/35'
+                                        ? 'study-deck-primary-btn--review-urgent'
+                                        : 'study-deck-primary-btn--review-calm'
                                     }
                                 `}
                             >
@@ -300,17 +263,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                                         e.stopPropagation();
                                         onMagicGenerate(deck);
                                     }}
-                                    className="
-                                        w-full sm:flex-1 flex items-center justify-center gap-1 sm:gap-1.5
-                                        px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg
-                                        font-medium text-[10px] sm:text-xs transition-all
-                                        bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80
-                                        border border-white/10 hover:border-white/20
-                                        active:scale-[0.95] touch-manipulation
-                                        min-h-[36px] sm:min-h-[40px]
-                                        opacity-60 hover:opacity-100
-                                        text-center leading-tight whitespace-nowrap
-                                    "
+                                    className={`${secondaryButtonBaseClass} study-deck-secondary-btn--compact study-deck-secondary-btn--ai w-full sm:flex-1 text-center leading-tight whitespace-nowrap`}
                                     title="Genera con AI"
                                 >
                                     <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
@@ -321,16 +274,7 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
                                         e.stopPropagation();
                                         onAddCard(deck.id);
                                     }}
-                                    className="
-                                        w-full sm:flex-1 flex items-center justify-center gap-1 sm:gap-1.5 
-                                        px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg
-                                        font-medium text-[10px] sm:text-xs transition-all
-                                        bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80
-                                        border border-white/10 hover:border-white/20
-                                        active:scale-[0.95] touch-manipulation
-                                        min-h-[36px] sm:min-h-[40px]
-                                        opacity-60 hover:opacity-100
-                                    "
+                                    className={`${secondaryButtonBaseClass} study-deck-secondary-btn--compact w-full sm:flex-1`}
                                     title="Aggiungi carta"
                                 >
                                     <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />

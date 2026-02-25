@@ -39,12 +39,10 @@ export const ANIMATION_CONFIG = {
 
 export const CARD_STYLES = {
     base: {
-        borderRadius: 'rounded-2xl',
-        padding: 'p-5 md:p-6', 
+        borderRadius: 'rounded-xl',
+        padding: 'p-3.5 md:p-4',
         border: 'border border-theme-default',
-        shadow: 'shadow-theme-sm',
         transition: 'transition-colors duration-200',
-        height: 'h-full flex flex-col',
         hover: {
             border: 'hover:border-theme-strong',
             shadow: 'hover:shadow-theme-md',
@@ -53,11 +51,12 @@ export const CARD_STYLES = {
     sourceActive: {
         border: 'border-violet-500/40',
         shadow: 'shadow-[0_0_16px_rgba(139,92,246,0.25)]',
-        background: 'rgba(139, 92, 246, 0.1)', // CSS value for inline style
+        background: 'bg-violet-500/10',
     },
     default: {
         border: 'border-theme-default',
-        background: 'var(--bg-card)', // Use CSS variable for theme-aware background
+        background: 'bg-theme-card',
+        shadow: 'shadow-theme-sm',
     },
 } as const;
 
@@ -65,18 +64,18 @@ export const BADGE_STYLES = {
     question: {
         size: 'w-7 h-7 md:w-8 md:h-8',
         borderRadius: 'rounded-full',
-        background: 'bg-violet-500/15',
-        border: 'border border-violet-500/30',
-        text: 'text-[10px] font-semibold text-violet-200',
-        shadow: '',
+        background: 'bg-violet-500/25',
+        border: 'border border-violet-500/40',
+        text: 'text-xs font-bold text-violet-700',
+        shadow: 'shadow-sm',
     },
     answer: {
         size: 'w-7 h-7 md:w-8 md:h-8',
         borderRadius: 'rounded-full',
-        background: 'bg-amber-500/10',
-        border: 'border border-amber-500/25',
-        text: 'text-[10px] font-semibold text-amber-200',
-        shadow: '',
+        background: 'bg-amber-500/25',
+        border: 'border border-amber-500/40',
+        text: 'text-xs font-bold text-amber-700',
+        shadow: 'shadow-sm',
     },
 } as const;
 
@@ -91,9 +90,9 @@ export const BUTTON_STYLES = {
     edit: {
         border: 'border-white/[0.08]',
         background: 'bg-white/[0.05]',
-        text: 'text-theme-secondary',
+        text: 'text-white/70',
         hover: {
-            text: 'hover:text-theme-primary',
+            text: 'hover:text-white',
             background: 'hover:bg-white/[0.10]',
         },
     },
@@ -138,9 +137,9 @@ export const BUTTON_STYLES = {
     cancel: {
         border: 'border-white/[0.08]',
         background: 'bg-white/[0.05]',
-        text: 'text-theme-secondary',
+        text: 'text-slate-300',
         hover: {
-            text: 'hover:text-theme-primary',
+            text: 'hover:text-white',
             background: 'hover:bg-white/[0.10]',
         },
         disabled: {
@@ -173,8 +172,8 @@ export const INPUT_STYLES = {
         background: 'bg-white/[0.05]',
         border: 'border border-white/[0.08]',
         backdrop: 'backdrop-blur-sm',
-        text: 'text-theme-primary',
-        placeholder: 'placeholder:text-theme-muted',
+        text: 'text-white',
+        placeholder: 'placeholder:text-slate-400',
         focus: {
             outline: 'focus:outline-none',
             ring: 'focus:ring-2 focus:ring-violet-500/50',
@@ -256,8 +255,8 @@ export const LAYOUT = {
         paddingTop: 'pt-3',
     },
     text: {
-        question: 'text-sm md:text-base font-semibold leading-relaxed text-theme-primary',
-        answer: 'text-sm md:text-base leading-relaxed whitespace-pre-wrap text-theme-secondary',
+        question: 'text-sm md:text-base font-semibold leading-relaxed text-white',
+        answer: 'text-sm md:text-base leading-relaxed whitespace-pre-wrap text-white/80',
     },
     divider: {
         border: 'border-t border-white/[0.08]',

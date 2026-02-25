@@ -31,6 +31,8 @@ interface DashboardLayoutProps {
     onCreateDeck: () => void;
     onExamSolver?: () => void;
     onCreateExam?: () => void;
+    /** Apre il modale "Nuovo Capitolo" quando si è dentro un esame */
+    onCreateChapter?: () => void;
     selectedExamName?: string | null; // Nome dell'esame selezionato
     onBackToExams?: () => void; // Callback per tornare agli esami
     onCompleteExam?: () => void; // Callback per completare l'esame
@@ -58,6 +60,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     onCreateDeck,
     onExamSolver,
     onCreateExam,
+    onCreateChapter,
     selectedExamName,
     onBackToExams,
     onCompleteExam,
@@ -97,7 +100,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <div className="max-w-6xl mx-auto">
                     {/* Header */}
                     <header className="mb-4 sm:mb-6 md:mb-8">
-                        <DashboardHeader 
+                        <DashboardHeader
                             onCreateDeck={onCreateDeck}
                             onExamSolver={onExamSolver}
                             selectedFolderName={selectedFolderName}
@@ -106,6 +109,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                             onBackToExams={onBackToExams}
                             onCompleteExam={onCompleteExam}
                             selectedExamId={selectedExamId}
+                            onCreateChapter={onCreateChapter}
                         />
                     </header>
                     {children}

@@ -333,7 +333,7 @@ const Header = () => {
         <motion.header
             initial={{ y: -100 }}
             animate={{ y: 0 }}
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+            className={`landing-header fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
                 scrolled ? 'bg-dark-500/90 backdrop-blur-xl border-b border-white/5' : ''
             }`}
         >
@@ -357,7 +357,7 @@ const Header = () => {
                             <motion.button
                                 key={item.id}
                                 onClick={() => scrollToSection(item.id)}
-                                className="text-sm text-white/60 hover:text-white transition-colors"
+                                className="landing-nav-link text-sm text-white/60 hover:text-white transition-colors"
                                 whileHover={{ y: -2 }}
                             >
                                 {item.label}
@@ -366,20 +366,20 @@ const Header = () => {
                     </nav>
                     
                     <div className="flex items-center gap-3">
-                        <a href={`${APP_URL}/login`} className="hidden sm:block text-sm text-white/60 hover:text-white transition-colors">
+                        <a href={`${APP_URL}/login`} className="landing-nav-link hidden sm:block text-sm text-white/60 hover:text-white transition-colors">
                             Accedi
                         </a>
                         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                             <a
                                 href={`${APP_URL}/register`}
-                                className="px-4 py-2 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 text-sm font-medium text-white hover:shadow-glow transition-shadow"
+                                className="landing-primary-btn px-4 py-2 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 text-sm font-medium text-white hover:shadow-glow transition-shadow"
                             >
                                 Inizia Gratis
                             </a>
                         </motion.div>
                         
                         <button 
-                            className="md:hidden p-2 text-white/60 hover:text-white"
+                            className="landing-icon-btn md:hidden p-2 text-white/60 hover:text-white"
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                         >
                             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -391,7 +391,7 @@ const Header = () => {
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
-                        className="md:hidden py-4 border-t border-white/10"
+                        className="landing-mobile-panel md:hidden py-4 border-t border-white/10"
                     >
                         <nav className="flex flex-col gap-4">
                             {[
@@ -402,12 +402,12 @@ const Header = () => {
                                 <button
                                     key={item.id}
                                     onClick={() => scrollToSection(item.id)}
-                                    className="text-left text-sm text-white/60 hover:text-white transition-colors py-2"
+                                    className="landing-nav-link text-left text-sm text-white/60 hover:text-white transition-colors py-2"
                                 >
                                     {item.label}
                                 </button>
                             ))}
-                            <a href={`${APP_URL}/login`} className="text-sm text-white/60 hover:text-white transition-colors py-2">
+                            <a href={`${APP_URL}/login`} className="landing-nav-link text-sm text-white/60 hover:text-white transition-colors py-2">
                                 Accedi
                             </a>
                         </nav>
@@ -423,7 +423,7 @@ const HeroSection = () => {
     const opacity = useTransform(scrollY, [0, 300], [1, 0]);
     
     return (
-        <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+        <section className="landing-section landing-section--hero relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
             <ParticleBackground />
             <GradientOrb className="top-20 left-10 w-96 h-96" />
             <GradientOrb className="bottom-20 right-10 w-80 h-80" colors="from-emerald-500/20 to-teal-500/20" />
@@ -484,7 +484,7 @@ const HeroSection = () => {
                         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                             <a
                                 href={`${APP_URL}/register`}
-                                className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold hover:shadow-glow transition-all"
+                                className="landing-primary-btn group flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold hover:shadow-glow transition-all"
                             >
                                 Prova Gratis - Nessuna Carta
                                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -495,7 +495,7 @@ const HeroSection = () => {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => document.getElementById('funzionalita')?.scrollIntoView({ behavior: 'smooth' })}
-                            className="flex items-center gap-2 px-6 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition-colors"
+                            className="landing-secondary-btn flex items-center gap-2 px-6 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition-colors"
                         >
                             <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center">
                                 <Play className="w-4 h-4 text-violet-400 ml-0.5" />
@@ -536,7 +536,7 @@ const HowItWorksSection = () => {
     const isInView = useInView(ref, { once: true, margin: "-100px" });
     
     return (
-        <section id="come-funziona" className="relative py-32 overflow-hidden">
+        <section id="come-funziona" className="landing-section landing-section--how relative py-32 overflow-hidden">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <motion.div
                     ref={ref}
@@ -574,7 +574,7 @@ const HowItWorksSection = () => {
                                 <div className="hidden lg:block absolute top-12 left-full w-full h-0.5 bg-gradient-to-r from-violet-500/50 to-transparent" />
                             )}
                             
-                            <div className="relative p-6 rounded-2xl bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 hover:border-violet-500/30 transition-all">
+                            <div className="landing-surface-card relative p-6 rounded-2xl bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 hover:border-violet-500/30 transition-all">
                                 <div className="text-5xl font-bold text-white/10 mb-4">{step.step}</div>
                                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-4">
                                     <step.icon className="w-6 h-6 text-white" />
@@ -602,7 +602,7 @@ const InteractiveDemo = () => {
     const activeFeature = DEMO_FEATURES.find(f => f.id === activeTab) || DEMO_FEATURES[0];
     
     return (
-        <section id="funzionalita" className="relative py-32 overflow-hidden">
+        <section id="funzionalita" className="landing-section landing-section--features relative py-32 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-violet-950/10 via-transparent to-transparent" />
             
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -641,9 +641,9 @@ const InteractiveDemo = () => {
                         <button
                             key={feature.id}
                             onClick={() => setActiveTab(feature.id)}
-                            className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all ${
+                            className={`landing-feature-tab flex items-center gap-2 px-4 py-3 rounded-xl transition-all ${
                                 activeTab === feature.id
-                                    ? 'bg-violet-500/20 border border-violet-500/50 text-white'
+                                    ? 'landing-feature-tab--active bg-violet-500/20 border border-violet-500/50 text-white'
                                     : 'bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white'
                             }`}
                         >
@@ -692,7 +692,7 @@ const InteractiveDemo = () => {
                     >
                         <div className="absolute -inset-4 bg-gradient-to-r from-violet-500/20 via-purple-500/20 to-blue-500/20 rounded-3xl blur-2xl opacity-50" />
                         
-                        <div className="relative rounded-2xl bg-dark-400 border border-white/10 overflow-hidden shadow-2xl">
+                        <div className="landing-preview-shell relative rounded-2xl bg-dark-400 border border-white/10 overflow-hidden shadow-2xl">
                             {/* Browser Chrome */}
                             <div className="flex items-center gap-2 px-4 py-3 bg-dark-500 border-b border-white/5">
                                 <div className="flex gap-2">
@@ -1408,7 +1408,7 @@ const TestimonialsSection = () => {
     const isInView = useInView(ref, { once: true, margin: "-100px" });
     
     return (
-        <section className="relative py-32 overflow-hidden">
+        <section className="landing-section landing-section--testimonials relative py-32 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-950/10 to-transparent" />
             
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1440,7 +1440,7 @@ const TestimonialsSection = () => {
                             key={testimonial.name}
                             variants={fadeInUp}
                             whileHover={{ y: -5 }}
-                            className="relative p-6 rounded-2xl bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10"
+                            className="landing-surface-card relative p-6 rounded-2xl bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10"
                         >
                             <div className="absolute -top-3 right-4 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-medium border border-emerald-500/30">
                                 {testimonial.improvement}
@@ -1478,7 +1478,7 @@ const PricingSection = () => {
     const isInView = useInView(ref, { once: true, margin: "-100px" });
     
     return (
-        <section id="prezzi" className="relative py-32 overflow-hidden">
+        <section id="prezzi" className="landing-section landing-section--pricing relative py-32 overflow-hidden">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <motion.div
                     ref={ref}
@@ -1511,10 +1511,10 @@ const PricingSection = () => {
                             key={plan.name}
                             variants={fadeInUp}
                             whileHover={{ y: -10 }}
-                            className={`relative p-8 rounded-2xl ${plan.popular ? 'ring-2 ring-violet-500' : ''}`}
+                            className={`landing-pricing-card relative p-8 rounded-2xl ${plan.popular ? 'ring-2 ring-violet-500' : ''}`}
                         >
                             <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${plan.gradient} opacity-10`} />
-                            <div className="absolute inset-0 rounded-2xl bg-dark-400/50 backdrop-blur-sm border border-white/10" />
+                            <div className="landing-pricing-card-surface absolute inset-0 rounded-2xl bg-dark-400/50 backdrop-blur-sm border border-white/10" />
                             
                             {plan.popular && (
                                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
@@ -1557,10 +1557,10 @@ const PricingSection = () => {
                                 
                                 <a
                                     href={`${APP_URL}/register`}
-                                    className={`w-full block text-center py-3 rounded-xl font-semibold transition-all ${
+                                    className={`landing-pricing-cta w-full block text-center py-3 rounded-xl font-semibold transition-all ${
                                         plan.popular
-                                            ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:shadow-glow'
-                                            : 'bg-white/10 text-white hover:bg-white/20'
+                                            ? 'landing-primary-btn bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:shadow-glow'
+                                            : 'landing-secondary-btn bg-white/10 text-white hover:bg-white/20'
                                     }`}
                                 >
                                     {plan.price === "0" ? "Inizia Gratis" : "Scegli Pro"}
@@ -1591,7 +1591,7 @@ const CTASection = () => {
     const isInView = useInView(ref, { once: true, margin: "-100px" });
     
     return (
-        <section className="relative py-32 overflow-hidden">
+        <section className="landing-section landing-section--cta relative py-32 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-violet-950/20" />
             <GradientOrb className="top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px]" colors="from-violet-500/20 to-purple-500/10" />
             
@@ -1601,7 +1601,7 @@ const CTASection = () => {
                     initial={{ opacity: 0, y: 50 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.8 }}
-                    className="relative p-12 md:p-16 rounded-3xl overflow-hidden text-center"
+                    className="landing-cta-panel relative p-12 md:p-16 rounded-3xl overflow-hidden text-center"
                 >
                     <div className="absolute inset-0 bg-gradient-to-br from-violet-600/20 to-purple-600/20" />
                     <div className="absolute inset-0 backdrop-blur-xl bg-dark-400/50 border border-white/10" />
@@ -1635,7 +1635,7 @@ const CTASection = () => {
                             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                                 <a
                                     href={`${APP_URL}/register`}
-                                    className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold hover:shadow-glow transition-all"
+                                    className="landing-primary-btn inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold hover:shadow-glow transition-all"
                                 >
                                     Inizia Gratis Oggi
                                     <ArrowRight className="w-5 h-5" />
@@ -1646,7 +1646,7 @@ const CTASection = () => {
                                 href={`${APP_URL}/login`}
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
-                                className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-white/10 text-white font-semibold hover:bg-white/20 transition-colors"
+                                className="landing-secondary-btn inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-white/10 text-white font-semibold hover:bg-white/20 transition-colors"
                             >
                                 Ho già un account
                             </motion.a>
@@ -1674,7 +1674,7 @@ const CTASection = () => {
 };
 
 const Footer = () => (
-    <footer className="relative py-16 border-t border-white/5">
+    <footer className="landing-footer relative py-16 border-t border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-4 gap-12 mb-12">
                 <div className="md:col-span-1">
@@ -1692,7 +1692,7 @@ const Footer = () => (
                             <a
                                 key={social}
                                 href="#"
-                                className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                                className="landing-icon-btn w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
                             >
                                 <Globe className="w-5 h-5" />
                             </a>
@@ -1710,7 +1710,7 @@ const Footer = () => (
                         <ul className="space-y-3">
                             {section.links.map((link) => (
                                 <li key={link}>
-                                    <a href="#" className="text-sm text-white/50 hover:text-white transition-colors">
+                                    <a href="#" className="landing-nav-link text-sm text-white/50 hover:text-white transition-colors">
                                         {link}
                                     </a>
                                 </li>
@@ -1725,9 +1725,9 @@ const Footer = () => (
                     © 2025 Silvi.AI. Tutti i diritti riservati.
                 </p>
                 <div className="flex items-center gap-6">
-                    <a href="#" className="text-sm text-white/40 hover:text-white transition-colors">Privacy</a>
-                    <a href="#" className="text-sm text-white/40 hover:text-white transition-colors">Terms</a>
-                    <a href="#" className="text-sm text-white/40 hover:text-white transition-colors">Cookie</a>
+                    <a href="#" className="landing-nav-link text-sm text-white/40 hover:text-white transition-colors">Privacy</a>
+                    <a href="#" className="landing-nav-link text-sm text-white/40 hover:text-white transition-colors">Terms</a>
+                    <a href="#" className="landing-nav-link text-sm text-white/40 hover:text-white transition-colors">Cookie</a>
                 </div>
             </div>
         </div>
@@ -1739,7 +1739,7 @@ const Footer = () => (
 // ============================================
 export default function LandingPage() {
     return (
-        <div className="min-h-screen bg-dark-500 text-white overflow-x-hidden">
+        <div className="landing-root min-h-screen bg-dark-500 text-white overflow-x-hidden">
             <Header />
             <main>
                 <HeroSection />

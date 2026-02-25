@@ -9,6 +9,7 @@ import { SourceViewer } from './SourceViewer';
 import { studyService } from '../../../../services/studyService';
 import { emitToast } from '../../../../../../shared/components/toast';
 import type { ReviewAnswersProps, FlashcardWithId } from '../ExamSolverModal.types';
+import { examSolverBadgeClass, examSolverButtonClass, examSolverFieldClass } from '../../../utils/studyButtonClasses';
 
 // ============================================
 // COMPONENT
@@ -105,26 +106,17 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
         if (confidence >= 90) {
             return {
                 label: 'Alta confidenza',
-                color: 'emerald',
-                bg: 'bg-emerald-500/20',
-                border: 'border-emerald-500/30',
-                text: 'text-emerald-300',
+                variant: 'success' as const,
             };
         } else if (confidence >= 60) {
             return {
                 label: 'Media - verifica',
-                color: 'amber',
-                bg: 'bg-amber-500/20',
-                border: 'border-amber-500/30',
-                text: 'text-amber-300',
+                variant: 'warning' as const,
             };
         } else {
             return {
                 label: 'Bassa - richiede review',
-                color: 'red',
-                bg: 'bg-red-500/20',
-                border: 'border-red-500/30',
-                text: 'text-red-300',
+                variant: 'danger' as const,
             };
         }
     }, []);
@@ -256,7 +248,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                     <select
                         value={confidenceFilter}
                         onChange={(e) => setConfidenceFilter(e.target.value as any)}
-                        className="px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-500/50 transition-colors"
+                        className={examSolverFieldClass('compact', 'px-3 py-1.5 rounded-lg text-sm')}
                     >
                         <option value="all">Tutte ({filterCounts.all})</option>
                         <option value="high">Alta (≥80%, {filterCounts.high})</option>
@@ -271,7 +263,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                     <button
                         onClick={handleBulkApprove}
                         disabled={isBulkSaving}
-                        className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex items-center gap-2"
+                        className={examSolverButtonClass(
+                            'successSoft',
+                            'px-4 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2'
+                        )}
                     >
                         <CheckCircle2 className="w-4 h-4" />
                         Approva Tutte Alta Confidence ({highConfidenceCards.length})
@@ -306,17 +301,17 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     {card.found ? (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium">
+                                        <span className={examSolverBadgeClass('success', 'px-2.5 py-1 rounded-lg text-xs')}>
                                             <CheckCircle2 className="w-3.5 h-3.5" />
                                             Trovata
                                         </span>
                                     ) : (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-medium">
+                                        <span className={examSolverBadgeClass('warning', 'px-2.5 py-1 rounded-lg text-xs')}>
                                             <AlertCircle className="w-3.5 h-3.5" />
                                             Non trovata
                                         </span>
                                     )}
-                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${confidenceBadge.bg} border ${confidenceBadge.border} ${confidenceBadge.text} text-xs font-medium`}>
+                                    <span className={examSolverBadgeClass(confidenceBadge.variant, 'px-2.5 py-1 rounded-lg text-xs')}>
                                         {confidenceBadge.label} ({confidence}%)
                                     </span>
                                 </div>
@@ -325,18 +320,21 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                         <>
                                             <button
                                                 onClick={() => handleEdit(card.id)}
-                                                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                                                className={examSolverButtonClass('icon', 'p-1.5 rounded-lg')}
                                                 title="Modifica"
                                             >
-                                                <Edit2 className="w-4 h-4 text-white/60" />
+                                                <Edit2 className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleRegenerate(card)}
                                                 disabled={isRegenerating}
-                                                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+                                                className={examSolverButtonClass(
+                                                    'icon',
+                                                    'p-1.5 rounded-lg disabled:opacity-50'
+                                                )}
                                                 title="Rigenera"
                                             >
-                                                <RefreshCw className={`w-4 h-4 text-white/60 ${isRegenerating ? 'animate-spin' : ''}`} />
+                                                <RefreshCw className={`w-4 h-4 ${isRegenerating ? 'animate-spin' : ''}`} />
                                             </button>
                                         </>
                                     ) : (
@@ -344,7 +342,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                             <button
                                                 onClick={() => handleSaveEdit(card.id)}
                                                 disabled={savingState === 'saving'}
-                                                className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                                                className={examSolverButtonClass(
+                                                    'successSoft',
+                                                    'px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 flex items-center gap-1.5'
+                                                )}
                                             >
                                                 {savingState === 'saving' ? (
                                                     <>
@@ -365,7 +366,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                             </button>
                                             <button
                                                 onClick={() => handleCancelEdit(card.id)}
-                                                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white/70 text-xs font-medium transition-colors"
+                                                className={examSolverButtonClass(
+                                                    'neutral',
+                                                    'px-3 py-1.5 rounded-lg text-xs font-medium'
+                                                )}
                                             >
                                                 Annulla
                                             </button>
@@ -387,7 +391,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                     <textarea
                                         value={currentAnswer}
                                         onChange={(e) => handleAnswerChange(card.id, e.target.value)}
-                                        className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-white/10 text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50"
+                                        className={examSolverFieldClass('textarea', 'w-full px-3 py-2 rounded-lg text-sm resize-none')}
                                         rows={4}
                                         placeholder="Inserisci la risposta..."
                                     />
@@ -406,7 +410,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                             <div className="flex items-center gap-2 mb-1.5">
                                                 <p className="text-xs text-white/50">Fonte originale</p>
                                                 {card.pageNumber && (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs">
+                                                    <span className={examSolverBadgeClass('info', 'px-2 py-0.5 rounded text-xs')}>
                                                         <FileText className="w-3 h-3" />
                                                         Pagina {card.pageNumber}
                                                     </span>
@@ -422,7 +426,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                         {sourceFileUrl && card.pageNumber && (
                                             <button
                                                 onClick={() => handleViewSource(card)}
-                                                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 text-xs font-medium transition-colors flex items-center gap-1.5"
+                                                className={examSolverButtonClass(
+                                                    'infoSoft',
+                                                    'flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5'
+                                                )}
                                                 title="Visualizza nel PDF"
                                             >
                                                 <ExternalLink className="w-3.5 h-3.5" />
@@ -443,7 +450,10 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onBack}
-                            className="px-4 py-2 rounded-xl bg-zinc-900/60 hover:bg-zinc-900/80 border border-white/10 text-white text-sm font-medium transition-colors flex items-center gap-2"
+                            className={examSolverButtonClass(
+                                'neutral',
+                                'px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2'
+                            )}
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Indietro
@@ -451,11 +461,11 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                         <button
                             onClick={onSave}
                             disabled={!canSave}
-                            className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
-                                canSave
-                                    ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40'
-                                    : 'bg-zinc-800 text-white/40 cursor-not-allowed'
-                            }`}
+                            className={examSolverButtonClass(
+                                canSave ? 'primary' : 'neutral',
+                                'px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2',
+                                !canSave && 'cursor-not-allowed'
+                            )}
                         >
                             <Save className="w-4 h-4" />
                             Salva nel Mazzo
