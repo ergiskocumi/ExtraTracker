@@ -89,6 +89,7 @@ export interface PDFReaderRef {
 // ============================================
 
 const PDFJS_VERSION = '3.11.174';
+const WORKER_STALL_TIMEOUT_MS = 7000;
 
 /**
  * Worker URL Configuration
@@ -109,8 +110,22 @@ const PDFJS_VERSION = '3.11.174';
  * 
  * 5. **Bundle Size**: Keeping worker external reduces main bundle size and improves initial load.
  */
-const LOCAL_WORKER_URL = localWorkerUrl;
+const toAbsoluteUrl = (url: string): string => {
+    if (!url) return url;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (typeof window === 'undefined') return url;
+
+    try {
+        return new URL(url, window.location.origin).toString();
+    } catch {
+        return url;
+    }
+};
+
+const LOCAL_WORKER_URL = toAbsoluteUrl(localWorkerUrl);
 const CDN_WORKER_URL = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`;
+const PRIMARY_WORKER_URL = LOCAL_WORKER_URL || CDN_WORKER_URL;
+const HAS_WORKER_FALLBACK = PRIMARY_WORKER_URL !== CDN_WORKER_URL;
 
 // ============================================
 // HOOKS
@@ -202,6 +217,7 @@ interface PDFErrorStateProps {
     onSwitchWorker?: () => void;
     canSwitchWorker: boolean;
     onReportError?: (error: Error) => void;
+    onViewerError?: () => void;
     pdfUrl?: string | null;
 }
 
@@ -211,11 +227,13 @@ const PDFErrorState: React.FC<PDFErrorStateProps> = ({
     onSwitchWorker,
     canSwitchWorker,
     onReportError,
+    onViewerError,
     pdfUrl,
 }) => {
     useEffect(() => {
         onReportError?.(error);
-    }, [error, onReportError]);
+        onViewerError?.();
+    }, [error, onReportError, onViewerError]);
 
     const showWorkerSwitch = canSwitchWorker && isWorkerError(error);
 
@@ -269,7 +287,6 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
     onError,
     onLoadSuccess,
     className = '',
-    onSearchError,
 }, ref) => {
     /**
      * CRITICAL: defaultLayoutPlugin() IS A HOOK (uses React hooks internally).
@@ -301,19 +318,25 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
     const isDarkMode = useTheme() === 'dark';
     const containerRef = useRef<HTMLDivElement>(null);
     const zoomTimeoutRef = useRef<number | null>(null);
-    const [workerUrl, setWorkerUrl] = useState(LOCAL_WORKER_URL);
+    const loadingProgressRef = useRef(0);
+    const documentLoadedRef = useRef(false);
+    const [workerUrl, setWorkerUrl] = useState(PRIMARY_WORKER_URL);
     const [viewerKey, setViewerKey] = useState(0);
 
     const handleRetry = useCallback(() => {
+        loadingProgressRef.current = 0;
+        documentLoadedRef.current = false;
         setViewerKey((prev) => prev + 1);
     }, []);
 
     const handleSwitchWorker = useCallback(() => {
         setWorkerUrl(CDN_WORKER_URL);
+        loadingProgressRef.current = 0;
+        documentLoadedRef.current = false;
         setViewerKey((prev) => prev + 1);
     }, []);
 
-    const canSwitchWorker = workerUrl !== CDN_WORKER_URL;
+    const canSwitchWorker = HAS_WORKER_FALLBACK && workerUrl !== CDN_WORKER_URL;
     const normalizedPdfUrl = useMemo(() => {
         if (!pdfUrl || typeof pdfUrl !== 'string') return null;
         const trimmed = pdfUrl.trim();
@@ -322,6 +345,42 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
         if (trimmed.startsWith('/')) return trimmed;
         return `/${trimmed}`;
     }, [pdfUrl]);
+
+    // Reset tracking state when a new PDF URL arrives
+    useEffect(() => {
+        loadingProgressRef.current = 0;
+        documentLoadedRef.current = false;
+    }, [normalizedPdfUrl]);
+
+    // Auto-fallback: if loader is stuck near 0%, switch to CDN worker automatically
+    useEffect(() => {
+        if (!normalizedPdfUrl) return;
+        if (!HAS_WORKER_FALLBACK || workerUrl === CDN_WORKER_URL) return;
+
+        const timeoutId = window.setTimeout(() => {
+            const stalledAtZero = loadingProgressRef.current <= 1;
+            if (!stalledAtZero || documentLoadedRef.current) return;
+
+            if (import.meta.env.DEV) {
+                console.warn('[PDFReader] Loader bloccato a 0%, switch automatico a worker CDN');
+            }
+
+            documentLoadedRef.current = false;
+            setWorkerUrl(CDN_WORKER_URL);
+            setViewerKey((prev) => prev + 1);
+        }, WORKER_STALL_TIMEOUT_MS);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [normalizedPdfUrl, workerUrl]);
+
+    const renderLoader = useCallback((percentages: number) => {
+        if (typeof percentages === 'number') {
+            loadingProgressRef.current = percentages;
+        }
+        return <PDFLoadingState progress={typeof percentages === 'number' ? percentages : undefined} />;
+    }, []);
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
@@ -337,7 +396,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                 console.error('[PDFReader] Error jumping to page:', err);
             }
         },
-        highlightText: (text: string, options?: { caseSensitive?: boolean; wholeWords?: boolean }) => {
+        highlightText: (text: string) => {
             try {
                 const plugin = searchPluginInstance as any;
 
@@ -389,7 +448,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                         if (typeof plugin.highlight === 'function') {
                             plugin.highlight(searchText);
                         }
-                    } catch (innerErr) {
+                    } catch {
                         // Silent fail
                     }
                 }, 500);
@@ -464,7 +523,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                             currentScale = scale;
                         }
                     }
-                } catch (err) {
+                } catch {
                     // Fallback if getCurrentScale is not available
                 }
                 
@@ -550,9 +609,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                             isCompressed: true,
                             url: `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/cmaps/`,
                         }}
-                        renderLoader={(percentages) => (
-                            <PDFLoadingState progress={typeof percentages === 'number' ? percentages : undefined} />
-                        )}
+                        renderLoader={renderLoader}
                         renderError={(error) => (
                             <PDFErrorState
                                 error={error as Error}
@@ -560,10 +617,15 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                                 onSwitchWorker={canSwitchWorker ? handleSwitchWorker : undefined}
                                 canSwitchWorker={canSwitchWorker}
                                 onReportError={onError}
+                                onViewerError={() => {
+                                    documentLoadedRef.current = false;
+                                }}
                                 pdfUrl={normalizedPdfUrl}
                             />
                         )}
                         onDocumentLoad={(e) => {
+                            loadingProgressRef.current = 100;
+                            documentLoadedRef.current = true;
                             if (import.meta.env.DEV) {
                                 console.log('[PDFReader] PDF caricato:', e.doc.numPages, 'pagine');
                             }

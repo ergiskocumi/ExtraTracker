@@ -46,7 +46,7 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage,
     limits: {
-        fileSize: 10 * 1024 * 1024, //! 10MB max
+        fileSize: 15 * 1024 * 1024, // 15MB max per PDF
     },
     fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/pdf') {
@@ -77,7 +77,7 @@ const examSolverStorage = multer.diskStorage({
 const examSolverUpload = multer({
     storage: examSolverStorage,
     limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB max per file
+        fileSize: 15 * 1024 * 1024, // 15MB max per file
         files: 2, // Massimo 2 file
     },
     fileFilter: (req, file, cb) => {

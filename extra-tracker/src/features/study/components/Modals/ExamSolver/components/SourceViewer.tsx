@@ -96,19 +96,19 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="relative w-full max-w-5xl h-[85vh] bg-zinc-950 rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col"
+                    className="relative w-full max-w-5xl h-[85vh] bg-theme-elevated rounded-2xl border border-theme-default shadow-theme-lg overflow-hidden flex flex-col"
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-zinc-900/80 flex-shrink-0">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-theme-default bg-theme-surface flex-shrink-0">
                         <div className="flex items-center gap-3">
                             <div className="p-2 rounded-xl bg-blue-500/20 border border-blue-500/30">
-                                <FileText className="w-5 h-5 text-blue-400" />
+                                <FileText className="w-5 h-5 text-blue-500" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-white">
+                                <h3 className="text-lg font-semibold text-theme-primary">
                                     Fonte nel PDF
                                 </h3>
-                                <p className="text-xs text-white/50">
+                                <p className="text-xs text-theme-secondary">
                                     {pageNumber ? `Pagina ${pageNumber}` : 'Visualizzazione documento'}
                                 </p>
                             </div>
@@ -123,9 +123,9 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
 
                     {/* Context Info */}
                     {cardQuestion && (
-                        <div className="px-6 py-3 border-b border-white/5 bg-amber-500/5">
-                            <p className="text-xs text-white/50 mb-1">Domanda correlata:</p>
-                            <p className="text-sm text-amber-300 font-medium line-clamp-2">
+                        <div className="px-6 py-3 border-b border-theme-default bg-amber-500/10">
+                            <p className="text-xs text-theme-secondary mb-1">Domanda correlata:</p>
+                            <p className="text-sm text-amber-600 dark:text-amber-400 font-medium line-clamp-2">
                                 "{cardQuestion}"
                             </p>
                         </div>
@@ -133,12 +133,12 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
 
                     {/* Highlight Preview */}
                     {highlightText && highlightText.length >= 100 && (
-                        <div className="px-6 py-3 border-b border-white/5 bg-violet-500/5">
+                        <div className="px-6 py-3 border-b border-theme-default bg-violet-500/10">
                             <div className="flex items-center gap-2 mb-1">
-                                <Search className="w-3.5 h-3.5 text-violet-400" />
-                                <p className="text-xs text-white/50">Testo evidenziato nel PDF:</p>
+                                <Search className="w-3.5 h-3.5 text-violet-500" />
+                                <p className="text-xs text-theme-secondary">Testo evidenziato nel PDF:</p>
                             </div>
-                            <p className="text-sm text-violet-300 italic line-clamp-4">
+                            <p className="text-sm text-violet-600 dark:text-violet-400 italic line-clamp-4">
                                 "{highlightText.substring(0, 300)}{highlightText.length > 300 ? '...' : ''}"
                             </p>
                         </div>
@@ -150,7 +150,7 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
                             <div className="flex flex-col items-center justify-center h-full">
                                 <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-center">
                                     <p className="text-red-400 text-sm mb-2">{error}</p>
-                                    <p className="text-white/50 text-xs">
+                                    <p className="text-theme-secondary text-xs">
                                         Il PDF potrebbe non essere più disponibile
                                     </p>
                                 </div>
@@ -167,9 +167,9 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
                     </div>
 
                     {/* Footer with instructions */}
-                    <div className="px-6 py-3 border-t border-white/5 bg-zinc-900/80 flex-shrink-0">
+                    <div className="px-6 py-3 border-t border-theme-default bg-theme-surface flex-shrink-0">
                         <div className="flex items-center justify-between">
-                            <p className="text-xs text-white/40">
+                            <p className="text-xs text-theme-muted">
                                 💡 Usa Ctrl+F per cercare nel documento • Scroll per navigare
                             </p>
                             <button

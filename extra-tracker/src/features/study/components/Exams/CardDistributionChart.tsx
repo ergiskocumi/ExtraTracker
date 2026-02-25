@@ -10,7 +10,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-    Circle,
+    CreditCard,
     Sparkles,
     BookOpen,
     GraduationCap,
@@ -114,28 +114,28 @@ export const CardDistributionChart: React.FC<CardDistributionChartProps> = ({
 
     if (totalCards === 0) {
         return (
-            <div className={`p-6 rounded-2xl bg-white/5 border border-white/10 text-center ${className}`}>
-                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                    <Circle className="w-8 h-8 text-white/30" />
+            <div className={`p-6 rounded-2xl bg-theme-card border border-theme-subtle text-center ${className}`}>
+                <div className="w-16 h-16 rounded-xl bg-theme-surface border border-theme-default flex items-center justify-center mx-auto mb-4">
+                    <CreditCard className="w-8 h-8 text-theme-muted" />
                 </div>
-                <p className="text-white/60 text-sm">Nessuna carta presente</p>
-                <p className="text-white/40 text-xs mt-1">Aggiungi carte per vedere la distribuzione</p>
+                <p className="text-theme-secondary text-sm">Nessuna carta presente</p>
+                <p className="text-theme-muted text-xs mt-1">Aggiungi carte per vedere la distribuzione</p>
             </div>
         );
     }
 
     return (
-        <div className={`p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 ${className}`}>
+        <div className={`p-5 sm:p-6 rounded-2xl bg-theme-card border border-theme-subtle ${className}`}>
             {/* Header */}
             <div className="flex items-center justify-between mb-5">
                 <div>
-                    <h3 className="text-lg font-bold text-white">Distribuzione Carte</h3>
-                    <p className="text-sm text-white/50 mt-0.5">{totalCards} carte totali</p>
+                    <h3 className="text-lg font-bold text-theme-primary">Distribuzione Carte</h3>
+                    <p className="text-sm text-theme-secondary mt-0.5">{totalCards} carte totali</p>
                 </div>
             </div>
 
             {/* Barra Segmentata */}
-            <div className="h-4 bg-white/10 rounded-full overflow-hidden flex mb-6">
+            <div className="h-4 bg-theme-surface rounded-full overflow-hidden flex mb-6">
                 {activeSegments.map((segment, index) => (
                     <motion.div
                         key={segment.key}
@@ -168,7 +168,7 @@ export const CardDistributionChart: React.FC<CardDistributionChartProps> = ({
                             flex items-center gap-3 p-3 rounded-xl border transition-all
                             ${segment.count > 0 
                                 ? `${segment.bgLight} ${segment.borderColor}` 
-                                : 'bg-white/[0.03] border-white/5 opacity-50'
+                                : 'bg-theme-surface border-theme-subtle opacity-50'
                             }
                         `}
                     >
@@ -179,12 +179,12 @@ export const CardDistributionChart: React.FC<CardDistributionChartProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-white">{segment.count}</span>
+                                <span className="text-sm font-semibold text-theme-primary">{segment.count}</span>
                                 {segment.percent > 0 && (
-                                    <span className="text-xs text-white/40">({segment.percent}%)</span>
+                                    <span className="text-xs text-theme-muted">({segment.percent}%)</span>
                                 )}
                             </div>
-                            <p className="text-xs text-white/50 truncate">{segment.label}</p>
+                            <p className="text-xs text-theme-secondary truncate">{segment.label}</p>
                         </div>
                     </motion.div>
                 ))}

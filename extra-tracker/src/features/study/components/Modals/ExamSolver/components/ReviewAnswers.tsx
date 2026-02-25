@@ -229,12 +229,12 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
             className="space-y-6"
         >
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-white/5">
+            <div className="flex items-center justify-between pb-4 border-b border-theme-default">
                 <div>
-                    <h3 className="text-lg font-semibold text-white mb-1">
+                    <h3 className="text-lg font-semibold text-theme-primary mb-1">
                         Rivedi Risposte
                     </h3>
-                    <p className="text-sm text-white/50">
+                    <p className="text-sm text-theme-secondary">
                         Controlla e modifica le risposte generate prima di salvare
                     </p>
                 </div>
@@ -244,7 +244,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
             <div className="flex flex-wrap items-center gap-3 pb-4">
                 {/* Filtro Confidence */}
                 <div className="flex items-center gap-2">
-                    <span className="text-sm text-white/60">Filtra:</span>
+                    <span className="text-sm text-theme-secondary">Filtra:</span>
                     <select
                         value={confidenceFilter}
                         onChange={(e) => setConfidenceFilter(e.target.value as any)}
@@ -274,7 +274,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                 )}
 
                 {/* Mostra count filtrati */}
-                <span className="ml-auto text-sm text-white/50">
+                <span className="ml-auto text-sm text-theme-secondary">
                     {filteredFlashcards.length} flashcard visibili
                 </span>
             </div>
@@ -295,7 +295,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
-                            className="p-4 rounded-xl border bg-zinc-900/60 border-white/5 transition-all"
+                            className="p-4 rounded-xl border bg-theme-surface border-theme-default transition-all"
                         >
                             {/* Badge Status */}
                             <div className="flex items-center justify-between mb-3">
@@ -380,13 +380,13 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
 
                             {/* Domanda (read-only) */}
                             <div className="mb-3">
-                                <p className="text-xs text-white/50 mb-1.5">Domanda</p>
-                                <p className="text-white text-sm leading-relaxed">{card.front}</p>
+                                <p className="text-xs text-theme-secondary mb-1.5">Domanda</p>
+                                <p className="text-theme-primary text-sm leading-relaxed">{card.front}</p>
                             </div>
 
                             {/* Risposta (editabile) */}
                             <div>
-                                <p className="text-xs text-white/50 mb-1.5">Risposta</p>
+                                <p className="text-xs text-theme-secondary mb-1.5">Risposta</p>
                                 {isEditing ? (
                                     <textarea
                                         value={currentAnswer}
@@ -396,7 +396,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                         placeholder="Inserisci la risposta..."
                                     />
                                 ) : (
-                                    <p className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap">
+                                    <p className="text-theme-primary text-sm leading-relaxed whitespace-pre-wrap">
                                         {currentAnswer}
                                     </p>
                                 )}
@@ -404,11 +404,11 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
 
                             {/* Source Snippet con pulsante Visualizza nel PDF */}
                             {(card.sourceSnippet || card.pageNumber) && (
-                                <div className="mt-3 p-3 rounded-lg bg-zinc-950/60 border border-white/5">
+                                <div className="mt-3 p-3 rounded-lg bg-theme-elevated border border-theme-default">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1.5">
-                                                <p className="text-xs text-white/50">Fonte originale</p>
+                                                <p className="text-xs text-theme-secondary">Fonte originale</p>
                                                 {card.pageNumber && (
                                                     <span className={examSolverBadgeClass('info', 'px-2 py-0.5 rounded text-xs')}>
                                                         <FileText className="w-3 h-3" />
@@ -417,7 +417,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                                                 )}
                                             </div>
                                             {card.sourceSnippet && (
-                                                <p className="text-white/60 text-xs leading-relaxed italic line-clamp-3">
+                                                <p className="text-theme-secondary text-xs leading-relaxed italic line-clamp-3">
                                                     "{card.sourceSnippet}"
                                                 </p>
                                             )}
@@ -445,7 +445,7 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="pt-4 border-t border-white/5">
+            <div className="pt-4 border-t border-theme-default">
                 <div className="flex items-center justify-end mb-4">
                     <div className="flex items-center gap-3">
                         <button

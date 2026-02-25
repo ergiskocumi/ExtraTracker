@@ -489,8 +489,8 @@ class StudyService {
         if (file.type !== 'application/pdf') {
             throw new Error('Solo file PDF sono supportati');
         }
-        if (file.size > 10 * 1024 * 1024) {
-            throw new Error('Il file supera il limite di 10MB');
+        if (file.size > 15 * 1024 * 1024) {
+            throw new Error('Il file supera il limite di 15MB');
         }
 
         // Costruisci FormData per upload

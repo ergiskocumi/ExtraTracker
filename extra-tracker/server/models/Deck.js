@@ -96,7 +96,7 @@ const cardSchema = new mongoose.Schema({
                 type: String,
                 required: true,
                 trim: true,
-                minlength: [150, 'Il testo originale deve essere almeno 150 caratteri (1-2 righe)'],
+                minlength: [50, 'Il testo originale deve essere almeno 50 caratteri'],
                 maxlength: [2000, 'Il testo originale non può superare 2000 caratteri'],
             },
         },

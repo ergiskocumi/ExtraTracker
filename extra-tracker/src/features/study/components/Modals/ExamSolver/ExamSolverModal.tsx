@@ -129,29 +129,29 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                         className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                     >
                         {/* Backdrop */}
-                        <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" />
+                        <div className="absolute inset-0 bg-theme-overlay backdrop-blur-sm" />
 
                         {/* Dialog */}
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="relative bg-zinc-900/95 backdrop-blur-xl rounded-2xl border border-white/10 p-6 max-w-md w-full shadow-2xl"
+                            className="relative bg-theme-elevated backdrop-blur-xl rounded-2xl border border-theme-default p-6 max-w-md w-full shadow-theme-lg"
                         >
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
                                     <Sparkles className="w-5 h-5 text-blue-400" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-semibold text-white">Sessione Precedente Trovata</h3>
-                                    <p className="text-sm text-white/60">
+                                    <h3 className="text-lg font-semibold text-theme-primary">Sessione Precedente Trovata</h3>
+                                    <p className="text-sm text-theme-secondary">
                                         {cachedSession.extractedQuestions?.length || 0} domande,{' '}
                                         step: {cachedSession.step}
                                     </p>
                                 </div>
                             </div>
 
-                            <p className="text-white/80 text-sm mb-6">
+                            <p className="text-theme-secondary text-sm mb-6">
                                 Hai una sessione Exam Solver non completata. Vuoi riprendere da dove avevi lasciato?
                             </p>
 
@@ -194,7 +194,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                     animate={{ opacity: 1, backdropFilter: 'blur(30px)' }}
                     exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
                     transition={{ duration: 0.3 }}
-                    className="absolute inset-0 bg-black/85"
+                    className="absolute inset-0 bg-theme-overlay"
                     style={{ WebkitBackdropFilter: 'blur(30px)' }}
                 />
 
@@ -209,21 +209,21 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                         damping: 30,
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="relative w-full max-w-2xl bg-zinc-950/98 backdrop-blur-3xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden"
+                    className="relative w-full max-w-2xl bg-theme-elevated backdrop-blur-3xl rounded-3xl border border-theme-default shadow-theme-lg overflow-hidden"
                     style={{
                         WebkitBackdropFilter: 'blur(50px)',
                         backdropFilter: 'blur(50px)',
                     }}
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-zinc-950/80">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-theme-default bg-theme-surface">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-white/10 border border-white/20">
+                            <div className="p-2 rounded-xl bg-theme-surface border border-theme-default">
                                 <Sparkles className="w-5 h-5 text-amber-400" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-semibold text-white">Exam Solver</h2>
-                                <p className="text-xs text-white/60">Estrai domande e genera risposte</p>
+                                <h2 className="text-lg font-semibold text-theme-primary">Exam Solver</h2>
+                                <p className="text-xs text-theme-secondary">Estrai domande e genera risposte</p>
                             </div>
                         </div>
                         <button
@@ -242,7 +242,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                     <StepIndicator currentStep={currentStep} />
 
                     {/* Content */}
-                    <div className="p-6 space-y-6 bg-zinc-950/40 max-h-[80vh] overflow-y-auto">
+                    <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
                         {/* STEP 1: UPLOAD */}
                         {currentStep === 'upload' && (
                             <motion.div
@@ -350,7 +350,7 @@ export const ExamSolverModal: React.FC<ExamSolverModalProps> = ({
                                 />
                             ) : (
                                 <div className="space-y-4 text-center py-8">
-                                    <p className="text-white/60">Caricamento risposte generate...</p>
+                                    <p className="text-theme-secondary">Caricamento risposte generate...</p>
                                     <Loader2 className="w-6 h-6 text-amber-400 animate-spin mx-auto" />
                                 </div>
                             )

@@ -48,8 +48,8 @@ const TBtn: React.FC<{
                 transition-all duration-150
                 ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}
                 ${isActive
-                    ? 'toolbar-btn-active bg-violet-500/20 text-violet-300'
-                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                    ? 'toolbar-btn-active bg-violet-500/20 text-violet-600 dark:text-violet-300'
+                    : 'text-theme-muted hover:text-theme-primary hover:bg-theme-surface'
                 }
                 ${className}
             `}
@@ -61,7 +61,7 @@ const TBtn: React.FC<{
 
 // ── Separatore (compatto) ──────────────────────────────────────────────────────
 const Divider: React.FC = () => (
-    <div className="toolbar-divider w-px h-4 sm:h-5 bg-white/10 mx-0.5 sm:mx-1 self-center flex-shrink-0" aria-hidden="true" />
+    <div className="toolbar-divider w-px h-4 sm:h-5 bg-theme-subtle mx-0.5 sm:mx-1 self-center flex-shrink-0" aria-hidden="true" />
 );
 
 // ── Dropdown categoria ────────────────────────────────────────────────────────
@@ -91,10 +91,10 @@ const CategoryMenu: React.FC<{
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 4, scale: 0.98 }}
                     transition={{ duration: 0.12, ease: 'easeOut' }}
-                    className="wysiwyg-category-menu absolute top-full mt-1 sm:mt-1.5 p-1 sm:p-1.5 rounded-lg sm:rounded-xl shadow-xl z-50 min-w-[160px] sm:min-w-[180px]"
+                    className="wysiwyg-category-menu absolute top-full mt-1 sm:mt-1.5 p-1 sm:p-1.5 rounded-lg sm:rounded-xl shadow-xl z-50 min-w-[160px] sm:min-w-[180px] bg-theme-elevated border border-theme-default"
                     style={{ left: '50%', transform: 'translateX(-50%)' }}
                 >
-                    <p className="category-title px-2 py-1 sm:px-2.5 sm:py-1.5 text-[10px] font-semibold uppercase tracking-wider border-b border-white/5 mb-0.5 sm:mb-1">
+                    <p className="category-title px-2 py-1 sm:px-2.5 sm:py-1.5 text-[10px] font-semibold uppercase tracking-wider border-b border-theme-subtle mb-0.5 sm:mb-1 text-theme-secondary">
                         {title}
                     </p>
                     <div className="flex flex-wrap gap-0.5 p-0.5 gap-y-0.5">
@@ -126,7 +126,7 @@ export const WysiwygToolbar: React.FC<WysiwygToolbarProps> = ({
             className={`
                 wysiwyg-toolbar-root
                 relative flex flex-wrap items-center justify-between gap-x-0.5 gap-y-1 sm:gap-x-1 sm:gap-y-1
-                rounded-lg sm:rounded-xl border border-white/5 bg-[#14161f] px-1.5 py-1 sm:px-2 sm:py-1.5
+                rounded-lg sm:rounded-xl border border-theme-default bg-theme-elevated px-1.5 py-1 sm:px-2 sm:py-1.5
                 shadow-lg transition-opacity duration-300 min-w-0
                 ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
             `}

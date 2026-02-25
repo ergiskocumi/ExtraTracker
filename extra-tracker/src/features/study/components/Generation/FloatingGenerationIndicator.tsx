@@ -5,7 +5,7 @@
  * attivi in background. Supporta tema chiaro e scuro.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Sparkles, 
@@ -250,11 +250,14 @@ const JobCard: React.FC<JobCardProps> = ({ job, isExpanded, onToggle, onRemove, 
 // MAIN COMPONENT
 // ==========================================
 
+const AUTO_DISMISS_COMPLETED_MS = 5000;
+
 export const FloatingGenerationIndicator: React.FC = () => {
     const { 
         jobs, 
         hasActiveJobs, 
         hasCompletedJobs, 
+        isModalOpen,
         openModal, 
         removeJob, 
         clearCompleted 
@@ -262,6 +265,27 @@ export const FloatingGenerationIndicator: React.FC = () => {
     
     const [isExpanded, setIsExpanded] = useState(false);
     const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
+    const autoDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Auto-chiudi il pannello quando non ci sono più job attivi (tutto completato/errore)
+    useEffect(() => {
+        if (!hasActiveJobs && hasCompletedJobs) {
+            autoDismissTimerRef.current = setTimeout(() => {
+                clearCompleted();
+                autoDismissTimerRef.current = null;
+            }, AUTO_DISMISS_COMPLETED_MS);
+        } else {
+            if (autoDismissTimerRef.current) {
+                clearTimeout(autoDismissTimerRef.current);
+                autoDismissTimerRef.current = null;
+            }
+        }
+        return () => {
+            if (autoDismissTimerRef.current) {
+                clearTimeout(autoDismissTimerRef.current);
+            }
+        };
+    }, [hasActiveJobs, hasCompletedJobs, clearCompleted]);
 
     const toggleJobExpanded = useCallback((jobId: string) => {
         setExpandedJobs(prev => {
@@ -280,13 +304,13 @@ export const FloatingGenerationIndicator: React.FC = () => {
         setIsExpanded(false);
     }, [openModal]);
 
-    // Don't render if no jobs
-    if (jobs.length === 0) {
-        return null;
-    }
-
     const activeJobs = jobs.filter(j => j.step !== 'completed' && j.step !== 'error');
     const completedJobs = jobs.filter(j => j.step === 'completed' || j.step === 'error');
+
+    // Nascondi l'indicatore quando il modal Generator Lab è aperto (non minimizzato) o non ci sono job
+    if (isModalOpen || jobs.length === 0) {
+        return null;
+    }
 
     return (
         <motion.div

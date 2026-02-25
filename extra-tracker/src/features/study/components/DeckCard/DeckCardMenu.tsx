@@ -257,7 +257,11 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
         }
     }, [showMenu]);
     return (
-        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+        <div
+            className={`absolute top-2 left-2 sm:top-3 sm:left-3 z-10 transition-opacity duration-200 ${
+                showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            }`}
+        >
             <button
                 ref={menuButtonRef}
                 onClick={(e) => {
@@ -331,7 +335,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                     }}
                                     className="min-w-[200px] max-w-[280px] w-auto 
                                                py-2 rounded-xl 
-                                               bg-zinc-900 border border-white/10 
+                                               bg-theme-elevated border border-theme-default 
                                                shadow-2xl
                                                max-h-[90vh] overflow-y-auto"
                                     onClick={(e) => e.stopPropagation()}
@@ -349,7 +353,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                     onViewDetail(deck.id);
                                     onToggleMenu();
                                 }}
-                                className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-white/80 hover:bg-white/10 active:bg-white/15 transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
+                                className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-theme-secondary hover:bg-theme-surface active:bg-theme-card transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
                             >
                                 <Eye className="w-4 h-4 flex-shrink-0" />
                                 <span className="flex-1 text-left">Visualizza Dettagli</span>
@@ -360,7 +364,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                     onMagicGenerate(deck);
                                     onToggleMenu();
                                 }}
-                                className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-amber-400 hover:bg-amber-500/10 active:bg-amber-500/15 transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
+                                className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-amber-600 dark:text-amber-400 hover:bg-theme-surface active:bg-theme-card transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
                             >
                                 <Sparkles className="w-4 h-4 flex-shrink-0" />
                                 <span className="flex-1 text-left">{totalCards === 0 ? 'Magic Generate' : 'Add Chapter via AI'}</span>
@@ -372,7 +376,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                         onExamSolver(deck.id);
                                         onToggleMenu();
                                     }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-orange-400 hover:bg-orange-500/10 active:bg-orange-500/15 transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
+                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-orange-600 dark:text-orange-400 hover:bg-theme-surface active:bg-theme-card transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
                                 >
                                     <FileText className="w-4 h-4 flex-shrink-0" />
                                     <span className="flex-1 text-left">Aggiungi domande d&apos;esame</span>
@@ -384,7 +388,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                     onViewDetail(deck.id);
                                     onToggleMenu();
                                 }}
-                                className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-blue-400 hover:bg-blue-500/10 active:bg-blue-500/15 transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
+                                className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-theme-surface active:bg-theme-card transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
                             >
                                 <BarChart2 className="w-4 h-4 flex-shrink-0" />
                                 <span className="flex-1 text-left">Statistiche</span>
@@ -396,7 +400,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                         onTogglePin(deck);
                                         onToggleMenu();
                                     }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-amber-400 hover:bg-amber-500/10 active:bg-amber-500/15 transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
+                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-amber-600 dark:text-amber-400 hover:bg-theme-surface active:bg-theme-card transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
                                 >
                                     <Star className={`w-4 h-4 flex-shrink-0 ${isPinned ? 'fill-current' : ''}`} />
                                     <span className="flex-1 text-left">{isPinned ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}</span>
@@ -410,21 +414,21 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                         e.stopPropagation();
                                         handleOpenChangeExamModal();
                                     }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-violet-400 hover:bg-violet-500/10 active:bg-violet-500/15 transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
+                                    className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-violet-600 dark:text-violet-400 hover:bg-theme-surface active:bg-theme-card transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
                                 >
                                     <BookOpen className="w-4 h-4 flex-shrink-0" />
                                     <span className="flex-1 text-left">Cambia Esame</span>
                                 </button>
                             )}
                             
-                            <div className="my-2 border-t border-white/10" />
+                            <div className="my-2 border-t border-theme-subtle" />
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onDelete(deck);
                                     onToggleMenu();
                                 }}
-                                className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-red-400 hover:bg-red-500/10 active:bg-red-500/15 transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
+                                className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-theme-surface active:bg-theme-card transition-colors touch-manipulation min-h-[44px] whitespace-nowrap"
                             >
                                 <Trash2 className="w-4 h-4 flex-shrink-0" />
                                 <span className="flex-1 text-left">Elimina Mazzo</span>

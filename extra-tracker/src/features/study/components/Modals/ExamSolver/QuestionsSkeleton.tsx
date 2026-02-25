@@ -44,7 +44,7 @@ export const QuestionsSkeleton: React.FC<QuestionsSkeletonProps> = ({
                             },
                             y: { duration: 0.3, delay },
                         }}
-                        className="p-4 rounded-xl bg-zinc-900/60 border border-white/5"
+                        className="p-4 rounded-xl bg-theme-surface border border-theme-default"
                     >
                         <div className="space-y-2">
                             {/* Prima riga (più lunga) */}
@@ -58,7 +58,7 @@ export const QuestionsSkeleton: React.FC<QuestionsSkeletonProps> = ({
                                     ease: 'easeInOut',
                                     delay: delay + 0.1,
                                 }}
-                                className="h-4 rounded bg-white/10"
+                                className="h-4 rounded bg-theme-default"
                                 style={{ width }}
                             />
                             {/* Seconda riga (più corta, opzionale) */}
@@ -73,7 +73,7 @@ export const QuestionsSkeleton: React.FC<QuestionsSkeletonProps> = ({
                                         ease: 'easeInOut',
                                         delay: delay + 0.2,
                                     }}
-                                    className="h-4 rounded bg-white/10"
+                                    className="h-4 rounded bg-theme-default"
                                     style={{ width: '50%' }}
                                 />
                             )}
@@ -131,7 +131,7 @@ export const StreamingSkeleton: React.FC<StreamingSkeletonProps> = ({
                                 </div>
                             </motion.div>
                             <div className="flex-1">
-                                <p className="text-sm text-white/90 leading-relaxed">
+                                <p className="text-sm text-theme-primary leading-relaxed">
                                     {question}
                                 </p>
                             </div>

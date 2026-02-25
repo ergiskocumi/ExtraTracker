@@ -19,7 +19,6 @@ const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
 const sseManager = require('../utils/SSEManager');
 const OpenAI = require('openai');
-const pdfParse = require('pdf-parse');
 const pdfCacheService = require('./pdfCacheService');
 const fs = require('fs/promises');
 const path = require('path');
@@ -71,7 +70,7 @@ const MAX_TOTAL_CARDS = Number.isFinite(ENV_MAX_TOTAL_CARDS) && ENV_MAX_TOTAL_CA
     : DEFAULT_MAX_TOTAL_CARDS;
 
 // Deduplica semantica - soglia più aggressiva per rimuovere più duplicati
-const SIMILARITY_THRESHOLD = 0.50;    // Soglia Jaccard (più bassa = più aggressiva)
+const SIMILARITY_THRESHOLD = 0.65;    // Soglia Jaccard (alzata da 0.50 per ridurre falsi positivi in testi accademici)
 
 // Tipi di domande con distribuzione
 const QUESTION_TYPES = {
@@ -979,7 +978,6 @@ class StudyService extends BaseService {
      */
     async generateCardsFromPDF(tenantScope, deckId, pdfFilePath, options = {}) {
         const userId = this._getUserId(tenantScope);
-        const generationCardCap = this._resolveGenerationCardCap(options?.maxCards);
 
         // 1. Verifica mazzo
         const deck = await Deck.findOne({ _id: deckId, user: userId });
@@ -1005,8 +1003,9 @@ class StudyService extends BaseService {
         }
 
         let pdfText;
+        let pdfData;
         try {
-            const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
+            pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
             pdfText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
             console.error('❌ PDF Parse Error:', err.message);
@@ -1018,6 +1017,7 @@ class StudyService extends BaseService {
         }
 
         const normalizedText = this._normalizeExtractedText(pdfText);
+        this._logExtractionQuality(pdfData, normalizedText);
         deck.pdfUrl = nextPdfUrl;
         deck.extractedText = this._truncateText(normalizedText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
         await deck.save({ validateModifiedOnly: true });
@@ -1029,12 +1029,10 @@ class StudyService extends BaseService {
         const blueprint = await this._analyzeDocumentStructure(normalizedText);
         console.log('📋 Blueprint:', JSON.stringify(blueprint, null, 2));
 
-        // 4. Ingestione vettoriale (background)
-        try {
-            await vectorStoreService.ingestDeck(deckId, normalizedText);
-        } catch (err) {
+        // 4. Ingestione vettoriale (fire-and-forget, non blocca la generazione)
+        vectorStoreService.ingestDeck(deckId, normalizedText).catch(err => {
             console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
-        }
+        });
 
         // 5. 🆕 SEMANTIC CHUNKING V3
         console.log('📦 FASE 2: Semantic chunking...');
@@ -1054,10 +1052,22 @@ class StudyService extends BaseService {
         const globalConcepts = this._extractConceptsLocally(normalizedText);
         console.log(`🎯 Estratti ${globalConcepts.length} concetti chiave (locale)`);
 
-        // 7. 🆕 BATCH GENERATION V3 - Process chunks in batches
-        console.log('✨ FASE 4: Generazione flashcard (batch)...');
+        // 6.5 🧮 Target automatico per ottimizzare costo/qualità (niente scelta manuale richiesta)
+        const autoCardCap = this._estimateOptimalGenerationCardCap({
+            textLength: normalizedText.length,
+            densityScore: blueprint?.densityScore,
+            chunkCount: semanticChunks.length,
+            conceptCount: globalConcepts.length,
+        });
+        const generationCardCap = this._resolveGenerationCardCap(options?.maxCards, autoCardCap);
+        const generationBudget = this._resolveGenerationBudget(generationCardCap, semanticChunks.length);
+
+        console.log(`🧮 Target card: auto=${autoCardCap}, capFinale=${generationCardCap}, budgetGenerazione=${generationBudget}`);
+
+        // 7. 🆕 BATCH GENERATION V4 - PARALLEL batch processing
+        console.log('✨ FASE 4: Generazione flashcard (batch parallelo)...');
         let allGeneratedCards = [];
-        const usedConcepts = new Set(globalConcepts.slice(0, 10)); // Pre-popola con top 10 concetti
+        const usedConcepts = new Set();
 
         // Crea batches di BATCH_SIZE chunks
         const batches = [];
@@ -1065,72 +1075,75 @@ class StudyService extends BaseService {
             batches.push(semanticChunks.slice(i, i + BATCH_SIZE));
         }
 
-        console.log(`📦 Creati ${batches.length} batch da ${BATCH_SIZE} chunk ciascuno`);
+        const batchTargets = this._allocateBatchTargets(batches, generationBudget);
+        const plannedTotal = batchTargets.reduce((sum, value) => sum + value, 0);
 
-        for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
-            const batch = batches[batchIdx];
-            const batchStartChunk = batchIdx * BATCH_SIZE;
+        console.log(
+            `📦 Creati ${batches.length} batch da ${BATCH_SIZE} chunk ciascuno — lancio in PARALLELO (target totale pianificato: ${plannedTotal})`
+        );
 
-            // Calcola target cards per questo batch
+        sseManager.sendToUser(userId, 'pdf-progress', {
+            step: 'generating',
+            currentChunk: 1,
+            totalChunks: semanticChunks.length,
+            generatedSoFar: 0,
+            message: `Genero flashcard da ${batches.length} sezioni in parallelo (target automatico)...`
+        });
+
+        // Lancio TUTTI i batch in parallelo (la deduplica Jaccard gestisce i duplicati)
+        const batchPromises = batches.map((batch, batchIdx) => {
+            const targetCards = batchTargets[batchIdx] || this._calculateBatchTarget(batch);
             const totalBatchChars = batch.reduce((sum, c) => sum + c.text.length, 0);
-            const targetCards = this._calculateBatchTarget(batch);
+            console.log(`🚀 Batch ${batchIdx + 1}/${batches.length}: ${batch.length} chunk, ${totalBatchChars} chars, target ${targetCards} cards`);
 
-            console.log(`🔄 Batch ${batchIdx + 1}/${batches.length}: ${batch.length} chunk, ${totalBatchChars} chars, target ${targetCards} cards`);
-
-            sseManager.sendToUser(userId, 'pdf-progress', {
-                step: 'generating',
-                currentChunk: batchStartChunk + 1,
-                totalChunks: semanticChunks.length,
-                generatedSoFar: allGeneratedCards.length,
-                message: `Elaboro batch ${batchIdx + 1}/${batches.length}...`
-            });
-
-            try {
-                const batchCards = await this._generateCardsBatch(
-                    batch,
-                    blueprint,
-                    targetCards,
-                    usedConcepts,
-                    batchIdx,
-                    batches.length
-                );
-
-                // Aggiungi concetti usati al set globale
-                batchCards.forEach(card => {
-                    const conceptKey = this._extractConceptKey(card.front);
-                    if (conceptKey) usedConcepts.add(conceptKey);
-                });
-
-                allGeneratedCards.push(...batchCards);
-                console.log(`✅ Batch ${batchIdx + 1}: Generate ${batchCards.length} card (totale: ${allGeneratedCards.length})`);
-
-            } catch (err) {
+            return this._generateCardsBatch(
+                batch,
+                blueprint,
+                targetCards,
+                usedConcepts,
+                batchIdx,
+                batches.length
+            ).catch(async (err) => {
                 console.error(`❌ Errore batch ${batchIdx + 1}:`, err.message);
-                // Fallback: processa chunk singolarmente
-                for (let i = 0; i < batch.length; i++) {
+                // Fallback: processa chunk singolarmente (sequenziale)
+                const fallbackCards = [];
+                for (const chunk of batch) {
                     try {
-                        const chunk = batch[i];
                         const singleTarget = this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
                         const singleCards = await this._generateCardsSingle(
-                            chunk,
-                            blueprint,
-                            singleTarget,
-                            usedConcepts,
-                            batchStartChunk + i,
-                            semanticChunks.length
+                            chunk, blueprint, singleTarget, usedConcepts,
+                            batchIdx * BATCH_SIZE, semanticChunks.length
                         );
-                        allGeneratedCards.push(...singleCards);
+                        fallbackCards.push(...singleCards);
                     } catch (singleErr) {
                         console.error(`❌ Fallback singolo fallito:`, singleErr.message);
                     }
                 }
+                return fallbackCards;
+            });
+        });
+
+        const batchResults = await Promise.allSettled(batchPromises);
+
+        for (let i = 0; i < batchResults.length; i++) {
+            const result = batchResults[i];
+            if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+                allGeneratedCards.push(...result.value);
+                console.log(`✅ Batch ${i + 1}: ${result.value.length} card`);
+            } else if (result.status === 'rejected') {
+                console.error(`❌ Batch ${i + 1} rejected:`, result.reason?.message);
             }
 
-            // Rate limiting: pausa tra chiamate API
-            if (batchIdx < batches.length - 1) {
-                await this._sleep(300);
-            }
+            sseManager.sendToUser(userId, 'pdf-progress', {
+                step: 'generating',
+                currentChunk: Math.min((i + 1) * BATCH_SIZE, semanticChunks.length),
+                totalChunks: semanticChunks.length,
+                generatedSoFar: allGeneratedCards.length,
+                message: `Completato batch ${i + 1}/${batches.length}...`
+            });
         }
+
+        console.log(`📊 Totale card generate (pre-deduplica): ${allGeneratedCards.length}`);
 
         // 8. 🆕 DEDUPLICA SEMANTICA
         console.log('🧹 FASE 5: Deduplica semantica...');
@@ -1141,8 +1154,14 @@ class StudyService extends BaseService {
         const removedCount = beforeDedup - uniqueCards.length;
         console.log(`🗑️ Rimossi ${removedCount} duplicati (${beforeDedup} → ${uniqueCards.length})`);
 
+        const cardsWithoutExistingDuplicates = this._deduplicateAgainstExistingCards(uniqueCards, deck.cards || []);
+        const removedExisting = uniqueCards.length - cardsWithoutExistingDuplicates.length;
+        if (removedExisting > 0) {
+            console.log(`♻️ Rimossi ${removedExisting} duplicati già presenti nel mazzo`);
+        }
+
         // 9. Validazione finale e salvataggio
-        const validCards = uniqueCards
+        const validCards = cardsWithoutExistingDuplicates
             .filter(card => this._validateCardQuality(card))
             .slice(0, generationCardCap)
             .map(card => {
@@ -1162,7 +1181,7 @@ class StudyService extends BaseService {
                     Number.isFinite(card.sourceMetadata.pageNumber) &&
                     card.sourceMetadata.pageNumber > 0 &&
                     typeof card.sourceMetadata.originalText === 'string' &&
-                    card.sourceMetadata.originalText.trim().length >= 150) {
+                    card.sourceMetadata.originalText.trim().length >= 50) {
                     cardData.sourceMetadata = {
                         pageNumber: card.sourceMetadata.pageNumber,
                         originalText: card.sourceMetadata.originalText.trim(),
@@ -1197,8 +1216,10 @@ class StudyService extends BaseService {
             stats: {
                 totalChunks: semanticChunks.length,
                 totalBatches: batches.length,
-                duplicatesRemoved: removedCount,
+                duplicatesRemoved: removedCount + removedExisting,
                 conceptsExtracted: globalConcepts.length,
+                autoTargetCards: autoCardCap,
+                generationBudget,
                 maxCardsApplied: generationCardCap,
             }
         };
@@ -1227,7 +1248,7 @@ class StudyService extends BaseService {
         const chunks = [];
         let start = 0;
         let iterations = 0;
-        const MAX_ITERATIONS = 100; // Safeguard contro loop infiniti
+        const MAX_ITERATIONS = 200; // Safeguard contro loop infiniti (supporta PDF fino a ~2.3M char)
 
         while (start < text.length && iterations < MAX_ITERATIONS) {
             iterations++;
@@ -1287,13 +1308,14 @@ class StudyService extends BaseService {
                 });
             }
 
-            // IMPORTANTE: Avanza sempre di almeno (SEMANTIC_CHUNK_SIZE - OVERLAP)
-            // per evitare loop infiniti
-            const minAdvance = SEMANTIC_CHUNK_SIZE - SEMANTIC_CHUNK_OVERLAP;
+            // Avanza con overlap, ma MAI oltre 'end' per non saltare contenuto.
+            // Il minAdvance previene loop infiniti quando il chunk è più corto del previsto.
             const newStart = end - SEMANTIC_CHUNK_OVERLAP;
+            const minAdvance = Math.min(SEMANTIC_CHUNK_SIZE - SEMANTIC_CHUNK_OVERLAP, end - start);
 
-            // Assicurati di avanzare sempre di almeno minAdvance caratteri
             start = Math.max(newStart, start + minAdvance);
+            // Safeguard: start non deve mai superare end (altrimenti si perde contenuto)
+            if (start > end) start = end;
 
             // Se siamo vicini alla fine, esci
             if (start >= text.length - MIN_SEMANTIC_CHUNK) {
@@ -1449,6 +1471,103 @@ class StudyService extends BaseService {
     }
 
     /**
+     * 🧮 Stima il cap ottimale di card in base al contenuto (costo-aware).
+     * Obiettivo: copertura buona evitando over-generation costosa.
+     */
+    _estimateOptimalGenerationCardCap({ textLength = 0, densityScore = 0.5, chunkCount = 0, conceptCount = 0 } = {}) {
+        const safeTextLength = Math.max(0, Math.round(this._toNumber(textLength, 0)));
+        const safeChunkCount = Math.max(1, Math.round(this._toNumber(chunkCount, 1)));
+        const safeConceptCount = Math.max(0, Math.round(this._toNumber(conceptCount, 0)));
+        const safeDensity = Math.min(1, Math.max(0.2, this._toNumber(densityScore, 0.5)));
+
+        const lengthBased = Math.ceil(safeTextLength / 1500);
+        const chunkBased = Math.ceil(safeChunkCount * 5.5);
+        const conceptBased = Math.ceil(safeConceptCount * 0.9);
+
+        let estimate = Math.max(lengthBased, chunkBased, conceptBased, 18);
+        if (safeDensity >= 0.75) estimate = Math.round(estimate * 1.15);
+        else if (safeDensity <= 0.35) estimate = Math.round(estimate * 0.85);
+
+        const lowerBound = Math.max(16, Math.min(24, safeChunkCount * 3));
+        const upperBound = Math.min(MAX_TOTAL_CARDS, Math.max(48, safeChunkCount * 12));
+
+        return Math.min(upperBound, Math.max(lowerBound, estimate));
+    }
+
+    /**
+     * Definisce un budget di generazione leggermente sopra il cap finale
+     * per assorbire deduplica/filtri senza sprecare token.
+     */
+    _resolveGenerationBudget(generationCardCap = MAX_TOTAL_CARDS, chunkCount = 0) {
+        const cap = Math.min(MAX_TOTAL_CARDS, Math.max(20, Math.round(this._toNumber(generationCardCap, MAX_TOTAL_CARDS))));
+        const safeChunkCount = Math.max(1, Math.round(this._toNumber(chunkCount, 1)));
+        const buffer = cap <= 40 ? 4 : cap <= 80 ? 6 : 8;
+        const minimumCoverage = safeChunkCount * 2; // evita batch con target quasi nullo
+
+        return Math.min(MAX_TOTAL_CARDS, Math.max(cap + buffer, minimumCoverage));
+    }
+
+    /**
+     * Distribuisce il budget totale sui batch in modo proporzionale ai target base.
+     * Mantiene il totale sotto controllo per contenere il costo token.
+     */
+    _allocateBatchTargets(batches, generationBudget = MAX_TOTAL_CARDS) {
+        if (!Array.isArray(batches) || batches.length === 0) return [];
+
+        const baseTargets = batches.map((batch) => this._calculateBatchTarget(batch));
+        const baseTotal = baseTargets.reduce((sum, value) => sum + value, 0);
+        const safeBudget = Math.max(batches.length, Math.round(this._toNumber(generationBudget, baseTotal)));
+
+        if (baseTotal <= safeBudget) return baseTargets;
+
+        const rawTargets = baseTargets.map((target, idx) => ({
+            idx,
+            scaled: (target * safeBudget) / Math.max(1, baseTotal),
+        }));
+
+        const allocated = rawTargets.map(({ scaled }) => Math.max(1, Math.floor(scaled)));
+        let allocatedTotal = allocated.reduce((sum, value) => sum + value, 0);
+
+        // Riduci overflow (se floor + min(1) eccede budget)
+        while (allocatedTotal > safeBudget) {
+            let candidateIdx = -1;
+            let candidateValue = 0;
+            for (let i = 0; i < allocated.length; i++) {
+                if (allocated[i] > 1 && allocated[i] > candidateValue) {
+                    candidateIdx = i;
+                    candidateValue = allocated[i];
+                }
+            }
+            if (candidateIdx === -1) break;
+            allocated[candidateIdx] -= 1;
+            allocatedTotal -= 1;
+        }
+
+        // Distribuisci eventuale resto sui batch con frazione più alta
+        if (allocatedTotal < safeBudget) {
+            const priorities = rawTargets
+                .map(({ idx, scaled }) => ({ idx, fraction: scaled - Math.floor(scaled) }))
+                .sort((a, b) => b.fraction - a.fraction);
+
+            let guard = 0;
+            while (allocatedTotal < safeBudget && guard < safeBudget * 3) {
+                guard += 1;
+                let changed = false;
+                for (const item of priorities) {
+                    if (allocatedTotal >= safeBudget) break;
+                    if (allocated[item.idx] >= baseTargets[item.idx]) continue;
+                    allocated[item.idx] += 1;
+                    allocatedTotal += 1;
+                    changed = true;
+                }
+                if (!changed) break;
+            }
+        }
+
+        return allocated;
+    }
+
+    /**
      * ✨ Generazione Flashcard BATCH V3 - Ottimizzato
      * Processa 2 chunk in una singola chiamata API
      */
@@ -1516,30 +1635,39 @@ ${avoidList}
 
 📌 SOURCE METADATA (obbligatorio per ogni flashcard):
 - page_number: numero pagina (intero)
-- original_quote: CITAZIONE LUNGA dal testo originale (MINIMO 150-250 caratteri, circa 1-2 righe complete)
-  DEVE essere un PARAGRAFO COMPLETO o più FRASI CONSECUTIVE che contengano il concetto.
-  L'utente userà questa citazione per trovare il passaggio nel PDF, quindi deve essere abbastanza lunga.
+- original_quote: CITAZIONE dal testo originale (MINIMO 50 caratteri, idealmente 100-200)
+  DEVE essere una o più FRASI CONSECUTIVE che contengano il concetto.
+  L'utente userà questa citazione per trovare il passaggio nel PDF.
 
 OUTPUT JSON:
-{"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"paragrafo completo di 150-250 caratteri..."}}]}`;
+{"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"citazione di almeno 50 caratteri dal testo..."}}]}`;
+
+        // Token budget dinamico: ~300 token/card + wrapper JSON
+        const tokenBudget = Math.min(targetCount * 300 + 200, 16000);
 
         const MAX_RETRIES = 2;
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
+                // Temperature variabile per evitare output identici tra run diversi
+                const baseTemp = attempt === 1 ? 0.6 : 0.4;
+                const tempJitter = (batchIndex * 0.05) + (Math.random() * 0.1);
+                const temperature = Math.min(baseTemp + tempJitter, 1.0);
+
                 const completion = await openai.chat.completions.create({
                     model: ACTIVE_AI_MODEL,
                     messages: [
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: combinedText }
                     ],
-                    temperature: attempt === 1 ? 0.5 : 0.3,
-                    max_completion_tokens: 4000,
+                    temperature,
+                    max_completion_tokens: tokenBudget,
                     response_format: { type: 'json_object' },
                 });
 
                 // Log token usage per monitoraggio costi
                 if (completion.usage) {
-                    console.log(`📊 Batch ${batchIndex + 1} tokens: in=${completion.usage.prompt_tokens}, out=${completion.usage.completion_tokens}`);
+                    const pct = Math.round((completion.usage.completion_tokens / tokenBudget) * 100);
+                    console.log(`📊 Batch ${batchIndex + 1} tokens: in=${completion.usage.prompt_tokens}, out=${completion.usage.completion_tokens}/${tokenBudget} (${pct}%), temp=${temperature.toFixed(2)}`);
                 }
 
                 const response = completion.choices[0]?.message?.content;
@@ -1551,10 +1679,18 @@ OUTPUT JSON:
                 const cleaned = this._cleanJSON(response);
                 const parsed = JSON.parse(cleaned);
                 const cards = this._extractGeneratedCards(parsed);
-
-                return cards
+                const normalizedCards = cards
                     .map(c => this._normalizeGeneratedCard(c))
                     .filter(c => c.front && c.back);
+
+                // Se il modello risponde JSON valido ma vuoto, ritenta una volta.
+                if (normalizedCards.length === 0 && attempt < MAX_RETRIES) {
+                    console.warn(`⚠️ Batch ${batchIndex + 1}: risposta valida ma senza card (tentativo ${attempt}/${MAX_RETRIES})`);
+                    await this._sleep(500);
+                    continue;
+                }
+
+                return normalizedCards;
 
             } catch (err) {
                 console.error(`❌ Batch generation attempt ${attempt} failed:`, err.message);
@@ -1603,9 +1739,13 @@ ${avoidList}
 
 ✅ PRIVILEGIA: "Quali sono tutti i tipi/fasi di X?", causa-effetto, confronti, meccanismi.
 
-📌 SOURCE: Per ogni card includi page_number + original_quote (PARAGRAFO COMPLETO, min 150-250 char = 1-2 righe del PDF).
+📌 SOURCE: Per ogni card includi page_number + original_quote (min 50 char, idealmente 100-200).
 
-OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"paragrafo di 150-250 caratteri..."}}]}`;
+OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"citazione di almeno 50 caratteri dal testo..."}}]}`;
+
+        // Token budget dinamico: ~300 token/card + wrapper JSON
+        const tokenBudget = Math.min(targetCount * 300 + 200, 8000);
+        const temperature = 0.6 + (Math.random() * 0.15);
 
         try {
             const completion = await openai.chat.completions.create({
@@ -1614,8 +1754,8 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: chunk.text }
                 ],
-                temperature: 0.5,
-                max_completion_tokens: 2500,
+                temperature: Math.min(temperature, 1.0),
+                max_completion_tokens: tokenBudget,
                 response_format: { type: 'json_object' },
             });
 
@@ -1642,7 +1782,7 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
     _detectTitles(text) {
         const titlePatterns = [
             /^#+\s+.+$/m,           // Markdown headers
-            /^[A-Z][A-Z\s]{5,}$/m,  // ALL CAPS lines
+            /^[A-Z]{2,}(?:\s+[A-Z]{2,}){2,}\s*$/m,  // ALL CAPS lines (almeno 3 parole)
             /^\d+\.\s+[A-Z]/m,      // Numbered sections
             /^Capitolo\s+\d+/im,    // "Capitolo X"
             /^Sezione\s+\d+/im,     // "Sezione X"
@@ -1695,24 +1835,86 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
     }
 
     /**
+     * 🧱 Deduplica rispetto alle card già presenti nel mazzo
+     * Evita che run successivi aggiungano le stesse domande.
+     */
+    _deduplicateAgainstExistingCards(generatedCards, existingCards) {
+        if (!Array.isArray(generatedCards) || generatedCards.length === 0) return [];
+        if (!Array.isArray(existingCards) || existingCards.length === 0) return generatedCards;
+
+        const existingSignatures = new Set();
+        const existingTexts = [];
+
+        for (const card of existingCards) {
+            const front = typeof card?.front === 'string' ? card.front : '';
+            const back = typeof card?.back === 'string' ? card.back : '';
+            if (!front || !back) continue;
+
+            const signature = this._buildCardSignature(front, back);
+            if (signature) existingSignatures.add(signature);
+            existingTexts.push(`${front} ${back}`);
+        }
+
+        const filtered = [];
+        for (const card of generatedCards) {
+            const front = typeof card?.front === 'string' ? card.front : '';
+            const back = typeof card?.back === 'string' ? card.back : '';
+            if (!front || !back) continue;
+
+            const signature = this._buildCardSignature(front, back);
+            if (signature && existingSignatures.has(signature)) continue;
+
+            const nearDuplicate = existingTexts.some((text) => {
+                const similarity = this._jaccardSimilarity(text, `${front} ${back}`);
+                return similarity > SIMILARITY_THRESHOLD;
+            });
+            if (nearDuplicate) continue;
+
+            filtered.push(card);
+            if (signature) existingSignatures.add(signature);
+            existingTexts.push(`${front} ${back}`);
+        }
+
+        return filtered;
+    }
+
+    _buildCardSignature(front, back) {
+        const normalize = (value) => String(value || '')
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const normalizedFront = normalize(front);
+        const normalizedBack = normalize(back);
+        if (!normalizedFront || !normalizedBack) return '';
+        return `${normalizedFront}||${normalizedBack}`;
+    }
+
+    /**
      * 📐 Jaccard Similarity per confronto testi
      */
     _jaccardSimilarity(text1, text2) {
-        const tokenize = (text) => {
-            return new Set(
-                text.toLowerCase()
-                    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-                    .split(/\s+/)
-                    .filter(w => w.length > 2)
-            );
+        const toBigrams = (text) => {
+            const words = text.toLowerCase()
+                .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+                .split(/\s+/)
+                .filter(w => w.length > 2);
+            // Per testi corti usa solo unigrams per evitare mix che altera lo score
+            if (words.length <= 4) return new Set(words);
+            const bigrams = new Set();
+            for (let i = 0; i < words.length - 1; i++) {
+                bigrams.add(words[i] + ' ' + words[i + 1]);
+            }
+            return bigrams;
         };
-        
-        const set1 = tokenize(text1);
-        const set2 = tokenize(text2);
-        
+
+        const set1 = toBigrams(text1);
+        const set2 = toBigrams(text2);
+
         const intersection = new Set([...set1].filter(x => set2.has(x)));
         const union = new Set([...set1, ...set2]);
-        
+
         if (union.size === 0) return 0;
         return intersection.size / union.size;
     }
@@ -1722,24 +1924,17 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
      */
     _validateCardQuality(card) {
         if (!card || typeof card !== 'object') return false;
-        
+
         const front = card.front?.trim() || '';
         const back = card.back?.trim() || '';
-        
-        // Lunghezza minima
-        if (front.length < 15 || back.length < 30) return false;
-        
-        // Evita domande troppo semplici
-        const simplePatterns = [
-            /^(cos'è|cosa è|che cos'è)\s+\w+\??$/i,
-            /^definisci\s+\w+\.?$/i,
-        ];
-        if (simplePatterns.some(p => p.test(front))) return false;
-        
-        // La risposta deve essere sostanziale
+
+        // Lunghezza minima ridotta: le definizioni brevi sono card legittime
+        if (front.length < 10 || back.length < 15) return false;
+
+        // La risposta deve avere almeno qualche parola
         const wordCount = back.split(/\s+/).length;
-        if (wordCount < 8) return false;
-        
+        if (wordCount < 3) return false;
+
         return true;
     }
 
@@ -1777,7 +1972,7 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
         }
 
         let extractedText = typeof deck.extractedText === 'string' ? deck.extractedText : '';
-        const hasPageMarkers = /--- Pagina \d+ ---/.test(extractedText);
+        const hasPageMarkers = /--- PAGE \d+ ---|--- Pagina \d+ ---/.test(extractedText);
 
         const extractAndStorePdfText = async ({ strict = true } = {}) => {
             if (!deck.pdfUrl || typeof deck.pdfUrl !== 'string') {
@@ -1943,7 +2138,7 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
         }
 
         let extractedText = typeof deck.extractedText === 'string' ? deck.extractedText : '';
-        const hasPageMarkers = /--- Pagina \d+ ---/.test(extractedText);
+        const hasPageMarkers = /--- PAGE \d+ ---|--- Pagina \d+ ---/.test(extractedText);
 
         const extractAndStorePdfText = async ({ strict = true } = {}) => {
             if (!deck.pdfUrl || typeof deck.pdfUrl !== 'string') {
@@ -3192,7 +3387,9 @@ Genera una risposta per OGNI domanda nella lista.`;
 
         const values = Object.values(parsed).filter(value => value && typeof value === 'object');
         const hasCardShape = values.some(value => value.front || value.back || value.question || value.answer || value.q || value.a);
-        return hasCardShape ? values : [];
+        return hasCardShape
+            ? values.filter(v => (v.front || v.question || v.q) && (v.back || v.answer || v.a))
+            : [];
     }
 
     /**
@@ -3220,8 +3417,8 @@ Genera una risposta per OGNI domanda nella lista.`;
                     ? sourceMeta.original_quote.trim() 
                     : (typeof sourceMeta.originalQuote === 'string' ? sourceMeta.originalQuote.trim() : null);
 
-                // Valida che abbiamo almeno page_number e original_quote (min 150 char = 1-2 righe)
-                if (pageNumber !== null && pageNumber > 0 && originalQuote && originalQuote.length >= 150) {
+                // Valida che abbiamo almeno page_number e original_quote (min 50 char, allineato con validazione finale)
+                if (pageNumber !== null && pageNumber > 0 && originalQuote && originalQuote.length >= 50) {
                     normalized.sourceMetadata = {
                         pageNumber: pageNumber,
                         originalText: originalQuote,
@@ -3686,17 +3883,67 @@ Genera una risposta per OGNI domanda nella lista.`;
             .slice(0, 20);
     }
 
+    _logExtractionQuality(pdfData, normalizedText) {
+        const pages = Array.isArray(pdfData?.pages) ? pdfData.pages : [];
+        if (pages.length === 0) return;
+
+        const markerCount = typeof normalizedText === 'string'
+            ? (normalizedText.match(/--- PAGE \d+ ---/g) || []).length
+            : 0;
+        const emptyPages = pages.filter((p) => (typeof p?.text === 'string' ? p.text.trim().length : 0) < 30);
+        const shortPages = pages.filter((p) => (typeof p?.text === 'string' ? p.text.trim().length : 0) < 200);
+
+        const lineFreq = new Map();
+        for (const page of pages) {
+            const rawText = typeof page?.text === 'string' ? page.text : '';
+            const uniqueLines = new Set(
+                rawText
+                    .split(/\n+/)
+                    .map((line) => line.trim())
+                    .filter((line) => line.length >= 8)
+            );
+            for (const line of uniqueLines) {
+                lineFreq.set(line, (lineFreq.get(line) || 0) + 1);
+            }
+        }
+
+        const repeatThreshold = Math.max(3, Math.ceil(pages.length * 0.45));
+        const repeatedLines = [...lineFreq.entries()].filter(([, count]) => count >= repeatThreshold);
+
+        console.log(
+            `[PDF Quality] pages=${pages.length}, markers=${markerCount}, emptyPages=${emptyPages.length}, shortPages=${shortPages.length}, repeatedLines=${repeatedLines.length}`
+        );
+
+        if (markerCount !== pages.length) {
+            console.warn(`[PDF Quality] Marker mismatch: attesi ${pages.length}, trovati ${markerCount}`);
+        }
+        if (emptyPages.length > 0) {
+            console.warn(`[PDF Quality] Pagine quasi vuote: ${emptyPages.map((p) => p.num).join(', ')}`);
+        }
+        if (repeatedLines.length > 0) {
+            const sample = repeatedLines.slice(0, 3).map(([line, count]) => `(${count}x) ${line.slice(0, 80)}`);
+            console.warn(`[PDF Quality] Possibili header/footer ripetuti: ${sample.join(' | ')}`);
+        }
+    }
+
     _normalizeExtractedText(text) {
         if (!text || typeof text !== 'string') return '';
         return text
             .replace(/\r\n/g, '\n')
+            // Ricongiungimento parole spezzate a fine riga (com-\nportamento -> comportamento)
+            .replace(/(\w)-\n(\w)/g, '$1$2')
+            // Collasso spazi multipli in uno solo (preserva newline)
+            .replace(/[^\S\n]{2,}/g, ' ')
+            // Rimuovi numeri di pagina isolati (solo se tra righe vuote, per non colpire dati in tabelle)
+            .replace(/\n\n\s*\d{1,4}\s*\n\n/g, '\n\n')
+            // Collassa 3+ newline in doppio a capo
             .replace(/\n{3,}/g, '\n\n')
             .trim();
     }
 
     /**
      * 📄 Formatta il testo PDF con marker di pagina standardizzati
-     * Formato: --- PAGE {n} ---\n{text}\n--- END PAGE {n} ---
+     * Formato: --- PAGE {n} ---\n{text}
      * Questo formato permette all'AI di identificare esattamente la pagina e il testo originale
      */
     _formatPdfTextWithPages(pdfTextResult) {
@@ -3707,7 +3954,7 @@ Genera una risposta per OGNI domanda nella lista.`;
             // Se non abbiamo pagine separate, proviamo a estrarre dal testo completo
             // e aggiungiamo un marker per la pagina 1
             if (fallback) {
-                return `--- PAGE 1 ---\n${fallback}\n--- END PAGE 1 ---`;
+                return `--- PAGE 1 ---\n${fallback}`;
             }
             return fallback;
         }
@@ -3717,8 +3964,8 @@ Genera una risposta per OGNI domanda nella lista.`;
                 // Usa page.num se disponibile (1-based), altrimenti index + 1
                 const pageNumber = Number.isFinite(Number(page?.num)) ? Number(page.num) : index + 1;
                 const text = typeof page?.text === 'string' ? page.text.trim() : '';
-                // Formato standardizzato: --- PAGE {n} ---\n{text}\n--- END PAGE {n} ---
-                return `--- PAGE ${pageNumber} ---\n${text}\n--- END PAGE ${pageNumber} ---`;
+                // Formato standardizzato: --- PAGE {n} ---\n{text}
+                return `--- PAGE ${pageNumber} ---\n${text}`;
             })
             .join('\n\n');
     }
@@ -4141,13 +4388,18 @@ Genera una risposta per OGNI domanda nella lista.`;
 
     /**
      * Risolve il cap finale di carte per una generazione PDF.
-     * - default: MAX_TOTAL_CARDS (config/env)
+     * - default: cap automatico raccomandato
      * - richiesta client: clamp [20, MAX_TOTAL_CARDS]
      */
-    _resolveGenerationCardCap(requestedMaxCards = 0) {
+    _resolveGenerationCardCap(requestedMaxCards = 0, recommendedMaxCards = MAX_TOTAL_CARDS) {
+        const recommended = Math.min(
+            MAX_TOTAL_CARDS,
+            Math.max(20, Math.round(this._toNumber(recommendedMaxCards, MAX_TOTAL_CARDS)))
+        );
+
         const parsed = this._toNumber(requestedMaxCards, 0);
         if (!Number.isFinite(parsed) || parsed <= 0) {
-            return MAX_TOTAL_CARDS;
+            return recommended;
         }
 
         return Math.min(MAX_TOTAL_CARDS, Math.max(20, Math.round(parsed)));

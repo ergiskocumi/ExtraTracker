@@ -276,8 +276,8 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                     ${isSelected
                         ? 'bg-amber-500/10 border-amber-500/30'
                         : focusedIndex === item.originalIndex
-                        ? 'bg-zinc-800/80 border-white/10'
-                        : 'bg-zinc-900/60 border-white/5 hover:bg-zinc-900/80'
+                        ? 'bg-theme-elevated border-theme-default'
+                        : 'bg-theme-surface border-theme-subtle hover:bg-theme-elevated hover:border-theme-default'
                     }
                 `}
             >
@@ -287,14 +287,14 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     >
                         {isSelected ? (
-                            <CheckSquare className="w-5 h-5 text-amber-400" />
+                            <CheckSquare className="w-5 h-5 text-amber-500" />
                         ) : (
-                            <Square className="w-5 h-5 text-white/40" />
+                            <Square className="w-5 h-5 text-theme-muted" />
                         )}
                     </motion.div>
                 </div>
                 <div className="flex-1">
-                    <p className="text-sm text-white/90 leading-relaxed">
+                    <p className="text-sm text-theme-primary leading-relaxed">
                         {item.text}
                     </p>
                 </div>
@@ -324,10 +324,10 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h3 className="text-lg font-semibold text-white">
+                        <h3 className="text-lg font-semibold text-theme-primary">
                             {isLoading ? 'Estrazione in corso...' : 'Domande Estratte'}
                         </h3>
-                        <p className="text-xs text-white/50 mt-1">
+                        <p className="text-xs text-theme-secondary mt-1">
                             {questions.length} domande totali
                         </p>
                     </div>
@@ -345,7 +345,7 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                 {/* Barra ricerca e controlli */}
                 <div className="flex items-center gap-3">
                     <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-theme-muted" />
                         <input
                             type="text"
                             value={searchQuery}
@@ -376,10 +376,10 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                 </div>
 
                 {/* Info keyboard shortcuts */}
-                <div className="flex items-center gap-4 text-xs text-white/40">
-                    <span>⌨️ <kbd className="px-1.5 py-0.5 rounded bg-white/5">Ctrl+A</kbd> Seleziona tutte</span>
-                    <span><kbd className="px-1.5 py-0.5 rounded bg-white/5">Esc</kbd> Deseleziona</span>
-                    <span><kbd className="px-1.5 py-0.5 rounded bg-white/5">Spazio</kbd> Toggle</span>
+                <div className="flex items-center gap-4 text-xs text-theme-muted">
+                    <span>⌨️ <kbd className="px-1.5 py-0.5 rounded bg-theme-surface border border-theme-subtle">Ctrl+A</kbd> Seleziona tutte</span>
+                    <span><kbd className="px-1.5 py-0.5 rounded bg-theme-surface border border-theme-subtle">Esc</kbd> Deseleziona</span>
+                    <span><kbd className="px-1.5 py-0.5 rounded bg-theme-surface border border-theme-subtle">Spazio</kbd> Toggle</span>
                 </div>
             </div>
 
@@ -406,7 +406,7 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                         animate={{ opacity: 1 }}
                         className="text-center py-8"
                     >
-                        <p className="text-sm text-white/50">
+                        <p className="text-sm text-theme-secondary">
                             Nessuna domanda estratta
                         </p>
                     </motion.div>
@@ -420,7 +420,7 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                         animate={{ opacity: 1 }}
                         className="text-center py-8"
                     >
-                        <p className="text-sm text-white/50">
+                        <p className="text-sm text-theme-secondary">
                             Nessuna domanda trovata per &quot;{searchQuery}&quot;
                         </p>
                     </motion.div>

@@ -7,7 +7,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, GraduationCap, Plus } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useDashboardCalculations } from '../hooks/useDashboardCalculations';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useDeckHandlers } from '../hooks/useDeckHandlers';
@@ -226,6 +227,33 @@ export const DecksDashboardPage: React.FC = () => {
                     onCompleteExam={() => setShowCompletionModal(true)}
                     viewMode="grid"
                 />
+            ) : !isLoading && exams.length === 0 ? (
+                /* ═══ EMPTY STATE: nessun esame – messaggio chiaro e CTA ═══ */
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center py-16 sm:py-24 px-6 text-center"
+                >
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-6">
+                        <GraduationCap className="w-12 h-12 sm:w-14 sm:h-14 text-primary-500" />
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-theme-primary mb-3 sm:mb-4">
+                        Nessun esame
+                    </h2>
+                    <p className="text-theme-secondary text-sm sm:text-base mb-8 sm:mb-10 max-w-md">
+                        Crea il tuo primo esame per organizzare mazzi e ripassi. Da qui vedrai il calendario settimanale e la lista dei tuoi esami.
+                    </p>
+                    <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setIsCreateExamModalOpen(true)}
+                        className="px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-primary-500 to-primary-600 text-white keep-light-text font-bold shadow-lg shadow-primary-500/25 text-sm sm:text-base touch-manipulation min-h-[44px] sm:min-h-[48px] flex items-center justify-center gap-2"
+                    >
+                        <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span>Crea il primo esame</span>
+                    </motion.button>
+                </motion.div>
             ) : (
                 /* ═══ DEFAULT DASHBOARD: Calendar + ExamGrid ═══ */
                 <div className="space-y-8">
