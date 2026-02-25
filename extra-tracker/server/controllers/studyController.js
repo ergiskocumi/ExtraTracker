@@ -309,14 +309,14 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
         });
     }
 
-    // Limite dimensione file (10MB)
-    const maxSize = 10 * 1024 * 1024;
+    // Limite dimensione file (15MB)
+    const maxSize = 15 * 1024 * 1024;
     if (req.file.size > maxSize) {
         // Cleanup file prima di ritornare errore
         await fs.unlink(req.file.path).catch(() => {});
         return res.status(400).json({
             success: false,
-            error: 'Il file è troppo grande. Massimo 10MB.',
+            error: 'Il file è troppo grande. Massimo 15MB.',
         });
     }
 
@@ -489,11 +489,11 @@ const extractQuestions = asyncHandler(async (req, res) => {
         });
     }
 
-    const maxSize = 10 * 1024 * 1024;
+    const maxSize = 15 * 1024 * 1024;
     if (questionsFile.size > maxSize) {
         return res.status(400).json({
             success: false,
-            error: { message: 'File domande troppo grande. Massimo 10MB.' }
+            error: { message: 'File domande troppo grande. Massimo 15MB.' }
         });
     }
 
@@ -559,11 +559,11 @@ const generateAnswers = asyncHandler(async (req, res) => {
         });
     }
 
-    const maxSize = 10 * 1024 * 1024;
+    const maxSize = 15 * 1024 * 1024;
     if (sourceFile.size > maxSize) {
         return res.status(400).json({
             success: false,
-            error: { message: 'File materiale troppo grande. Massimo 10MB.' }
+            error: { message: 'File materiale troppo grande. Massimo 15MB.' }
         });
     }
 
@@ -753,18 +753,18 @@ const examSolver = asyncHandler(async (req, res) => {
         });
     }
 
-    // Limite dimensione file (10MB)
-    const maxSize = 10 * 1024 * 1024;
+    // Limite dimensione file (15MB)
+    const maxSize = 15 * 1024 * 1024;
     if (questionsFile.size > maxSize) {
         return res.status(400).json({
             success: false,
-            error: { message: 'File domande troppo grande. Massimo 10MB.' }
+            error: { message: 'File domande troppo grande. Massimo 15MB.' }
         });
     }
     if (sourceFile.size > maxSize) {
         return res.status(400).json({
             success: false,
-            error: { message: 'File materiale troppo grande. Massimo 10MB.' }
+            error: { message: 'File materiale troppo grande. Massimo 15MB.' }
         });
     }
 
