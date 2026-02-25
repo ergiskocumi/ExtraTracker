@@ -2099,6 +2099,31 @@ ol ol li::before {
   color: var(--text-muted);
 }
 
+/* Dark theme: allineamento sfondi con gli altri pulsanti */
+[data-theme="dark"] .exam-quick-action--outline {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+[data-theme="dark"] .exam-quick-action--outline:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .exam-quick-action--ghost {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+}
+
+[data-theme="dark"] .exam-quick-action--ghost:hover {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
 [data-theme="light"] .study-deck-primary-btn,
 [data-theme="light"] .exam-quick-action--primary,
 [data-theme="light"] .exam-quick-action--secondary {

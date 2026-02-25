@@ -71,7 +71,7 @@ const MAX_TOTAL_CARDS = Number.isFinite(ENV_MAX_TOTAL_CARDS) && ENV_MAX_TOTAL_CA
     : DEFAULT_MAX_TOTAL_CARDS;
 
 // Deduplica semantica - soglia più aggressiva per rimuovere più duplicati
-const SIMILARITY_THRESHOLD = 0.50;    // Soglia Jaccard (più bassa = più aggressiva)
+const SIMILARITY_THRESHOLD = 0.65;    // Soglia Jaccard (alzata da 0.50 per ridurre falsi positivi in testi accademici)
 
 // Tipi di domande con distribuzione
 const QUESTION_TYPES = {
@@ -1162,7 +1162,7 @@ class StudyService extends BaseService {
                     Number.isFinite(card.sourceMetadata.pageNumber) &&
                     card.sourceMetadata.pageNumber > 0 &&
                     typeof card.sourceMetadata.originalText === 'string' &&
-                    card.sourceMetadata.originalText.trim().length >= 150) {
+                    card.sourceMetadata.originalText.trim().length >= 50) {
                     cardData.sourceMetadata = {
                         pageNumber: card.sourceMetadata.pageNumber,
                         originalText: card.sourceMetadata.originalText.trim(),
@@ -1698,21 +1698,28 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
      * 📐 Jaccard Similarity per confronto testi
      */
     _jaccardSimilarity(text1, text2) {
-        const tokenize = (text) => {
-            return new Set(
-                text.toLowerCase()
-                    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-                    .split(/\s+/)
-                    .filter(w => w.length > 2)
-            );
+        const toBigrams = (text) => {
+            const words = text.toLowerCase()
+                .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+                .split(/\s+/)
+                .filter(w => w.length > 2);
+            const bigrams = new Set();
+            for (let i = 0; i < words.length - 1; i++) {
+                bigrams.add(words[i] + ' ' + words[i + 1]);
+            }
+            // Aggiungi anche le parole singole per testi molto corti
+            if (words.length <= 4) {
+                for (const w of words) bigrams.add(w);
+            }
+            return bigrams;
         };
-        
-        const set1 = tokenize(text1);
-        const set2 = tokenize(text2);
-        
+
+        const set1 = toBigrams(text1);
+        const set2 = toBigrams(text2);
+
         const intersection = new Set([...set1].filter(x => set2.has(x)));
         const union = new Set([...set1, ...set2]);
-        
+
         if (union.size === 0) return 0;
         return intersection.size / union.size;
     }
@@ -1722,24 +1729,17 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
      */
     _validateCardQuality(card) {
         if (!card || typeof card !== 'object') return false;
-        
+
         const front = card.front?.trim() || '';
         const back = card.back?.trim() || '';
-        
-        // Lunghezza minima
-        if (front.length < 15 || back.length < 30) return false;
-        
-        // Evita domande troppo semplici
-        const simplePatterns = [
-            /^(cos'è|cosa è|che cos'è)\s+\w+\??$/i,
-            /^definisci\s+\w+\.?$/i,
-        ];
-        if (simplePatterns.some(p => p.test(front))) return false;
-        
-        // La risposta deve essere sostanziale
+
+        // Lunghezza minima ridotta: le definizioni brevi sono card legittime
+        if (front.length < 10 || back.length < 15) return false;
+
+        // La risposta deve avere almeno qualche parola
         const wordCount = back.split(/\s+/).length;
-        if (wordCount < 8) return false;
-        
+        if (wordCount < 3) return false;
+
         return true;
     }
 
@@ -3690,6 +3690,13 @@ Genera una risposta per OGNI domanda nella lista.`;
         if (!text || typeof text !== 'string') return '';
         return text
             .replace(/\r\n/g, '\n')
+            // Ricongiungimento parole spezzate a fine riga (com-\nportamento -> comportamento)
+            .replace(/(\w)-\n(\w)/g, '$1$2')
+            // Collasso spazi multipli in uno solo (preserva newline)
+            .replace(/[^\S\n]{2,}/g, ' ')
+            // Rimuovi righe che sono solo numeri di pagina isolati (es. "  42  ")
+            .replace(/^\s*\d{1,4}\s*$/gm, '')
+            // Collassa 3+ newline in doppio a capo
             .replace(/\n{3,}/g, '\n\n')
             .trim();
     }

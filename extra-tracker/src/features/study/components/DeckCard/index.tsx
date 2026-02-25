@@ -225,7 +225,7 @@ const DeckCardComponent: React.FC<DeckCardProps> = ({
                 ease: 'easeOut',
             }}
             className={`
-                relative rounded-xl sm:rounded-2xl md:rounded-3xl border overflow-hidden
+                group relative rounded-xl sm:rounded-2xl md:rounded-3xl border overflow-hidden
                 transition-all duration-300 hover:shadow-xl
                 flex flex-col
                 min-h-[280px] sm:min-h-[320px] md:min-h-[340px]

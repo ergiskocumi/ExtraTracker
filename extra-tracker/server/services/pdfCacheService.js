@@ -1,4 +1,4 @@
-const pdfParse = require('pdf-parse');
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 const fs = require('fs').promises;
 const crypto = require('crypto');
 
@@ -6,9 +6,11 @@ const crypto = require('crypto');
  * PDF Cache Service
  *
  * Servizio di caching in-memory per parsing PDF.
+ * Usa pdfjs-dist direttamente per estrazione testo per-pagina.
  * Utilizza strategia LRU (Least Recently Used) per limitare l'uso di memoria.
  *
  * Features:
+ * - Estrazione testo pagina per pagina (risolve il bug di pdf-parse)
  * - Cache con hash MD5 del file come chiave
  * - TTL (Time To Live) di 5 minuti
  * - Limite massimo di 50 PDF in cache
@@ -29,7 +31,7 @@ class PDFCacheService {
             errors: 0,
         };
 
-        console.log('[PDFCache] Initialized (max size: 50, TTL: 5min)');
+        console.log('[PDFCache] Initialized with pdfjs-dist (max size: 50, TTL: 5min)');
     }
 
     /**
@@ -71,7 +73,6 @@ class PDFCacheService {
      */
     _evictIfNeeded() {
         if (this.cache.size >= this.MAX_CACHE_SIZE) {
-            // Trova l'entry meno recente (Least Recently Used)
             const entries = [...this.cache.entries()];
             const oldest = entries.sort((a, b) => a[1].timestamp - b[1].timestamp)[0];
 
@@ -96,10 +97,58 @@ class PDFCacheService {
     }
 
     /**
-     * Parsa PDF con caching
+     * Estrae testo da una singola pagina con gestione spazi e newline migliorata
+     * @param {Object} page - Pagina pdfjs
+     * @returns {Promise<string>} Testo della pagina
+     */
+    async _extractPageText(page) {
+        const content = await page.getTextContent({
+            normalizeWhitespace: true,
+            disableCombineTextItems: false,
+        });
+
+        if (!content.items || content.items.length === 0) return '';
+
+        let text = '';
+        let lastY = null;
+        let lastX = null;
+        let lastWidth = 0;
+
+        for (const item of content.items) {
+            if (!item.str && item.str !== '') continue;
+
+            const x = item.transform[4];
+            const y = item.transform[5];
+
+            if (lastY !== null) {
+                const yDiff = Math.abs(y - lastY);
+                if (yDiff > 2) {
+                    // Nuova riga
+                    text += '\n';
+                } else if (lastX !== null) {
+                    // Stessa riga - aggiungi spazio se c'e' un gap orizzontale significativo
+                    const expectedX = lastX + lastWidth;
+                    const gap = x - expectedX;
+                    if (gap > item.height * 0.3) {
+                        text += ' ';
+                    }
+                }
+            }
+
+            text += item.str;
+            lastY = y;
+            lastX = x;
+            lastWidth = item.width || 0;
+        }
+
+        return text;
+    }
+
+    /**
+     * Parsa PDF con caching - estrae testo pagina per pagina usando pdfjs-dist
      * @param {string} filePath - Path del file PDF
      * @param {Buffer} [buffer] - Buffer del PDF (opzionale, altrimenti legge da filePath)
-     * @returns {Promise<Object>} PDF parsed data
+     * @returns {Promise<Object>} PDF parsed data con { numpages, text, pages: [{num, text}] }
      */
     async parsePDF(filePath, buffer = null) {
         try {
@@ -122,24 +171,45 @@ class PDFCacheService {
             const cached = this.cache.get(cacheKey);
             if (cached) {
                 this.stats.hits++;
-                this._touchEntry(cacheKey); // Update LRU timestamp
-                console.log(`[PDFCache] ✅ HIT: ${cacheKey.substring(0, 16)}... (hits: ${this.stats.hits})`);
+                this._touchEntry(cacheKey);
+                console.log(`[PDFCache] HIT: ${cacheKey.substring(0, 16)}... (hits: ${this.stats.hits})`);
                 return cached.data;
             }
 
-            // Cache MISS: parsa PDF
+            // Cache MISS: parsa PDF con pdfjs-dist
             this.stats.misses++;
-            console.log(`[PDFCache] ❌ MISS: ${cacheKey.substring(0, 16)}... (misses: ${this.stats.misses})`);
+            console.log(`[PDFCache] MISS: ${cacheKey.substring(0, 16)}... (misses: ${this.stats.misses})`);
 
             const startTime = Date.now();
             const pdfBuffer = buffer || await fs.readFile(filePath);
-            const pdfData = await pdfParse(pdfBuffer);
-            const parseTime = Date.now() - startTime;
+            const uint8Array = new Uint8Array(pdfBuffer);
 
-            console.log(`[PDFCache] Parsed in ${parseTime}ms (${pdfData.numpages} pages, ${pdfData.text.length} chars)`);
+            const doc = await pdfjsLib.getDocument({
+                data: uint8Array,
+                useSystemFonts: true,
+            }).promise;
+
+            const pages = [];
+            let fullText = '';
+
+            for (let i = 1; i <= doc.numPages; i++) {
+                const page = await doc.getPage(i);
+                const pageText = await this._extractPageText(page);
+                pages.push({ num: i, text: pageText });
+                fullText += pageText + '\n';
+            }
+
+            const pdfData = {
+                numpages: doc.numPages,
+                text: fullText.trim(),
+                pages,
+            };
+
+            const parseTime = Date.now() - startTime;
+            console.log(`[PDFCache] Parsed in ${parseTime}ms (${pdfData.numpages} pages, ${pdfData.text.length} chars, per-page extraction)`);
 
             // Salva in cache
-            this._evictIfNeeded(); // Evict se necessario PRIMA di aggiungere
+            this._evictIfNeeded();
 
             this.cache.set(cacheKey, {
                 data: pdfData,
