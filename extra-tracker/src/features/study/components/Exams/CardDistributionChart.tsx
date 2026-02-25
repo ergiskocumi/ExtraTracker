@@ -10,7 +10,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-    Circle,
+    CreditCard,
     Sparkles,
     BookOpen,
     GraduationCap,
@@ -115,8 +115,8 @@ export const CardDistributionChart: React.FC<CardDistributionChartProps> = ({
     if (totalCards === 0) {
         return (
             <div className={`p-6 rounded-2xl bg-white/5 border border-white/10 text-center ${className}`}>
-                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                    <Circle className="w-8 h-8 text-white/30" />
+                <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                    <CreditCard className="w-8 h-8 text-white/40" />
                 </div>
                 <p className="text-white/60 text-sm">Nessuna carta presente</p>
                 <p className="text-white/40 text-xs mt-1">Aggiungi carte per vedere la distribuzione</p>
