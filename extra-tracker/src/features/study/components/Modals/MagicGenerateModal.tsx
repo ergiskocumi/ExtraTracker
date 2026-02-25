@@ -73,8 +73,6 @@ type ProgressData = {
 };
 
 let logIdCounter = 0;
-const CARD_TARGET_OPTIONS = [80, 120, 160, 200] as const;
-const DEFAULT_TARGET_CARDS = 120;
 
 type PipelinePhase = {
     key: 'uploading' | 'analyzing' | 'processing' | 'generating';
@@ -135,7 +133,6 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     // Local state
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
-    const [maxCards, setMaxCards] = useState<number>(DEFAULT_TARGET_CARDS);
     const [progress, setProgress] = useState<ProgressData>({ step: 'idle' });
     const [error, setError] = useState<string | null>(null);
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -191,7 +188,6 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     useEffect(() => {
         if (isOpen && !isProcessingCurrentDeck) {
             setFile(null);
-            setMaxCards(DEFAULT_TARGET_CARDS);
             setProgress({ step: 'idle' });
             setError(null);
             setLogs([]);
@@ -404,6 +400,26 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         }
     }, [progress.step]);
 
+    const estimatedAutoCards = useMemo(() => {
+        if (!file) return 0;
+        const sizeMb = file.size / (1024 * 1024);
+        if (sizeMb <= 1.5) return 24;
+        if (sizeMb <= 3) return 32;
+        if (sizeMb <= 6) return 44;
+        if (sizeMb <= 9) return 58;
+        return 72;
+    }, [file]);
+
+    const estimatedDuration = useMemo(() => {
+        if (!file) return '45-100 secondi';
+        const sizeMb = file.size / (1024 * 1024);
+        if (sizeMb <= 1.5) return '35-60 secondi';
+        if (sizeMb <= 3) return '50-80 secondi';
+        if (sizeMb <= 6) return '70-110 secondi';
+        if (sizeMb <= 9) return '90-140 secondi';
+        return '120-170 secondi';
+    }, [file]);
+
     const handleSubmit = useCallback(async () => {
         if (!file || progress.step !== 'idle') return;
 
@@ -413,14 +429,14 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                 deckId,
                 deckTitle,
                 fileName: file.name,
-                maxCards,
+                maxCards: estimatedAutoCards,
             });
             setCurrentJobId(jobId);
 
             setProgress({ step: 'uploading', message: 'Caricamento del file...', estimatedTime: 10 });
             addLogMemo('Inizio caricamento PDF...', 'info', Upload);
 
-            await studyService.generateFromPDF(deckId, file, { maxCards });
+            await studyService.generateFromPDF(deckId, file);
             addLogMemo('File caricato con successo', 'success', CheckCircle2);
         } catch (err: unknown) {
             const errorMsg = err instanceof Error ? err.message : 'Errore durante la generazione';
@@ -433,7 +449,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                 failJob(currentJobId, errorMsg);
             }
         }
-    }, [file, deckId, deckTitle, maxCards, progress.step, startJob, addLogMemo, currentJobId, failJob]);
+    }, [file, deckId, deckTitle, progress.step, startJob, addLogMemo, currentJobId, failJob, estimatedAutoCards]);
 
     const formatTime = (seconds: number) => {
         if (seconds < 60) return `${seconds}s`;
@@ -469,13 +485,6 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     const cardsPerMinute = elapsedSeconds > 20 && (progress.generatedCount || 0) > 0
         ? Math.round(((progress.generatedCount || 0) / elapsedSeconds) * 60)
         : null;
-
-    const estimatedDuration = useMemo(() => {
-        if (maxCards <= 80) return '45-70 secondi';
-        if (maxCards <= 120) return '70-110 secondi';
-        if (maxCards <= 160) return '100-140 secondi';
-        return '130-180 secondi';
-    }, [maxCards]);
 
     const pipelineProgress = useMemo(() => {
         if (progress.step === 'completed') return 100;
@@ -706,25 +715,21 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
 
                                 <aside className="lg:col-span-5 space-y-4">
                                     <div className="rounded-2xl border border-theme-default bg-theme-surface/75 p-4">
-                                        <p className="text-xs font-semibold text-theme-secondary mb-3">Seleziona target flashcard</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {CARD_TARGET_OPTIONS.map((option) => (
-                                                <button
-                                                    key={option}
-                                                    type="button"
-                                                    onClick={() => setMaxCards(option)}
-                                                    className={`rounded-xl px-3 py-2 text-sm font-semibold border transition-all ${
-                                                        maxCards === option
-                                                            ? 'bg-primary-500/20 border-primary-500/40 text-primary-700 dark:text-primary-300'
-                                                            : 'bg-theme-surface border-theme-default text-theme-secondary hover:bg-theme-surface/80 hover:text-theme-primary'
-                                                    }`}
-                                                >
-                                                    {option}
-                                                </button>
-                                            ))}
+                                        <p className="text-xs font-semibold text-theme-secondary mb-2">Target automatico</p>
+                                        <div className="rounded-xl border border-primary-500/20 bg-primary-500/10 p-3">
+                                            <p className="text-[11px] uppercase tracking-[0.12em] text-primary-700 dark:text-primary-300 mb-1">
+                                                Ottimizzazione costi attiva
+                                            </p>
+                                            <p className="text-lg font-semibold text-theme-primary">
+                                                ~ {file ? estimatedAutoCards : '--'} flashcard stimate
+                                            </p>
+                                            <p className="text-[11px] text-theme-muted mt-1">
+                                                Il sistema decide automaticamente quante card generare in base a lunghezza,
+                                                densità e struttura del PDF.
+                                            </p>
                                         </div>
                                         <p className="text-[11px] text-theme-muted mt-3">
-                                            La pipeline non supererà il target scelto: qualità prima della quantità.
+                                            Nessuna scelta manuale: riduciamo token inutili mantenendo copertura utile.
                                         </p>
                                     </div>
 
