@@ -298,21 +298,23 @@ export const ExamStatsHeader: React.FC<ExamStatsHeaderProps> = ({
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
-                            className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/[0.08] transition-colors"
+                            className="p-3 sm:p-4 rounded-2xl bg-theme-card border border-theme-subtle hover:bg-theme-surface hover:border-theme-default transition-colors flex items-start gap-3"
                         >
-                            <div className="flex items-start justify-between mb-3">
-                                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                            <div className={`p-2 rounded-lg flex-shrink-0 ${stat.bgColor}`}>
+                                <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.color}`} />
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-xl sm:text-2xl font-bold text-theme-primary">{stat.value}</p>
+                                    {stat.label === 'Padronanza' && stats.masteryPercent > 0 && (
+                                        <TrendingUp className={`w-4 h-4 flex-shrink-0 ${stats.masteryPercent >= 50 ? 'text-emerald-400' : 'text-amber-400'}`} />
+                                    )}
                                 </div>
-                                {stat.label === 'Padronanza' && stats.masteryPercent > 0 && (
-                                    <TrendingUp className={`w-4 h-4 ${stats.masteryPercent >= 50 ? 'text-emerald-400' : 'text-amber-400'}`} />
+                                <p className="text-xs text-theme-secondary uppercase tracking-wide font-medium">{stat.label}</p>
+                                {stat.subValue && (
+                                    <p className="text-xs text-theme-muted truncate">{stat.subValue}</p>
                                 )}
                             </div>
-                            <p className="text-2xl font-bold text-white mb-1">{stat.value}</p>
-                            <p className="text-xs text-white/50 uppercase tracking-wide font-medium">{stat.label}</p>
-                            {stat.subValue && (
-                                <p className="text-xs text-white/40 mt-1.5">{stat.subValue}</p>
-                            )}
                         </motion.div>
                     ))}
                 </div>
