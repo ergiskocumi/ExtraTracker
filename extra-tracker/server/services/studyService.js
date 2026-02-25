@@ -19,7 +19,6 @@ const AppError = require('../utils/AppError');
 const { checkAnswerSimilarity } = require('../utils/stringAnalysis');
 const sseManager = require('../utils/SSEManager');
 const OpenAI = require('openai');
-const pdfParse = require('pdf-parse');
 const pdfCacheService = require('./pdfCacheService');
 const fs = require('fs/promises');
 const path = require('path');
@@ -1005,8 +1004,9 @@ class StudyService extends BaseService {
         }
 
         let pdfText;
+        let pdfData;
         try {
-            const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
+            pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
             pdfText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
             console.error('❌ PDF Parse Error:', err.message);
@@ -1018,6 +1018,7 @@ class StudyService extends BaseService {
         }
 
         const normalizedText = this._normalizeExtractedText(pdfText);
+        this._logExtractionQuality(pdfData, normalizedText);
         deck.pdfUrl = nextPdfUrl;
         deck.extractedText = this._truncateText(normalizedText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
         await deck.save({ validateModifiedOnly: true });
@@ -1137,8 +1138,14 @@ class StudyService extends BaseService {
         const removedCount = beforeDedup - uniqueCards.length;
         console.log(`🗑️ Rimossi ${removedCount} duplicati (${beforeDedup} → ${uniqueCards.length})`);
 
+        const cardsWithoutExistingDuplicates = this._deduplicateAgainstExistingCards(uniqueCards, deck.cards || []);
+        const removedExisting = uniqueCards.length - cardsWithoutExistingDuplicates.length;
+        if (removedExisting > 0) {
+            console.log(`♻️ Rimossi ${removedExisting} duplicati già presenti nel mazzo`);
+        }
+
         // 9. Validazione finale e salvataggio
-        const validCards = uniqueCards
+        const validCards = cardsWithoutExistingDuplicates
             .filter(card => this._validateCardQuality(card))
             .slice(0, generationCardCap)
             .map(card => {
@@ -1193,7 +1200,7 @@ class StudyService extends BaseService {
             stats: {
                 totalChunks: semanticChunks.length,
                 totalBatches: batches.length,
-                duplicatesRemoved: removedCount,
+                duplicatesRemoved: removedCount + removedExisting,
                 conceptsExtracted: globalConcepts.length,
                 maxCardsApplied: generationCardCap,
             }
@@ -1557,10 +1564,18 @@ OUTPUT JSON:
                 const cleaned = this._cleanJSON(response);
                 const parsed = JSON.parse(cleaned);
                 const cards = this._extractGeneratedCards(parsed);
-
-                return cards
+                const normalizedCards = cards
                     .map(c => this._normalizeGeneratedCard(c))
                     .filter(c => c.front && c.back);
+
+                // Se il modello risponde JSON valido ma vuoto, ritenta una volta.
+                if (normalizedCards.length === 0 && attempt < MAX_RETRIES) {
+                    console.warn(`⚠️ Batch ${batchIndex + 1}: risposta valida ma senza card (tentativo ${attempt}/${MAX_RETRIES})`);
+                    await this._sleep(500);
+                    continue;
+                }
+
+                return normalizedCards;
 
             } catch (err) {
                 console.error(`❌ Batch generation attempt ${attempt} failed:`, err.message);
@@ -1702,6 +1717,63 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
         }
         
         return unique;
+    }
+
+    /**
+     * 🧱 Deduplica rispetto alle card già presenti nel mazzo
+     * Evita che run successivi aggiungano le stesse domande.
+     */
+    _deduplicateAgainstExistingCards(generatedCards, existingCards) {
+        if (!Array.isArray(generatedCards) || generatedCards.length === 0) return [];
+        if (!Array.isArray(existingCards) || existingCards.length === 0) return generatedCards;
+
+        const existingSignatures = new Set();
+        const existingTexts = [];
+
+        for (const card of existingCards) {
+            const front = typeof card?.front === 'string' ? card.front : '';
+            const back = typeof card?.back === 'string' ? card.back : '';
+            if (!front || !back) continue;
+
+            const signature = this._buildCardSignature(front, back);
+            if (signature) existingSignatures.add(signature);
+            existingTexts.push(`${front} ${back}`);
+        }
+
+        const filtered = [];
+        for (const card of generatedCards) {
+            const front = typeof card?.front === 'string' ? card.front : '';
+            const back = typeof card?.back === 'string' ? card.back : '';
+            if (!front || !back) continue;
+
+            const signature = this._buildCardSignature(front, back);
+            if (signature && existingSignatures.has(signature)) continue;
+
+            const nearDuplicate = existingTexts.some((text) => {
+                const similarity = this._jaccardSimilarity(text, `${front} ${back}`);
+                return similarity > SIMILARITY_THRESHOLD;
+            });
+            if (nearDuplicate) continue;
+
+            filtered.push(card);
+            if (signature) existingSignatures.add(signature);
+            existingTexts.push(`${front} ${back}`);
+        }
+
+        return filtered;
+    }
+
+    _buildCardSignature(front, back) {
+        const normalize = (value) => String(value || '')
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const normalizedFront = normalize(front);
+        const normalizedBack = normalize(back);
+        if (!normalizedFront || !normalizedBack) return '';
+        return `${normalizedFront}||${normalizedBack}`;
     }
 
     /**
@@ -3694,6 +3766,49 @@ Genera una risposta per OGNI domanda nella lista.`;
             .map((t) => t.trim())
             .filter((t) => t.length >= 4 && !stopwords.has(t))
             .slice(0, 20);
+    }
+
+    _logExtractionQuality(pdfData, normalizedText) {
+        const pages = Array.isArray(pdfData?.pages) ? pdfData.pages : [];
+        if (pages.length === 0) return;
+
+        const markerCount = typeof normalizedText === 'string'
+            ? (normalizedText.match(/--- PAGE \d+ ---/g) || []).length
+            : 0;
+        const emptyPages = pages.filter((p) => (typeof p?.text === 'string' ? p.text.trim().length : 0) < 30);
+        const shortPages = pages.filter((p) => (typeof p?.text === 'string' ? p.text.trim().length : 0) < 200);
+
+        const lineFreq = new Map();
+        for (const page of pages) {
+            const rawText = typeof page?.text === 'string' ? page.text : '';
+            const uniqueLines = new Set(
+                rawText
+                    .split(/\n+/)
+                    .map((line) => line.trim())
+                    .filter((line) => line.length >= 8)
+            );
+            for (const line of uniqueLines) {
+                lineFreq.set(line, (lineFreq.get(line) || 0) + 1);
+            }
+        }
+
+        const repeatThreshold = Math.max(3, Math.ceil(pages.length * 0.45));
+        const repeatedLines = [...lineFreq.entries()].filter(([, count]) => count >= repeatThreshold);
+
+        console.log(
+            `[PDF Quality] pages=${pages.length}, markers=${markerCount}, emptyPages=${emptyPages.length}, shortPages=${shortPages.length}, repeatedLines=${repeatedLines.length}`
+        );
+
+        if (markerCount !== pages.length) {
+            console.warn(`[PDF Quality] Marker mismatch: attesi ${pages.length}, trovati ${markerCount}`);
+        }
+        if (emptyPages.length > 0) {
+            console.warn(`[PDF Quality] Pagine quasi vuote: ${emptyPages.map((p) => p.num).join(', ')}`);
+        }
+        if (repeatedLines.length > 0) {
+            const sample = repeatedLines.slice(0, 3).map(([line, count]) => `(${count}x) ${line.slice(0, 80)}`);
+            console.warn(`[PDF Quality] Possibili header/footer ripetuti: ${sample.join(' | ')}`);
+        }
     }
 
     _normalizeExtractedText(text) {
