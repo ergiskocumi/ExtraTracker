@@ -173,10 +173,10 @@ export const DeckDetailPage: React.FC = () => {
         });
     }, [deck]);
 
-    // Loading state
+    // Loading state (stesso stile di /study: nessun wrapper full-screen)
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-theme-base">
+            <div className="flex items-center justify-center py-20">
                 <div className="flex flex-col items-center gap-4">
                     <div className="animate-spin w-10 h-10 border-3 border-primary-500 border-t-transparent rounded-full" />
                     <p className="text-theme-secondary text-sm">Caricamento mazzo...</p>
@@ -185,10 +185,10 @@ export const DeckDetailPage: React.FC = () => {
         );
     }
 
-    // Error state
+    // Error state (inline nel layout come /study)
     if (error || !deck) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 bg-theme-base">
+            <div className="flex flex-col items-center justify-center gap-4 py-16 px-4">
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -212,7 +212,7 @@ export const DeckDetailPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-theme-base text-theme-primary px-4 sm:px-6 py-6 sm:py-8">
+        <>
             <div className="w-full max-w-[1920px] mx-auto">
                 <DeckDetailContent
                     deck={deck}
@@ -337,7 +337,7 @@ export const DeckDetailPage: React.FC = () => {
                 onConfirm={handleDeleteDeck}
                 onCancel={() => setIsDeleting(false)}
             />
-        </div>
+        </>
     );
 };
 
