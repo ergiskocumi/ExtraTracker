@@ -78,14 +78,14 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
         >
-            <div className="flex items-center justify-between pb-4 border-b border-white/5">
+            <div className="flex items-center justify-between pb-4 border-b border-theme-default">
                 <div>
-                    <h3 className="text-lg font-semibold text-white mb-1">
+                    <h3 className="text-lg font-semibold text-theme-primary mb-1">
                         {progressStep === 'generating' ? 'Generazione risposte...' : progressMessage || 'Elaborazione...'}
                     </h3>
                 </div>
                 {isProcessing && (
-                    <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+                    <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
                 )}
             </div>
 
@@ -93,14 +93,14 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
             {progressStep === 'generating' && progressTotal > 0 && (
                 <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-white/70">
+                        <span className="text-theme-secondary">
                             {progressCurrent}/{progressTotal} domande
                         </span>
                         <span className="text-amber-400 font-semibold">
                             {Math.round(progressPercent)}%
                         </span>
                     </div>
-                    <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-3 bg-theme-surface rounded-full overflow-hidden border border-theme-subtle">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${progressPercent}%` }}
@@ -109,7 +109,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                         >
                             {/* Pattern animato */}
                             <motion.div
-                                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                                className="absolute inset-0 bg-gradient-to-r from-transparent via-black/10 dark:via-white/20 to-transparent"
                                 animate={{
                                     x: ['-100%', '200%'],
                                 }}
@@ -127,12 +127,12 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                     
                     {/* Domanda corrente */}
                     {currentQuestion && (
-                        <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5">
+                        <div className="p-4 rounded-xl bg-theme-surface border border-theme-default">
                             <div className="flex items-start gap-3">
                                 <span className="text-2xl">📝</span>
                                 <div className="flex-1">
-                                    <p className="text-sm text-white/50 mb-1">Domanda corrente</p>
-                                    <p className="text-white text-sm leading-relaxed">
+                                    <p className="text-sm text-theme-secondary mb-1">Domanda corrente</p>
+                                    <p className="text-theme-primary text-sm leading-relaxed">
                                         "{currentQuestion.length > 100 ? `${currentQuestion.substring(0, 100)}...` : currentQuestion}"
                                     </p>
                                 </div>
@@ -142,7 +142,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
 
                     {/* Tempo stimato rimanente */}
                     {estimatedTimeRemaining !== null && estimatedTimeRemaining > 0 && (
-                        <div className="flex items-center gap-2 text-sm text-white/60">
+                        <div className="flex items-center gap-2 text-sm text-theme-secondary">
                             <Clock className="w-4 h-4" />
                             <span>
                                 ~{estimatedTimeRemaining} {estimatedTimeRemaining === 1 ? 'secondo' : 'secondi'} rimanenti
@@ -152,7 +152,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
 
                     {/* Cancel Button */}
                     {isProcessing && (
-                        <div className="pt-4 border-t border-white/5">
+                        <div className="pt-4 border-t border-theme-default">
                             <button
                                 onClick={() => setShowCancelConfirm(true)}
                                 className={examSolverButtonClass('dangerSoft', 'w-full px-4 py-2.5 rounded-xl font-medium')}
@@ -171,18 +171,18 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                             style={{ margin: 0 }}
                         >
                             <div
-                                className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+                                className="absolute inset-0 bg-theme-overlay backdrop-blur-sm"
                                 onClick={() => setShowCancelConfirm(false)}
                             />
                             <motion.div
                                 initial={{ scale: 0.9, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                className="relative bg-zinc-900/95 backdrop-blur-xl rounded-2xl border border-white/10 p-6 max-w-sm w-full shadow-2xl"
+                                className="relative bg-theme-elevated backdrop-blur-xl rounded-2xl border border-theme-default p-6 max-w-sm w-full shadow-theme-lg"
                             >
-                                <h3 className="text-lg font-semibold text-white mb-2">
+                                <h3 className="text-lg font-semibold text-theme-primary mb-2">
                                     Annullare la generazione?
                                 </h3>
-                                <p className="text-white/70 text-sm mb-6">
+                                <p className="text-theme-secondary text-sm mb-6">
                                     Il progresso attuale verrà perso e dovrai ricominciare da capo.
                                 </p>
 
@@ -212,7 +212,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
             {/* Progress bar semplice per altri step */}
             {progressStep !== 'completed' && progressStep !== 'error' && progressStep !== 'generating' && (
                 <div className="space-y-2">
-                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-2 bg-theme-surface rounded-full overflow-hidden border border-theme-subtle">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{
@@ -243,10 +243,10 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                             <CheckCircle2 className="w-12 h-12 text-emerald-400" />
                         </motion.div>
                         <div>
-                            <h3 className="text-lg font-semibold text-white mb-1">
+                            <h3 className="text-lg font-semibold text-theme-primary mb-1">
                                 Generazione completata!
                             </h3>
-                            <p className="text-sm text-white/60">
+                            <p className="text-sm text-theme-secondary">
                                 {stats.totalFlashcards} flashcard generate
                             </p>
                         </div>
@@ -254,21 +254,21 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
 
                     {/* Stats Grid */}
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5">
-                            <p className="text-xs text-white/50 mb-1">Domande estratte</p>
-                            <p className="text-2xl font-bold text-primary-300">{stats.questionsExtracted}</p>
+                        <div className="p-4 rounded-xl bg-theme-surface border border-theme-default">
+                            <p className="text-xs text-theme-secondary mb-1">Domande estratte</p>
+                            <p className="text-2xl font-bold text-primary-500">{stats.questionsExtracted}</p>
                         </div>
-                        <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5">
-                            <p className="text-xs text-white/50 mb-1">Risposte trovate</p>
-                            <p className="text-2xl font-bold text-emerald-300">{stats.answersFound}</p>
+                        <div className="p-4 rounded-xl bg-theme-surface border border-theme-default">
+                            <p className="text-xs text-theme-secondary mb-1">Risposte trovate</p>
+                            <p className="text-2xl font-bold text-emerald-500">{stats.answersFound}</p>
                         </div>
-                        <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5">
-                            <p className="text-xs text-white/50 mb-1">Non trovate</p>
-                            <p className="text-2xl font-bold text-amber-300">{stats.answersNotFound}</p>
+                        <div className="p-4 rounded-xl bg-theme-surface border border-theme-default">
+                            <p className="text-xs text-theme-secondary mb-1">Non trovate</p>
+                            <p className="text-2xl font-bold text-amber-500">{stats.answersNotFound}</p>
                         </div>
-                        <div className="p-4 rounded-xl bg-zinc-900/60 border border-white/5">
-                            <p className="text-xs text-white/50 mb-1">Tempo</p>
-                            <p className="text-2xl font-bold text-primary-300">
+                        <div className="p-4 rounded-xl bg-theme-surface border border-theme-default">
+                            <p className="text-xs text-theme-secondary mb-1">Tempo</p>
+                            <p className="text-2xl font-bold text-primary-500">
                                 {(stats.processingTimeMs / 1000).toFixed(1)}s
                             </p>
                         </div>
@@ -318,8 +318,8 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                         <AlertCircle className="w-12 h-12 text-red-400" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-white mb-1">Errore</h3>
-                        <p className="text-sm text-white/60">{error || 'Si è verificato un errore'}</p>
+                        <h3 className="text-lg font-semibold text-theme-primary mb-1">Errore</h3>
+                        <p className="text-sm text-theme-secondary">{error || 'Si è verificato un errore'}</p>
                     </div>
                     <button
                         onClick={onRetry}

@@ -35,11 +35,11 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
             className="space-y-6"
         >
             <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">Configurazione Mazzo</h3>
+                <h3 className="text-lg font-semibold text-theme-primary">Configurazione Mazzo</h3>
 
                 {/* Radio buttons */}
                 <div className="space-y-3">
-                    <label className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900/60 border border-white/5 cursor-pointer hover:bg-zinc-900/80 transition-colors">
+                    <label className="flex items-center gap-3 p-4 rounded-xl bg-theme-surface border border-theme-default cursor-pointer hover:bg-theme-elevated transition-colors">
                         <input
                             type="radio"
                             name="deckMode"
@@ -48,12 +48,12 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                             onChange={(e) => setDeckMode(e.target.value as 'new')}
                             className="w-4 h-4 text-amber-500"
                         />
-                        <Plus className="w-5 h-5 text-white/60" />
-                        <span className="text-white font-medium">Crea nuovo mazzo</span>
+                        <Plus className="w-5 h-5 text-theme-secondary" />
+                        <span className="text-theme-primary font-medium">Crea nuovo mazzo</span>
                     </label>
 
                     {existingDecks.length > 0 && (
-                        <label className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900/60 border border-white/5 cursor-pointer hover:bg-zinc-900/80 transition-colors">
+                        <label className="flex items-center gap-3 p-4 rounded-xl bg-theme-surface border border-theme-default cursor-pointer hover:bg-theme-elevated transition-colors">
                             <input
                                 type="radio"
                                 name="deckMode"
@@ -62,8 +62,8 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                                 onChange={(e) => setDeckMode(e.target.value as 'existing')}
                                 className="w-4 h-4 text-amber-500"
                             />
-                            <FileText className="w-5 h-5 text-white/60" />
-                            <span className="text-white font-medium">Aggiungi a mazzo esistente</span>
+                            <FileText className="w-5 h-5 text-theme-secondary" />
+                            <span className="text-theme-primary font-medium">Aggiungi a mazzo esistente</span>
                         </label>
                     )}
                 </div>
@@ -76,7 +76,7 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                         className="space-y-4"
                     >
                         <div className="space-y-2">
-                            <label className="block text-sm font-medium text-white/80">
+                            <label className="block text-sm font-medium text-theme-secondary">
                                 Titolo del mazzo
                             </label>
                             <input
@@ -89,13 +89,13 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                         </div>
                         
                         <div className="space-y-2">
-                            <label className="block text-sm font-medium text-white/80">
+                            <label className="block text-sm font-medium text-theme-secondary">
                                 Esame associato
                             </label>
                             {isLoadingExams ? (
                                 <div className={examSolverFieldClass('default', 'px-4 py-3 rounded-xl flex items-center gap-2')}>
-                                    <Loader2 className="w-4 h-4 text-white/60 animate-spin" />
-                                    <span className="text-sm text-white/60">Caricamento esami...</span>
+                                    <Loader2 className="w-4 h-4 text-theme-muted animate-spin" />
+                                    <span className="text-sm text-theme-muted">Caricamento esami...</span>
                                 </div>
                             ) : (
                                 <select
@@ -112,7 +112,7 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                                 </select>
                             )}
                             {exams.length === 0 && !isLoadingExams && (
-                                <p className="text-xs text-white/50">
+                                <p className="text-xs text-theme-secondary">
                                     Nessun esame attivo trovato. Crea un esame dalla dashboard.
                                 </p>
                             )}
@@ -127,7 +127,7 @@ export const DeckConfigForm: React.FC<DeckConfigFormProps> = ({
                         animate={{ opacity: 1, height: 'auto' }}
                         className="space-y-2"
                     >
-                        <label className="block text-sm font-medium text-white/80">
+                        <label className="block text-sm font-medium text-theme-secondary">
                             Seleziona mazzo
                         </label>
                         <select

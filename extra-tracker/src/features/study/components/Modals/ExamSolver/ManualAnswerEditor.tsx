@@ -174,7 +174,7 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                     </h4>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="text-xs text-white/60">
+                    <span className="text-xs text-theme-secondary">
                         {completedCount} di {notFoundFlashcards.length} completate
                     </span>
                     {completedCount > 0 && (
@@ -206,14 +206,14 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                             initial={{ opacity: 0, y: 5 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.05 }}
-                            className="p-4 rounded-xl bg-zinc-900/60 border border-white/5 space-y-3"
+                            className="p-4 rounded-xl bg-theme-surface border border-theme-default space-y-3"
                         >
                             {/* Domanda (read-only) */}
                             <div>
-                                <label className="block text-xs font-medium text-white/60 mb-1.5">
+                                <label className="block text-xs font-medium text-theme-secondary mb-1.5">
                                     Domanda {idx + 1}
                                 </label>
-                                <p className="text-sm text-white/90 leading-relaxed bg-zinc-950/40 p-3 rounded-lg border border-white/5">
+                                <p className="text-sm text-theme-primary leading-relaxed bg-theme-elevated p-3 rounded-lg border border-theme-default">
                                     {card.front}
                                 </p>
                             </div>
@@ -221,7 +221,7 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                             {/* Input risposta */}
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <label className="block text-xs font-medium text-white/60">
+                                    <label className="block text-xs font-medium text-theme-secondary">
                                         Risposta <span className="text-red-400">*</span>
                                     </label>
                                     <div className="flex items-center gap-2">

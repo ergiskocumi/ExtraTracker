@@ -46,12 +46,11 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => 
     ];
 
     return (
-        <div className="px-6 py-4 border-b border-white/5 bg-zinc-950/60">
+        <div className="px-6 py-4 border-b border-theme-default bg-theme-surface">
             <div className="flex items-center justify-between">
                 {steps.map((step, index) => {
                     const isCompleted = step.number < currentStepNumber;
                     const isActive = step.number === currentStepNumber;
-                    const isFuture = step.number > currentStepNumber;
 
                     return (
                         <div key={step.key} className="flex items-center flex-1">
@@ -70,7 +69,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => 
                                             ? 'bg-emerald-500/20 border-2 border-emerald-500'
                                             : isActive
                                             ? 'bg-amber-500/20 border-2 border-amber-500'
-                                            : 'bg-zinc-800/60 border-2 border-white/10'
+                                            : 'bg-theme-surface border-2 border-theme-default'
                                         }
                                     `}
                                 >
@@ -80,7 +79,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => 
                                             animate={{ scale: 1 }}
                                             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                                         >
-                                            <Check className="w-4 h-4 text-emerald-400" />
+                                            <Check className="w-4 h-4 text-emerald-500" />
                                         </motion.div>
                                     ) : isActive ? (
                                         <motion.div
@@ -90,25 +89,22 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => 
                                             className="w-3 h-3 rounded-full bg-amber-500"
                                         />
                                     ) : (
-                                        <div className="w-3 h-3 rounded-full bg-white/20" />
+                                        <div className="w-3 h-3 rounded-full bg-gray-400 dark:bg-gray-500" />
                                     )}
                                 </motion.div>
-                                <motion.span
-                                    initial={false}
-                                    animate={{
-                                        color: isActive ? 'rgb(251 191 36)' : isCompleted ? 'rgb(34 197 94)' : 'rgb(255 255 255 / 0.4)',
-                                    }}
-                                    transition={{ duration: 0.3 }}
-                                    className="text-xs font-medium mt-2 whitespace-nowrap"
+                                <span
+                                    className={`text-xs font-medium mt-2 whitespace-nowrap transition-colors ${
+                                        isActive ? 'text-amber-600 dark:text-amber-400' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-theme-muted'
+                                    }`}
                                 >
                                     {step.label}
-                                </motion.span>
+                                </span>
                             </div>
 
                             {/* Connector Line */}
                             {index < steps.length - 1 && (
                                 <div className="flex-1 mx-2 h-0.5 relative">
-                                    <div className="absolute inset-0 bg-zinc-800/60 rounded-full" />
+                                    <div className="absolute inset-0 rounded-full bg-[var(--border-subtle)]" />
                                     <motion.div
                                         initial={{ scaleX: 0 }}
                                         animate={{

@@ -239,29 +239,20 @@ const SingleDropzone: React.FC<SingleDropzoneProps> = ({ config, dropzone, error
             onClick={handleClick}
             animate={{
                 scale: state === 'validating-invalid' ? [1, 1.02, 1, 1.02, 1] : 1,
-                borderColor: 
-                    state === 'uploaded' ? 'rgba(34, 197, 94, 0.4)' :
-                    state === 'dragging' ? 'rgba(59, 130, 246, 0.4)' :
-                    state === 'validating-valid' ? 'rgba(34, 197, 94, 0.6)' :
-                    state === 'validating-invalid' ? 'rgba(239, 68, 68, 0.6)' :
-                    'rgba(255, 255, 255, 0.1)',
             }}
-            transition={{
-                scale: { duration: 0.3 },
-                borderColor: { duration: 0.2 },
-            }}
+            transition={{ duration: 0.2 }}
             className={`
                 relative h-48 rounded-2xl border-2 border-dashed transition-all duration-300
                 flex flex-col items-center justify-center gap-4 cursor-pointer
                 ${state === 'uploaded'
-                    ? 'bg-emerald-500/10'
+                    ? 'bg-emerald-500/10 border-emerald-500/40'
                     : state === 'dragging'
-                    ? 'bg-blue-500/10'
+                    ? 'bg-blue-500/10 border-blue-500/40'
                     : state === 'validating-valid'
-                    ? 'bg-emerald-500/20'
+                    ? 'bg-emerald-500/20 border-emerald-500/60'
                     : state === 'validating-invalid'
-                    ? 'bg-red-500/20'
-                    : 'bg-zinc-900/40 hover:border-white/20 hover:bg-zinc-900/60'
+                    ? 'bg-red-500/20 border-red-500/60'
+                    : 'bg-theme-surface border-theme-default hover:border-theme-strong hover:bg-theme-elevated'
                 }
             `}
         >
@@ -283,10 +274,10 @@ const SingleDropzone: React.FC<SingleDropzoneProps> = ({ config, dropzone, error
                         <Icon className="w-10 h-10 text-emerald-400" />
                     </motion.div>
                     <div className="text-center px-4">
-                        <p className="text-sm font-medium text-white truncate max-w-[200px]">
+                        <p className="text-sm font-medium text-theme-primary truncate max-w-[200px]">
                             {config.file.name}
                         </p>
-                        <p className="text-xs text-white/60 mt-1">
+                        <p className="text-xs text-theme-secondary mt-1">
                             {formatFileSize(config.file.size)}
                         </p>
                     </div>
@@ -333,15 +324,15 @@ const SingleDropzone: React.FC<SingleDropzoneProps> = ({ config, dropzone, error
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                             >
-                                <Icon className="w-10 h-10 text-white/40" />
+                                <Icon className="w-10 h-10 text-theme-muted" />
                             </motion.div>
                         )}
                     </AnimatePresence>
                     <div className="text-center px-4">
-                        <p className="text-sm font-medium text-white/80">
+                        <p className="text-sm font-medium text-theme-primary">
                             {config.label}
                         </p>
-                        <p className="text-xs text-white/50 mt-1">
+                        <p className="text-xs text-theme-secondary mt-1">
                             {config.id === 'questions' ? 'PDF, TXT, DOCX' : 'PDF'}
                         </p>
                     </div>
