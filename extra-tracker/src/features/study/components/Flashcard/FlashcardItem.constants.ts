@@ -64,17 +64,17 @@ export const BADGE_STYLES = {
     question: {
         size: 'w-7 h-7 md:w-8 md:h-8',
         borderRadius: 'rounded-full',
-        background: 'bg-violet-500/25',
-        border: 'border border-violet-500/40',
-        text: 'text-xs font-bold text-violet-700',
+        background: 'bg-violet-500/25 dark:bg-violet-500/40',
+        border: 'border border-violet-500/40 dark:border-violet-500/55',
+        text: 'text-xs font-bold text-violet-700 dark:text-violet-200',
         shadow: 'shadow-sm',
     },
     answer: {
         size: 'w-7 h-7 md:w-8 md:h-8',
         borderRadius: 'rounded-full',
-        background: 'bg-amber-500/25',
-        border: 'border border-amber-500/40',
-        text: 'text-xs font-bold text-amber-700',
+        background: 'bg-amber-500/25 dark:bg-amber-500/40',
+        border: 'border border-amber-500/40 dark:border-amber-500/55',
+        text: 'text-xs font-bold text-amber-700 dark:text-amber-200',
         shadow: 'shadow-sm',
     },
 } as const;
