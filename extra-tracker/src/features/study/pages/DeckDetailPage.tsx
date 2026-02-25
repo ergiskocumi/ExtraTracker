@@ -252,9 +252,9 @@ export const DeckDetailPage: React.FC = () => {
                 onClose={() => setIsMagicGenerateOpen(false)}
                 deckId={deck.id}
                 deckTitle={deck.title}
-                onSuccess={async (count) => {
+                onSuccess={async () => {
                     await loadDeck();
-                    emitToast.success(`${count} flashcard generate con successo!`);
+                    setIsMagicGenerateOpen(false);
                 }}
             />
 

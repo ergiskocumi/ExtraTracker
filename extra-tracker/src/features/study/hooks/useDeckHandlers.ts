@@ -60,11 +60,10 @@ export const useDeckHandlers = ({
         setIsMagicGenerateOpen(true);
     }, []);
 
-    const handleMagicGenerateSuccess = useCallback(async (generatedCount: number) => {
+    const handleMagicGenerateSuccess = useCallback(async () => {
         await loadDecks();
-        if (generatedCount > 0) {
-            emitToast.success(`✅ ${generatedCount} ${generatedCount === 1 ? 'nuova carta aggiunta' : 'nuove carte aggiunte'} al mazzo!`);
-        }
+        setIsMagicGenerateOpen(false);
+        setSelectedDeck(null);
     }, [loadDecks]);
 
     const handleExamSolver = useCallback((deckId?: string) => {

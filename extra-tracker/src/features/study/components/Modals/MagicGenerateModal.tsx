@@ -41,7 +41,7 @@ interface MagicGenerateModalProps {
     onClose: () => void;
     deckId: string;
     deckTitle: string;
-    onSuccess: (generatedCount: number) => void;
+    onSuccess: (generatedCount: number) => void | Promise<void>;
 }
 
 type AnalysisStep = 'idle' | 'uploading' | 'analyzing' | 'processing' | 'generating' | 'completed' | 'error';
@@ -143,6 +143,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
+    const completionHandledRef = useRef(false);
 
     // Check if we have an active job for this deck
     const isProcessingCurrentDeck = activeJob?.deckId === deckId && 
@@ -195,6 +196,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
             setError(null);
             setLogs([]);
             setCurrentJobId(null);
+            completionHandledRef.current = false;
         }
     }, [isOpen, isProcessingCurrentDeck]);
 
@@ -292,6 +294,11 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                             addLogMemo(`${data.generatedSoFar} flashcard generate finora`, 'success', Zap);
                         }
                     } else if (data.step === 'completed') {
+                        if (completionHandledRef.current) {
+                            return;
+                        }
+                        completionHandledRef.current = true;
+
                         const totalCards = data.totalCards || progress.generatedCount || 0;
                         setProgress(prev => ({
                             ...prev,
@@ -305,15 +312,18 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                         // Complete job in context
                         completeJob(currentJobId, totalCards);
                         
-                        // Call onSuccess callback
+                        // Call onSuccess callback e chiudi automaticamente il modal
                         setTimeout(() => {
-                            onSuccess(totalCards);
-                        }, 1500);
+                            Promise.resolve(onSuccess(totalCards))
+                                .finally(() => {
+                                    onClose();
+                                });
+                        }, 1200);
                     }
                 },
             },
         ];
-    }, [currentJobId, progress, addLogMemo, updateJob, completeJob, onSuccess]);
+    }, [currentJobId, progress, addLogMemo, updateJob, completeJob, onSuccess, onClose]);
 
     useSSE('/api/sse/stream', sseListeners);
 
@@ -398,6 +408,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         if (!file || progress.step !== 'idle') return;
 
         try {
+            completionHandledRef.current = false;
             const jobId = startJob({
                 deckId,
                 deckTitle,
