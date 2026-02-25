@@ -978,7 +978,6 @@ class StudyService extends BaseService {
      */
     async generateCardsFromPDF(tenantScope, deckId, pdfFilePath, options = {}) {
         const userId = this._getUserId(tenantScope);
-        const generationCardCap = this._resolveGenerationCardCap(options?.maxCards);
 
         // 1. Verifica mazzo
         const deck = await Deck.findOne({ _id: deckId, user: userId });
@@ -1053,6 +1052,18 @@ class StudyService extends BaseService {
         const globalConcepts = this._extractConceptsLocally(normalizedText);
         console.log(`🎯 Estratti ${globalConcepts.length} concetti chiave (locale)`);
 
+        // 6.5 🧮 Target automatico per ottimizzare costo/qualità (niente scelta manuale richiesta)
+        const autoCardCap = this._estimateOptimalGenerationCardCap({
+            textLength: normalizedText.length,
+            densityScore: blueprint?.densityScore,
+            chunkCount: semanticChunks.length,
+            conceptCount: globalConcepts.length,
+        });
+        const generationCardCap = this._resolveGenerationCardCap(options?.maxCards, autoCardCap);
+        const generationBudget = this._resolveGenerationBudget(generationCardCap, semanticChunks.length);
+
+        console.log(`🧮 Target card: auto=${autoCardCap}, capFinale=${generationCardCap}, budgetGenerazione=${generationBudget}`);
+
         // 7. 🆕 BATCH GENERATION V4 - PARALLEL batch processing
         console.log('✨ FASE 4: Generazione flashcard (batch parallelo)...');
         let allGeneratedCards = [];
@@ -1064,19 +1075,24 @@ class StudyService extends BaseService {
             batches.push(semanticChunks.slice(i, i + BATCH_SIZE));
         }
 
-        console.log(`📦 Creati ${batches.length} batch da ${BATCH_SIZE} chunk ciascuno — lancio in PARALLELO`);
+        const batchTargets = this._allocateBatchTargets(batches, generationBudget);
+        const plannedTotal = batchTargets.reduce((sum, value) => sum + value, 0);
+
+        console.log(
+            `📦 Creati ${batches.length} batch da ${BATCH_SIZE} chunk ciascuno — lancio in PARALLELO (target totale pianificato: ${plannedTotal})`
+        );
 
         sseManager.sendToUser(userId, 'pdf-progress', {
             step: 'generating',
             currentChunk: 1,
             totalChunks: semanticChunks.length,
             generatedSoFar: 0,
-            message: `Genero flashcard da ${batches.length} sezioni in parallelo...`
+            message: `Genero flashcard da ${batches.length} sezioni in parallelo (target automatico)...`
         });
 
         // Lancio TUTTI i batch in parallelo (la deduplica Jaccard gestisce i duplicati)
         const batchPromises = batches.map((batch, batchIdx) => {
-            const targetCards = this._calculateBatchTarget(batch);
+            const targetCards = batchTargets[batchIdx] || this._calculateBatchTarget(batch);
             const totalBatchChars = batch.reduce((sum, c) => sum + c.text.length, 0);
             console.log(`🚀 Batch ${batchIdx + 1}/${batches.length}: ${batch.length} chunk, ${totalBatchChars} chars, target ${targetCards} cards`);
 
@@ -1202,6 +1218,8 @@ class StudyService extends BaseService {
                 totalBatches: batches.length,
                 duplicatesRemoved: removedCount + removedExisting,
                 conceptsExtracted: globalConcepts.length,
+                autoTargetCards: autoCardCap,
+                generationBudget,
                 maxCardsApplied: generationCardCap,
             }
         };
@@ -1450,6 +1468,103 @@ class StudyService extends BaseService {
         }
         // Cap a MAX_CARDS_PER_CHUNK * 2 per batch di 2 chunk
         return Math.min(totalTarget, MAX_CARDS_PER_CHUNK * BATCH_SIZE);
+    }
+
+    /**
+     * 🧮 Stima il cap ottimale di card in base al contenuto (costo-aware).
+     * Obiettivo: copertura buona evitando over-generation costosa.
+     */
+    _estimateOptimalGenerationCardCap({ textLength = 0, densityScore = 0.5, chunkCount = 0, conceptCount = 0 } = {}) {
+        const safeTextLength = Math.max(0, Math.round(this._toNumber(textLength, 0)));
+        const safeChunkCount = Math.max(1, Math.round(this._toNumber(chunkCount, 1)));
+        const safeConceptCount = Math.max(0, Math.round(this._toNumber(conceptCount, 0)));
+        const safeDensity = Math.min(1, Math.max(0.2, this._toNumber(densityScore, 0.5)));
+
+        const lengthBased = Math.ceil(safeTextLength / 1500);
+        const chunkBased = Math.ceil(safeChunkCount * 5.5);
+        const conceptBased = Math.ceil(safeConceptCount * 0.9);
+
+        let estimate = Math.max(lengthBased, chunkBased, conceptBased, 18);
+        if (safeDensity >= 0.75) estimate = Math.round(estimate * 1.15);
+        else if (safeDensity <= 0.35) estimate = Math.round(estimate * 0.85);
+
+        const lowerBound = Math.max(16, Math.min(24, safeChunkCount * 3));
+        const upperBound = Math.min(MAX_TOTAL_CARDS, Math.max(48, safeChunkCount * 12));
+
+        return Math.min(upperBound, Math.max(lowerBound, estimate));
+    }
+
+    /**
+     * Definisce un budget di generazione leggermente sopra il cap finale
+     * per assorbire deduplica/filtri senza sprecare token.
+     */
+    _resolveGenerationBudget(generationCardCap = MAX_TOTAL_CARDS, chunkCount = 0) {
+        const cap = Math.min(MAX_TOTAL_CARDS, Math.max(20, Math.round(this._toNumber(generationCardCap, MAX_TOTAL_CARDS))));
+        const safeChunkCount = Math.max(1, Math.round(this._toNumber(chunkCount, 1)));
+        const buffer = cap <= 40 ? 4 : cap <= 80 ? 6 : 8;
+        const minimumCoverage = safeChunkCount * 2; // evita batch con target quasi nullo
+
+        return Math.min(MAX_TOTAL_CARDS, Math.max(cap + buffer, minimumCoverage));
+    }
+
+    /**
+     * Distribuisce il budget totale sui batch in modo proporzionale ai target base.
+     * Mantiene il totale sotto controllo per contenere il costo token.
+     */
+    _allocateBatchTargets(batches, generationBudget = MAX_TOTAL_CARDS) {
+        if (!Array.isArray(batches) || batches.length === 0) return [];
+
+        const baseTargets = batches.map((batch) => this._calculateBatchTarget(batch));
+        const baseTotal = baseTargets.reduce((sum, value) => sum + value, 0);
+        const safeBudget = Math.max(batches.length, Math.round(this._toNumber(generationBudget, baseTotal)));
+
+        if (baseTotal <= safeBudget) return baseTargets;
+
+        const rawTargets = baseTargets.map((target, idx) => ({
+            idx,
+            scaled: (target * safeBudget) / Math.max(1, baseTotal),
+        }));
+
+        const allocated = rawTargets.map(({ scaled }) => Math.max(1, Math.floor(scaled)));
+        let allocatedTotal = allocated.reduce((sum, value) => sum + value, 0);
+
+        // Riduci overflow (se floor + min(1) eccede budget)
+        while (allocatedTotal > safeBudget) {
+            let candidateIdx = -1;
+            let candidateValue = 0;
+            for (let i = 0; i < allocated.length; i++) {
+                if (allocated[i] > 1 && allocated[i] > candidateValue) {
+                    candidateIdx = i;
+                    candidateValue = allocated[i];
+                }
+            }
+            if (candidateIdx === -1) break;
+            allocated[candidateIdx] -= 1;
+            allocatedTotal -= 1;
+        }
+
+        // Distribuisci eventuale resto sui batch con frazione più alta
+        if (allocatedTotal < safeBudget) {
+            const priorities = rawTargets
+                .map(({ idx, scaled }) => ({ idx, fraction: scaled - Math.floor(scaled) }))
+                .sort((a, b) => b.fraction - a.fraction);
+
+            let guard = 0;
+            while (allocatedTotal < safeBudget && guard < safeBudget * 3) {
+                guard += 1;
+                let changed = false;
+                for (const item of priorities) {
+                    if (allocatedTotal >= safeBudget) break;
+                    if (allocated[item.idx] >= baseTargets[item.idx]) continue;
+                    allocated[item.idx] += 1;
+                    allocatedTotal += 1;
+                    changed = true;
+                }
+                if (!changed) break;
+            }
+        }
+
+        return allocated;
     }
 
     /**
@@ -4273,13 +4388,18 @@ Genera una risposta per OGNI domanda nella lista.`;
 
     /**
      * Risolve il cap finale di carte per una generazione PDF.
-     * - default: MAX_TOTAL_CARDS (config/env)
+     * - default: cap automatico raccomandato
      * - richiesta client: clamp [20, MAX_TOTAL_CARDS]
      */
-    _resolveGenerationCardCap(requestedMaxCards = 0) {
+    _resolveGenerationCardCap(requestedMaxCards = 0, recommendedMaxCards = MAX_TOTAL_CARDS) {
+        const recommended = Math.min(
+            MAX_TOTAL_CARDS,
+            Math.max(20, Math.round(this._toNumber(recommendedMaxCards, MAX_TOTAL_CARDS)))
+        );
+
         const parsed = this._toNumber(requestedMaxCards, 0);
         if (!Number.isFinite(parsed) || parsed <= 0) {
-            return MAX_TOTAL_CARDS;
+            return recommended;
         }
 
         return Math.min(MAX_TOTAL_CARDS, Math.max(20, Math.round(parsed)));
