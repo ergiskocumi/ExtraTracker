@@ -15,11 +15,6 @@ import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { FloatingGenerationIndicator } from '../../features/study/components/Generation';
-const FloatingFeedbackButton = lazy(() =>
-    import('../../features/feedback/components/FloatingFeedbackButton').then((m) => ({
-        default: m.FloatingFeedbackButton,
-    }))
-);
 const GlobalFeedbackModal = lazy(() =>
     import('../../features/feedback/components/GlobalFeedbackModal').then((m) => ({
         default: m.GlobalFeedbackModal,
@@ -142,9 +137,8 @@ export const AppLayout = () => {
             {/* Footer: nascosto in /study per non disturbare sessioni e studio */}
             {!hideFooter && <Footer />}
 
-            {/* Global Feedback Components */}
+            {/* Global Feedback: modal apribile dal menu utente (Segnala un problema) */}
             <Suspense fallback={null}>
-                <FloatingFeedbackButton />
                 <GlobalFeedbackModal />
                 <TutorialManager />
                 <FloatingGenerationIndicator />

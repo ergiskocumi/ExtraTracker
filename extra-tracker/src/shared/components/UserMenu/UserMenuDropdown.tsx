@@ -18,9 +18,11 @@ import {
     FiChevronDown,
     FiBookOpen,
     FiShield,
+    FiMessageCircle,
 } from 'react-icons/fi';
 import { useAuth } from '../../../features/auth/context/AuthContext';
 import { useSettings } from '../../../features/settings/context/SettingsContext';
+import { useFeedback } from '../../../features/feedback/context/FeedbackContext';
 
 // ============================================
 // TYPES
@@ -178,6 +180,7 @@ export const UserMenuDropdown = memo(() => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { profile } = useSettings();
+    const { openFeedback } = useFeedback();
 
     const [isOpen, setIsOpen] = useState(false);
     const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
@@ -219,6 +222,12 @@ export const UserMenuDropdown = memo(() => {
             label: 'Account',
             items: [
                 { path: '/settings', label: 'Impostazioni', icon: FiSettings, description: 'Personalizza' },
+            ],
+        },
+        {
+            label: 'Aiuto',
+            items: [
+                { label: 'Segnala un problema', description: 'Bug o suggerimento', icon: FiMessageCircle, action: () => openFeedback() },
             ],
         },
         ...(isAdmin ? [
