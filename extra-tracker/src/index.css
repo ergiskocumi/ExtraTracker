@@ -1285,6 +1285,48 @@ input[type="month"] {
 }
 
 /* ====================================
+   WHEEL DATE PICKER (stile iOS – rotelle)
+   ==================================== */
+
+.wheel-date-picker {
+  --wheel-bg: var(--bg-elevated);
+  --wheel-border: var(--border-default);
+  border: 1px solid var(--wheel-border);
+  border-radius: 1rem;
+  background: var(--wheel-bg);
+  overflow: hidden;
+  padding: 0.5rem 0;
+}
+
+/* Maschera sfumata rotelle (usa colore tema) */
+.wheel-date-picker > div {
+  mask-image: linear-gradient(to top, transparent, transparent 5%, var(--wheel-bg) 20%, var(--wheel-bg) 80%, transparent 95%, transparent) !important;
+  -webkit-mask-image: linear-gradient(to top, transparent, transparent 5%, var(--wheel-bg) 20%, var(--wheel-bg) 80%, transparent 95%, transparent) !important;
+}
+
+.wheel-date-picker .wheel-date-picker-item {
+  display: block;
+  text-align: center;
+  font-size: 1.0625rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-weight: 500;
+  transition: color 0.15s ease, font-weight 0.15s ease, opacity 0.15s ease;
+}
+
+.wheel-date-picker .wheel-date-picker-item--selected {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Riga selezionata: sfondo a tutta larghezza (stile iOS) */
+.wheel-date-picker div:has(> .wheel-date-picker-item--selected) {
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%) !important;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 12px rgba(124, 58, 237, 0.3);
+}
+
+/* ====================================
    ANIMATIONS
    ==================================== */
 
@@ -2073,6 +2115,18 @@ ol ol li::before {
   border-color: var(--border-subtle);
 }
 
+.exam-quick-action--danger {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.exam-quick-action--danger:hover {
+  background: rgba(239, 68, 68, 0.24);
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.46);
+}
+
 .exam-quick-action-icon--solid {
   background: rgba(255, 255, 255, 0.2);
 }
@@ -2124,6 +2178,18 @@ ol ol li::before {
   color: var(--text-secondary);
 }
 
+[data-theme="dark"] .exam-quick-action--danger {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+[data-theme="dark"] .exam-quick-action--danger:hover {
+  background: rgba(239, 68, 68, 0.28);
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.52);
+}
+
 [data-theme="light"] .study-deck-primary-btn,
 [data-theme="light"] .exam-quick-action--primary,
 [data-theme="light"] .exam-quick-action--secondary {
@@ -2169,6 +2235,18 @@ ol ol li::before {
 [data-theme="light"] .exam-quick-action--ghost:hover {
   background: #ffffff;
   border-color: var(--border-default);
+}
+
+[data-theme="light"] .exam-quick-action--danger {
+  background: rgba(254, 242, 242, 0.94);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.26);
+}
+
+[data-theme="light"] .exam-quick-action--danger:hover {
+  background: #fee2e2;
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #991b1b;
 }
 
 [data-theme="light"] .exam-quick-action-icon--subtle {
