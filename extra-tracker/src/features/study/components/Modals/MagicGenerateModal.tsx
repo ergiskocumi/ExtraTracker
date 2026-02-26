@@ -33,8 +33,9 @@ import {
 } from 'lucide-react';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
-import { useSSE, type SSEPayload } from '../../../../hooks/useSSE';
+import { useSSE } from '../../../../hooks/useSSE';
 import { useFlashcardGeneration } from '../../context/FlashcardGenerationContext';
+import { parseMagicProgressEvent } from './magicGenerateEvents';
 
 interface MagicGenerateModalProps {
     isOpen: boolean;
@@ -203,118 +204,140 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         return [
             {
                 event: 'pdf-progress',
-                handler: (payload: SSEPayload<Record<string, unknown>>) => {
-                    const data = payload?.data;
-                    if (!data || typeof data !== 'object') return;
+                handler: (payload) => {
+                    const event = parseMagicProgressEvent(payload?.data);
+                    if (!event) return;
 
-                    if (data.step === 'analyzing' || data.step === 'blueprint') {
-                        const newProgress = {
-                            step: 'analyzing' as const,
-                            message: data.message || 'Analisi del documento in corso...',
-                            estimatedTime: 30,
-                            blueprint: data.blueprint,
-                        };
-                        setProgress(prev => ({ ...prev, ...newProgress }));
-                        updateJob(currentJobId, {
-                            step: 'analyzing',
-                            message: data.message || 'Analisi del documento in corso...',
-                            blueprint: data.blueprint,
-                        });
-                        if (data.message) {
-                            addLogMemo(data.message, 'analysis', Brain);
-                        }
-                        if (data.blueprint?.mainTopics) {
-                            addLogMemo(`Trovati ${data.blueprint.mainTopics.length} argomenti principali`, 'success', Target);
-                        }
-                    } else if (data.step === 'chunking') {
-                        const newProgress = {
-                            step: 'processing' as const,
-                            message: data.message || 'Preparazione del contenuto...',
-                            totalChunks: data.totalChunks || 0,
-                            estimatedTime: (data.totalChunks || 0) * 5 + 20,
-                        };
-                        setProgress(prev => ({ ...prev, ...newProgress }));
-                        updateJob(currentJobId, {
-                            step: 'processing',
-                            message: data.message || 'Preparazione del contenuto...',
-                            totalChunks: data.totalChunks || 0,
-                        });
-                        if (data.message) {
-                            addLogMemo(data.message, 'info', FileText);
-                        }
-                        if (data.totalChunks) {
-                            addLogMemo(`Documento diviso in ${data.totalChunks} sezioni`, 'info', BookOpen);
-                        }
-                    } else if (data.step === 'concepts') {
-                        setProgress(prev => ({
-                            ...prev,
-                            concepts: data.concepts || prev.concepts,
-                        }));
-                        updateJob(currentJobId, {
-                            concepts: data.concepts,
-                        });
-                        if (data.message) {
-                            addLogMemo(data.message, 'analysis', Lightbulb);
-                        }
-                        if (data.concepts && data.concepts.length > 0) {
-                            addLogMemo(`Estratti ${data.concepts.length} concetti chiave`, 'success', Target);
-                        }
-                    } else if (data.step === 'generating') {
-                        const progress_pct = data.totalChunks 
-                            ? Math.round(((data.currentChunk || 0) / data.totalChunks) * 100)
-                            : 0;
-                        
-                        const newProgress = {
-                            step: 'generating' as const,
-                            message: data.message || 'Generazione delle flashcard...',
-                            currentChunk: data.currentChunk || 0,
-                            totalChunks: data.totalChunks || progress.totalChunks || 0,
-                            generatedCount: data.generatedSoFar || 0,
-                            currentTopic: data.currentTopic || progress.currentTopic,
-                            progress: progress_pct,
-                        };
-                        setProgress(prev => ({ ...prev, ...newProgress }));
-                        updateJob(currentJobId, {
-                            step: 'generating',
-                            message: data.message || 'Generazione delle flashcard...',
-                            currentChunk: data.currentChunk || 0,
-                            totalChunks: data.totalChunks || progress.totalChunks || 0,
-                            generatedCount: data.generatedSoFar || 0,
-                            currentTopic: data.currentTopic || progress.currentTopic,
-                            progress: progress_pct,
-                        });
-                        if (data.currentTopic && data.currentTopic !== progress.currentTopic) {
-                            addLogMemo(`Elaborando: ${data.currentTopic}`, 'info', TrendingUp);
-                        }
-                        if (data.generatedSoFar && data.generatedSoFar % 5 === 0) {
-                            addLogMemo(`${data.generatedSoFar} flashcard generate finora`, 'success', Zap);
-                        }
-                    } else if (data.step === 'completed') {
-                        if (completionHandledRef.current) {
+                    switch (event.step) {
+                        case 'analyzing': {
+                            const message = event.message || 'Analisi del documento in corso...';
+                            setProgress((prev) => ({
+                                ...prev,
+                                step: 'analyzing',
+                                message,
+                                estimatedTime: 30,
+                                blueprint: event.blueprint ?? prev.blueprint,
+                            }));
+                            updateJob(currentJobId, {
+                                step: 'analyzing',
+                                message,
+                                blueprint: event.blueprint,
+                            });
+                            if (event.message) {
+                                addLogMemo(event.message, 'analysis', Brain);
+                            }
+                            if (event.blueprint?.mainTopics?.length) {
+                                addLogMemo(
+                                    `Trovati ${event.blueprint.mainTopics.length} argomenti principali`,
+                                    'success',
+                                    Target
+                                );
+                            }
                             return;
                         }
-                        completionHandledRef.current = true;
 
-                        const totalCards = data.totalCards || progress.generatedCount || 0;
-                        setProgress(prev => ({
-                            ...prev,
-                            step: 'completed',
-                            progress: 100,
-                            generatedCount: totalCards,
-                            message: 'Completato!',
-                        }));
-                        addLogMemo(`Generazione completata! ${totalCards} flashcard create`, 'success', CheckCircle2);
-                        
-                        // Complete job in context
-                        completeJob(currentJobId, totalCards);
-                        
-                        // Call onSuccess callback e chiudi automaticamente il modal
-                        setTimeout(() => {
-                            Promise.resolve(onSuccess(totalCards))
-                                .finally(() => {
-                                    onClose();
-                                });
-                        }, 1200);
+                        case 'chunking': {
+                            const message = event.message || 'Preparazione del contenuto...';
+                            setProgress((prev) => ({
+                                ...prev,
+                                step: 'processing',
+                                message,
+                                totalChunks: event.totalChunks,
+                                estimatedTime: event.totalChunks * 5 + 20,
+                            }));
+                            updateJob(currentJobId, {
+                                step: 'processing',
+                                message,
+                                totalChunks: event.totalChunks,
+                            });
+                            if (event.message) {
+                                addLogMemo(event.message, 'info', FileText);
+                            }
+                            if (event.totalChunks > 0) {
+                                addLogMemo(`Documento diviso in ${event.totalChunks} sezioni`, 'info', BookOpen);
+                            }
+                            return;
+                        }
+
+                        case 'concepts': {
+                            setProgress((prev) => ({
+                                ...prev,
+                                concepts: event.concepts.length > 0 ? event.concepts : prev.concepts,
+                            }));
+                            if (event.concepts.length > 0) {
+                                updateJob(currentJobId, { concepts: event.concepts });
+                            }
+                            if (event.message) {
+                                addLogMemo(event.message, 'analysis', Lightbulb);
+                            }
+                            if (event.concepts.length > 0) {
+                                addLogMemo(`Estratti ${event.concepts.length} concetti chiave`, 'success', Target);
+                            }
+                            return;
+                        }
+
+                        case 'generating': {
+                            const totalChunks = event.totalChunks || progress.totalChunks || 0;
+                            const currentTopic = event.currentTopic || progress.currentTopic;
+                            const progressPct = totalChunks
+                                ? Math.round((event.currentChunk / totalChunks) * 100)
+                                : 0;
+
+                            setProgress((prev) => ({
+                                ...prev,
+                                step: 'generating',
+                                message: event.message || 'Generazione delle flashcard...',
+                                currentChunk: event.currentChunk,
+                                totalChunks,
+                                generatedCount: event.generatedSoFar,
+                                currentTopic,
+                                progress: progressPct,
+                            }));
+                            updateJob(currentJobId, {
+                                step: 'generating',
+                                message: event.message || 'Generazione delle flashcard...',
+                                currentChunk: event.currentChunk,
+                                totalChunks,
+                                generatedCount: event.generatedSoFar,
+                                currentTopic,
+                                progress: progressPct,
+                            });
+                            if (event.currentTopic && event.currentTopic !== progress.currentTopic) {
+                                addLogMemo(`Elaborando: ${event.currentTopic}`, 'info', TrendingUp);
+                            }
+                            if (event.generatedSoFar > 0 && event.generatedSoFar % 5 === 0) {
+                                addLogMemo(`${event.generatedSoFar} flashcard generate finora`, 'success', Zap);
+                            }
+                            return;
+                        }
+
+                        case 'completed': {
+                            if (completionHandledRef.current) {
+                                return;
+                            }
+                            completionHandledRef.current = true;
+
+                            const totalCards = event.totalCards || progress.generatedCount || 0;
+                            setProgress((prev) => ({
+                                ...prev,
+                                step: 'completed',
+                                progress: 100,
+                                generatedCount: totalCards,
+                                message: 'Completato!',
+                            }));
+                            addLogMemo(
+                                `Generazione completata! ${totalCards} flashcard create`,
+                                'success',
+                                CheckCircle2
+                            );
+                            completeJob(currentJobId, totalCards);
+                            setTimeout(() => {
+                                Promise.resolve(onSuccess(totalCards))
+                                    .finally(() => {
+                                        onClose();
+                                    });
+                            }, 1200);
+                        }
                     }
                 },
             },
@@ -423,6 +446,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
     const handleSubmit = useCallback(async () => {
         if (!file || progress.step !== 'idle') return;
 
+        let startedJobId: string | null = null;
         try {
             completionHandledRef.current = false;
             const jobId = startJob({
@@ -431,6 +455,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
                 fileName: file.name,
                 maxCards: estimatedAutoCards,
             });
+            startedJobId = jobId;
             setCurrentJobId(jobId);
 
             setProgress({ step: 'uploading', message: 'Caricamento del file...', estimatedTime: 10 });
@@ -445,11 +470,11 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
             addLogMemo(`Errore: ${errorMsg}`, 'warning', AlertCircle);
             emitToast.error(errorMsg, { title: 'Generazione fallita' });
             
-            if (currentJobId) {
-                failJob(currentJobId, errorMsg);
+            if (startedJobId) {
+                failJob(startedJobId, errorMsg);
             }
         }
-    }, [file, deckId, deckTitle, progress.step, startJob, addLogMemo, currentJobId, failJob, estimatedAutoCards]);
+    }, [file, deckId, deckTitle, progress.step, startJob, addLogMemo, failJob, estimatedAutoCards]);
 
     const formatTime = (seconds: number) => {
         if (seconds < 60) return `${seconds}s`;
