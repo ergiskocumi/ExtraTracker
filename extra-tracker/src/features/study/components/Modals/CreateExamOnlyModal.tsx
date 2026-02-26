@@ -1,23 +1,26 @@
 /**
  * CreateExamOnlyModal – Crea SOLO un nuovo esame universitario.
- * Flusso semplice: nome + data → submit → chiudi.
- * Usato da /study quando nessun esame è selezionato.
+ * Flusso: nome + data (rotelle stile iOS) → submit.
+ * Data proposta: 10 del mese tra 3 mesi (convenzione uni).
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiCheck, FiAlertCircle, FiTarget, FiCalendar } from 'react-icons/fi';
 import { GraduationCap } from 'lucide-react';
 import examService from '../../services/examService';
+import { WheelDatePicker } from './WheelDatePicker';
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers – data proposta: 10 del mese tra 3 mesi
 // ---------------------------------------------------------------------------
 
 function getDefaultDeadline(): string {
-    const date = new Date();
-    date.setMonth(date.getMonth() + 1);
-    return date.toISOString().split('T')[0];
+    const d = new Date();
+    d.setMonth(d.getMonth() + 3);
+    d.setDate(10);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().split('T')[0];
 }
 
 const INPUT_BASE =
@@ -42,8 +45,9 @@ export const CreateExamOnlyModal: React.FC<CreateExamOnlyModalProps> = ({
     onClose,
     onSuccess,
 }) => {
+    const defaultDeadline = useMemo(() => getDefaultDeadline(), []);
     const [title, setTitle] = useState('');
-    const [deadline, setDeadline] = useState(getDefaultDeadline());
+    const [deadline, setDeadline] = useState(defaultDeadline);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +56,7 @@ export const CreateExamOnlyModal: React.FC<CreateExamOnlyModalProps> = ({
         setDeadline(getDefaultDeadline());
         setError(null);
     }, []);
+
 
     const handleClose = () => {
         resetForm();
@@ -180,15 +185,13 @@ export const CreateExamOnlyModal: React.FC<CreateExamOnlyModalProps> = ({
                                     <FiCalendar className="w-4 h-4 text-primary-500" />
                                     Data esame <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="date"
+                                <WheelDatePicker
                                     value={deadline}
-                                    onChange={e => setDeadline(e.target.value)}
-                                    min={new Date().toISOString().split('T')[0]}
-                                    className={`${INPUT_BASE} [color-scheme:dark]`}
+                                    onChange={setDeadline}
+                                    className="mt-1"
                                 />
                                 <p className="text-xs text-theme-muted">
-                                    La data in cui sostieni l'esame: serve per organizzare scadenze e ripassi.
+                                    Data proposta: 10 del mese tra 3 mesi. Ruota le colonne per scegliere giorno, mese e anno.
                                 </p>
                             </div>
 

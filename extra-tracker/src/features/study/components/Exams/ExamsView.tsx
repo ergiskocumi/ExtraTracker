@@ -486,8 +486,8 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                 title="Elimina Esame"
                 description={
                     pendingDeleteExamDecks.length > 0
-                        ? `Sei sicuro di voler eliminare "${pendingDeleteExamTitle}"? Questa azione cancellerà anche tutti i ${pendingDeleteExamDecks.length} mazzi e le ${pendingDeleteExamCards} flashcard associati. L'azione è irreversibile.`
-                        : `Sei sicuro di voler eliminare "${pendingDeleteExamTitle}"? L'azione è irreversibile.`
+                        ? `Sei sicuro di voler eliminare "${pendingDeleteExamTitle}"? I ${pendingDeleteExamDecks.length} ${pendingDeleteExamDecks.length === 1 ? 'mazzo restera disponibile' : 'mazzi resteranno disponibili'} e verranno scollegati dall'esame (${pendingDeleteExamCards} flashcard coinvolte).`
+                        : `Sei sicuro di voler eliminare "${pendingDeleteExamTitle}"? L'azione e irreversibile.`
                 }
                 confirmLabel="Elimina"
                 cancelLabel="Annulla"

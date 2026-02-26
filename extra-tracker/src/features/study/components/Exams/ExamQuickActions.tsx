@@ -19,6 +19,7 @@ import {
     RotateCcw,
     Archive,
     CheckCircle,
+    Trash2,
 } from 'lucide-react';
 import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
@@ -38,6 +39,7 @@ interface ExamQuickActionsProps {
     onReactivate?: () => void;
     onArchive?: () => void;
     onComplete?: () => void;
+    onDeleteExam?: () => void;
 }
 
 interface ActionButton {
@@ -45,7 +47,7 @@ interface ActionButton {
     label: string;
     description?: string;
     icon: React.ElementType;
-    variant: 'primary' | 'secondary' | 'outline' | 'ghost';
+    variant: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
     onClick: () => void;
     disabled?: boolean;
     hidden?: boolean;
@@ -67,6 +69,7 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
     onReactivate,
     onArchive,
     onComplete,
+    onDeleteExam,
 }) => {
     const examDecks = decks.filter(d => d.examId === exam.id);
     const totalCards = examDecks.reduce((sum, d) => sum + (d.totalCards || d.cards?.length || 0), 0);
@@ -174,6 +177,16 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
             onClick: () => onArchive?.(),
             hidden: !isActive || !onArchive,
         },
+        // Elimina esame (mantiene i mazzi, scollegandoli dall'esame)
+        {
+            id: 'delete-exam',
+            label: 'Elimina Esame',
+            description: 'Rimuove l\'esame, i mazzi restano',
+            icon: Trash2,
+            variant: 'danger',
+            onClick: () => onDeleteExam?.(),
+            hidden: !onDeleteExam,
+        },
     ];
     const actions = allActions.filter((a) => !a.hidden);
 
@@ -186,8 +199,11 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
             case 'outline':
                 return 'exam-quick-action exam-quick-action--outline';
             case 'ghost':
-            default:
                 return 'exam-quick-action exam-quick-action--ghost';
+            case 'danger':
+                return 'exam-quick-action exam-quick-action--danger';
+            default:
+                return 'exam-quick-action exam-quick-action--outline';
         }
     };
 
@@ -197,7 +213,9 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
                 Azioni Rapide
             </h3>
             
-            {actions.map((action, index) => (
+            {actions.map((action, index) => {
+                const isSolidVariant = action.variant === 'primary' || action.variant === 'secondary';
+                return (
                 <motion.button
                     key={action.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -217,7 +235,7 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
                 >
                     <div className={`
                         exam-quick-action-icon p-2.5 rounded-lg flex-shrink-0
-                        ${action.variant === 'primary' || action.variant === 'secondary'
+                        ${isSolidVariant
                             ? 'exam-quick-action-icon--solid' 
                             : 'exam-quick-action-icon--subtle'
                         }
@@ -243,7 +261,7 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
                         {action.description && (
                             <p className={`
                                 exam-quick-action-description text-xs mt-0.5 truncate
-                                ${action.variant === 'primary' || action.variant === 'secondary'
+                                ${isSolidVariant
                                     ? 'exam-quick-action-description--solid' 
                                     : 'exam-quick-action-description--subtle'
                                 }
@@ -253,7 +271,8 @@ export const ExamQuickActions: React.FC<ExamQuickActionsProps> = ({
                         )}
                     </div>
                 </motion.button>
-            ))}
+                );
+            })}
         </div>
     );
 };

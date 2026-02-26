@@ -107,6 +107,40 @@ export const useExams = ({ decks, loadDecks }: UseExamsOptions) => {
         [refreshExams],
     );
 
+    const handleDeleteExam = useCallback(
+        async (examId: string) => {
+            const linkedDecksCount = decks.filter(d => d.examId === examId).length;
+
+            try {
+                await examService.delete(examId);
+                setExams(prev => prev.filter(exam => exam.id !== examId));
+
+                const [examsRefresh, decksRefresh] = await Promise.allSettled([loadExams(), loadDecks()]);
+
+                if (examsRefresh.status === 'rejected') {
+                    console.error('Errore nel refresh esami dopo eliminazione:', examsRefresh.reason);
+                }
+
+                if (decksRefresh.status === 'rejected') {
+                    console.error('Errore nel refresh mazzi dopo eliminazione esame:', decksRefresh.reason);
+                    emitToast.warning('Esame eliminato, ma non sono riuscito ad aggiornare i mazzi. Ricarica la pagina.');
+                }
+
+                emitToast.success(
+                    linkedDecksCount > 0
+                        ? `Esame eliminato. ${linkedDecksCount} ${linkedDecksCount === 1 ? 'mazzo e stato scollegato dall\'esame' : 'mazzi sono stati scollegati dall\'esame'}.`
+                        : 'Esame eliminato correttamente.',
+                    { title: 'Eliminazione completata', duration: 3500 },
+                );
+            } catch (err) {
+                const message = err instanceof Error ? err.message : 'Errore durante l\'eliminazione dell\'esame';
+                emitToast.error(message);
+                throw err;
+            }
+        },
+        [decks, loadDecks, loadExams],
+    );
+
     const handleGenerateAIQuestions = useCallback(
         async (examId: string, topics: string[]) => {
             const examDecks = decks.filter(d => d.examId === examId);
@@ -166,6 +200,7 @@ export const useExams = ({ decks, loadDecks }: UseExamsOptions) => {
         handleCompleteExam,
         handleResetCards,
         handleReactivateExam,
+        handleDeleteExam,
         handleGenerateAIQuestions,
         getExamStats,
     };
