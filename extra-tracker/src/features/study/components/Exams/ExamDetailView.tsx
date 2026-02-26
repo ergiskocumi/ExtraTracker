@@ -49,6 +49,7 @@ interface ExamDetailViewProps {
     onTogglePin?: (deck: Deck) => void;
     onReactivateExam?: (examId: string) => void;
     onCompleteExam?: () => void;
+    onDeleteExam?: (examId: string) => void;
     viewMode?: 'grid' | 'horizontal' | 'compact';
 }
 
@@ -74,6 +75,7 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
     onTogglePin,
     onReactivateExam,
     onCompleteExam,
+    onDeleteExam,
     viewMode = 'grid',
 }) => {
     const [localViewMode, setLocalViewMode] = React.useState<'grid' | 'list'>(viewMode === 'horizontal' ? 'list' : 'grid');
@@ -248,6 +250,7 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                         onExamSolver={handleExamSolver}
                         onReactivate={() => onReactivateExam?.(exam.id)}
                         onComplete={onCompleteExam}
+                        onDeleteExam={() => onDeleteExam?.(exam.id)}
                     />
 
                     {/* Card Distribution */}

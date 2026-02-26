@@ -31,7 +31,13 @@ const examService = {
 
     async delete(id: string): Promise<void> {
         const response = await apiClient.delete<null>(`/exams/${id}`);
-        unwrap(response, `Errore nell'eliminazione esame ${id}`);
+        if (!response.success) {
+            throw new Error(
+                response.error?.message ||
+                response.message ||
+                `Errore nell'eliminazione esame ${id}`,
+            );
+        }
     },
 };
 

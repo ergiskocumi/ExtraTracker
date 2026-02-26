@@ -6,13 +6,14 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, GraduationCap, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useDashboardCalculations } from '../hooks/useDashboardCalculations';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useDeckHandlers } from '../hooks/useDeckHandlers';
 import { useExams } from '../hooks/useExams';
+import { useExamDeletion } from '../hooks/useExamDeletion';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { WeeklyCalendar } from '../components/WeeklyCalendar';
@@ -21,6 +22,7 @@ import { ExamDetailView } from '../components/Exams/ExamDetailView';
 import { DashboardModals } from '../components/DashboardModals';
 import { ExamCompletionModal } from '../components/Exams/ExamCompletionModal';
 import { DragDropZone } from '../components/DeckSections/DragDropZone';
+import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
 import type { Exam } from '../types/exam';
 import examService from '../services/examService';
 
@@ -30,6 +32,7 @@ import examService from '../services/examService';
 
 export const DecksDashboardPage: React.FC = () => {
     const location = useLocation();
+    const navigate = useNavigate();
 
     // Core state
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
@@ -38,6 +41,8 @@ export const DecksDashboardPage: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showCompletionModal, setShowCompletionModal] = useState(false);
     const [isCreateExamModalOpen, setIsCreateExamModalOpen] = useState(false);
+    const [examIdRequestedDeleteFromGrid, setExamIdRequestedDeleteFromGrid] = useState<string | null>(null);
+    const [isDeletingFromGrid, setIsDeletingFromGrid] = useState(false);
 
     // Sidebar organization state (kept for DashboardLayout compatibility)
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -64,6 +69,7 @@ export const DecksDashboardPage: React.FC = () => {
         handleCompleteExam,
         handleResetCards,
         handleReactivateExam,
+        handleDeleteExam,
         handleGenerateAIQuestions,
         getExamStats,
     } = useExams({ decks, loadDecks });
@@ -167,7 +173,35 @@ export const DecksDashboardPage: React.FC = () => {
     const handleBackToExams = useCallback(() => {
         setSelectedExamId(null);
         setSelectedExam(null);
+        setSelectedDayIndex(null);
+        navigate('/study', { replace: true });
+    }, [navigate]);
+
+    const examDeletion = useExamDeletion({
+        selectedExam,
+        decks,
+        onDeleteExam: handleDeleteExam,
+        onDeleted: handleBackToExams,
+    });
+
+    const handleRequestDeleteFromGrid = useCallback((examId: string) => {
+        setExamIdRequestedDeleteFromGrid(examId);
     }, []);
+
+    const handleConfirmDeleteFromGrid = useCallback(async () => {
+        if (!examIdRequestedDeleteFromGrid) return;
+        setIsDeletingFromGrid(true);
+        try {
+            await handleDeleteExam(examIdRequestedDeleteFromGrid);
+            setExamIdRequestedDeleteFromGrid(null);
+        } finally {
+            setIsDeletingFromGrid(false);
+        }
+    }, [examIdRequestedDeleteFromGrid, handleDeleteExam]);
+
+    const handleCancelDeleteFromGrid = useCallback(() => {
+        if (!isDeletingFromGrid) setExamIdRequestedDeleteFromGrid(null);
+    }, [isDeletingFromGrid]);
 
     // ========== RENDER ==========
 
@@ -225,6 +259,7 @@ export const DecksDashboardPage: React.FC = () => {
                     onTogglePin={handlers.handleTogglePin}
                     onReactivateExam={handleReactivateExam}
                     onCompleteExam={() => setShowCompletionModal(true)}
+                    onDeleteExam={() => examDeletion.requestDelete()}
                     viewMode="grid"
                 />
             ) : !isLoading && exams.length === 0 ? (
@@ -275,6 +310,7 @@ export const DecksDashboardPage: React.FC = () => {
                         decks={decks}
                         onExamClick={handleExamClick}
                         getExamStats={getExamStats}
+                        onRequestDeleteExam={handleRequestDeleteFromGrid}
                     />
                 </div>
             )}
@@ -331,6 +367,56 @@ export const DecksDashboardPage: React.FC = () => {
                 onDeleteConfirm={handlers.handleDeleteDeck}
                 onDeleteCancel={() => handlers.setDeletingDeck(null)}
             />
+
+            <ConfirmationModal
+                isOpen={examDeletion.isDeleteModalOpen}
+                title="Elimina esame"
+                description={
+                    examDeletion.summary.deckCount > 0
+                        ? `Sei sicuro di voler eliminare "${examDeletion.summary.examTitle}"? I ${examDeletion.summary.deckCount} ${examDeletion.summary.deckCount === 1 ? 'mazzo restera' : 'mazzi resteranno'} disponibili e verranno scollegati dall'esame (${examDeletion.summary.cardCount} flashcard coinvolte).`
+                        : `Sei sicuro di voler eliminare "${examDeletion.summary.examTitle}"? L'azione e irreversibile.`
+                }
+                confirmLabel="Elimina"
+                cancelLabel="Annulla"
+                onConfirm={examDeletion.confirmDelete}
+                onCancel={examDeletion.cancelDelete}
+                isLoading={examDeletion.isDeleting}
+                destructive
+            />
+
+            {/* Elimina esame dalla griglia (card hover) */}
+            {(() => {
+                const examToDelete = examIdRequestedDeleteFromGrid
+                    ? exams.find(e => e.id === examIdRequestedDeleteFromGrid)
+                    : null;
+                const deckCount = examToDelete
+                    ? decks.filter(d => d.examId === examToDelete.id).length
+                    : 0;
+                const cardCount = examToDelete
+                    ? decks
+                          .filter(d => d.examId === examToDelete.id)
+                          .reduce((s, d) => s + (d.totalCards ?? d.cards?.length ?? 0), 0)
+                    : 0;
+                return (
+                    <ConfirmationModal
+                        isOpen={Boolean(examIdRequestedDeleteFromGrid)}
+                        title="Elimina esame"
+                        description={
+                            examToDelete
+                                ? deckCount > 0
+                                    ? `Sei sicuro di voler eliminare "${examToDelete.title}"? I ${deckCount} ${deckCount === 1 ? 'mazzo restera' : 'mazzi resteranno'} disponibili e verranno scollegati dall'esame (${cardCount} flashcard coinvolte).`
+                                    : `Sei sicuro di voler eliminare "${examToDelete.title}"? L'azione e irreversibile.`
+                                : ''
+                        }
+                        confirmLabel="Elimina"
+                        cancelLabel="Annulla"
+                        onConfirm={handleConfirmDeleteFromGrid}
+                        onCancel={handleCancelDeleteFromGrid}
+                        isLoading={isDeletingFromGrid}
+                        destructive
+                    />
+                );
+            })()}
 
             {/* Exam Completion Modal */}
             {selectedExam && (
