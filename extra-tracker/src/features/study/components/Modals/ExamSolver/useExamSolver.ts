@@ -16,6 +16,17 @@ import type {
     ProgressStep, 
     FlashcardWithId 
 } from './ExamSolverModal.types';
+import {
+    clearExamSolverCache,
+    EXAM_SOLVER_CACHE_TTL_MS,
+    loadExamSolverCache,
+    parseExamSolverEvent,
+    parseSseJsonPayload,
+    parseSseMessageBlock,
+    saveExamSolverCache,
+    splitSseBuffer,
+    type ExamSolverCache,
+} from './utils';
 
 // Re-export types for convenience
 export type { Step, ProgressStep, FlashcardWithId };
@@ -95,8 +106,8 @@ export interface UseExamSolverReturn {
 
     // Session restore
     showRestorePrompt: boolean;
-    cachedSession: any;
-    restoreFromCache: (cache: any) => void;
+    cachedSession: ExamSolverCache | null;
+    restoreFromCache: (cache: ExamSolverCache) => void;
     resetToDefault: () => void;
 }
 
@@ -147,18 +158,45 @@ export const useExamSolver = ({
 
     // Restore session prompt
     const [showRestorePrompt, setShowRestorePrompt] = useState(false);
-    const [cachedSession, setCachedSession] = useState<any>(null);
+    const [cachedSession, setCachedSession] = useState<ExamSolverCache | null>(null);
 
     // Refs
     const startTimeRef = useRef<number | null>(null);
-    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-    const currentStepRef = useRef<Step>(currentStep);
     const objectUrlRef = useRef<string | null>(null);
 
-    useEffect(() => {
-        currentStepRef.current = currentStep;
-    }, [currentStep]);
+    const getErrorMessage = (err: unknown, fallback: string): string => {
+        if (err instanceof Error && err.message.trim()) {
+            return err.message;
+        }
+        return fallback;
+    };
+
+    const readApiErrorMessage = (payload: unknown, fallback: string): string => {
+        if (!payload || typeof payload !== 'object') {
+            return fallback;
+        }
+        const record = payload as Record<string, unknown>;
+        const error = record.error;
+        if (error && typeof error === 'object') {
+            const message = (error as Record<string, unknown>).message;
+            if (typeof message === 'string' && message.trim()) {
+                return message;
+            }
+        }
+        if (typeof record.message === 'string' && record.message.trim()) {
+            return record.message;
+        }
+        return fallback;
+    };
+
+    const releaseObjectUrl = useCallback(() => {
+        if (objectUrlRef.current) {
+            URL.revokeObjectURL(objectUrlRef.current);
+            objectUrlRef.current = null;
+        }
+        setSourceFileUrl(null);
+    }, []);
 
     useEffect(() => {
         if (!isOpen) {
@@ -166,10 +204,7 @@ export const useExamSolver = ({
                 abortControllerRef.current.abort();
                 abortControllerRef.current = null;
             }
-            if (objectUrlRef.current) {
-                URL.revokeObjectURL(objectUrlRef.current);
-                objectUrlRef.current = null;
-            }
+            releaseObjectUrl();
         }
 
         return () => {
@@ -177,40 +212,16 @@ export const useExamSolver = ({
                 abortControllerRef.current.abort();
                 abortControllerRef.current = null;
             }
-            if (objectUrlRef.current) {
-                URL.revokeObjectURL(objectUrlRef.current);
-                objectUrlRef.current = null;
-            }
+            releaseObjectUrl();
         };
-    }, [isOpen]);
+    }, [isOpen, releaseObjectUrl]);
 
     // ============================================
     // LOCALSTORAGE CACHE
     // ============================================
 
-    const CACHE_KEY = 'examSolverCache';
-    const CACHE_TTL = 60 * 60 * 1000; // 1 ora
-
-    interface ExamSolverCache {
-        timestamp: number;
-        step: Step;
-        questionsFileName?: string;
-        questionsFileSize?: number;
-        sourceFileName?: string;
-        sourceFileSize?: number;
-        extractedQuestions: string[];
-        selectedQuestions: number[];
-        deckMode: 'new' | 'existing';
-        deckTitle: string;
-        selectedDeckId: string;
-        selectedExamId: string;
-        generatedFlashcards?: FlashcardWithId[];
-        createdDeckId?: string;
-    }
-
     // Save cache
     const saveCache = useCallback(() => {
-        // Non salvare se siamo in upload step o processing
         if (currentStep === 'upload' || progressStep === 'generating' || progressStep === 'analyzing') {
             return;
         }
@@ -232,11 +243,9 @@ export const useExamSolver = ({
                 generatedFlashcards: currentStep === 'review' ? generatedFlashcards : undefined,
                 createdDeckId: createdDeckId || undefined,
             };
-
-            localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-            console.log('💾 Exam Solver cache salvato');
-        } catch (err) {
-            console.error('❌ Errore salvataggio cache:', err);
+            saveExamSolverCache(cache);
+        } catch (err: unknown) {
+            console.error('Errore salvataggio cache:', err);
         }
     }, [
         currentStep,
@@ -255,57 +264,21 @@ export const useExamSolver = ({
 
     // Load cache
     const loadCache = useCallback((): ExamSolverCache | null => {
-        try {
-            const cached = localStorage.getItem(CACHE_KEY);
-            if (!cached) return null;
-
-            const data: ExamSolverCache = JSON.parse(cached);
-            const age = Date.now() - data.timestamp;
-
-            // Check se cache è scaduto (> 1 ora)
-            if (age > CACHE_TTL) {
-                console.log('⏰ Cache scaduto, rimuovo');
-                localStorage.removeItem(CACHE_KEY);
-                return null;
-            }
-
-            console.log('✅ Cache trovato (età:', Math.floor(age / 1000 / 60), 'min)');
-            return data;
-        } catch (err) {
-            console.error('❌ Errore caricamento cache:', err);
-            return null;
-        }
+        return loadExamSolverCache(localStorage, Date.now(), EXAM_SOLVER_CACHE_TTL_MS);
     }, []);
 
     // Clear cache
     const clearCache = useCallback(() => {
         try {
-            localStorage.removeItem(CACHE_KEY);
-            console.log('🗑️ Cache rimosso');
-        } catch (err) {
-            console.error('❌ Errore rimozione cache:', err);
+            clearExamSolverCache();
+        } catch (err: unknown) {
+            console.error('Errore rimozione cache:', err);
         }
     }, []);
 
     // ============================================
     // RESET LOGIC
     // ============================================
-
-    useEffect(() => {
-        if (isOpen) {
-            // Check se c'è una sessione salvata
-            const cached = loadCache();
-
-            if (cached && cached.step !== 'upload') {
-                // Mostra prompt per ripristinare
-                setCachedSession(cached);
-                setShowRestorePrompt(true);
-            } else {
-                // Nessuna cache, reset normale
-                resetToDefault();
-            }
-        }
-    }, [isOpen, loadCache]);
 
     // Reset to default state
     const resetToDefault = useCallback(() => {
@@ -336,15 +309,11 @@ export const useExamSolver = ({
         setError(null);
         setCreatedDeckId('');
         setGeneratedFlashcards([]);
-        setSourceFileUrl(null);
-        if (objectUrlRef.current) {
-            URL.revokeObjectURL(objectUrlRef.current);
-            objectUrlRef.current = null;
-        }
+        releaseObjectUrl();
         startTimeRef.current = null;
         setShowRestorePrompt(false);
         setCachedSession(null);
-    }, [preselectedDeckId, existingDecks, examId]);
+    }, [preselectedDeckId, existingDecks, examId, releaseObjectUrl]);
 
     // Restore from cache
     const restoreFromCache = useCallback((cache: ExamSolverCache) => {
@@ -370,6 +339,17 @@ export const useExamSolver = ({
         console.log('✅ Sessione ripristinata da cache');
     }, [examId]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const cached = loadCache();
+        if (cached && cached.step !== 'upload') {
+            setCachedSession(cached);
+            setShowRestorePrompt(true);
+            return;
+        }
+        resetToDefault();
+    }, [isOpen, loadCache, resetToDefault]);
+
     // Auto-save after state changes
     useEffect(() => {
         if (isOpen && currentStep !== 'upload') {
@@ -383,7 +363,7 @@ export const useExamSolver = ({
         deckMode,
         deckTitle,
         selectedDeckId,
-                selectedExamId,
+        selectedExamId,
         generatedFlashcards,
         saveCache,
     ]);
@@ -411,7 +391,7 @@ export const useExamSolver = ({
             } else if (activeExams.length === 1) {
                 setSelectedExamId(activeExams[0].id);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to load exams:', err);
             emitToast.error('Errore nel caricamento degli esami');
         } finally {
@@ -448,10 +428,11 @@ export const useExamSolver = ({
             
             setProgressStep('idle');
             setProgressMessage('');
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err, "Errore durante l'estrazione delle domande");
             setProgressStep('error');
-            setError(err.message || 'Errore durante l\'estrazione delle domande');
-            emitToast.error(err.message || 'Errore durante l\'estrazione delle domande');
+            setError(message);
+            emitToast.error(message);
         }
     }, [questionsFile, sourceFile]);
 
@@ -466,7 +447,6 @@ export const useExamSolver = ({
     const generateAnswers = useCallback(async () => {
         if (!sourceFile) return;
 
-        // Validazione configurazione
         if (deckMode === 'new') {
             if (!deckTitle.trim()) {
                 setError('Inserisci un titolo per il nuovo mazzo');
@@ -478,9 +458,8 @@ export const useExamSolver = ({
             return;
         }
 
-        // Prepara domande selezionate
         const questionsToProcess = Array.from(selectedQuestions)
-            .map(idx => extractedQuestions[idx])
+            .map((idx) => extractedQuestions[idx])
             .filter(Boolean);
 
         if (questionsToProcess.length === 0) {
@@ -494,14 +473,12 @@ export const useExamSolver = ({
         setError(null);
         startTimeRef.current = Date.now();
 
-        // Configurazione retry
         const MAX_RETRIES = 3;
         let retryCount = 0;
+        let hasSwitchedToReview = false;
 
-        // Helper: sleep per exponential backoff
-        const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+        const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-        // Helper: fetch con retry
         const fetchWithRetry = async (): Promise<Response> => {
             while (retryCount < MAX_RETRIES) {
                 try {
@@ -514,7 +491,6 @@ export const useExamSolver = ({
                     setProgressTotal(questionsToProcess.length);
                     setProgressCurrent(0);
 
-                    // Usa fetch con streaming SSE
                     const formData = new FormData();
                     formData.append('sourceFile', sourceFile);
                     formData.append('selectedQuestions', JSON.stringify(questionsToProcess));
@@ -531,7 +507,6 @@ export const useExamSolver = ({
                         }
                     }
 
-                    // Crea nuovo AbortController per questo fetch
                     abortControllerRef.current = new AbortController();
 
                     const csrfHeader = await getCsrfHeader();
@@ -544,32 +519,30 @@ export const useExamSolver = ({
                     });
 
                     if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
+                        const errorData = await response.json().catch(() => null);
                         throw new Error(
-                            errorData.error?.message ||
-                            errorData.message ||
-                            `Errore ${response.status}: generazione risposte fallita`
+                            readApiErrorMessage(
+                                errorData,
+                                `Errore ${response.status}: generazione risposte fallita`
+                            )
                         );
                     }
 
                     return response;
-
-                } catch (err: any) {
-                    if (err?.name === 'AbortError') {
+                } catch (err: unknown) {
+                    if (err instanceof Error && err.name === 'AbortError') {
                         throw err;
                     }
-                    retryCount++;
-                    const isLastAttempt = retryCount >= MAX_RETRIES;
 
-                    if (isLastAttempt) {
-                        throw err; // Fallimento definitivo
+                    retryCount += 1;
+                    if (retryCount >= MAX_RETRIES) {
+                        throw err;
                     }
 
-                    // Exponential backoff: 2s, 4s, 8s
                     const delay = Math.min(2000 * Math.pow(2, retryCount - 1), 8000);
-                    console.warn(`⚠️ SSE fetch fallito (tentativo ${retryCount}/${MAX_RETRIES}), retry in ${delay}ms...`);
+                    console.warn(`SSE fetch fallito (tentativo ${retryCount}/${MAX_RETRIES}), retry in ${delay}ms...`);
 
-                    setProgressMessage(`⚠️ Errore connessione, nuovo tentativo in ${delay / 1000}s...`);
+                    setProgressMessage(`Errore connessione, nuovo tentativo in ${delay / 1000}s...`);
                     await sleep(delay);
                 }
             }
@@ -578,10 +551,7 @@ export const useExamSolver = ({
         };
 
         try {
-            // Usa fetch con retry
             const response = await fetchWithRetry();
-
-            // Leggi la risposta come stream SSE con retry su stream errors
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
@@ -595,117 +565,89 @@ export const useExamSolver = ({
                 if (done) break;
 
                 buffer += decoder.decode(value, { stream: true });
-                
-                // Gli eventi SSE sono separati da \n\n
-                const events = buffer.split('\n\n');
-                buffer = events.pop() || ''; // Mantieni l'ultimo evento incompleto
+                const { events, rest } = splitSseBuffer(buffer);
+                buffer = rest;
 
-                for (const event of events) {
-                    if (!event.trim()) continue;
-                    
-                    let eventType = 'message';
-                    let eventData = '';
+                for (const rawEvent of events) {
+                    const parsedMessage = parseSseMessageBlock(rawEvent);
+                    if (!parsedMessage) continue;
 
-                    // Parse evento SSE
-                    const lines = event.split('\n');
-                    for (const line of lines) {
-                        if (line.startsWith('event: ')) {
-                            eventType = line.substring(7).trim();
-                        } else if (line.startsWith('data: ')) {
-                            eventData = line.substring(6).trim();
-                        }
+                    const payload = parseSseJsonPayload(parsedMessage.dataRaw);
+                    if (payload === null) {
+                        console.error('Error parsing SSE data. Raw data:', parsedMessage.dataRaw);
+                        continue;
                     }
 
-                    if (eventData) {
-                        try {
-                            const data = JSON.parse(eventData);
-                            
-                            if (data.type === 'progress' || eventType === 'progress') {
-                                setProgressCurrent(data.current);
-                                setProgressTotal(data.total);
-                                setCurrentQuestion(data.question || '');
-                                setProgressMessage(`Domanda ${data.current}/${data.total}: ${data.question || ''}`);
-                            } else if (data.type === 'flashcard' || eventType === 'flashcard') {
-                                // STREAMING: Aggiungi flashcard incrementalmente
-                                if (data.flashcard) {
-                                    // Aggiungi ID temporaneo se mancante
-                                    const flashcardWithId = {
-                                        ...data.flashcard,
-                                        id: data.flashcard.id || `temp-${Date.now()}-${data.index || Math.random()}`,
-                                    };
+                    const streamEvent = parseExamSolverEvent(parsedMessage.eventType, payload);
+                    if (!streamEvent) continue;
 
-                                    setGeneratedFlashcards(prev => [...prev, flashcardWithId]);
+                    if (streamEvent.kind === 'progress') {
+                        setProgressCurrent(streamEvent.current);
+                        setProgressTotal(streamEvent.total);
+                        setCurrentQuestion(streamEvent.question);
+                        setProgressMessage(
+                            `Domanda ${streamEvent.current}/${streamEvent.total}: ${streamEvent.question}`
+                        );
+                        continue;
+                    }
 
-                                    // Auto-transizione a review quando arriva la prima flashcard
-                                    if (currentStepRef.current === 'progress') {
-                                        setTimeout(() => {
-                                            setCurrentStep('review');
-                                            setProgressStep('completed');
-                                        }, 100);
-                                    }
-
-                                    console.log(`📥 Flashcard streaming: ${data.index || '?'}/${data.total || '?'}`);
-                                }
-                            } else if (data.type === 'complete' || eventType === 'complete') {
+                    if (streamEvent.kind === 'flashcard') {
+                        setGeneratedFlashcards((prev) => [...prev, streamEvent.flashcard]);
+                        if (!hasSwitchedToReview) {
+                            hasSwitchedToReview = true;
+                            setTimeout(() => {
+                                setCurrentStep('review');
                                 setProgressStep('completed');
-                                setProgressMessage('Generazione completata!');
-                                setStats(data.stats);
-                                setCreatedDeckId(data.deck?.id || '');
-                                
-                                // Assicurati che le flashcards siano un array valido
-                                const flashcards = Array.isArray(data.flashcards) ? data.flashcards : [];
-                                console.log('📋 Flashcards ricevute:', flashcards.length, flashcards);
-                                
-                                // Setta le flashcards PRIMA di cambiare step
-                                setGeneratedFlashcards(flashcards);
-                                
-                                // Estrai sourceFileUrl dal deck (pdfUrl)
-                                const deckPdfUrl = data.deck?.pdfUrl;
-                                if (objectUrlRef.current) {
-                                    URL.revokeObjectURL(objectUrlRef.current);
-                                    objectUrlRef.current = null;
-                                }
-                                if (deckPdfUrl && typeof deckPdfUrl === 'string') {
-                                    // Se è un path relativo, aggiungi il prefisso API se necessario
-                                    const pdfUrl = deckPdfUrl.startsWith('http') 
-                                        ? deckPdfUrl 
-                                        : `/api${deckPdfUrl.startsWith('/') ? '' : '/'}${deckPdfUrl}`;
-                                    setSourceFileUrl(pdfUrl);
-                                } else if (sourceFile) {
-                                    // Fallback: crea URL dal sourceFile se disponibile
-                                    const objectUrl = URL.createObjectURL(sourceFile);
-                                    objectUrlRef.current = objectUrl;
-                                    setSourceFileUrl(objectUrl);
-                                }
-                                
-                                // Piccolo delay per assicurarsi che lo stato sia aggiornato
-                                setTimeout(() => {
-                                    // Vai allo step review invece di completed
-                                    setCurrentStep('review');
-                                }, 100);
-                            } else if (data.type === 'error' || eventType === 'error') {
-                                throw new Error(data.message || 'Errore durante la generazione');
-                            }
-                        } catch (parseErr) {
-                            console.error('Error parsing SSE data:', parseErr, 'Raw data:', eventData);
+                            }, 100);
                         }
+                        continue;
+                    }
+
+                    if (streamEvent.kind === 'complete') {
+                        setProgressStep('completed');
+                        setProgressMessage('Generazione completata!');
+                        if (streamEvent.stats) {
+                            setStats(streamEvent.stats);
+                        }
+                        setCreatedDeckId(streamEvent.deckId);
+                        setGeneratedFlashcards(streamEvent.flashcards);
+
+                        releaseObjectUrl();
+                        if (streamEvent.deckPdfUrl) {
+                            const pdfUrl = streamEvent.deckPdfUrl.startsWith('http')
+                                ? streamEvent.deckPdfUrl
+                                : `/api${streamEvent.deckPdfUrl.startsWith('/') ? '' : '/'}${streamEvent.deckPdfUrl}`;
+                            setSourceFileUrl(pdfUrl);
+                        } else {
+                            const objectUrl = URL.createObjectURL(sourceFile);
+                            objectUrlRef.current = objectUrl;
+                            setSourceFileUrl(objectUrl);
+                        }
+
+                        setTimeout(() => {
+                            setCurrentStep('review');
+                        }, 100);
+                        continue;
+                    }
+
+                    if (streamEvent.kind === 'error') {
+                        throw new Error(streamEvent.message);
                     }
                 }
             }
-        } catch (err: any) {
-            // Se è un abort, non mostrare errore (cancel intenzionale)
-            if (err.name === 'AbortError') {
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name === 'AbortError') {
                 setProgressStep('idle');
                 setCurrentStep('config');
                 emitToast.info('Generazione annullata');
                 return;
             }
 
+            const message = getErrorMessage(err, 'Errore durante la generazione delle risposte');
             setProgressStep('error');
-            setError(err.message || 'Errore durante la generazione delle risposte');
-            emitToast.error(err.message || 'Errore durante la generazione delle risposte');
+            setError(message);
+            emitToast.error(message);
         } finally {
-            // Cleanup AbortController
             abortControllerRef.current = null;
         }
     }, [
@@ -716,7 +658,7 @@ export const useExamSolver = ({
         selectedExamId,
         selectedQuestions,
         extractedQuestions,
-        onSuccess,
+        releaseObjectUrl,
     ]);
 
     // ============================================
@@ -739,7 +681,6 @@ export const useExamSolver = ({
             throw new Error('File o deck non disponibili');
         }
 
-        // Rigenera la risposta per una singola domanda
         const formData = new FormData();
         formData.append('sourceFile', sourceFile);
         formData.append('selectedQuestions', JSON.stringify([question]));
@@ -754,15 +695,10 @@ export const useExamSolver = ({
         });
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(
-                errorData.error?.message || 
-                errorData.message || 
-                'Errore nella rigenerazione'
-            );
+            const errorData = await response.json().catch(() => null);
+            throw new Error(readApiErrorMessage(errorData, 'Errore nella rigenerazione'));
         }
 
-        // Leggi la risposta come stream SSE (semplificato per una singola domanda)
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -776,44 +712,45 @@ export const useExamSolver = ({
             if (done) break;
 
             buffer += decoder.decode(value, { stream: true });
-            const events = buffer.split('\n\n');
-            buffer = events.pop() || '';
+            const { events, rest } = splitSseBuffer(buffer);
+            buffer = rest;
 
-            for (const event of events) {
-                if (!event.trim()) continue;
-                
-                const lines = event.split('\n');
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.substring(6).trim();
-                        try {
-                            const data = JSON.parse(dataStr);
-                            if (data.type === 'complete' && data.flashcards && data.flashcards.length > 0) {
-                                const newFlashcard = data.flashcards[0];
-                                // Aggiorna la flashcard con tutti i campi inclusi confidence e sourceSnippet
-                                setGeneratedFlashcards(prev => 
-                                    prev.map(card => 
-                                        card.id === cardId 
-                                            ? { 
-                                                ...card, 
-                                                back: newFlashcard.back, 
-                                                found: newFlashcard.found,
-                                                confidence: newFlashcard.confidence ?? card.confidence ?? 0,
-                                                sourceSnippet: newFlashcard.sourceSnippet ?? card.sourceSnippet,
-                                            }
-                                            : card
-                                    )
-                                );
-                                // Aggiorna anche nel deck
-                                if (newFlashcard.back) {
-                                    await studyService.updateCardAnswer(createdDeckId, cardId, newFlashcard.back);
+            for (const rawEvent of events) {
+                const parsedMessage = parseSseMessageBlock(rawEvent);
+                if (!parsedMessage) continue;
+
+                const payload = parseSseJsonPayload(parsedMessage.dataRaw);
+                if (payload === null) {
+                    console.error('Error parsing regenerate response:', parsedMessage.dataRaw);
+                    continue;
+                }
+
+                const streamEvent = parseExamSolverEvent(parsedMessage.eventType, payload);
+                if (!streamEvent) continue;
+
+                if (streamEvent.kind === 'complete' && streamEvent.flashcards.length > 0) {
+                    const newFlashcard = streamEvent.flashcards[0];
+                    setGeneratedFlashcards((prev) =>
+                        prev.map((card) =>
+                            card.id === cardId
+                                ? {
+                                    ...card,
+                                    back: newFlashcard.back,
+                                    found: newFlashcard.found,
+                                    confidence: newFlashcard.confidence ?? card.confidence ?? 0,
+                                    sourceSnippet: newFlashcard.sourceSnippet ?? card.sourceSnippet,
                                 }
-                                return;
-                            }
-                        } catch (parseErr) {
-                            console.error('Error parsing regenerate response:', parseErr);
-                        }
+                                : card
+                        )
+                    );
+                    if (newFlashcard.back) {
+                        await studyService.updateCardAnswer(createdDeckId, cardId, newFlashcard.back);
                     }
+                    return;
+                }
+
+                if (streamEvent.kind === 'error') {
+                    throw new Error(streamEvent.message);
                 }
             }
         }
@@ -846,9 +783,6 @@ export const useExamSolver = ({
     const handleClose = useCallback(() => {
         if (['extracting', 'analyzing', 'generating'].includes(progressStep)) {
             return; // Non chiudere durante l'elaborazione
-        }
-        if (timerRef.current) {
-            clearInterval(timerRef.current);
         }
         startTimeRef.current = null;
         onClose();
