@@ -37,7 +37,7 @@ describe('Study buttons theme contract', () => {
 
         expect(screen.getByRole('button', { name: /Concludi Esame/i })).toHaveClass('exam-header-btn--complete');
         expect(screen.getByRole('button', { name: /Risolvi Esame/i })).toHaveClass('exam-header-btn--solver');
-        expect(screen.getByRole('button', { name: /Nuovo Esame/i })).toHaveClass('exam-header-btn--new');
+        expect(screen.getByRole('button', { name: /Nuovo Capitolo/i })).toHaveClass('exam-header-btn--new');
     });
 
     it('renders focus mode button with semantic primary class', () => {
