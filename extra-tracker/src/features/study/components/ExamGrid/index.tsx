@@ -15,6 +15,7 @@ interface ExamGridProps {
         dueCards: number;
         masteryPercent: number;
     };
+    onRequestDeleteExam?: (examId: string) => void;
 }
 
 export const ExamGrid: React.FC<ExamGridProps> = ({
@@ -22,6 +23,7 @@ export const ExamGrid: React.FC<ExamGridProps> = ({
     decks,
     onExamClick,
     getExamStats,
+    onRequestDeleteExam,
 }) => {
     const [showCompleted, setShowCompleted] = useState(false);
 
@@ -85,8 +87,8 @@ export const ExamGrid: React.FC<ExamGridProps> = ({
                 )}
             </div>
 
-            {/* Active exams */}
-            <div className="space-y-2">
+            {/* Active exams – card affiancate */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {activeExams.map((exam, index) => {
                     const stats = getExamStats(exam.id);
                     return (
@@ -103,6 +105,7 @@ export const ExamGrid: React.FC<ExamGridProps> = ({
                                 dueCards={stats.dueCards}
                                 masteryPercent={stats.masteryPercent}
                                 onClick={() => handleExamClick(exam.id)}
+                                onDelete={onRequestDeleteExam}
                             />
                         </motion.div>
                     );
@@ -117,34 +120,37 @@ export const ExamGrid: React.FC<ExamGridProps> = ({
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="space-y-2 overflow-hidden"
+                        className="overflow-hidden"
                     >
-                        <div className="flex items-center gap-3 pt-2">
+                        <div className="flex items-center gap-3 pt-4">
                             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--border-default)] to-transparent" />
                             <span className="text-xs text-theme-muted font-medium">Completati</span>
                             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--border-default)] to-transparent" />
                         </div>
-                        {completedExams.map((exam, index) => {
-                            const stats = getExamStats(exam.id);
-                            return (
-                                <motion.div
-                                    key={exam.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: index * 0.04 }}
-                                    className="opacity-60"
-                                >
-                                    <ExamGridCard
-                                        exam={exam}
-                                        deckCount={stats.deckCount}
-                                        totalCards={stats.totalCards}
-                                        dueCards={stats.dueCards}
-                                        masteryPercent={stats.masteryPercent}
-                                        onClick={() => handleExamClick(exam.id)}
-                                    />
-                                </motion.div>
-                            );
-                        })}
+                        <div className="grid grid-cols-1 gap-4 pt-4 sm:grid-cols-2 xl:grid-cols-3">
+                            {completedExams.map((exam, index) => {
+                                const stats = getExamStats(exam.id);
+                                return (
+                                    <motion.div
+                                        key={exam.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.04 }}
+                                        className="opacity-75"
+                                    >
+                                        <ExamGridCard
+                                            exam={exam}
+                                            deckCount={stats.deckCount}
+                                            totalCards={stats.totalCards}
+                                            dueCards={stats.dueCards}
+                                            masteryPercent={stats.masteryPercent}
+                                            onClick={() => handleExamClick(exam.id)}
+                                            onDelete={onRequestDeleteExam}
+                                        />
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
