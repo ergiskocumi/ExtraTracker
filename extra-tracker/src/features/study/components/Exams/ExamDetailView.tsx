@@ -302,7 +302,7 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                             </p>
                         ) : (
                             <div className="space-y-3">
-                                {savedQuizzes.slice(0, 12).map((quiz, index) => (
+                                {savedQuizzes.map((quiz, index) => (
                                     <div
                                         key={quiz.id || `${quiz.deckId}-${index}`}
                                         className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2"
