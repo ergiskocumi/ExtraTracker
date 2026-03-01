@@ -37,16 +37,40 @@ const MAX_TUTOR_HISTORY_MESSAGES = 12;
 const MAX_TUTOR_HISTORY_MESSAGE_LENGTH = 1000;
 const PDF_UPLOADS_DIR = path.join(__dirname, '..', 'uploads', 'pdfs');
 const QUIZ_FALLBACK_OPTIONS = [
-    'Nessuna delle precedenti',
-    'Altro',
-    'Non specificato',
-    'Informazione non presente',
+    'La formulazione appare coerente ma introduce un dettaglio teorico non supportato dal contenuto studiato.',
+    'L\'affermazione mantiene il lessico corretto ma altera il nesso logico centrale richiesto dalla domanda.',
+    'La risposta include elementi plausibili ma combina in modo improprio concetti distinti trattati separatamente.',
+    'La spiegazione sembra completa, ma sostituisce un passaggio chiave con un\'interpretazione non valida.',
 ];
 const MIN_QUIZ_CARDS_REQUIRED = 10;
 const QUIZ_TYPES = {
     MULTIPLE_CHOICE: 'multiple_choice',
     TRUE_FALSE: 'true_false',
 };
+const QUIZ_OPTION_WORD_MIN = 8;
+const QUIZ_OPTION_WORD_MAX = 48;
+const QUIZ_OPTION_LENGTH_MIN_RATIO = 0.8;
+const QUIZ_OPTION_LENGTH_MAX_RATIO = 1.25;
+const QUIZ_OPTION_WORD_SPREAD_MAX = 4;
+const QUIZ_DEBUG_LOGS = process.env.NODE_ENV !== 'production'
+    || String(process.env.QUIZ_DEBUG_LOGS || '').toLowerCase() === 'true';
+const INCOMPLETE_TRAILING_WORDS = new Set([
+    'a', 'ad', 'al', 'alla', 'alle', 'allo', 'all', 'agli', 'ai',
+    'da', 'dal', 'dalla', 'dalle', 'dallo', 'dei', 'degli', 'delle',
+    'di', 'del', 'della', 'dello', 'dei', 'e', 'ed',
+    'il', 'la', 'le', 'lo', 'gli', 'i', 'l',
+    'in', 'nel', 'nella', 'nelle', 'nello', 'nei', 'negli',
+    'per', 'su', 'sul', 'sulla', 'sulle', 'sugli', 'tra', 'con', 'come',
+    'che', 'cui', 'oppure', 'o', 'ma',
+    'piu', 'più', 'meno', 'migliore', 'peggiore',
+]);
+const QUIZ_PADDING_SEGMENTS = [
+    'nel contesto tecnico descritto',
+    'in modo coerente con i vincoli indicati',
+    'secondo la logica operativa richiesta',
+    'mantenendo l\'allineamento con la domanda',
+    'senza introdurre elementi estranei',
+];
 
 // =========================================
 // 🆕 SMART GENERATION V3 - OPTIMIZED CONFIGURATION
@@ -178,6 +202,7 @@ class StudyService extends BaseService {
         deck.cards.push({
             front: normalizedFront,
             back: normalizedBack,
+            quizAnswerVariant: '',
             distractors: [],
             aiDistractorsFailed: false,
         });
@@ -219,6 +244,7 @@ class StudyService extends BaseService {
 
         card.front = normalizedFront;
         card.back = normalizedBack;
+        card.quizAnswerVariant = '';
         card.distractors = [];
         card.aiDistractorsFailed = false;
         await deck.save();
@@ -268,6 +294,7 @@ class StudyService extends BaseService {
         }
 
         card.back = normalizedAnswer;
+        card.quizAnswerVariant = '';
         card.distractors = [];
         card.aiDistractorsFailed = false;
         await deck.save();
@@ -393,6 +420,7 @@ class StudyService extends BaseService {
         const newCard = {
             front: normalizedFront,
             back: normalizedBack,
+            quizAnswerVariant: '',
             distractors: [],
             aiDistractorsFailed: false,
         };
@@ -794,13 +822,31 @@ class StudyService extends BaseService {
                 if (mode === 'quiz' && quizType === QUIZ_TYPES.TRUE_FALSE) {
                     return card;
                 }
+                const quizPayload = this._buildQuizOptions(card, cards);
                 return {
                     ...card,
-                    options: this._buildQuizOptions(card, cards),
+                    back: quizPayload.correctAnswer,
+                    canonicalBack: card.back,
+                    options: quizPayload.options,
                 };
             }
             return card;
         });
+
+        if (mode === 'quiz') {
+            const sample = enrichedCards
+                .slice(0, 5)
+                .map(card => ({
+                    cardId: this._resolveCardId(card),
+                    words: this._countWords(card?.back || ''),
+                    options: this._getOptionMetrics(card?.options || []),
+                }));
+            this._logQuizDebug('session-options-sample', {
+                deckId: deck._id.toString(),
+                totalCards: enrichedCards.length,
+                sample,
+            });
+        }
 
         // Se examType è 'true_false', trasforma le carte in formato Vero/Falso
         if ((mode === 'quiz' && quizType === QUIZ_TYPES.TRUE_FALSE) || examType === 'true_false') {
@@ -4499,6 +4545,25 @@ Genera una risposta per OGNI domanda nella lista.`;
         return 'chapter';
     }
 
+    _logQuizDebug(event, payload = {}) {
+        if (!QUIZ_DEBUG_LOGS) return;
+        try {
+            console.log(`[StudyService.quiz] ${event}`, JSON.stringify(payload));
+        } catch (error) {
+            console.log(`[StudyService.quiz] ${event}`, payload);
+        }
+    }
+
+    _getOptionMetrics(options = []) {
+        if (!Array.isArray(options)) return [];
+        return options.map((option, index) => ({
+            index: index + 1,
+            words: this._countWords(option),
+            chars: typeof option === 'string' ? option.length : 0,
+            preview: typeof option === 'string' ? option.slice(0, 120) : '',
+        }));
+    }
+
     _normalizeDistractors(rawDistractors, correctAnswer = '') {
         if (!Array.isArray(rawDistractors)) return [];
 
@@ -4519,9 +4584,132 @@ Genera una risposta per OGNI domanda nella lista.`;
         return result;
     }
 
-    _collectFallbackDistractors(targetCard, chapterCards = []) {
+    _normalizeQuizAnswerVariant(rawVariant, correctAnswer = '') {
+        const fallback = typeof correctAnswer === 'string' ? correctAnswer.trim() : '';
+        if (typeof rawVariant !== 'string') return fallback;
+        const trimmed = rawVariant.trim();
+        return trimmed.length > 0 ? trimmed : fallback;
+    }
+
+    _countWords(value = '') {
+        if (typeof value !== 'string') return 0;
+        return value
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .length;
+    }
+
+    _resolveQuizTargetWordCount(correctAnswer = '') {
+        const rawCount = this._countWords(correctAnswer);
+        const base = Number.isFinite(rawCount) && rawCount > 0 ? rawCount : 16;
+        return Math.max(
+            14,
+            Math.min(44, Math.round(base))
+        );
+    }
+
+    _isOptionLengthBalanced(option = '', targetWords = QUIZ_OPTION_WORD_MIN) {
+        const words = this._countWords(option);
+        const minWords = Math.max(QUIZ_OPTION_WORD_MIN, Math.floor(targetWords * QUIZ_OPTION_LENGTH_MIN_RATIO));
+        const maxWords = Math.min(QUIZ_OPTION_WORD_MAX, Math.ceil(targetWords * QUIZ_OPTION_LENGTH_MAX_RATIO));
+        return words >= minWords && words <= maxWords;
+    }
+
+    _fitOptionToTargetLength(option = '', targetWords = QUIZ_OPTION_WORD_MIN) {
+        const raw = this._ensureOptionClosure(option);
+        if (!raw) return raw;
+
+        const minWords = Math.max(QUIZ_OPTION_WORD_MIN, Math.floor(targetWords * QUIZ_OPTION_LENGTH_MIN_RATIO));
+        return this._padOptionToWordFloor(raw, minWords);
+    }
+
+    _ensureOptionClosure(option = '') {
+        const raw = typeof option === 'string' ? option.trim() : '';
+        if (!raw) return raw;
+
+        const words = raw.split(/\s+/).filter(Boolean);
+        const lastWord = words.length > 0
+            ? this._normalizeAnswerValue(words[words.length - 1]).replace(/[.,;:!?]+$/g, '')
+            : '';
+        const hasPunctuation = /[.!?]$/.test(raw);
+
+        if (INCOMPLETE_TRAILING_WORDS.has(lastWord)) {
+            return `${raw} in modo coerente con il contesto.`;
+        }
+
+        if (!hasPunctuation) {
+            return `${raw}.`;
+        }
+
+        return raw;
+    }
+
+    _hasLikelyTruncatedEnding(option = '') {
+        const raw = typeof option === 'string' ? option.trim() : '';
+        if (!raw) return false;
+
+        const words = raw.split(/\s+/).filter(Boolean);
+        if (words.length === 0) return false;
+
+        const lastWord = this._normalizeAnswerValue(words[words.length - 1]).replace(/[.,;:!?]+$/g, '');
+        if (INCOMPLETE_TRAILING_WORDS.has(lastWord)) return true;
+
+        return !/[.!?]$/.test(raw);
+    }
+
+    _padOptionToWordFloor(option = '', floorWords = QUIZ_OPTION_WORD_MIN) {
+        const raw = typeof option === 'string' ? option.trim() : '';
+        if (!raw) return raw;
+
+        let enriched = this._ensureOptionClosure(raw);
+        let cursor = 0;
+        while (this._countWords(enriched) < floorWords && cursor < QUIZ_PADDING_SEGMENTS.length) {
+            const clean = enriched.replace(/[.!?]+$/g, '');
+            enriched = `${clean}, ${QUIZ_PADDING_SEGMENTS[cursor]}.`;
+            cursor += 1;
+        }
+        return this._ensureOptionClosure(enriched);
+    }
+
+    _harmonizeQuizOptions(options = [], targetWords = QUIZ_OPTION_WORD_MIN) {
+        const normalized = Array.isArray(options)
+            ? options
+                .map(option => this._ensureOptionClosure(option))
+                .filter(Boolean)
+            : [];
+        if (normalized.length === 0) return [];
+
+        const baseMinWords = Math.max(QUIZ_OPTION_WORD_MIN, Math.floor(targetWords * QUIZ_OPTION_LENGTH_MIN_RATIO));
+        let harmonized = normalized.map(option => this._padOptionToWordFloor(option, baseMinWords));
+
+        const counts = harmonized.map(option => this._countWords(option));
+        const maxWords = counts.length > 0 ? Math.max(...counts) : baseMinWords;
+        const minFloor = Math.max(baseMinWords, maxWords - QUIZ_OPTION_WORD_SPREAD_MAX);
+        harmonized = harmonized.map(option => this._padOptionToWordFloor(option, minFloor));
+
+        return harmonized.map(option => this._ensureOptionClosure(option));
+    }
+
+    _areQuizOptionsBalanced(options = [], correctAnswer = '') {
+        if (!Array.isArray(options) || options.length === 0) return false;
+        const targetWords = this._resolveQuizTargetWordCount(correctAnswer);
+        const hasBalancedLengths = options.every(option => this._isOptionLengthBalanced(option, targetWords));
+        if (!hasBalancedLengths) return false;
+
+        const counts = options.map(option => this._countWords(option)).filter(count => count > 0);
+        if (counts.length === 0) return false;
+
+        const spread = Math.max(...counts) - Math.min(...counts);
+        return spread <= QUIZ_OPTION_WORD_SPREAD_MAX;
+    }
+
+    _collectFallbackDistractors(targetCard, chapterCards = [], targetWords = 0) {
         const targetCardId = this._resolveCardId(targetCard);
         const normalizedCorrect = this._normalizeAnswerValue(targetCard?.back);
+        const expectedWords = targetWords > 0
+            ? targetWords
+            : this._resolveQuizTargetWordCount(targetCard?.back);
         const candidates = [];
         const seen = new Set();
 
@@ -4532,6 +4720,7 @@ Genera una risposta per OGNI domanda nella lista.`;
             const candidate = typeof card?.back === 'string' ? card.back.trim() : '';
             const normalized = this._normalizeAnswerValue(candidate);
             if (!normalized || normalized === normalizedCorrect || seen.has(normalized)) continue;
+            if (!this._isOptionLengthBalanced(candidate, expectedWords)) continue;
 
             candidates.push(candidate);
             seen.add(normalized);
@@ -4545,7 +4734,11 @@ Genera una risposta per OGNI domanda nella lista.`;
         if (!card) return false;
         if (card.aiDistractorsFailed) return false;
         const normalized = this._normalizeDistractors(card.distractors, card.back);
-        return normalized.length < 3;
+        if (normalized.length < 3) return true;
+
+        const quizAnswerVariant = this._normalizeQuizAnswerVariant(card.quizAnswerVariant, card.back);
+        const options = [quizAnswerVariant, ...normalized];
+        return !this._areQuizOptionsBalanced(options, card.back);
     }
 
     async _generateAndPersistDistractors({ userId, deckId, card }) {
@@ -4554,10 +4747,20 @@ Genera una risposta per OGNI domanda nella lista.`;
         const correctAnswer = typeof card?.back === 'string' ? card.back.trim() : '';
         if (!cardId || !question || !correctAnswer) return;
 
+        this._logQuizDebug('distractor-prewarm-start', {
+            deckId,
+            cardId,
+            answerWords: this._countWords(correctAnswer),
+            answerChars: correctAnswer.length,
+        });
+
         try {
-            const distractors = await this._generateDistractorsWithAI(question, correctAnswer);
+            const payload = await this._generateDistractorsWithAI(question, correctAnswer);
+            const distractors = payload.distractors;
+            const quizAnswerVariant = payload.correctAnswerVariant;
 
             card.distractors = distractors;
+            card.quizAnswerVariant = quizAnswerVariant;
             card.aiDistractorsFailed = false;
 
             await Deck.updateOne(
@@ -4565,13 +4768,22 @@ Genera una risposta per OGNI domanda nella lista.`;
                 {
                     $set: {
                         'cards.$.distractors': distractors,
+                        'cards.$.quizAnswerVariant': quizAnswerVariant,
                         'cards.$.aiDistractorsFailed': false,
                     },
                 }
             );
+
+            this._logQuizDebug('distractor-prewarm-success', {
+                deckId,
+                cardId,
+                balanced: this._areQuizOptionsBalanced([quizAnswerVariant, ...distractors], quizAnswerVariant),
+                metrics: this._getOptionMetrics([quizAnswerVariant, ...distractors]),
+            });
         } catch (error) {
             console.warn('[StudyService] Distractor generation failed in quiz prewarm:', error.message);
             card.distractors = [];
+            card.quizAnswerVariant = '';
             card.aiDistractorsFailed = true;
 
             await Deck.updateOne(
@@ -4579,10 +4791,17 @@ Genera una risposta per OGNI domanda nella lista.`;
                 {
                     $set: {
                         'cards.$.distractors': [],
+                        'cards.$.quizAnswerVariant': '',
                         'cards.$.aiDistractorsFailed': true,
                     },
                 }
             ).catch(() => {});
+
+            this._logQuizDebug('distractor-prewarm-failed', {
+                deckId,
+                cardId,
+                reason: error?.message || 'unknown',
+            });
         }
     }
 
@@ -4605,7 +4824,9 @@ Genera una risposta per OGNI domanda nella lista.`;
     }
 
     _buildQuizOptions(card, chapterCards = []) {
-        const correctAnswer = typeof card?.back === 'string' ? card.back.trim() : '';
+        const canonicalCorrectAnswer = typeof card?.back === 'string' ? card.back.trim() : '';
+        const correctAnswer = this._normalizeQuizAnswerVariant(card?.quizAnswerVariant, canonicalCorrectAnswer);
+        const targetWords = this._resolveQuizTargetWordCount(canonicalCorrectAnswer || correctAnswer);
         const normalizedCorrect = this._normalizeAnswerValue(correctAnswer);
         const options = [];
         const seen = new Set();
@@ -4615,12 +4836,12 @@ Genera una risposta per OGNI domanda nella lista.`;
             seen.add(normalizedCorrect);
         }
 
-        const aiDistractors = this._normalizeDistractors(card?.distractors, correctAnswer);
+        const aiDistractors = this._normalizeDistractors(card?.distractors, canonicalCorrectAnswer);
         const wrongOptions = [...aiDistractors];
 
         // Fallback verso altre flashcard SOLO se la generazione AI ha fallito esplicitamente.
         if (card?.aiDistractorsFailed) {
-            const fallbackDistractors = this._collectFallbackDistractors(card, chapterCards);
+            const fallbackDistractors = this._collectFallbackDistractors(card, chapterCards, targetWords);
             wrongOptions.push(...fallbackDistractors);
         }
 
@@ -4646,7 +4867,23 @@ Genera una risposta per OGNI domanda nella lista.`;
             options.push('Nessuna delle precedenti');
         }
 
-        return this._shuffleArray(options.slice(0, 4));
+        const normalizedOptions = this._harmonizeQuizOptions(options.slice(0, 4), targetWords);
+        const normalizedCorrectAnswer = normalizedOptions[0] || this._fitOptionToTargetLength(correctAnswer, targetWords);
+
+        const balanced = this._areQuizOptionsBalanced(normalizedOptions, normalizedCorrectAnswer);
+        this._logQuizDebug('options-built', {
+            cardId: this._resolveCardId(card),
+            aiDistractorsFailed: Boolean(card?.aiDistractorsFailed),
+            targetWords,
+            balanced,
+            likelyTruncated: normalizedOptions.some(option => this._hasLikelyTruncatedEnding(option)),
+            metrics: this._getOptionMetrics(normalizedOptions),
+        });
+
+        return {
+            correctAnswer: normalizedCorrectAnswer,
+            options: this._shuffleArray(normalizedOptions),
+        };
     }
 
     /**
@@ -4711,12 +4948,15 @@ Genera una risposta per OGNI domanda nella lista.`;
 
         setImmediate(async () => {
             try {
-                const distractors = await this._generateDistractorsWithAI(question, correctAnswer);
+                const payload = await this._generateDistractorsWithAI(question, correctAnswer);
+                const distractors = payload.distractors;
+                const quizAnswerVariant = payload.correctAnswerVariant;
                 await Deck.updateOne(
                     { _id: deckId, user: userId, 'cards._id': cardId },
                     {
                         $set: {
                             'cards.$.distractors': distractors,
+                            'cards.$.quizAnswerVariant': quizAnswerVariant,
                             'cards.$.aiDistractorsFailed': false,
                         },
                     }
@@ -4728,6 +4968,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                     {
                         $set: {
                             'cards.$.distractors': [],
+                            'cards.$.quizAnswerVariant': '',
                             'cards.$.aiDistractorsFailed': true,
                         },
                     }
@@ -4741,49 +4982,148 @@ Genera una risposta per OGNI domanda nella lista.`;
             throw new Error('OPENAI_API_KEY non configurata');
         }
 
-        const prompt = `Sei un professore esperto. Riceverai un concetto o una domanda. Genera esattamente 3 risposte errate, ma altamente plausibili, per confondere uno studente. Restituisci il risultato SOLO in formato JSON come array di stringhe.
-Domanda: ${question}
-Risposta corretta: ${correctAnswer}`;
-
-        const completion = await openai.chat.completions.create(
-            {
-                model: DISTRACTOR_AI_MODEL,
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'Genera esclusivamente JSON valido, senza markdown e senza testo extra.',
+        const targetWords = this._resolveQuizTargetWordCount(correctAnswer);
+        const responseFormat = {
+            type: 'json_schema',
+            json_schema: {
+                name: 'quiz_options_balanced',
+                schema: {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['correctAnswerVariant', 'distractors'],
+                    properties: {
+                        correctAnswerVariant: { type: 'string' },
+                        distractors: {
+                            type: 'array',
+                            minItems: 3,
+                            maxItems: 3,
+                            items: { type: 'string' },
+                        },
                     },
-                    {
-                        role: 'user',
-                        content: prompt,
-                    },
-                ],
-                temperature: 0.4,
-                max_tokens: 220,
+                },
             },
-            {
-                timeout: 12000,
+        };
+
+        const minWords = Math.max(QUIZ_OPTION_WORD_MIN, Math.floor(targetWords * QUIZ_OPTION_LENGTH_MIN_RATIO));
+        const maxWords = Math.min(QUIZ_OPTION_WORD_MAX, Math.ceil(targetWords * QUIZ_OPTION_LENGTH_MAX_RATIO));
+
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+            this._logQuizDebug('ai-generate-attempt', {
+                attempt: attempt + 1,
+                targetWords,
+                minWords,
+                maxWords,
+                questionPreview: question.slice(0, 120),
+            });
+
+            const prompt = `Sei un professore esperto. Riceverai una domanda e la risposta corretta.
+Genera opzioni da quiz ad alta qualità, evitando qualsiasi indizio visivo sulla risposta giusta.
+
+REGOLE OBBLIGATORIE:
+1) Restituisci SOLO JSON valido nel formato:
+{
+  "correctAnswerVariant": "stringa",
+  "distractors": ["stringa", "stringa", "stringa"]
+}
+2) "correctAnswerVariant" deve essere semanticamente equivalente alla risposta corretta, ma riformulata.
+3) I 3 distractor devono essere plausibili ma sbagliati.
+4) Tutte e 4 le opzioni devono avere lunghezza e struttura simili.
+5) Ogni opzione deve avere tra ${minWords} e ${maxWords} parole, senza eccezioni.
+6) Ogni stringa deve essere UNA frase completa (mai tronca), con punteggiatura finale.
+7) Nessuna stringa deve contenere ritorni a capo, tab o caratteri di controllo.
+8) Stesso registro linguistico tra tutte le opzioni, senza negazioni ovvie o frasi-trappola.
+${attempt > 0 ? '9) ATTENZIONE: il precedente output era non valido o sbilanciato. Correggi rigorosamente il numero di parole e chiudi le frasi.' : ''}
+
+Domanda: ${question}
+Risposta corretta canonica: ${correctAnswer}`;
+
+            const completion = await openai.chat.completions.create(
+                {
+                    model: DISTRACTOR_AI_MODEL,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Genera esclusivamente JSON valido, senza markdown e senza testo extra.',
+                        },
+                        {
+                            role: 'user',
+                            content: prompt,
+                        },
+                    ],
+                    response_format: responseFormat,
+                    temperature: 0.45,
+                    max_tokens: 900,
+                },
+                {
+                    timeout: 14000,
+                }
+            );
+
+            const content = completion.choices[0]?.message?.content || '';
+            const finishReason = completion.choices[0]?.finish_reason || 'unknown';
+            this._logQuizDebug('ai-generate-raw', {
+                attempt: attempt + 1,
+                finishReason,
+                contentLength: content.length,
+                contentPreview: typeof content === 'string' ? content.slice(0, 220) : '',
+            });
+            const parsed = this._parseJSONResponse(content);
+            if (!parsed) {
+                this._logQuizDebug('ai-generate-parse-null', {
+                    attempt: attempt + 1,
+                    finishReason,
+                });
+                continue;
             }
-        );
 
-        const content = completion.choices[0]?.message?.content || '';
-        const parsed = this._parseJSONResponse(content);
+            let rawDistractors = [];
+            let rawCorrectAnswerVariant = '';
+            if (Array.isArray(parsed)) {
+                rawDistractors = parsed;
+            } else if (parsed && Array.isArray(parsed.distractors)) {
+                rawDistractors = parsed.distractors;
+                rawCorrectAnswerVariant = typeof parsed.correctAnswerVariant === 'string'
+                    ? parsed.correctAnswerVariant
+                    : '';
+            } else if (parsed && Array.isArray(parsed.options)) {
+                rawDistractors = parsed.options;
+                rawCorrectAnswerVariant = typeof parsed.correctAnswerVariant === 'string'
+                    ? parsed.correctAnswerVariant
+                    : '';
+            }
 
-        let rawDistractors = [];
-        if (Array.isArray(parsed)) {
-            rawDistractors = parsed;
-        } else if (parsed && Array.isArray(parsed.distractors)) {
-            rawDistractors = parsed.distractors;
-        } else if (parsed && Array.isArray(parsed.options)) {
-            rawDistractors = parsed.options;
+            let distractors = this._normalizeDistractors(rawDistractors, correctAnswer);
+            let correctAnswerVariant = this._normalizeQuizAnswerVariant(rawCorrectAnswerVariant, correctAnswer);
+            const harmonizedOptions = this._harmonizeQuizOptions(
+                [correctAnswerVariant, ...distractors],
+                targetWords
+            );
+            if (harmonizedOptions.length === 4) {
+                correctAnswerVariant = harmonizedOptions[0];
+                distractors = this._normalizeDistractors(harmonizedOptions.slice(1), correctAnswerVariant);
+            }
+
+            const allOptions = [correctAnswerVariant, ...distractors];
+            const balanced = this._areQuizOptionsBalanced(allOptions, correctAnswer);
+            const likelyTruncated = allOptions.some(option => this._hasLikelyTruncatedEnding(option));
+
+            this._logQuizDebug('ai-generate-result', {
+                attempt: attempt + 1,
+                distractorsCount: distractors.length,
+                balanced,
+                likelyTruncated,
+                metrics: this._getOptionMetrics(allOptions),
+            });
+
+            if (distractors.length === 3 && balanced && !likelyTruncated) {
+                return {
+                    distractors,
+                    correctAnswerVariant,
+                };
+            }
         }
 
-        const distractors = this._normalizeDistractors(rawDistractors, correctAnswer);
-        if (distractors.length !== 3) {
-            throw new Error('Distractors AI non validi');
-        }
-
-        return distractors;
+        throw new Error('Distractors AI non validi o sbilanciati');
     }
 
     _normalizeAnswerValue(value) {
@@ -5077,16 +5417,113 @@ FORMATO JSON:
             return JSON.parse(cleaned);
         } catch (e) {
             // Prova a estrarre JSON da stringhe che contengono altro testo
-            const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
+            const extractedObject = cleaned.match(/\{[\s\S]*\}/)?.[0];
+            const extractedArray = cleaned.match(/\[[\s\S]*\]/)?.[0];
+            const extracted = extractedObject || extractedArray || '';
+
+            const sanitize = (value) => this._sanitizePotentialJson(value);
+
+            const candidates = [
+                extracted,
+                sanitize(extracted),
+                extracted.replace(/[\u0000-\u0019]/g, ' '),
+                sanitize(extracted.replace(/[\u0000-\u0019]/g, ' ')),
+                cleaned.replace(/[\u0000-\u0019]/g, ' '),
+                sanitize(cleaned),
+                sanitize(cleaned.replace(/[\u0000-\u0019]/g, ' ')),
+                cleaned.replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/\t/g, '\\t'),
+            ].filter(Boolean);
+
+            for (const candidate of candidates) {
                 try {
-                    return JSON.parse(jsonMatch[0]);
-                } catch (e2) {
-                    console.warn('[StudyService] _parseJSONResponse: Fallito parsing JSON:', e2.message);
+                    return JSON.parse(candidate);
+                } catch (_ignored) {
+                    // continua su prossimo tentativo
                 }
             }
+
+            console.warn('[StudyService] _parseJSONResponse: Fallito parsing JSON:', e.message, {
+                preview: cleaned.slice(0, 240),
+                length: cleaned.length,
+            });
             return null;
         }
+    }
+
+    _sanitizePotentialJson(content) {
+        if (!content || typeof content !== 'string') return '';
+
+        const normalizedQuotes = content
+            .replace(/[“”]/g, '"')
+            .replace(/[‘’]/g, '\'')
+            .replace(/\u00A0/g, ' ');
+
+        let result = '';
+        let inString = false;
+        let escaped = false;
+
+        for (const char of normalizedQuotes) {
+            const code = char.charCodeAt(0);
+
+            if (inString) {
+                if (escaped) {
+                    result += char;
+                    escaped = false;
+                    continue;
+                }
+
+                if (char === '\\') {
+                    result += char;
+                    escaped = true;
+                    continue;
+                }
+
+                if (char === '"') {
+                    result += char;
+                    inString = false;
+                    continue;
+                }
+
+                if (char === '\n') {
+                    result += '\\n';
+                    continue;
+                }
+
+                if (char === '\r') {
+                    result += '\\r';
+                    continue;
+                }
+
+                if (char === '\t') {
+                    result += '\\t';
+                    continue;
+                }
+
+                if (code < 0x20) {
+                    result += ' ';
+                    continue;
+                }
+
+                result += char;
+                continue;
+            }
+
+            if (char === '"') {
+                inString = true;
+                result += char;
+                continue;
+            }
+
+            if (code < 0x20 && char !== '\n' && char !== '\r' && char !== '\t') {
+                continue;
+            }
+
+            result += char;
+        }
+
+        return result
+            .replace(/,\s*([}\]])/g, '$1')
+            .trim();
     }
 }
 
