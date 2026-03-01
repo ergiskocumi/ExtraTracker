@@ -113,6 +113,25 @@ export const DeckDetailPage: React.FC = () => {
                 return;
             }
 
+            const sourceCardIds = Array.from(
+                new Set(preparedSession.cards.map(card => card.id).filter(Boolean))
+            );
+
+            if (sourceCardIds.length > 0) {
+                try {
+                    await studyService.saveQuizSnapshot(id, {
+                        quizType: config.quizType,
+                        questionCount: preparedSession.cards.length,
+                        sourceCardIds,
+                        source: 'chapter',
+                        name: `Quiz ${preparedSession.cards.length} domande`,
+                    });
+                } catch (snapshotError) {
+                    // Non blocca l'avvio del quiz se il salvataggio storico fallisce.
+                    console.warn('[DeckDetailPage] saveQuizSnapshot failed:', snapshotError);
+                }
+            }
+
             const params = new URLSearchParams();
             params.set('mode', 'quiz');
             params.set('focus', 'all');

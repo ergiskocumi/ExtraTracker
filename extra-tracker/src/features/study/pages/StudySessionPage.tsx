@@ -646,6 +646,16 @@ export const StudySessionPage: React.FC = () => {
             return;
         }
 
+        void studyService.saveQuizSnapshot(deckId, {
+            quizType,
+            questionCount: currentSessionCardIds.length,
+            sourceCardIds: currentSessionCardIds,
+            source: 'repeat',
+            name: `Ripeti quiz ${currentSessionCardIds.length} domande`,
+        }).catch((error) => {
+            console.warn('[StudySessionPage] save repeat quiz snapshot failed:', error);
+        });
+
         const params = new URLSearchParams();
         params.set('mode', 'quiz');
         params.set('focus', 'all');
@@ -674,6 +684,16 @@ export const StudySessionPage: React.FC = () => {
             emitToast.info('Nessun errore da ripassare');
             return;
         }
+
+        void studyService.saveQuizSnapshot(deckId, {
+            quizType,
+            questionCount: wrongCardIds.length,
+            sourceCardIds: wrongCardIds,
+            source: 'errors',
+            name: `Quiz errori ${wrongCardIds.length} domande`,
+        }).catch((error) => {
+            console.warn('[StudySessionPage] save errors quiz snapshot failed:', error);
+        });
 
         const params = new URLSearchParams();
         params.set('mode', 'quiz');

@@ -59,6 +59,23 @@ export interface Deck {
         difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
         questionTypes?: string[];
     };
+    savedQuizzes?: SavedQuizSnapshot[];
+}
+
+export interface SavedQuizSnapshot {
+    id: string;
+    name: string;
+    quizType: QuizType;
+    questionCount: number;
+    sourceCardIds: string[];
+    source: 'chapter' | 'repeat' | 'errors' | 'saved';
+    createdAt?: string;
+}
+
+export interface ExamSavedQuiz extends SavedQuizSnapshot {
+    deckId: string;
+    deckTitle: string;
+    examId?: string | null;
 }
 
 export interface ChatMessage {
@@ -133,6 +150,14 @@ export interface SessionRequestOptions {
     examDifficulty?: string;
     quizType?: QuizType;
     sourceCardIds?: string[];
+}
+
+export interface SaveQuizSnapshotPayload {
+    name?: string;
+    quizType: QuizType;
+    questionCount: number;
+    sourceCardIds: string[];
+    source?: 'chapter' | 'repeat' | 'errors' | 'saved';
 }
 
 export interface SessionCompleteResult {
@@ -234,6 +259,26 @@ const normalizeCard = (raw: any): Card => {
     };
 };
 
+const normalizeSavedQuiz = (raw: any): SavedQuizSnapshot => {
+    const source = typeof raw?.source === 'string' ? raw.source.toLowerCase() : 'chapter';
+    const allowedSources: SavedQuizSnapshot['source'][] = ['chapter', 'repeat', 'errors', 'saved'];
+    const normalizedSource = allowedSources.includes(source as SavedQuizSnapshot['source'])
+        ? source as SavedQuizSnapshot['source']
+        : 'chapter';
+
+    return {
+        id: String(raw?.id || raw?._id || ''),
+        name: typeof raw?.name === 'string' ? raw.name : '',
+        quizType: raw?.quizType === 'true_false' ? 'true_false' : 'multiple_choice',
+        questionCount: safeNumber(raw?.questionCount, 0),
+        sourceCardIds: Array.isArray(raw?.sourceCardIds)
+            ? raw.sourceCardIds.map((id: unknown) => String(id).trim()).filter(Boolean)
+            : [],
+        source: normalizedSource,
+        createdAt: raw?.createdAt,
+    };
+};
+
 const normalizeDeck = (raw: any): Deck => {
     const cards = Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [];
     
@@ -260,6 +305,7 @@ const normalizeDeck = (raw: any): Deck => {
             difficulty: aiSettings.difficulty,
             questionTypes: aiSettings.questionTypes || aiSettings.question_types,
         } : undefined,
+        savedQuizzes: Array.isArray(raw.savedQuizzes) ? raw.savedQuizzes.map(normalizeSavedQuiz) : [],
     };
 };
 
@@ -441,6 +487,40 @@ class StudyService {
         const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/session${query ? `?${query}` : ''}`);
         const raw = unwrap(response, 'Errore nel recupero della sessione');
         return normalizeSession(raw);
+    }
+
+    /**
+     * Salva lo snapshot di un quiz appena generato
+     */
+    async saveQuizSnapshot(deckId: string, payload: SaveQuizSnapshotPayload): Promise<ExamSavedQuiz> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/quizzes`, payload);
+        const raw = unwrap(response, 'Errore nel salvataggio del quiz');
+        const normalized = normalizeSavedQuiz(raw);
+        return {
+            ...normalized,
+            deckId: String(raw?.deckId || deckId),
+            deckTitle: typeof raw?.deckTitle === 'string' ? raw.deckTitle : '',
+            examId: raw?.examId || null,
+        };
+    }
+
+    /**
+     * Recupera lo storico quiz salvati per un esame
+     */
+    async getExamSavedQuizzes(examId: string): Promise<ExamSavedQuiz[]> {
+        const response = await apiClient.get<any>(`${this.baseUrl}/exam/${examId}/quizzes`);
+        const raw = unwrap(response, 'Errore nel recupero dei quiz salvati');
+        if (!Array.isArray(raw)) return [];
+
+        return raw.map((item: any) => {
+            const normalized = normalizeSavedQuiz(item);
+            return {
+                ...normalized,
+                deckId: String(item?.deckId || ''),
+                deckTitle: typeof item?.deckTitle === 'string' ? item.deckTitle : 'Mazzo',
+                examId: item?.examId || null,
+            };
+        });
     }
 
     /**
