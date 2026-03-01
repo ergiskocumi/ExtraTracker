@@ -36,6 +36,7 @@ interface DeckDetailContentProps {
     deck: Deck;
     onBack: () => void;
     onStudy: () => void;
+    onGenerateQuiz?: () => void;
     onExamSolver?: () => void;
     onReadPdf?: () => void;
     onMagicGenerate?: () => void;
@@ -55,6 +56,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
     deck,
     onBack,
     onStudy,
+    onGenerateQuiz,
     onExamSolver,
     onReadPdf,
     onMagicGenerate,
@@ -220,6 +222,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                 deck={deck}
                 onBack={onBack}
                 onStudy={onStudy}
+                onGenerateQuiz={onGenerateQuiz}
                 onExamSolver={onExamSolver}
                 onAddCard={handleAddCard}
                 onReadPdf={onReadPdf}

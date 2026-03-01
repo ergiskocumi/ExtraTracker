@@ -15,6 +15,7 @@ import {
     ArrowLeft,
     Play,
     FileQuestion,
+    ListChecks,
     Target,
     Clock,
     Layers,
@@ -32,6 +33,7 @@ interface DeckDetailHeaderProps {
     deck: Deck;
     onBack: () => void;
     onStudy: () => void;
+    onGenerateQuiz?: () => void;
     onExamSolver?: () => void;
     onAddCard: () => void;
     onReadPdf?: () => void;
@@ -56,6 +58,7 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
     deck,
     onBack,
     onStudy,
+    onGenerateQuiz,
     onExamSolver,
     onReadPdf,
 }) => {
@@ -98,6 +101,7 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
     const hasDueCards = stats.dueCount > 0;
     const hasCards = stats.total > 0;
     const hasPdf = !!deck.pdfUrl;
+    const canGenerateQuiz = stats.total >= 10;
 
     const statItems: StatItem[] = [
         {
@@ -211,6 +215,26 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                             >
                                 <FileQuestion className="w-4 h-4" />
                                 <span className="hidden sm:inline">Exam Solver</span>
+                            </motion.button>
+                        )}
+
+                        {onGenerateQuiz && (
+                            <motion.button
+                                whileHover={canGenerateQuiz ? { scale: 1.02 } : undefined}
+                                whileTap={canGenerateQuiz ? { scale: 0.98 } : undefined}
+                                onClick={onGenerateQuiz}
+                                disabled={!canGenerateQuiz}
+                                title={!canGenerateQuiz ? 'Crea almeno 10 flashcard per sbloccare la generazione del quiz' : undefined}
+                                className={`
+                                    flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all
+                                    ${canGenerateQuiz
+                                        ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20'
+                                        : 'bg-theme-surface border border-theme-default text-theme-muted cursor-not-allowed'
+                                    }
+                                `}
+                            >
+                                <ListChecks className="w-4 h-4" />
+                                <span className="hidden sm:inline">Genera Quiz</span>
                             </motion.button>
                         )}
 

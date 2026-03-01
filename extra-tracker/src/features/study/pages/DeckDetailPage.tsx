@@ -14,14 +14,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
-import { studyService, type Deck } from '../services/studyService';
+import { studyService, type Deck, type QuizType } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { DeckDetailContent } from '../components/Deck/DeckDetailContent';
 import { DeckSettings } from '../components/Deck/DeckSettings';
 import { ExamSolverModal } from '../components/Modals/ExamSolver';
 import { MagicGenerateModal } from '../components/Modals/MagicGenerateModal';
+import { GenerateQuizModal } from '../components/Modals/GenerateQuizModal';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
-import { pagePreloaders } from '../../../shared/hooks/usePreload';
 
 // ============================================
 // MAIN PAGE COMPONENT
@@ -39,6 +39,7 @@ export const DeckDetailPage: React.FC = () => {
     // Modals state
     const [isExamSolverOpen, setIsExamSolverOpen] = useState(false);
     const [isMagicGenerateOpen, setIsMagicGenerateOpen] = useState(false);
+    const [isGenerateQuizOpen, setIsGenerateQuizOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isResetModalOpen, setIsResetModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -89,6 +90,48 @@ export const DeckDetailPage: React.FC = () => {
     const handleDeckUpdate = useCallback((updatedDeck: Deck) => {
         setDeck(updatedDeck);
     }, []);
+
+    const handleGenerateQuizSession = useCallback(async (config: { questionCount: number; quizType: QuizType }) => {
+        if (!id || !deck) return;
+
+        if ((deck.cards?.length || 0) < 10) {
+            emitToast.info('Crea almeno 10 flashcard per sbloccare la generazione del quiz');
+            return;
+        }
+
+        try {
+            const preparedSession = await studyService.getSession(id, {
+                mode: 'quiz',
+                focus: 'all',
+                questionCount: config.questionCount,
+                limit: config.questionCount,
+                quizType: config.quizType,
+            });
+
+            if (preparedSession.cards.length === 0) {
+                emitToast.info('Nessuna carta disponibile per il quiz');
+                return;
+            }
+
+            const params = new URLSearchParams();
+            params.set('mode', 'quiz');
+            params.set('focus', 'all');
+            params.set('questions', String(config.questionCount));
+            params.set('quizType', config.quizType);
+            params.set('quizSource', 'chapter');
+            params.set('run', String(Date.now()));
+
+            navigate(`/study/${id}/session?${params.toString()}`, {
+                state: {
+                    preparedSession,
+                    preparedAt: Date.now(),
+                },
+            });
+        } catch (err: any) {
+            emitToast.error(err?.message || 'Errore nella preparazione del quiz');
+            throw err;
+        }
+    }, [id, deck, navigate]);
 
     const handleDeleteDeck = useCallback(async () => {
         if (!id || !deck) return;
@@ -218,6 +261,7 @@ export const DeckDetailPage: React.FC = () => {
                     deck={deck}
                     onBack={handleBack}
                     onStudy={handleStudy}
+                    onGenerateQuiz={() => setIsGenerateQuizOpen(true)}
                     onExamSolver={() => setIsExamSolverOpen(true)}
                     onReadPdf={deck.pdfUrl ? handleReadPdf : undefined}
                     onMagicGenerate={() => setIsMagicGenerateOpen(true)}
@@ -312,6 +356,13 @@ export const DeckDetailPage: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <GenerateQuizModal
+                isOpen={isGenerateQuizOpen}
+                totalCards={deck.cards?.length || 0}
+                onClose={() => setIsGenerateQuizOpen(false)}
+                onGenerate={handleGenerateQuizSession}
+            />
 
             {/* Reset Progress Confirmation */}
             <ConfirmationModal
