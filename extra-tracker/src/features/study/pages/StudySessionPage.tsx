@@ -378,11 +378,11 @@ export const StudySessionPage: React.FC = () => {
     }, [session, deckId, mode, focus, length, timeLimitMinutes, questionCount, direction, examType, examDifficulty, currentCardIndex, stats, elapsedSeconds, answersHistory, navigate]);
 
     // ============================================
-    // TIMER
+    // TIMER (si ferma quando la sessione è completata)
     // ============================================
 
     useEffect(() => {
-        if (!session) return;
+        if (!session || isComplete) return;
 
         timerRef.current = window.setInterval(() => {
             setElapsedSeconds(prev => prev + 1);
@@ -397,7 +397,7 @@ export const StudySessionPage: React.FC = () => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [session, timeLimitSeconds]);
+    }, [session, timeLimitSeconds, isComplete]);
 
     // ============================================
     // HANDLERS
@@ -829,17 +829,22 @@ export const StudySessionPage: React.FC = () => {
     return (
         <div className="study-session-root fixed inset-0 top-16 z-50 bg-theme-base flex flex-col">
             {/* Header */}
-            <header className="study-session-header flex-none px-4 sm:px-6 py-3 border-b border-theme-default bg-theme-base backdrop-blur-xl">
-                <div className="max-w-4xl mx-auto flex items-center gap-4">
+            <header className="study-session-header flex-none px-4 sm:px-6 py-3 border-b border-theme-default bg-theme-base/80 backdrop-blur-xl z-50">
+                <div className="max-w-5xl mx-auto flex items-center gap-4 sm:gap-6">
+                    {/* Left: Exit Button */}
                     <button
                         onClick={handleBack}
-                        className="flex items-center gap-2 text-theme-muted hover:text-theme-primary transition-colors p-2 -ml-2 rounded-lg hover:bg-theme-surface"
+                        className="flex items-center gap-2 px-3 py-2 -ml-2 rounded-xl text-theme-secondary hover:text-theme-primary hover:bg-theme-surface transition-all group"
+                        title="Esci dalla sessione"
                     >
-                        <ArrowLeft className="w-5 h-5" />
+                        <div className="p-1.5 rounded-lg bg-theme-surface border border-theme-default group-hover:border-theme-strong transition-colors">
+                            <ArrowLeft className="w-4 h-4" />
+                        </div>
                         <span className="hidden sm:inline text-sm font-medium">Esci</span>
                     </button>
 
-                    <div className="flex-1">
+                    {/* Center: Progress & Stats */}
+                    <div className="flex-1 min-w-0">
                         <StudyProgress
                             currentIndex={currentCardIndex}
                             totalCards={session.cards.length}
@@ -851,32 +856,32 @@ export const StudySessionPage: React.FC = () => {
                         />
                     </div>
 
-                    {timeLeft !== null && (
-                        <div className={`study-session-timer px-3 py-1.5 rounded-full border text-sm font-mono ${
-                            timerWarning
-                                ? 'study-session-timer--warning border-rose-500/40 bg-rose-500/15 text-rose-600 dark:text-rose-400 animate-pulse'
-                                : 'border-theme-default bg-theme-surface text-theme-secondary'
-                        }`}>
-                            {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-                        </div>
-                    )}
+                    {/* Right: Timer & Actions */}
+                    <div className="flex items-center gap-3">
+                        {/* Countdown Timer (if limit set) */}
+                        {timeLeft !== null && (
+                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-mono tabular-nums ${
+                                timerWarning
+                                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 animate-pulse'
+                                    : 'border-theme-default bg-theme-surface text-theme-secondary'
+                            }`}>
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>
+                                    {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                                </span>
+                            </div>
+                        )}
 
-                    {/* Bottone Pausa (solo per mode='exam') */}
-                    {mode === 'exam' && (
-                        <button
-                            onClick={handlePauseExam}
-                            className="px-4 py-2 rounded-lg text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/50 transition-all"
-                        >
-                            Pausa
-                        </button>
-                    )}
-
-                    <button
-                        onClick={handleBack}
-                        className="p-2 text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-lg transition-colors"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+                        {/* Pause Button (Exam Mode) */}
+                        {mode === 'exam' && (
+                            <button
+                                onClick={handlePauseExam}
+                                className="px-4 py-2 rounded-xl text-sm font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 transition-all"
+                            >
+                                Pausa
+                            </button>
+                        )}
+                    </div>
                 </div>
             </header>
 

@@ -82,30 +82,33 @@ export const StudyProgress: React.FC<StudyProgressProps> = ({
             {/* Progress bar with segments */}
             <div className="relative">
                 {/* Background track */}
-                <div className="study-progress-track h-2 bg-theme-surface rounded-full overflow-hidden">
+                <div className="study-progress-track h-3 bg-theme-surface border border-theme-subtle rounded-full overflow-hidden shadow-inner">
                     <motion.div
-                        className="h-full bg-gradient-to-r from-primary-500 via-primary-400 to-primary-500"
+                        className="h-full bg-gradient-to-r from-primary-500 via-primary-400 to-primary-500 relative"
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
                         transition={{ duration: 0.5, ease: 'easeOut' }}
-                    />
+                    >
+                        <div className="absolute inset-0 bg-white/20" style={{ backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)', backgroundSize: '1rem 1rem' }} />
+                    </motion.div>
                 </div>
 
                 {/* Segment dots */}
-                <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 flex justify-between px-0.5">
+                <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 flex justify-between px-1 pointer-events-none">
                     {segments.map((segment, i) => (
                         <motion.div
                             key={i}
                             className={`study-progress-dot w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                                 segment.isCompleted 
-                                    ? 'study-progress-dot--completed scale-100' 
+                                    ? 'bg-primary-200 dark:bg-primary-700' 
                                     : segment.isCurrent
-                                        ? 'study-progress-dot--current scale-125 ring-2 ring-primary-500/30'
-                                        : 'study-progress-dot--pending scale-75'
+                                        ? 'bg-white ring-2 ring-primary-500 shadow-lg scale-150'
+                                        : 'bg-theme-subtle'
                             }`}
                             initial={false}
                             animate={{
-                                scale: segment.isCurrent ? 1.25 : segment.isCompleted ? 1 : 0.75,
+                                scale: segment.isCurrent ? 1.5 : segment.isCompleted ? 0.8 : 0.6,
+                                opacity: segment.isCurrent ? 1 : 0.5
                             }}
                         />
                     ))}

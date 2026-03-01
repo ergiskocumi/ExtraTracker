@@ -220,7 +220,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
         const baseStyles = 'border rounded-2xl transition-all duration-200 text-left group relative overflow-hidden';
         
         if (!selectedOption && !result) {
-            return `${baseStyles} border-white/10 bg-white/[0.04] text-white/80 hover:bg-white/[0.08] hover:border-white/20 hover:translate-y-[-2px] hover:shadow-lg hover:shadow-black/20`;
+            return `${baseStyles} border-theme-default bg-theme-surface hover:bg-theme-surface-hover hover:border-primary-500/30 hover:shadow-lg hover:shadow-primary-500/5`;
         }
 
         const isCorrectOption = option.trim().toLowerCase() === normalizedCorrect;
@@ -228,23 +228,25 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
         // Se è "Non lo so", evidenzia comunque la risposta corretta
         if (result === 'dontKnow' && isCorrectOption) {
-            return `${baseStyles} border-amber-500/50 bg-amber-500/15 text-amber-100 scale-[1.02] ring-2 ring-amber-500/30`;
+            return `${baseStyles} border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-100 scale-[1.02] ring-2 ring-amber-500/30 shadow-lg shadow-amber-500/10`;
         }
 
         if (isCorrectOption) {
-            return `${baseStyles} border-emerald-500/50 bg-emerald-500/15 text-emerald-100 scale-[1.02]`;
+            return `${baseStyles} border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-100 scale-[1.02] shadow-lg shadow-emerald-500/10`;
         }
 
         if (isSelectedOption) {
-            return `${baseStyles} border-rose-500/50 bg-rose-500/15 text-rose-100`;
+            return `${baseStyles} border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-100 shadow-lg shadow-rose-500/10`;
         }
 
-        return `${baseStyles} border-white/5 bg-white/[0.02] text-white/30 scale-[0.98]`;
+        return `${baseStyles} border-theme-subtle bg-theme-surface/30 text-theme-disabled scale-[0.98] opacity-60`;
     };
 
     const getLabelStyles = (option: string) => {
+        const baseStyles = 'flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200';
+
         if (!selectedOption && !result) {
-            return 'bg-white/10 text-white/60 group-hover:bg-white/15 group-hover:text-white/80';
+            return `${baseStyles} bg-theme-elevated text-theme-secondary border border-theme-default group-hover:border-primary-500/30 group-hover:text-primary-600 dark:group-hover:text-primary-400`;
         }
 
         const isCorrectOption = option.trim().toLowerCase() === normalizedCorrect;
@@ -252,18 +254,18 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
         // Se è "Non lo so", la risposta corretta usa stile amber
         if (result === 'dontKnow' && isCorrectOption) {
-            return 'bg-amber-500/30 text-amber-200';
+            return `${baseStyles} bg-amber-500 text-white border border-amber-600`;
         }
 
         if (isCorrectOption) {
-            return 'bg-emerald-500/30 text-emerald-200';
+            return `${baseStyles} bg-emerald-500 text-white border border-emerald-600`;
         }
 
         if (isSelectedOption) {
-            return 'bg-rose-500/30 text-rose-200';
+            return `${baseStyles} bg-rose-500 text-white border border-rose-600`;
         }
 
-        return 'bg-white/5 text-white/30';
+        return `${baseStyles} bg-theme-surface text-theme-disabled border border-theme-subtle`;
     };
 
     // Determina se mostrare il pulsante continua
@@ -275,28 +277,60 @@ export const QuizView: React.FC<QuizViewProps> = ({
     return (
         <div className="w-full max-w-4xl mx-auto px-4 h-full flex flex-col">
             {/* Card Container - Flex grow per occupare spazio disponibile */}
-            <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-theme-default bg-theme-elevated shadow-theme-lg overflow-hidden">
                 
-                {/* Header - Fixed height */}
-                <div className="flex-none px-6 sm:px-8 py-5 border-b border-white/[0.06]">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center ring-1 ring-indigo-500/30">
-                                <span className="text-lg">{isTrueFalse ? '✓✗' : '📝'}</span>
-                            </div>
-                            <span className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-300">
-                                {isTrueFalse ? 'Vero/Falso' : 'Quiz Mode'}
-                            </span>
-                        </div>
+                {/* Domanda sempre visibile (non scrolla) */}
+                <div className="flex-none px-6 sm:px-8 py-5 border-b border-theme-subtle bg-theme-elevated">
+                    <div className="space-y-3">
+                        <h2 
+                            className="text-xl sm:text-2xl lg:text-3xl font-semibold text-theme-primary leading-relaxed whitespace-pre-wrap break-words"
+                        >
+                            {question}
+                        </h2>
                         
+                        {/* Hint shortcuts - prima della risposta */}
+                        {!selectedOption && !result && (
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="text-sm text-theme-muted flex items-center gap-2 flex-wrap"
+                            >
+                                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Usa i tasti</span>
+                                <span className="flex items-center gap-1">
+                                    {(isTrueFalse ? [1, 2] : [1, 2, 3, 4]).map(num => (
+                                        <kbd
+                                            key={num}
+                                            className="px-2 py-0.5 rounded bg-theme-surface text-theme-secondary text-xs font-mono border border-theme-default"
+                                        >
+                                            {num}
+                                        </kbd>
+                                    ))}
+                                </span>
+                                <span>per rispondere</span>
+                                {!isTrueFalse && (
+                                    <>
+                                        <span>,</span>
+                                        <kbd className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-mono border border-amber-500/20">
+                                            0
+                                        </kbd>
+                                        <span>se non sai</span>
+                                    </>
+                                )}
+                            </motion.p>
+                        )}
+                        
+                        {/* Esito risposta - sotto la domanda, sempre visibile */}
                         <AnimatePresence mode="wait">
                             {result === 'correct' && (
                                 <motion.span
-                                    initial={{ opacity: 0, scale: 0.8, y: -10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    initial={{ opacity: 0, y: 4 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0 }}
                                     transition={{ duration: 0.2 }}
-                                    className="flex items-center gap-2 text-sm font-semibold text-emerald-300 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20"
+                                    className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -306,11 +340,11 @@ export const QuizView: React.FC<QuizViewProps> = ({
                             )}
                             {result === 'wrong' && (
                                 <motion.span
-                                    initial={{ opacity: 0, scale: 0.8, y: -10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    initial={{ opacity: 0, y: 4 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0 }}
                                     transition={{ duration: 0.2 }}
-                                    className="flex items-center gap-2 text-sm font-semibold text-rose-300 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20"
+                                    className="inline-flex items-center gap-2 text-sm font-semibold text-rose-600 dark:text-rose-400"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -320,11 +354,11 @@ export const QuizView: React.FC<QuizViewProps> = ({
                             )}
                             {result === 'dontKnow' && (
                                 <motion.span
-                                    initial={{ opacity: 0, scale: 0.8, y: -10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    initial={{ opacity: 0, y: 4 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0 }}
                                     transition={{ duration: 0.2 }}
-                                    className="flex items-center gap-2 text-sm font-semibold text-amber-300 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20"
+                                    className="inline-flex items-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -336,53 +370,9 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     </div>
                 </div>
 
-                {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto min-h-0">
+                {/* Solo opzioni e pulsante scrollano */}
+                <div className="flex-1 overflow-y-auto min-h-0 bg-theme-elevated">
                     <div className="px-6 sm:px-8 py-6 space-y-6">
-                        
-                        {/* Question - Con scroll interno se troppo lunga */}
-                        <div className="space-y-3">
-                            <h2 
-                                className="text-xl sm:text-2xl lg:text-3xl font-semibold text-white leading-relaxed whitespace-pre-wrap break-words"
-                            >
-                                {question}
-                            </h2>
-                            
-                            {/* Hint per shortcuts - mostrato solo prima della risposta */}
-                            {!selectedOption && !result && (
-                                <motion.p
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="text-sm text-white/40 flex items-center gap-2 flex-wrap"
-                                >
-                                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <span>Usa i tasti</span>
-                                    <span className="flex items-center gap-1">
-                                        {(isTrueFalse ? [1, 2] : [1, 2, 3, 4]).map(num => (
-                                            <kbd
-                                                key={num}
-                                                className="px-2 py-0.5 rounded bg-white/10 text-white/60 text-xs font-mono border border-white/5"
-                                            >
-                                                {num}
-                                            </kbd>
-                                        ))}
-                                    </span>
-                                    <span>per rispondere</span>
-                                    {!isTrueFalse && (
-                                        <>
-                                            <span>,</span>
-                                            <kbd className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs font-mono border border-amber-500/30">
-                                                0
-                                            </kbd>
-                                            <span>se non sai</span>
-                                        </>
-                                    )}
-                                </motion.p>
-                            )}
-                        </div>
-
                         {/* Options Grid */}
                         <motion.div
                             animate={isShaking ? { x: [-8, 8, -6, 6, -4, 4, 0] } : {}}
@@ -441,18 +431,22 @@ export const QuizView: React.FC<QuizViewProps> = ({
                                             // Layout standard: orizzontale con label A-D
                                             <div className="flex items-start gap-4 px-5 py-4">
                                                 {/* Label A, B, C, D */}
-                                                <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200 ${getLabelStyles(option)}`}>
+                                                <div className={getLabelStyles(option)}>
                                                     {label}
                                                 </div>
 
                                                 {/* Option Text */}
-                                                <div className="flex-1 text-left text-base sm:text-lg font-medium leading-relaxed py-0.5">
+                                                <div className={`flex-1 text-left text-base sm:text-lg font-medium leading-relaxed py-0.5 ${
+                                                    selectedOption || result 
+                                                        ? (option.trim().toLowerCase() === normalizedCorrect ? 'text-emerald-700 dark:text-emerald-100' : option === selectedOption ? 'text-rose-700 dark:text-rose-100' : 'text-theme-disabled')
+                                                        : 'text-theme-primary'
+                                                }`}>
                                                     {option}
                                                 </div>
 
                                                 {/* Keyboard Shortcut Indicator */}
                                                 {!selectedOption && !result && (
-                                                    <kbd className="hidden sm:flex flex-shrink-0 items-center justify-center w-7 h-7 rounded-md bg-white/5 border border-white/10 text-xs font-mono text-white/40">
+                                                    <kbd className="hidden sm:flex flex-shrink-0 items-center justify-center w-7 h-7 rounded-md bg-theme-surface border border-theme-default text-xs font-mono text-theme-muted">
                                                         {index + 1}
                                                     </kbd>
                                                 )}
@@ -485,11 +479,11 @@ export const QuizView: React.FC<QuizViewProps> = ({
                                     ref={dontKnowRef}
                                     onClick={handleDontKnow}
                                     disabled={isSubmitting}
-                                    className="group flex items-center gap-3 px-6 py-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-300/80 font-medium transition-all duration-200 hover:bg-amber-500/15 hover:border-amber-500/50 hover:text-amber-200 hover:translate-y-[-1px] active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="group flex items-center gap-3 px-6 py-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300 font-medium transition-all duration-200 hover:bg-amber-500/15 hover:border-amber-500/50 hover:text-amber-700 dark:hover:text-amber-200 hover:translate-y-[-1px] active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <span>🤔</span>
                                     <span>Non lo so</span>
-                                    <kbd className="hidden sm:inline-flex px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs font-mono border border-amber-500/30">
+                                    <kbd className="hidden sm:inline-flex px-2 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-mono border border-amber-500/30">
                                         0
                                     </kbd>
                                 </button>
@@ -506,15 +500,15 @@ export const QuizView: React.FC<QuizViewProps> = ({
                             >
                                 <div className="flex items-start gap-3">
                                     <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                                        <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-amber-200 font-medium mb-1">
+                                        <p className="text-amber-700 dark:text-amber-200 font-medium mb-1">
                                             La risposta corretta è evidenziata sopra
                                         </p>
-                                        <p className="text-amber-200/60 text-sm">
+                                        <p className="text-amber-600/80 dark:text-amber-200/60 text-sm">
                                             Leggi attentamente e premi "Ho capito" quando sei pronto per continuare.
                                         </p>
                                     </div>
@@ -532,7 +526,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 10 }}
                             transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                            className="flex-none px-6 sm:px-8 py-5 border-t border-white/[0.06] bg-white/[0.02]"
+                            className="flex-none px-6 sm:px-8 py-5 border-t border-theme-subtle bg-theme-surface/50"
                         >
                             <button
                                 onClick={handleContinue}
@@ -540,7 +534,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                                 className={`w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl font-semibold shadow-lg transition-all duration-200 hover:translate-y-[-1px] active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed ${
                                     result === 'dontKnow'
                                         ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-amber-500/25 hover:shadow-amber-500/35'
-                                        : 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-indigo-500/25 hover:shadow-indigo-500/35'
+                                        : 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-primary-500/25 hover:shadow-primary-500/35'
                                 }`}
                             >
                                 <span>{continueButtonText}</span>
