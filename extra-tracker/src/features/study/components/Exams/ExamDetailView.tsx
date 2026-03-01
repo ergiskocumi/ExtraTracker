@@ -12,14 +12,15 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
     BookOpen,
-    ArrowLeft,
     LayoutGrid,
     List,
     FolderOpen,
     GraduationCap,
+    History,
+    RefreshCw,
 } from 'lucide-react';
 import type { Exam } from '../../types/exam';
-import type { Deck } from '../../services/studyService';
+import type { Deck, ExamSavedQuiz } from '../../services/studyService';
 import { DeckGrid } from '../Deck/DeckGrid';
 import { DeckCard } from '../DeckCard';
 import type { Tag } from '../../services/tagsService';
@@ -51,6 +52,9 @@ interface ExamDetailViewProps {
     onCompleteExam?: () => void;
     onDeleteExam?: (examId: string) => void;
     viewMode?: 'grid' | 'horizontal' | 'compact';
+    savedQuizzes?: ExamSavedQuiz[];
+    isLoadingSavedQuizzes?: boolean;
+    onReplaySavedQuiz?: (quiz: ExamSavedQuiz) => void;
 }
 
 // ============================================
@@ -77,6 +81,9 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
     onCompleteExam,
     onDeleteExam,
     viewMode = 'grid',
+    savedQuizzes = [],
+    isLoadingSavedQuizzes = false,
+    onReplaySavedQuiz,
 }) => {
     const [localViewMode, setLocalViewMode] = React.useState<'grid' | 'list'>(viewMode === 'horizontal' ? 'list' : 'grid');
 
@@ -136,6 +143,23 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
         if (targetDeck && onExamSolver) {
             onExamSolver(targetDeck.id);
         }
+    };
+
+    const formatQuizDate = (value?: string) => {
+        if (!value) return 'Data non disponibile';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'Data non disponibile';
+        return new Intl.DateTimeFormat('it-IT', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        }).format(date);
+    };
+
+    const quizTypeLabel = (quizType: ExamSavedQuiz['quizType']) => {
+        return quizType === 'true_false' ? 'Vero/Falso' : 'Scelta multipla';
     };
 
     return (
@@ -263,6 +287,49 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                         }}
                         totalCards={stats.totalCards}
                     />
+
+                    <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-2 mb-4">
+                            <History className="w-4 h-4 text-primary-300" />
+                            <h3 className="text-sm font-semibold text-white">Quiz salvati</h3>
+                        </div>
+
+                        {isLoadingSavedQuizzes ? (
+                            <p className="text-sm text-white/60">Caricamento storico quiz...</p>
+                        ) : savedQuizzes.length === 0 ? (
+                            <p className="text-sm text-white/60">
+                                Nessun quiz salvato per questo esame.
+                            </p>
+                        ) : (
+                            <div className="space-y-3">
+                                {savedQuizzes.slice(0, 12).map((quiz, index) => (
+                                    <div
+                                        key={quiz.id || `${quiz.deckId}-${index}`}
+                                        className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2"
+                                    >
+                                        <p className="text-sm font-semibold text-white truncate">
+                                            {quiz.name || `Quiz ${quiz.questionCount} domande`}
+                                        </p>
+                                        <p className="text-xs text-white/60 truncate">
+                                            {quiz.deckTitle} · {quizTypeLabel(quiz.quizType)}
+                                        </p>
+                                        <p className="text-xs text-white/50">
+                                            {quiz.questionCount} domande · {formatQuizDate(quiz.createdAt)}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => onReplaySavedQuiz?.(quiz)}
+                                            disabled={!onReplaySavedQuiz || quiz.sourceCardIds.length === 0}
+                                            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary-500/80 hover:bg-primary-500 text-white text-xs font-semibold px-3 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            <RefreshCw className="w-3.5 h-3.5" />
+                                            Rifai quiz
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     {/* Folders List (if any) */}
                     {stats.foldersCount > 0 && (
