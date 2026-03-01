@@ -13,7 +13,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, X, Loader2, Clock } from 'lucide-react';
 import { StudyCard } from '../components/Study/StudyCard';
 import { StudyProgress } from '../components/Study/StudyProgress';
 import { StudyControls } from '../components/Study/StudyControls';
@@ -830,7 +830,7 @@ export const StudySessionPage: React.FC = () => {
         <div className="study-session-root fixed inset-0 top-16 z-50 bg-theme-base flex flex-col">
             {/* Header */}
             <header className="study-session-header flex-none px-4 sm:px-6 py-3 border-b border-theme-default bg-theme-base/80 backdrop-blur-xl z-50">
-                <div className="max-w-5xl mx-auto flex items-center gap-4 sm:gap-6">
+                <div className="max-w-5xl md:max-w-6xl mx-auto flex items-center gap-3 sm:gap-6">
                     {/* Left: Exit Button */}
                     <button
                         onClick={handleBack}
@@ -914,7 +914,7 @@ export const StudySessionPage: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
                             transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-                            className="absolute inset-0 flex flex-col p-3 sm:p-6 lg:p-8"
+                            className="absolute inset-0 flex flex-col p-2 sm:p-4 md:p-6 lg:p-8"
                         >
                             <QuizView
                                 card={currentCard}
