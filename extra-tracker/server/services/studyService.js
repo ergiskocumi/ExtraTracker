@@ -4738,6 +4738,10 @@ Genera una risposta per OGNI domanda nella lista.`;
 
         const quizAnswerVariant = this._normalizeQuizAnswerVariant(card.quizAnswerVariant, card.back);
         const options = [quizAnswerVariant, ...normalized];
+        if (options.some(option => this._hasLikelyTruncatedEnding(option))) {
+            return true;
+        }
+
         return !this._areQuizOptionsBalanced(options, card.back);
     }
 
