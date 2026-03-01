@@ -42,6 +42,11 @@ const QUIZ_FALLBACK_OPTIONS = [
     'Non specificato',
     'Informazione non presente',
 ];
+const MIN_QUIZ_CARDS_REQUIRED = 10;
+const QUIZ_TYPES = {
+    MULTIPLE_CHOICE: 'multiple_choice',
+    TRUE_FALSE: 'true_false',
+};
 
 // =========================================
 // 🆕 SMART GENERATION V3 - OPTIMIZED CONFIGURATION
@@ -99,6 +104,9 @@ const KNOWN_OPENAI_MODELS = new Set([
 ]);
 const envModel = (process.env.OPENAI_MODEL || FALLBACK_AI_MODEL).trim();
 const ACTIVE_AI_MODEL = KNOWN_OPENAI_MODELS.has(envModel) ? envModel : FALLBACK_AI_MODEL;
+const DISTRACTOR_AI_MODEL = KNOWN_OPENAI_MODELS.has((process.env.OPENAI_DISTRACTOR_MODEL || '').trim())
+    ? (process.env.OPENAI_DISTRACTOR_MODEL || '').trim()
+    : 'gpt-4o-mini';
 
 function getValidModel(envValue) {
     const v = (envValue || ACTIVE_AI_MODEL).trim();
@@ -110,6 +118,7 @@ if (!global.__studyServiceModelLogged) {
         console.warn(`⚠️ OPENAI_MODEL="${envModel}" non valido o non disponibile; uso fallback: ${ACTIVE_AI_MODEL}`);
     }
     console.log(`🤖 StudyService usando modello: ${ACTIVE_AI_MODEL}`);
+    console.log(`🧩 StudyService distractor model: ${DISTRACTOR_AI_MODEL}`);
     global.__studyServiceModelLogged = true;
 }
 
@@ -151,55 +160,76 @@ class StudyService extends BaseService {
     async addCard(tenantScope, deckId, cardData = {}) {
         const userId = this._getUserId(tenantScope);
         const { front, back } = cardData;
+        const normalizedFront = typeof front === 'string' ? front.trim() : '';
+        const normalizedBack = typeof back === 'string' ? back.trim() : '';
 
-        if (!front || typeof front !== 'string') {
+        if (!normalizedFront) {
             throw AppError.validation('Il fronte della card e\' obbligatorio');
         }
-        if (!back || typeof back !== 'string') {
+        if (!normalizedBack) {
             throw AppError.validation('Il retro della card e\' obbligatorio');
         }
 
-        const deck = await Deck.findOneAndUpdate(
-            { _id: deckId, user: userId },
-            {
-                $push: {
-                    cards: {
-                        front,
-                        back,
-                    },
-                },
-            },
-            { new: true, runValidators: true }
-        );
-
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
         if (!deck) {
             throw AppError.notFound('Mazzo');
         }
+
+        deck.cards.push({
+            front: normalizedFront,
+            back: normalizedBack,
+            distractors: [],
+            aiDistractorsFailed: false,
+        });
+        await deck.save();
+
+        const insertedCard = deck.cards[deck.cards.length - 1];
+        this._generateDistractorsForCardInBackground({
+            userId,
+            deckId: deck._id.toString(),
+            cardId: insertedCard?._id?.toString(),
+            front: normalizedFront,
+            back: normalizedBack,
+        });
 
         return deck;
     }
 
     async updateCard(tenantScope, deckId, cardId, { front, back }) {
         const userId = this._getUserId(tenantScope);
+        const normalizedFront = typeof front === 'string' ? front.trim() : '';
+        const normalizedBack = typeof back === 'string' ? back.trim() : '';
 
-        const deck = await Deck.findOneAndUpdate(
-            {
-                _id: deckId,
-                user: userId,
-                'cards._id': cardId,
-            },
-            {
-                $set: {
-                    'cards.$.front': front,
-                    'cards.$.back': back,
-                },
-            },
-            { new: true, runValidators: true }
-        );
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo o carta');
+        if (!normalizedFront) {
+            throw AppError.validation('Il fronte della card e\' obbligatorio');
         }
+        if (!normalizedBack) {
+            throw AppError.validation('Il retro della card e\' obbligatorio');
+        }
+
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        const card = deck.cards.id(cardId);
+        if (!card) {
+            throw AppError.notFound('Carta');
+        }
+
+        card.front = normalizedFront;
+        card.back = normalizedBack;
+        card.distractors = [];
+        card.aiDistractorsFailed = false;
+        await deck.save();
+
+        this._generateDistractorsForCardInBackground({
+            userId,
+            deckId: deck._id.toString(),
+            cardId: card._id.toString(),
+            front: normalizedFront,
+            back: normalizedBack,
+        });
 
         return deck;
     }
@@ -214,35 +244,41 @@ class StudyService extends BaseService {
      */
     async updateCardAnswer(tenantScope, deckId, cardId, answer) {
         const userId = this._getUserId(tenantScope);
+        const normalizedAnswer = typeof answer === 'string' ? answer.trim() : '';
 
         // Validazione
-        if (!answer || typeof answer !== 'string') {
+        if (!normalizedAnswer) {
             throw AppError.validation('La risposta è obbligatoria');
         }
-        if (answer.trim().length < 10) {
+        if (normalizedAnswer.length < 10) {
             throw AppError.validation('La risposta deve contenere almeno 10 caratteri');
         }
-        if (answer.trim().length > 1000) {
+        if (normalizedAnswer.length > 1000) {
             throw AppError.validation('La risposta non può superare 1000 caratteri');
         }
 
-        const deck = await Deck.findOneAndUpdate(
-            {
-                _id: deckId,
-                user: userId,
-                'cards._id': cardId,
-            },
-            {
-                $set: {
-                    'cards.$.back': answer.trim(),
-                },
-            },
-            { new: true, runValidators: true }
-        );
-
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
         if (!deck) {
-            throw AppError.notFound('Mazzo o carta');
+            throw AppError.notFound('Mazzo');
         }
+
+        const card = deck.cards.id(cardId);
+        if (!card) {
+            throw AppError.notFound('Carta');
+        }
+
+        card.back = normalizedAnswer;
+        card.distractors = [];
+        card.aiDistractorsFailed = false;
+        await deck.save();
+
+        this._generateDistractorsForCardInBackground({
+            userId,
+            deckId: deck._id.toString(),
+            cardId: card._id.toString(),
+            front: card.front,
+            back: normalizedAnswer,
+        });
 
         return deck;
     }
@@ -337,11 +373,13 @@ class StudyService extends BaseService {
     async addCardAtPosition(tenantScope, deckId, cardData = {}) {
         const userId = this._getUserId(tenantScope);
         const { front, back, position } = cardData;
+        const normalizedFront = typeof front === 'string' ? front.trim() : '';
+        const normalizedBack = typeof back === 'string' ? back.trim() : '';
 
-        if (!front || typeof front !== 'string') {
+        if (!normalizedFront) {
             throw AppError.validation('Il fronte della card è obbligatorio');
         }
-        if (!back || typeof back !== 'string') {
+        if (!normalizedBack) {
             throw AppError.validation('Il retro della card è obbligatorio');
         }
 
@@ -353,8 +391,10 @@ class StudyService extends BaseService {
 
         // Crea la nuova card
         const newCard = {
-            front: front.trim(),
-            back: back.trim(),
+            front: normalizedFront,
+            back: normalizedBack,
+            distractors: [],
+            aiDistractorsFailed: false,
         };
 
         // Se position è specificato, inserisci in quella posizione
@@ -366,6 +406,17 @@ class StudyService extends BaseService {
         }
 
         await deck.save();
+
+        const insertedCard = typeof position === 'number' && position >= 0 && position < deck.cards.length
+            ? deck.cards[position]
+            : deck.cards[deck.cards.length - 1];
+        this._generateDistractorsForCardInBackground({
+            userId,
+            deckId: deck._id.toString(),
+            cardId: insertedCard?._id?.toString(),
+            front: normalizedFront,
+            back: normalizedBack,
+        });
 
         return deck;
     }
@@ -556,6 +607,15 @@ class StudyService extends BaseService {
         // Exam-specific configuration
         const examType = config.examType && typeof config.examType === 'string' ? config.examType.toLowerCase() : undefined;
         const examDifficulty = config.examDifficulty && typeof config.examDifficulty === 'string' ? config.examDifficulty.toLowerCase() : undefined;
+        const quizType = this._normalizeQuizType(config.quizType);
+        const sourceCardIds = Array.isArray(config.sourceCardIds)
+            ? config.sourceCardIds.map(id => String(id).trim()).filter(Boolean)
+            : [];
+
+        const sourceCardIdSet = new Set(sourceCardIds);
+        const scopedQuizCards = mode === 'quiz' && sourceCardIds.length > 0
+            ? cards.filter(card => sourceCardIdSet.has(this._resolveCardId(card)))
+            : cards;
 
         // DEBUG: Log exam configuration
         if (mode === 'exam') {
@@ -566,32 +626,63 @@ class StudyService extends BaseService {
             console.log(`[StudyService.getStudySession] questionCount: ${requestedQuestions}`);
         }
 
+        if (mode === 'quiz' && sourceCardIds.length > 0 && scopedQuizCards.length === 0) {
+            throw AppError.validation('Nessuna flashcard valida per il quiz richiesto');
+        }
+
+        if (mode === 'quiz' && sourceCardIds.length === 0 && cards.length < MIN_QUIZ_CARDS_REQUIRED) {
+            throw AppError.validation('Crea almeno 10 flashcard per sbloccare la generazione del quiz');
+        }
+
+        const availableCards = mode === 'quiz' ? scopedQuizCards : cards;
+
         const dueCards = cards.filter(card => {
             const nextReview = new Date(card.nextReviewDate);
             return nextReview <= now;
         });
 
         const defaultLimit = this._getDefaultSessionLimit(mode);
+        const requestedQuestionLimit = (mode === 'exam' || mode === 'quiz') && requestedQuestions > 0
+            ? requestedQuestions
+            : 0;
         const sessionLimit = Math.min(
             requestedLimit > 0
                 ? requestedLimit
-                : mode === 'exam' && requestedQuestions > 0
-                    ? requestedQuestions
+                : requestedQuestionLimit > 0
+                    ? requestedQuestionLimit
                     : defaultLimit,
-            cards.length
+            availableCards.length
         );
 
-        const sessionCards = this._selectSessionCards({
-            cards,
-            dueCards,
-            mode,
-            focus,
-            limit: sessionLimit,
-            now,
-            examDifficulty,
-        });
+        const sessionCards = mode === 'quiz'
+            ? this._sampleCardsWithoutReplacement(availableCards, sessionLimit || availableCards.length)
+            : this._selectSessionCards({
+                cards: availableCards,
+                dueCards,
+                mode,
+                focus,
+                limit: sessionLimit,
+                now,
+                examDifficulty,
+            });
 
         const cardModes = this._buildCardModes(mode, sessionCards, examType);
+        const shouldUseMultipleChoice = !((mode === 'quiz' && quizType === QUIZ_TYPES.TRUE_FALSE) || examType === 'true_false');
+        if (shouldUseMultipleChoice) {
+            const quizCards = sessionCards.filter(card => {
+                const cardId = this._resolveCardId(card);
+                const cardMode = cardModes?.[cardId] || mode;
+                return cardMode === 'quiz';
+            });
+            if (quizCards.length > 0) {
+                await this._ensureDistractorsForQuizCards({
+                    userId,
+                    deckId: deck._id.toString(),
+                    cards: quizCards,
+                });
+            }
+        }
+
         const allAnswers = cards
             .map(card => card.back)
             .filter(answer => typeof answer === 'string' && answer.trim().length > 0);
@@ -600,16 +691,19 @@ class StudyService extends BaseService {
             const cardId = this._resolveCardId(card);
             const cardMode = cardModes?.[cardId] || mode;
             if (cardMode === 'quiz') {
+                if (mode === 'quiz' && quizType === QUIZ_TYPES.TRUE_FALSE) {
+                    return card;
+                }
                 return {
                     ...card,
-                    options: this._buildQuizOptions(card.back, allAnswers),
+                    options: this._buildQuizOptions(card, cards),
                 };
             }
             return card;
         });
 
         // Se examType è 'true_false', trasforma le carte in formato Vero/Falso
-        if (examType === 'true_false') {
+        if ((mode === 'quiz' && quizType === QUIZ_TYPES.TRUE_FALSE) || examType === 'true_false') {
             console.log(`[StudyService.getStudySession] Transforming cards to TRUE/FALSE format`);
             enrichedCards = this._transformToTrueFalse(enrichedCards, allAnswers);
         }
@@ -622,15 +716,16 @@ class StudyService extends BaseService {
             },
             cards: enrichedCards,
             remaining: sessionCards.length,
-            total: cards.length,
+            total: availableCards.length,
             mode,
             cardModes,
             meta: {
                 focus,
-                limit: sessionLimit || cards.length,
+                limit: sessionLimit || availableCards.length,
                 timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : undefined,
-                questionCount: mode === 'exam' ? sessionLimit : undefined,
+                questionCount: mode === 'exam' || mode === 'quiz' ? sessionLimit : undefined,
                 direction,
+                quizType: mode === 'quiz' ? quizType : undefined,
             },
         };
     }
@@ -4274,25 +4369,157 @@ Genera una risposta per OGNI domanda nella lista.`;
         return filtered.map(item => item.card);
     }
 
-    _buildQuizOptions(correctAnswer, allAnswers = []) {
-        const normalizedCorrect = this._normalizeAnswerValue(correctAnswer);
-        const candidates = allAnswers
-            .filter(answer => typeof answer === 'string' && answer.trim().length > 0)
-            .filter(answer => this._normalizeAnswerValue(answer) !== normalizedCorrect);
+    _sampleCardsWithoutReplacement(cards = [], limit = 0) {
+        const source = Array.isArray(cards) ? [...cards] : [];
+        if (source.length === 0) return [];
 
-        const shuffledCandidates = this._shuffleArray([...candidates]);
+        const requested = Number.isFinite(Number(limit)) ? Number(limit) : source.length;
+        const safeLimit = Math.max(0, Math.min(source.length, Math.round(requested)));
+        if (safeLimit === 0) return [];
+
+        return this._shuffleArray(source).slice(0, safeLimit);
+    }
+
+    _normalizeQuizType(value) {
+        const normalized = typeof value === 'string' ? value.toLowerCase() : QUIZ_TYPES.MULTIPLE_CHOICE;
+        if (['true_false', 'true-false', 'truefalse', 'vero_falso', 'vero-falso'].includes(normalized)) {
+            return QUIZ_TYPES.TRUE_FALSE;
+        }
+        if (['multiple', 'multiple_choice', 'multiple-choice', 'multiplechoice', 'quiz'].includes(normalized)) {
+            return QUIZ_TYPES.MULTIPLE_CHOICE;
+        }
+        return QUIZ_TYPES.MULTIPLE_CHOICE;
+    }
+
+    _normalizeDistractors(rawDistractors, correctAnswer = '') {
+        if (!Array.isArray(rawDistractors)) return [];
+
+        const normalizedCorrect = this._normalizeAnswerValue(correctAnswer);
+        const result = [];
+        const seen = new Set();
+
+        for (const value of rawDistractors) {
+            if (typeof value !== 'string') continue;
+            const trimmed = value.trim();
+            const normalized = this._normalizeAnswerValue(trimmed);
+            if (!normalized || normalized === normalizedCorrect || seen.has(normalized)) continue;
+            result.push(trimmed);
+            seen.add(normalized);
+            if (result.length === 3) break;
+        }
+
+        return result;
+    }
+
+    _collectFallbackDistractors(targetCard, chapterCards = []) {
+        const targetCardId = this._resolveCardId(targetCard);
+        const normalizedCorrect = this._normalizeAnswerValue(targetCard?.back);
+        const candidates = [];
+        const seen = new Set();
+
+        for (const card of this._shuffleArray(chapterCards)) {
+            const candidateCardId = this._resolveCardId(card);
+            if (candidateCardId && candidateCardId === targetCardId) continue;
+
+            const candidate = typeof card?.back === 'string' ? card.back.trim() : '';
+            const normalized = this._normalizeAnswerValue(candidate);
+            if (!normalized || normalized === normalizedCorrect || seen.has(normalized)) continue;
+
+            candidates.push(candidate);
+            seen.add(normalized);
+            if (candidates.length === 3) break;
+        }
+
+        return candidates;
+    }
+
+    _needsDistractorGeneration(card) {
+        if (!card) return false;
+        if (card.aiDistractorsFailed) return false;
+        const normalized = this._normalizeDistractors(card.distractors, card.back);
+        return normalized.length < 3;
+    }
+
+    async _generateAndPersistDistractors({ userId, deckId, card }) {
+        const cardId = this._resolveCardId(card);
+        const question = typeof card?.front === 'string' ? card.front.trim() : '';
+        const correctAnswer = typeof card?.back === 'string' ? card.back.trim() : '';
+        if (!cardId || !question || !correctAnswer) return;
+
+        try {
+            const distractors = await this._generateDistractorsWithAI(question, correctAnswer);
+
+            card.distractors = distractors;
+            card.aiDistractorsFailed = false;
+
+            await Deck.updateOne(
+                { _id: deckId, user: userId, 'cards._id': cardId },
+                {
+                    $set: {
+                        'cards.$.distractors': distractors,
+                        'cards.$.aiDistractorsFailed': false,
+                    },
+                }
+            );
+        } catch (error) {
+            console.warn('[StudyService] Distractor generation failed in quiz prewarm:', error.message);
+            card.distractors = [];
+            card.aiDistractorsFailed = true;
+
+            await Deck.updateOne(
+                { _id: deckId, user: userId, 'cards._id': cardId },
+                {
+                    $set: {
+                        'cards.$.distractors': [],
+                        'cards.$.aiDistractorsFailed': true,
+                    },
+                }
+            ).catch(() => {});
+        }
+    }
+
+    async _ensureDistractorsForQuizCards({ userId, deckId, cards = [] }) {
+        const candidates = cards.filter(card => this._needsDistractorGeneration(card));
+        if (candidates.length === 0) return;
+
+        const queue = [...candidates];
+        const concurrency = Math.min(3, queue.length);
+
+        const workers = Array.from({ length: concurrency }, async () => {
+            while (queue.length > 0) {
+                const card = queue.shift();
+                if (!card) continue;
+                await this._generateAndPersistDistractors({ userId, deckId, card });
+            }
+        });
+
+        await Promise.all(workers);
+    }
+
+    _buildQuizOptions(card, chapterCards = []) {
+        const correctAnswer = typeof card?.back === 'string' ? card.back.trim() : '';
+        const normalizedCorrect = this._normalizeAnswerValue(correctAnswer);
         const options = [];
         const seen = new Set();
 
-        if (correctAnswer !== undefined && correctAnswer !== null) {
-            options.push(String(correctAnswer));
+        if (correctAnswer) {
+            options.push(correctAnswer);
             seen.add(normalizedCorrect);
         }
 
-        for (const answer of shuffledCandidates) {
-            const normalized = this._normalizeAnswerValue(answer);
+        const aiDistractors = this._normalizeDistractors(card?.distractors, correctAnswer);
+        const wrongOptions = [...aiDistractors];
+
+        // Fallback verso altre flashcard SOLO se la generazione AI ha fallito esplicitamente.
+        if (card?.aiDistractorsFailed) {
+            const fallbackDistractors = this._collectFallbackDistractors(card, chapterCards);
+            wrongOptions.push(...fallbackDistractors);
+        }
+
+        for (const option of wrongOptions) {
+            const normalized = this._normalizeAnswerValue(option);
             if (!normalized || seen.has(normalized)) continue;
-            options.push(answer);
+            options.push(option);
             seen.add(normalized);
             if (options.length === 4) break;
         }
@@ -4300,7 +4527,7 @@ Genera una risposta per OGNI domanda nella lista.`;
         if (options.length < 4) {
             for (const fallback of QUIZ_FALLBACK_OPTIONS) {
                 const normalized = this._normalizeAnswerValue(fallback);
-                if (seen.has(normalized)) continue;
+                if (!normalized || seen.has(normalized)) continue;
                 options.push(fallback);
                 seen.add(normalized);
                 if (options.length === 4) break;
@@ -4311,7 +4538,7 @@ Genera una risposta per OGNI domanda nella lista.`;
             options.push('Nessuna delle precedenti');
         }
 
-        return this._shuffleArray(options);
+        return this._shuffleArray(options.slice(0, 4));
     }
 
     /**
@@ -4366,6 +4593,89 @@ Genera una risposta per OGNI domanda nella lista.`;
 
             return transformedCard;
         });
+    }
+
+    _generateDistractorsForCardInBackground({ userId, deckId, cardId, front, back }) {
+        if (!userId || !deckId || !cardId) return;
+        const question = typeof front === 'string' ? front.trim() : '';
+        const correctAnswer = typeof back === 'string' ? back.trim() : '';
+        if (!question || !correctAnswer) return;
+
+        setImmediate(async () => {
+            try {
+                const distractors = await this._generateDistractorsWithAI(question, correctAnswer);
+                await Deck.updateOne(
+                    { _id: deckId, user: userId, 'cards._id': cardId },
+                    {
+                        $set: {
+                            'cards.$.distractors': distractors,
+                            'cards.$.aiDistractorsFailed': false,
+                        },
+                    }
+                );
+            } catch (error) {
+                console.warn('[StudyService] Distractor AI generation failed, fallback attivo:', error.message);
+                await Deck.updateOne(
+                    { _id: deckId, user: userId, 'cards._id': cardId },
+                    {
+                        $set: {
+                            'cards.$.distractors': [],
+                            'cards.$.aiDistractorsFailed': true,
+                        },
+                    }
+                ).catch(() => {});
+            }
+        });
+    }
+
+    async _generateDistractorsWithAI(question, correctAnswer) {
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error('OPENAI_API_KEY non configurata');
+        }
+
+        const prompt = `Sei un professore esperto. Riceverai un concetto o una domanda. Genera esattamente 3 risposte errate, ma altamente plausibili, per confondere uno studente. Restituisci il risultato SOLO in formato JSON come array di stringhe.
+Domanda: ${question}
+Risposta corretta: ${correctAnswer}`;
+
+        const completion = await openai.chat.completions.create(
+            {
+                model: DISTRACTOR_AI_MODEL,
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Genera esclusivamente JSON valido, senza markdown e senza testo extra.',
+                    },
+                    {
+                        role: 'user',
+                        content: prompt,
+                    },
+                ],
+                temperature: 0.4,
+                max_tokens: 220,
+            },
+            {
+                timeout: 12000,
+            }
+        );
+
+        const content = completion.choices[0]?.message?.content || '';
+        const parsed = this._parseJSONResponse(content);
+
+        let rawDistractors = [];
+        if (Array.isArray(parsed)) {
+            rawDistractors = parsed;
+        } else if (parsed && Array.isArray(parsed.distractors)) {
+            rawDistractors = parsed.distractors;
+        } else if (parsed && Array.isArray(parsed.options)) {
+            rawDistractors = parsed.options;
+        }
+
+        const distractors = this._normalizeDistractors(rawDistractors, correctAnswer);
+        if (distractors.length !== 3) {
+            throw new Error('Distractors AI non validi');
+        }
+
+        return distractors;
     }
 
     _normalizeAnswerValue(value) {

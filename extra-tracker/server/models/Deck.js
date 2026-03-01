@@ -29,6 +29,22 @@ const cardSchema = new mongoose.Schema({
         trim: true,
         maxlength: [4000, 'Il retro non puo\' superare 4000 caratteri'],
     },
+    // Distrattori AI per quiz a scelta multipla
+    distractors: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: function(distractors) {
+                if (!Array.isArray(distractors)) return false;
+                return distractors.every(item => typeof item === 'string' && item.trim().length > 0);
+            },
+            message: 'I distractors devono essere un array di stringhe non vuote',
+        },
+    },
+    aiDistractorsFailed: {
+        type: Boolean,
+        default: false,
+    },
     // SM-2 parameters
     easinessFactor: {
         type: Number,

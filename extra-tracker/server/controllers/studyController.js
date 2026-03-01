@@ -78,6 +78,13 @@ const getSession = asyncHandler(async (req, res) => {
     const direction = String(req.query.direction || 'front').toLowerCase();
     const examType = req.query.examType ? String(req.query.examType).toLowerCase() : undefined;
     const examDifficulty = req.query.examDifficulty ? String(req.query.examDifficulty).toLowerCase() : undefined;
+    const quizType = req.query.quizType ? String(req.query.quizType).toLowerCase() : undefined;
+    const sourceCardIds = req.query.sourceCardIds
+        ? String(req.query.sourceCardIds)
+            .split(',')
+            .map(id => id.trim())
+            .filter(Boolean)
+        : undefined;
 
     const session = await studyService.getStudySession(
         req.tenantScope,
@@ -91,6 +98,8 @@ const getSession = asyncHandler(async (req, res) => {
             direction,
             examType,
             examDifficulty,
+            quizType,
+            sourceCardIds,
         }
     );
 
