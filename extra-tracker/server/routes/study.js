@@ -136,10 +136,12 @@ router.use(tenantContext({ required: true }));
 // =========================================
 
 router.get('/dashboard', studyController.getDashboard);
+router.get('/exam/:examId/quizzes', studyController.getExamSavedQuizzes);
 router.get('/:id/session', studyController.getSession);
 router.get('/:id', studyController.getDeckById);
 router.post('/', studyController.createDeck);
 router.patch('/:id', studyController.updateDeck);
+router.post('/:id/quizzes', studyController.saveQuizSnapshot);
 router.post('/:id/cards', studyController.addCard);
 router.post('/:id/cards/insert', studyController.addCardAtPosition); // Inserimento in posizione specifica
 router.put('/:id/cards/reorder', studyController.reorderCards); // Riordinamento card

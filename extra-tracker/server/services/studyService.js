@@ -564,6 +564,106 @@ class StudyService extends BaseService {
         return deck.toJSON();
     }
 
+    async saveQuizSnapshot(tenantScope, deckId, payload = {}) {
+        const userId = this._getUserId(tenantScope);
+        const deck = await Deck.findOne({ _id: deckId, user: userId });
+
+        if (!deck) {
+            throw AppError.notFound('Mazzo');
+        }
+
+        const cardIdSet = new Set(
+            (deck.cards || []).map(card => card?._id?.toString()).filter(Boolean)
+        );
+        const sourceCardIds = Array.isArray(payload.sourceCardIds)
+            ? [...new Set(payload.sourceCardIds
+                .map(id => String(id || '').trim())
+                .filter(id => id.length > 0 && cardIdSet.has(id)))]
+            : [];
+
+        if (sourceCardIds.length === 0) {
+            throw AppError.validation('Impossibile salvare il quiz: nessuna flashcard valida associata');
+        }
+
+        const questionCountRaw = this._toNumber(payload.questionCount, sourceCardIds.length);
+        const questionCount = Math.max(
+            1,
+            Math.min(sourceCardIds.length, Math.round(questionCountRaw > 0 ? questionCountRaw : sourceCardIds.length))
+        );
+
+        const quizType = this._normalizeQuizType(payload.quizType);
+        const source = this._normalizeQuizSnapshotSource(payload.source);
+        const name = typeof payload.name === 'string' && payload.name.trim().length > 0
+            ? payload.name.trim()
+            : `Quiz ${questionCount} domande`;
+
+        deck.savedQuizzes.push({
+            name,
+            quizType,
+            questionCount,
+            sourceCardIds,
+            source,
+            createdAt: new Date(),
+        });
+
+        await deck.save();
+
+        const savedQuiz = deck.savedQuizzes[deck.savedQuizzes.length - 1];
+        return {
+            id: savedQuiz?._id?.toString(),
+            deckId: deck._id.toString(),
+            deckTitle: deck.title,
+            examId: deck.examId ? deck.examId.toString() : null,
+            name,
+            quizType,
+            questionCount,
+            sourceCardIds,
+            source,
+            createdAt: savedQuiz?.createdAt || new Date(),
+        };
+    }
+
+    async getExamSavedQuizzes(tenantScope, examId) {
+        const userId = this._getUserId(tenantScope);
+        await this._validateExamOwnership(tenantScope, examId);
+
+        const decks = await Deck.find({ user: userId, examId })
+            .select('_id title examId savedQuizzes')
+            .sort({ updatedAt: -1 });
+
+        const savedQuizzes = [];
+
+        for (const deck of decks) {
+            const deckId = deck._id.toString();
+            const deckTitle = deck.title;
+            const normalizedExamId = deck.examId ? deck.examId.toString() : examId;
+            const deckSavedQuizzes = Array.isArray(deck.savedQuizzes) ? deck.savedQuizzes : [];
+
+            for (const quiz of deckSavedQuizzes) {
+                savedQuizzes.push({
+                    id: quiz?._id?.toString(),
+                    deckId,
+                    deckTitle,
+                    examId: normalizedExamId,
+                    name: typeof quiz?.name === 'string' ? quiz.name : '',
+                    quizType: this._normalizeQuizType(quiz?.quizType),
+                    questionCount: this._toNumber(quiz?.questionCount, 0),
+                    sourceCardIds: Array.isArray(quiz?.sourceCardIds)
+                        ? quiz.sourceCardIds.map(id => String(id).trim()).filter(Boolean)
+                        : [],
+                    source: this._normalizeQuizSnapshotSource(quiz?.source),
+                    createdAt: quiz?.createdAt || null,
+                });
+            }
+        }
+
+        return savedQuizzes.sort((a, b) => {
+            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return timeB - timeA;
+        });
+    }
+
     _serializeDeck(deck) {
         // Converti deck Mongoose a plain object se necessario
         // FIXED: Usava deckObj ma ritornava deck.toJSON()
@@ -4389,6 +4489,14 @@ Genera una risposta per OGNI domanda nella lista.`;
             return QUIZ_TYPES.MULTIPLE_CHOICE;
         }
         return QUIZ_TYPES.MULTIPLE_CHOICE;
+    }
+
+    _normalizeQuizSnapshotSource(value) {
+        const normalized = typeof value === 'string' ? value.trim().toLowerCase() : 'chapter';
+        if (['repeat', 'errors', 'saved'].includes(normalized)) {
+            return normalized;
+        }
+        return 'chapter';
     }
 
     _normalizeDistractors(rawDistractors, correctAnswer = '') {

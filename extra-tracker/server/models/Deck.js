@@ -129,6 +129,38 @@ const normalizeTags = (tags) => {
     return [...new Set(normalized)];
 };
 
+const savedQuizSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [180, 'Il nome del quiz salvato non puo\' superare 180 caratteri'],
+    },
+    quizType: {
+        type: String,
+        enum: ['multiple_choice', 'true_false'],
+        default: 'multiple_choice',
+    },
+    questionCount: {
+        type: Number,
+        required: true,
+        min: [1, 'Il numero di domande deve essere almeno 1'],
+    },
+    sourceCardIds: {
+        type: [String],
+        default: [],
+    },
+    source: {
+        type: String,
+        enum: ['chapter', 'repeat', 'errors', 'saved'],
+        default: 'chapter',
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+}, { _id: true });
+
 const deckSchema = new mongoose.Schema({
     examId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -177,6 +209,10 @@ const deckSchema = new mongoose.Schema({
     },
     cards: {
         type: [cardSchema],
+        default: [],
+    },
+    savedQuizzes: {
+        type: [savedQuizSchema],
         default: [],
     },
     // =========================================
@@ -288,6 +324,14 @@ deckSchema.set('toJSON', {
             ret.cards = ret.cards.map(card => ({
                 ...card,
                 id: card._id?.toString() || card.id,
+                _id: undefined,
+            }));
+        }
+
+        if (Array.isArray(ret.savedQuizzes)) {
+            ret.savedQuizzes = ret.savedQuizzes.map(quiz => ({
+                ...quiz,
+                id: quiz._id?.toString() || quiz.id,
                 _id: undefined,
             }));
         }

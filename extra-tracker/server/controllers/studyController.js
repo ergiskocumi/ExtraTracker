@@ -106,6 +106,39 @@ const getSession = asyncHandler(async (req, res) => {
     res.json({ success: true, data: session });
 });
 
+/**
+ * POST /api/study/:id/quizzes
+ * Salva uno snapshot di un quiz generato (per riuso futuro)
+ */
+const saveQuizSnapshot = asyncHandler(async (req, res) => {
+    const snapshot = await studyService.saveQuizSnapshot(
+        req.tenantScope,
+        req.params.id,
+        {
+            name: req.body.name,
+            quizType: req.body.quizType,
+            questionCount: req.body.questionCount,
+            sourceCardIds: req.body.sourceCardIds,
+            source: req.body.source,
+        }
+    );
+
+    res.status(201).json({ success: true, data: snapshot });
+});
+
+/**
+ * GET /api/study/exam/:examId/quizzes
+ * Restituisce lo storico quiz salvati di un esame
+ */
+const getExamSavedQuizzes = asyncHandler(async (req, res) => {
+    const quizzes = await studyService.getExamSavedQuizzes(
+        req.tenantScope,
+        req.params.examId
+    );
+
+    res.json({ success: true, data: quizzes });
+});
+
 // =========================================
 // CARDS
 // =========================================
@@ -887,4 +920,6 @@ module.exports = {
     saveExamProgress,
     getExamProgress,
     clearExamProgress,
+    saveQuizSnapshot,
+    getExamSavedQuizzes,
 };
