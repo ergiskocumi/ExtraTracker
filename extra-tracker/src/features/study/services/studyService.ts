@@ -18,6 +18,8 @@ export interface Card {
     id: string;
     front: string;
     back: string;
+    canonicalBack?: string;
+    quizAnswerVariant?: string;
     options?: string[];
     distractors?: string[];
     aiDistractorsFailed?: boolean;
@@ -247,6 +249,8 @@ const normalizeCard = (raw: any): Card => {
         id: raw.id || raw._id,
         front: raw.front || '',
         back: raw.back || '',
+        canonicalBack: typeof raw.canonicalBack === 'string' ? raw.canonicalBack : undefined,
+        quizAnswerVariant: typeof raw.quizAnswerVariant === 'string' ? raw.quizAnswerVariant : undefined,
         options: Array.isArray(raw.options) ? raw.options : undefined,
         distractors: Array.isArray(raw.distractors) ? raw.distractors : undefined,
         aiDistractorsFailed: Boolean(raw.aiDistractorsFailed ?? raw.ai_distractors_failed),

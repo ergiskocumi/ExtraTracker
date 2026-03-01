@@ -29,6 +29,13 @@ const cardSchema = new mongoose.Schema({
         trim: true,
         maxlength: [4000, 'Il retro non puo\' superare 4000 caratteri'],
     },
+    // Variante riformulata della risposta corretta usata nel quiz
+    quizAnswerVariant: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [4000, 'La variante risposta quiz non puo\' superare 4000 caratteri'],
+    },
     // Distrattori AI per quiz a scelta multipla
     distractors: {
         type: [String],
