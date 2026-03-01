@@ -14,13 +14,19 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Card, ReviewRating } from '../../services/studyService';
 
+interface QuizReviewDetails {
+    userAnswer: string;
+    correctAnswer: string;
+    correct: boolean;
+}
+
 interface QuizViewProps {
     card: Card;
     question: string;
     options: string[];
     correctAnswer: string;
     isSubmitting: boolean;
-    onSubmitReview: (rating: ReviewRating) => Promise<boolean | void>;
+    onSubmitReview: (rating: ReviewRating, details?: QuizReviewDetails) => Promise<boolean | void>;
     onNext: () => void;
     isTrueFalse?: boolean; // Modalità Vero/Falso
 }
@@ -91,19 +97,16 @@ export const QuizView: React.FC<QuizViewProps> = ({
         [options, correctAnswer]
     );
 
-    // Reset state quando cambia la card
     useEffect(() => {
-        setSelectedOption(null);
-        setResult(null);
-        setIsShaking(false);
-        setIsExiting(false);
-        if (timeoutRef.current) {
-            window.clearTimeout(timeoutRef.current);
-            timeoutRef.current = null;
-        }
-    }, [card.id]);
+        return () => {
+            if (timeoutRef.current) {
+                window.clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+        };
+    }, []);
 
-    const handleSelect = useCallback(async (option: string, index: number) => {
+    const handleSelect = useCallback(async (option: string) => {
         if (selectedOption || isSubmitting || isExiting) return;
 
         const isCorrect = option.trim().toLowerCase() === normalizedCorrect;
@@ -121,8 +124,12 @@ export const QuizView: React.FC<QuizViewProps> = ({
         }
 
         const rating: ReviewRating = isCorrect ? 5 : 1;
-        await onSubmitReview(rating);
-    }, [selectedOption, isSubmitting, isExiting, normalizedCorrect, onSubmitReview]);
+        await onSubmitReview(rating, {
+            userAnswer: option,
+            correctAnswer,
+            correct: isCorrect,
+        });
+    }, [selectedOption, isSubmitting, isExiting, normalizedCorrect, onSubmitReview, correctAnswer]);
 
     /**
      * Gestisce il click sul pulsante "Non lo so"
@@ -144,8 +151,12 @@ export const QuizView: React.FC<QuizViewProps> = ({
         // Rating 1 = "Non so/Sbagliato" - urgenza massima di ripasso
         // Il backend non accetta 0, quindi usiamo 1 che ha lo stesso effetto pratico
         const rating: ReviewRating = 1;
-        await onSubmitReview(rating);
-    }, [selectedOption, isSubmitting, isExiting, onSubmitReview]);
+        await onSubmitReview(rating, {
+            userAnswer: 'Non lo so',
+            correctAnswer,
+            correct: false,
+        });
+    }, [selectedOption, isSubmitting, isExiting, onSubmitReview, correctAnswer]);
 
     const handleContinue = useCallback(() => {
         if (isExiting) return;
@@ -178,7 +189,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 event.preventDefault();
                 const index = parseInt(key) - 1;
                 if (resolvedOptions[index]) {
-                    handleSelect(resolvedOptions[index], index);
+                    handleSelect(resolvedOptions[index]);
                     // Focus sul bottone selezionato per accessibility
                     optionsRef.current[index]?.focus();
                 }
@@ -393,7 +404,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                                     <button
                                         key={`${card.id}-${index}`}
                                         ref={el => { optionsRef.current[index] = el; }}
-                                        onClick={() => handleSelect(option, index)}
+                                        onClick={() => handleSelect(option)}
                                         disabled={!!selectedOption || isSubmitting || !!result}
                                         className={isTrueFalse
                                             ? `min-h-[120px] sm:min-h-[140px] ${getOptionStyles(option)}`

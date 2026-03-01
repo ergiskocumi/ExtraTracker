@@ -10,14 +10,16 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Clock, Target, RotateCcw, Home, BookOpen, TrendingUp, Zap, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import { Trophy, Clock, Target, RotateCcw, Home, BookOpen, Zap, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 
 // ============================================
 // TYPES
 // ============================================
 
 interface WrongAnswer {
+    cardId?: string;
     front: string;
+    userAnswer: string;
     back: string;
 }
 
@@ -31,6 +33,8 @@ interface SessionCompleteProps {
     onContinue?: () => void;
     wrongAnswers?: WrongAnswer[];
     isExamMode?: boolean;
+    isQuizMode?: boolean;
+    onStudyErrors?: () => void;
 }
 
 // ============================================
@@ -47,6 +51,8 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
     onContinue,
     wrongAnswers = [],
     isExamMode = false,
+    isQuizMode = false,
+    onStudyErrors,
 }) => {
     const [showWrongAnswers, setShowWrongAnswers] = useState(false);
 
@@ -132,6 +138,11 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                     >
                         Hai completato la sessione di studio
                     </motion.p>
+                    {(isExamMode || isQuizMode) && (
+                        <p className="mt-2 text-sm text-theme-secondary">
+                            Hai risposto correttamente a <span className="font-semibold text-theme-primary">{correctCount}</span> domande su <span className="font-semibold text-theme-primary">{totalCards}</span>
+                        </p>
+                    )}
                 </div>
 
                 {/* Stats grid */}
@@ -200,7 +211,7 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                 )}
 
                 {/* Wrong answers section (solo per exam mode) */}
-                {isExamMode && wrongAnswers.length > 0 && (
+                {(isExamMode || isQuizMode) && wrongAnswers.length > 0 && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -250,9 +261,15 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                                                 <div className="text-theme-muted text-xs mb-1">Domanda</div>
                                                 <div className="text-theme-primary">{answer.front}</div>
                                             </div>
-                                            <div className="pt-2 border-t border-theme-default">
-                                                <div className="text-emerald-600/80 dark:text-emerald-400/80 text-xs mb-1">Risposta corretta</div>
-                                                <div className="text-emerald-600 dark:text-emerald-400 font-medium">{answer.back}</div>
+                                            <div className="pt-2 border-t border-theme-default space-y-2">
+                                                <div>
+                                                    <div className="text-rose-600/80 dark:text-rose-400/80 text-xs mb-1">La tua risposta</div>
+                                                    <div className="text-rose-600 dark:text-rose-400 font-medium">{answer.userAnswer}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-emerald-600/80 dark:text-emerald-400/80 text-xs mb-1">Risposta corretta</div>
+                                                    <div className="text-emerald-600 dark:text-emerald-400 font-medium">{answer.back}</div>
+                                                </div>
                                             </div>
                                         </motion.div>
                                     ))}
@@ -288,8 +305,20 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                         className="w-full sm:w-auto px-8 py-3 rounded-xl bg-theme-surface hover:bg-theme-card border border-theme-default text-theme-primary font-semibold flex items-center justify-center gap-2"
                     >
                         <RotateCcw className="w-5 h-5" />
-                        <span>Nuova sessione</span>
+                        <span>{isQuizMode ? 'Ripeti Quiz' : 'Nuova sessione'}</span>
                     </motion.button>
+
+                    {isQuizMode && onStudyErrors && wrongAnswers.length > 0 && (
+                        <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={onStudyErrors}
+                            className="w-full sm:w-auto px-8 py-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-semibold flex items-center justify-center gap-2"
+                        >
+                            <AlertCircle className="w-5 h-5" />
+                            <span>Studia solo gli errori</span>
+                        </motion.button>
+                    )}
                     
                     <motion.button
                         whileHover={{ scale: 1.02 }}

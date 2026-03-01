@@ -77,7 +77,7 @@ describe('Study mode theme contract', () => {
                 onRestart={onRestart}
                 onBack={onBack}
                 isExamMode={true}
-                wrongAnswers={[{ front: 'Q1', back: 'A1' }]}
+                wrongAnswers={[{ front: 'Q1', userAnswer: 'A0', back: 'A1' }]}
             />
         );
 

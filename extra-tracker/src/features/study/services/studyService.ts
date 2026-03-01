@@ -8,6 +8,7 @@ export type { Tag } from './tagsService';
 export type ReviewRating = 1 | 2 | 3 | 4 | 5;
 export type CardStatus = 'new' | 'learning' | 'review' | 'mastered';
 export type StudyMode = 'flashcard' | 'quiz' | 'typing' | 'mix' | 'sprint' | 'focus' | 'exam';
+export type QuizType = 'multiple_choice' | 'true_false';
 export type SessionFocus = 'smart' | 'due' | 'weak' | 'all';
 export type SessionLength = 'short' | 'standard' | 'deep';
 export type SessionDirection = 'front' | 'back' | 'mixed';
@@ -18,6 +19,8 @@ export interface Card {
     front: string;
     back: string;
     options?: string[];
+    distractors?: string[];
+    aiDistractorsFailed?: boolean;
     easinessFactor: number;
     interval: number;
     repetitions: number;
@@ -76,6 +79,7 @@ export interface StudySession {
         timeLimitMinutes?: number;
         questionCount?: number;
         direction?: SessionDirection;
+        quizType?: QuizType;
     };
 }
 
@@ -127,6 +131,8 @@ export interface SessionRequestOptions {
     direction?: SessionDirection;
     examType?: string;
     examDifficulty?: string;
+    quizType?: QuizType;
+    sourceCardIds?: string[];
 }
 
 export interface SessionCompleteResult {
@@ -217,6 +223,8 @@ const normalizeCard = (raw: any): Card => {
         front: raw.front || '',
         back: raw.back || '',
         options: Array.isArray(raw.options) ? raw.options : undefined,
+        distractors: Array.isArray(raw.distractors) ? raw.distractors : undefined,
+        aiDistractorsFailed: Boolean(raw.aiDistractorsFailed ?? raw.ai_distractors_failed),
         easinessFactor: safeNumber(raw.easinessFactor, 2.5),
         interval: safeNumber(raw.interval, 0),
         repetitions: safeNumber(raw.repetitions, 0),
@@ -424,6 +432,10 @@ class StudyService {
         if (options.direction) params.set('direction', options.direction);
         if (options.examType) params.set('examType', options.examType);
         if (options.examDifficulty) params.set('examDifficulty', options.examDifficulty);
+        if (options.quizType) params.set('quizType', options.quizType);
+        if (Array.isArray(options.sourceCardIds) && options.sourceCardIds.length > 0) {
+            params.set('sourceCardIds', options.sourceCardIds.join(','));
+        }
 
         const query = params.toString();
         const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/session${query ? `?${query}` : ''}`);
