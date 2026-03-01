@@ -131,7 +131,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
     return (
         <div className="study-card-shell relative w-full max-w-2xl mx-auto perspective-1000">
             {/* Progress indicator top */}
-            <div className="study-card-meta absolute -top-12 left-0 right-0 flex items-center justify-between text-sm text-theme-muted">
+            <div className="study-card-meta absolute -top-8 sm:-top-12 left-0 right-0 flex items-center justify-between text-xs sm:text-sm text-theme-muted px-2 sm:px-0">
                 <div className="flex items-center gap-2">
                     <span className="font-semibold text-theme-primary">{cardNumber}</span>
                     <span>/</span>
@@ -147,7 +147,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
 
             {/* Card Container with 3D flip */}
             <motion.div
-                className="relative w-full aspect-[4/3] sm:aspect-[16/10] cursor-pointer"
+                className="relative w-full aspect-[3/4] sm:aspect-[4/3] md:aspect-[16/10] cursor-pointer touch-manipulation"
                 style={{ perspective: 1000 }}
                 onClick={handleCardClick}
                 initial="enter"
@@ -170,9 +170,9 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                             WebkitBackfaceVisibility: 'hidden',
                         }}
                     >
-                        <div className="study-card-face study-card-face--front w-full h-full rounded-3xl bg-theme-elevated border border-theme-default shadow-theme-lg overflow-hidden">
+                        <div className="study-card-face study-card-face--front w-full h-full rounded-2xl sm:rounded-3xl bg-theme-elevated border border-theme-default shadow-theme-lg overflow-hidden">
                             {/* Header */}
-                            <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 flex items-center justify-between">
+                            <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 md:p-6 flex items-center justify-between">
                                 <div className={`study-card-label px-3 py-1.5 rounded-full ${statusConfig.bgColor} border border-theme-default`}>
                                     <span className={`text-xs font-bold uppercase tracking-wider ${statusConfig.color}`}>
                                         Domanda
@@ -190,19 +190,21 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                             </div>
 
                             {/* Content */}
-                            <div className="absolute inset-0 flex items-center justify-center p-8 sm:p-12 pt-20">
-                                <div className="text-center max-w-lg">
+                            <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 md:p-12 pt-16 sm:pt-20">
+                                <div className="text-center max-w-lg w-full">
                                     <CardContentRenderer 
                                         content={card.front} 
-                                        className="text-xl sm:text-2xl md:text-3xl font-medium text-theme-primary leading-relaxed"
+                                        className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-medium text-theme-primary leading-relaxed"
                                     />
                                 </div>
                             </div>
 
                             {/* Footer hint */}
-                            <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
-                                <p className="study-card-footer-hint text-xs sm:text-sm text-theme-muted">
-                                    Clicca o premi <kbd className="study-card-kbd px-2 py-1 rounded bg-theme-surface border border-theme-default text-theme-secondary font-mono text-xs mx-1">Spazio</kbd> per girare
+                            <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 text-center">
+                                <p className="study-card-footer-hint text-[10px] sm:text-xs md:text-sm text-theme-muted">
+                                    <span className="hidden sm:inline">Clicca o premi </span>
+                                    <span className="sm:hidden">Tocca per girare</span>
+                                    <kbd className="study-card-kbd hidden sm:inline px-2 py-1 rounded bg-theme-surface border border-theme-default text-theme-secondary font-mono text-xs mx-1">Spazio</kbd>
                                 </p>
                             </div>
                         </div>
@@ -217,9 +219,9 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                             transform: 'rotateY(180deg)',
                         }}
                     >
-                        <div className="study-card-face study-card-face--back w-full h-full rounded-3xl bg-theme-card border border-primary-500/30 shadow-theme-lg overflow-hidden">
+                        <div className="study-card-face study-card-face--back w-full h-full rounded-2xl sm:rounded-3xl bg-theme-card border border-primary-500/30 shadow-theme-lg overflow-hidden">
                             {/* Header */}
-                            <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 flex items-center justify-between">
+                            <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 md:p-6 flex items-center justify-between">
                                 <div className="px-3 py-1.5 rounded-full bg-primary-500/20 border border-primary-500/30">
                                     <span className="text-xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">
                                         Risposta
@@ -228,18 +230,18 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                             </div>
 
                             {/* Content */}
-                            <div className="absolute inset-0 flex items-center justify-center p-8 sm:p-12 pt-20">
-                                <div className="text-center max-w-lg overflow-y-auto max-h-full">
+                            <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 md:p-12 pt-16 sm:pt-20">
+                                <div className="text-center max-w-lg w-full overflow-y-auto max-h-full">
                                     <CardContentRenderer 
                                         content={card.back} 
-                                        className="text-lg sm:text-xl md:text-2xl font-medium text-theme-primary leading-relaxed"
+                                        className="text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-theme-primary leading-relaxed"
                                     />
                                 </div>
                             </div>
 
                             {/* Footer */}
-                            <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
-                                <p className="study-card-back-footer text-xs sm:text-sm text-primary-600/80 dark:text-primary-400/70">
+                            <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 text-center">
+                                <p className="study-card-back-footer text-[10px] sm:text-xs md:text-sm text-primary-600/80 dark:text-primary-400/70">
                                     Come è andata? Valuta la tua risposta
                                 </p>
                             </div>

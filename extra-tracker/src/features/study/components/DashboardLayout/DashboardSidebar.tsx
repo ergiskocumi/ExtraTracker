@@ -110,7 +110,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
             <motion.button
                 initial={{ scale: 0 }}
                 animate={{ scale: 1, rotate: isOpen ? 90 : 0 }}
-                whileHover={{ scale: 1.1 }}
+                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
                     if (onToggle) {
@@ -121,8 +121,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                         }
                     }
                 }}
-                className={`fixed bottom-6 right-6 ${isOpen ? 'z-[60]' : 'z-40'}
-                           w-14 h-14 rounded-full
+                className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 ${isOpen ? 'z-[60]' : 'z-40'}
+                           w-12 h-12 sm:w-14 sm:h-14 rounded-full
                            ${isOpen 
                                ? 'bg-gradient-to-br from-violet-600 to-purple-700' 
                                : 'bg-gradient-to-br from-violet-500 to-purple-600'
@@ -136,9 +136,9 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                 aria-label={isOpen ? "Chiudi organizzazione" : "Apri organizzazione"}
             >
                 {isOpen ? (
-                    <X className="w-6 h-6 text-white" />
+                    <X className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 ) : (
-                    <Menu className="w-6 h-6 text-white" />
+                    <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 )}
             </motion.button>
 
@@ -174,10 +174,12 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                             mass: 0.6
                         }}
                         className="fixed bottom-6 right-6
-                                   w-full max-w-sm
-                                   h-[calc(100vh-3rem)]
-                                   sm:max-w-lg
-                                   md:max-w-xl
+                                   w-[calc(100vw-2rem)]
+                                   max-w-[20rem]
+                                   h-[calc(100vh-6rem)]
+                                   sm:max-w-[22rem]
+                                   md:max-w-[24rem]
+                                   lg:max-w-[26rem]
                                    rounded-2xl
                                    shadow-2xl shadow-black/60
                                    z-50
