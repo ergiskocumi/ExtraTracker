@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import type { Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import UnderlineExt from '@tiptap/extension-underline';
 import LinkExt from '@tiptap/extension-link';
@@ -11,6 +12,17 @@ import './styles/editor.css';
 import './styles/richtext.css';
 
 export type ToolbarVisibility = 'always' | 'focus' | 'hidden';
+
+interface MarkdownStorage {
+    markdown?: {
+        getMarkdown: () => string;
+    };
+}
+
+function getEditorMarkdown(editor: Editor): string {
+    const markdownStorage = (editor.storage as unknown as MarkdownStorage).markdown;
+    return markdownStorage?.getMarkdown() ?? '';
+}
 
 export interface RichTextEditorProps {
     value: string;
@@ -78,7 +90,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         autofocus: autoFocus ? 'end' : false,
         onUpdate: ({ editor: ed }) => {
             if (isUpdatingFromProp.current) return;
-            const md = ed.storage.markdown.getMarkdown() as string;
+            const md = getEditorMarkdown(ed);
             onChange(md);
         },
         onFocus: () => setIsFocused(true),
@@ -93,10 +105,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     // Sincronizza il valore esterno → editor quando il valore cambia dall'esterno
     useEffect(() => {
         if (!editor) return;
-        const currentMd = editor.storage.markdown.getMarkdown() as string;
+        const currentMd = getEditorMarkdown(editor);
         if (currentMd === value) return;
         isUpdatingFromProp.current = true;
-        editor.commands.setContent(value, false);
+        editor.commands.setContent(value, { emitUpdate: false });
         isUpdatingFromProp.current = false;
     }, [value, editor]);
 

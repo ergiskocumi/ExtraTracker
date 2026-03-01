@@ -6,10 +6,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import type { Transition } from 'framer-motion';
 import { Search, ArrowRight } from 'lucide-react';
 
-const overlayTransition = { type: 'tween', duration: 0.2, ease: [0.32, 0.72, 0, 1] };
-const modalTransition = { type: 'tween', duration: 0.25, ease: [0.32, 0.72, 0, 1] };
+const overlayTransition: Transition = { type: 'tween', duration: 0.2, ease: [0.32, 0.72, 0, 1] };
+const modalTransition: Transition = { type: 'tween', duration: 0.25, ease: [0.32, 0.72, 0, 1] };
 
 interface SearchableItem {
     id: string;
