@@ -20,6 +20,7 @@ import {
     AlertCircle,
     CheckCircle2,
     XCircle,
+    X,
 } from 'lucide-react';
 
 // ============================================
@@ -75,7 +76,19 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
     isQuizMode = false,
     onStudyErrors,
 }) => {
-    const [showWrongAnswers, setShowWrongAnswers] = useState(wrongAnswers.length > 0 && wrongAnswers.length <= 5);
+    const [showWrongAnswers, setShowWrongAnswers] = useState(false);
+
+    // Gestione scroll body quando modale aperto
+    React.useEffect(() => {
+        if (showWrongAnswers) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [showWrongAnswers]);
 
     const accuracy = totalCards > 0 ? Math.round((correctCount / totalCards) * 100) : 0;
     const hasErrors = wrongAnswers.length > 0;
@@ -242,11 +255,11 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                     >
                         <button
                             type="button"
-                            onClick={() => setShowWrongAnswers((v) => !v)}
-                            className="w-full p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/15 transition-colors text-left flex items-center justify-between gap-3"
+                            onClick={() => setShowWrongAnswers(true)}
+                            className="w-full p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/15 transition-colors text-left flex items-center justify-between gap-3 group"
                         >
                             <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center flex-shrink-0">
+                                <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
                                     <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
                                 </div>
                                 <div className="min-w-0">
@@ -254,51 +267,111 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                                         Domande da rivedere ({wrongAnswers.length})
                                     </h2>
                                     <p className="text-theme-muted text-sm truncate">
-                                        {showWrongAnswers ? 'Nascondi dettagli' : 'Clicca per vedere domanda, tua risposta e risposta corretta'}
+                                        Clicca per vedere errori e risposte corrette
                                     </p>
                                 </div>
                             </div>
-                            <span className="flex-shrink-0 text-theme-muted">
-                                <ChevronDown className={`w-5 h-5 transition-transform ${showWrongAnswers ? 'rotate-180' : ''}`} />
+                            <span className="flex-shrink-0 text-rose-600 dark:text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-lg text-sm font-medium">
+                                Vedi dettagli
                             </span>
                         </button>
-
-                        <AnimatePresence>
-                            {showWrongAnswers && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    transition={{ duration: 0.25 }}
-                                    className="mt-3 space-y-3 overflow-hidden max-h-[min(70vh,600px)] overflow-y-auto pr-1 custom-scrollbar"
-                                >
-                                    {wrongAnswers.map((answer, index) => (
-                                        <motion.article
-                                            key={answer.cardId ?? index}
-                                            initial={{ opacity: 0, x: -8 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: index * 0.04 }}
-                                            className="p-4 rounded-xl bg-theme-elevated border border-theme-default flex-shrink-0"
-                                        >
-                                            <p className="text-xs font-medium text-theme-muted uppercase tracking-wider mb-1.5">Domanda</p>
-                                            <p className="text-theme-primary text-sm sm:text-base leading-relaxed mb-3 break-words whitespace-pre-wrap">{answer.front}</p>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-theme-subtle">
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-medium text-rose-600 dark:text-rose-400 mb-1">La tua risposta</p>
-                                                    <p className="text-rose-700 dark:text-rose-300 text-sm sm:text-base font-medium leading-relaxed break-words whitespace-pre-wrap">{answer.userAnswer}</p>
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">Risposta corretta</p>
-                                                    <p className="text-emerald-700 dark:text-emerald-300 text-sm sm:text-base font-medium leading-relaxed break-words whitespace-pre-wrap">{answer.back}</p>
-                                                </div>
-                                            </div>
-                                        </motion.article>
-                                    ))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
                     </motion.section>
                 )}
+
+                {/* MODALE DOMANDE DA RIVEDERE */}
+                <AnimatePresence>
+                    {showWrongAnswers && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 md:p-6 lg:p-8">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setShowWrongAnswers(false)}
+                                className="fixed inset-0 bg-theme-base/80 backdrop-blur-sm"
+                            />
+                            
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+                                className="relative w-full h-full sm:h-auto sm:max-h-full sm:max-w-3xl bg-theme-elevated sm:rounded-3xl border sm:border-theme-default shadow-theme-xl flex flex-col overflow-hidden"
+                            >
+                                {/* Header Modale */}
+                                <div className="flex-none flex items-center justify-between px-4 sm:px-6 py-4 border-b border-theme-subtle bg-theme-elevated/95 backdrop-blur z-10 sticky top-0">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center flex-shrink-0">
+                                            <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h2 className="text-lg font-semibold text-theme-primary truncate">
+                                                Domande da rivedere
+                                            </h2>
+                                            <p className="text-sm text-theme-muted truncate">
+                                                {wrongAnswers.length} {wrongAnswers.length === 1 ? 'errore' : 'errori'} in questa sessione
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowWrongAnswers(false)}
+                                        className="p-2 rounded-xl hover:bg-theme-surface text-theme-secondary hover:text-theme-primary transition-colors flex-shrink-0"
+                                        aria-label="Chiudi modale"
+                                    >
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                </div>
+
+                                {/* Contenuto Scrollabile */}
+                                <div className="flex-1 overflow-y-auto min-h-0 bg-theme-surface/30 p-4 sm:p-6 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:pb-6">
+                                    <div className="space-y-4 max-w-3xl mx-auto">
+                                        {wrongAnswers.map((answer, index) => (
+                                            <motion.article
+                                                key={answer.cardId ?? index}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: index * 0.05 }}
+                                                className="p-4 sm:p-5 rounded-2xl bg-theme-elevated border border-theme-default shadow-sm"
+                                            >
+                                                <div className="mb-4">
+                                                    <div className="inline-flex items-center gap-2 mb-2">
+                                                        <span className="text-[10px] sm:text-xs font-bold text-theme-muted uppercase tracking-wider bg-theme-surface px-2 py-1 rounded-md">
+                                                            Domanda {index + 1}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-theme-primary text-base sm:text-lg font-medium leading-relaxed break-words whitespace-pre-wrap">
+                                                        {answer.front}
+                                                    </p>
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-theme-surface/50 border border-theme-default">
+                                                    <div className="min-w-0 flex flex-col gap-1.5">
+                                                        <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                                                            <XCircle className="w-4 h-4 flex-shrink-0" />
+                                                            <p className="text-xs font-semibold uppercase tracking-wider">La tua risposta</p>
+                                                        </div>
+                                                        <p className="text-theme-secondary text-sm sm:text-base font-medium leading-relaxed break-words whitespace-pre-wrap bg-theme-elevated p-3 rounded-lg border border-rose-500/20 shadow-sm">
+                                                            {answer.userAnswer}
+                                                        </p>
+                                                    </div>
+                                                    
+                                                    <div className="min-w-0 flex flex-col gap-1.5">
+                                                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                                                            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                                                            <p className="text-xs font-semibold uppercase tracking-wider">Risposta corretta</p>
+                                                        </div>
+                                                        <p className="text-theme-primary text-sm sm:text-base font-medium leading-relaxed break-words whitespace-pre-wrap bg-theme-elevated p-3 rounded-lg border border-emerald-500/20 shadow-sm">
+                                                            {answer.back}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </motion.article>
+                                        ))}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
 
                 {/* Azioni: ordine chiaro per l’utente */}
                 <motion.div
