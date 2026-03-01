@@ -3131,3 +3131,56 @@ ol ol li::before {
     display: none;
   }
 }
+
+/* ============================================
+   LANDING PAGE (integrated) - CSS variables & theme
+   ============================================ */
+:root {
+  --landing-bg: #0a0a1a;
+  --landing-text: #f8fafc;
+  --landing-text-secondary: rgba(248, 250, 252, 0.82);
+  --landing-text-muted: rgba(248, 250, 252, 0.58);
+  --landing-surface: rgba(12, 12, 30, 0.92);
+  --landing-surface-strong: rgba(16, 16, 36, 0.96);
+  --landing-border: rgba(255, 255, 255, 0.14);
+  --landing-border-soft: rgba(255, 255, 255, 0.08);
+  --landing-shadow: 0 18px 38px -22px rgba(2, 6, 23, 0.5);
+  --landing-shadow-strong: 0 28px 55px -30px rgba(2, 6, 23, 0.6);
+  --landing-focus: rgba(124, 58, 237, 0.4);
+}
+[data-theme="light"] {
+  --landing-bg: #f2f6fc;
+  --landing-text: #111827;
+  --landing-text-secondary: #334155;
+  --landing-text-muted: #5b6b84;
+  --landing-surface: rgba(255, 255, 255, 0.9);
+  --landing-surface-strong: rgba(255, 255, 255, 0.96);
+  --landing-border: rgba(15, 23, 42, 0.18);
+  --landing-border-soft: rgba(15, 23, 42, 0.1);
+  --landing-shadow: 0 20px 42px -28px rgba(15, 23, 42, 0.34);
+  --landing-shadow-strong: 0 26px 50px -26px rgba(15, 23, 42, 0.36);
+  --landing-focus: rgba(124, 58, 237, 0.32);
+}
+/* Landing light theme (scoped to .landing-root) */
+[data-theme="light"] .landing-root { color: var(--landing-text); background: var(--landing-bg); }
+[data-theme="light"] .landing-header { background: rgba(255, 255, 255, 0.86); border-bottom: 1px solid var(--landing-border); backdrop-filter: blur(14px); }
+[data-theme="light"] .landing-root [class*="bg-dark-"] { background-color: var(--landing-surface) !important; }
+[data-theme="light"] .landing-root [class*="border-white/10"],
+[data-theme="light"] .landing-root [class*="border-white/5"] { border-color: var(--landing-border-soft) !important; }
+[data-theme="light"] .landing-root [class*="text-white/"] { color: var(--landing-text-secondary) !important; }
+[data-theme="light"] .landing-root [class*="text-white"] { color: var(--landing-text) !important; }
+[data-theme="light"] .landing-root h1,.landing-root h2,.landing-root h3,.landing-root h4 { color: var(--landing-text) !important; }
+[data-theme="light"] .landing-root p { color: var(--landing-text-secondary); }
+[data-theme="light"] .landing-nav-link { color: var(--landing-text-muted) !important; }
+[data-theme="light"] .landing-nav-link:hover { color: var(--landing-text) !important; }
+[data-theme="light"] .landing-primary-btn { border-color: rgba(76, 29, 149, 0.22) !important; box-shadow: 0 16px 34px -20px rgba(109, 40, 217, 0.55); }
+[data-theme="light"] .landing-secondary-btn { background: rgba(255, 255, 255, 0.9) !important; color: var(--landing-text) !important; border-color: var(--landing-border) !important; box-shadow: var(--landing-shadow); }
+[data-theme="light"] .landing-icon-btn { border: 1px solid var(--landing-border-soft) !important; border-radius: 0.7rem; background: rgba(255, 255, 255, 0.74) !important; box-shadow: var(--landing-shadow); }
+[data-theme="light"] .landing-mobile-panel { background: rgba(255, 255, 255, 0.88); border-top-color: var(--landing-border-soft) !important; }
+[data-theme="light"] .landing-surface-card { background: var(--landing-surface) !important; border-color: var(--landing-border-soft) !important; box-shadow: var(--landing-shadow); }
+[data-theme="light"] .landing-feature-tab { background: rgba(255, 255, 255, 0.85) !important; border-color: var(--landing-border-soft) !important; color: var(--landing-text-secondary) !important; }
+[data-theme="light"] .landing-feature-tab.landing-feature-tab--active { background: rgba(124, 58, 237, 0.14) !important; border-color: rgba(124, 58, 237, 0.36) !important; color: #4c1d95 !important; }
+[data-theme="light"] .landing-preview-shell { background: var(--landing-surface-strong) !important; border-color: var(--landing-border) !important; box-shadow: var(--landing-shadow-strong); }
+[data-theme="light"] .landing-pricing-card { border: 1px solid var(--landing-border-soft); box-shadow: var(--landing-shadow); }
+[data-theme="light"] .landing-cta-panel { border: 1px solid var(--landing-border) !important; background: rgba(255, 255, 255, 0.82); box-shadow: var(--landing-shadow-strong); }
+[data-theme="light"] .landing-footer { border-top-color: var(--landing-border-soft) !important; background: rgba(255, 255, 255, 0.64); }

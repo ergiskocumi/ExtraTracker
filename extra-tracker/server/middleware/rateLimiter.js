@@ -76,26 +76,23 @@ const getUserIdForRateLimit = (req) => {
 };
 
 /**
- * Crea store per rate limiter (Redis se disponibile, altrimenti memoria locale)
- * 
- * @returns {object|undefined} - Store config o undefined per memoria locale
+ * Store condiviso per tutti i rate limiter (evita log duplicati e riuso Redis)
+ * Inizializzato una sola volta al caricamento del modulo.
  */
-const createRateLimitStore = () => {
+const sharedRateLimitStore = (() => {
     if (getRedisAvailable()) {
         const redisClient = getRedisClient();
         if (redisClient) {
             console.log('✅ Rate limiter usando Redis (distribuito)');
             return new RedisStore({
                 sendCommand: (...args) => redisClient.sendCommand(args),
-                prefix: 'rl:', // Prefix per chiavi Redis (rate-limit)
+                prefix: 'rl:',
             });
         }
     }
-    
-    // Fallback a memoria locale
     console.log('⚠️  Rate limiter usando memoria locale (non distribuito)');
-    return undefined; // undefined = usa memoria locale di default
-};
+    return undefined;
+})();
 
 // ==========================================
 // RATE LIMITERS
@@ -119,7 +116,7 @@ const createRateLimitStore = () => {
 const aiLimiter = rateLimit({
     windowMs: securityConfig.rateLimit.ai.windowMs,
     max: securityConfig.rateLimit.ai.max,
-    store: createRateLimitStore(),
+    store: sharedRateLimitStore,
     keyGenerator: (req) => {
         // Usa userId se disponibile, altrimenti IP
         return getUserIdForRateLimit(req);
@@ -164,7 +161,7 @@ const aiLimiter = rateLimit({
 const authLimiter = rateLimit({
     windowMs: securityConfig.rateLimit.auth.windowMs,
     max: securityConfig.rateLimit.auth.max,
-    store: createRateLimitStore(),
+    store: sharedRateLimitStore,
     keyGenerator: (req) => getClientIpForRateLimit(req),
     skipSuccessfulRequests: securityConfig.rateLimit.auth.skipSuccessfulRequests,
     standardHeaders: true,
@@ -202,7 +199,7 @@ const generalLimiter = securityConfig.rateLimit.general.enabled
     ? rateLimit({
           windowMs: securityConfig.rateLimit.general.windowMs,
           max: securityConfig.rateLimit.general.max,
-          store: createRateLimitStore(),
+          store: sharedRateLimitStore,
           keyGenerator: (req) => getClientIpForRateLimit(req),
           // Skip endpoint a basso rischio che vengono chiamati frequentemente
           skip: (req) => {
@@ -246,7 +243,7 @@ const generalLimiter = securityConfig.rateLimit.general.enabled
 const passwordResetLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 ora
     max: 3, // Solo 3 richieste per ora
-    store: createRateLimitStore(),
+    store: sharedRateLimitStore,
     keyGenerator: (req) => getClientIpForRateLimit(req),
     standardHeaders: true,
     legacyHeaders: false,

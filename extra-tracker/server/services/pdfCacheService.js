@@ -1,3 +1,19 @@
+/**
+ * Polyfill minimi per Node: pdfjs-dist tenta di usare 'canvas' per DOMMatrix/Path2D.
+ * Per la sola estrazione testo (getTextContent) non serve rendering; definiamo
+ * classi no-op per evitare il require('canvas') e i warning in console.
+ */
+if (typeof globalThis.DOMMatrix === 'undefined') {
+    globalThis.DOMMatrix = class DOMMatrix {
+        constructor() {}
+    };
+}
+if (typeof globalThis.Path2D === 'undefined') {
+    globalThis.Path2D = class Path2D {
+        constructor() {}
+    };
+}
+
 const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 const fs = require('fs').promises;
 const crypto = require('crypto');
