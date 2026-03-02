@@ -23,6 +23,7 @@ export interface Card {
     options?: string[];
     distractors?: string[];
     aiDistractorsFailed?: boolean;
+    distractorExplanations?: Record<string, string>;
     easinessFactor: number;
     interval: number;
     repetitions: number;
@@ -254,6 +255,9 @@ const normalizeCard = (raw: any): Card => {
         options: Array.isArray(raw.options) ? raw.options : undefined,
         distractors: Array.isArray(raw.distractors) ? raw.distractors : undefined,
         aiDistractorsFailed: Boolean(raw.aiDistractorsFailed ?? raw.ai_distractors_failed),
+        distractorExplanations: (raw.distractorExplanations && typeof raw.distractorExplanations === 'object' && !Array.isArray(raw.distractorExplanations))
+            ? raw.distractorExplanations as Record<string, string>
+            : undefined,
         easinessFactor: safeNumber(raw.easinessFactor, 2.5),
         interval: safeNumber(raw.interval, 0),
         repetitions: safeNumber(raw.repetitions, 0),
@@ -895,6 +899,20 @@ class StudyService {
     async clearExamProgress(deckId: string): Promise<{ success: boolean; message: string }> {
         const response = await apiClient.delete<any>(`${this.baseUrl}/${deckId}/exam-progress`);
         return unwrap(response, 'Errore nella cancellazione del progresso');
+    }
+
+    /**
+     * 🔄 Resetta distrattori AI di tutte le card di un deck
+     * Forza la rigenerazione con il nuovo modello/prompt pedagogico
+     */
+    async resetDistractors(deckId: string): Promise<{
+        deckId: string;
+        totalCards: number;
+        resetCards: number;
+        message: string;
+    }> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/reset-distractors`, {});
+        return unwrap(response, 'Errore nel reset dei distrattori');
     }
 }
 

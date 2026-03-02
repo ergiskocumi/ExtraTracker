@@ -180,6 +180,12 @@ router.get('/:id/exam-progress', studyController.getExamProgress);
  */
 router.delete('/:id/exam-progress', studyController.clearExamProgress);
 
+/**
+ * POST /api/study/:id/reset-distractors
+ * Resetta distrattori AI per forzare rigenerazione con nuovo modello pedagogico
+ */
+router.post('/:id/reset-distractors', studyController.resetDistractors);
+
 // 🪄 Magic Generate from PDF (con multer middleware)
 // AI Generate - Rate limited: 10 chiamate per ora per utente
 router.post('/:id/generate-pdf', aiLimiter, (req, res, next) => {

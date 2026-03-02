@@ -892,6 +892,24 @@ const clearExamProgress = asyncHandler(async (req, res) => {
     res.json({ success: true, data: result });
 });
 
+/**
+ * POST /api/study/:id/reset-distractors
+ * Resetta distrattori AI di tutte le card di un deck per forzare la rigenerazione
+ * con il nuovo modello/prompt pedagogico
+ */
+const resetDistractors = asyncHandler(async (req, res) => {
+    const deckId = req.params.id;
+    console.log('🔄 resetDistractors chiamato:', { deckId });
+
+    const result = await studyService.resetDistractors(
+        req.tenantScope,
+        deckId
+    );
+
+    console.log('✅ resetDistractors completato:', result);
+    res.json({ success: true, data: result });
+});
+
 module.exports = {
     createDeck,
     updateDeck,
@@ -922,4 +940,5 @@ module.exports = {
     clearExamProgress,
     saveQuizSnapshot,
     getExamSavedQuizzes,
+    resetDistractors,
 };

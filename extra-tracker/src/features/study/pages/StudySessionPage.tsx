@@ -564,17 +564,23 @@ export const StudySessionPage: React.FC = () => {
                 ]);
             }
 
-            // Auto-advance alla prossima carta (con delay per animazione)
-            setTimeout(() => {
-                const nextIndex = currentCardIndex + 1;
-                if (nextIndex >= session.cards.length) {
-                    handleComplete();
-                } else {
-                    setCurrentCardIndex(nextIndex);
-                    setIsFlipped(false);
-                    setExitDirection(null);
-                }
-            }, 800); // 800ms delay per mostrare l'animazione corretta/sbagliata
+            // Quiz mode: l'utente deve premere "Avanti" manualmente (QuizView gestisce onNext)
+            // Flashcard/Typing: auto-advance dopo animazione
+            if (cardMode !== 'quiz') {
+                setTimeout(() => {
+                    const nextIndex = currentCardIndex + 1;
+                    if (nextIndex >= session.cards.length) {
+                        handleComplete();
+                    } else {
+                        setCurrentCardIndex(nextIndex);
+                        setIsFlipped(false);
+                        setExitDirection(null);
+                    }
+                }, 800);
+            } else {
+                // Reset animazione per quiz mode (l'advance è manuale)
+                setExitDirection(null);
+            }
 
         } catch (err) {
             emitToast.error('Errore nel salvataggio');
@@ -921,6 +927,7 @@ export const StudySessionPage: React.FC = () => {
                                 question={currentCard.front}
                                 options={currentCard.options ?? []}
                                 correctAnswer={currentCard.back}
+                                distractorExplanations={currentCard.distractorExplanations}
                                 isSubmitting={isSubmitting}
                                 onSubmitReview={handleRate}
                                 onNext={handleNext}

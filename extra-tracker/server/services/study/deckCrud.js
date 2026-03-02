@@ -493,4 +493,42 @@ module.exports = {
         }
         return deck.toObject ? deck.toObject() : deck;
     },
+
+    /**
+     * Resetta i distrattori AI di tutte le card di un deck.
+     * Svuota distractors, distractorExplanations, quizAnswerVariant e resetta aiDistractorsFailed.
+     * Alla prossima sessione quiz verranno rigenerati con il nuovo modello/prompt.
+     */
+    async resetDistractors(tenantScope, deckId) {
+        const deck = await Deck.findOne({
+            _id: deckId,
+            ...tenantScope,
+        });
+
+        if (!deck) {
+            throw AppError.notFound('Deck non trovato');
+        }
+
+        let resetCount = 0;
+        for (const card of deck.cards) {
+            if (card.distractors?.length > 0 || card.aiDistractorsFailed) {
+                card.distractors = [];
+                card.distractorExplanations = [];
+                card.quizAnswerVariant = undefined;
+                card.aiDistractorsFailed = false;
+                resetCount++;
+            }
+        }
+
+        if (resetCount > 0) {
+            await deck.save();
+        }
+
+        return {
+            deckId,
+            totalCards: deck.cards.length,
+            resetCards: resetCount,
+            message: `${resetCount} card resettate. I distrattori verranno rigenerati alla prossima sessione quiz.`,
+        };
+    },
 };

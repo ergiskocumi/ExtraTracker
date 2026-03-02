@@ -25,6 +25,7 @@ interface QuizViewProps {
   question: string;
   options: string[];
   correctAnswer: string;
+  distractorExplanations?: Record<string, string>;
   isSubmitting: boolean;
   onSubmitReview: (
     rating: ReviewRating,
@@ -85,6 +86,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
   question,
   options,
   correctAnswer,
+  distractorExplanations,
   isSubmitting,
   onSubmitReview,
   onNext,
@@ -184,10 +186,8 @@ export const QuizView: React.FC<QuizViewProps> = ({
     if (!selectedOption && result !== "dontKnow") return;
 
     setIsExiting(true);
-    // Piccolo delay per l'animazione di uscita
-    timeoutRef.current = window.setTimeout(() => {
-      onNext();
-    }, 150);
+    // Avanza subito - AnimatePresence gestisce l'animazione di uscita/entrata
+    onNext();
   }, [selectedOption, result, isExiting, onNext]);
 
   // Keyboard shortcuts
@@ -229,9 +229,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
     window.addEventListener("keydown", handleKeyPress);
     return () => {
       window.removeEventListener("keydown", handleKeyPress);
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
     };
   }, [
     selectedOption,
@@ -306,8 +303,16 @@ export const QuizView: React.FC<QuizViewProps> = ({
   // Determina se mostrare il pulsante continua
   const canContinue = selectedOption || result === "dontKnow";
 
+  // Trova la spiegazione per l'opzione sbagliata selezionata
+  const selectedExplanation = useMemo(() => {
+    if (result !== 'wrong' || !selectedOption || !distractorExplanations) return null;
+    const idx = resolvedOptions.findIndex(o => o === selectedOption);
+    if (idx === -1) return null;
+    return distractorExplanations[String(idx)] || null;
+  }, [result, selectedOption, distractorExplanations, resolvedOptions]);
+
   // Testo del pulsante continua
-  const continueButtonText = result === "dontKnow" ? "Ho capito" : "Continua";
+  const continueButtonText = result === "dontKnow" ? "Ho capito" : "Avanti";
 
   return (
     <div className="w-full max-w-[1320px] mx-auto px-2 sm:px-4 md:px-5 lg:px-6 h-full flex flex-col">
@@ -667,6 +672,42 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     <p className="text-amber-600/80 dark:text-amber-200/60 text-sm">
                       Leggi attentamente e premi "Ho capito" quando sei pronto
                       per continuare.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Spiegazione pedagogica: perché la risposta selezionata è sbagliata */}
+            {result === "wrong" && selectedExplanation && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.15 }}
+                className="rounded-2xl border border-rose-500/20 bg-rose-500/5 px-5 py-4"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/15 flex items-center justify-center flex-shrink-0">
+                    <svg
+                      className="w-5 h-5 text-rose-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-rose-700 dark:text-rose-300 font-semibold text-sm mb-1">
+                      Perché è sbagliata
+                    </p>
+                    <p className="text-rose-600/90 dark:text-rose-200/80 text-sm leading-relaxed">
+                      {selectedExplanation}
                     </p>
                   </div>
                 </div>
