@@ -105,7 +105,7 @@ const envModel = (process.env.OPENAI_MODEL || FALLBACK_AI_MODEL).trim();
 const ACTIVE_AI_MODEL = KNOWN_OPENAI_MODELS.has(envModel) ? envModel : FALLBACK_AI_MODEL;
 const DISTRACTOR_AI_MODEL = KNOWN_OPENAI_MODELS.has((process.env.OPENAI_DISTRACTOR_MODEL || '').trim())
     ? (process.env.OPENAI_DISTRACTOR_MODEL || '').trim()
-    : 'gpt-4o-mini';
+    : ACTIVE_AI_MODEL;
 
 function getValidModel(envValue) {
     const v = (envValue || ACTIVE_AI_MODEL).trim();

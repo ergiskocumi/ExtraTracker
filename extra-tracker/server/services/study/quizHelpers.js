@@ -260,9 +260,11 @@ module.exports = {
             const payload = await this._generateDistractorsWithAI(question, correctAnswer);
             const distractors = payload.distractors;
             const quizAnswerVariant = payload.correctAnswerVariant;
+            const explanations = payload.explanations || [];
 
             card.distractors = distractors;
             card.quizAnswerVariant = quizAnswerVariant;
+            card.distractorExplanations = explanations;
             card.aiDistractorsFailed = false;
 
             await Deck.updateOne(
@@ -271,6 +273,7 @@ module.exports = {
                     $set: {
                         'cards.$.distractors': distractors,
                         'cards.$.quizAnswerVariant': quizAnswerVariant,
+                        'cards.$.distractorExplanations': explanations,
                         'cards.$.aiDistractorsFailed': false,
                     },
                 }
@@ -280,12 +283,14 @@ module.exports = {
                 deckId,
                 cardId,
                 balanced: this._areQuizOptionsBalanced([quizAnswerVariant, ...distractors], quizAnswerVariant),
+                explanationsCount: explanations.filter(Boolean).length,
                 metrics: this._getOptionMetrics([quizAnswerVariant, ...distractors]),
             });
         } catch (error) {
             console.warn('[StudyService] Distractor generation failed in quiz prewarm:', error.message);
             card.distractors = [];
             card.quizAnswerVariant = '';
+            card.distractorExplanations = [];
             card.aiDistractorsFailed = true;
 
             await Deck.updateOne(
@@ -294,6 +299,7 @@ module.exports = {
                     $set: {
                         'cards.$.distractors': [],
                         'cards.$.quizAnswerVariant': '',
+                        'cards.$.distractorExplanations': [],
                         'cards.$.aiDistractorsFailed': true,
                     },
                 }
@@ -335,14 +341,25 @@ module.exports = {
         const targetWords = this._resolveQuizTargetWordCount(canonicalCorrectAnswer || correctAnswer);
         const normalizedCorrect = this._normalizeAnswerValue(correctAnswer);
         const options = [];
+        const explanationMap = new Map(); // opzione normalizzata → spiegazione
         const seen = new Set();
+
+        // Prepara la mappa spiegazioni dai distrattori AI salvati
+        const rawDistractors = Array.isArray(card?.distractors) ? card.distractors : [];
+        const rawExplanations = Array.isArray(card?.distractorExplanations) ? card.distractorExplanations : [];
+        rawDistractors.forEach((d, i) => {
+            const norm = this._normalizeAnswerValue(d);
+            if (norm && rawExplanations[i]) {
+                explanationMap.set(norm, rawExplanations[i]);
+            }
+        });
 
         if (correctAnswer) {
             options.push(correctAnswer);
             seen.add(normalizedCorrect);
         }
 
-        const aiDistractors = this._normalizeDistractors(card?.distractors, canonicalCorrectAnswer);
+        const aiDistractors = this._normalizeDistractors(rawDistractors, canonicalCorrectAnswer);
         const wrongOptions = [...aiDistractors];
 
         if (card?.aiDistractorsFailed) {
@@ -375,19 +392,31 @@ module.exports = {
         const normalizedOptions = this._harmonizeQuizOptions(options.slice(0, 4), targetWords);
         const normalizedCorrectAnswer = normalizedOptions[0] || this._fitOptionToTargetLength(correctAnswer, targetWords);
 
+        // Shuffle e ricostruisci le spiegazioni nell'ordine shuffled
+        const shuffledOptions = this._shuffleArray(normalizedOptions);
+        const distractorExplanations = {};
+        shuffledOptions.forEach((opt, i) => {
+            const norm = this._normalizeAnswerValue(opt);
+            if (norm !== this._normalizeAnswerValue(normalizedCorrectAnswer) && explanationMap.has(norm)) {
+                distractorExplanations[i] = explanationMap.get(norm);
+            }
+        });
+
         const balanced = this._areQuizOptionsBalanced(normalizedOptions, normalizedCorrectAnswer);
         this._logQuizDebug('options-built', {
             cardId: this._resolveCardId(card),
             aiDistractorsFailed: Boolean(card?.aiDistractorsFailed),
             targetWords,
             balanced,
+            hasExplanations: Object.keys(distractorExplanations).length > 0,
             likelyTruncated: normalizedOptions.some(option => this._hasLikelyTruncatedEnding(option)),
             metrics: this._getOptionMetrics(normalizedOptions),
         });
 
         return {
             correctAnswer: normalizedCorrectAnswer,
-            options: this._shuffleArray(normalizedOptions),
+            options: shuffledOptions,
+            distractorExplanations,
         };
     },
 
@@ -456,12 +485,14 @@ module.exports = {
                 const payload = await this._generateDistractorsWithAI(question, correctAnswer);
                 const distractors = payload.distractors;
                 const quizAnswerVariant = payload.correctAnswerVariant;
+                const explanations = payload.explanations || [];
                 await Deck.updateOne(
                     { _id: deckId, user: userId, 'cards._id': cardId },
                     {
                         $set: {
                             'cards.$.distractors': distractors,
                             'cards.$.quizAnswerVariant': quizAnswerVariant,
+                            'cards.$.distractorExplanations': explanations,
                             'cards.$.aiDistractorsFailed': false,
                         },
                     }
@@ -474,6 +505,7 @@ module.exports = {
                         $set: {
                             'cards.$.distractors': [],
                             'cards.$.quizAnswerVariant': '',
+                            'cards.$.distractorExplanations': [],
                             'cards.$.aiDistractorsFailed': true,
                         },
                     }
@@ -483,7 +515,7 @@ module.exports = {
     },
 
     // =========================================
-    // AI DISTRACTOR GENERATION
+    // AI DISTRACTOR GENERATION (Pedagogical V2)
     // =========================================
 
     async _generateDistractorsWithAI(question, correctAnswer) {
@@ -495,14 +527,20 @@ module.exports = {
         const responseFormat = {
             type: 'json_schema',
             json_schema: {
-                name: 'quiz_options_balanced',
+                name: 'quiz_options_pedagogical',
                 schema: {
                     type: 'object',
                     additionalProperties: false,
-                    required: ['correctAnswerVariant', 'distractors'],
+                    required: ['correctAnswerVariant', 'distractors', 'explanations'],
                     properties: {
                         correctAnswerVariant: { type: 'string' },
                         distractors: {
+                            type: 'array',
+                            minItems: 3,
+                            maxItems: 3,
+                            items: { type: 'string' },
+                        },
+                        explanations: {
                             type: 'array',
                             minItems: 3,
                             maxItems: 3,
@@ -525,31 +563,55 @@ module.exports = {
                 questionPreview: question.slice(0, 120),
             });
 
-            const prompt = `Agisci come un esperto in progettazione pedagogica e creazione di test universitari. 
-                            Riceverai una domanda e la sua risposta corretta canonica.
-                            Il tuo obiettivo è generare opzioni di risposta ad alta qualità, misurando la reale comprensione concettuale ed evitando la memoria pura.
+            const prompt = `Agisci come un esperto in progettazione pedagogica e creazione di test universitari.
+Riceverai una domanda e la sua risposta corretta canonica.
+Il tuo obiettivo è generare opzioni di risposta ad alta qualità che misurino la reale comprensione concettuale, NON la memoria pura.
 
-                            REGOLE OBBLIGATORIE PER IL CONTENUTO (LA PEDAGOGIA):
-                            1) correctAnswerVariant: Deve esprimere il concetto corretto usando sinonimi o una spiegazione rielaborata (parafrasi). NON copiare testualmente la risposta originale.
-                            2) Distrattore 1 (Il Competitivo): Deve essere parzialmente vero o riferirsi a un concetto vicino, ma con una sfumatura che lo rende sbagliato (es. confonde causa con effetto).
-                            3) Distrattore 2 (Il Terminologico): Usa termini tecnici pertinenti al contesto, ma applicati in un ragionamento o contesto errato.
-                            4) Distrattore 3 (L'Inversione): Descrive l'opposto del concetto corretto o scambia le definizioni di due termini simili.
-                            5) Plausibilità: Nessun distrattore deve essere palesemente assurdo. Ogni opzione deve rappresentare un "sentiero logico" distinto e non ripetere le stesse cose con parole diverse.
+═══ REGOLE PEDAGOGICHE (CONTENUTO) ═══
 
-                            REGOLE OBBLIGATORIE PER IL FORMATO (IL CODICE):
-                            6) Restituisci SOLO ed ESCLUSIVAMENTE JSON valido nel seguente formato esatto:
-                            {
-                            "correctAnswerVariant": "stringa",
-                            "distractors": ["stringa", "stringa", "stringa"]
-                            }
-                            7) Tutte e 4 le opzioni devono avere lunghezza, struttura sintattica e registro linguistico simili per non fornire indizi visivi.
-                            8) Ogni opzione deve avere tra ${minWords} e ${maxWords} parole, rigorosamente.
-                            9) Ogni stringa deve essere UNA singola frase completa e sensata, terminata con un segno di punteggiatura (punto).
-                            10) Nessuna stringa deve contenere ritorni a capo (\n), tabulazioni o caratteri di controllo.
-                            ${attempt > 0 ? '11) ATTENZIONE CRITICA: il precedente output era non valido. Rispetta rigorosamente il numero di parole, genera JSON puro e assicurati che le frasi siano complete.' : ''}
+1) "correctAnswerVariant": Rielabora il concetto corretto usando sinonimi e parafrasi.
+   NON copiare testualmente la risposta originale. Lo studente deve dimostrare di aver capito, non di aver memorizzato.
 
-                            Domanda: ${question}
-                            Risposta corretta canonica: ${correctAnswer}`;
+2) Distrattore 1 — IL COMPETITIVO ("Quasi Corretto"):
+   Deve essere parzialmente vero o riferirsi a un concetto molto vicino, ma con una sfumatura che lo rende sbagliato.
+   Esempio di errore: confondere causa con effetto, scambiare condizione necessaria con sufficiente.
+
+3) Distrattore 2 — IL TERMINOLOGICO:
+   Usa termini tecnici corretti e pertinenti al contesto, ma inseriti in un ragionamento o applicazione errata.
+   Serve a verificare se lo studente conosce il significato delle parole o le "riconosce" e basta.
+
+4) Distrattore 3 — L'INVERSIONE:
+   Descrive esattamente l'opposto del concetto corretto, oppure scambia le definizioni tra due termini simili trattati nello stesso argomento.
+
+5) PLAUSIBILITÀ OBBLIGATORIA:
+   - Nessun distrattore deve essere palesemente assurdo.
+   - Ogni opzione deve rappresentare un "sentiero logico" distinto.
+   - MAI creare due opzioni che dicono la stessa cosa con parole diverse.
+   - Tutte le opzioni devono sembrare plausibili a chi non ha studiato bene.
+
+═══ SPIEGAZIONI DIDATTICHE ═══
+
+6) Per CIASCUN distrattore, genera una spiegazione breve (1-2 frasi, max 40 parole) che spiega
+   PERCHÉ quella risposta è sbagliata e quale errore concettuale rappresenta.
+   Queste spiegazioni verranno mostrate allo studente quando sbaglia, per aiutarlo a capire l'errore.
+
+═══ REGOLE FORMATO (CODICE) ═══
+
+7) Restituisci SOLO ed ESCLUSIVAMENTE JSON valido nel seguente formato esatto:
+{
+  "correctAnswerVariant": "stringa",
+  "distractors": ["competitivo", "terminologico", "inversione"],
+  "explanations": ["perché competitivo è sbagliato", "perché terminologico è sbagliato", "perché inversione è sbagliata"]
+}
+8) Tutte e 4 le opzioni (correctAnswerVariant + 3 distractors) devono avere lunghezza, struttura sintattica e registro linguistico OMOGENEI per non fornire indizi visivi sulla risposta corretta.
+9) Ogni opzione deve avere tra ${minWords} e ${maxWords} parole, rigorosamente.
+10) Ogni stringa deve essere UNA singola frase completa e sensata, terminata con punto.
+11) Nessuna stringa deve contenere ritorni a capo, tabulazioni o caratteri di controllo.
+${attempt > 0 ? '12) ⚠️ ATTENZIONE: il precedente output era non valido o sbilanciato. Rispetta RIGOROSAMENTE il numero di parole, genera JSON puro e assicurati che le frasi siano complete e non troncate.' : ''}
+
+═══ INPUT ═══
+Domanda: ${question}
+Risposta corretta canonica: ${correctAnswer}`;
 
             const completion = await openai.chat.completions.create(
                 {
@@ -557,7 +619,7 @@ module.exports = {
                     messages: [
                         {
                             role: 'system',
-                            content: 'Genera esclusivamente JSON valido, senza markdown e senza testo extra.',
+                            content: 'Sei un esperto in psicometria e progettazione pedagogica di test universitari. Genera esclusivamente JSON valido secondo lo schema fornito, senza markdown, senza commenti e senza testo extra. Ogni distrattore deve testare un tipo diverso di errore concettuale.',
                         },
                         {
                             role: 'user',
@@ -565,11 +627,11 @@ module.exports = {
                         },
                     ],
                     response_format: responseFormat,
-                    temperature: 0.45,
-                    max_tokens: 900,
+                    temperature: 0.35,
+                    max_tokens: 1400,
                 },
                 {
-                    timeout: 14000,
+                    timeout: 20000,
                 }
             );
 
@@ -579,7 +641,7 @@ module.exports = {
                 attempt: attempt + 1,
                 finishReason,
                 contentLength: content.length,
-                contentPreview: typeof content === 'string' ? content.slice(0, 220) : '',
+                contentPreview: typeof content === 'string' ? content.slice(0, 300) : '',
             });
             const parsed = this._parseJSONResponse(content);
             if (!parsed) {
@@ -592,6 +654,7 @@ module.exports = {
 
             let rawDistractors = [];
             let rawCorrectAnswerVariant = '';
+            let rawExplanations = [];
             if (Array.isArray(parsed)) {
                 rawDistractors = parsed;
             } else if (parsed && Array.isArray(parsed.distractors)) {
@@ -599,15 +662,25 @@ module.exports = {
                 rawCorrectAnswerVariant = typeof parsed.correctAnswerVariant === 'string'
                     ? parsed.correctAnswerVariant
                     : '';
+                rawExplanations = Array.isArray(parsed.explanations) ? parsed.explanations : [];
             } else if (parsed && Array.isArray(parsed.options)) {
                 rawDistractors = parsed.options;
                 rawCorrectAnswerVariant = typeof parsed.correctAnswerVariant === 'string'
                     ? parsed.correctAnswerVariant
                     : '';
+                rawExplanations = Array.isArray(parsed.explanations) ? parsed.explanations : [];
             }
 
             let distractors = this._normalizeDistractors(rawDistractors, correctAnswer);
             let correctAnswerVariant = this._normalizeQuizAnswerVariant(rawCorrectAnswerVariant, correctAnswer);
+
+            // Normalizza le spiegazioni mantenendo la corrispondenza 1:1 con i distrattori
+            const explanations = distractors.map((_d, i) => {
+                const raw = rawExplanations[i];
+                if (typeof raw === 'string' && raw.trim().length > 5) return raw.trim();
+                return '';
+            });
+
             const harmonizedOptions = this._harmonizeQuizOptions(
                 [correctAnswerVariant, ...distractors],
                 targetWords
@@ -624,6 +697,7 @@ module.exports = {
             this._logQuizDebug('ai-generate-result', {
                 attempt: attempt + 1,
                 distractorsCount: distractors.length,
+                explanationsCount: explanations.filter(Boolean).length,
                 balanced,
                 likelyTruncated,
                 metrics: this._getOptionMetrics(allOptions),
@@ -633,6 +707,7 @@ module.exports = {
                 return {
                     distractors,
                     correctAnswerVariant,
+                    explanations,
                 };
             }
         }

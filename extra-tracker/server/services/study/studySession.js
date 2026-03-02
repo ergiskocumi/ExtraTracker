@@ -137,6 +137,7 @@ module.exports = {
                     back: quizPayload.correctAnswer,
                     canonicalBack: card.back,
                     options: quizPayload.options,
+                    distractorExplanations: quizPayload.distractorExplanations || {},
                 };
             }
             return card;

@@ -48,6 +48,11 @@ const cardSchema = new mongoose.Schema({
             message: 'I distractors devono essere un array di stringhe non vuote',
         },
     },
+    // Spiegazioni pedagogiche per ciascun distrattore ("perché è sbagliata")
+    distractorExplanations: {
+        type: [String],
+        default: [],
+    },
     aiDistractorsFailed: {
         type: Boolean,
         default: false,
