@@ -57,6 +57,12 @@ const cardSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    // Versione del prompt usato per generare i distrattori.
+    // Se diverge dalla DISTRACTOR_PROMPT_VERSION corrente, la card viene rigenerata automaticamente.
+    distractorPromptVersion: {
+        type: String,
+        default: '',
+    },
     // SM-2 parameters
     easinessFactor: {
         type: Number,

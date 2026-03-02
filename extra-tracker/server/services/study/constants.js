@@ -28,8 +28,11 @@ const QUIZ_TYPES = {
     MULTIPLE_CHOICE: 'multiple_choice',
     TRUE_FALSE: 'true_false',
 };
-const QUIZ_OPTION_WORD_MIN = 8;
-const QUIZ_OPTION_WORD_MAX = 48;
+const QUIZ_OPTION_WORD_MIN = 5;
+const QUIZ_OPTION_WORD_MAX = 20;
+// Bump questo valore ogni volta che il prompt AI cambia significativamente.
+// Le card con versione diversa vengono rigenerate automaticamente alla prossima sessione.
+const DISTRACTOR_PROMPT_VERSION = 'v3';
 const QUIZ_OPTION_LENGTH_MIN_RATIO = 0.8;
 const QUIZ_OPTION_LENGTH_MAX_RATIO = 1.25;
 const QUIZ_OPTION_WORD_SPREAD_MAX = 4;
@@ -139,6 +142,7 @@ module.exports = {
     QUIZ_TYPES,
     QUIZ_OPTION_WORD_MIN,
     QUIZ_OPTION_WORD_MAX,
+    DISTRACTOR_PROMPT_VERSION,
     QUIZ_OPTION_LENGTH_MIN_RATIO,
     QUIZ_OPTION_LENGTH_MAX_RATIO,
     QUIZ_OPTION_WORD_SPREAD_MAX,

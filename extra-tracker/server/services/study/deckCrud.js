@@ -511,11 +511,12 @@ module.exports = {
 
         let resetCount = 0;
         for (const card of deck.cards) {
-            if (card.distractors?.length > 0 || card.aiDistractorsFailed) {
+            if (card.distractors?.length > 0 || card.aiDistractorsFailed || card.distractorPromptVersion) {
                 card.distractors = [];
                 card.distractorExplanations = [];
                 card.quizAnswerVariant = undefined;
                 card.aiDistractorsFailed = false;
+                card.distractorPromptVersion = '';
                 resetCount++;
             }
         }
