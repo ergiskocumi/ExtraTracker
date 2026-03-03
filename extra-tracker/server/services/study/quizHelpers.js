@@ -9,7 +9,6 @@ const Deck = require('../../models/Deck');
 const {
     openai,
     DISTRACTOR_AI_MODEL,
-    DISTRACTOR_PROMPT_VERSION,
     QUIZ_FALLBACK_OPTIONS,
     QUIZ_OPTION_WORD_MIN,
     QUIZ_OPTION_WORD_MAX,
@@ -92,9 +91,8 @@ module.exports = {
 
     _resolveQuizTargetWordCount(correctAnswer = '') {
         const rawCount = this._countWords(correctAnswer);
-        const base = Number.isFinite(rawCount) && rawCount > 0 ? rawCount : 12;
-        // Cap a 16 so maxWords (×1.25) non superi mai 20 parole
-        return Math.max(8, Math.min(16, Math.round(base)));
+        const base = Number.isFinite(rawCount) && rawCount > 0 ? rawCount : 16;
+        return Math.max(14, Math.min(44, Math.round(base)));
     },
 
     _isOptionLengthBalanced(option = '', targetWords = QUIZ_OPTION_WORD_MIN) {
@@ -228,12 +226,6 @@ module.exports = {
 
     _needsDistractorGeneration(card) {
         if (!card) return false;
-
-        // Se la card è stata generata con una versione precedente del prompt, forza rigenerazione.
-        // Questo si attiva automaticamente ogni volta che DISTRACTOR_PROMPT_VERSION viene bumped.
-        const storedVersion = card.distractorPromptVersion || '';
-        if (storedVersion !== DISTRACTOR_PROMPT_VERSION) return true;
-
         if (card.aiDistractorsFailed) return false;
         const normalized = this._normalizeDistractors(card.distractors, card.back);
         if (normalized.length < 3) return true;
@@ -274,7 +266,6 @@ module.exports = {
             card.quizAnswerVariant = quizAnswerVariant;
             card.distractorExplanations = explanations;
             card.aiDistractorsFailed = false;
-            card.distractorPromptVersion = DISTRACTOR_PROMPT_VERSION;
 
             await Deck.updateOne(
                 { _id: deckId, user: userId, 'cards._id': cardId },
@@ -284,7 +275,6 @@ module.exports = {
                         'cards.$.quizAnswerVariant': quizAnswerVariant,
                         'cards.$.distractorExplanations': explanations,
                         'cards.$.aiDistractorsFailed': false,
-                        'cards.$.distractorPromptVersion': DISTRACTOR_PROMPT_VERSION,
                     },
                 }
             );
@@ -504,7 +494,6 @@ module.exports = {
                             'cards.$.quizAnswerVariant': quizAnswerVariant,
                             'cards.$.distractorExplanations': explanations,
                             'cards.$.aiDistractorsFailed': false,
-                            'cards.$.distractorPromptVersion': DISTRACTOR_PROMPT_VERSION,
                         },
                     }
                 );
@@ -574,58 +563,55 @@ module.exports = {
                 questionPreview: question.slice(0, 120),
             });
 
-            const prompt = `Sei un severo professore universitario. Devi creare 4 opzioni per un quiz a risposta multipla partendo da una flashcard.
+            const prompt = `Agisci come un esperto in progettazione pedagogica e creazione di test universitari.
+                            Riceverai una domanda e la sua risposta corretta canonica.
+                            Il tuo obiettivo è generare opzioni di risposta ad alta qualità che misurino la reale comprensione concettuale, NON la memoria pura.
 
-━━━ REGOLE OBBLIGATORIE ━━━
+                            ═══ REGOLE PEDAGOGICHE (CONTENUTO) ═══
 
-LUNGHEZZA: massimo ${maxWords} parole per opzione. Sii diretto e conciso come in un vero quiz universitario.
+                            1) "correctAnswerVariant": Rielabora il concetto corretto usando sinonimi e parafrasi.
+                            NON copiare testualmente la risposta originale. Lo studente deve dimostrare di aver capito, non di aver memorizzato.
 
-LINGUAGGIO: scrivi come un umano. VIETATO usare queste espressioni meta-artificiali:
-"nel contesto descritto", "come indicato", "questa opzione", "secondo quanto specificato",
-"inverte i termini", "omette un elemento", "confonde i concetti", "in base alla definizione",
-"il concetto presentato", "scambia le definizioni", "il termine utilizzato".
-Se appare anche solo UNA di queste frasi nell'output, l'output è sbagliato.
+                            2) Distrattore 1 — IL COMPETITIVO ("Quasi Corretto"):
+                            Deve essere parzialmente vero o riferirsi a un concetto molto vicino, ma con una sfumatura che lo rende sbagliato.
+                            Esempio di errore: confondere causa con effetto, scambiare condizione necessaria con sufficiente.
 
-DISTINZIONE: ogni opzione deve essere chiaramente diversa dalle altre. Vietato ripetere lo stesso concetto con parole diverse.
+                            3) Distrattore 2 — IL TERMINOLOGICO:
+                            Usa termini tecnici corretti e pertinenti al contesto, ma inseriti in un ragionamento o applicazione errata.
+                            Serve a verificare se lo studente conosce il significato delle parole o le "riconosce" e basta.
 
-━━━ I 4 TIPI ━━━
+                            4) Distrattore 3 — L'INVERSIONE:
+                            Descrive esattamente l'opposto del concetto corretto, oppure scambia le definizioni tra due termini simili trattati nello stesso argomento.
 
-correctAnswerVariant: rielabora la risposta corretta usando sinonimi o una prospettiva diversa. Non copiarla parola per parola.
+                            5) PLAUSIBILITÀ OBBLIGATORIA:
+                            - Nessun distrattore deve essere palesemente assurdo.
+                            - Ogni opzione deve rappresentare un "sentiero logico" distinto.
+                            - MAI creare due opzioni che dicono la stessa cosa con parole diverse.
+                            - Tutte le opzioni devono sembrare plausibili a chi non ha studiato bene.
 
-distractors[0] — INCOMPLETO: dice una cosa vera a metà, ma manca il pezzo fondamentale del concetto.
+                            ═══ SPIEGAZIONI DIDATTICHE ═══
 
-distractors[1] — CONFUSIONE TECNICA: usa i termini giusti del settore, ma li applica al contesto sbagliato.
+                            6) Per CIASCUN distrattore, genera una spiegazione breve (1-2 frasi, max 40 parole) che spiega
+                            PERCHÉ quella risposta è sbagliata e quale errore concettuale rappresenta.
+                            Queste spiegazioni verranno mostrate allo studente quando sbaglia, per aiutarlo a capire l'errore.
 
-distractors[2] — PLAUSIBILE MA ERRATO: sembra logico di senso comune, ma è tecnicamente falso o descrive l'opposto.
+                            ═══ REGOLE FORMATO (CODICE) ═══
 
-explanations[0..2]: spiega in 1 frase breve (max 20 parole) perché quel distrattore è sbagliato.
+                            7) Restituisci SOLO ed ESCLUSIVAMENTE JSON valido nel seguente formato esatto:
+                            {
+                            "correctAnswerVariant": "stringa",
+                            "distractors": ["competitivo", "terminologico", "inversione"],
+                            "explanations": ["perché competitivo è sbagliato", "perché terminologico è sbagliato", "perché inversione è sbagliata"]
+                            }
+                            8) Tutte e 4 le opzioni (correctAnswerVariant + 3 distractors) devono avere lunghezza, struttura sintattica e registro linguistico OMOGENEI per non fornire indizi visivi sulla risposta corretta.
+                            9) Ogni opzione deve avere tra ${minWords} e ${maxWords} parole, rigorosamente.
+                            10) Ogni stringa deve essere UNA singola frase completa e sensata, terminata con punto.
+                            11) Nessuna stringa deve contenere ritorni a capo, tabulazioni o caratteri di controllo.
+                            ${attempt > 0 ? '12) ⚠️ ATTENZIONE: il precedente output era non valido o sbilanciato. Rispetta RIGOROSAMENTE il numero di parole, genera JSON puro e assicurati che le frasi siano complete e non troncate.' : ''}
 
-━━━ ESEMPIO ━━━
-
-Flashcard:
-D: Cos'è il principio di competenza economica?
-R: Costi e ricavi vanno imputati all'esercizio a cui si riferiscono economicamente, indipendentemente dal pagamento.
-
-Output corretto:
-{
-  "correctAnswerVariant": "Costi e ricavi appartengono al periodo economico di riferimento, non alla data del pagamento.",
-  "distractors": [
-    "I costi si registrano nell'esercizio in cui avviene il pagamento effettivo.",
-    "Il principio di prudenza impone di rimandare i ricavi all'incasso.",
-    "Costi e ricavi si imputano all'esercizio successivo a quello di riferimento."
-  ],
-  "explanations": [
-    "Confonde competenza con cassa: il pagamento non determina l'imputazione.",
-    "Sbagliato principio: prudenza e competenza sono concetti distinti.",
-    "Descrive l'opposto: la competenza richiede imputazione nell'anno di riferimento, non dopo."
-  ]
-}
-
-━━━ ORA ELABORA QUESTA FLASHCARD ━━━
-
-Domanda: ${question}
-Risposta corretta: ${correctAnswer}
-${attempt > 0 ? `\n⚠️ TENTATIVO ${attempt + 1}: l'output precedente era invalido o le opzioni erano troppo lunghe/simili. Rispetta TUTTE le regole.` : ''}`;
+                            ═══ INPUT ═══
+                            Domanda: ${question}
+                            Risposta corretta canonica: ${correctAnswer}`;
 
             const completion = await openai.chat.completions.create(
                 {
@@ -633,7 +619,7 @@ ${attempt > 0 ? `\n⚠️ TENTATIVO ${attempt + 1}: l'output precedente era inva
                     messages: [
                         {
                             role: 'system',
-                            content: 'Sei un professore universitario che crea test a scelta multipla. Genera SOLO JSON valido. Ogni opzione: max 20 parole, italiano naturale, zero meta-linguaggio artificiale. I 4 tipi (correctAnswerVariant, Incompleto, Confusione Tecnica, Plausibile ma Errato) devono essere chiaramente distinguibili.',
+                            content: 'Sei un esperto in psicometria e progettazione pedagogica di test universitari. Genera esclusivamente JSON valido secondo lo schema fornito, senza markdown, senza commenti e senza testo extra. Ogni distrattore deve testare un tipo diverso di errore concettuale.',
                         },
                         {
                             role: 'user',
@@ -641,8 +627,8 @@ ${attempt > 0 ? `\n⚠️ TENTATIVO ${attempt + 1}: l'output precedente era inva
                         },
                     ],
                     response_format: responseFormat,
-                    temperature: 0.65,
-                    max_tokens: 1200,
+                    temperature: 0.35,
+                    reasoning_effort: 'high',
                 },
                 {
                     timeout: 20000,
