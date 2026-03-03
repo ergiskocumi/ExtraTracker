@@ -21,7 +21,7 @@ module.exports = {
         const deck = await Deck.findOne({
             _id: deckId,
             user: userId,
-        }).select('+extractedText');
+        }).select('+extractedText +recentQuizQuestions');
 
         if (!deck) {
             throw AppError.notFound('Mazzo');
@@ -116,8 +116,19 @@ module.exports = {
                 : requestedLimit > 0 ? requestedLimit
                     : sessionLimit || 10;
             const textChunk = (deck.extractedText || '').slice(0, SEMANTIC_CHUNK_SIZE);
-            const aiQuestions = await this.generateQuizFromPDFText(textChunk, questionCount);
+            const previousQuestions = Array.isArray(deck.recentQuizQuestions)
+                ? deck.recentQuizQuestions.slice(-50)
+                : [];
+            const aiQuestions = await this.generateQuizFromPDFText(textChunk, questionCount, previousQuestions);
             const enrichedCards = this._mapAiQuestionsToCards(aiQuestions);
+
+            const newQuestionTexts = aiQuestions.map(q => q.questionText);
+            setImmediate(() => {
+                Deck.updateOne(
+                    { _id: deck._id },
+                    { $push: { recentQuizQuestions: { $each: newQuestionTexts, $slice: -50 } } },
+                ).catch(() => {});
+            });
 
             this._logQuizDebug('session-ai-quiz', {
                 deckId: deck._id.toString(),

@@ -208,6 +208,11 @@ const deckSchema = new mongoose.Schema({
         default: '',
         select: false,
     },
+    recentQuizQuestions: {
+        type: [String],
+        default: [],
+        select: false,
+    },
     tags: {
         type: [String],
         default: [],
@@ -330,6 +335,7 @@ deckSchema.set('toJSON', {
         delete ret._id;
         delete ret.user;
         delete ret.extractedText;
+        delete ret.recentQuizQuestions;
 
         // Converti folderId se presente (anche null deve essere incluso)
         if (ret.folderId !== undefined && ret.folderId !== null) {

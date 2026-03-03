@@ -40,7 +40,7 @@ module.exports = {
     // AI QUIZ GENERATION FROM PDF TEXT
     // =========================================
 
-    async generateQuizFromPDFText(pdfTextChunk, questionCount = 5) {
+    async generateQuizFromPDFText(pdfTextChunk, questionCount = 5, previousQuestions = []) {
         if (!process.env.OPENAI_API_KEY) {
             throw new Error('OPENAI_API_KEY non configurata');
         }
@@ -95,17 +95,25 @@ REGOLE PSICOMETRICHE E PEDAGOGICHE TASSATIVE:
 1. DOMANDA AUTOSUFFICIENTE (The "Cover-the-options" rule): La domanda (stem) deve esporre un problema o uno scenario applicativo chiaro. Lo studente deve capire esattamente cosa viene chiesto PRIMA di leggere le opzioni. Evita formulazioni pigre come "Cosa si evince dal testo riguardo a X?" o "Quale affermazione è vera?".
 2. DOMANDE IN POSITIVO E DI RAGIONAMENTO: Formula domande sui "perché/come" o su relazioni causa-effetto. Evita il recupero mnemonico di definizioni. NON usare formulazioni negative ("Quale di questi NON è...") a meno che non sia strettamente necessario, poiché testano l'attenzione alla lettura e non la competenza.
 3. SINTESI ESTREMA (Micro-copy): Le opzioni di risposta (corretta e distrattori) devono essere brevissime, dirette e indipendenti. MASSIMO 20 PAROLE per opzione. Vai dritto al nucleo logico.
-4. DIVIETO DI RIPETIZIONE: Non iniziare le opzioni con frasi introduttive (es. "Nel contesto descritto...", "La ragione è..."). Rimuovi ogni formalismo burocratico. Scrivi solo l'informazione cruda.
+4. DIVIETO DI RIPETIZIONE: Non iniziare le opzioni con frasi introduttive (es. "Nel contesto descritto...", "La ragione è..., "Secondo il testo...", "Nel testo dice...""). Rimuovi ogni formalismo burocratico. Scrivi solo l'informazione cruda.
 5. ANATOMIA DEI DISTRATTORI: Devono intercettare i "misconcetti comuni" per risultare attraenti a chi ha studiato in modo superficiale. Usa questi tre modelli logici:
    - Il Competitivo (Errore Causale): Logicamente vicino alla verità, ma inverte la causa con l'effetto, o confonde una condizione necessaria con una sufficiente.
    - Il Terminologico (Il falso amico): Usa un termine tecnico reale presente nel testo, ma lo inserisce in un contesto logico o fenomeno completamente sbagliato.
    - L'Inversione (o Estremizzazione): Afferma l'esatto opposto del meccanismo reale, oppure trasforma una regola generale e sfumata in un dogma assoluto (es. usando parole come "sempre", "mai", "totalmente").
 6. OMOGENEITÀ VISIVA: Le 4 opzioni devono avere lunghezza, grammatica e tono identici. Nessuna opzione deve "spiccare" o sembrare visivamente la risposta corretta. Nessun meta-commento o spiegazione dentro le opzioni.`;
 
-        const userPrompt = `Genera ${count} domande a risposta multipla basate ESCLUSIVAMENTE sul seguente testo:\n\n${pdfTextChunk}`;
+        const previousBlock = previousQuestions.length > 0
+            ? `\n\n⛔ DOMANDE GIÀ GENERATE (da NON riproporre, nemmeno su concetti simili):\n${previousQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
+            : '';
+
+        const userPrompt = `Genera ${count} domande a risposta multipla basate ESCLUSIVAMENTE sul seguente testo:${previousBlock}\n\n${pdfTextChunk}`;
 
         const isReasoningModel = /^o\d/.test(DISTRACTOR_AI_MODEL);
-        this._logQuizDebug('quiz-from-pdf-start', { questionCount: count, textLength: pdfTextChunk.length });
+        this._logQuizDebug('quiz-from-pdf-start', {
+            questionCount: count,
+            textLength: pdfTextChunk.length,
+            previousQuestionsCount: previousQuestions.length,
+        });
 
         let completion;
         try {
