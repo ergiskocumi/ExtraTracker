@@ -66,17 +66,22 @@ module.exports = {
                             items: {
                                 type: 'object',
                                 additionalProperties: false,
-                                required: ['questionText', 'correctAnswer', 'distractors', 'explanations', 'correctAnswerExplanation'],
+                                required: ['questionText', 'correctAnswer', 'distractors', 'explanations', 'correctAnswerExplanation', 'difficulty'],
                                 properties: {
                                     questionText: { type: 'string' },
                                     correctAnswer: { type: 'string' },
+                                    difficulty: {
+                                        type: 'string',
+                                        enum: ['standard', 'hard'],
+                                        description: 'Livello difficoltà: circa il 25% delle domande deve essere "hard", le restanti "standard".',
+                                    },
                                     correctAnswerExplanation: {
                                         type: 'string',
-                                        description: 'Spiegazione pedagogica completa (2-3 frasi) di PERCHÉ la risposta corretta è giusta, con riferimento al meccanismo concettuale sottostante dal testo.',
+                                        description: 'Spiegazione pedagogica completa (2-3 frasi) di PERCHÉ la risposta corretta è giusta, con il meccanismo concettuale sottostante. Mai riferimenti al testo.',
                                     },
                                     distractors: {
                                         type: 'array',
-                                        description: 'Esattamente 3 distrattori (max 20 parole ciascuno).',
+                                        description: 'Esattamente 3 distrattori (max 20 parole ciascuno per "standard", max 30 per "hard").',
                                         items: { type: 'string' },
                                     },
                                     explanations: {
@@ -92,21 +97,44 @@ module.exports = {
             },
         };
 
-        const systemPrompt = `Agisci come un esperto di Instructional Design, Cognitive Load Theory e Psicometria. Riceverai un estratto da un testo universitario.
-Il tuo compito è generare ${count} domande a risposta multipla basate esclusivamente su questo testo, progettate per misurare la padronanza concettuale profonda e non la memoria di lavoro.
+        const hardCount = Math.max(1, Math.round(count * 0.25));
+        const systemPrompt = `Agisci come un esperto di Instructional Design, Cognitive Load Theory e Psicometria. Riceverai dei contenuti da studiare.
+        Il tuo compito è generare ${count} domande a risposta multipla che testano la padronanza concettuale profonda, NON la memoria di lavoro.
 
-REGOLE PSICOMETRICHE E PEDAGOGICHE TASSATIVE:
-1. DOMANDA AUTOSUFFICIENTE (The "Cover-the-options" rule): La domanda (stem) deve esporre un problema o uno scenario applicativo chiaro. Lo studente deve capire esattamente cosa viene chiesto PRIMA di leggere le opzioni. Evita formulazioni pigre come "Cosa si evince dal testo riguardo a X?" o "Quale affermazione è vera?".
-2. DOMANDE IN POSITIVO E DI RAGIONAMENTO: Formula domande sui "perché/come" o su relazioni causa-effetto. Evita il recupero mnemonico di definizioni. NON usare formulazioni negative ("Quale di questi NON è...") a meno che non sia strettamente necessario, poiché testano l'attenzione alla lettura e non la competenza.
-3. SINTESI ESTREMA (Micro-copy): Le opzioni di risposta (corretta e distrattori) devono essere brevissime, dirette e indipendenti. MASSIMO 20 PAROLE per opzione. Vai dritto al nucleo logico.
-4. DIVIETO DI RIPETIZIONE: Non iniziare le opzioni con frasi introduttive (es. "Nel contesto descritto...", "La ragione è..., "Secondo il testo...", "Nel testo dice...""). Rimuovi ogni formalismo burocratico. Scrivi solo l'informazione cruda.
-5. ANATOMIA DEI DISTRATTORI: Devono intercettare i "misconcetti comuni" per risultare attraenti a chi ha studiato in modo superficiale. Usa questi tre modelli logici:
-   - Il Competitivo (Errore Causale): Logicamente vicino alla verità, ma inverte la causa con l'effetto, o confonde una condizione necessaria con una sufficiente.
-   - Il Terminologico (Il falso amico): Usa un termine tecnico reale presente nel testo, ma lo inserisce in un contesto logico o fenomeno completamente sbagliato.
-   - L'Inversione (o Estremizzazione): Afferma l'esatto opposto del meccanismo reale, oppure trasforma una regola generale e sfumata in un dogma assoluto (es. usando parole come "sempre", "mai", "totalmente").
-6. OMOGENEITÀ VISIVA: Le 4 opzioni devono avere lunghezza, grammatica e tono identici. Nessuna opzione deve "spiccare" o sembrare visivamente la risposta corretta. Nessun meta-commento o spiegazione dentro le opzioni.
-7. SPIEGAZIONE DELLA RISPOSTA CORRETTA (correctAnswerExplanation): Scrivi 2-3 frasi che spiegano il meccanismo concettuale per cui la risposta è corretta. Non limitarti a riformulare la risposta: spiega il "perché" profondo, il principio sottostante o la relazione causa-effetto che il testo esprime. Parla all'utente in modo diretto e naturale, come farebbe un tutor esperto.
-8. SPIEGAZIONI DEI DISTRATTORI (explanations): Per ciascun distrattore, scrivi 1-2 frasi che spiegano in modo naturale e diretto: (a) qual è l'errore concettuale che quel distrattore intercetta, e (b) perché è sbagliato in relazione al principio corretto. Nomina esplicitamente il tipo di confusione (es. "Qui si confonde X con Y" o "Questo inverte causa ed effetto"). Tono: tutor paziente, non freddo o burocratico.`;
+        ━━━ REGOLA ZERO — DIVIETO ASSOLUTO DI RIFERIMENTI ALLA FONTE ━━━
+        ⛔ È VIETATO in qualsiasi campo (questionText, opzioni, spiegazioni) usare frasi come:
+        "nel testo", "il testo afferma", "secondo il testo", "come descritto", "stando al testo",
+        "il documento", "il brano", "il paragrafo", "come indicato", "il materiale", o qualsiasi
+        altra espressione che rimandi alla fonte scritta.
+        Le domande devono sembrare scritte da un esperto della materia, non da chi ha letto un documento.
+        Testa il concetto come se fosse conoscenza universale della disciplina.
+
+        ━━━ DISTRIBUZIONE DIFFICOLTÀ ━━━
+        Genera esattamente ${hardCount} domande con difficulty="hard" e ${count - hardCount} con difficulty="standard".
+
+        DOMANDE "standard":
+        - Stem di 1 frase, concetto singolo, risposta diretta.
+        - Opzioni max 20 parole ciascuna.
+
+        DOMANDE "hard":
+        - Stem di 2-3 frasi che costruiscono uno scenario applicativo o mettono in relazione 2+ concetti.
+        - Chiedono sintesi, applicazione o ragionamento causale multi-step.
+        - Opzioni max 30 parole ciascuna, più sfumate e difficili da distinguere.
+        - I distrattori devono essere attraenti anche per chi ha studiato bene, non solo per chi ha studiato in modo superficiale.
+
+        ━━━ REGOLE PSICOMETRICHE (per tutti i livelli) ━━━
+        1. DOMANDA AUTOSUFFICIENTE: Lo studente deve capire cosa viene chiesto PRIMA di leggere le opzioni. Vietato: "Quale affermazione è vera?" o "Cosa si può dire di X?".
+        2. RAGIONAMENTO, NON MEMORIA: Formula domande su "perché/come" o relazioni causa-effetto. Evita il recupero mnemonico di definizioni.
+        3. OPZIONI PULITE: Non iniziare le opzioni con frasi introduttive ("La ragione è...", "Perché...", "In questo caso..."). Solo l'informazione cruda.
+        4. ANATOMIA DEI DISTRATTORI — usa questi tre modelli:
+        - Errore Causale: inverte causa/effetto o confonde condizione necessaria con sufficiente.
+        - Falso Amico: usa un termine tecnico reale nel contesto sbagliato.
+        - Inversione/Estremizzazione: afferma l'opposto del meccanismo reale o usa "sempre"/"mai"/"totalmente".
+        5. OMOGENEITÀ VISIVA: Le 4 opzioni devono avere lunghezza, grammatica e tono simili. Nessuna deve spiccare visivamente.
+
+        ━━━ SPIEGAZIONI ━━━
+        6. correctAnswerExplanation: 2-3 frasi che spiegano il meccanismo concettuale profondo della risposta corretta. Parla direttamente allo studente ("Questo accade perché...", "Il motivo è..."). Mai riferimenti al testo.
+        7. explanations (per i distrattori): 1-2 frasi per ciascuno. Nomina l'errore concettuale specifico ("Qui si confonde X con Y", "Questo inverte causa ed effetto"). Tono: tutor paziente, non freddo.`;
 
         const previousBlock = previousQuestions.length > 0
             ? `\n\n⛔ DOMANDE GIÀ GENERATE (da NON riproporre, nemmeno su concetti simili):\n${previousQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
@@ -161,6 +189,7 @@ REGOLE PSICOMETRICHE E PEDAGOGICHE TASSATIVE:
             .map(q => ({
                 questionText: q.questionText.trim(),
                 correctAnswer: q.correctAnswer.trim(),
+                difficulty: q.difficulty === 'hard' ? 'hard' : 'standard',
                 correctAnswerExplanation: typeof q.correctAnswerExplanation === 'string' ? q.correctAnswerExplanation.trim() : '',
                 distractors: q.distractors.slice(0, 3).map(d => d.trim()),
                 explanations: Array.isArray(q.explanations)
@@ -192,6 +221,7 @@ REGOLE PSICOMETRICHE E PEDAGOGICHE TASSATIVE:
                 front: q.questionText,
                 back: q.correctAnswer,
                 canonicalBack: q.correctAnswer,
+                difficulty: q.difficulty,
                 correctAnswerExplanation: q.correctAnswerExplanation || '',
                 options,
                 distractorExplanations,
