@@ -56,15 +56,6 @@ module.exports = {
         });
         await deck.save();
 
-        const insertedCard = deck.cards[deck.cards.length - 1];
-        this._generateDistractorsForCardInBackground({
-            userId,
-            deckId: deck._id.toString(),
-            cardId: insertedCard?._id?.toString(),
-            front: normalizedFront,
-            back: normalizedBack,
-        });
-
         return deck;
     },
 
@@ -92,18 +83,7 @@ module.exports = {
 
         card.front = normalizedFront;
         card.back = normalizedBack;
-        card.quizAnswerVariant = '';
-        card.distractors = [];
-        card.aiDistractorsFailed = false;
         await deck.save();
-
-        this._generateDistractorsForCardInBackground({
-            userId,
-            deckId: deck._id.toString(),
-            cardId: card._id.toString(),
-            front: normalizedFront,
-            back: normalizedBack,
-        });
 
         return deck;
     },
@@ -133,18 +113,7 @@ module.exports = {
         }
 
         card.back = normalizedAnswer;
-        card.quizAnswerVariant = '';
-        card.distractors = [];
-        card.aiDistractorsFailed = false;
         await deck.save();
-
-        this._generateDistractorsForCardInBackground({
-            userId,
-            deckId: deck._id.toString(),
-            cardId: card._id.toString(),
-            front: card.front,
-            back: normalizedAnswer,
-        });
 
         return deck;
     },
@@ -238,17 +207,6 @@ module.exports = {
         }
 
         await deck.save();
-
-        const insertedCard = typeof position === 'number' && position >= 0 && position < deck.cards.length
-            ? deck.cards[position]
-            : deck.cards[deck.cards.length - 1];
-        this._generateDistractorsForCardInBackground({
-            userId,
-            deckId: deck._id.toString(),
-            cardId: insertedCard?._id?.toString(),
-            front: normalizedFront,
-            back: normalizedBack,
-        });
 
         return deck;
     },
@@ -404,11 +362,18 @@ module.exports = {
                 .filter(id => id.length > 0 && cardIdSet.has(id)))]
             : [];
 
-        if (sourceCardIds.length === 0) {
+        const isAiGeneratedQuiz = sourceCardIds.length === 0 &&
+            Array.isArray(payload.sourceCardIds) &&
+            payload.sourceCardIds.some(id => String(id).startsWith('quiz_ai_'));
+
+        if (sourceCardIds.length === 0 && !isAiGeneratedQuiz) {
             throw AppError.validation('Impossibile salvare il quiz: nessuna flashcard valida associata');
         }
 
-        const questionCountRaw = this._toNumber(payload.questionCount, sourceCardIds.length);
+        const questionCountRaw = this._toNumber(
+            payload.questionCount,
+            isAiGeneratedQuiz ? payload.questionCount : sourceCardIds.length,
+        );
         const questionCount = Math.max(
             1,
             Math.min(sourceCardIds.length, Math.round(questionCountRaw > 0 ? questionCountRaw : sourceCardIds.length))

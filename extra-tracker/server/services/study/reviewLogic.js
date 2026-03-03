@@ -178,6 +178,11 @@ module.exports = {
             throw AppError.validation('Il rating deve essere un numero tra 1 e 5');
         }
 
+        // Card generate da AI: nessun ID MongoDB reale, skip SRS tracking.
+        if (typeof cardId === 'string' && cardId.startsWith('quiz_ai_')) {
+            return { skipped: true, reason: 'ai-generated' };
+        }
+
         const deck = await Deck.findOne({
             _id: deckId,
             user: userId,

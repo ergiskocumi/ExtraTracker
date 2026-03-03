@@ -6,7 +6,7 @@
 
 const Deck = require('../../models/Deck');
 const AppError = require('../../utils/AppError');
-const { MIN_QUIZ_CARDS_REQUIRED, QUIZ_TYPES, DEFAULT_EASINESS_FACTOR, MIN_EASINESS_FACTOR } = require('./constants');
+const { MIN_QUIZ_CARDS_REQUIRED, QUIZ_TYPES, DEFAULT_EASINESS_FACTOR, MIN_EASINESS_FACTOR, SEMANTIC_CHUNK_SIZE } = require('./constants');
 
 module.exports = {
 
@@ -21,7 +21,7 @@ module.exports = {
         const deck = await Deck.findOne({
             _id: deckId,
             user: userId,
-        });
+        }).select('+extractedText');
 
         if (!deck) {
             throw AppError.notFound('Mazzo');
@@ -67,7 +67,12 @@ module.exports = {
             throw AppError.validation('Nessuna flashcard valida per il quiz richiesto');
         }
 
-        if (mode === 'quiz' && sourceCardIds.length === 0 && cards.length < MIN_QUIZ_CARDS_REQUIRED) {
+        const isMultipleChoiceQuiz = mode === 'quiz' && quizType !== QUIZ_TYPES.TRUE_FALSE;
+        if (isMultipleChoiceQuiz) {
+            if (!(deck.extractedText || '').trim()) {
+                throw AppError.validation('Quiz AI non disponibile: carica un PDF per abilitare questa modalità.');
+            }
+        } else if (mode === 'quiz' && sourceCardIds.length === 0 && cards.length < MIN_QUIZ_CARDS_REQUIRED) {
             throw AppError.validation('Crea almeno 10 flashcard per sbloccare la generazione del quiz');
         }
 
@@ -104,44 +109,46 @@ module.exports = {
             });
 
         const cardModes = this._buildCardModes(mode, sessionCards, examType);
-        const shouldUseMultipleChoice = !((mode === 'quiz' && quizType === QUIZ_TYPES.TRUE_FALSE) || examType === 'true_false');
-        if (shouldUseMultipleChoice) {
-            const quizCards = sessionCards.filter(card => {
-                const cardId = this._resolveCardId(card);
-                const cardMode = cardModes?.[cardId] || mode;
-                return cardMode === 'quiz';
+
+        // PDF-based AI quiz: genera le domande dal testo estratto e ritorna subito
+        if (isMultipleChoiceQuiz) {
+            const questionCount = requestedQuestions > 0 ? requestedQuestions
+                : requestedLimit > 0 ? requestedLimit
+                    : sessionLimit || 10;
+            const textChunk = (deck.extractedText || '').slice(0, SEMANTIC_CHUNK_SIZE);
+            const aiQuestions = await this.generateQuizFromPDFText(textChunk, questionCount);
+            const enrichedCards = this._mapAiQuestionsToCards(aiQuestions);
+
+            this._logQuizDebug('session-ai-quiz', {
+                deckId: deck._id.toString(),
+                questionCount: enrichedCards.length,
+                textChunkLength: textChunk.length,
             });
-            if (quizCards.length > 0) {
-                await this._ensureDistractorsForQuizCards({
-                    userId,
-                    deckId: deck._id.toString(),
-                    cards: quizCards,
-                });
-            }
+
+            return {
+                deck: { ...deckJson, totalCards: cards.length, dueCount: dueCards.length },
+                cards: enrichedCards,
+                remaining: enrichedCards.length,
+                total: enrichedCards.length,
+                mode,
+                cardModes: {},
+                meta: {
+                    focus: 'all',
+                    limit: enrichedCards.length,
+                    timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : undefined,
+                    questionCount: enrichedCards.length,
+                    direction: undefined,
+                    quizType,
+                },
+            };
         }
 
         const allAnswers = cards
             .map(card => card.back)
             .filter(answer => typeof answer === 'string' && answer.trim().length > 0);
 
-        let enrichedCards = sessionCards.map(card => {
-            const cardId = this._resolveCardId(card);
-            const cardMode = cardModes?.[cardId] || mode;
-            if (cardMode === 'quiz') {
-                if (mode === 'quiz' && quizType === QUIZ_TYPES.TRUE_FALSE) {
-                    return card;
-                }
-                const quizPayload = this._buildQuizOptions(card, cards);
-                return {
-                    ...card,
-                    back: quizPayload.correctAnswer,
-                    canonicalBack: card.back,
-                    options: quizPayload.options,
-                    distractorExplanations: quizPayload.distractorExplanations || {},
-                };
-            }
-            return card;
-        });
+        // True/false quiz e tutti gli altri modi usano ancora la selezione flashcard
+        let enrichedCards = sessionCards.map(card => card);
 
         if (mode === 'quiz') {
             const sample = enrichedCards
