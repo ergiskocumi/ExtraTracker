@@ -114,7 +114,7 @@ module.exports = {
         if (isMultipleChoiceQuiz) {
             const questionCount = requestedQuestions > 0 ? requestedQuestions
                 : requestedLimit > 0 ? requestedLimit
-                    : sessionLimit || 10;
+                    : 10;
             const textChunk = (deck.extractedText || '').slice(0, SEMANTIC_CHUNK_SIZE);
             const previousQuestions = Array.isArray(deck.recentQuizQuestions)
                 ? deck.recentQuizQuestions.slice(-50)

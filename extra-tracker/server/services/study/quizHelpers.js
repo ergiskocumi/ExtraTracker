@@ -48,7 +48,7 @@ module.exports = {
             throw new Error('Testo PDF non valido o troppo breve per generare domande');
         }
 
-        const count = Math.max(1, Math.min(20, Math.floor(questionCount)));
+        const count = Math.max(1, Math.floor(questionCount));
 
         const responseFormat = {
             type: 'json_schema',
