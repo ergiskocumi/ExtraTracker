@@ -66,10 +66,14 @@ module.exports = {
                             items: {
                                 type: 'object',
                                 additionalProperties: false,
-                                required: ['questionText', 'correctAnswer', 'distractors', 'explanations'],
+                                required: ['questionText', 'correctAnswer', 'distractors', 'explanations', 'correctAnswerExplanation'],
                                 properties: {
                                     questionText: { type: 'string' },
                                     correctAnswer: { type: 'string' },
+                                    correctAnswerExplanation: {
+                                        type: 'string',
+                                        description: 'Spiegazione pedagogica completa (2-3 frasi) di PERCHÉ la risposta corretta è giusta, con riferimento al meccanismo concettuale sottostante dal testo.',
+                                    },
                                     distractors: {
                                         type: 'array',
                                         description: 'Esattamente 3 distrattori (max 20 parole ciascuno).',
@@ -77,7 +81,7 @@ module.exports = {
                                     },
                                     explanations: {
                                         type: 'array',
-                                        description: 'Esattamente 3 spiegazioni brevi (1 per distrattore, max 15 parole).',
+                                        description: 'Esattamente 3 spiegazioni (1 per distrattore): spiega in 1-2 frasi naturali perché quel distrattore è sbagliato e quale errore concettuale intercetta.',
                                         items: { type: 'string' },
                                     },
                                 },
@@ -100,7 +104,9 @@ REGOLE PSICOMETRICHE E PEDAGOGICHE TASSATIVE:
    - Il Competitivo (Errore Causale): Logicamente vicino alla verità, ma inverte la causa con l'effetto, o confonde una condizione necessaria con una sufficiente.
    - Il Terminologico (Il falso amico): Usa un termine tecnico reale presente nel testo, ma lo inserisce in un contesto logico o fenomeno completamente sbagliato.
    - L'Inversione (o Estremizzazione): Afferma l'esatto opposto del meccanismo reale, oppure trasforma una regola generale e sfumata in un dogma assoluto (es. usando parole come "sempre", "mai", "totalmente").
-6. OMOGENEITÀ VISIVA: Le 4 opzioni devono avere lunghezza, grammatica e tono identici. Nessuna opzione deve "spiccare" o sembrare visivamente la risposta corretta. Nessun meta-commento o spiegazione dentro le opzioni.`;
+6. OMOGENEITÀ VISIVA: Le 4 opzioni devono avere lunghezza, grammatica e tono identici. Nessuna opzione deve "spiccare" o sembrare visivamente la risposta corretta. Nessun meta-commento o spiegazione dentro le opzioni.
+7. SPIEGAZIONE DELLA RISPOSTA CORRETTA (correctAnswerExplanation): Scrivi 2-3 frasi che spiegano il meccanismo concettuale per cui la risposta è corretta. Non limitarti a riformulare la risposta: spiega il "perché" profondo, il principio sottostante o la relazione causa-effetto che il testo esprime. Parla all'utente in modo diretto e naturale, come farebbe un tutor esperto.
+8. SPIEGAZIONI DEI DISTRATTORI (explanations): Per ciascun distrattore, scrivi 1-2 frasi che spiegano in modo naturale e diretto: (a) qual è l'errore concettuale che quel distrattore intercetta, e (b) perché è sbagliato in relazione al principio corretto. Nomina esplicitamente il tipo di confusione (es. "Qui si confonde X con Y" o "Questo inverte causa ed effetto"). Tono: tutor paziente, non freddo o burocratico.`;
 
         const previousBlock = previousQuestions.length > 0
             ? `\n\n⛔ DOMANDE GIÀ GENERATE (da NON riproporre, nemmeno su concetti simili):\n${previousQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
@@ -129,7 +135,7 @@ REGOLE PSICOMETRICHE E PEDAGOGICHE TASSATIVE:
                         ? { reasoning_effort: 'high' }
                         : { temperature: 0.35 }),
                 },
-                { timeout: 60000 },
+                { timeout: 120000 },
             );
         } catch (apiError) {
             this._logQuizDebug('quiz-from-pdf-api-error', { error: apiError.message });
@@ -155,6 +161,7 @@ REGOLE PSICOMETRICHE E PEDAGOGICHE TASSATIVE:
             .map(q => ({
                 questionText: q.questionText.trim(),
                 correctAnswer: q.correctAnswer.trim(),
+                correctAnswerExplanation: typeof q.correctAnswerExplanation === 'string' ? q.correctAnswerExplanation.trim() : '',
                 distractors: q.distractors.slice(0, 3).map(d => d.trim()),
                 explanations: Array.isArray(q.explanations)
                     ? q.explanations.slice(0, 3).map(e => typeof e === 'string' ? e.trim() : '')
@@ -185,6 +192,7 @@ REGOLE PSICOMETRICHE E PEDAGOGICHE TASSATIVE:
                 front: q.questionText,
                 back: q.correctAnswer,
                 canonicalBack: q.correctAnswer,
+                correctAnswerExplanation: q.correctAnswerExplanation || '',
                 options,
                 distractorExplanations,
                 isAiGenerated: true,
