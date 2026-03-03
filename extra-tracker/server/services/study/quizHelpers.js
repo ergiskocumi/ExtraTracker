@@ -98,6 +98,7 @@ module.exports = {
         };
 
         const hardCount = Math.max(1, Math.round(count * 0.25));
+        console.log(`[StudyService.generateQuizFromPDFText] Generating ${count} questions (${hardCount} hard, ${count - hardCount} standard) from text chunk of length ${pdfTextChunk.length}. Previous questions count: ${previousQuestions.length}`);
         const systemPrompt = `Agisci come un esperto di Instructional Design, Cognitive Load Theory e Psicometria. Riceverai dei contenuti da studiare.
         Il tuo compito è generare ${count} domande a risposta multipla che testano la padronanza concettuale profonda, NON la memoria di lavoro.
 
@@ -113,14 +114,14 @@ module.exports = {
         Genera esattamente ${hardCount} domande con difficulty="hard" e ${count - hardCount} con difficulty="standard".
 
         DOMANDE "standard":
-        - Stem di 1 frase, concetto singolo, risposta diretta.
-        - Opzioni max 20 parole ciascuna.
+        - Stem di 1 frase breve, concetto singolo, risposta diretta.
+        - Opzioni max 15 parole ciascuna.
 
         DOMANDE "hard":
-        - Stem di 2-3 frasi che costruiscono uno scenario applicativo o mettono in relazione 2+ concetti.
-        - Chiedono sintesi, applicazione o ragionamento causale multi-step.
-        - Opzioni max 30 parole ciascuna, più sfumate e difficili da distinguere.
-        - I distrattori devono essere attraenti anche per chi ha studiato bene, non solo per chi ha studiato in modo superficiale.
+        - Stem di massimo 2 frasi brevi. La seconda frase aggiunge UN elemento di contesto o chiede la relazione tra due concetti. NON costruire scenari narrativi lunghi o situazioni aziendali elaborate.
+        - La difficoltà viene dai distrattori sfumati, NON dalla lunghezza dello stem.
+        - Opzioni max 20 parole ciascuna, più sfumate e difficili da distinguere.
+        - I distrattori devono essere attraenti anche per chi ha studiato bene.
 
         ━━━ REGOLE PSICOMETRICHE (per tutti i livelli) ━━━
         1. DOMANDA AUTOSUFFICIENTE: Lo studente deve capire cosa viene chiesto PRIMA di leggere le opzioni. Vietato: "Quale affermazione è vera?" o "Cosa si può dire di X?".
@@ -131,6 +132,21 @@ module.exports = {
         - Falso Amico: usa un termine tecnico reale nel contesto sbagliato.
         - Inversione/Estremizzazione: afferma l'opposto del meccanismo reale o usa "sempre"/"mai"/"totalmente".
         5. OMOGENEITÀ VISIVA: Le 4 opzioni devono avere lunghezza, grammatica e tono simili. Nessuna deve spiccare visivamente.
+
+        ━━━ CASI SPECIALI (Applicare se il testo lo richiede) ━━━
+        A) DATI QUANTITATIVI E FORMULE (Se il testo contiene numeri o matematica):
+        - È SEVERAMENTE VIETATO generare distrattori numerici casuali (es. se la risposta è 10, non mettere 11, 12, 13).
+        - Ogni distrattore numerico DEVE essere il risultato plausibile di un tipico errore procedurale dello studente.
+        - Esempi di errori da simulare: dimenticare una conversione di unità di misura, invertire un rapporto (numeratore/denominatore), omettere o aggiungere un passaggio della formula, confondere un segno (+ invece di -).
+        - Nelle "explanations", devi esplicitare quale errore di calcolo o formula porta a quel numero errato.
+
+        B) PROCESSI, FASI E SEQUENZE STORICHE (Se il testo descrive flussi o step):
+        - NON chiedere mai elenchi mnemonici (es. "Qual è la terza fase del processo?").
+        - Le domande devono testare le dipendenze logiche tra le fasi.
+        - Modelli di domanda ammessi per le sequenze:
+          · Cosa comporta l'omissione o il fallimento di una fase specifica?
+          · Qual è il prerequisito logico (input) affinché una determinata fase possa iniziare?
+          · Se l'obiettivo finale cambia in [Scenario X], quale fase del processo deve essere adattata?
 
         ━━━ SPIEGAZIONI ━━━
         6. correctAnswerExplanation: 2-3 frasi che spiegano il meccanismo concettuale profondo della risposta corretta. Parla direttamente allo studente ("Questo accade perché...", "Il motivo è..."). Mai riferimenti al testo.
@@ -159,9 +175,7 @@ module.exports = {
                         { role: 'user', content: userPrompt },
                     ],
                     response_format: responseFormat,
-                    ...(isReasoningModel
-                        ? { reasoning_effort: 'high' }
-                        : { temperature: 0.35 }),
+                    ...({ temperature: 0.35 }),
                 },
                 { timeout: 120000 },
             );
@@ -199,6 +213,103 @@ module.exports = {
 
         this._logQuizDebug('quiz-from-pdf-success', { questionsGenerated: questions.length });
         return questions;
+    },
+
+    // =========================================
+    // TEXT CHUNKING
+    // =========================================
+
+    _splitTextIntoChunks(text, chunkSize = 5000, overlap = 500) {
+        if (!text || text.length === 0) return [];
+        if (text.length <= chunkSize) return [text];
+
+        const chunks = [];
+        let start = 0;
+
+        while (start < text.length) {
+            let end = Math.min(start + chunkSize, text.length);
+
+            if (end < text.length) {
+                // Prefer cutting at a newline or space to avoid mid-word truncation
+                const newlineIdx = text.lastIndexOf('\n', end);
+                const spaceIdx = text.lastIndexOf(' ', end);
+                const cutPoint = Math.max(newlineIdx, spaceIdx);
+
+                // Only use the boundary if it falls in the last 20% of the chunk
+                if (cutPoint > start + chunkSize * 0.8) {
+                    end = cutPoint + 1;
+                }
+            }
+
+            chunks.push(text.slice(start, end));
+
+            if (end >= text.length) break;
+
+            // Next chunk overlaps by `overlap` chars to preserve context across boundaries
+            start = end - overlap;
+        }
+
+        return chunks;
+    },
+
+    // =========================================
+    // FULL-PDF ORCHESTRATOR
+    // =========================================
+
+    async generateQuizFromFullPDF(fullText, totalQuestionsRequested, previousQuestions = []) {
+        const chunks = this._splitTextIntoChunks(fullText);
+
+        if (chunks.length === 0) {
+            throw new Error('Testo PDF non valido o vuoto');
+        }
+
+        // Distribute questions evenly: remainder goes to the first N chunks (+1 each)
+        const baseCount = Math.floor(totalQuestionsRequested / chunks.length);
+        const remainder = totalQuestionsRequested % chunks.length;
+        const counts = chunks.map((_, i) => baseCount + (i < remainder ? 1 : 0));
+
+        this._logQuizDebug('quiz-full-pdf-start', {
+            totalChunks: chunks.length,
+            totalQuestionsRequested,
+            distribution: counts,
+            textLength: fullText.length,
+        });
+
+        const allGeneratedQuestions = [];
+
+        for (let i = 0; i < chunks.length; i++) {
+            const countForChunk = counts[i];
+            if (countForChunk === 0) continue;
+
+            // Pass all already-generated question texts so the AI skips similar concepts
+            const seenQuestions = [
+                ...previousQuestions,
+                ...allGeneratedQuestions.map(q => q.questionText),
+            ];
+
+            try {
+                const questions = await this.generateQuizFromPDFText(chunks[i], countForChunk, seenQuestions);
+                allGeneratedQuestions.push(...questions);
+            } catch (err) {
+                this._logQuizDebug('quiz-full-pdf-chunk-error', {
+                    chunkIndex: i,
+                    error: err.message,
+                });
+                // Graceful degradation: partial results are better than a total crash
+            }
+
+            // Rate-limit protection between chunks (skip after the last one)
+            if (i < chunks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+        }
+
+        this._logQuizDebug('quiz-full-pdf-success', {
+            totalRequested: totalQuestionsRequested,
+            totalGenerated: allGeneratedQuestions.length,
+        });
+
+        return allGeneratedQuestions;
     },
 
     // =========================================

@@ -6,7 +6,7 @@
 
 const Deck = require('../../models/Deck');
 const AppError = require('../../utils/AppError');
-const { MIN_QUIZ_CARDS_REQUIRED, QUIZ_TYPES, DEFAULT_EASINESS_FACTOR, MIN_EASINESS_FACTOR, SEMANTIC_CHUNK_SIZE } = require('./constants');
+const { MIN_QUIZ_CARDS_REQUIRED, QUIZ_TYPES, DEFAULT_EASINESS_FACTOR, MIN_EASINESS_FACTOR } = require('./constants');
 
 module.exports = {
 
@@ -115,11 +115,10 @@ module.exports = {
             const questionCount = requestedQuestions > 0 ? requestedQuestions
                 : requestedLimit > 0 ? requestedLimit
                     : 10;
-            const textChunk = (deck.extractedText || '').slice(0, SEMANTIC_CHUNK_SIZE);
             const previousQuestions = Array.isArray(deck.recentQuizQuestions)
                 ? deck.recentQuizQuestions.slice(-50)
                 : [];
-            const aiQuestions = await this.generateQuizFromPDFText(textChunk, questionCount, previousQuestions);
+            const aiQuestions = await this.generateQuizFromFullPDF(deck.extractedText || '', questionCount, previousQuestions);
             const enrichedCards = this._mapAiQuestionsToCards(aiQuestions);
 
             const newQuestionTexts = aiQuestions.map(q => q.questionText);
@@ -133,7 +132,7 @@ module.exports = {
             this._logQuizDebug('session-ai-quiz', {
                 deckId: deck._id.toString(),
                 questionCount: enrichedCards.length,
-                textChunkLength: textChunk.length,
+                textLength: (deck.extractedText || '').length,
             });
 
             return {

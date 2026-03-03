@@ -201,7 +201,6 @@ FORMATO JSON:
                         },
                     ],
                     temperature: 0.7,
-                    reasoning_effort: 'high',
                 });
 
                 const content = completion.choices[0]?.message?.content || '';
