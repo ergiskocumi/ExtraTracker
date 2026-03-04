@@ -21,6 +21,9 @@ const fs = require('fs');
 const crypto = require('crypto'); // Hoisted: evita require ad ogni request
 require('dotenv').config();
 
+// Validazione env vars con Zod — fail-fast se variabili critiche mancanti
+require('./config/envSchema').validateEnv();
+
 // Environment Configuration (DEVE essere caricato per primo)
 const { config: envConfig, isProduction } = require('./ENVIRONMENTS');
 
@@ -184,8 +187,7 @@ const MONGO_URI = envConfig.database.mongoUri;
 
 // Fail Secure: non tollerare credenziali mancanti
 if (!MONGO_URI) {
-    console.error('❌ ERRORE CRITICO: Variabile di ambiente MONGO_URI non configurata');
-    console.error('📝 Configura MONGO_URI nel file .env prima di avviare il server');
+    logger.error('Server', 'ERRORE CRITICO: MONGO_URI non configurata');
     process.exit(1);
 }
 

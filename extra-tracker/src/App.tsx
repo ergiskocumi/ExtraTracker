@@ -83,6 +83,7 @@ function App() {
             <Routes>
                 {/* ===== LANDING (pubblica) ===== */}
                 <Route path="/" element={<RootRoute />} />
+                <Route path="/landing" element={<LandingPage useRouterLinks appUrl="" />} />
 
                 {/* ===== ROUTE PUBBLICHE (Auth) ===== */}
                 <Route element={<AuthLayout />}>
