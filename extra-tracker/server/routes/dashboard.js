@@ -35,4 +35,16 @@ router.get('/summary', dashboardController.getSummary);
  */
 router.get('/quick-actions', dashboardController.getQuickActions);
 
+/**
+ * GET /api/dashboard/ai-usage/summary
+ * Riepilogo aggregato utilizzo AI
+ */
+router.get('/ai-usage/summary', dashboardController.getAiUsageSummary);
+
+/**
+ * GET /api/dashboard/ai-usage/events
+ * Eventi dettagliati utilizzo AI
+ */
+router.get('/ai-usage/events', dashboardController.getAiUsageEvents);
+
 module.exports = router;

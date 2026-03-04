@@ -10,6 +10,7 @@ const Deck = require('../../models/Deck');
 const AppError = require('../../utils/AppError');
 const pdfCacheService = require('../pdfCacheService');
 const vectorStoreService = require('../vectorStoreService');
+const aiUsageService = require('../aiUsageService');
 const {
     openai,
     getValidModel,
@@ -109,7 +110,11 @@ module.exports = {
 
         let context = '';
         try {
-            const matches = await vectorStoreService.queryDeck(deckId, cleanMessage, 5);
+            const matches = await vectorStoreService.queryDeck(deckId, cleanMessage, 5, {
+                userId,
+                mode: 'tutor',
+                feature: 'tutor_vector_query',
+            });
             if (Array.isArray(matches) && matches.length > 0) {
                 context = matches.join('\n\n---\n\n');
             }
@@ -119,8 +124,16 @@ module.exports = {
 
         if (!context && extractedText) {
             try {
-                await vectorStoreService.ingestDeck(deckId, extractedText);
-                const matches = await vectorStoreService.queryDeck(deckId, cleanMessage, 5);
+                await vectorStoreService.ingestDeck(deckId, extractedText, {
+                    userId,
+                    mode: 'tutor',
+                    feature: 'tutor_vector_ingest_fallback',
+                });
+                const matches = await vectorStoreService.queryDeck(deckId, cleanMessage, 5, {
+                    userId,
+                    mode: 'tutor',
+                    feature: 'tutor_vector_query_fallback',
+                });
                 if (Array.isArray(matches) && matches.length > 0) {
                     context = matches.join('\n\n---\n\n');
                 }
@@ -153,16 +166,29 @@ module.exports = {
 
         let aiResponse;
         try {
-            const completion = await openai.chat.completions.create({
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                ...safeHistory,
+                { role: 'user', content: cleanMessage },
+            ];
+
+            const completion = await aiUsageService.runTrackedChatCompletion({
+                userId,
+                mode: 'tutor',
+                feature: 'tutor_chat_answer',
                 model,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    ...safeHistory,
-                    { role: 'user', content: cleanMessage },
-                ],
+                messages,
+                promptLengthChars: systemPrompt.length + cleanMessage.length,
+                metadata: {
+                    deckId: String(deckId),
+                    historyMessages: safeHistory.length,
+                },
+            }, () => openai.chat.completions.create({
+                model,
+                messages,
                 temperature: 0.2,
                 max_completion_tokens: 600,
-            });
+            }));
 
             aiResponse = completion.choices[0]?.message?.content;
         } catch (err) {
@@ -271,7 +297,11 @@ module.exports = {
 
         let context = '';
         try {
-            const matches = await vectorStoreService.queryDeck(deckId, cleanQuestion, 8);
+            const matches = await vectorStoreService.queryDeck(deckId, cleanQuestion, 8, {
+                userId,
+                mode: 'tutor',
+                feature: 'exam_tutor_vector_query',
+            });
             if (Array.isArray(matches) && matches.length > 0) {
                 context = matches.join('\n\n---\n\n');
             }
@@ -281,8 +311,16 @@ module.exports = {
 
         if (!context && extractedText) {
             try {
-                await vectorStoreService.ingestDeck(deckId, extractedText);
-                const matches = await vectorStoreService.queryDeck(deckId, cleanQuestion, 8);
+                await vectorStoreService.ingestDeck(deckId, extractedText, {
+                    userId,
+                    mode: 'tutor',
+                    feature: 'exam_tutor_vector_ingest_fallback',
+                });
+                const matches = await vectorStoreService.queryDeck(deckId, cleanQuestion, 8, {
+                    userId,
+                    mode: 'tutor',
+                    feature: 'exam_tutor_vector_query_fallback',
+                });
                 if (Array.isArray(matches) && matches.length > 0) {
                     context = matches.join('\n\n---\n\n');
                 }
@@ -345,15 +383,27 @@ GENERA LA RISPOSTA:`;
 
         let aiResponse;
         try {
-            const completion = await openai.chat.completions.create({
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: cleanQuestion },
+            ];
+
+            const completion = await aiUsageService.runTrackedChatCompletion({
+                userId,
+                mode: 'tutor',
+                feature: 'exam_tutor_answer',
                 model,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: cleanQuestion },
-                ],
+                messages,
+                promptLengthChars: systemPrompt.length + cleanQuestion.length,
+                metadata: {
+                    deckId: String(deckId),
+                },
+            }, () => openai.chat.completions.create({
+                model,
+                messages,
                 temperature: 0.1,
                 max_completion_tokens: 800,
-            });
+            }));
 
             aiResponse = completion.choices[0]?.message?.content;
         } catch (err) {

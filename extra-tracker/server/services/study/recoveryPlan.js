@@ -12,6 +12,7 @@ const {
     ACTIVE_AI_MODEL,
     DEFAULT_EASINESS_FACTOR,
 } = require('./constants');
+const aiUsageService = require('../aiUsageService');
 
 module.exports = {
 
@@ -185,23 +186,37 @@ FORMATO JSON:
       "back": "Risposta completa con spiegazione dettagliata..."
     }
   ]
-}`;
+            }`;
 
             try {
-                const completion = await openai.chat.completions.create({
+                const messages = [
+                    {
+                        role: 'system',
+                        content: 'Sei un esperto tutor universitario. Generi flashcard di alta qualità per aiutare gli studenti a superare esami difficili. Rispondi SOLO con JSON valido, senza markdown, senza testo extra.',
+                    },
+                    {
+                        role: 'user',
+                        content: prompt,
+                    },
+                ];
+
+                const completion = await aiUsageService.runTrackedChatCompletion({
+                    userId,
+                    mode: 'recovery',
+                    feature: 'recovery_questions_generation',
                     model: ACTIVE_AI_MODEL,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'Sei un esperto tutor universitario. Generi flashcard di alta qualità per aiutare gli studenti a superare esami difficili. Rispondi SOLO con JSON valido, senza markdown, senza testo extra.',
-                        },
-                        {
-                            role: 'user',
-                            content: prompt,
-                        },
-                    ],
+                    messages,
+                    promptLengthChars: prompt.length,
+                    metadata: {
+                        examId: String(examId),
+                        deckId: String(deck._id),
+                        difficultiesCount: Array.isArray(difficulties) ? difficulties.length : 0,
+                    },
+                }, () => openai.chat.completions.create({
+                    model: ACTIVE_AI_MODEL,
+                    messages,
                     temperature: 0.7,
-                });
+                }));
 
                 const content = completion.choices[0]?.message?.content || '';
                 const parsed = this._parseJSONResponse(content);

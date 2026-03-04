@@ -461,7 +461,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
             setProgress({ step: 'uploading', message: 'Caricamento del file...', estimatedTime: 10 });
             addLogMemo('Inizio caricamento PDF...', 'info', Upload);
 
-            await studyService.generateFromPDF(deckId, file);
+            await studyService.generateFromPDF(deckId, file, { maxCards: estimatedAutoCards });
             addLogMemo('File caricato con successo', 'success', CheckCircle2);
         } catch (err: unknown) {
             const errorMsg = err instanceof Error ? err.message : 'Errore durante la generazione';

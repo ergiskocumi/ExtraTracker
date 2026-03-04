@@ -23,6 +23,7 @@ const LandingPage = lazy(() => import('~landing/pages/LandingPage').then(m => ({
 
 // OTTIMIZZATO: Lazy loading per tutte le pagine (code splitting)
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const AIUsageDashboardPage = lazy(() => import('./features/dashboard/pages/AIUsageDashboardPage').then(m => ({ default: m.AIUsageDashboardPage })));
 const SettingsPage = lazy(() => import('./features/settings/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const LoginPage = lazy(() => import('./features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('./features/auth/pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
@@ -109,6 +110,7 @@ function App() {
                     }
                 >
                     <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/ai-dashboard" element={<AIUsageDashboardPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
 
                     {/* Study / Flashcards */}
