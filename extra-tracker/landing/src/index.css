@@ -308,3 +308,183 @@ body {
   outline: 2px solid var(--landing-focus);
   outline-offset: 2px;
 }
+
+/* ====================================
+   HERO SECTION ANIMATIONS
+   ==================================== */
+
+/* Aurora background animations */
+@keyframes aurora-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(50px, 30px) scale(1.05);
+  }
+  66% {
+    transform: translate(30px, -20px) scale(1.1);
+  }
+}
+
+@keyframes aurora-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-40px, 50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-60px, -30px) scale(1.15);
+  }
+}
+
+@keyframes aurora-3 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -40px) scale(1.15);
+  }
+  66% {
+    transform: translate(-30px, 20px) scale(1.2);
+  }
+}
+
+.animate-aurora-1 {
+  animation: aurora-1 15s ease-in-out infinite;
+}
+
+.animate-aurora-2 {
+  animation: aurora-2 18s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.animate-aurora-3 {
+  animation: aurora-3 20s ease-in-out infinite;
+  animation-delay: 4s;
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes float-delayed {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(10px);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 5s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+/* Slow bounce for scroll indicator */
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 1.5s ease-in-out infinite;
+}
+
+/* Sparkle rotation */
+@keyframes sparkle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(15deg);
+  }
+  75% {
+    transform: rotate(-15deg);
+  }
+}
+
+.animate-sparkle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+/* Shimmer effect for buttons */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s linear infinite;
+}
+
+/* Float slow animations */
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -20px); }
+}
+
+@keyframes float-slow-reverse {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-30px, 20px); }
+}
+
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+.animate-float-slow-reverse {
+  animation: float-slow-reverse 10s ease-in-out infinite;
+}
+
+/* Pulse slow */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+/* Marquee animation */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Card shadows */
+.shadow-card {
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.shadow-glow-sm {
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);
+}
