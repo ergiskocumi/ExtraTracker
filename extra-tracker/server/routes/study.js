@@ -15,6 +15,8 @@ const path = require('path');
 const { requireAuth } = require('../middleware/auth');
 const { tenantContext } = require('../middleware/tenantContext');
 const { aiLimiter } = require('../middleware/rateLimiter');
+const { validatePdf } = require('../middleware/validatePdf');
+const logger = require('../utils/logger');
 const rateLimit = require('express-rate-limit');
 
 // Controller
@@ -191,16 +193,15 @@ router.post('/:id/reset-distractors', studyController.resetDistractors);
 router.post('/:id/generate-pdf', aiLimiter, (req, res, next) => {
     upload.single('pdf')(req, res, (err) => {
         if (err) {
-            console.error('Multer error:', err.message);
+            logger.warn('StudyRoutes', 'Multer error (generate-pdf)', { message: err.message });
             return res.status(400).json({
                 success: false,
                 error: { message: err.message || 'Errore nel caricamento del file' }
             });
         }
-        console.log('📄 File ricevuto:', req.file ? req.file.originalname : 'NESSUN FILE');
         next();
     });
-}, studyController.uploadAndGenerate);
+}, validatePdf, studyController.uploadAndGenerate);
 
 // =========================================
 // RECOVERY PLAN - Exam Recovery Actions
@@ -226,13 +227,12 @@ router.post('/exam/:examId/generate-recovery-questions', aiLimiter, studyControl
 router.post('/exam-solver/extract-questions', aiLimiter, (req, res, next) => {
     examSolverUpload.single('questionsFile')(req, res, (err) => {
         if (err) {
-            console.error('Multer error (extract-questions):', err.message);
+            logger.warn('StudyRoutes', 'Multer error (extract-questions)', { message: err.message });
             return res.status(400).json({
                 success: false,
                 error: { message: err.message || 'Errore nel caricamento del file' }
             });
         }
-        console.log('📄 Extract Questions file ricevuto:', req.file?.originalname || 'NONE');
         next();
     });
 }, studyController.extractQuestions);
@@ -245,16 +245,15 @@ router.post('/exam-solver/extract-questions', aiLimiter, (req, res, next) => {
 router.post('/exam-solver/generate-answers', examSolverLimiter, (req, res, next) => {
     examSolverUpload.single('sourceFile')(req, res, (err) => {
         if (err) {
-            console.error('Multer error (generate-answers):', err.message);
+            logger.warn('StudyRoutes', 'Multer error (generate-answers)', { message: err.message });
             return res.status(400).json({
                 success: false,
                 error: { message: err.message || 'Errore nel caricamento del file' }
             });
         }
-        console.log('📄 Generate Answers file ricevuto:', req.file?.originalname || 'NONE');
         next();
     });
-}, studyController.generateAnswers);
+}, validatePdf, studyController.generateAnswers);
 
 /**
  * POST /api/study/exam-solver
@@ -274,16 +273,12 @@ router.post('/exam-solver', examSolverLimiter, (req, res, next) => {
         { name: 'sourceFile', maxCount: 1 },
     ])(req, res, (err) => {
         if (err) {
-            console.error('Multer error (exam-solver):', err.message);
+            logger.warn('StudyRoutes', 'Multer error (exam-solver)', { message: err.message });
             return res.status(400).json({
                 success: false,
                 error: { message: err.message || 'Errore nel caricamento dei file' }
             });
         }
-        console.log('📄 Exam Solver files ricevuti:', {
-            questionsFile: req.files?.questionsFile ? req.files.questionsFile[0]?.originalname : 'NONE',
-            sourceFile: req.files?.sourceFile ? req.files.sourceFile[0]?.originalname : 'NONE',
-        });
         next();
     });
 }, studyController.examSolver);

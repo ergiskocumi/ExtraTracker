@@ -6,6 +6,7 @@
  */
 
 const fs = require('fs').promises;
+const logger = require('./logger');
 
 /**
  * Verifica se un buffer è un PDF valido controllando il magic bytes header
@@ -57,7 +58,7 @@ const validatePdfFile = async (filePath) => {
 
         // Check 2: EOF marker
         if (!hasPdfEof(buffer)) {
-            console.warn('⚠️ PDF potrebbe essere corrotto (%%EOF mancante), ma procedo...');
+            logger.warn('PdfValidator', 'PDF potrebbe essere corrotto (%%EOF mancante), procedo comunque');
             // Non blocchiamo, solo warning
         }
 
@@ -72,7 +73,7 @@ const validatePdfFile = async (filePath) => {
         return { isValid: true };
 
     } catch (err) {
-        console.error('❌ validatePdfFile error:', err.message);
+        logger.error('PdfValidator', 'validatePdfFile error', err);
         return {
             isValid: false,
             error: `Errore durante la validazione: ${err.message}`,
@@ -97,7 +98,7 @@ const validatePdfBuffer = (buffer) => {
 
         // Check 2: EOF marker (opzionale)
         if (!hasPdfEof(buffer)) {
-            console.warn('⚠️ PDF potrebbe essere corrotto (%%EOF mancante), ma procedo...');
+            logger.warn('PdfValidator', 'PDF potrebbe essere corrotto (%%EOF mancante), procedo comunque');
         }
 
         // Check 3: Dimensione minima
@@ -111,7 +112,7 @@ const validatePdfBuffer = (buffer) => {
         return { isValid: true };
 
     } catch (err) {
-        console.error('❌ validatePdfBuffer error:', err.message);
+        logger.error('PdfValidator', 'validatePdfBuffer error', err);
         return {
             isValid: false,
             error: `Errore durante la validazione: ${err.message}`,
@@ -140,7 +141,7 @@ const extractPdfMetadata = (buffer) => {
             isLinearized,
         };
     } catch (err) {
-        console.error('❌ extractPdfMetadata error:', err.message);
+        logger.error('PdfValidator', 'extractPdfMetadata error', err);
         return {
             version: null,
             isLinearized: false,
