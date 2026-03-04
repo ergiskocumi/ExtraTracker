@@ -168,6 +168,59 @@ const generateRecoveryQuestionsSchema = z.object({
     difficulties: z.array(z.string()),
 });
 
+// =========================================
+// SCHEMI AGGIUNTIVI (FASE A)
+// =========================================
+
+const uploadAndGenerateSchema = z.object({
+    maxCards: z.preprocess(
+        v => (v !== undefined && v !== '' ? Number(v) : undefined),
+        z.number().int().min(1).max(260).optional()
+    ),
+});
+
+const updateDeckSettingsSchema = z.object({
+    algorithm: z.enum(['sm2', 'fsrs', 'leitner', 'anki']).optional(),
+    aiSettings: z.object({
+        style: z.enum(['comprehensive', 'conceptual', 'factual', 'application']).optional(),
+        difficulty: z.enum(['easy', 'medium', 'hard', 'mixed']).optional(),
+        questionTypes: z.array(z.string()).optional(),
+    }).optional(),
+}).passthrough();
+
+const saveExamProgressSchema = z.object({
+    examConfig: z.record(z.unknown()).optional().default({}),
+    currentCardIndex: z.number().int().nonnegative().optional().default(0),
+    stats: z.object({
+        hard: z.number().int().nonnegative().optional().default(0),
+        good: z.number().int().nonnegative().optional().default(0),
+        easy: z.number().int().nonnegative().optional().default(0),
+    }).optional(),
+    elapsedSeconds: z.number().nonnegative().optional().default(0),
+    answers: z.array(z.unknown()).optional().default([]),
+    sessionCardIds: z.array(z.string()).optional().default([]),
+}).passthrough();
+
+const generateAnswersSchema = z.object({
+    selectedQuestions: z.preprocess(
+        v => (typeof v === 'string' ? JSON.parse(v) : v),
+        z.array(z.record(z.unknown())).min(1, 'Seleziona almeno una domanda')
+    ),
+    deckId: z.string().optional().nullable(),
+    title: z.string().optional().nullable(),
+    examId: z.string().optional().nullable(),
+}).refine(d => d.deckId || d.title, {
+    message: 'Fornire deckId oppure title per creare un nuovo deck',
+});
+
+const examSolverSchema = z.object({
+    deckId: z.string().optional().nullable(),
+    title: z.string().optional().nullable(),
+    examId: z.string().optional().nullable(),
+}).refine(d => d.deckId || d.title, {
+    message: 'Fornire deckId oppure title per creare un nuovo deck',
+});
+
 module.exports = {
     // Query params
     getSessionSchema,
@@ -186,4 +239,10 @@ module.exports = {
     saveQuizSnapshotSchema,
     resetExamCardsSchema,
     generateRecoveryQuestionsSchema,
+    // Fase A
+    uploadAndGenerateSchema,
+    updateDeckSettingsSchema,
+    saveExamProgressSchema,
+    generateAnswersSchema,
+    examSolverSchema,
 };
