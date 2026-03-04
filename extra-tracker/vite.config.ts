@@ -1,3 +1,4 @@
+import path from 'path'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
@@ -6,6 +7,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     dedupe: ['@tiptap/react', '@tiptap/pm', '@tiptap/starter-kit'],
+    alias: {
+      '~landing': path.resolve(__dirname, 'landing/src'),
+    },
   },
   define: {
     // Read version from environment variable (VITE_APP_VERSION) or fallback to package.json

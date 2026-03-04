@@ -29,6 +29,40 @@ const cardSchema = new mongoose.Schema({
         trim: true,
         maxlength: [4000, 'Il retro non puo\' superare 4000 caratteri'],
     },
+    // Variante riformulata della risposta corretta usata nel quiz
+    quizAnswerVariant: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [4000, 'La variante risposta quiz non puo\' superare 4000 caratteri'],
+    },
+    // Distrattori AI per quiz a scelta multipla
+    distractors: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: function(distractors) {
+                if (!Array.isArray(distractors)) return false;
+                return distractors.every(item => typeof item === 'string' && item.trim().length > 0);
+            },
+            message: 'I distractors devono essere un array di stringhe non vuote',
+        },
+    },
+    // Spiegazioni pedagogiche per ciascun distrattore ("perché è sbagliata")
+    distractorExplanations: {
+        type: [String],
+        default: [],
+    },
+    aiDistractorsFailed: {
+        type: Boolean,
+        default: false,
+    },
+    // Versione del prompt usato per generare i distrattori.
+    // Se diverge dalla DISTRACTOR_PROMPT_VERSION corrente, la card viene rigenerata automaticamente.
+    distractorPromptVersion: {
+        type: String,
+        default: '',
+    },
     // SM-2 parameters
     easinessFactor: {
         type: Number,
@@ -113,6 +147,38 @@ const normalizeTags = (tags) => {
     return [...new Set(normalized)];
 };
 
+const savedQuizSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [180, 'Il nome del quiz salvato non puo\' superare 180 caratteri'],
+    },
+    quizType: {
+        type: String,
+        enum: ['multiple_choice', 'true_false'],
+        default: 'multiple_choice',
+    },
+    questionCount: {
+        type: Number,
+        required: true,
+        min: [1, 'Il numero di domande deve essere almeno 1'],
+    },
+    sourceCardIds: {
+        type: [String],
+        default: [],
+    },
+    source: {
+        type: String,
+        enum: ['chapter', 'repeat', 'errors', 'saved'],
+        default: 'chapter',
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+}, { _id: true });
+
 const deckSchema = new mongoose.Schema({
     examId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -142,6 +208,11 @@ const deckSchema = new mongoose.Schema({
         default: '',
         select: false,
     },
+    recentQuizQuestions: {
+        type: [String],
+        default: [],
+        select: false,
+    },
     tags: {
         type: [String],
         default: [],
@@ -161,6 +232,10 @@ const deckSchema = new mongoose.Schema({
     },
     cards: {
         type: [cardSchema],
+        default: [],
+    },
+    savedQuizzes: {
+        type: [savedQuizSchema],
         default: [],
     },
     // =========================================
@@ -260,6 +335,7 @@ deckSchema.set('toJSON', {
         delete ret._id;
         delete ret.user;
         delete ret.extractedText;
+        delete ret.recentQuizQuestions;
 
         // Converti folderId se presente (anche null deve essere incluso)
         if (ret.folderId !== undefined && ret.folderId !== null) {
@@ -272,6 +348,14 @@ deckSchema.set('toJSON', {
             ret.cards = ret.cards.map(card => ({
                 ...card,
                 id: card._id?.toString() || card.id,
+                _id: undefined,
+            }));
+        }
+
+        if (Array.isArray(ret.savedQuizzes)) {
+            ret.savedQuizzes = ret.savedQuizzes.map(quiz => ({
+                ...quiz,
+                id: quiz._id?.toString() || quiz.id,
                 _id: undefined,
             }));
         }

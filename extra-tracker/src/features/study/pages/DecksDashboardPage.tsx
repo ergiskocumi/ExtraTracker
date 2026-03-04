@@ -25,6 +25,8 @@ import { DragDropZone } from '../components/DeckSections/DragDropZone';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
 import type { Exam } from '../types/exam';
 import examService from '../services/examService';
+import { studyService, type ExamSavedQuiz } from '../services/studyService';
+import { emitToast } from '../../../shared/components/toast';
 
 // ============================================
 // MAIN DASHBOARD PAGE
@@ -43,6 +45,8 @@ export const DecksDashboardPage: React.FC = () => {
     const [isCreateExamModalOpen, setIsCreateExamModalOpen] = useState(false);
     const [examIdRequestedDeleteFromGrid, setExamIdRequestedDeleteFromGrid] = useState<string | null>(null);
     const [isDeletingFromGrid, setIsDeletingFromGrid] = useState(false);
+    const [savedExamQuizzes, setSavedExamQuizzes] = useState<ExamSavedQuiz[]>([]);
+    const [isLoadingSavedExamQuizzes, setIsLoadingSavedExamQuizzes] = useState(false);
 
     // Sidebar organization state (kept for DashboardLayout compatibility)
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -107,6 +111,7 @@ export const DecksDashboardPage: React.FC = () => {
             setSelectedExamId(null);
             setSelectedExam(null);
             setSelectedFolderId(null);
+            setSavedExamQuizzes([]);
             return;
         }
 
@@ -174,7 +179,63 @@ export const DecksDashboardPage: React.FC = () => {
         setSelectedExamId(null);
         setSelectedExam(null);
         setSelectedDayIndex(null);
+        setSavedExamQuizzes([]);
         navigate('/study', { replace: true });
+    }, [navigate]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        if (!selectedExamId) {
+            setSavedExamQuizzes([]);
+            setIsLoadingSavedExamQuizzes(false);
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        const loadSavedExamQuizzes = async () => {
+            setIsLoadingSavedExamQuizzes(true);
+            try {
+                const quizzes = await studyService.getExamSavedQuizzes(selectedExamId);
+                if (isMounted) {
+                    setSavedExamQuizzes(quizzes);
+                }
+            } catch (err) {
+                console.error('Errore nel caricamento dei quiz salvati:', err);
+                if (isMounted) {
+                    setSavedExamQuizzes([]);
+                }
+            } finally {
+                if (isMounted) {
+                    setIsLoadingSavedExamQuizzes(false);
+                }
+            }
+        };
+
+        loadSavedExamQuizzes();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedExamId]);
+
+    const handleReplaySavedQuiz = useCallback((quiz: ExamSavedQuiz) => {
+        if (!quiz.deckId || !Array.isArray(quiz.sourceCardIds) || quiz.sourceCardIds.length === 0) {
+            emitToast.info('Questo quiz non è più disponibile');
+            return;
+        }
+
+        const params = new URLSearchParams();
+        params.set('mode', 'quiz');
+        params.set('focus', 'all');
+        params.set('questions', String(Math.max(quiz.questionCount || 0, 1)));
+        params.set('quizType', quiz.quizType);
+        params.set('sourceCardIds', quiz.sourceCardIds.join(','));
+        params.set('quizSource', 'saved');
+        params.set('run', String(Date.now()));
+
+        navigate(`/study/${quiz.deckId}/session?${params.toString()}`);
     }, [navigate]);
 
     const examDeletion = useExamDeletion({
@@ -261,6 +322,9 @@ export const DecksDashboardPage: React.FC = () => {
                     onCompleteExam={() => setShowCompletionModal(true)}
                     onDeleteExam={() => examDeletion.requestDelete()}
                     viewMode="grid"
+                    savedQuizzes={savedExamQuizzes}
+                    isLoadingSavedQuizzes={isLoadingSavedExamQuizzes}
+                    onReplaySavedQuiz={handleReplaySavedQuiz}
                 />
             ) : !isLoading && exams.length === 0 ? (
                 /* ═══ EMPTY STATE: nessun esame – messaggio chiaro e CTA ═══ */

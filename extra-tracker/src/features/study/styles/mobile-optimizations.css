@@ -1,0 +1,188 @@
+/**
+ * 📱 MOBILE & TABLET OPTIMIZATIONS
+ * =================================
+ * 
+ * Stili aggiuntivi per ottimizzare l'esperienza su dispositivi mobili e tablet.
+ * Questo file complementa Tailwind CSS con regole specifiche per touch e viewport.
+ */
+
+/* ============================================
+   TOUCH OPTIMIZATIONS
+   ============================================ */
+
+/* Aumenta l'area touch per elementi interattivi */
+@media (hover: none) and (pointer: coarse) {
+    /* Pulsanti più grandi per touch */
+    button,
+    [role="button"],
+    a {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Input fields più alti per touch */
+    input,
+    textarea,
+    select {
+        min-height: 44px;
+        font-size: 16px; /* Previene zoom su iOS */
+    }
+
+    /* Aumenta padding per liste scrollabili */
+    .scrollbar-thin {
+        scrollbar-width: thin;
+    }
+}
+
+/* Utility class per touch manipulation */
+.touch-manipulation {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Abilita lo scroll fluido su iOS */
+.scroll-smooth-ios {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================
+   TABLET SPECIFIC (iPad)
+   ============================================ */
+
+/* Ottimizzazioni per tablet in modalità portrait */
+@media (min-width: 768px) and (max-width: 1023px) {
+    /* Sidebar più stretta su tablet */
+    .md\:col-span-2 {
+        grid-column: span 2 / span 2;
+    }
+
+    /* Adatta spaziature su tablet */
+    .tablet-spacing {
+        padding: 1rem;
+    }
+
+    /* Griglie adattive per tablet */
+    .tablet-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Ottimizzazioni per tablet in modalità landscape */
+@media (min-width: 1024px) and (max-width: 1366px) {
+    /* iPad Pro landscape specifico */
+    .ipad-landscape-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+/* ============================================
+   MOBILE SPECIFIC
+   ============================================ */
+
+/* Ottimizzazioni per schermi piccoli */
+@media (max-width: 640px) {
+    /* Nascondi elementi non essenziali su mobile */
+    .mobile-hidden {
+        display: none !important;
+    }
+
+    /* Testo più piccolo su mobile */
+    .mobile-text-sm {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+
+    /* Padding ridotto su mobile */
+    .mobile-p-2 {
+        padding: 0.5rem;
+    }
+
+    /* Margini ridotti su mobile */
+    .mobile-m-0 {
+        margin: 0;
+    }
+
+    /* Bottoni full-width su mobile quando necessario */
+    .mobile-btn-full {
+        width: 100%;
+    }
+
+    /* Previene overflow del testo */
+    .mobile-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+/* ============================================
+   STUDY SESSION SPECIFIC
+   ============================================ */
+
+/* Ottimizzazioni per la sessione di studio su mobile */
+@media (max-width: 768px) {
+    /* Card di studio più compatta */
+    .study-card-mobile {
+        aspect-ratio: 3/4 !important;
+    }
+
+    /* Controlli più grandi per touch */
+    .study-controls-mobile button {
+        min-height: 60px;
+    }
+
+    /* Testo più piccolo nelle card */
+    .study-card-content-mobile {
+        font-size: 1rem;
+        line-height: 1.5;
+    }
+}
+
+/* ============================================
+   SAFE AREA (iPhone X+)
+   ============================================ */
+
+/* Supporto per safe area su dispositivi con notch */
+@supports (padding-top: env(safe-area-inset-top)) {
+    .safe-area-top {
+        padding-top: env(safe-area-inset-top);
+    }
+
+    .safe-area-bottom {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .safe-area-x {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+}
+
+/* ============================================
+   ANIMATION REDUCTION (Accessibility)
+   ============================================ */
+
+/* Rispetta le preferenze di riduzione animazione */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ============================================
+   ORIENTATION
+   ============================================ */
+
+/* Adatta layout per landscape su mobile */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+    .landscape-mobile-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

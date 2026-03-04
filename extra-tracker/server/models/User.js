@@ -368,9 +368,7 @@ const userSchema = new mongoose.Schema(
 // ==========================================
 // INDEXES
 // ==========================================
-
-// Index per query email (login)
-userSchema.index({ email: 1 });
+// email: unique: true nello schema crea già l'indice { email: 1 }, non duplicare.
 
 // Index per verifica email
 userSchema.index({ emailVerificationToken: 1 });

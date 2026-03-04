@@ -25,11 +25,9 @@ const getGreeting = (name) => {
         greeting = 'Buongiorno';
     } else if (hour >= 12 && hour < 18) {
         greeting = 'Buon pomeriggio';
-    } else if (hour >= 18 && hour < 22) {
+    } else if (hour >= 18 && hour < 5) {
         greeting = 'Buonasera';
-    } else {
-        greeting = 'Buonanotte';
-    }
+    } 
 
     return `${greeting}, ${name}!`;
 };

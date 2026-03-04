@@ -19,9 +19,8 @@ let isRedisAvailable = false;
  * @returns {Promise<boolean>} - true se Redis è disponibile, false altrimenti
  */
 const initRedis = async () => {
-    // Se REDIS_URL non è configurato, usa memoria locale
     if (!process.env.REDIS_URL) {
-        console.log('⚠️  Redis non configurato (REDIS_URL mancante). Rate limiter userà memoria locale.');
+        console.log('⚠️  Redis non configurato. Rate limiter userà memoria locale (non distribuito).');
         return false;
     }
 

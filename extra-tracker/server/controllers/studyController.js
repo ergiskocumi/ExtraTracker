@@ -78,6 +78,13 @@ const getSession = asyncHandler(async (req, res) => {
     const direction = String(req.query.direction || 'front').toLowerCase();
     const examType = req.query.examType ? String(req.query.examType).toLowerCase() : undefined;
     const examDifficulty = req.query.examDifficulty ? String(req.query.examDifficulty).toLowerCase() : undefined;
+    const quizType = req.query.quizType ? String(req.query.quizType).toLowerCase() : undefined;
+    const sourceCardIds = req.query.sourceCardIds
+        ? String(req.query.sourceCardIds)
+            .split(',')
+            .map(id => id.trim())
+            .filter(Boolean)
+        : undefined;
 
     const session = await studyService.getStudySession(
         req.tenantScope,
@@ -91,10 +98,45 @@ const getSession = asyncHandler(async (req, res) => {
             direction,
             examType,
             examDifficulty,
+            quizType,
+            sourceCardIds,
         }
     );
 
     res.json({ success: true, data: session });
+});
+
+/**
+ * POST /api/study/:id/quizzes
+ * Salva uno snapshot di un quiz generato (per riuso futuro)
+ */
+const saveQuizSnapshot = asyncHandler(async (req, res) => {
+    const snapshot = await studyService.saveQuizSnapshot(
+        req.tenantScope,
+        req.params.id,
+        {
+            name: req.body.name,
+            quizType: req.body.quizType,
+            questionCount: req.body.questionCount,
+            sourceCardIds: req.body.sourceCardIds,
+            source: req.body.source,
+        }
+    );
+
+    res.status(201).json({ success: true, data: snapshot });
+});
+
+/**
+ * GET /api/study/exam/:examId/quizzes
+ * Restituisce lo storico quiz salvati di un esame
+ */
+const getExamSavedQuizzes = asyncHandler(async (req, res) => {
+    const quizzes = await studyService.getExamSavedQuizzes(
+        req.tenantScope,
+        req.params.examId
+    );
+
+    res.json({ success: true, data: quizzes });
 });
 
 // =========================================
@@ -850,6 +892,24 @@ const clearExamProgress = asyncHandler(async (req, res) => {
     res.json({ success: true, data: result });
 });
 
+/**
+ * POST /api/study/:id/reset-distractors
+ * Resetta distrattori AI di tutte le card di un deck per forzare la rigenerazione
+ * con il nuovo modello/prompt pedagogico
+ */
+const resetDistractors = asyncHandler(async (req, res) => {
+    const deckId = req.params.id;
+    console.log('🔄 resetDistractors chiamato:', { deckId });
+
+    const result = await studyService.resetDistractors(
+        req.tenantScope,
+        deckId
+    );
+
+    console.log('✅ resetDistractors completato:', result);
+    res.json({ success: true, data: result });
+});
+
 module.exports = {
     createDeck,
     updateDeck,
@@ -878,4 +938,7 @@ module.exports = {
     saveExamProgress,
     getExamProgress,
     clearExamProgress,
+    saveQuizSnapshot,
+    getExamSavedQuizzes,
+    resetDistractors,
 };

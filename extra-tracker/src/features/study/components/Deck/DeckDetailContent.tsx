@@ -36,6 +36,7 @@ interface DeckDetailContentProps {
     deck: Deck;
     onBack: () => void;
     onStudy: () => void;
+    onGenerateQuiz?: () => void;
     onExamSolver?: () => void;
     onReadPdf?: () => void;
     onMagicGenerate?: () => void;
@@ -55,6 +56,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
     deck,
     onBack,
     onStudy,
+    onGenerateQuiz,
     onExamSolver,
     onReadPdf,
     onMagicGenerate,
@@ -220,6 +222,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                 deck={deck}
                 onBack={onBack}
                 onStudy={onStudy}
+                onGenerateQuiz={onGenerateQuiz}
                 onExamSolver={onExamSolver}
                 onAddCard={handleAddCard}
                 onReadPdf={onReadPdf}
@@ -228,9 +231,9 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
             />
 
             {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {/* Cards Area */}
-                <div className="lg:col-span-3 space-y-5">
+                <div className="md:col-span-2 lg:col-span-3 space-y-4 md:space-y-5">
                     {/* Filters */}
                     <DeckCardFilters
                         activeFilter={filter}
@@ -243,7 +246,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                     />
 
                     {/* Cards List */}
-                    <div className="rounded-2xl border border-theme-default bg-theme-surface overflow-hidden min-h-[500px] p-4 sm:p-5 flex flex-col gap-4">
+                    <div className="rounded-2xl border border-theme-default bg-theme-surface overflow-hidden min-h-[300px] md:min-h-[500px] p-3 sm:p-4 md:p-5 flex flex-col gap-3 md:gap-4">
                         <AnimatePresence mode="popLayout">
                             {filteredCards.length === 0 ? (
                                 <motion.div
@@ -320,8 +323,8 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                     </motion.button>
                 </div>
 
-                {/* Sidebar - Desktop */}
-                <div className="hidden lg:block space-y-5">
+                {/* Sidebar - Desktop/Tablet */}
+                <div className="hidden md:block space-y-4 md:space-y-5">
                     <DeckStatsPanel
                         deck={deck}
                         onSettings={onSettings}
@@ -333,16 +336,16 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
             </div>
 
             {/* Mobile Actions Drawer */}
-            <div className="lg:hidden mt-6 space-y-3">
+            <div className="md:hidden mt-4 sm:mt-6 space-y-3">
                 <h3 className="text-sm font-semibold text-theme-secondary uppercase tracking-wide">
                     Azioni Rapide
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {onSettings && (
                         <motion.button
                             whileTap={{ scale: 0.98 }}
                             onClick={onSettings}
-                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-theme-card border border-theme-default text-theme-primary"
+                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-theme-card border border-theme-default text-theme-primary touch-manipulation"
                         >
                             <Settings className="w-4 h-4" />
                             <span className="text-sm">Impostazioni</span>

@@ -8,6 +8,7 @@ export type { Tag } from './tagsService';
 export type ReviewRating = 1 | 2 | 3 | 4 | 5;
 export type CardStatus = 'new' | 'learning' | 'review' | 'mastered';
 export type StudyMode = 'flashcard' | 'quiz' | 'typing' | 'mix' | 'sprint' | 'focus' | 'exam';
+export type QuizType = 'multiple_choice' | 'true_false';
 export type SessionFocus = 'smart' | 'due' | 'weak' | 'all';
 export type SessionLength = 'short' | 'standard' | 'deep';
 export type SessionDirection = 'front' | 'back' | 'mixed';
@@ -17,7 +18,12 @@ export interface Card {
     id: string;
     front: string;
     back: string;
+    canonicalBack?: string;
+    quizAnswerVariant?: string;
     options?: string[];
+    distractors?: string[];
+    aiDistractorsFailed?: boolean;
+    distractorExplanations?: Record<string, string>;
     easinessFactor: number;
     interval: number;
     repetitions: number;
@@ -56,6 +62,23 @@ export interface Deck {
         difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
         questionTypes?: string[];
     };
+    savedQuizzes?: SavedQuizSnapshot[];
+}
+
+export interface SavedQuizSnapshot {
+    id: string;
+    name: string;
+    quizType: QuizType;
+    questionCount: number;
+    sourceCardIds: string[];
+    source: 'chapter' | 'repeat' | 'errors' | 'saved';
+    createdAt?: string;
+}
+
+export interface ExamSavedQuiz extends SavedQuizSnapshot {
+    deckId: string;
+    deckTitle: string;
+    examId?: string | null;
 }
 
 export interface ChatMessage {
@@ -76,6 +99,7 @@ export interface StudySession {
         timeLimitMinutes?: number;
         questionCount?: number;
         direction?: SessionDirection;
+        quizType?: QuizType;
     };
 }
 
@@ -127,6 +151,16 @@ export interface SessionRequestOptions {
     direction?: SessionDirection;
     examType?: string;
     examDifficulty?: string;
+    quizType?: QuizType;
+    sourceCardIds?: string[];
+}
+
+export interface SaveQuizSnapshotPayload {
+    name?: string;
+    quizType: QuizType;
+    questionCount: number;
+    sourceCardIds: string[];
+    source?: 'chapter' | 'repeat' | 'errors' | 'saved';
 }
 
 export interface SessionCompleteResult {
@@ -216,13 +250,40 @@ const normalizeCard = (raw: any): Card => {
         id: raw.id || raw._id,
         front: raw.front || '',
         back: raw.back || '',
+        canonicalBack: typeof raw.canonicalBack === 'string' ? raw.canonicalBack : undefined,
+        quizAnswerVariant: typeof raw.quizAnswerVariant === 'string' ? raw.quizAnswerVariant : undefined,
         options: Array.isArray(raw.options) ? raw.options : undefined,
+        distractors: Array.isArray(raw.distractors) ? raw.distractors : undefined,
+        aiDistractorsFailed: Boolean(raw.aiDistractorsFailed ?? raw.ai_distractors_failed),
+        distractorExplanations: (raw.distractorExplanations && typeof raw.distractorExplanations === 'object' && !Array.isArray(raw.distractorExplanations))
+            ? raw.distractorExplanations as Record<string, string>
+            : undefined,
         easinessFactor: safeNumber(raw.easinessFactor, 2.5),
         interval: safeNumber(raw.interval, 0),
         repetitions: safeNumber(raw.repetitions, 0),
         nextReviewDate: raw.nextReviewDate || new Date().toISOString(),
         status: raw.status || 'new',
         sourceMetadata,
+    };
+};
+
+const normalizeSavedQuiz = (raw: any): SavedQuizSnapshot => {
+    const source = typeof raw?.source === 'string' ? raw.source.toLowerCase() : 'chapter';
+    const allowedSources: SavedQuizSnapshot['source'][] = ['chapter', 'repeat', 'errors', 'saved'];
+    const normalizedSource = allowedSources.includes(source as SavedQuizSnapshot['source'])
+        ? source as SavedQuizSnapshot['source']
+        : 'chapter';
+
+    return {
+        id: String(raw?.id || raw?._id || ''),
+        name: typeof raw?.name === 'string' ? raw.name : '',
+        quizType: raw?.quizType === 'true_false' ? 'true_false' : 'multiple_choice',
+        questionCount: safeNumber(raw?.questionCount, 0),
+        sourceCardIds: Array.isArray(raw?.sourceCardIds)
+            ? raw.sourceCardIds.map((id: unknown) => String(id).trim()).filter(Boolean)
+            : [],
+        source: normalizedSource,
+        createdAt: raw?.createdAt,
     };
 };
 
@@ -252,6 +313,7 @@ const normalizeDeck = (raw: any): Deck => {
             difficulty: aiSettings.difficulty,
             questionTypes: aiSettings.questionTypes || aiSettings.question_types,
         } : undefined,
+        savedQuizzes: Array.isArray(raw.savedQuizzes) ? raw.savedQuizzes.map(normalizeSavedQuiz) : [],
     };
 };
 
@@ -424,11 +486,49 @@ class StudyService {
         if (options.direction) params.set('direction', options.direction);
         if (options.examType) params.set('examType', options.examType);
         if (options.examDifficulty) params.set('examDifficulty', options.examDifficulty);
+        if (options.quizType) params.set('quizType', options.quizType);
+        if (Array.isArray(options.sourceCardIds) && options.sourceCardIds.length > 0) {
+            params.set('sourceCardIds', options.sourceCardIds.join(','));
+        }
 
         const query = params.toString();
         const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/session${query ? `?${query}` : ''}`);
         const raw = unwrap(response, 'Errore nel recupero della sessione');
         return normalizeSession(raw);
+    }
+
+    /**
+     * Salva lo snapshot di un quiz appena generato
+     */
+    async saveQuizSnapshot(deckId: string, payload: SaveQuizSnapshotPayload): Promise<ExamSavedQuiz> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/quizzes`, payload);
+        const raw = unwrap(response, 'Errore nel salvataggio del quiz');
+        const normalized = normalizeSavedQuiz(raw);
+        return {
+            ...normalized,
+            deckId: String(raw?.deckId || deckId),
+            deckTitle: typeof raw?.deckTitle === 'string' ? raw.deckTitle : '',
+            examId: raw?.examId || null,
+        };
+    }
+
+    /**
+     * Recupera lo storico quiz salvati per un esame
+     */
+    async getExamSavedQuizzes(examId: string): Promise<ExamSavedQuiz[]> {
+        const response = await apiClient.get<any>(`${this.baseUrl}/exam/${examId}/quizzes`);
+        const raw = unwrap(response, 'Errore nel recupero dei quiz salvati');
+        if (!Array.isArray(raw)) return [];
+
+        return raw.map((item: any) => {
+            const normalized = normalizeSavedQuiz(item);
+            return {
+                ...normalized,
+                deckId: String(item?.deckId || ''),
+                deckTitle: typeof item?.deckTitle === 'string' ? item.deckTitle : 'Mazzo',
+                examId: item?.examId || null,
+            };
+        });
     }
 
     /**
@@ -799,6 +899,20 @@ class StudyService {
     async clearExamProgress(deckId: string): Promise<{ success: boolean; message: string }> {
         const response = await apiClient.delete<any>(`${this.baseUrl}/${deckId}/exam-progress`);
         return unwrap(response, 'Errore nella cancellazione del progresso');
+    }
+
+    /**
+     * 🔄 Resetta distrattori AI di tutte le card di un deck
+     * Forza la rigenerazione con il nuovo modello/prompt pedagogico
+     */
+    async resetDistractors(deckId: string): Promise<{
+        deckId: string;
+        totalCards: number;
+        resetCards: number;
+        message: string;
+    }> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/reset-distractors`, {});
+        return unwrap(response, 'Errore nel reset dei distrattori');
     }
 }
 

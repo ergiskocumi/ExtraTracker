@@ -42,5 +42,8 @@
     "redis": "^4.7.0",
     "ua-parser-js": "^2.0.9",
     "zod": "^3.23.8"
+  },
+  "overrides": {
+    "punycode": "^2.3.1"
   }
 }

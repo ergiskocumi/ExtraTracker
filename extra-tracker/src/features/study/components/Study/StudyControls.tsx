@@ -119,8 +119,8 @@ export const StudyControls: React.FC<StudyControlsProps> = ({
 
     if (!visible) {
         return (
-            <div className="h-24 flex items-center justify-center">
-                <p className="text-theme-muted text-sm animate-pulse">
+            <div className="h-16 sm:h-24 flex items-center justify-center">
+                <p className="text-theme-muted text-xs sm:text-sm animate-pulse">
                     Gira la carta per valutare
                 </p>
             </div>
@@ -128,9 +128,9 @@ export const StudyControls: React.FC<StudyControlsProps> = ({
     }
 
     return (
-        <div className="study-controls w-full max-w-3xl mx-auto space-y-3">
+        <div className="study-controls w-full max-w-3xl mx-auto space-y-2 sm:space-y-3 px-2 sm:px-0">
             {/* Rating buttons - 5 columns */}
-            <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
+            <div className="grid grid-cols-5 gap-1 sm:gap-2 md:gap-3">
                 {RATING_OPTIONS.map((option, index) => (
                     <motion.button
                         key={option.value}
@@ -139,32 +139,33 @@ export const StudyControls: React.FC<StudyControlsProps> = ({
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.06 }}
-                        whileHover={{ scale: disabled ? 1 : 1.03, y: disabled ? 0 : -2 }}
-                        whileTap={{ scale: disabled ? 1 : 0.97 }}
+                        whileHover={{ scale: disabled ? 1 : 1.02, y: disabled ? 0 : -1 }}
+                        whileTap={{ scale: disabled ? 1 : 0.95 }}
                         className={`
-                            study-controls-option relative group p-2 sm:p-4 rounded-xl sm:rounded-2xl border-2
-                            transition-all duration-200
+                            study-controls-option relative group p-2 sm:p-3 md:p-4 rounded-lg sm:rounded-xl md:rounded-2xl border-2
+                            transition-all duration-200 touch-manipulation min-h-[60px] sm:min-h-[80px] md:min-h-[auto]
                             ${option.bgColor} ${option.borderColor}
                             ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+                            flex flex-col items-center justify-center
                         `}
                     >
                         {/* Icon */}
-                        <div className={`${option.color} mb-1 sm:mb-2 flex justify-center`}>
-                            <option.icon className="w-5 h-5 sm:w-7 sm:h-7" />
+                        <div className={`${option.color} mb-0.5 sm:mb-1 md:mb-2 flex justify-center`}>
+                            <option.icon className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7" />
                         </div>
 
                         {/* Label */}
-                        <span className={`text-xs sm:text-sm font-bold ${option.color} block mb-0.5`}>
+                        <span className={`text-[10px] sm:text-xs md:text-sm font-bold ${option.color} block mb-0 sm:mb-0.5 leading-tight`}>
                             {option.label}
                         </span>
 
                         {/* Description - hidden on small screens */}
-                        <span className="text-[10px] sm:text-xs text-theme-muted block hidden sm:block">
+                        <span className="text-[9px] sm:text-[10px] md:text-xs text-theme-muted block hidden sm:block leading-tight">
                             {option.description}
                         </span>
 
                         {/* Keyboard shortcut */}
-                        <kbd className="study-controls-kbd absolute top-1 right-1 sm:top-2 sm:right-2 px-1 sm:px-2 py-0.5 rounded bg-theme-surface border border-theme-default text-theme-muted text-[10px] sm:text-xs font-mono hidden sm:block">
+                        <kbd className="study-controls-kbd absolute top-0.5 right-0.5 sm:top-1 sm:right-1 md:top-2 md:right-2 px-1 sm:px-1.5 md:px-2 py-0 rounded bg-theme-surface border border-theme-default text-theme-muted text-[9px] sm:text-[10px] md:text-xs font-mono hidden md:block">
                             {option.value}
                         </kbd>
                     </motion.button>

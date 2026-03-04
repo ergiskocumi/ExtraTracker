@@ -64,7 +64,7 @@ const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
     // CRITICO: Necessario per inviare/ricevere cookies cross-origin
     withCredentials: true,
-    timeout: 60000, // 60 secondi timeout per richieste AI più lente
+    timeout: 120000, // 60 secondi timeout per richieste AI più lente
 });
 
 let cachedCsrfToken: string | null = null;

@@ -11,18 +11,17 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, X, Loader2, Clock } from 'lucide-react';
 import { StudyCard } from '../components/Study/StudyCard';
 import { StudyProgress } from '../components/Study/StudyProgress';
 import { StudyControls } from '../components/Study/StudyControls';
 import { SessionComplete } from '../components/Study/SessionComplete';
 import { QuizView } from '../components/Study/QuizView';
 import { TypingView } from '../components/Study/TypingView';
-import { studyService, type StudySession, type ReviewRating, type StudyMode, type Card, type SessionFocus, type SessionLength, type SessionDirection } from '../services/studyService';
+import { studyService, type StudySession, type ReviewRating, type StudyMode, type Card, type SessionFocus, type SessionLength, type SessionDirection, type QuizType } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
-import { selectCardsForQuiz } from '../utils/adaptiveGapFiller';
 
 // ============================================
 // CONSTANTS
@@ -76,7 +75,10 @@ const globalCompletedSessions = new Set<string>();
 export const StudySessionPage: React.FC = () => {
     const { deckId } = useParams<{ deckId: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams] = useSearchParams();
+    const locationState = location.state as { preparedSession?: StudySession; preparedAt?: number } | null;
+    const preloadedSession = locationState?.preparedSession;
 
     // Parse URL params
     const requestedMode = (searchParams.get('mode') || 'flashcard').toLowerCase();
@@ -90,12 +92,24 @@ export const StudySessionPage: React.FC = () => {
     const direction: SessionDirection = DIRECTION_OPTIONS.includes(directionParam as SessionDirection) ? (directionParam as SessionDirection) : 'front';
     const questionCount = Number(searchParams.get('questions')) || (mode === 'exam' ? 30 : 0);
     const timeLimitMinutes = Number(searchParams.get('time')) || 0;
-    const limit = mode === 'exam' ? questionCount : LENGTH_TO_LIMIT[length];
+    const limit = mode === 'exam'
+        ? questionCount
+        : mode === 'quiz' && questionCount > 0
+            ? questionCount
+            : LENGTH_TO_LIMIT[length];
     const timeLimitSeconds = timeLimitMinutes > 0 ? timeLimitMinutes * 60 : null;
 
     // Exam-specific params (examType e examDifficulty)
     const examType = searchParams.get('examType') || undefined;
     const examDifficulty = searchParams.get('examDifficulty') || undefined;
+    const quizTypeParam = (searchParams.get('quizType') || 'multiple_choice').toLowerCase();
+    const quizType: QuizType = quizTypeParam === 'true_false' ? 'true_false' : 'multiple_choice';
+    const sourceCardIds = (searchParams.get('sourceCardIds') || '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+    const sourceCardIdsKey = sourceCardIds.join('|');
+    const runKey = searchParams.get('run') || 'default';
 
     // State
     const [session, setSession] = useState<StudySession | null>(null);
@@ -121,14 +135,28 @@ export const StudySessionPage: React.FC = () => {
     const [showResumeModal, setShowResumeModal] = useState(false);
     const [savedProgress, setSavedProgress] = useState<any | null>(null);
     const [answersHistory, setAnswersHistory] = useState<Array<{ cardId: string; rating: number; timestamp: Date }>>([]);
-    const [wrongAnswersForReview, setWrongAnswersForReview] = useState<Array<{ front: string; back: string }>>([]);
+    const [wrongAnswersForReview, setWrongAnswersForReview] = useState<Array<{
+        cardId: string;
+        front: string;
+        userAnswer: string;
+        back: string;
+    }>>([]);
+    const [quizAnswerDetails, setQuizAnswerDetails] = useState<Array<{
+        cardId: string;
+        question: string;
+        userAnswer: string;
+        correctAnswer: string;
+        correct: boolean;
+    }>>([]);
 
     // Refs
     const isCompleteRef = useRef(false);
     const hasLoadedRef = useRef(false);
     const hasStudiedRef = useRef(false);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const sessionKey = deckId ? `${deckId}-${mode}-${focus}-${length}-${questionCount}-${timeLimitMinutes}-${direction}-${examType}-${examDifficulty}` : null;
+    const sessionKey = deckId
+        ? `${deckId}-${mode}-${focus}-${length}-${questionCount}-${timeLimitMinutes}-${direction}-${examType}-${examDifficulty}-${quizType}-${sourceCardIdsKey}-${runKey}`
+        : null;
 
     // ============================================
     // SESSION LOADING
@@ -152,6 +180,20 @@ export const StudySessionPage: React.FC = () => {
         const loadSession = async () => {
             try {
                 setIsLoading(true);
+
+                if (
+                    mode === 'quiz' &&
+                    preloadedSession &&
+                    preloadedSession.deck?.id === deckId &&
+                    Array.isArray(preloadedSession.cards) &&
+                    preloadedSession.cards.length > 0
+                ) {
+                    const cardModes = preloadedSession.cardModes ?? buildFallbackCardModes(preloadedSession.cards, mode);
+                    setSession({ ...preloadedSession, cardModes });
+                    setStats({ total: preloadedSession.cards.length, hard: 0, good: 0, easy: 0 });
+                    hasLoadedRef.current = true;
+                    return;
+                }
 
                 // Se mode='exam', controlla se esiste progresso salvato
                 if (mode === 'exam') {
@@ -178,6 +220,8 @@ export const StudySessionPage: React.FC = () => {
                     direction,
                     examType,
                     examDifficulty,
+                    quizType,
+                    sourceCardIds: sourceCardIdsKey ? sourceCardIdsKey.split('|') : undefined,
                 });
 
                 if (data.cards.length === 0) {
@@ -186,10 +230,7 @@ export const StudySessionPage: React.FC = () => {
                     return;
                 }
 
-                // Apply adaptive ordering for quiz mode
-                const orderedCards = mode === 'quiz'
-                    ? selectCardsForQuiz(data.cards, limit).cards
-                    : data.cards;
+                const orderedCards = data.cards;
                 const cardModes = data.cardModes ?? buildFallbackCardModes(orderedCards, mode);
 
                 // DEBUG: Check if cards have isTrueFalse flag
@@ -212,7 +253,7 @@ export const StudySessionPage: React.FC = () => {
         };
 
         loadSession();
-    }, [sessionKey, deckId, mode, focus, length, questionCount, timeLimitMinutes, direction, examType, examDifficulty, navigate]);
+    }, [sessionKey, deckId, mode, focus, length, limit, questionCount, timeLimitMinutes, direction, examType, examDifficulty, quizType, sourceCardIdsKey, preloadedSession, navigate]);
 
     // ============================================
     // PAUSA/RESUME HANDLERS (solo per mode='exam')
@@ -281,6 +322,8 @@ export const StudySessionPage: React.FC = () => {
                 direction,
                 examType,
                 examDifficulty,
+                quizType,
+                sourceCardIds: sourceCardIdsKey ? sourceCardIdsKey.split('|') : undefined,
             });
 
             if (data.cards.length === 0) {
@@ -303,7 +346,7 @@ export const StudySessionPage: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [deckId, mode, focus, limit, timeLimitMinutes, questionCount, direction, examType, examDifficulty, navigate]);
+    }, [deckId, mode, focus, limit, timeLimitMinutes, questionCount, direction, examType, examDifficulty, quizType, sourceCardIdsKey, navigate]);
 
     const handlePauseExam = useCallback(async () => {
         if (!session || !deckId || mode !== 'exam') return;
@@ -335,11 +378,11 @@ export const StudySessionPage: React.FC = () => {
     }, [session, deckId, mode, focus, length, timeLimitMinutes, questionCount, direction, examType, examDifficulty, currentCardIndex, stats, elapsedSeconds, answersHistory, navigate]);
 
     // ============================================
-    // TIMER
+    // TIMER (si ferma quando la sessione è completata)
     // ============================================
 
     useEffect(() => {
-        if (!session) return;
+        if (!session || isComplete) return;
 
         timerRef.current = window.setInterval(() => {
             setElapsedSeconds(prev => prev + 1);
@@ -354,14 +397,7 @@ export const StudySessionPage: React.FC = () => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [session, timeLimitSeconds]);
-
-    // Time limit warning
-    useEffect(() => {
-        if (timeLeft === 0 && !isCompleteRef.current) {
-            handleComplete();
-        }
-    }, [timeLeft]);
+    }, [session, timeLimitSeconds, isComplete]);
 
     // ============================================
     // HANDLERS
@@ -405,10 +441,24 @@ export const StudySessionPage: React.FC = () => {
                 })
                 .filter(Boolean) as any[];
 
-            // Estrai solo le domande sbagliate per SessionComplete
-            const wrongAnswers = answersDetails
-                .filter(a => !a.correct)
-                .map(a => ({ front: a.front, back: a.back }));
+            // Priorità al dettaglio quiz (include risposta utente), fallback al dettaglio esame legacy.
+            const wrongAnswers = quizAnswerDetails.length > 0
+                ? quizAnswerDetails
+                    .filter(answer => !answer.correct)
+                    .map(answer => ({
+                        cardId: answer.cardId,
+                        front: answer.question,
+                        userAnswer: answer.userAnswer,
+                        back: answer.correctAnswer,
+                    }))
+                : answersDetails
+                    .filter(a => !a.correct)
+                    .map(a => ({
+                        cardId: a.cardId,
+                        front: a.front,
+                        userAnswer: 'Risposta errata',
+                        back: a.back,
+                    }));
 
             setWrongAnswersForReview(wrongAnswers);
 
@@ -431,7 +481,14 @@ export const StudySessionPage: React.FC = () => {
         } catch (err) {
             console.error('Error completing session:', err);
         }
-    }, [session, deckId, mode, stats, elapsedSeconds, sessionKey, answersHistory, setWrongAnswersForReview]);
+    }, [session, deckId, mode, stats, elapsedSeconds, sessionKey, answersHistory, quizAnswerDetails, setWrongAnswersForReview]);
+
+    // Time limit warning
+    useEffect(() => {
+        if (timeLeft === 0 && !isCompleteRef.current) {
+            handleComplete();
+        }
+    }, [timeLeft, handleComplete]);
 
     // Refs per evitare stale closure in handleNext
     const sessionRef = useRef(session);
@@ -458,7 +515,14 @@ export const StudySessionPage: React.FC = () => {
         }
     }, [handleComplete]);
 
-    const handleRate = useCallback(async (rating: ReviewRating) => {
+    const handleRate = useCallback(async (
+        rating: ReviewRating,
+        details?: {
+            userAnswer?: string;
+            correctAnswer?: string;
+            correct?: boolean;
+        }
+    ) => {
         if (!session || !currentCard || isSubmitting || isCompleteRef.current) return;
 
         setIsSubmitting(true);
@@ -487,17 +551,36 @@ export const StudySessionPage: React.FC = () => {
                 ]);
             }
 
-            // Auto-advance alla prossima carta (con delay per animazione)
-            setTimeout(() => {
-                const nextIndex = currentCardIndex + 1;
-                if (nextIndex >= session.cards.length) {
-                    handleComplete();
-                } else {
-                    setCurrentCardIndex(nextIndex);
-                    setIsFlipped(false);
-                    setExitDirection(null);
-                }
-            }, 800); // 800ms delay per mostrare l'animazione corretta/sbagliata
+            if (cardMode === 'quiz' && details) {
+                setQuizAnswerDetails(prev => [
+                    ...prev,
+                    {
+                        cardId: currentCard.id,
+                        question: currentCard.front,
+                        userAnswer: details.userAnswer || 'Non lo so',
+                        correctAnswer: details.correctAnswer || currentCard.back,
+                        correct: Boolean(details.correct),
+                    },
+                ]);
+            }
+
+            // Quiz mode: l'utente deve premere "Avanti" manualmente (QuizView gestisce onNext)
+            // Flashcard/Typing: auto-advance dopo animazione
+            if (cardMode !== 'quiz') {
+                setTimeout(() => {
+                    const nextIndex = currentCardIndex + 1;
+                    if (nextIndex >= session.cards.length) {
+                        handleComplete();
+                    } else {
+                        setCurrentCardIndex(nextIndex);
+                        setIsFlipped(false);
+                        setExitDirection(null);
+                    }
+                }, 800);
+            } else {
+                // Reset animazione per quiz mode (l'advance è manuale)
+                setExitDirection(null);
+            }
 
         } catch (err) {
             emitToast.error('Errore nel salvataggio');
@@ -505,7 +588,7 @@ export const StudySessionPage: React.FC = () => {
         } finally {
             setIsSubmitting(false);
         }
-    }, [session, currentCard, isSubmitting, currentCardIndex, mode, handleComplete]);
+    }, [session, currentCard, isSubmitting, currentCardIndex, mode, cardMode, handleComplete]);
 
     const handleBack = useCallback(async () => {
         // Se è un esame e ci sono progressi, salva prima di uscire
@@ -537,9 +620,99 @@ export const StudySessionPage: React.FC = () => {
         navigate(deckId ? `/study/deck/${deckId}` : '/study');
     }, [navigate, deckId, mode, session, currentCardIndex, stats, elapsedSeconds, answersHistory, focus, length, timeLimitMinutes, questionCount, direction, examType, examDifficulty]);
 
+    const resetForNewQuizRun = useCallback(() => {
+        if (sessionKey) {
+            globalCompletedSessions.delete(sessionKey);
+        }
+        hasLoadedRef.current = false;
+        isCompleteRef.current = false;
+        setSession(null);
+        setCurrentCardIndex(0);
+        setIsFlipped(false);
+        setExitDirection(null);
+        setIsSubmitting(false);
+        setIsComplete(false);
+        setStats({ total: 0, hard: 0, good: 0, easy: 0 });
+        setElapsedSeconds(0);
+        setTimeLeft(timeLimitSeconds);
+        setAnswersHistory([]);
+        setWrongAnswersForReview([]);
+        setQuizAnswerDetails([]);
+    }, [sessionKey, timeLimitSeconds]);
+
     const handleRestart = useCallback(() => {
-        window.location.reload();
-    }, []);
+        if (mode !== 'quiz' || !deckId || !session) {
+            window.location.reload();
+            return;
+        }
+
+        const currentSessionCardIds = session.cards.map(card => card.id).filter(Boolean);
+        if (currentSessionCardIds.length === 0) {
+            window.location.reload();
+            return;
+        }
+
+        void studyService.saveQuizSnapshot(deckId, {
+            quizType,
+            questionCount: currentSessionCardIds.length,
+            sourceCardIds: currentSessionCardIds,
+            source: 'repeat',
+            name: `Ripeti quiz ${currentSessionCardIds.length} domande`,
+        }).catch((error) => {
+            console.warn('[StudySessionPage] save repeat quiz snapshot failed:', error);
+        });
+
+        const params = new URLSearchParams();
+        params.set('mode', 'quiz');
+        params.set('focus', 'all');
+        params.set('questions', String(currentSessionCardIds.length));
+        params.set('quizType', quizType);
+        params.set('sourceCardIds', currentSessionCardIds.join(','));
+        params.set('quizSource', 'repeat');
+        params.set('run', String(Date.now()));
+
+        resetForNewQuizRun();
+        navigate(`/study/${deckId}/session?${params.toString()}`);
+    }, [mode, deckId, session, quizType, resetForNewQuizRun, navigate]);
+
+    const handleStudyErrors = useCallback(() => {
+        if (mode !== 'quiz' || !deckId) return;
+
+        const wrongCardIds = Array.from(
+            new Set(
+                wrongAnswersForReview
+                    .map(answer => answer.cardId)
+                    .filter(Boolean)
+            )
+        );
+
+        if (wrongCardIds.length === 0) {
+            emitToast.info('Nessun errore da ripassare');
+            return;
+        }
+
+        void studyService.saveQuizSnapshot(deckId, {
+            quizType,
+            questionCount: wrongCardIds.length,
+            sourceCardIds: wrongCardIds,
+            source: 'errors',
+            name: `Quiz errori ${wrongCardIds.length} domande`,
+        }).catch((error) => {
+            console.warn('[StudySessionPage] save errors quiz snapshot failed:', error);
+        });
+
+        const params = new URLSearchParams();
+        params.set('mode', 'quiz');
+        params.set('focus', 'all');
+        params.set('questions', String(wrongCardIds.length));
+        params.set('quizType', quizType);
+        params.set('sourceCardIds', wrongCardIds.join(','));
+        params.set('quizSource', 'errors');
+        params.set('run', String(Date.now()));
+
+        resetForNewQuizRun();
+        navigate(`/study/${deckId}/session?${params.toString()}`);
+    }, [mode, deckId, wrongAnswersForReview, quizType, resetForNewQuizRun, navigate]);
 
     // ============================================
     // RENDER
@@ -549,7 +722,9 @@ export const StudySessionPage: React.FC = () => {
         return (
             <div className="study-session-overlay fixed inset-0 top-16 z-50 flex flex-col items-center justify-center bg-theme-base gap-4">
                 <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
-                <p className="text-theme-muted text-sm">Caricamento sessione...</p>
+                <p className="text-theme-muted text-sm">
+                    {mode === 'quiz' ? 'Preparazione quiz con AI in corso...' : 'Caricamento sessione...'}
+                </p>
             </div>
         );
     }
@@ -580,8 +755,10 @@ export const StudySessionPage: React.FC = () => {
                     durationSeconds={elapsedSeconds}
                     onRestart={handleRestart}
                     onBack={handleBack}
-                    wrongAnswers={mode === 'exam' ? wrongAnswersForReview : undefined}
+                    wrongAnswers={wrongAnswersForReview}
                     isExamMode={mode === 'exam'}
+                    isQuizMode={mode === 'quiz'}
+                    onStudyErrors={mode === 'quiz' ? handleStudyErrors : undefined}
                 />
             </div>
         );
@@ -658,17 +835,22 @@ export const StudySessionPage: React.FC = () => {
     return (
         <div className="study-session-root fixed inset-0 top-16 z-50 bg-theme-base flex flex-col">
             {/* Header */}
-            <header className="study-session-header flex-none px-4 sm:px-6 py-3 border-b border-theme-default bg-theme-base backdrop-blur-xl">
-                <div className="max-w-4xl mx-auto flex items-center gap-4">
+            <header className="study-session-header flex-none px-4 sm:px-6 py-3 border-b border-theme-default bg-theme-base/80 backdrop-blur-xl z-50">
+                <div className="max-w-5xl md:max-w-6xl mx-auto flex items-center gap-3 sm:gap-6">
+                    {/* Left: Exit Button */}
                     <button
                         onClick={handleBack}
-                        className="flex items-center gap-2 text-theme-muted hover:text-theme-primary transition-colors p-2 -ml-2 rounded-lg hover:bg-theme-surface"
+                        className="flex items-center gap-2 px-3 py-2 -ml-2 rounded-xl text-theme-secondary hover:text-theme-primary hover:bg-theme-surface transition-all group"
+                        title="Esci dalla sessione"
                     >
-                        <ArrowLeft className="w-5 h-5" />
+                        <div className="p-1.5 rounded-lg bg-theme-surface border border-theme-default group-hover:border-theme-strong transition-colors">
+                            <ArrowLeft className="w-4 h-4" />
+                        </div>
                         <span className="hidden sm:inline text-sm font-medium">Esci</span>
                     </button>
 
-                    <div className="flex-1">
+                    {/* Center: Progress & Stats */}
+                    <div className="flex-1 min-w-0">
                         <StudyProgress
                             currentIndex={currentCardIndex}
                             totalCards={session.cards.length}
@@ -680,32 +862,32 @@ export const StudySessionPage: React.FC = () => {
                         />
                     </div>
 
-                    {timeLeft !== null && (
-                        <div className={`study-session-timer px-3 py-1.5 rounded-full border text-sm font-mono ${
-                            timerWarning
-                                ? 'study-session-timer--warning border-rose-500/40 bg-rose-500/15 text-rose-600 dark:text-rose-400 animate-pulse'
-                                : 'border-theme-default bg-theme-surface text-theme-secondary'
-                        }`}>
-                            {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-                        </div>
-                    )}
+                    {/* Right: Timer & Actions */}
+                    <div className="flex items-center gap-3">
+                        {/* Countdown Timer (if limit set) */}
+                        {timeLeft !== null && (
+                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-mono tabular-nums ${
+                                timerWarning
+                                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 animate-pulse'
+                                    : 'border-theme-default bg-theme-surface text-theme-secondary'
+                            }`}>
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>
+                                    {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                                </span>
+                            </div>
+                        )}
 
-                    {/* Bottone Pausa (solo per mode='exam') */}
-                    {mode === 'exam' && (
-                        <button
-                            onClick={handlePauseExam}
-                            className="px-4 py-2 rounded-lg text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/50 transition-all"
-                        >
-                            Pausa
-                        </button>
-                    )}
-
-                    <button
-                        onClick={handleBack}
-                        className="p-2 text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-lg transition-colors"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+                        {/* Pause Button (Exam Mode) */}
+                        {mode === 'exam' && (
+                            <button
+                                onClick={handlePauseExam}
+                                className="px-4 py-2 rounded-xl text-sm font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 transition-all"
+                            >
+                                Pausa
+                            </button>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -738,13 +920,14 @@ export const StudySessionPage: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
                             transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-                            className="absolute inset-0 flex flex-col p-3 sm:p-6 lg:p-8"
+                            className="absolute inset-0 flex flex-col p-2 sm:p-4 md:p-6 lg:p-8"
                         >
                             <QuizView
                                 card={currentCard}
                                 question={currentCard.front}
                                 options={currentCard.options ?? []}
                                 correctAnswer={currentCard.back}
+                                distractorExplanations={currentCard.distractorExplanations}
                                 isSubmitting={isSubmitting}
                                 onSubmitReview={handleRate}
                                 onNext={handleNext}

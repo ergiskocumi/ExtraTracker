@@ -5,6 +5,7 @@
 
 import React, { useMemo, useCallback, useEffect } from 'react';
 import Picker from 'react-mobile-picker';
+import type { PickerValue } from 'react-mobile-picker';
 
 const MONTHS_IT = [
     { value: '01', label: 'gen' }, { value: '02', label: 'feb' }, { value: '03', label: 'mar' },
@@ -22,6 +23,7 @@ function pad(n: number): string {
 }
 
 export interface WheelDatePickerValue {
+    [key: string]: string;
     day: string;
     month: string;
     year: string;
@@ -81,8 +83,13 @@ export const WheelDatePicker: React.FC<WheelDatePickerProps> = ({
     }, []);
 
     const handleChange = useCallback(
-        (newVal: WheelDatePickerValue) => {
-            const clamped = clampDay(newVal);
+        (newVal: PickerValue) => {
+            const typedValue: WheelDatePickerValue = {
+                day: String(newVal.day),
+                month: String(newVal.month),
+                year: String(newVal.year),
+            };
+            const clamped = clampDay(typedValue);
             onChange(valueToIso(clamped));
         },
         [onChange, clampDay],
@@ -99,7 +106,7 @@ export const WheelDatePicker: React.FC<WheelDatePickerProps> = ({
         <div className={`wheel-date-picker ${className}`}>
             <Picker
                 value={pickerValue}
-                onChange={handleChange}
+                onChange={(newVal) => handleChange(newVal)}
                 height={220}
                 itemHeight={44}
                 wheelMode="natural"

@@ -1,9 +1,10 @@
 /**
  * 🚀 APP - Entry point con routing autenticato
- * 
+ *
  * Sistema di routing:
+ * - / → Landing (pubblico); se autenticato redirect a /dashboard
  * - /login, /register, /forgot-password, /reset-password, /verify-email → Pagine pubbliche (AuthLayout)
- * - /, /settings, /study → Pagine protette (AppLayout)
+ * - /dashboard, /settings, /study... → Pagine protette (AppLayout)
  */
 
 import { lazy, Suspense } from 'react';
@@ -11,11 +12,14 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
 import { FeedbackProvider } from './features/feedback/context/FeedbackContext';
 import { FlashcardGenerationProvider } from './features/study/context/FlashcardGenerationContext';
-import { ProtectedRoute } from './features/auth/context/AuthContext';
+import { ProtectedRoute, useAuth } from './features/auth/context/AuthContext';
 import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
 import { useSettings } from './features/settings/context/SettingsContext';
 import { WorkLogProvider } from './features/tracker/context/WorkLogContext';
+
+// Landing (integrata: link React Router)
+const LandingPage = lazy(() => import('~landing/pages/LandingPage').then(m => ({ default: m.default })));
 
 // OTTIMIZZATO: Lazy loading per tutte le pagine (code splitting)
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -45,18 +49,40 @@ const PageLoader = () => (
 const HomeRedirect = () => {
     const { hasLoaded } = useSettings();
 
-    // Evita redirect "a caso" prima di aver caricato le preferenze reali dal backend.
     if (!hasLoaded) return null;
 
-    const to = '/dashboard';
+    return <Navigate to="/dashboard" replace />;
+};
 
-    return <Navigate to={to} replace />;
+/** Route radice: landing se non autenticato, redirect a dashboard se autenticato */
+const RootRoute = () => {
+    const { isAuthenticated, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-dark-500">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-2 rounded-full border-primary-500 border-t-transparent animate-spin" />
+                    <p className="text-white/50 text-sm">Caricamento...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isAuthenticated) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    return <LandingPage useRouterLinks appUrl="" />;
 };
 
 function App() {
     return (
         <Suspense fallback={<PageLoader />}>
             <Routes>
+                {/* ===== LANDING (pubblica) ===== */}
+                <Route path="/" element={<RootRoute />} />
+
                 {/* ===== ROUTE PUBBLICHE (Auth) ===== */}
                 <Route element={<AuthLayout />}>
                     <Route path="/login" element={<LoginPage />} />
@@ -69,7 +95,7 @@ function App() {
                 {/* ===== ROUTE PROTETTE (App) ===== */}
                 <Route
                     element={
-                        <ProtectedRoute>
+                        <ProtectedRoute redirectTo="/">
                             <SettingsProvider>
                                 <WorkLogProvider>
                                     <FeedbackProvider>
@@ -82,7 +108,6 @@ function App() {
                         </ProtectedRoute>
                     }
                 >
-                    <Route path="/" element={<HomeRedirect />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
 
