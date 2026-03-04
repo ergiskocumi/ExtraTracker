@@ -118,7 +118,15 @@ module.exports = {
             const previousQuestions = Array.isArray(deck.recentQuizQuestions)
                 ? deck.recentQuizQuestions.slice(-50)
                 : [];
-            const aiQuestions = await this.generateQuizFromFullPDF(deck.extractedText || '', questionCount, previousQuestions);
+            const aiQuestions = await this.generateQuizFromFullPDF(
+                deck.extractedText || '',
+                questionCount,
+                previousQuestions,
+                {
+                    userId,
+                    deckId: deck._id,
+                }
+            );
             const enrichedCards = this._mapAiQuestionsToCards(aiQuestions);
 
             const newQuestionTexts = aiQuestions.map(q => q.questionText);

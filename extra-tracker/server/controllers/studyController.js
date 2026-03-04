@@ -7,6 +7,7 @@
 
 const fs = require('fs').promises;
 const studyService = require('../services/studyService');
+const flashcardGenerationService = require('../services/flashcardGenerationService');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { validatePdfFile } = require('../utils/pdfValidator');
 
@@ -372,10 +373,16 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
         });
     }
 
-    const result = await studyService.generateCardsFromPDF(
+    const maxCardsRaw = Number(req.body?.maxCards);
+    const maxCards = Number.isFinite(maxCardsRaw) && maxCardsRaw > 0
+        ? Math.round(maxCardsRaw)
+        : undefined;
+
+    const result = await flashcardGenerationService.generateCardsFromPDF(
         req.tenantScope,
         req.params.id,
-        req.file.path
+        req.file.path,
+        { maxCards }
     );
 
     res.json({

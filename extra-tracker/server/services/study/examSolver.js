@@ -11,6 +11,7 @@ const Exam = require('../../models/Exam');
 const AppError = require('../../utils/AppError');
 const pdfCacheService = require('../pdfCacheService');
 const vectorStoreService = require('../vectorStoreService');
+const aiUsageService = require('../aiUsageService');
 const sseManager = require('../../utils/SSEManager');
 const {
     openai,
@@ -26,6 +27,7 @@ module.exports = {
      */
     async extractExamQuestions(tenantScope, questionsFilePath) {
         console.log('📋 Estrazione domande...');
+        const userId = this._getUserId(tenantScope);
         let questionsText = '';
 
         const questionsIsPdf = questionsFilePath.toLowerCase().endsWith('.pdf');
@@ -78,16 +80,28 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
 
         let questions = [];
         try {
-            const extractionCompletion = await openai.chat.completions.create({
+            const messages = [
+                { role: 'system', content: 'Sei un agente di estrazione specializzato. Restituisci SOLO JSON valido.' },
+                { role: 'user', content: extractionPrompt },
+            ];
+
+            const extractionCompletion = await aiUsageService.runTrackedChatCompletion({
+                userId,
+                mode: 'exam_solver',
+                feature: 'extract_exam_questions',
                 model: ACTIVE_AI_MODEL,
-                messages: [
-                    { role: 'system', content: 'Sei un agente di estrazione specializzato. Restituisci SOLO JSON valido.' },
-                    { role: 'user', content: extractionPrompt },
-                ],
+                messages,
+                promptLengthChars: extractionPrompt.length,
+                metadata: {
+                    sourceType: questionsIsPdf ? 'pdf' : 'text',
+                },
+            }, () => openai.chat.completions.create({
+                model: ACTIVE_AI_MODEL,
+                messages,
                 temperature: 0.1,
                 max_completion_tokens: 4000,
                 response_format: { type: 'json_object' },
-            });
+            }));
 
             const extractionResponse = extractionCompletion.choices[0]?.message?.content;
             if (extractionResponse) {
@@ -164,7 +178,11 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
         if (useSmartChunking) {
             tempDeckId = `temp-exam-${Date.now()}-${Math.random().toString(36).substring(7)}`;
             try {
-                await vectorStoreService.ingestDeck(tempDeckId, normalizedSourceText);
+                await vectorStoreService.ingestDeck(tempDeckId, normalizedSourceText, {
+                    userId,
+                    mode: 'exam_solver',
+                    feature: 'exam_answers_context_ingest',
+                });
                 console.log('✅ Materiale ingerito nel vector store (chunking intelligente attivo)');
             } catch (err) {
                 console.warn('⚠️ Vector ingest error (fallback a testo completo):', err.message);
@@ -208,7 +226,11 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
             if (useSmartChunking && tempDeckId) {
                 try {
                     const queryPromises = batch.questions.map(question =>
-                        vectorStoreService.queryDeck(tempDeckId, question, 3)
+                        vectorStoreService.queryDeck(tempDeckId, question, 3, {
+                            userId,
+                            mode: 'exam_solver',
+                            feature: 'exam_answers_context_query',
+                        })
                             .catch(err => {
                                 console.warn(`⚠️ Vector query error per domanda:`, err.message);
                                 return [];
@@ -270,16 +292,31 @@ OUTPUT JSON:
 
 Genera una risposta per OGNI domanda nella lista.`;
 
-                    const batchCompletion = await openai.chat.completions.create({
+                    const messages = [
+                        { role: 'system', content: 'Sei un tutor accademico. Restituisci SOLO JSON valido.' },
+                        { role: 'user', content: batchPrompt },
+                    ];
+
+                    const batchCompletion = await aiUsageService.runTrackedChatCompletion({
+                        userId,
+                        mode: 'exam_solver',
+                        feature: 'exam_answers_batch_generation',
                         model: ACTIVE_AI_MODEL,
-                        messages: [
-                            { role: 'system', content: 'Sei un tutor accademico. Restituisci SOLO JSON valido.' },
-                            { role: 'user', content: batchPrompt },
-                        ],
+                        messages,
+                        promptLengthChars: batchPrompt.length,
+                        metadata: {
+                            batchIndex: batchIndex + 1,
+                            totalBatches: batches.length,
+                            questionCount: batch.questions.length,
+                            retryAttempt: attempt + 1,
+                        },
+                    }, () => openai.chat.completions.create({
+                        model: ACTIVE_AI_MODEL,
+                        messages,
                         temperature: 0.1,
                         max_completion_tokens: 4000,
                         response_format: { type: 'json_object' },
-                    });
+                    }));
 
                     const batchResponse = batchCompletion.choices[0]?.message?.content;
                     if (!batchResponse) {
@@ -454,7 +491,11 @@ Genera una risposta per OGNI domanda nella lista.`;
         await deck.save();
 
         try {
-            await vectorStoreService.ingestDeck(deck._id.toString(), normalizedSourceText);
+            await vectorStoreService.ingestDeck(deck._id.toString(), normalizedSourceText, {
+                userId,
+                mode: 'exam_solver',
+                feature: 'exam_answers_deck_ingest',
+            });
         } catch (err) {
             console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
         }
@@ -561,16 +602,28 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
 
         let questions = [];
         try {
-            const extractionCompletion = await openai.chat.completions.create({
+            const messages = [
+                { role: 'system', content: 'Sei un agente di estrazione specializzato. Restituisci SOLO JSON valido.' },
+                { role: 'user', content: extractionPrompt },
+            ];
+
+            const extractionCompletion = await aiUsageService.runTrackedChatCompletion({
+                userId,
+                mode: 'exam_solver',
+                feature: 'exam_solver_legacy_extract_questions',
                 model: ACTIVE_AI_MODEL,
-                messages: [
-                    { role: 'system', content: 'Sei un agente di estrazione specializzato. Restituisci SOLO JSON valido.' },
-                    { role: 'user', content: extractionPrompt },
-                ],
+                messages,
+                promptLengthChars: extractionPrompt.length,
+                metadata: {
+                    sourceType: questionsIsPdf ? 'pdf' : 'text',
+                },
+            }, () => openai.chat.completions.create({
+                model: ACTIVE_AI_MODEL,
+                messages,
                 temperature: 0.1,
                 max_completion_tokens: 4000,
                 response_format: { type: 'json_object' },
-            });
+            }));
 
             const extractionResponse = extractionCompletion.choices[0]?.message?.content;
             if (extractionResponse) {
@@ -660,16 +713,29 @@ OUTPUT JSON:
 Genera una risposta per OGNI domanda nella lista.`;
 
             try {
-                const batchCompletion = await openai.chat.completions.create({
+                const messages = [
+                    { role: 'system', content: 'Sei un tutor accademico. Restituisci SOLO JSON valido.' },
+                    { role: 'user', content: batchPrompt },
+                ];
+
+                const batchCompletion = await aiUsageService.runTrackedChatCompletion({
+                    userId,
+                    mode: 'exam_solver',
+                    feature: 'exam_solver_legacy_batch_generation',
                     model: ACTIVE_AI_MODEL,
-                    messages: [
-                        { role: 'system', content: 'Sei un tutor accademico. Restituisci SOLO JSON valido.' },
-                        { role: 'user', content: batchPrompt },
-                    ],
+                    messages,
+                    promptLengthChars: batchPrompt.length,
+                    metadata: {
+                        batchStartIndex: i,
+                        batchQuestionCount: batch.length,
+                    },
+                }, () => openai.chat.completions.create({
+                    model: ACTIVE_AI_MODEL,
+                    messages,
                     temperature: 0.1,
                     max_completion_tokens: 4000,
                     response_format: { type: 'json_object' },
-                });
+                }));
 
                 const batchResponse = batchCompletion.choices[0]?.message?.content;
                 if (batchResponse) {
@@ -764,7 +830,11 @@ Genera una risposta per OGNI domanda nella lista.`;
         await deck.save();
 
         try {
-            await vectorStoreService.ingestDeck(deck._id.toString(), normalizedSourceText);
+            await vectorStoreService.ingestDeck(deck._id.toString(), normalizedSourceText, {
+                userId,
+                mode: 'exam_solver',
+                feature: 'exam_solver_legacy_deck_ingest',
+            });
         } catch (err) {
             console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
         }

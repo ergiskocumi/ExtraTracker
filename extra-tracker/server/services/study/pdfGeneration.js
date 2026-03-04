@@ -11,6 +11,7 @@ const Deck = require('../../models/Deck');
 const AppError = require('../../utils/AppError');
 const pdfCacheService = require('../pdfCacheService');
 const vectorStoreService = require('../vectorStoreService');
+const aiUsageService = require('../aiUsageService');
 const sseManager = require('../../utils/SSEManager');
 const {
     openai,
@@ -27,6 +28,8 @@ const {
     SIMILARITY_THRESHOLD,
     QUESTION_TYPES,
 } = require('./constants');
+
+let hasLoggedVectorStoreDisabled = false;
 
 module.exports = {
 
@@ -65,6 +68,12 @@ module.exports = {
             pdfText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
             console.error('❌ PDF Parse Error:', err.message);
+            if (/password/i.test(err.message || '')) {
+                throw AppError.validation('Il PDF è protetto da password. Rimuovi la password e riprova.');
+            }
+            if (/struttura non valida|invalid pdf structure/i.test(err.message || '')) {
+                throw AppError.validation('Il PDF risulta corrotto o non valido. Prova a riesportarlo.');
+            }
             throw AppError.validation('Impossibile leggere il PDF. Assicurati che sia valido e non protetto.');
         }
 
@@ -85,10 +94,22 @@ module.exports = {
         const blueprint = await this._analyzeDocumentStructure(normalizedText);
         console.log('📋 Blueprint:', JSON.stringify(blueprint, null, 2));
 
-        // Vector ingest (fire-and-forget)
-        vectorStoreService.ingestDeck(deckId, normalizedText).catch(err => {
-            console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
-        });
+        // Vector ingest (fire-and-forget). Non blocca la generazione flashcard.
+        if (typeof vectorStoreService.isConfigured === 'function' && !vectorStoreService.isConfigured()) {
+            if (!hasLoggedVectorStoreDisabled) {
+                console.log('ℹ️ Vector store disabilitato: ingest saltato (Pinecone/OpenAI embedding non configurati).');
+                hasLoggedVectorStoreDisabled = true;
+            }
+        } else {
+            vectorStoreService.ingestDeck(deckId, normalizedText, {
+                userId,
+                mode: 'flashcards',
+                feature: 'flashcards_vector_ingest',
+            }).catch(err => {
+                const reason = err?.details?.message || err.message;
+                console.warn('⚠️ Vector ingest error (non bloccante):', reason);
+            });
+        }
 
         // Semantic chunking
         console.log('📦 FASE 2: Semantic chunking...');
@@ -146,31 +167,33 @@ module.exports = {
         });
 
         const batchPromises = batches.map((batch, batchIdx) => {
-            const targetCards = batchTargets[batchIdx] || this._calculateBatchTarget(batch);
-            const totalBatchChars = batch.reduce((sum, c) => sum + c.text.length, 0);
-            console.log(`🚀 Batch ${batchIdx + 1}/${batches.length}: ${batch.length} chunk, ${totalBatchChars} chars, target ${targetCards} cards`);
+                const targetCards = batchTargets[batchIdx] || this._calculateBatchTarget(batch);
+                const totalBatchChars = batch.reduce((sum, c) => sum + (c?.text?.length || 0), 0);
+                console.log(`🚀 Batch ${batchIdx + 1}/${batches.length}: ${batch.length} chunk, ${totalBatchChars} chars, target ${targetCards} cards`);
 
-            return this._generateCardsBatch(
-                batch,
-                blueprint,
-                targetCards,
-                usedConcepts,
-                batchIdx,
-                batches.length
-            ).catch(async (err) => {
-                console.error(`❌ Errore batch ${batchIdx + 1}:`, err.message);
-                const fallbackCards = [];
-                for (const chunk of batch) {
-                    try {
-                        const singleTarget = this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
-                        const singleCards = await this._generateCardsSingle(
-                            chunk, blueprint, singleTarget, usedConcepts,
-                            batchIdx * BATCH_SIZE, semanticChunks.length
-                        );
-                        fallbackCards.push(...singleCards);
-                    } catch (singleErr) {
-                        console.error(`❌ Fallback singolo fallito:`, singleErr.message);
-                    }
+                return this._generateCardsBatch(
+                    batch,
+                    blueprint,
+                    targetCards,
+                    usedConcepts,
+                    batchIdx,
+                    batches.length,
+                    { userId, deckId }
+                ).catch(async (err) => {
+                    console.error(`❌ Errore batch ${batchIdx + 1}:`, err.message);
+                    const fallbackCards = [];
+                    for (const chunk of batch) {
+                        try {
+                            const singleTarget = this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
+                            const singleCards = await this._generateCardsSingle(
+                                chunk, blueprint, singleTarget, usedConcepts,
+                                batchIdx * BATCH_SIZE, semanticChunks.length,
+                                { userId, deckId }
+                            );
+                            fallbackCards.push(...singleCards);
+                        } catch (singleErr) {
+                            console.error(`❌ Fallback singolo fallito:`, singleErr.message);
+                        }
                 }
                 return fallbackCards;
             });
@@ -555,7 +578,7 @@ module.exports = {
     // BATCH & SINGLE GENERATION
     // =========================================
 
-    async _generateCardsBatch(chunks, blueprint, targetCount, usedConcepts, batchIndex, totalBatches) {
+    async _generateCardsBatch(chunks, blueprint, targetCount, usedConcepts, batchIndex, totalBatches, telemetry = {}) {
         const globalContext = blueprint?.globalContext || 'Documento accademico';
         const documentType = blueprint?.documentType || 'other';
 
@@ -630,17 +653,36 @@ OUTPUT JSON:
                 const baseTemp = attempt === 1 ? 0.6 : 0.4;
                 const tempJitter = (batchIndex * 0.05) + (Math.random() * 0.1);
                 const temperature = Math.min(baseTemp + tempJitter, 1.0);
+                const messages = [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: combinedText }
+                ];
 
-                const completion = await openai.chat.completions.create({
-                    model: ACTIVE_AI_MODEL,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: combinedText }
-                    ],
-                    temperature,
-                    max_completion_tokens: tokenBudget,
-                    response_format: { type: 'json_object' },
-                });
+                const completion = await aiUsageService.runTrackedChatCompletion(
+                    {
+                        userId: telemetry?.userId,
+                        mode: 'flashcards',
+                        feature: 'flashcards_batch_generation',
+                        model: ACTIVE_AI_MODEL,
+                        messages,
+                        promptLengthChars: systemPrompt.length + combinedText.length,
+                        metadata: {
+                            deckId: telemetry?.deckId ? String(telemetry.deckId) : '',
+                            batchIndex: batchIndex + 1,
+                            totalBatches,
+                            targetCount,
+                            retryAttempt: attempt,
+                            chunkCount: chunks.length,
+                        },
+                    },
+                    () => openai.chat.completions.create({
+                        model: ACTIVE_AI_MODEL,
+                        messages,
+                        temperature,
+                        max_completion_tokens: tokenBudget,
+                        response_format: { type: 'json_object' },
+                    })
+                );
 
                 if (completion.usage) {
                     const pct = Math.round((completion.usage.completion_tokens / tokenBudget) * 100);
@@ -677,7 +719,7 @@ OUTPUT JSON:
         return [];
     },
 
-    async _generateCardsSingle(chunk, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks) {
+    async _generateCardsSingle(chunk, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks, telemetry = {}) {
         const globalContext = blueprint?.globalContext || 'Documento accademico';
         const documentType = blueprint?.documentType || 'other';
 
@@ -717,16 +759,34 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
         const temperature = 0.6 + (Math.random() * 0.15);
 
         try {
-            const completion = await openai.chat.completions.create({
-                model: ACTIVE_AI_MODEL,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: chunk.text }
-                ],
-                temperature: Math.min(temperature, 1.0),
-                max_completion_tokens: tokenBudget,
-                response_format: { type: 'json_object' },
-            });
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: chunk.text }
+            ];
+
+            const completion = await aiUsageService.runTrackedChatCompletion(
+                {
+                    userId: telemetry?.userId,
+                    mode: 'flashcards',
+                    feature: 'flashcards_single_generation',
+                    model: ACTIVE_AI_MODEL,
+                    messages,
+                    promptLengthChars: systemPrompt.length + (chunk?.text?.length || 0),
+                    metadata: {
+                        deckId: telemetry?.deckId ? String(telemetry.deckId) : '',
+                        chunkIndex: chunkIndex + 1,
+                        totalChunks,
+                        targetCount,
+                    },
+                },
+                () => openai.chat.completions.create({
+                    model: ACTIVE_AI_MODEL,
+                    messages,
+                    temperature: Math.min(temperature, 1.0),
+                    max_completion_tokens: tokenBudget,
+                    response_format: { type: 'json_object' },
+                })
+            );
 
             const response = completion.choices[0]?.message?.content;
             if (!response) return [];

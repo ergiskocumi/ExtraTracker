@@ -17,6 +17,7 @@ if (typeof globalThis.Path2D === 'undefined') {
 const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 const fs = require('fs').promises;
 const crypto = require('crypto');
+const path = require('path');
 
 /**
  * PDF Cache Service
@@ -38,6 +39,7 @@ class PDFCacheService {
         this.cache = new Map();
         this.MAX_CACHE_SIZE = 50; // Max 50 PDF in cache
         this.TTL = 5 * 60 * 1000; // 5 minuti in millisecondi
+        this.assets = this._resolvePdfJsAssets();
 
         // Stats
         this.stats = {
@@ -48,6 +50,24 @@ class PDFCacheService {
         };
 
         console.log('[PDFCache] Initialized with pdfjs-dist (max size: 50, TTL: 5min)');
+    }
+
+    /**
+     * Risolve i path asset pdfjs (cmaps + standard fonts) per migliorare
+     * la decodifica dei font embedded e ridurre warning rumorosi.
+     */
+    _resolvePdfJsAssets() {
+        try {
+            const pkgPath = require.resolve('pdfjs-dist/package.json');
+            const baseDir = path.dirname(pkgPath);
+            return {
+                cMapUrl: path.join(baseDir, 'cmaps') + path.sep,
+                standardFontDataUrl: path.join(baseDir, 'standard_fonts') + path.sep,
+            };
+        } catch (err) {
+            console.warn('[PDFCache] Impossibile risolvere asset pdfjs:', err.message);
+            return { cMapUrl: undefined, standardFontDataUrl: undefined };
+        }
     }
 
     /**
@@ -133,12 +153,16 @@ class PDFCacheService {
                 const width = Math.max(0, Number(item.width ?? 0));
                 const heightFromTransform = Math.abs(Number(item.transform?.[3] ?? 0));
                 const height = Math.max(1, Number(item.height ?? heightFromTransform ?? 1));
+                const rawText = item.str.replace(/\s+/g, ' ');
+                const text = rawText.trim();
+                const avgCharWidth = Math.max(0.2, width / Math.max(1, text.length || rawText.length || 1));
                 return {
-                    str: item.str.replace(/\s+/g, ' ').trim(),
+                    str: text,
                     x,
                     y,
                     width,
                     height,
+                    avgCharWidth,
                 };
             });
 
@@ -182,7 +206,8 @@ class PDFCacheService {
 
                 if (lastRight !== null && prev) {
                     const gap = item.x - lastRight;
-                    const threshold = Math.max(0.25, Math.min(2.5, ((prev.height + item.height) / 2) * 0.12));
+                    const avgChar = Math.max(prev.avgCharWidth || 0.6, item.avgCharWidth || 0.6);
+                    const threshold = Math.max(0.55, Math.min(4, avgChar * 0.8));
                     if (gap > threshold) lineText += ' ';
                 }
 
@@ -230,13 +255,13 @@ class PDFCacheService {
             if (cached) {
                 this.stats.hits++;
                 this._touchEntry(cacheKey);
-                console.log(`[PDFCache] HIT: ${cacheKey.substring(0, 16)}... (hits: ${this.stats.hits})`);
+                console.log(`[PDFCache] CACHE HIT: ${cacheKey.substring(0, 16)}... (hits: ${this.stats.hits})`);
                 return cached.data;
             }
 
             // Cache MISS: parsa PDF con pdfjs-dist
             this.stats.misses++;
-            console.log(`[PDFCache] MISS: ${cacheKey.substring(0, 16)}... (misses: ${this.stats.misses})`);
+            console.log(`[PDFCache] CACHE MISS (nuovo hash file): ${cacheKey.substring(0, 16)}... (misses: ${this.stats.misses})`);
 
             const startTime = Date.now();
             const pdfBuffer = buffer || await fs.readFile(filePath);
@@ -245,6 +270,10 @@ class PDFCacheService {
             const doc = await pdfjsLib.getDocument({
                 data: uint8Array,
                 useSystemFonts: true,
+                cMapUrl: this.assets.cMapUrl,
+                cMapPacked: true,
+                standardFontDataUrl: this.assets.standardFontDataUrl,
+                verbosity: pdfjsLib.VerbosityLevel?.ERRORS ?? 0,
             }).promise;
 
             const pages = [];
@@ -276,11 +305,19 @@ class PDFCacheService {
                 size: pdfBuffer.length,
             });
 
-            console.log(`[PDFCache] Cached: ${cacheKey.substring(0, 16)}... (cache size: ${this.cache.size}/${this.MAX_CACHE_SIZE})`);
+            console.log(`[PDFCache] CACHE SET: ${cacheKey.substring(0, 16)}... (cache size: ${this.cache.size}/${this.MAX_CACHE_SIZE})`);
             return pdfData;
 
         } catch (err) {
             this.stats.errors++;
+            if (err?.name === 'PasswordException' || /password/i.test(err?.message || '')) {
+                console.error('[PDFCache] Parse error: PDF protetto da password');
+                throw new Error('PDF protetto da password');
+            }
+            if (/Invalid PDF structure/i.test(err?.message || '')) {
+                console.error('[PDFCache] Parse error: PDF con struttura non valida');
+                throw new Error('PDF con struttura non valida');
+            }
             console.error('[PDFCache] Parse error:', err.message);
             throw err;
         }

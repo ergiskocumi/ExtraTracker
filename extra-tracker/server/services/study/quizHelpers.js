@@ -5,6 +5,7 @@
  */
 
 const { openai, DISTRACTOR_AI_MODEL, QUIZ_DEBUG_LOGS } = require('./constants');
+const aiUsageService = require('../aiUsageService');
 
 module.exports = {
 
@@ -40,7 +41,7 @@ module.exports = {
     // AI QUIZ GENERATION FROM PDF TEXT
     // =========================================
 
-    async generateQuizFromPDFText(pdfTextChunk, questionCount = 5, previousQuestions = []) {
+    async generateQuizFromPDFText(pdfTextChunk, questionCount = 5, previousQuestions = [], telemetry = {}) {
         if (!process.env.OPENAI_API_KEY) {
             throw new Error('OPENAI_API_KEY non configurata');
         }
@@ -167,17 +168,36 @@ module.exports = {
 
         let completion;
         try {
-            completion = await openai.chat.completions.create(
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+            ];
+
+            completion = await aiUsageService.runTrackedChatCompletion(
                 {
+                    userId: telemetry?.userId,
+                    mode: 'quiz',
+                    feature: 'quiz_generation_pdf_chunk',
                     model: DISTRACTOR_AI_MODEL,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt },
-                    ],
-                    response_format: responseFormat,
-                    ...({ temperature: 0.35 }),
+                    messages,
+                    promptLengthChars: systemPrompt.length + userPrompt.length,
+                    metadata: {
+                        deckId: telemetry?.deckId ? String(telemetry.deckId) : '',
+                        chunkIndex: telemetry?.chunkIndex ?? null,
+                        totalChunks: telemetry?.totalChunks ?? null,
+                        questionCount: count,
+                        previousQuestionsCount: previousQuestions.length,
+                    },
                 },
-                { timeout: 120000 },
+                () => openai.chat.completions.create(
+                    {
+                        model: DISTRACTOR_AI_MODEL,
+                        messages,
+                        response_format: responseFormat,
+                        ...({ temperature: 0.35 }),
+                    },
+                    { timeout: 120000 },
+                ),
             );
         } catch (apiError) {
             this._logQuizDebug('quiz-from-pdf-api-error', { error: apiError.message });
@@ -256,7 +276,7 @@ module.exports = {
     // FULL-PDF ORCHESTRATOR
     // =========================================
 
-    async generateQuizFromFullPDF(fullText, totalQuestionsRequested, previousQuestions = []) {
+    async generateQuizFromFullPDF(fullText, totalQuestionsRequested, previousQuestions = [], telemetry = {}) {
         const chunks = this._splitTextIntoChunks(fullText);
 
         if (chunks.length === 0) {
@@ -288,7 +308,11 @@ module.exports = {
             ];
 
             try {
-                const questions = await this.generateQuizFromPDFText(chunks[i], countForChunk, seenQuestions);
+                const questions = await this.generateQuizFromPDFText(chunks[i], countForChunk, seenQuestions, {
+                    ...telemetry,
+                    chunkIndex: i + 1,
+                    totalChunks: chunks.length,
+                });
                 allGeneratedQuestions.push(...questions);
             } catch (err) {
                 this._logQuizDebug('quiz-full-pdf-chunk-error', {
