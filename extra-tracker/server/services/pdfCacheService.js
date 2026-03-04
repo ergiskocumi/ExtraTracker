@@ -51,7 +51,7 @@ class PDFCacheService {
             errors: 0,
         };
 
-        console.log('[PDFCache] Initialized with pdfjs-dist (max size: 50, TTL: 5min)');
+        logger.debug('PDFCacheService', 'Initialized with pdfjs-dist (max size: 50, TTL: 5min)');
     }
 
     /**
@@ -67,7 +67,7 @@ class PDFCacheService {
                 standardFontDataUrl: path.join(baseDir, 'standard_fonts') + path.sep,
             };
         } catch (err) {
-            console.warn('[PDFCache] Impossibile risolvere asset pdfjs:', err.message);
+            logger.warn('PDFCacheService', 'Impossibile risolvere asset pdfjs', { error: err.message });
             return { cMapUrl: undefined, standardFontDataUrl: undefined };
         }
     }
@@ -82,7 +82,7 @@ class PDFCacheService {
             const buffer = await fs.readFile(filePath);
             return crypto.createHash('md5').update(buffer).digest('hex');
         } catch (err) {
-            console.error('[PDFCache] Hash calculation error:', err.message);
+            logger.error('PDFCacheService', 'Hash calculation error', { error: err.message });
             throw err;
         }
     }
@@ -102,7 +102,7 @@ class PDFCacheService {
         }
 
         if (cleaned > 0) {
-            console.log(`[PDFCache] Cleanup: removed ${cleaned} expired entries`);
+            logger.debug('PDFCacheService', `Cleanup: removed ${cleaned} expired entries`);
         }
     }
 
@@ -117,7 +117,7 @@ class PDFCacheService {
             if (oldest) {
                 this.cache.delete(oldest[0]);
                 this.stats.evictions++;
-                console.log(`[PDFCache] Evicted (LRU): ${oldest[0].substring(0, 12)}... (size: ${this.cache.size})`);
+                logger.debug('PDFCacheService', `Evicted (LRU): ${oldest[0].substring(0, 12)}... (size: ${this.cache.size})`);
             }
         }
     }
@@ -257,13 +257,13 @@ class PDFCacheService {
             if (cached) {
                 this.stats.hits++;
                 this._touchEntry(cacheKey);
-                console.log(`[PDFCache] CACHE HIT: ${cacheKey.substring(0, 16)}... (hits: ${this.stats.hits})`);
+                logger.debug('PDFCacheService', `CACHE HIT: ${cacheKey.substring(0, 16)}... (hits: ${this.stats.hits})`);
                 return cached.data;
             }
 
             // Cache MISS: parsa PDF con pdfjs-dist
             this.stats.misses++;
-            console.log(`[PDFCache] CACHE MISS (nuovo hash file): ${cacheKey.substring(0, 16)}... (misses: ${this.stats.misses})`);
+            logger.debug('PDFCacheService', `CACHE MISS (nuovo hash file): ${cacheKey.substring(0, 16)}... (misses: ${this.stats.misses})`);
 
             const startTime = Date.now();
             const pdfBuffer = buffer || await fs.readFile(filePath);
@@ -295,7 +295,7 @@ class PDFCacheService {
             };
 
             const parseTime = Date.now() - startTime;
-            console.log(`[PDFCache] Parsed in ${parseTime}ms (${pdfData.numpages} pages, ${pdfData.text.length} chars, per-page extraction)`);
+            logger.debug('PDFCacheService', `Parsed in ${parseTime}ms (${pdfData.numpages} pages, ${pdfData.text.length} chars, per-page extraction)`);
 
             // Salva in cache
             this._evictIfNeeded();
@@ -307,7 +307,7 @@ class PDFCacheService {
                 size: pdfBuffer.length,
             });
 
-            console.log(`[PDFCache] CACHE SET: ${cacheKey.substring(0, 16)}... (cache size: ${this.cache.size}/${this.MAX_CACHE_SIZE})`);
+            logger.debug('PDFCacheService', `CACHE SET: ${cacheKey.substring(0, 16)}... (cache size: ${this.cache.size}/${this.MAX_CACHE_SIZE})`);
             return pdfData;
 
         } catch (err) {
@@ -329,7 +329,7 @@ class PDFCacheService {
     clear() {
         const size = this.cache.size;
         this.cache.clear();
-        console.log(`[PDFCache] Cache cleared (${size} entries removed)`);
+        logger.debug('PDFCacheService', `Cache cleared (${size} entries removed)`);
     }
 
     /**
@@ -343,12 +343,12 @@ class PDFCacheService {
 
             if (this.cache.has(cacheKey)) {
                 this.cache.delete(cacheKey);
-                console.log(`[PDFCache] Cleared: ${cacheKey.substring(0, 16)}...`);
+                logger.debug('PDFCacheService', `Cleared: ${cacheKey.substring(0, 16)}...`);
                 return true;
             }
             return false;
         } catch (err) {
-            console.error('[PDFCache] clearFile error:', err.message);
+            logger.error('PDFCacheService', 'clearFile error', { error: err.message });
             return false;
         }
     }

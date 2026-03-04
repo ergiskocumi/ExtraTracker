@@ -6,6 +6,7 @@
 
 const mongoose = require('mongoose');
 const AIUsageLog = require('../models/AIUsageLog');
+const logger = require('../utils/logger');
 
 const DEFAULT_CHAT_PRICING_PER_1M = {
     default: { input: 2.5, output: 10 },
@@ -74,7 +75,7 @@ const loadPricingOverride = () => {
         const parsed = JSON.parse(raw);
         parsedPricingOverride = parsed && typeof parsed === 'object' ? parsed : null;
     } catch (err) {
-        console.warn('[AIUsage] AI_USAGE_PRICING_JSON non valido:', err.message);
+        logger.warn('AIUsageService', 'Pricing JSON non valido da env var', { error: err.message });
         parsedPricingOverride = null;
     }
 
@@ -249,7 +250,7 @@ async function trackEvent(payload = {}) {
             ...basePayload(payload),
         });
     } catch (err) {
-        console.warn('[AIUsage] trackEvent failed:', err.message);
+        logger.warn('AIUsageService', 'trackEvent fallito silenziosamente', { error: err.message });
         return null;
     }
 }

@@ -19,6 +19,7 @@ const { MAX_ACTIVE_SESSIONS } = require('../config/security');
 const { getRedisClient, getRedisAvailable } = require('../config/redis');
 const { encryptString, decryptString } = require('../utils/encryption');
 const auditService = require('./auditService');
+const logger = require('../utils/logger');
 
 // Durata grace period per race condition (30 secondi)
 const GRACE_PERIOD_MS = 30 * 1000;
@@ -80,7 +81,7 @@ class AuthService {
             const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
             await redisClient.setEx(`blacklist:${tokenHash}`, ttlSeconds, '1');
         } catch (error) {
-            console.error('❌ Errore aggiunta token a blacklist:', error.message);
+            logger.error('AuthService', 'Errore aggiunta token a blacklist Redis', { error: error.message });
         }
     }
 
@@ -95,7 +96,7 @@ class AuthService {
             const result = await redisClient.get(`blacklist:${tokenHash}`);
             return result === '1';
         } catch (error) {
-            console.error('❌ Errore verifica blacklist:', error.message);
+            logger.error('AuthService', 'Errore verifica blacklist token Redis', { error: error.message });
             return false;
         }
     }
@@ -109,7 +110,7 @@ class AuthService {
 
             await redisClient.setEx(`blacklist:user:${userId}`, 15 * 60, '1');
         } catch (error) {
-            console.error('❌ Errore blacklist utente:', error.message);
+            logger.error('AuthService', 'Errore blacklist utente Redis', { error: error.message });
         }
     }
 
@@ -138,7 +139,7 @@ class AuthService {
 
             return isBanned;
         } catch (error) {
-            console.error('❌ Errore verifica blacklist utente:', error.message);
+            logger.error('AuthService', 'Errore verifica blacklist utente Redis', { error: error.message });
             const user = await User.findById(userId).select('isActive');
             return user ? !user.isActive : false;
         }
