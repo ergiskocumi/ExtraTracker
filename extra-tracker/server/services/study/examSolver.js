@@ -19,6 +19,7 @@ const {
     DEFAULT_EASINESS_FACTOR,
     MAX_EXTRACTED_TEXT_STORE_LENGTH,
 } = require('./constants');
+const logger = require('../../utils/logger');
 
 module.exports = {
 
@@ -26,7 +27,7 @@ module.exports = {
      * 📋 EXTRACT EXAM QUESTIONS - Estrae domande da un documento
      */
     async extractExamQuestions(tenantScope, questionsFilePath) {
-        console.log('📋 Estrazione domande...');
+        logger.info('ExamSolver', 'Estrazione domande...');
         const userId = this._getUserId(tenantScope);
         let questionsText = '';
 
@@ -37,7 +38,7 @@ module.exports = {
             try {
                 pdfBuffer = await fs.readFile(questionsFilePath);
             } catch (err) {
-                console.error('❌ PDF Read Error (Questions):', err.message);
+                logger.error('ExamSolver', 'PDF Read Error (Questions)', { message: err.message });
                 throw AppError.validation('Impossibile leggere il file delle domande.');
             }
 
@@ -45,14 +46,14 @@ module.exports = {
                 const pdfData = await pdfCacheService.parsePDF(questionsFilePath, pdfBuffer);
                 questionsText = this._formatPdfTextWithPages(pdfData);
             } catch (err) {
-                console.error('❌ PDF Parse Error (Questions):', err.message);
+                logger.error('ExamSolver', 'PDF Parse Error (Questions)', { message: err.message });
                 throw AppError.validation('Impossibile leggere il file delle domande. Assicurati che sia un PDF valido.');
             }
         } else {
             try {
                 questionsText = await fs.readFile(questionsFilePath, 'utf-8');
             } catch (err) {
-                console.error('❌ TXT Read Error (Questions):', err.message);
+                logger.error('ExamSolver', 'TXT Read Error (Questions)', { message: err.message });
                 throw AppError.validation('Impossibile leggere il file delle domande.');
             }
         }
@@ -113,12 +114,12 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                         questions = parsed.filter(q => q && typeof q === 'string' && q.trim().length > 0);
                     }
                 } catch (parseErr) {
-                    console.error('❌ JSON Parse Error (Questions):', parseErr.message);
+                    logger.error('ExamSolver', 'JSON Parse Error (Questions)', { message: parseErr.message });
                     questions = this._extractQuestionsFallback(normalizedQuestionsText);
                 }
             }
         } catch (err) {
-            console.error('❌ OpenAI Extraction Error:', err.message);
+            logger.error('ExamSolver', 'OpenAI Extraction Error', { message: err.message });
             questions = this._extractQuestionsFallback(normalizedQuestionsText);
         }
 
@@ -126,7 +127,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
             throw AppError.validation('Nessuna domanda trovata nel documento. Verifica che il file contenga domande d\'esame.');
         }
 
-        console.log(`✅ Estratte ${questions.length} domande`);
+        logger.info('ExamSolver', `Estratte ${questions.length} domande`);
 
         return { questions };
     },
@@ -144,12 +145,12 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
         }
 
         // STEP 1: Estrazione testo dal documento sorgente
-        console.log('📚 Estrazione materiale di studio...');
+        logger.info('ExamSolver', 'Estrazione materiale di studio...');
         let sourceBuffer;
         try {
             sourceBuffer = await fs.readFile(sourceFilePath);
         } catch (err) {
-            console.error('❌ PDF Read Error (Source):', err.message);
+            logger.error('ExamSolver', 'PDF Read Error (Source)', { message: err.message });
             throw AppError.validation('Impossibile leggere il file del materiale di studio.');
         }
 
@@ -158,7 +159,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
             const pdfData = await pdfCacheService.parsePDF(sourceFilePath, sourceBuffer);
             sourceText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
-            console.error('❌ PDF Parse Error (Source):', err.message);
+            logger.error('ExamSolver', 'PDF Parse Error (Source)', { message: err.message });
             throw AppError.validation('Impossibile leggere il file del materiale di studio. Assicurati che sia un PDF valido.');
         }
 
@@ -169,7 +170,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
         const normalizedSourceText = this._normalizeExtractedText(sourceText);
 
         // STEP 2: Chunking intelligente
-        console.log('🧠 Chunking intelligente per documenti lunghi...');
+        logger.info('ExamSolver', 'Chunking intelligente per documenti lunghi...');
         let useSmartChunking = normalizedSourceText.length > 20000;
 
         let sourceTextForContext = '';
@@ -183,9 +184,9 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                     mode: 'exam_solver',
                     feature: 'exam_answers_context_ingest',
                 });
-                console.log('✅ Materiale ingerito nel vector store (chunking intelligente attivo)');
+                logger.info('ExamSolver', 'Materiale ingerito nel vector store (chunking intelligente attivo)');
             } catch (err) {
-                console.warn('⚠️ Vector ingest error (fallback a testo completo):', err.message);
+                logger.warn('ExamSolver', 'Vector ingest error (fallback a testo completo)', { message: err.message });
                 useSmartChunking = false;
                 tempDeckId = null;
             }
@@ -195,10 +196,10 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
             sourceTextForContext = this._truncateText(normalizedSourceText, 100000, '\n\n[...materiale troncato...]');
         }
 
-        console.log(`✅ Materiale estratto: ${normalizedSourceText.length} caratteri${useSmartChunking ? ' (chunking intelligente attivo)' : ''}`);
+        logger.info('ExamSolver', `Materiale estratto: ${normalizedSourceText.length} caratteri${useSmartChunking ? ' (chunking intelligente attivo)' : ''}`);
 
         // STEP 3: Generazione batch risposte
-        console.log('🤖 Generazione risposte...');
+        logger.info('ExamSolver', 'Generazione risposte...');
 
         const BATCH_SIZE_LOCAL = 10;
         const PARALLEL_BATCHES = 3;
@@ -218,7 +219,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
             });
         }
 
-        console.log(`📊 Totale batch: ${batches.length} (${PARALLEL_BATCHES} in parallelo)`);
+        logger.debug('ExamSolver', `Totale batch: ${batches.length} (${PARALLEL_BATCHES} in parallelo)`);
 
         // Helper: recupera contesto per batch
         const getBatchContext = async (batch) => {
@@ -232,7 +233,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                             feature: 'exam_answers_context_query',
                         })
                             .catch(err => {
-                                console.warn(`⚠️ Vector query error per domanda:`, err.message);
+                                logger.warn('ExamSolver', 'Vector query error per domanda', { message: err.message });
                                 return [];
                             })
                     );
@@ -253,7 +254,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                         batchContext = this._truncateText(normalizedSourceText, 100000, '\n\n[...materiale troncato...]');
                     }
                 } catch (err) {
-                    console.warn('⚠️ getBatchContext error, using fallback:', err.message);
+                    logger.warn('ExamSolver', 'getBatchContext error, using fallback', { message: err.message });
                     batchContext = this._truncateText(normalizedSourceText, 100000, '\n\n[...materiale troncato...]');
                 }
             }
@@ -266,7 +267,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                 try {
                     const batchNumber = batchIndex + 1;
                     const totalBatches = batches.length;
-                    console.log(`🔄 Processando batch ${batchNumber}/${totalBatches} (${batch.questions.length} domande, tentativo ${attempt + 1})`);
+                    logger.debug('ExamSolver', `Processando batch ${batchNumber}/${totalBatches} (${batch.questions.length} domande, tentativo ${attempt + 1})`);
 
                     const batchContext = await getBatchContext(batch);
 
@@ -336,7 +337,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                     const isLastAttempt = attempt === MAX_RETRIES - 1;
 
                     if (isLastAttempt) {
-                        console.error(`❌ Batch ${batchIndex + 1} fallito dopo ${MAX_RETRIES} tentativi:`, err.message);
+                        logger.error('ExamSolver', `Batch ${batchIndex + 1} fallito dopo ${MAX_RETRIES} tentativi`, { message: err.message });
                         const placeholderCards = batch.questions.map(q => ({
                             front: q.trim(),
                             back: '⚠️ Errore nella generazione (max retry raggiunto)',
@@ -347,7 +348,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                     }
 
                     const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-                    console.log(`⚠️ Batch ${batchIndex + 1} fallito (tentativo ${attempt + 1}/${MAX_RETRIES}), retry in ${delay}ms...`);
+                    logger.warn('ExamSolver', `Batch ${batchIndex + 1} fallito (tentativo ${attempt + 1}/${MAX_RETRIES}), retry in ${delay}ms...`);
                     await this._sleep(delay);
                 }
             }
@@ -356,7 +357,7 @@ Genera una risposta per OGNI domanda nella lista.`;
         // Loop parallelo sui batch
         for (let i = 0; i < batches.length; i += PARALLEL_BATCHES) {
             const parallelBatches = batches.slice(i, i + PARALLEL_BATCHES);
-            console.log(`\n⚡ Processando ${parallelBatches.length} batch in parallelo...`);
+            logger.debug('ExamSolver', `Processando ${parallelBatches.length} batch in parallelo...`);
 
             const results = await Promise.all(
                 parallelBatches.map((batch, idx) =>
@@ -444,10 +445,10 @@ Genera una risposta per OGNI domanda nella lista.`;
             throw AppError.validation('Nessuna flashcard generata. Riprova con documenti diversi.');
         }
 
-        console.log(`✅ Generate ${allFlashcards.length} flashcard (${answersFound} trovate, ${answersNotFound} non trovate)`);
+        logger.info('ExamSolver', `Generate ${allFlashcards.length} flashcard (${answersFound} trovate, ${answersNotFound} non trovate)`);
 
         // STEP 4: Salvataggio
-        console.log('💾 Salvataggio...');
+        logger.info('ExamSolver', 'Salvataggio...');
 
         let deck;
         if (deckId) {
@@ -497,7 +498,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                 feature: 'exam_answers_deck_ingest',
             });
         } catch (err) {
-            console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
+            logger.warn('ExamSolver', 'Vector ingest error (non bloccante)', { message: err.message });
         }
 
         const processingTimeMs = Date.now() - startTime;
@@ -549,7 +550,7 @@ Genera una risposta per OGNI domanda nella lista.`;
         }
 
         // STEP 1: Estrazione domande
-        console.log('📋 STEP 1: Estrazione domande...');
+        logger.info('ExamSolver', 'STEP 1: Estrazione domande...');
         let questionsText = '';
 
         const questionsIsPdf = questionsFilePath.toLowerCase().endsWith('.pdf');
@@ -559,7 +560,7 @@ Genera una risposta per OGNI domanda nella lista.`;
             try {
                 pdfBuffer = await fs.readFile(questionsFilePath);
             } catch (err) {
-                console.error('❌ PDF Read Error (Questions):', err.message);
+                logger.error('ExamSolver', 'PDF Read Error (Questions) [legacy]', { message: err.message });
                 throw AppError.validation('Impossibile leggere il file delle domande.');
             }
 
@@ -567,14 +568,14 @@ Genera una risposta per OGNI domanda nella lista.`;
                 const pdfData = await pdfCacheService.parsePDF(questionsFilePath, pdfBuffer);
                 questionsText = this._formatPdfTextWithPages(pdfData);
             } catch (err) {
-                console.error('❌ PDF Parse Error (Questions):', err.message);
+                logger.error('ExamSolver', 'PDF Parse Error (Questions) [legacy]', { message: err.message });
                 throw AppError.validation('Impossibile leggere il file delle domande. Assicurati che sia un PDF valido.');
             }
         } else {
             try {
                 questionsText = await fs.readFile(questionsFilePath, 'utf-8');
             } catch (err) {
-                console.error('❌ TXT Read Error (Questions):', err.message);
+                logger.error('ExamSolver', 'TXT Read Error (Questions) [legacy]', { message: err.message });
                 throw AppError.validation('Impossibile leggere il file delle domande.');
             }
         }
@@ -635,12 +636,12 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                         questions = parsed.filter(q => q && typeof q === 'string' && q.trim().length > 0);
                     }
                 } catch (parseErr) {
-                    console.error('❌ JSON Parse Error (Questions):', parseErr.message);
+                    logger.error('ExamSolver', 'JSON Parse Error (Questions) [legacy]', { message: parseErr.message });
                     questions = this._extractQuestionsFallback(normalizedQuestionsText);
                 }
             }
         } catch (err) {
-            console.error('❌ OpenAI Extraction Error:', err.message);
+            logger.error('ExamSolver', 'OpenAI Extraction Error [legacy]', { message: err.message });
             questions = this._extractQuestionsFallback(normalizedQuestionsText);
         }
 
@@ -648,15 +649,15 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
             throw AppError.validation('Nessuna domanda trovata nel documento. Verifica che il file contenga domande d\'esame.');
         }
 
-        console.log(`✅ Estratte ${questions.length} domande`);
+        logger.info('ExamSolver', `Estratte ${questions.length} domande [legacy]`);
 
         // STEP 2: Estrazione testo dal materiale
-        console.log('📚 STEP 2: Estrazione materiale di studio...');
+        logger.info('ExamSolver', 'STEP 2: Estrazione materiale di studio...');
         let sourceBuffer;
         try {
             sourceBuffer = await fs.readFile(sourceFilePath);
         } catch (err) {
-            console.error('❌ PDF Read Error (Source):', err.message);
+            logger.error('ExamSolver', 'PDF Read Error (Source) [legacy]', { message: err.message });
             throw AppError.validation('Impossibile leggere il file del materiale di studio.');
         }
 
@@ -665,7 +666,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
             const pdfData = await pdfCacheService.parsePDF(sourceFilePath, sourceBuffer);
             sourceText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
-            console.error('❌ PDF Parse Error (Source):', err.message);
+            logger.error('ExamSolver', 'PDF Parse Error (Source) [legacy]', { message: err.message });
             throw AppError.validation('Impossibile leggere il file del materiale di studio. Assicurati che sia un PDF valido.');
         }
 
@@ -676,10 +677,10 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
         const normalizedSourceText = this._normalizeExtractedText(sourceText);
         const sourceTextForContext = this._truncateText(normalizedSourceText, 100000, '\n\n[...materiale troncato...]');
 
-        console.log(`✅ Materiale estratto: ${normalizedSourceText.length} caratteri`);
+        logger.info('ExamSolver', `Materiale estratto: ${normalizedSourceText.length} caratteri [legacy]`);
 
         // STEP 3: Generazione batch risposte
-        console.log('🤖 STEP 3: Generazione risposte...');
+        logger.info('ExamSolver', 'STEP 3: Generazione risposte [legacy]...');
 
         const BATCH_SIZE_LEGACY = 10;
         const allFlashcards = [];
@@ -688,7 +689,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
 
         for (let i = 0; i < questions.length; i += BATCH_SIZE_LEGACY) {
             const batch = questions.slice(i, i + BATCH_SIZE_LEGACY);
-            console.log(`🔄 Processando batch ${Math.floor(i / BATCH_SIZE_LEGACY) + 1}/${Math.ceil(questions.length / BATCH_SIZE_LEGACY)} (${batch.length} domande)`);
+            logger.debug('ExamSolver', `Processando batch ${Math.floor(i / BATCH_SIZE_LEGACY) + 1}/${Math.ceil(questions.length / BATCH_SIZE_LEGACY)} (${batch.length} domande) [legacy]`);
 
             const batchPrompt = `Sei un TUTOR ACCADEMICO. Per OGNI domanda, genera una risposta usando SOLO il contesto.
 
@@ -759,11 +760,11 @@ Genera una risposta per OGNI domanda nella lista.`;
                             }
                         }
                     } catch (parseErr) {
-                        console.error('❌ JSON Parse Error (Batch):', parseErr.message);
+                        logger.error('ExamSolver', 'JSON Parse Error (Batch) [legacy]', { message: parseErr.message });
                     }
                 }
             } catch (err) {
-                console.error(`❌ OpenAI Batch Error (${i}-${i + batch.length}):`, err.message);
+                logger.error('ExamSolver', `OpenAI Batch Error (${i}-${i + batch.length}) [legacy]`, { message: err.message });
                 for (const question of batch) {
                     allFlashcards.push({
                         front: question.trim(),
@@ -783,10 +784,10 @@ Genera una risposta per OGNI domanda nella lista.`;
             throw AppError.validation('Nessuna flashcard generata. Riprova con documenti diversi.');
         }
 
-        console.log(`✅ Generate ${allFlashcards.length} flashcard (${answersFound} trovate, ${answersNotFound} non trovate)`);
+        logger.info('ExamSolver', `Generate ${allFlashcards.length} flashcard (${answersFound} trovate, ${answersNotFound} non trovate) [legacy]`);
 
         // STEP 4: Salvataggio
-        console.log('💾 STEP 4: Salvataggio...');
+        logger.info('ExamSolver', 'STEP 4: Salvataggio [legacy]...');
 
         let deck;
         if (deckId) {
@@ -836,7 +837,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                 feature: 'exam_solver_legacy_deck_ingest',
             });
         } catch (err) {
-            console.warn('⚠️ Vector ingest error (non bloccante):', err.message);
+            logger.warn('ExamSolver', 'Vector ingest error (non bloccante) [legacy]', { message: err.message });
         }
 
         const processingTimeMs = Date.now() - startTime;

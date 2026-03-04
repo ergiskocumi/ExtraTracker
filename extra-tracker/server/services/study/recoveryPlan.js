@@ -13,6 +13,7 @@ const {
     DEFAULT_EASINESS_FACTOR,
 } = require('./constants');
 const aiUsageService = require('../aiUsageService');
+const logger = require('../../utils/logger');
 
 module.exports = {
 
@@ -24,23 +25,22 @@ module.exports = {
      * @returns {Promise<object>} - Statistiche del reset
      */
     async resetExamCards(tenantScope, examId, type = 'all') {
-        console.log('[StudyService] resetExamCards chiamato:', { examId, type });
+        logger.info('RecoveryPlan', 'resetExamCards chiamato', { examId, type });
         const userId = this._getUserId(tenantScope);
-        console.log('[StudyService] userId:', userId);
 
         // Verifica che l'esame esista e appartenga all'utente
         const exam = await Exam.findOne({ _id: examId, user: userId });
         if (!exam) {
-            console.error('[StudyService] Esame non trovato:', { examId, userId });
+            logger.error('RecoveryPlan', 'Esame non trovato', { examId, userId });
             throw AppError.notFound('Esame non trovato');
         }
-        console.log('[StudyService] Esame trovato:', exam.title);
+        logger.debug('RecoveryPlan', 'Esame trovato', { title: exam.title });
 
         // Trova tutti i deck associati a questo esame
         const decks = await Deck.find({ examId, user: userId });
-        console.log('[StudyService] Trovati', decks.length, 'deck per l\'esame');
+        logger.debug('RecoveryPlan', `Trovati ${decks.length} deck per l'esame`);
         if (decks.length === 0) {
-            console.warn('[StudyService] Nessun mazzo trovato per esame:', examId);
+            logger.warn('RecoveryPlan', 'Nessun mazzo trovato per esame', { examId });
             throw AppError.notFound('Nessun mazzo trovato per questo esame');
         }
 
@@ -90,7 +90,7 @@ module.exports = {
             cardsReset: type === 'all' ? totalReset : hardReset,
             type,
         };
-        console.log('[StudyService] resetExamCards completato:', result);
+        logger.info('RecoveryPlan', 'resetExamCards completato', result);
         return result;
     },
 
@@ -102,23 +102,22 @@ module.exports = {
      * @returns {Promise<object>} - Statistiche della generazione
      */
     async generateRecoveryQuestions(tenantScope, examId, difficulties = []) {
-        console.log('[StudyService] generateRecoveryQuestions chiamato:', { examId, difficulties });
+        logger.info('RecoveryPlan', 'generateRecoveryQuestions chiamato', { examId, difficulties });
         const userId = this._getUserId(tenantScope);
-        console.log('[StudyService] userId:', userId);
 
         // Verifica che l'esame esista e appartenga all'utente
         const exam = await Exam.findOne({ _id: examId, user: userId });
         if (!exam) {
-            console.error('[StudyService] Esame non trovato:', { examId, userId });
+            logger.error('RecoveryPlan', 'Esame non trovato', { examId, userId });
             throw AppError.notFound('Esame non trovato');
         }
-        console.log('[StudyService] Esame trovato:', exam.title);
+        logger.debug('RecoveryPlan', 'Esame trovato', { title: exam.title });
 
         // Trova tutti i deck associati a questo esame
         const decks = await Deck.find({ examId, user: userId });
-        console.log('[StudyService] Trovati', decks.length, 'deck per l\'esame');
+        logger.debug('RecoveryPlan', `Trovati ${decks.length} deck per l'esame`);
         if (decks.length === 0) {
-            console.warn('[StudyService] Nessun mazzo trovato per esame:', examId);
+            logger.warn('RecoveryPlan', 'Nessun mazzo trovato per esame', { examId });
             throw AppError.notFound('Nessun mazzo trovato per questo esame');
         }
 
@@ -223,7 +222,7 @@ FORMATO JSON:
                 const generatedCards = this._extractGeneratedCards(parsed);
 
                 if (generatedCards.length === 0) {
-                    console.warn(`[StudyService] generateRecoveryQuestions: Nessuna carta generata per deck ${deck._id}`);
+                    logger.warn('RecoveryPlan', `Nessuna carta generata per deck ${deck._id}`);
                     continue;
                 }
 
@@ -249,7 +248,7 @@ FORMATO JSON:
                     });
                 }
             } catch (error) {
-                console.error(`[StudyService] generateRecoveryQuestions: Errore per deck ${deck._id}:`, error.message);
+                logger.error('RecoveryPlan', `Errore generateRecoveryQuestions per deck ${deck._id}`, { message: error.message });
                 // Continua con gli altri deck anche se uno fallisce
             }
         }
@@ -259,7 +258,7 @@ FORMATO JSON:
             totalGenerated,
             generatedByDeck,
         };
-        console.log('[StudyService] generateRecoveryQuestions completato:', result);
+        logger.info('RecoveryPlan', 'generateRecoveryQuestions completato', result);
         return result;
     },
 };

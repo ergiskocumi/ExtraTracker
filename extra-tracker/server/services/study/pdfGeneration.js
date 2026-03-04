@@ -28,6 +28,7 @@ const {
     SIMILARITY_THRESHOLD,
     QUESTION_TYPES,
 } = require('./constants');
+const logger = require('../../utils/logger');
 
 let hasLoggedVectorStoreDisabled = false;
 
@@ -57,7 +58,7 @@ module.exports = {
         try {
             pdfBuffer = await fs.readFile(pdfFilePath);
         } catch (err) {
-            console.error('❌ PDF Read Error:', err.message);
+            logger.error('PdfGeneration', 'PDF Read Error', err);
             throw AppError.validation('Impossibile leggere il PDF caricato.');
         }
 
@@ -67,7 +68,7 @@ module.exports = {
             pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
             pdfText = this._formatPdfTextWithPages(pdfData);
         } catch (err) {
-            console.error('❌ PDF Parse Error:', err.message);
+            logger.error('PdfGeneration', 'PDF Parse Error', err);
             if (/password/i.test(err.message || '')) {
                 throw AppError.validation('Il PDF è protetto da password. Rimuovi la password e riprova.');
             }
@@ -88,16 +89,16 @@ module.exports = {
         await deck.save({ validateModifiedOnly: true });
 
         // Blueprint analysis
-        console.log('🏗️ FASE 1: Analisi strutturale...');
+        logger.info('PdfGeneration', 'FASE 1: Analisi strutturale');
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'blueprint', message: 'Identifico struttura documento...' });
 
         const blueprint = await this._analyzeDocumentStructure(normalizedText);
-        console.log('📋 Blueprint:', JSON.stringify(blueprint, null, 2));
+        logger.debug('PdfGeneration', 'Blueprint', blueprint);
 
         // Vector ingest (fire-and-forget). Non blocca la generazione flashcard.
         if (typeof vectorStoreService.isConfigured === 'function' && !vectorStoreService.isConfigured()) {
             if (!hasLoggedVectorStoreDisabled) {
-                console.log('ℹ️ Vector store disabilitato: ingest saltato (Pinecone/OpenAI embedding non configurati).');
+                logger.info('PdfGeneration', 'Vector store disabilitato: ingest saltato');
                 hasLoggedVectorStoreDisabled = true;
             }
         } else {
@@ -107,14 +108,14 @@ module.exports = {
                 feature: 'flashcards_vector_ingest',
             }).catch(err => {
                 const reason = err?.details?.message || err.message;
-                console.warn('⚠️ Vector ingest error (non bloccante):', reason);
+                logger.warn('PdfGeneration', 'Vector ingest error (non bloccante)', reason);
             });
         }
 
         // Semantic chunking
-        console.log('📦 FASE 2: Semantic chunking...');
+        logger.info('PdfGeneration', 'FASE 2: Semantic chunking');
         const semanticChunks = this._createSemanticChunks(normalizedText);
-        console.log(`📊 Creati ${semanticChunks.length} chunk semantici da ~${SEMANTIC_CHUNK_SIZE} caratteri`);
+        logger.info('PdfGeneration', `Creati ${semanticChunks.length} chunk semantici`);
 
         sseManager.sendToUser(userId, 'pdf-progress', {
             step: 'chunking',
@@ -123,11 +124,11 @@ module.exports = {
         });
 
         // Local concept extraction
-        console.log('🔑 FASE 3: Estrazione concetti (locale)...');
+        logger.info('PdfGeneration', 'FASE 3: Estrazione concetti');
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'concepts', message: 'Estraggo concetti chiave...' });
 
         const globalConcepts = this._extractConceptsLocally(normalizedText);
-        console.log(`🎯 Estratti ${globalConcepts.length} concetti chiave (locale)`);
+        logger.info('PdfGeneration', `Estratti ${globalConcepts.length} concetti chiave`);
 
         // Auto card cap
         const autoCardCap = this._estimateOptimalGenerationCardCap({
@@ -139,10 +140,10 @@ module.exports = {
         const generationCardCap = this._resolveGenerationCardCap(options?.maxCards, autoCardCap);
         const generationBudget = this._resolveGenerationBudget(generationCardCap, semanticChunks.length);
 
-        console.log(`🧮 Target card: auto=${autoCardCap}, capFinale=${generationCardCap}, budgetGenerazione=${generationBudget}`);
+        logger.debug('PdfGeneration', 'Target card', { autoCardCap, generationCardCap, generationBudget });
 
         // Batch generation
-        console.log('✨ FASE 4: Generazione flashcard (batch parallelo)...');
+        logger.info('PdfGeneration', 'FASE 4: Generazione flashcard (batch parallelo)');
         let allGeneratedCards = [];
         const usedConcepts = new Set();
 
@@ -154,9 +155,7 @@ module.exports = {
         const batchTargets = this._allocateBatchTargets(batches, generationBudget);
         const plannedTotal = batchTargets.reduce((sum, value) => sum + value, 0);
 
-        console.log(
-            `📦 Creati ${batches.length} batch da ${BATCH_SIZE} chunk ciascuno — lancio in PARALLELO (target totale pianificato: ${plannedTotal})`
-        );
+        logger.debug('PdfGeneration', 'Batch processing', { batches: batches.length, batchSize: BATCH_SIZE, plannedTotal });
 
         sseManager.sendToUser(userId, 'pdf-progress', {
             step: 'generating',
@@ -169,7 +168,7 @@ module.exports = {
         const batchPromises = batches.map((batch, batchIdx) => {
                 const targetCards = batchTargets[batchIdx] || this._calculateBatchTarget(batch);
                 const totalBatchChars = batch.reduce((sum, c) => sum + (c?.text?.length || 0), 0);
-                console.log(`🚀 Batch ${batchIdx + 1}/${batches.length}: ${batch.length} chunk, ${totalBatchChars} chars, target ${targetCards} cards`);
+                logger.debug('PdfGeneration', `Batch ${batchIdx + 1}/${batches.length}`, { chunks: batch.length, chars: totalBatchChars, targetCards });
 
                 return this._generateCardsBatch(
                     batch,
@@ -180,7 +179,7 @@ module.exports = {
                     batches.length,
                     { userId, deckId }
                 ).catch(async (err) => {
-                    console.error(`❌ Errore batch ${batchIdx + 1}:`, err.message);
+                    logger.error('PdfGeneration', `Errore batch ${batchIdx + 1}`, err);
                     const fallbackCards = [];
                     for (const chunk of batch) {
                         try {
@@ -192,7 +191,7 @@ module.exports = {
                             );
                             fallbackCards.push(...singleCards);
                         } catch (singleErr) {
-                            console.error(`❌ Fallback singolo fallito:`, singleErr.message);
+                            logger.error('PdfGeneration', 'Fallback singolo fallito', singleErr);
                         }
                 }
                 return fallbackCards;
@@ -205,9 +204,9 @@ module.exports = {
             const result = batchResults[i];
             if (result.status === 'fulfilled' && Array.isArray(result.value)) {
                 allGeneratedCards.push(...result.value);
-                console.log(`✅ Batch ${i + 1}: ${result.value.length} card`);
+                logger.debug('PdfGeneration', `Batch ${i + 1} completato`, { cards: result.value.length });
             } else if (result.status === 'rejected') {
-                console.error(`❌ Batch ${i + 1} rejected:`, result.reason?.message);
+                logger.error('PdfGeneration', `Batch ${i + 1} rifiutato`, result.reason);
             }
 
             sseManager.sendToUser(userId, 'pdf-progress', {
@@ -219,21 +218,21 @@ module.exports = {
             });
         }
 
-        console.log(`📊 Totale card generate (pre-deduplica): ${allGeneratedCards.length}`);
+        logger.info('PdfGeneration', `Totale card pre-deduplica: ${allGeneratedCards.length}`);
 
         // Deduplication
-        console.log('🧹 FASE 5: Deduplica semantica...');
+        logger.info('PdfGeneration', 'FASE 5: Deduplica semantica');
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'deduplicating', message: 'Rimuovo duplicati...' });
 
         const beforeDedup = allGeneratedCards.length;
         const uniqueCards = this._deduplicateCards(allGeneratedCards);
         const removedCount = beforeDedup - uniqueCards.length;
-        console.log(`🗑️ Rimossi ${removedCount} duplicati (${beforeDedup} → ${uniqueCards.length})`);
+        logger.info('PdfGeneration', `Deduplica: ${removedCount} rimossi (${beforeDedup} → ${uniqueCards.length})`);
 
         const cardsWithoutExistingDuplicates = this._deduplicateAgainstExistingCards(uniqueCards, deck.cards || []);
         const removedExisting = uniqueCards.length - cardsWithoutExistingDuplicates.length;
         if (removedExisting > 0) {
-            console.log(`♻️ Rimossi ${removedExisting} duplicati già presenti nel mazzo`);
+            logger.info('PdfGeneration', `Rimossi ${removedExisting} duplicati esistenti`);
         }
 
         // Validation & save
@@ -278,7 +277,7 @@ module.exports = {
         deck.cards.push(...validCards);
         await deck.save();
 
-        console.log(`✨ COMPLETATO: ${validCards.length} flashcard generate per deck ${deckId}`);
+        logger.info('PdfGeneration', `Completato: ${validCards.length} flashcard per deck ${deckId}`);
         sseManager.sendToUser(userId, 'pdf-progress', {
             step: 'completed',
             totalCards: validCards.length,
@@ -381,7 +380,7 @@ module.exports = {
         }
 
         if (iterations >= MAX_ITERATIONS) {
-            console.warn('⚠️ Chunking: raggiunto limite iterazioni, potrebbe esserci un problema');
+            logger.warn('PdfGeneration', 'Chunking: raggiunto limite iterazioni');
         }
 
         return chunks.length > 0 ? chunks : [{
@@ -445,7 +444,7 @@ module.exports = {
             .slice(0, 25)
             .map(([word]) => word);
 
-        console.log(`🔧 Estratti ${concepts.length} concetti localmente`);
+        logger.debug('PdfGeneration', `Estratti ${concepts.length} concetti`);
         return concepts;
     },
 
@@ -686,7 +685,7 @@ OUTPUT JSON:
 
                 if (completion.usage) {
                     const pct = Math.round((completion.usage.completion_tokens / tokenBudget) * 100);
-                    console.log(`📊 Batch ${batchIndex + 1} tokens: in=${completion.usage.prompt_tokens}, out=${completion.usage.completion_tokens}/${tokenBudget} (${pct}%), temp=${temperature.toFixed(2)}`);
+                    logger.debug('PdfGeneration', `Batch ${batchIndex + 1} tokens`, { promptTokens: completion.usage.prompt_tokens, completionTokens: completion.usage.completion_tokens, tokenBudget, temperature: temperature.toFixed(2) });
                 }
 
                 const response = completion.choices[0]?.message?.content;
@@ -703,7 +702,7 @@ OUTPUT JSON:
                     .filter(c => c.front && c.back);
 
                 if (normalizedCards.length === 0 && attempt < MAX_RETRIES) {
-                    console.warn(`⚠️ Batch ${batchIndex + 1}: risposta valida ma senza card (tentativo ${attempt}/${MAX_RETRIES})`);
+                    logger.warn('PdfGeneration', `Batch ${batchIndex + 1}: risposta senza card`, { attempt, maxRetries: MAX_RETRIES });
                     await this._sleep(500);
                     continue;
                 }
@@ -711,7 +710,7 @@ OUTPUT JSON:
                 return normalizedCards;
 
             } catch (err) {
-                console.error(`❌ Batch generation attempt ${attempt} failed:`, err.message);
+                logger.error('PdfGeneration', `Batch generation attempt ${attempt} fallito`, err);
                 if (attempt === MAX_RETRIES) throw err;
                 await this._sleep(1000);
             }
@@ -800,7 +799,7 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
                 .filter(c => c.front && c.back);
 
         } catch (err) {
-            console.error(`❌ Single generation failed:`, err.message);
+            logger.error('PdfGeneration', 'Single generation fallito', err);
             return [];
         }
     },
@@ -974,7 +973,7 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
         const mainTopics = this._extractMainTopics(sampleText);
         const densityScore = this._calculateDensityScore(sampleText);
 
-        console.log(`📋 Blueprint locale: ${documentType}, density: ${densityScore.toFixed(2)}`);
+        logger.debug('PdfGeneration', `Blueprint locale: ${documentType}`, { density: densityScore.toFixed(2) });
 
         return { documentType, globalContext, mainTopics, densityScore };
     },

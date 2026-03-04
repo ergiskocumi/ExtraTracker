@@ -5,11 +5,34 @@
  * Gestisce le richieste HTTP per Learning & Flashcards.
  */
 
-const fs = require('fs').promises;
-const studyService = require('../services/studyService');
 const flashcardGenerationService = require('../services/flashcardGenerationService');
+const deckCrudService = require('../services/study/deckCrudService');
+const aiTutorService = require('../services/study/aiTutorService');
+const sessionQuizService = require('../services/study/sessionQuizService');
+const cardReviewService = require('../services/study/cardReviewService');
+const recoveryPlanService = require('../services/study/recoveryPlanService');
+const examSolverService = require('../services/study/examSolverService');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { validatePdfFile } = require('../utils/pdfValidator');
+const { createSseConnection } = require('../utils/sseHelper');
+const {
+    getSessionSchema,
+    createDeckSchema,
+    updateDeckSchema,
+    cardBodySchema,
+    addCardAtPositionSchema,
+    updateCardAnswerSchema,
+    reorderCardsSchema,
+    submitReviewSchema,
+    verifyAnswerSchema,
+    completeSessionSchema,
+    chatWithTutorSchema,
+    answerExamQuestionSchema,
+    saveQuizSnapshotSchema,
+    resetExamCardsSchema,
+    generateRecoveryQuestionsSchema,
+} = require('../validators/studyValidators');
+const logger = require('../utils/logger');
 
 // =========================================
 // DECKS
@@ -20,11 +43,12 @@ const { validatePdfFile } = require('../utils/pdfValidator');
  * Crea un nuovo mazzo di flashcard
  */
 const createDeck = asyncHandler(async (req, res) => {
-    const deck = await studyService.createDeck(req.tenantScope, {
-        examId: req.body.examId,
-        title: req.body.title,
-        description: req.body.description,
-        tags: req.body.tags,
+    const { examId, title, description, tags } = createDeckSchema.parse(req.body);
+    const deck = await deckCrudService.createDeck(req.tenantScope, {
+        examId,
+        title,
+        description,
+        tags,
     });
 
     res.status(201).json({ success: true, data: deck });
@@ -35,13 +59,8 @@ const createDeck = asyncHandler(async (req, res) => {
  * Aggiorna un mazzo (titolo, descrizione, tags)
  */
 const updateDeck = asyncHandler(async (req, res) => {
-    const deck = await studyService.updateDeck(req.tenantScope, req.params.id, {
-        title: req.body.title,
-        description: req.body.description,
-        tags: req.body.tags,
-        folderId: req.body.folderId,
-        examId: req.body.examId,
-    });
+    const body = updateDeckSchema.parse(req.body);
+    const deck = await deckCrudService.updateDeck(req.tenantScope, req.params.id, body);
     res.json({ success: true, data: deck });
 });
 
@@ -50,7 +69,7 @@ const updateDeck = asyncHandler(async (req, res) => {
  * Elimina un mazzo di flashcard
  */
 const deleteDeck = asyncHandler(async (req, res) => {
-    await studyService.deleteDeck(req.tenantScope, req.params.id);
+    await deckCrudService.deleteDeck(req.tenantScope, req.params.id);
     res.json({ success: true, message: 'Mazzo eliminato' });
 });
 
@@ -59,7 +78,7 @@ const deleteDeck = asyncHandler(async (req, res) => {
  * Recupera un singolo mazzo con tutte le sue carte
  */
 const getDeckById = asyncHandler(async (req, res) => {
-    const deck = await studyService.getDeckById(req.tenantScope, req.params.id);
+    const deck = await deckCrudService.getDeckById(req.tenantScope, req.params.id);
     res.json({ success: true, data: deck });
 });
 
@@ -68,40 +87,23 @@ const getDeckById = asyncHandler(async (req, res) => {
  * Recupera una sessione di studio (flashcard | quiz | typing | mix | sprint | focus | exam)
  */
 const getSession = asyncHandler(async (req, res) => {
-    const requestedMode = String(req.query.mode || 'flashcard').toLowerCase();
-    const mode = ['flashcard', 'quiz', 'typing', 'mix', 'sprint', 'focus', 'exam'].includes(requestedMode)
-        ? requestedMode
-        : 'flashcard';
-    const focus = String(req.query.focus || 'smart').toLowerCase();
-    const limitValue = Number(req.query.limit);
-    const timeValue = Number(req.query.time);
-    const questionsValue = Number(req.query.questions);
-    const direction = String(req.query.direction || 'front').toLowerCase();
-    const examType = req.query.examType ? String(req.query.examType).toLowerCase() : undefined;
-    const examDifficulty = req.query.examDifficulty ? String(req.query.examDifficulty).toLowerCase() : undefined;
-    const quizType = req.query.quizType ? String(req.query.quizType).toLowerCase() : undefined;
-    const sourceCardIds = req.query.sourceCardIds
-        ? String(req.query.sourceCardIds)
-            .split(',')
-            .map(id => id.trim())
-            .filter(Boolean)
-        : undefined;
+    const {
+        mode,
+        focus,
+        limit,
+        time: timeLimitMinutes,
+        questions: questionCount,
+        direction,
+        examType,
+        examDifficulty,
+        quizType,
+        sourceCardIds,
+    } = getSessionSchema.parse(req.query);
 
-    const session = await studyService.getStudySession(
+    const session = await sessionQuizService.getStudySession(
         req.tenantScope,
         req.params.id,
-        {
-            mode,
-            focus,
-            limit: Number.isFinite(limitValue) ? limitValue : undefined,
-            timeLimitMinutes: Number.isFinite(timeValue) ? timeValue : undefined,
-            questionCount: Number.isFinite(questionsValue) ? questionsValue : undefined,
-            direction,
-            examType,
-            examDifficulty,
-            quizType,
-            sourceCardIds,
-        }
+        { mode, focus, limit, timeLimitMinutes, questionCount, direction, examType, examDifficulty, quizType, sourceCardIds }
     );
 
     res.json({ success: true, data: session });
@@ -112,16 +114,11 @@ const getSession = asyncHandler(async (req, res) => {
  * Salva uno snapshot di un quiz generato (per riuso futuro)
  */
 const saveQuizSnapshot = asyncHandler(async (req, res) => {
-    const snapshot = await studyService.saveQuizSnapshot(
+    const body = saveQuizSnapshotSchema.parse(req.body);
+    const snapshot = await deckCrudService.saveQuizSnapshot(
         req.tenantScope,
         req.params.id,
-        {
-            name: req.body.name,
-            quizType: req.body.quizType,
-            questionCount: req.body.questionCount,
-            sourceCardIds: req.body.sourceCardIds,
-            source: req.body.source,
-        }
+        body
     );
 
     res.status(201).json({ success: true, data: snapshot });
@@ -132,7 +129,7 @@ const saveQuizSnapshot = asyncHandler(async (req, res) => {
  * Restituisce lo storico quiz salvati di un esame
  */
 const getExamSavedQuizzes = asyncHandler(async (req, res) => {
-    const quizzes = await studyService.getExamSavedQuizzes(
+    const quizzes = await deckCrudService.getExamSavedQuizzes(
         req.tenantScope,
         req.params.examId
     );
@@ -149,10 +146,8 @@ const getExamSavedQuizzes = asyncHandler(async (req, res) => {
  * Aggiunge una card a un mazzo
  */
 const addCard = asyncHandler(async (req, res) => {
-    const deck = await studyService.addCard(req.tenantScope, req.params.id, {
-        front: req.body.front,
-        back: req.body.back,
-    });
+    const { front, back } = cardBodySchema.parse(req.body);
+    const deck = await deckCrudService.addCard(req.tenantScope, req.params.id, { front, back });
 
     res.status(201).json({ success: true, data: deck });
 });
@@ -162,14 +157,12 @@ const addCard = asyncHandler(async (req, res) => {
  * Modifica una card esistente
  */
 const updateCard = asyncHandler(async (req, res) => {
-    const deck = await studyService.updateCard(
+    const { front, back } = cardBodySchema.parse(req.body);
+    const deck = await deckCrudService.updateCard(
         req.tenantScope,
         req.params.id,
         req.params.cardId,
-        {
-            front: req.body.front,
-            back: req.body.back,
-        }
+        { front, back }
     );
 
     res.json({ success: true, data: deck });
@@ -180,16 +173,9 @@ const updateCard = asyncHandler(async (req, res) => {
  * Aggiorna solo la risposta (back) di una flashcard
  */
 const updateCardAnswer = asyncHandler(async (req, res) => {
-    const { answer } = req.body;
-    
-    if (!answer || typeof answer !== 'string') {
-        return res.status(400).json({
-            success: false,
-            error: { message: 'La risposta è obbligatoria' }
-        });
-    }
+    const { answer } = updateCardAnswerSchema.parse(req.body);
 
-    const deck = await studyService.updateCardAnswer(
+    const deck = await deckCrudService.updateCardAnswer(
         req.tenantScope,
         req.params.id,
         req.params.cardId,
@@ -204,7 +190,7 @@ const updateCardAnswer = asyncHandler(async (req, res) => {
  * Elimina una card da un mazzo
  */
 const deleteCard = asyncHandler(async (req, res) => {
-    const deck = await studyService.deleteCard(
+    const deck = await deckCrudService.deleteCard(
         req.tenantScope,
         req.params.id,
         req.params.cardId
@@ -219,16 +205,9 @@ const deleteCard = asyncHandler(async (req, res) => {
  * Body: { cardIds: string[] } - Array di card IDs nell'ordine desiderato
  */
 const reorderCards = asyncHandler(async (req, res) => {
-    const { cardIds } = req.body;
+    const { cardIds } = reorderCardsSchema.parse(req.body);
 
-    if (!Array.isArray(cardIds)) {
-        return res.status(400).json({
-            success: false,
-            error: { message: 'cardIds deve essere un array' }
-        });
-    }
-
-    const deck = await studyService.reorderCards(
+    const deck = await deckCrudService.reorderCards(
         req.tenantScope,
         req.params.id,
         cardIds
@@ -243,9 +222,9 @@ const reorderCards = asyncHandler(async (req, res) => {
  * Body: { front: string, back: string, position?: number }
  */
 const addCardAtPosition = asyncHandler(async (req, res) => {
-    const { front, back, position } = req.body;
+    const { front, back, position } = addCardAtPositionSchema.parse(req.body);
 
-    const deck = await studyService.addCardAtPosition(
+    const deck = await deckCrudService.addCardAtPosition(
         req.tenantScope,
         req.params.id,
         { front, back, position }
@@ -263,7 +242,7 @@ const addCardAtPosition = asyncHandler(async (req, res) => {
  * Restituisce TUTTI i mazzi dell'utente con conteggio carte in scadenza
  */
 const getDashboard = asyncHandler(async (req, res) => {
-    const result = await studyService.getAllDecks(req.tenantScope);
+    const result = await sessionQuizService.getAllDecks(req.tenantScope);
     res.json({ success: true, data: result });
 });
 
@@ -276,13 +255,11 @@ const getDashboard = asyncHandler(async (req, res) => {
  * Salva le statistiche di fine sessione
  */
 const completeSession = asyncHandler(async (req, res) => {
-    const result = await studyService.completeSession(
+    const { mode, stats } = completeSessionSchema.parse(req.body);
+    const result = await cardReviewService.completeSession(
         req.tenantScope,
         req.params.id,
-        {
-            mode: req.body.mode,
-            stats: req.body.stats,
-        }
+        { mode, stats }
     );
 
     res.json({ success: true, data: result });
@@ -293,12 +270,13 @@ const completeSession = asyncHandler(async (req, res) => {
  * Processa una review SM-2
  */
 const submitReview = asyncHandler(async (req, res) => {
-    const result = await studyService.processCardReview(
+    const { cardId, rating, sessionMeta, sessionSummary } = submitReviewSchema.parse(req.body);
+    const result = await cardReviewService.processCardReview(
         req.tenantScope,
         req.params.id,
-        req.body.cardId,
-        req.body.rating,
-        req.body.sessionMeta || req.body.sessionSummary || null
+        cardId,
+        rating,
+        sessionMeta || sessionSummary || null
     );
 
     res.json({ success: true, data: result });
@@ -309,11 +287,12 @@ const submitReview = asyncHandler(async (req, res) => {
  * Verifica una risposta per Typing Mode
  */
 const verifyAnswer = asyncHandler(async (req, res) => {
-    const result = await studyService.verifyAnswer(
+    const { cardId, userAnswer } = verifyAnswerSchema.parse(req.body);
+    const result = await cardReviewService.verifyAnswer(
         req.tenantScope,
         req.params.id,
-        req.body.cardId,
-        req.body.userAnswer
+        cardId,
+        userAnswer
     );
 
     res.json({ success: true, data: result });
@@ -328,51 +307,7 @@ const verifyAnswer = asyncHandler(async (req, res) => {
  * Carica un PDF e genera flashcards con AI
  */
 const uploadAndGenerate = asyncHandler(async (req, res) => {
-    console.log('🪄 uploadAndGenerate called');
-    console.log('   - req.file:', req.file ? `${req.file.originalname} (${req.file.size} bytes)` : 'UNDEFINED');
-    console.log('   - req.params.id:', req.params.id);
-    console.log('   - req.tenantScope:', req.tenantScope?.userId);
-
-    // Verifica che il file sia stato caricato
-    if (!req.file) {
-        console.log('❌ No file in request');
-        return res.status(400).json({
-            success: false,
-            error: { message: 'Nessun file caricato. Carica un file PDF.' },
-        });
-    }
-
-    // Verifica che sia un PDF
-    if (req.file.mimetype !== 'application/pdf') {
-        // Cleanup file prima di ritornare errore
-        await fs.unlink(req.file.path).catch(() => {});
-        return res.status(400).json({
-            success: false,
-            error: 'Il file deve essere un PDF.',
-        });
-    }
-
-    // Limite dimensione file (15MB)
-    const maxSize = 15 * 1024 * 1024;
-    if (req.file.size > maxSize) {
-        // Cleanup file prima di ritornare errore
-        await fs.unlink(req.file.path).catch(() => {});
-        return res.status(400).json({
-            success: false,
-            error: 'Il file è troppo grande. Massimo 15MB.',
-        });
-    }
-
-    // Validazione integrità PDF (magic bytes + struttura base)
-    const pdfValidation = await validatePdfFile(req.file.path);
-    if (!pdfValidation.isValid) {
-        await fs.unlink(req.file.path).catch(() => {});
-        return res.status(400).json({
-            success: false,
-            error: { message: `PDF corrotto: ${pdfValidation.error}` },
-        });
-    }
-
+    // Validazione PDF delegata al middleware validatePdf nelle routes
     const maxCardsRaw = Number(req.body?.maxCards);
     const maxCards = Number.isFinite(maxCardsRaw) && maxCardsRaw > 0
         ? Math.round(maxCardsRaw)
@@ -397,11 +332,12 @@ const uploadAndGenerate = asyncHandler(async (req, res) => {
  * Chat contestuale con AI Tutor (RAG Lite sul testo estratto dal PDF).
  */
 const chatWithTutor = asyncHandler(async (req, res) => {
-    const result = await studyService.askTutor(
+    const { message, history } = chatWithTutorSchema.parse(req.body);
+    const result = await aiTutorService.askTutor(
         req.tenantScope,
         req.params.id,
-        req.body?.message,
-        req.body?.history
+        message,
+        history
     );
 
     res.json({ success: true, data: result });
@@ -412,19 +348,12 @@ const chatWithTutor = asyncHandler(async (req, res) => {
  * Risponde a una domanda d'esame usando ESCLUSIVAMENTE il contesto fornito dal PDF.
  */
 const answerExamQuestion = asyncHandler(async (req, res) => {
-    const { question } = req.body;
-    
-    if (!question || typeof question !== 'string' || !question.trim()) {
-        return res.status(400).json({
-            success: false,
-            error: { message: 'La domanda è obbligatoria' }
-        });
-    }
+    const { question } = answerExamQuestionSchema.parse(req.body);
 
-    const result = await studyService.answerExamQuestion(
+    const result = await aiTutorService.answerExamQuestion(
         req.tenantScope,
         req.params.id,
-        question.trim()
+        question
     );
 
     res.json({ success: true, data: result });
@@ -435,7 +364,7 @@ const answerExamQuestion = asyncHandler(async (req, res) => {
  * Aggiorna le impostazioni del deck (algoritmo e AI)
  */
 const updateDeckSettings = asyncHandler(async (req, res) => {
-    const deck = await studyService.updateDeckSettings(
+    const deck = await deckCrudService.updateDeckSettings(
         req.tenantScope,
         req.params.id,
         req.body
@@ -454,24 +383,16 @@ const updateDeckSettings = asyncHandler(async (req, res) => {
  * Body: { type: 'all' | 'hard-only' }
  */
 const resetExamCards = asyncHandler(async (req, res) => {
-    console.log('[StudyController] resetExamCards chiamato:', { examId: req.params.examId, type: req.body.type });
-    const { type } = req.body;
-    
-    if (!type || !['all', 'hard-only'].includes(type)) {
-        console.error('[StudyController] Tipo non valido:', type);
-        return res.status(400).json({
-            success: false,
-            error: { message: 'type deve essere "all" o "hard-only"' }
-        });
-    }
+    const { type } = resetExamCardsSchema.parse(req.body);
+    logger.info('StudyController', 'resetExamCards', { examId: req.params.examId, type });
 
-    const result = await studyService.resetExamCards(
+    const result = await recoveryPlanService.resetExamCards(
         req.tenantScope,
         req.params.examId,
         type
     );
 
-    console.log('[StudyController] resetExamCards completato:', result);
+    logger.info('StudyController', 'resetExamCards completato', result);
     res.json({ success: true, data: result });
 });
 
@@ -481,24 +402,16 @@ const resetExamCards = asyncHandler(async (req, res) => {
  * Body: { difficulties: string[] }
  */
 const generateRecoveryQuestions = asyncHandler(async (req, res) => {
-    console.log('[StudyController] generateRecoveryQuestions chiamato:', { examId: req.params.examId, difficulties: req.body.difficulties });
-    const { difficulties } = req.body;
-    
-    if (!Array.isArray(difficulties)) {
-        console.error('[StudyController] difficulties non è un array:', difficulties);
-        return res.status(400).json({
-            success: false,
-            error: { message: 'difficulties deve essere un array' }
-        });
-    }
+    const { difficulties } = generateRecoveryQuestionsSchema.parse(req.body);
+    logger.info('StudyController', 'generateRecoveryQuestions', { examId: req.params.examId, difficulties });
 
-    const result = await studyService.generateRecoveryQuestions(
+    const result = await recoveryPlanService.generateRecoveryQuestions(
         req.tenantScope,
         req.params.examId,
         difficulties
     );
 
-    console.log('[StudyController] generateRecoveryQuestions completato:', result);
+    logger.info('StudyController', 'generateRecoveryQuestions completato', result);
     res.json({ success: true, data: result });
 });
 
@@ -509,9 +422,8 @@ const generateRecoveryQuestions = asyncHandler(async (req, res) => {
  *   - questionsFile: PDF o TXT con le domande
  */
 const extractQuestions = asyncHandler(async (req, res) => {
-    console.log('📋 extractQuestions called');
-    console.log('   - req.file:', req.file ? req.file.originalname : 'UNDEFINED');
-    
+    logger.debug('StudyController', 'extractQuestions', { file: req.file ? req.file.originalname : 'UNDEFINED' });
+
     // Con multer.single(), il file è in req.file, non req.files
     const questionsFile = req.file;
     if (!questionsFile) {
@@ -552,21 +464,19 @@ const extractQuestions = asyncHandler(async (req, res) => {
     }
 
     try {
-        const result = await studyService.extractExamQuestions(
+        const result = await examSolverService.extractExamQuestions(
             req.tenantScope,
             questionsFile.path
         );
 
-        console.log('✅ extractQuestions completato:', {
-            questionsCount: result.questions.length
-        });
+        logger.info('StudyController', 'extractQuestions completato', { questionsCount: result.questions.length });
 
         res.json({
             success: true,
             data: result
         });
     } catch (err) {
-        console.error('❌ extractQuestions error:', err.message);
+        logger.error('StudyController', 'extractQuestions error', err);
         throw err;
     }
 });
@@ -583,41 +493,8 @@ const extractQuestions = asyncHandler(async (req, res) => {
  *   - examId: (opzionale) ID esame per nuovo deck
  */
 const generateAnswers = asyncHandler(async (req, res) => {
-    console.log('🤖 generateAnswers called (SSE mode)');
-    console.log('   - req.file:', req.file ? req.file.originalname : 'UNDEFINED');
-    
-    // Con multer.single(), il file è in req.file, non req.files
+    // Validazione PDF delegata al middleware validatePdf nelle routes
     const sourceFile = req.file;
-    if (!sourceFile) {
-        return res.status(400).json({
-            success: false,
-            error: { message: 'File materiale (sourceFile) obbligatorio' }
-        });
-    }
-
-    if (sourceFile.mimetype !== 'application/pdf') {
-        return res.status(400).json({
-            success: false,
-            error: { message: 'File materiale deve essere un PDF' }
-        });
-    }
-
-    const maxSize = 15 * 1024 * 1024;
-    if (sourceFile.size > maxSize) {
-        return res.status(400).json({
-            success: false,
-            error: { message: 'File materiale troppo grande. Massimo 15MB.' }
-        });
-    }
-
-    // Validate PDF integrity (magic bytes check)
-    const pdfValidation = await validatePdfFile(sourceFile.path);
-    if (!pdfValidation.isValid) {
-        return res.status(400).json({
-            success: false,
-            error: { message: `PDF corrotto: ${pdfValidation.error}` }
-        });
-    }
 
     // Parse selectedQuestions
     let selectedQuestions = [];
@@ -647,99 +524,41 @@ const generateAnswers = asyncHandler(async (req, res) => {
     if (!deckId && !title) {
         return res.status(400).json({
             success: false,
-            error: { 
-                message: 'Se non specifichi deckId, devi fornire title per creare un nuovo deck' 
-            }
+            error: { message: 'Se non specifichi deckId, devi fornire title per creare un nuovo deck' }
         });
     }
 
-    // Configura SSE
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disabilita buffering nginx
-
-    // Timeout SSE: chiudi connessione dopo 5 minuti di inattività
-    const SSE_TIMEOUT_MS = 5 * 60 * 1000;
-    let lastActivity = Date.now();
-    let connectionClosed = false;
-
-    // Helper per inviare eventi SSE
-    const sendEvent = (type, data) => {
-        if (connectionClosed) return;
-        lastActivity = Date.now();
-        res.write(`event: ${type}\n`);
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
-    };
-
-    // Heartbeat periodico (ogni 30s) per mantenere connessione attiva
-    const heartbeatInterval = setInterval(() => {
-        if (connectionClosed) {
-            clearInterval(heartbeatInterval);
-            return;
-        }
-        // Verifica timeout
-        if (Date.now() - lastActivity > SSE_TIMEOUT_MS) {
-            console.warn('⏰ SSE timeout: chiusura connessione per inattività');
-            sendEvent('error', { message: 'Timeout: connessione chiusa per inattività' });
-            connectionClosed = true;
-            clearInterval(heartbeatInterval);
-            res.end();
-            return;
-        }
-        // Invia heartbeat
-        res.write(':heartbeat\n\n');
-    }, 30000);
-
-    // Cleanup su chiusura client
-    req.on('close', () => {
-        connectionClosed = true;
-        clearInterval(heartbeatInterval);
-    });
+    const sse = createSseConnection(req, res);
 
     try {
-        const result = await studyService.generateExamAnswers(
+        const result = await examSolverService.generateExamAnswers(
             req.tenantScope,
             sourceFile.path,
             selectedQuestions,
             { deckId, title, examId },
             (event) => {
-                // Callback per inviare eventi SSE (progress o flashcard)
-                if (event.type === 'flashcard') {
-                    sendEvent('flashcard', event);
-                } else if (event.type === 'progress') {
-                    sendEvent('progress', event);
-                } else {
-                    // Default: progress
-                    sendEvent('progress', event);
-                }
+                const eventType = event.type === 'flashcard' ? 'flashcard' : 'progress';
+                sse.sendEvent(eventType, event);
             }
         );
 
-        console.log('✅ generateAnswers completato:', {
+        logger.info('StudyController', 'generateAnswers completato', {
             questionsExtracted: result.stats.questionsExtracted,
             totalFlashcards: result.stats.totalFlashcards,
             processingTimeMs: result.stats.processingTimeMs,
             flashcardsCount: result.flashcards?.length || 0,
-            hasFlashcards: !!result.flashcards,
         });
 
-        // Verifica che le flashcards siano presenti
         if (!result.flashcards || !Array.isArray(result.flashcards)) {
-            console.error('❌ generateAnswers: flashcards mancanti o non array:', result);
+            logger.error('StudyController', 'generateAnswers: flashcards mancanti o non array', result);
         }
 
-        // Invia evento finale e cleanup
-        clearInterval(heartbeatInterval);
-        connectionClosed = true;
-        sendEvent('complete', result);
-        res.end();
+        sse.sendEvent('complete', result);
+        sse.close();
     } catch (err) {
-        console.error('❌ generateAnswers error:', err.message);
-        clearInterval(heartbeatInterval);
-        connectionClosed = true;
-        sendEvent('error', { message: err.message || 'Errore durante la generazione' });
-        res.end();
+        logger.error('StudyController', 'generateAnswers error', err);
+        sse.sendEvent('error', { message: err.message || 'Errore durante la generazione' });
+        sse.close();
     }
 });
 
@@ -754,9 +573,7 @@ const generateAnswers = asyncHandler(async (req, res) => {
  *   - examId: (opzionale) ID esame per nuovo deck
  */
 const examSolver = asyncHandler(async (req, res) => {
-    console.log('🎯 examSolver called');
-    console.log('   - req.files:', req.files ? Object.keys(req.files) : 'UNDEFINED');
-    console.log('   - req.body:', req.body);
+    logger.debug('StudyController', 'examSolver', { files: req.files ? Object.keys(req.files) : 'UNDEFINED' });
 
     // Verifica file domande (multer.fields() restituisce un oggetto con array)
     const questionsFile = req.files?.questionsFile?.[0];
@@ -778,9 +595,9 @@ const examSolver = asyncHandler(async (req, res) => {
 
     // Validazione tipo file domande (PDF o TXT)
     const questionsIsPdf = questionsFile.mimetype === 'application/pdf';
-    const questionsIsTxt = questionsFile.mimetype === 'text/plain' || 
+    const questionsIsTxt = questionsFile.mimetype === 'text/plain' ||
                            questionsFile.originalname.toLowerCase().endsWith('.txt');
-    
+
     if (!questionsIsPdf && !questionsIsTxt) {
         return res.status(400).json({
             success: false,
@@ -820,24 +637,24 @@ const examSolver = asyncHandler(async (req, res) => {
     if (!deckId && !title) {
         return res.status(400).json({
             success: false,
-            error: { 
-                message: 'Se non specifichi deckId, devi fornire title per creare un nuovo deck' 
+            error: {
+                message: 'Se non specifichi deckId, devi fornire title per creare un nuovo deck'
             }
         });
     }
 
     try {
-        const result = await studyService.examSolver(
+        const result = await examSolverService.examSolver(
             req.tenantScope,
             questionsFile.path,
             sourceFile.path,
             { deckId, title, examId }
         );
 
-        console.log('✅ examSolver completato:', {
+        logger.info('StudyController', 'examSolver completato', {
             questionsExtracted: result.stats.questionsExtracted,
             totalFlashcards: result.stats.totalFlashcards,
-            processingTimeMs: result.stats.processingTimeMs
+            processingTimeMs: result.stats.processingTimeMs,
         });
 
         res.json({
@@ -845,7 +662,7 @@ const examSolver = asyncHandler(async (req, res) => {
             data: result
         });
     } catch (err) {
-        console.error('❌ examSolver error:', err.message);
+        logger.error('StudyController', 'examSolver error', err);
         throw err; // L'asyncHandler gestirà l'errore
     }
 });
@@ -855,15 +672,15 @@ const examSolver = asyncHandler(async (req, res) => {
  * Salva il progresso di un esame in corso per pausa/resume
  */
 const saveExamProgress = asyncHandler(async (req, res) => {
-    console.log('💾 saveExamProgress chiamato:', { deckId: req.params.id });
+    logger.info('StudyController', 'saveExamProgress', { deckId: req.params.id });
 
-    const result = await studyService.saveExamProgress(
+    const result = await cardReviewService.saveExamProgress(
         req.tenantScope,
         req.params.id,
         req.body
     );
 
-    console.log('✅ saveExamProgress completato');
+    logger.info('StudyController', 'saveExamProgress completato');
     res.json({ success: true, data: result });
 });
 
@@ -872,14 +689,14 @@ const saveExamProgress = asyncHandler(async (req, res) => {
  * Recupera il progresso salvato di un esame
  */
 const getExamProgress = asyncHandler(async (req, res) => {
-    console.log('📥 getExamProgress chiamato:', { deckId: req.params.id });
+    logger.info('StudyController', 'getExamProgress', { deckId: req.params.id });
 
-    const progress = await studyService.getExamProgress(
+    const progress = await cardReviewService.getExamProgress(
         req.tenantScope,
         req.params.id
     );
 
-    console.log('✅ getExamProgress completato:', { hasProgress: !!progress });
+    logger.info('StudyController', 'getExamProgress completato', { hasProgress: !!progress });
     res.json({ success: true, data: progress });
 });
 
@@ -888,14 +705,14 @@ const getExamProgress = asyncHandler(async (req, res) => {
  * Cancella il progresso salvato di un esame
  */
 const clearExamProgress = asyncHandler(async (req, res) => {
-    console.log('🗑️ clearExamProgress chiamato:', { deckId: req.params.id });
+    logger.info('StudyController', 'clearExamProgress', { deckId: req.params.id });
 
-    const result = await studyService.clearExamProgress(
+    const result = await cardReviewService.clearExamProgress(
         req.tenantScope,
         req.params.id
     );
 
-    console.log('✅ clearExamProgress completato');
+    logger.info('StudyController', 'clearExamProgress completato');
     res.json({ success: true, data: result });
 });
 
@@ -906,14 +723,14 @@ const clearExamProgress = asyncHandler(async (req, res) => {
  */
 const resetDistractors = asyncHandler(async (req, res) => {
     const deckId = req.params.id;
-    console.log('🔄 resetDistractors chiamato:', { deckId });
+    logger.info('StudyController', 'resetDistractors', { deckId });
 
-    const result = await studyService.resetDistractors(
+    const result = await deckCrudService.resetDistractors(
         req.tenantScope,
         deckId
     );
 
-    console.log('✅ resetDistractors completato:', result);
+    logger.info('StudyController', 'resetDistractors completato', result);
     res.json({ success: true, data: result });
 });
 

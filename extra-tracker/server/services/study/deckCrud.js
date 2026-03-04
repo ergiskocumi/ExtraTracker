@@ -8,6 +8,7 @@ const Deck = require('../../models/Deck');
 const Exam = require('../../models/Exam');
 const AppError = require('../../utils/AppError');
 const { DEFAULT_EASINESS_FACTOR } = require('./constants');
+const logger = require('../../utils/logger');
 
 module.exports = {
 
@@ -237,7 +238,7 @@ module.exports = {
             deck.tags = [...new Set(normalized)];
         }
         if (updates.folderId !== undefined) {
-            console.log('[StudyService] updateDeck: Updating folderId', {
+            logger.debug('DeckCrud', 'updateDeck: folderId update', {
                 currentFolderId: deck.folderId ? deck.folderId.toString() : null,
                 newFolderId: updates.folderId,
             });
@@ -249,15 +250,15 @@ module.exports = {
                     throw AppError.notFound('Cartella non trovata');
                 }
                 deck.folderId = updates.folderId;
-                console.log('[StudyService] updateDeck: Folder verified, setting folderId');
+                logger.debug('DeckCrud', 'updateDeck: folder verificata');
             } else {
                 deck.folderId = null;
-                console.log('[StudyService] updateDeck: Setting folderId to null');
+                logger.debug('DeckCrud', 'updateDeck: folderId → null');
             }
         }
 
         if (updates.examId !== undefined) {
-            console.log('[StudyService] updateDeck: Updating examId', {
+            logger.debug('DeckCrud', 'updateDeck: examId update', {
                 currentExamId: deck.examId ? deck.examId.toString() : null,
                 newExamId: updates.examId,
             });
@@ -268,15 +269,15 @@ module.exports = {
                     throw AppError.notFound('Esame non trovato');
                 }
                 deck.examId = updates.examId;
-                console.log('[StudyService] updateDeck: Exam verified, setting examId');
+                logger.debug('DeckCrud', 'updateDeck: exam verificato');
             } else {
                 deck.examId = null;
-                console.log('[StudyService] updateDeck: Setting examId to null');
+                logger.debug('DeckCrud', 'updateDeck: examId → null');
             }
         }
 
         await deck.save();
-        console.log('[StudyService] updateDeck: Deck saved', {
+        logger.debug('DeckCrud', 'updateDeck: deck salvato', {
             deckId: deck._id.toString(),
             folderId: deck.folderId ? deck.folderId.toString() : null,
         });
@@ -286,13 +287,13 @@ module.exports = {
             throw AppError.notFound('Mazzo non trovato dopo il salvataggio');
         }
 
-        console.log('[StudyService] updateDeck: Reloaded from DB', {
+        logger.debug('DeckCrud', 'updateDeck: reloaded from DB', {
             deckId: savedDeck._id.toString(),
             folderId: savedDeck.folderId ? savedDeck.folderId.toString() : null,
         });
 
         const serialized = this._serializeDeck(savedDeck);
-        console.log('[StudyService] updateDeck: Serialized deck', {
+        logger.debug('DeckCrud', 'updateDeck: serialized', {
             id: serialized.id,
             folderId: serialized.folderId,
         });

@@ -7,6 +7,7 @@
 const Deck = require('../../models/Deck');
 const AppError = require('../../utils/AppError');
 const { MIN_QUIZ_CARDS_REQUIRED, QUIZ_TYPES, DEFAULT_EASINESS_FACTOR, MIN_EASINESS_FACTOR } = require('./constants');
+const logger = require('../../utils/logger');
 
 module.exports = {
 
@@ -56,11 +57,11 @@ module.exports = {
 
         // DEBUG: Log exam configuration
         if (mode === 'exam') {
-            console.log(`[StudyService.getStudySession] EXAM MODE ACTIVATED`);
-            console.log(`[StudyService.getStudySession] examType: ${examType || 'NOT SET'}`);
-            console.log(`[StudyService.getStudySession] examDifficulty: ${examDifficulty || 'NOT SET'}`);
-            console.log(`[StudyService.getStudySession] Total cards in deck: ${cards.length}`);
-            console.log(`[StudyService.getStudySession] questionCount: ${requestedQuestions}`);
+            logger.info('StudySession', 'EXAM MODE ACTIVATED');
+            logger.debug('StudySession', 'examType', { examType: examType || 'NOT SET' });
+            logger.debug('StudySession', 'examDifficulty', { examDifficulty: examDifficulty || 'NOT SET' });
+            logger.debug('StudySession', 'Total cards in deck', { count: cards.length });
+            logger.debug('StudySession', 'questionCount', { requestedQuestions });
         }
 
         if (mode === 'quiz' && sourceCardIds.length > 0 && scopedQuizCards.length === 0) {
@@ -185,7 +186,7 @@ module.exports = {
 
         // Se examType è 'true_false', trasforma le carte in formato Vero/Falso
         if ((mode === 'quiz' && quizType === QUIZ_TYPES.TRUE_FALSE) || examType === 'true_false') {
-            console.log(`[StudyService.getStudySession] Transforming cards to TRUE/FALSE format`);
+            logger.debug('StudySession', 'Transforming cards to TRUE/FALSE');
             enrichedCards = this._transformToTrueFalse(enrichedCards, allAnswers);
         }
 
@@ -375,7 +376,7 @@ module.exports = {
         let cycle;
 
         if (mode === 'exam' && examType) {
-            console.log(`[StudyService._buildCardModes] EXAM MODE with examType=${examType}`);
+            logger.debug('StudySession', 'EXAM MODE', { examType });
             switch (examType) {
                 case 'quiz_initial':
                     cycle = ['quiz'];
@@ -385,19 +386,19 @@ module.exports = {
                     break;
                 case 'true_false':
                     cycle = ['quiz'];
-                    console.log(`[StudyService._buildCardModes] WARNING: true_false is not fully implemented, using regular quiz mode`);
+                    logger.warn('StudySession', 'true_false non completamente implementato, uso quiz normale');
                     break;
                 case 'mixed':
                 default:
                     cycle = ['quiz', 'typing', 'quiz', 'flashcard', 'typing'];
                     break;
             }
-            console.log(`[StudyService._buildCardModes] Cycle selected:`, cycle);
+            logger.debug('StudySession', 'Cycle selected', cycle);
         } else {
             cycle = mode === 'exam'
                 ? ['quiz', 'typing', 'quiz', 'flashcard', 'typing']
                 : ['quiz', 'typing', 'flashcard'];
-            console.log(`[StudyService._buildCardModes] Using default cycle for mode=${mode}:`, cycle);
+            logger.debug('StudySession', `Default cycle per mode=${mode}`, cycle);
         }
 
         const cardModes = cards.reduce((acc, card, index) => {
@@ -405,7 +406,7 @@ module.exports = {
             return acc;
         }, {});
 
-        console.log(`[StudyService._buildCardModes] Generated cardModes for ${cards.length} cards`);
+        logger.debug('StudySession', `cardModes generati per ${cards.length} carte`);
         return cardModes;
     },
 
@@ -415,15 +416,15 @@ module.exports = {
         if (mode === 'exam') {
             let examCards = [...cards];
 
-            console.log(`[StudyService._selectSessionCards] EXAM MODE: cards=${cards.length}, limit=${limit}, examDifficulty=${examDifficulty || 'NONE'}`);
+            logger.debug('StudySession', 'selectSessionCards EXAM', { cards: cards.length, limit, examDifficulty });
 
             if (examDifficulty) {
                 examCards = this._filterCardsByDifficulty(cards, examDifficulty);
-                console.log(`[StudyService._selectSessionCards] After difficulty filter: ${examCards.length} cards`);
+                logger.debug('StudySession', 'After difficulty filter', { count: examCards.length });
             }
 
             selection = this._buildExamSelection(examCards, limit || examCards.length);
-            console.log(`[StudyService._selectSessionCards] After _buildExamSelection: ${selection.length} cards selected`);
+            logger.debug('StudySession', 'After _buildExamSelection', { count: selection.length });
         } else if (focus === 'due') {
             const sortedDue = [...dueCards].sort((a, b) => {
                 const aTime = new Date(a.nextReviewDate).getTime();
@@ -469,15 +470,15 @@ module.exports = {
             medium: cardsWithSuccessRate.filter(item => item.successRate >= 50 && item.successRate <= 80).length,
             hard: cardsWithSuccessRate.filter(item => item.successRate < 50).length,
         };
-        console.log(`[StudyService._filterCardsByDifficulty] Total cards: ${cards.length}, Difficulty requested: ${difficulty}`);
-        console.log(`[StudyService._filterCardsByDifficulty] Distribution: easy=${successRateStats.easy}, medium=${successRateStats.medium}, hard=${successRateStats.hard}`);
+        logger.debug('StudySession', 'filterByDifficulty', { total: cards.length, difficulty });
+        logger.debug('StudySession', 'Difficulty distribution', successRateStats);
 
         const sample = cardsWithSuccessRate.slice(0, 5).map(item => ({
             ef: item.card.easinessFactor,
             reps: item.card.repetitions,
             successRate: item.successRate.toFixed(2)
         }));
-        console.log(`[StudyService._filterCardsByDifficulty] Sample cards:`, JSON.stringify(sample));
+        logger.debug('StudySession', 'Sample cards', sample);
 
         let filtered;
 
@@ -494,10 +495,10 @@ module.exports = {
                 break;
         }
 
-        console.log(`[StudyService._filterCardsByDifficulty] Filtered result: ${filtered.length} cards`);
+        logger.debug('StudySession', `Filtered result: ${filtered.length} cards`);
 
         if (filtered.length === 0) {
-            console.warn(`[StudyService._filterCardsByDifficulty] Nessuna carta trovata per difficulty=${difficulty}, usando tutte le carte`);
+            logger.warn('StudySession', `Nessuna carta per difficulty=${difficulty}, uso tutte`);
             return cards;
         }
 

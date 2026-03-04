@@ -18,6 +18,55 @@ const {
     MAX_EXTRACTED_TEXT_STORE_LENGTH,
     PDF_UPLOADS_DIR,
 } = require('./constants');
+const logger = require('../../utils/logger');
+
+/**
+ * Estrae il testo dal PDF collegato al deck e lo salva su deck.extractedText.
+ * Restituisce il testo estratto, oppure null se strict=false e il PDF non è disponibile.
+ * @private
+ */
+async function _extractAndStorePdfText(deck, service, { strict = true } = {}) {
+    if (!deck.pdfUrl || typeof deck.pdfUrl !== 'string') {
+        if (strict) throw AppError.validation('Nessun PDF collegato a questo mazzo');
+        return null;
+    }
+
+    const pdfFileName = path.basename(deck.pdfUrl);
+    const pdfFilePath = path.join(PDF_UPLOADS_DIR, pdfFileName);
+
+    let pdfBuffer;
+    try {
+        pdfBuffer = await fs.readFile(pdfFilePath);
+    } catch (err) {
+        logger.error('AiTutor', 'PDF Read Error', err);
+        if (strict) throw AppError.validation('PDF non trovato sul server. Ricaricalo e riprova.');
+        return null;
+    }
+
+    let pdfText;
+    try {
+        const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
+        pdfText = service._formatPdfTextWithPages(pdfData);
+    } catch (err) {
+        logger.error('AiTutor', 'PDF Parse Error', err);
+        if (strict) throw AppError.validation('Impossibile leggere il PDF per la chat.');
+        return null;
+    }
+
+    const normalizedExtracted = service._normalizeExtractedText(pdfText);
+    if (!normalizedExtracted || normalizedExtracted.length < 50) {
+        if (strict) throw AppError.validation('Il PDF non contiene testo leggibile.');
+        return null;
+    }
+
+    deck.extractedText = service._truncateText(
+        normalizedExtracted,
+        MAX_EXTRACTED_TEXT_STORE_LENGTH,
+        '\n\n[...testo troncato...]'
+    );
+    await deck.save({ validateModifiedOnly: true });
+    return deck.extractedText;
+}
 
 module.exports = {
 
@@ -49,63 +98,12 @@ module.exports = {
         let extractedText = typeof deck.extractedText === 'string' ? deck.extractedText : '';
         const hasPageMarkers = /--- PAGE \d+ ---|--- Pagina \d+ ---/.test(extractedText);
 
-        const extractAndStorePdfText = async ({ strict = true } = {}) => {
-            if (!deck.pdfUrl || typeof deck.pdfUrl !== 'string') {
-                if (strict) {
-                    throw AppError.validation('Nessun PDF collegato a questo mazzo');
-                }
-                return null;
-            }
-
-            const pdfFileName = path.basename(deck.pdfUrl);
-            const pdfFilePath = path.join(PDF_UPLOADS_DIR, pdfFileName);
-
-            let pdfBuffer;
-            try {
-                pdfBuffer = await fs.readFile(pdfFilePath);
-            } catch (err) {
-                console.error('❌ PDF Read Error (Tutor):', err.message);
-                if (strict) {
-                    throw AppError.validation('PDF non trovato sul server. Ricaricalo e riprova.');
-                }
-                return null;
-            }
-
-            let pdfText;
-            try {
-                const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
-                pdfText = this._formatPdfTextWithPages(pdfData);
-            } catch (err) {
-                console.error('❌ PDF Parse Error (Tutor):', err.message);
-                if (strict) {
-                    throw AppError.validation('Impossibile leggere il PDF per la chat.');
-                }
-                return null;
-            }
-
-            const normalizedExtracted = this._normalizeExtractedText(pdfText);
-            if (!normalizedExtracted || normalizedExtracted.length < 50) {
-                if (strict) {
-                    throw AppError.validation('Il PDF non contiene testo leggibile.');
-                }
-                return null;
-            }
-
-            deck.extractedText = this._truncateText(
-                normalizedExtracted,
-                MAX_EXTRACTED_TEXT_STORE_LENGTH,
-                '\n\n[...testo troncato...]'
-            );
-            await deck.save({ validateModifiedOnly: true });
-            extractedText = deck.extractedText;
-
-            return extractedText;
-        };
-
         if (!extractedText || extractedText.trim().length < 50) {
-            await extractAndStorePdfText({ strict: true });
+            const result = await _extractAndStorePdfText(deck, this, { strict: true });
+            if (result) extractedText = result;
         } else if (!hasPageMarkers) {
-            await extractAndStorePdfText({ strict: false });
+            const result = await _extractAndStorePdfText(deck, this, { strict: false });
+            if (result) extractedText = result;
         }
 
         let context = '';
@@ -119,7 +117,7 @@ module.exports = {
                 context = matches.join('\n\n---\n\n');
             }
         } catch (err) {
-            console.error('⚠️ Vector query error:', err.message);
+            logger.warn('AiTutor', 'Vector query error', err);
         }
 
         if (!context && extractedText) {
@@ -138,7 +136,7 @@ module.exports = {
                     context = matches.join('\n\n---\n\n');
                 }
             } catch (err) {
-                console.error('⚠️ Vector ingest+query fallback error:', err.message);
+                logger.warn('AiTutor', 'Vector ingest+query fallback error', err);
             }
         }
 
@@ -192,7 +190,7 @@ module.exports = {
 
             aiResponse = completion.choices[0]?.message?.content;
         } catch (err) {
-            console.error('❌ OpenAI Tutor Error:', err.message);
+            logger.error('AiTutor', 'OpenAI Tutor Error', err);
 
             if (err.code === 'insufficient_quota') {
                 throw AppError.validation('Quota OpenAI esaurita.');
@@ -236,63 +234,12 @@ module.exports = {
         let extractedText = typeof deck.extractedText === 'string' ? deck.extractedText : '';
         const hasPageMarkers = /--- PAGE \d+ ---|--- Pagina \d+ ---/.test(extractedText);
 
-        const extractAndStorePdfText = async ({ strict = true } = {}) => {
-            if (!deck.pdfUrl || typeof deck.pdfUrl !== 'string') {
-                if (strict) {
-                    throw AppError.validation('Nessun PDF collegato a questo mazzo');
-                }
-                return null;
-            }
-
-            const pdfFileName = path.basename(deck.pdfUrl);
-            const pdfFilePath = path.join(PDF_UPLOADS_DIR, pdfFileName);
-
-            let pdfBuffer;
-            try {
-                pdfBuffer = await fs.readFile(pdfFilePath);
-            } catch (err) {
-                console.error('❌ PDF Read Error (Exam Tutor):', err.message);
-                if (strict) {
-                    throw AppError.validation('PDF non trovato sul server. Ricaricalo e riprova.');
-                }
-                return null;
-            }
-
-            let pdfText;
-            try {
-                const pdfData = await pdfCacheService.parsePDF(pdfFilePath, pdfBuffer);
-                pdfText = this._formatPdfTextWithPages(pdfData);
-            } catch (err) {
-                console.error('❌ PDF Parse Error (Exam Tutor):', err.message);
-                if (strict) {
-                    throw AppError.validation('Impossibile leggere il PDF.');
-                }
-                return null;
-            }
-
-            const normalizedExtracted = this._normalizeExtractedText(pdfText);
-            if (!normalizedExtracted || normalizedExtracted.length < 50) {
-                if (strict) {
-                    throw AppError.validation('Il PDF non contiene testo leggibile.');
-                }
-                return null;
-            }
-
-            deck.extractedText = this._truncateText(
-                normalizedExtracted,
-                MAX_EXTRACTED_TEXT_STORE_LENGTH,
-                '\n\n[...testo troncato...]'
-            );
-            await deck.save({ validateModifiedOnly: true });
-            extractedText = deck.extractedText;
-
-            return extractedText;
-        };
-
         if (!extractedText || extractedText.trim().length < 50) {
-            await extractAndStorePdfText({ strict: true });
+            const result = await _extractAndStorePdfText(deck, this, { strict: true });
+            if (result) extractedText = result;
         } else if (!hasPageMarkers) {
-            await extractAndStorePdfText({ strict: false });
+            const result = await _extractAndStorePdfText(deck, this, { strict: false });
+            if (result) extractedText = result;
         }
 
         let context = '';
@@ -306,7 +253,7 @@ module.exports = {
                 context = matches.join('\n\n---\n\n');
             }
         } catch (err) {
-            console.error('⚠️ Vector query error:', err.message);
+            logger.warn('AiTutor', 'Vector query error (ExamTutor)', err);
         }
 
         if (!context && extractedText) {
@@ -325,7 +272,7 @@ module.exports = {
                     context = matches.join('\n\n---\n\n');
                 }
             } catch (err) {
-                console.error('⚠️ Vector ingest+query fallback error:', err.message);
+                logger.warn('AiTutor', 'Vector ingest+query fallback error (ExamTutor)', err);
             }
         }
 
@@ -350,7 +297,7 @@ IL TUO COMPITO: Rispondere alla domanda usando ESCLUSIVAMENTE il contesto fornit
 REGOLE CRITICHE:
 ═══════════════════════════════════════════════════════════════════
 
-1. USA SOLO IL CONTESTO: 
+1. USA SOLO IL CONTESTO:
    - Ogni informazione nella tua risposta DEVE provenire dal contesto
    - NON usare conoscenze esterne
    - NON inventare dati, date, nomi, numeri
@@ -407,7 +354,7 @@ GENERA LA RISPOSTA:`;
 
             aiResponse = completion.choices[0]?.message?.content;
         } catch (err) {
-            console.error('❌ OpenAI Exam Tutor Error:', err.message);
+            logger.error('AiTutor', 'OpenAI Exam Tutor Error', err);
 
             if (err.code === 'insufficient_quota') {
                 throw AppError.validation('Quota OpenAI esaurita.');

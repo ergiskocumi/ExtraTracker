@@ -8,6 +8,7 @@ const Deck = require('../../models/Deck');
 const AppError = require('../../utils/AppError');
 const { checkAnswerSimilarity } = require('../../utils/stringAnalysis');
 const { AlgorithmFactory } = require('../spacedRepetitionAlgorithms');
+const logger = require('../../utils/logger');
 
 module.exports = {
 
@@ -120,7 +121,7 @@ module.exports = {
             throw AppError.notFound('Mazzo');
         }
 
-        console.log(`[StudyService] Exam progress saved for deck ${deckId}`);
+        logger.debug('ReviewLogic', `Exam progress saved for deck ${deckId}`);
 
         return {
             success: true,
@@ -158,7 +159,7 @@ module.exports = {
             throw AppError.notFound('Mazzo');
         }
 
-        console.log(`[StudyService] Exam progress cleared for deck ${deckId}`);
+        logger.debug('ReviewLogic', `Exam progress cleared for deck ${deckId}`);
 
         return {
             success: true,
