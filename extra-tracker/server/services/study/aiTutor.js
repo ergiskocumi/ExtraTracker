@@ -6,7 +6,6 @@
 
 const path = require('path');
 const fs = require('fs/promises');
-const Deck = require('../../models/Deck');
 const AppError = require('../../utils/AppError');
 const pdfCacheService = require('../pdfCacheService');
 const vectorStoreService = require('../vectorStoreService');
@@ -88,12 +87,10 @@ module.exports = {
             throw AppError.validation(`Messaggio troppo lungo (max ${MAX_TUTOR_MESSAGE_LENGTH} caratteri)`);
         }
 
-        const deck = await Deck.findOne({ _id: deckId, user: userId })
-            .select('+extractedText');
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, {
+            select: '+extractedText',
+            throwIfNotFound: true,
+        });
 
         let extractedText = typeof deck.extractedText === 'string' ? deck.extractedText : '';
         const hasPageMarkers = /--- PAGE \d+ ---|--- Pagina \d+ ---/.test(extractedText);
@@ -224,12 +221,10 @@ module.exports = {
             throw AppError.validation(`Domanda troppo lunga (max ${MAX_TUTOR_MESSAGE_LENGTH} caratteri)`);
         }
 
-        const deck = await Deck.findOne({ _id: deckId, user: userId })
-            .select('+extractedText');
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, {
+            select: '+extractedText',
+            throwIfNotFound: true,
+        });
 
         let extractedText = typeof deck.extractedText === 'string' ? deck.extractedText : '';
         const hasPageMarkers = /--- PAGE \d+ ---|--- Pagina \d+ ---/.test(extractedText);

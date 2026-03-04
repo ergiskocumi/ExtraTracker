@@ -6,8 +6,7 @@
 
 const path = require('path');
 const fs = require('fs/promises');
-const Deck = require('../../models/Deck');
-const Exam = require('../../models/Exam');
+// Deck e Exam non necessari come import diretto — accesso via this.* e _validateExamOwnership
 const AppError = require('../../utils/AppError');
 const pdfCacheService = require('../pdfCacheService');
 const vectorStoreService = require('../vectorStoreService');
@@ -452,10 +451,7 @@ Genera una risposta per OGNI domanda nella lista.`;
 
         let deck;
         if (deckId) {
-            deck = await Deck.findOne({ _id: deckId, user: userId });
-            if (!deck) {
-                throw AppError.notFound('Mazzo');
-            }
+            deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
         } else {
             if (!title || typeof title !== 'string') {
                 throw AppError.validation('Il titolo del mazzo è obbligatorio per creare un nuovo deck');
@@ -503,10 +499,7 @@ Genera una risposta per OGNI domanda nella lista.`;
 
         const processingTimeMs = Date.now() - startTime;
 
-        const savedDeck = await Deck.findById(deck._id);
-        if (!savedDeck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const savedDeck = await this.findById(tenantScope, deck._id, { throwIfNotFound: true });
 
         const totalCardsBefore = savedDeck.cards.length - allFlashcards.length;
         const flashcardsWithIds = savedDeck.cards
@@ -791,10 +784,7 @@ Genera una risposta per OGNI domanda nella lista.`;
 
         let deck;
         if (deckId) {
-            deck = await Deck.findOne({ _id: deckId, user: userId });
-            if (!deck) {
-                throw AppError.notFound('Mazzo');
-            }
+            deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
         } else {
             if (!title || typeof title !== 'string') {
                 throw AppError.validation('Il titolo del mazzo è obbligatorio per creare un nuovo deck');

@@ -4,7 +4,6 @@
  * Session creation, card selection, difficulty filtering.
  */
 
-const Deck = require('../../models/Deck');
 const AppError = require('../../utils/AppError');
 const { MIN_QUIZ_CARDS_REQUIRED, QUIZ_TYPES, DEFAULT_EASINESS_FACTOR, MIN_EASINESS_FACTOR } = require('./constants');
 const logger = require('../../utils/logger');
@@ -19,14 +18,10 @@ module.exports = {
         const userId = this._getUserId(tenantScope);
         const config = typeof options === 'string' ? { mode: options } : (options || {});
 
-        const deck = await Deck.findOne({
-            _id: deckId,
-            user: userId,
-        }).select('+extractedText +recentQuizQuestions');
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, {
+            select: '+extractedText +recentQuizQuestions',
+            throwIfNotFound: true,
+        });
 
         await this._ensureDeckPdfUrlIntegrity(deck);
 
@@ -132,10 +127,9 @@ module.exports = {
 
             const newQuestionTexts = aiQuestions.map(q => q.questionText);
             setImmediate(() => {
-                Deck.updateOne(
-                    { _id: deck._id },
-                    { $push: { recentQuizQuestions: { $each: newQuestionTexts, $slice: -50 } } },
-                ).catch(() => {});
+                this.updateRaw(tenantScope, deck._id, {
+                    $push: { recentQuizQuestions: { $each: newQuestionTexts, $slice: -50 } },
+                }).catch(() => {});
             });
 
             this._logQuizDebug('session-ai-quiz', {
@@ -217,11 +211,9 @@ module.exports = {
     // =========================================
 
     async getAllDecks(tenantScope) {
-        const userId = this._getUserId(tenantScope);
         const now = new Date();
 
-        const decks = await Deck.find({ user: userId })
-            .sort({ createdAt: -1 });
+        const decks = await this.find(tenantScope, {}, { sort: { createdAt: -1 } });
 
         let totalDueCount = 0;
 
@@ -250,13 +242,11 @@ module.exports = {
     },
 
     async getDueCards(tenantScope) {
-        const userId = this._getUserId(tenantScope);
         const now = new Date();
 
-        const decks = await Deck.find({
-            user: userId,
+        const decks = await this.find(tenantScope, {
             'cards.nextReviewDate': { $lte: now },
-        }).sort({ 'cards.nextReviewDate': 1 });
+        }, { sort: { 'cards.nextReviewDate': 1 } });
 
         return decks.map(deck => {
             const deckJson = deck.toJSON();

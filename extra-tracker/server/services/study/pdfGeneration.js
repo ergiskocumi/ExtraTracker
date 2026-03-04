@@ -7,7 +7,6 @@
 
 const path = require('path');
 const fs = require('fs/promises');
-const Deck = require('../../models/Deck');
 const AppError = require('../../utils/AppError');
 const pdfCacheService = require('../pdfCacheService');
 const vectorStoreService = require('../vectorStoreService');
@@ -41,10 +40,7 @@ module.exports = {
     async generateCardsFromPDF(tenantScope, deckId, pdfFilePath, options = {}) {
         const userId = this._getUserId(tenantScope);
 
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         if (!pdfFilePath || typeof pdfFilePath !== 'string') {
             throw AppError.validation('Path PDF non valido');

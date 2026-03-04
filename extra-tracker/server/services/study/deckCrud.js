@@ -4,9 +4,9 @@
  * Create, Read, Update, Delete for decks and cards.
  */
 
-const Deck = require('../../models/Deck');
-const Exam = require('../../models/Exam');
 const AppError = require('../../utils/AppError');
+const examRepository = require('../../repositories/ExamRepository');
+const folderRepository = require('../../repositories/FolderRepository');
 const { DEFAULT_EASINESS_FACTOR } = require('./constants');
 const logger = require('../../utils/logger');
 
@@ -31,7 +31,6 @@ module.exports = {
     },
 
     async addCard(tenantScope, deckId, cardData = {}) {
-        const userId = this._getUserId(tenantScope);
         const { front, back } = cardData;
         const normalizedFront = typeof front === 'string' ? front.trim() : '';
         const normalizedBack = typeof back === 'string' ? back.trim() : '';
@@ -43,10 +42,7 @@ module.exports = {
             throw AppError.validation('Il retro della card e\' obbligatorio');
         }
 
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         deck.cards.push({
             front: normalizedFront,
@@ -61,7 +57,6 @@ module.exports = {
     },
 
     async updateCard(tenantScope, deckId, cardId, { front, back }) {
-        const userId = this._getUserId(tenantScope);
         const normalizedFront = typeof front === 'string' ? front.trim() : '';
         const normalizedBack = typeof back === 'string' ? back.trim() : '';
 
@@ -72,10 +67,7 @@ module.exports = {
             throw AppError.validation('Il retro della card e\' obbligatorio');
         }
 
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         const card = deck.cards.id(cardId);
         if (!card) {
@@ -90,7 +82,6 @@ module.exports = {
     },
 
     async updateCardAnswer(tenantScope, deckId, cardId, answer) {
-        const userId = this._getUserId(tenantScope);
         const normalizedAnswer = typeof answer === 'string' ? answer.trim() : '';
 
         if (!normalizedAnswer) {
@@ -103,10 +94,7 @@ module.exports = {
             throw AppError.validation('La risposta non può superare 1000 caratteri');
         }
 
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         const card = deck.cards.id(cardId);
         if (!card) {
@@ -120,32 +108,15 @@ module.exports = {
     },
 
     async deleteCard(tenantScope, deckId, cardId) {
-        const userId = this._getUserId(tenantScope);
-
-        const deck = await Deck.findOneAndUpdate(
-            { _id: deckId, user: userId },
-            { $pull: { cards: { _id: cardId } } },
-            { new: true }
-        );
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
-
-        return deck;
+        return this.updateRaw(tenantScope, deckId, { $pull: { cards: { _id: cardId } } });
     },
 
     async reorderCards(tenantScope, deckId, cardIds) {
-        const userId = this._getUserId(tenantScope);
-
         if (!Array.isArray(cardIds) || cardIds.length === 0) {
             throw AppError.validation('Devi fornire un array di card IDs valido');
         }
 
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         const existingCardIds = deck.cards.map(card => card._id.toString());
         const invalidIds = cardIds.filter(id => !existingCardIds.includes(id));
@@ -176,7 +147,6 @@ module.exports = {
     },
 
     async addCardAtPosition(tenantScope, deckId, cardData = {}) {
-        const userId = this._getUserId(tenantScope);
         const { front, back, position } = cardData;
         const normalizedFront = typeof front === 'string' ? front.trim() : '';
         const normalizedBack = typeof back === 'string' ? back.trim() : '';
@@ -188,10 +158,7 @@ module.exports = {
             throw AppError.validation('Il retro della card è obbligatorio');
         }
 
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         const newCard = {
             front: normalizedFront,
@@ -217,12 +184,7 @@ module.exports = {
     },
 
     async updateDeck(tenantScope, deckId, updates) {
-        const userId = this._getUserId(tenantScope);
-
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         if (updates.title !== undefined) {
             deck.title = updates.title.trim();
@@ -244,11 +206,7 @@ module.exports = {
             });
 
             if (updates.folderId !== null && updates.folderId !== '') {
-                const Folder = require('../../models/Folder');
-                const folder = await Folder.findOne({ _id: updates.folderId, user: userId });
-                if (!folder) {
-                    throw AppError.notFound('Cartella non trovata');
-                }
+                await folderRepository.findById(tenantScope, updates.folderId, { throwIfNotFound: true });
                 deck.folderId = updates.folderId;
                 logger.debug('DeckCrud', 'updateDeck: folder verificata');
             } else {
@@ -264,10 +222,7 @@ module.exports = {
             });
 
             if (updates.examId !== null && updates.examId !== '') {
-                const exam = await Exam.findOne({ _id: updates.examId, user: userId });
-                if (!exam) {
-                    throw AppError.notFound('Esame non trovato');
-                }
+                await examRepository.findById(tenantScope, updates.examId, { throwIfNotFound: true });
                 deck.examId = updates.examId;
                 logger.debug('DeckCrud', 'updateDeck: exam verificato');
             } else {
@@ -282,10 +237,7 @@ module.exports = {
             folderId: deck.folderId ? deck.folderId.toString() : null,
         });
 
-        const savedDeck = await Deck.findOne({ _id: deck._id, user: userId });
-        if (!savedDeck) {
-            throw AppError.notFound('Mazzo non trovato dopo il salvataggio');
-        }
+        const savedDeck = await this.findById(tenantScope, deck._id, { throwIfNotFound: true });
 
         logger.debug('DeckCrud', 'updateDeck: reloaded from DB', {
             deckId: savedDeck._id.toString(),
@@ -302,12 +254,7 @@ module.exports = {
     },
 
     async updateDeckSettings(tenantScope, deckId, settings) {
-        const userId = this._getUserId(tenantScope);
-
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         if (settings.algorithm && ['sm2', 'fsrs', 'leitner', 'anki'].includes(settings.algorithm)) {
             deck.algorithm = settings.algorithm;
@@ -333,13 +280,7 @@ module.exports = {
     },
 
     async getDeckById(tenantScope, deckId) {
-        const userId = this._getUserId(tenantScope);
-
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         await this._ensureDeckPdfUrlIntegrity(deck);
 
@@ -347,12 +288,7 @@ module.exports = {
     },
 
     async saveQuizSnapshot(tenantScope, deckId, payload = {}) {
-        const userId = this._getUserId(tenantScope);
-        const deck = await Deck.findOne({ _id: deckId, user: userId });
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         const cardIdSet = new Set(
             (deck.cards || []).map(card => card?._id?.toString()).filter(Boolean)
@@ -413,12 +349,12 @@ module.exports = {
     },
 
     async getExamSavedQuizzes(tenantScope, examId) {
-        const userId = this._getUserId(tenantScope);
         await this._validateExamOwnership(tenantScope, examId);
 
-        const decks = await Deck.find({ user: userId, examId })
-            .select('_id title examId savedQuizzes')
-            .sort({ updatedAt: -1 });
+        const decks = await this.find(tenantScope, { examId }, {
+            select: '_id title examId savedQuizzes',
+            sort: { updatedAt: -1 },
+        });
 
         const savedQuizzes = [];
 
@@ -466,14 +402,7 @@ module.exports = {
      * Alla prossima sessione quiz verranno rigenerati con il nuovo modello/prompt.
      */
     async resetDistractors(tenantScope, deckId) {
-        const deck = await Deck.findOne({
-            _id: deckId,
-            ...tenantScope,
-        });
-
-        if (!deck) {
-            throw AppError.notFound('Deck non trovato');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         let resetCount = 0;
         for (const card of deck.cards) {

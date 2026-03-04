@@ -4,7 +4,7 @@
  * Cross-cutting private methods used across multiple modules.
  */
 
-const Exam = require('../../models/Exam');
+const examRepository = require('../../repositories/ExamRepository');
 const fs = require('fs/promises');
 const path = require('path');
 const logger = require('../../utils/logger');
@@ -124,12 +124,8 @@ module.exports = {
     // =========================================
 
     async _validateExamOwnership(tenantScope, examId) {
-        const userId = this._getUserId(tenantScope);
-        const exam = await Exam.findOne({ _id: examId, user: userId });
-        if (!exam) {
-            const AppError = require('../../utils/AppError');
-            throw AppError.notFound('Esame non trovato');
-        }
+        // Lancia AppError.notFound automaticamente se non trovato
+        await examRepository.findById(tenantScope, examId, { throwIfNotFound: true });
     },
 
     // =========================================

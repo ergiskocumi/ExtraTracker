@@ -4,9 +4,8 @@
  * Reset exam cards & AI-powered recovery question generation.
  */
 
-const Deck = require('../../models/Deck');
-const Exam = require('../../models/Exam');
 const AppError = require('../../utils/AppError');
+const examRepository = require('../../repositories/ExamRepository');
 const {
     openai,
     ACTIVE_AI_MODEL,
@@ -26,18 +25,13 @@ module.exports = {
      */
     async resetExamCards(tenantScope, examId, type = 'all') {
         logger.info('RecoveryPlan', 'resetExamCards chiamato', { examId, type });
-        const userId = this._getUserId(tenantScope);
 
         // Verifica che l'esame esista e appartenga all'utente
-        const exam = await Exam.findOne({ _id: examId, user: userId });
-        if (!exam) {
-            logger.error('RecoveryPlan', 'Esame non trovato', { examId, userId });
-            throw AppError.notFound('Esame non trovato');
-        }
+        const exam = await examRepository.findById(tenantScope, examId, { throwIfNotFound: true });
         logger.debug('RecoveryPlan', 'Esame trovato', { title: exam.title });
 
         // Trova tutti i deck associati a questo esame
-        const decks = await Deck.find({ examId, user: userId });
+        const decks = await this.find(tenantScope, { examId });
         logger.debug('RecoveryPlan', `Trovati ${decks.length} deck per l'esame`);
         if (decks.length === 0) {
             logger.warn('RecoveryPlan', 'Nessun mazzo trovato per esame', { examId });
@@ -106,15 +100,11 @@ module.exports = {
         const userId = this._getUserId(tenantScope);
 
         // Verifica che l'esame esista e appartenga all'utente
-        const exam = await Exam.findOne({ _id: examId, user: userId });
-        if (!exam) {
-            logger.error('RecoveryPlan', 'Esame non trovato', { examId, userId });
-            throw AppError.notFound('Esame non trovato');
-        }
+        const exam = await examRepository.findById(tenantScope, examId, { throwIfNotFound: true });
         logger.debug('RecoveryPlan', 'Esame trovato', { title: exam.title });
 
         // Trova tutti i deck associati a questo esame
-        const decks = await Deck.find({ examId, user: userId });
+        const decks = await this.find(tenantScope, { examId });
         logger.debug('RecoveryPlan', `Trovati ${decks.length} deck per l'esame`);
         if (decks.length === 0) {
             logger.warn('RecoveryPlan', 'Nessun mazzo trovato per esame', { examId });
