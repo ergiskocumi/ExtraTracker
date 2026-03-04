@@ -19,6 +19,7 @@ import {
     FiBookOpen,
     FiShield,
     FiMessageCircle,
+    FiCpu,
 } from 'react-icons/fi';
 import { useAuth } from '../../../features/auth/context/AuthContext';
 import { useSettings } from '../../../features/settings/context/SettingsContext';
@@ -210,6 +211,7 @@ export const UserMenuDropdown = memo(() => {
             label: 'Principale',
             items: [
                 { path: '/dashboard', label: 'Dashboard', icon: FiLayout, description: 'Centro di comando' },
+                { path: '/ai-dashboard', label: 'AI Usage', icon: FiCpu, description: 'Token, prompt e costi' },
             ],
         },
         {

@@ -12,6 +12,7 @@
 const User = require('../models/User');
 const Deck = require('../models/Deck');
 const WorkLog = require('../models/WorkLog');
+const aiUsageService = require('../services/aiUsageService');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 /**
@@ -179,5 +180,79 @@ exports.getQuickActions = asyncHandler(async (req, res) => {
     res.json({
         success: true,
         data: actions
+    });
+});
+
+/**
+ * GET /api/dashboard/ai-usage/summary
+ *
+ * Riepilogo consumi AI (token, costi, breakdown per mode/feature/model).
+ */
+exports.getAiUsageSummary = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const {
+        days = 30,
+        from,
+        to,
+        mode,
+        feature,
+        modality,
+        model,
+    } = req.query || {};
+
+    const summary = await aiUsageService.getSummary({
+        userId,
+        days,
+        from,
+        to,
+        mode,
+        feature,
+        modality,
+        model,
+    });
+
+    res.json({
+        success: true,
+        data: summary,
+    });
+});
+
+/**
+ * GET /api/dashboard/ai-usage/events
+ *
+ * Lista eventi AI con filtri/paginazione.
+ */
+exports.getAiUsageEvents = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const {
+        page = 1,
+        pageSize = 50,
+        days = 30,
+        from,
+        to,
+        mode,
+        feature,
+        modality,
+        model,
+        status,
+    } = req.query || {};
+
+    const events = await aiUsageService.getEvents({
+        userId,
+        page,
+        pageSize,
+        days,
+        from,
+        to,
+        mode,
+        feature,
+        modality,
+        model,
+        status,
+    });
+
+    res.json({
+        success: true,
+        data: events,
     });
 });
