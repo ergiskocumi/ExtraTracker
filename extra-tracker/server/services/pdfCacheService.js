@@ -18,6 +18,8 @@ const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 const fs = require('fs').promises;
 const crypto = require('crypto');
 const path = require('path');
+const AppError = require('../utils/AppError');
+const logger = require('../utils/logger');
 
 /**
  * PDF Cache Service
@@ -311,15 +313,13 @@ class PDFCacheService {
         } catch (err) {
             this.stats.errors++;
             if (err?.name === 'PasswordException' || /password/i.test(err?.message || '')) {
-                console.error('[PDFCache] Parse error: PDF protetto da password');
-                throw new Error('PDF protetto da password');
+                throw AppError.fileUpload('PDF protetto da password. Rimuovi la protezione e ricarica il file.');
             }
             if (/Invalid PDF structure/i.test(err?.message || '')) {
-                console.error('[PDFCache] Parse error: PDF con struttura non valida');
-                throw new Error('PDF con struttura non valida');
+                throw AppError.fileUpload('Il file PDF non è leggibile o è corrotto.');
             }
-            console.error('[PDFCache] Parse error:', err.message);
-            throw err;
+            logger.error('PDFCacheService', 'Parse error inatteso', { error: err.message });
+            throw AppError.fileUpload('Impossibile leggere il PDF.');
         }
     }
 

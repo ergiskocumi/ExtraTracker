@@ -401,10 +401,7 @@ class BaseService {
     async deleteMany(tenantScope, filters) {
         // SICUREZZA: Non permettere deleteMany senza filtri
         if (!filters || Object.keys(filters).length === 0) {
-            throw new Error(
-                'deleteMany requires explicit filters. ' +
-                'To delete all documents, use { deletedAt: { $exists: false } } or similar.'
-            );
+            throw AppError.validation('deleteMany richiede filtri espliciti per sicurezza', {}, { suggestion: 'Specifica almeno una condizione di filtro' });
         }
 
         // 🔒 SICUREZZA ESPLICITA: user è SEMPRE nel filtro

@@ -321,14 +321,14 @@ Genera una risposta per OGNI domanda nella lista.`;
 
                     const batchResponse = batchCompletion.choices[0]?.message?.content;
                     if (!batchResponse) {
-                        throw new Error('Empty response from OpenAI');
+                        throw AppError.ai('Risposta vuota da OpenAI', null);
                     }
 
                     const parsed = JSON.parse(batchResponse);
                     const flashcards = Array.isArray(parsed.flashcards) ? parsed.flashcards : [];
 
                     if (flashcards.length === 0) {
-                        throw new Error('No flashcards returned');
+                        throw AppError.ai('Nessuna flashcard generata dal servizio AI', null);
                     }
 
                     return { flashcards, batch };
