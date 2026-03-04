@@ -364,6 +364,29 @@ class BaseService {
     }
 
     /**
+     * Aggiorna con operatori atomici Mongoose ($push, $pull, $inc, arrayFilters, ecc.)
+     * Non wrappa con $set — l'update viene passato direttamente a Mongoose.
+     * ⚠️ SICUREZZA: tenant filter applicato sempre, {new: true} di default.
+     *
+     * @param {Object} tenantScope - Oggetto req.tenantScope
+     * @param {string} id - ID del documento
+     * @param {Object} mongoUpdate - Operatori Mongoose es. { $push: { cards: ... } }
+     * @param {Object} options - Opzioni extra per findOneAndUpdate
+     * @returns {Promise<Document>}
+     * @throws {AppError} Se documento non trovato
+     */
+    async updateRaw(tenantScope, id, mongoUpdate, options = {}) {
+        const secureFilter = this._buildFilter(tenantScope, { _id: id });
+        const doc = await this.Model.findOneAndUpdate(
+            secureFilter,
+            mongoUpdate,
+            { new: true, runValidators: true, ...options }
+        );
+        if (!doc) throw AppError.notFound(this.options.entityName);
+        return doc;
+    }
+
+    /**
      * Elimina un documento per ID.
      * 
      * @param {Object} tenantScope - Oggetto req.tenantScope
