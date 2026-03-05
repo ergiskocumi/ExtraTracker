@@ -5,6 +5,7 @@
 
 const OpenAI = require('openai');
 const path = require('path');
+const logger = require('../../utils/logger');
 
 // =========================================
 // COSTANTI BASE
@@ -117,10 +118,9 @@ function getValidModel(envValue) {
 
 if (!global.__studyServiceModelLogged) {
     if (envModel !== ACTIVE_AI_MODEL) {
-        console.warn(`⚠️ OPENAI_MODEL="${envModel}" non valido o non disponibile; uso fallback: ${ACTIVE_AI_MODEL}`);
+        logger.warn('StudyService', `OPENAI_MODEL="${envModel}" non valido; uso fallback: ${ACTIVE_AI_MODEL}`);
     }
-    console.log(`🤖 StudyService usando modello: ${ACTIVE_AI_MODEL}`);
-    console.log(`🧩 StudyService distractor model: ${DISTRACTOR_AI_MODEL}`);
+    logger.info('StudyService', `Modello AI: ${ACTIVE_AI_MODEL} | Distractor: ${DISTRACTOR_AI_MODEL}`);
     global.__studyServiceModelLogged = true;
 }
 

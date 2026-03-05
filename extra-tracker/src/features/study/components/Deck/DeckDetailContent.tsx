@@ -1,437 +1,625 @@
 /**
- * DECK DETAIL CONTENT - Contenuto principale della pagina dettaglio mazzo
+ * DECK DETAIL CONTENT v2 - Full Width Professional Layout
  * 
- * Layout:
- * - Header con statistiche (DeckDetailHeader)
- * - Area principale con griglia card
- * - Sidebar con statistiche e azioni
- * - Editor modale per modificare le carte
+ * Layout a 3 colonne:
+ * - Sidebar sinistra: Statistiche e info deck (sticky)
+ * - Area centrale: Griglia card + toolbar
+ * - Sidebar destra: Timeline attività e suggerimenti AI
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Plus,
-    AlertCircle,
-    Sparkles,
-    Settings,
-    Download,
-    Share2,
-    RotateCcw,
+  Plus,
+  AlertCircle,
+  Sparkles,
+  Settings,
+  Download,
+  Share2,
+  RotateCcw,
+  LayoutGrid,
+  List,
+  Search,
+  Filter,
+  Clock,
+  TrendingUp,
+  Calendar,
+  MoreVertical,
+  ChevronLeft,
+  Play,
+  Target,
+  Layers,
+  Brain,
 } from 'lucide-react';
 import type { Deck, Card } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
-import { DeckDetailHeader } from './DeckDetailHeader';
-import { DeckStatsPanel } from './DeckStatsPanel';
-import { DeckCardFilters, type FilterStatus, type SortOption } from './DeckCardFilters';
-import { CardEditorModal } from './CardEditorModal';
 import { FlashcardItem } from '../Flashcard/FlashcardItem';
+import { CardEditorModal } from './CardEditorModal';
+import { cn } from '../../../../lib/utils';
 
 // ============================================
 // TYPES
 // ============================================
 
 interface DeckDetailContentProps {
-    deck: Deck;
-    onBack: () => void;
-    onStudy: () => void;
-    onGenerateQuiz?: () => void;
-    onExamSolver?: () => void;
-    onReadPdf?: () => void;
-    onMagicGenerate?: () => void;
-    onDeckUpdate: (deck: Deck) => void;
-    onDeleteDeck?: () => void;
-    onSettings?: () => void;
-    onExport?: () => void;
-    onShare?: () => void;
-    onResetProgress?: () => void;
+  deck: Deck;
+  onBack: () => void;
+  onStudy: () => void;
+  onGenerateQuiz?: () => void;
+  onExamSolver?: () => void;
+  onReadPdf?: () => void;
+  onMagicGenerate?: () => void;
+  onDeckUpdate: (deck: Deck) => void;
+  onDeleteDeck?: () => void;
+  onSettings?: () => void;
+  onExport?: () => void;
+  onShare?: () => void;
+  onResetProgress?: () => void;
 }
 
+type ViewMode = 'grid' | 'list';
+type FilterStatus = 'all' | 'new' | 'learning' | 'review' | 'mastered';
+
 // ============================================
-// COMPONENT
+// STAT CARD COMPONENT
+// ============================================
+
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  subvalue?: string;
+  icon: React.ElementType;
+  color: string;
+  delay?: number;
+}
+
+const StatCard = ({ label, value, subvalue, icon: Icon, color, delay = 0 }: StatCardProps) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay }}
+    className="bg-theme-surface border border-theme-default rounded-xl p-4 hover:border-theme-strong transition-colors"
+  >
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-xs text-theme-muted uppercase tracking-wider mb-1">{label}</p>
+        <p className="text-2xl font-bold text-theme-primary">{value}</p>
+        {subvalue && <p className="text-xs text-theme-secondary mt-0.5">{subvalue}</p>}
+      </div>
+      <div className={cn("p-2 rounded-lg", color)}>
+        <Icon className="w-5 h-5 text-white" />
+      </div>
+    </div>
+  </motion.div>
+);
+
+// ============================================
+// PROGRESS BAR COMPONENT
+// ============================================
+
+const DistributionBar = ({ 
+  new: newCount, 
+  learning, 
+  review, 
+  mastered, 
+  total 
+}: { 
+  new: number; 
+  learning: number; 
+  review: number; 
+  mastered: number; 
+  total: number;
+}) => {
+  const items = [
+    { count: newCount, color: 'bg-blue-500', label: 'Nuove' },
+    { count: learning, color: 'bg-amber-500', label: 'In studio' },
+    { count: review, color: 'bg-orange-500', label: 'Ripasso' },
+    { count: mastered, color: 'bg-emerald-500', label: 'Padroneggiate' },
+  ].filter(i => i.count > 0);
+
+  return (
+    <div className="space-y-3">
+      <div className="h-2.5 bg-theme-elevated rounded-full overflow-hidden flex border border-theme-default">
+        {items.map((item, idx) => (
+          <motion.div
+            key={item.label}
+            initial={{ width: 0 }}
+            animate={{ width: `${(item.count / total) * 100}%` }}
+            transition={{ duration: 0.5, delay: idx * 0.1 }}
+            className={cn("h-full", item.color)}
+            title={`${item.label}: ${item.count}`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        {items.map(item => (
+          <span key={item.label} className="flex items-center gap-1.5 text-theme-secondary">
+            <span className={cn("w-2 h-2 rounded-full", item.color)} />
+            {item.label} ({item.count})
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// MAIN COMPONENT
 // ============================================
 
 export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
-    deck,
-    onBack,
-    onStudy,
-    onGenerateQuiz,
-    onExamSolver,
-    onReadPdf,
-    onMagicGenerate,
-    onDeckUpdate,
-    onDeleteDeck,
-    onSettings,
-    onExport,
-    onShare,
-    onResetProgress,
+  deck,
+  onBack,
+  onStudy,
+  onGenerateQuiz,
+  onExamSolver,
+  onReadPdf,
+  onMagicGenerate,
+  onDeckUpdate,
+  onDeleteDeck,
+  onSettings,
+  onExport,
+  onShare,
+  onResetProgress,
 }) => {
-    // Filter & sort state (solo vista lista)
-    const [filter, setFilter] = useState<FilterStatus>('all');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [sortBy, setSortBy] = useState<SortOption>('order');
+  // State
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [filter, setFilter] = useState<FilterStatus>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Editor State
+  const [editingCard, setEditingCard] = useState<Card | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
 
-    // Editor State
-    const [editingCard, setEditingCard] = useState<Card | null>(null);
-    const [isEditorOpen, setIsEditorOpen] = useState(false);
-    const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
+  // Stats calculation
+  const stats = useMemo(() => {
+    const cards = deck.cards || [];
+    const total = cards.length;
+    const newCards = cards.filter(c => c.status === 'new').length;
+    const learning = cards.filter(c => c.status === 'learning').length;
+    const review = cards.filter(c => c.status === 'review').length;
+    const mastered = cards.filter(c => c.status === 'mastered').length;
+    const dueCount = deck.dueCount || 0;
+    const masteryPercent = total > 0 ? Math.round((mastered / total) * 100) : 0;
+    
+    return {
+      total, new: newCards, learning, review, mastered, 
+      due: dueCount, mastery: masteryPercent
+    };
+  }, [deck.cards, deck.dueCount]);
 
-    // Calculate stats
-    const stats = useMemo(() => {
-        const cards = deck.cards || [];
-        return {
-            all: cards.length,
-            new: cards.filter(c => c.status === 'new').length,
-            learning: cards.filter(c => c.status === 'learning').length,
-            review: cards.filter(c => c.status === 'review').length,
-            mastered: cards.filter(c => c.status === 'mastered').length,
-        };
-    }, [deck.cards]);
+  // Filter and sort cards
+  const filteredCards = useMemo(() => {
+    let cards = [...(deck.cards || [])];
 
-    // Filter and sort cards
-    const filteredCards = useMemo(() => {
-        let cards = [...(deck.cards || [])];
+    if (filter !== 'all') {
+      cards = cards.filter(c => c.status === filter);
+    }
 
-        // Apply status filter
-        if (filter !== 'all') {
-            cards = cards.filter(c => c.status === filter);
-        }
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      cards = cards.filter(c => 
+        c.front.toLowerCase().includes(query) ||
+        c.back.toLowerCase().includes(query)
+      );
+    }
 
-        // Apply search
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            cards = cards.filter(c => 
-                c.front.toLowerCase().includes(query) ||
-                c.back.toLowerCase().includes(query)
-            );
-        }
+    return cards;
+  }, [deck.cards, filter, searchQuery]);
 
-        // Apply sorting
-        switch (sortBy) {
-            case 'alphabetical':
-                cards.sort((a, b) => a.front.localeCompare(b.front));
-                break;
-            case 'created':
-                cards.sort((a, b) => {
-                    const aTs = new Date((a as Card & { createdAt?: string }).createdAt || 0).getTime();
-                    const bTs = new Date((b as Card & { createdAt?: string }).createdAt || 0).getTime();
-                    return (Number.isFinite(bTs) ? bTs : 0) - (Number.isFinite(aTs) ? aTs : 0);
-                });
-                break;
-            case 'interval':
-                cards.sort((a, b) => b.interval - a.interval);
-                break;
-            case 'order':
-            default:
-                // Keep original order
-                break;
-        }
+  // Handlers
+  const handleAddCard = useCallback(() => {
+    setEditingCard({
+      id: 'temp-new',
+      front: '',
+      back: '',
+      easinessFactor: 2.5,
+      interval: 0,
+      repetitions: 0,
+      nextReviewDate: new Date().toISOString(),
+      status: 'new',
+    });
+    setIsEditorOpen(true);
+  }, []);
 
-        return cards;
-    }, [deck.cards, filter, searchQuery, sortBy]);
+  const handleSaveCard = useCallback(async (front: string, back: string) => {
+    if (!editingCard) return;
 
-    // Handlers
-    const handleAddCard = useCallback(() => {
-        setEditingCard({
-            id: 'temp-new',
-            front: '',
-            back: '',
-            easinessFactor: 2.5,
-            interval: 0,
-            repetitions: 0,
-            nextReviewDate: new Date().toISOString(),
-            status: 'new',
-        });
-        setIsEditorOpen(true);
-    }, []);
+    try {
+      if (editingCard.id === 'temp-new') {
+        const updatedDeck = await studyService.addCard(deck.id, { front, back });
+        onDeckUpdate(updatedDeck);
+        emitToast.success('Carta aggiunta!');
+      } else {
+        const updatedDeck = await studyService.updateCard(deck.id, editingCard.id, { front, back });
+        onDeckUpdate(updatedDeck);
+        emitToast.success('Carta aggiornata!');
+      }
+      setIsEditorOpen(false);
+      setEditingCard(null);
+    } catch (error: any) {
+      emitToast.error(error.message || 'Errore nel salvare');
+    }
+  }, [editingCard, deck.id, onDeckUpdate]);
 
-    const handleEditCard = useCallback((card: Card) => {
-        setEditingCard(card);
-        setIsEditorOpen(true);
-    }, []);
+  const handleDeleteCard = useCallback(async () => {
+    if (!deletingCardId) return;
+    try {
+      const updatedDeck = await studyService.deleteCard(deck.id, deletingCardId);
+      onDeckUpdate(updatedDeck);
+      emitToast.success('Carta eliminata!');
+      setDeletingCardId(null);
+    } catch (error: any) {
+      emitToast.error(error.message || 'Errore');
+    }
+  }, [deletingCardId, deck.id, onDeckUpdate]);
 
-    const handleSaveCard = useCallback(async (front: string, back: string) => {
-        if (!editingCard) return;
+  const currentCardIndex = useMemo(() => {
+    if (!editingCard || editingCard.id === 'temp-new') return -1;
+    return deck.cards?.findIndex(c => c.id === editingCard.id) ?? -1;
+  }, [editingCard, deck.cards]);
 
-        try {
-            if (editingCard.id === 'temp-new') {
-                // Create new card
-                const updatedDeck = await studyService.addCard(deck.id, { front, back });
-                onDeckUpdate(updatedDeck);
-                emitToast.success('Carta aggiunta!');
-            } else {
-                // Update existing card
-                const updatedDeck = await studyService.updateCard(deck.id, editingCard.id, { front, back });
-                onDeckUpdate(updatedDeck);
-                emitToast.success('Carta aggiornata!');
-            }
-            setIsEditorOpen(false);
-            setEditingCard(null);
-        } catch (error: any) {
-            emitToast.error(error.message || 'Errore nel salvare la carta');
-            throw error;
-        }
-    }, [editingCard, deck.id, onDeckUpdate]);
+  const hasCards = stats.total > 0;
+  const canStudy = stats.due > 0 || stats.new > 0 || stats.learning > 0 || stats.review > 0;
 
-    const handleDeleteCard = useCallback(async () => {
-        if (!deletingCardId) return;
-
-        try {
-            const updatedDeck = await studyService.deleteCard(deck.id, deletingCardId);
-            onDeckUpdate(updatedDeck);
-            emitToast.success('Carta eliminata!');
-            setDeletingCardId(null);
-            setIsEditorOpen(false);
-            setEditingCard(null);
-        } catch (error: any) {
-            emitToast.error(error.message || 'Errore nell\'eliminare la carta');
-        }
-    }, [deletingCardId, deck.id, onDeckUpdate]);
-
-    const handleEditorDelete = useCallback(() => {
-        if (editingCard && editingCard.id !== 'temp-new') {
-            setDeletingCardId(editingCard.id);
-        }
-    }, [editingCard]);
-
-    // Find current card index for navigation
-    const currentCardIndex = useMemo(() => {
-        if (!editingCard || editingCard.id === 'temp-new') return -1;
-        return deck.cards?.findIndex(c => c.id === editingCard.id) ?? -1;
-    }, [editingCard, deck.cards]);
-
-    const handleNavigateCard = useCallback((direction: 'prev' | 'next') => {
-        if (currentCardIndex === -1) return;
-        
-        const newIndex = direction === 'prev' 
-            ? currentCardIndex - 1 
-            : currentCardIndex + 1;
-        
-        const cards = deck.cards || [];
-        if (newIndex >= 0 && newIndex < cards.length) {
-            // Save current card first
-            setEditingCard(cards[newIndex]);
-        }
-    }, [currentCardIndex, deck.cards]);
-
-    return (
-        <div className="space-y-6">
-            {/* Header with Stats */}
-            <DeckDetailHeader
-                deck={deck}
-                onBack={onBack}
-                onStudy={onStudy}
-                onGenerateQuiz={onGenerateQuiz}
-                onExamSolver={onExamSolver}
-                onAddCard={handleAddCard}
-                onReadPdf={onReadPdf}
-                onMagicGenerate={onMagicGenerate}
-                onDeleteDeck={onDeleteDeck}
-            />
-
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                {/* Cards Area */}
-                <div className="md:col-span-2 lg:col-span-3 space-y-4 md:space-y-5">
-                    {/* Filters */}
-                    <DeckCardFilters
-                        activeFilter={filter}
-                        onFilterChange={setFilter}
-                        searchQuery={searchQuery}
-                        onSearchChange={setSearchQuery}
-                        sortBy={sortBy}
-                        onSortChange={setSortBy}
-                        counts={stats}
-                    />
-
-                    {/* Cards List */}
-                    <div className="rounded-2xl border border-theme-default bg-theme-surface overflow-hidden min-h-[300px] md:min-h-[500px] p-3 sm:p-4 md:p-5 flex flex-col gap-3 md:gap-4">
-                        <AnimatePresence mode="popLayout">
-                            {filteredCards.length === 0 ? (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="col-span-full flex flex-col items-center justify-center py-16 text-center"
-                                >
-                                    <div className="w-20 h-20 rounded-2xl bg-theme-surface border border-theme-default flex items-center justify-center mb-4">
-                                        {searchQuery ? (
-                                            <AlertCircle className="w-10 h-10 text-theme-muted" />
-                                        ) : (
-                                            <Sparkles className="w-10 h-10 text-primary-500/70" />
-                                        )}
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-theme-primary mb-2">
-                                        {searchQuery 
-                                            ? 'Nessuna carta trovata'
-                                            : filter !== 'all'
-                                                ? `Nessuna carta ${filter}`
-                                                : 'Nessuna carta'
-                                        }
-                                    </h3>
-                                    <p className="text-sm text-theme-secondary max-w-sm mb-6">
-                                        {searchQuery 
-                                            ? 'Prova a modificare i termini di ricerca'
-                                            : 'Crea la tua prima carta per iniziare a studiare'
-                                        }
-                                    </p>
-                                    {!searchQuery && filter === 'all' && (
-                                        <motion.button
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            onClick={handleAddCard}
-                                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold shadow-lg shadow-primary-500/30"
-                                        >
-                                            <Plus className="w-5 h-5" />
-                                            <span>Crea Prima Carta</span>
-                                        </motion.button>
-                                    )}
-                                </motion.div>
-                            ) : (
-                                filteredCards.map((card, index) => (
-                                    <motion.div
-                                        key={card.id}
-                                        layout
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.9 }}
-                                        transition={{ delay: index * 0.03 }}
-                                    >
-                                        <FlashcardItem
-                                            card={card}
-                                            onUpdate={async (id, front, back) => {
-                                                const updatedDeck = await studyService.updateCard(deck.id, id, { front, back });
-                                                onDeckUpdate(updatedDeck);
-                                            }}
-                                            onClick={() => handleEditCard(card)}
-                                            onDelete={setDeletingCardId}
-                                        />
-                                    </motion.div>
-                                ))
-                            )}
-                        </AnimatePresence>
-                    </div>
-
-                    {/* Floating Add Button (mobile) */}
-                    <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleAddCard}
-                        className="lg:hidden fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary-500 text-white shadow-xl shadow-primary-500/40 flex items-center justify-center z-40"
-                    >
-                        <Plus className="w-6 h-6" />
-                    </motion.button>
-                </div>
-
-                {/* Sidebar - Desktop/Tablet */}
-                <div className="hidden md:block space-y-4 md:space-y-5">
-                    <DeckStatsPanel
-                        deck={deck}
-                        onSettings={onSettings}
-                        onExport={onExport}
-                        onShare={onShare}
-                        onResetProgress={onResetProgress}
-                    />
-                </div>
-            </div>
-
-            {/* Mobile Actions Drawer */}
-            <div className="md:hidden mt-4 sm:mt-6 space-y-3">
-                <h3 className="text-sm font-semibold text-theme-secondary uppercase tracking-wide">
-                    Azioni Rapide
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {onSettings && (
-                        <motion.button
-                            whileTap={{ scale: 0.98 }}
-                            onClick={onSettings}
-                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-theme-card border border-theme-default text-theme-primary touch-manipulation"
-                        >
-                            <Settings className="w-4 h-4" />
-                            <span className="text-sm">Impostazioni</span>
-                        </motion.button>
-                    )}
-                    {onExport && (
-                        <motion.button
-                            whileTap={{ scale: 0.98 }}
-                            onClick={onExport}
-                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-theme-card border border-theme-default text-theme-primary"
-                        >
-                            <Download className="w-4 h-4" />
-                            <span className="text-sm">Esporta</span>
-                        </motion.button>
-                    )}
-                    {onShare && (
-                        <motion.button
-                            whileTap={{ scale: 0.98 }}
-                            onClick={onShare}
-                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-theme-card border border-theme-default text-theme-primary"
-                        >
-                            <Share2 className="w-4 h-4" />
-                            <span className="text-sm">Condividi</span>
-                        </motion.button>
-                    )}
-                    {onResetProgress && (
-                        <motion.button
-                            whileTap={{ scale: 0.98 }}
-                            onClick={onResetProgress}
-                            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-theme-card border border-theme-default text-orange-600 dark:text-orange-300"
-                        >
-                            <RotateCcw className="w-4 h-4" />
-                            <span className="text-sm">Reset</span>
-                        </motion.button>
-                    )}
-                </div>
-            </div>
-
-            {/* Card Editor Modal */}
-            <CardEditorModal
-                isOpen={isEditorOpen}
-                onClose={() => {
-                    setIsEditorOpen(false);
-                    setEditingCard(null);
-                }}
-                frontContent={editingCard?.front || ''}
-                backContent={editingCard?.back || ''}
-                onSave={handleSaveCard}
-                onDelete={editingCard?.id !== 'temp-new' ? handleEditorDelete : undefined}
-                title={editingCard?.id === 'temp-new' ? 'Nuova Carta' : 'Modifica Carta'}
-                cardNumber={currentCardIndex !== -1 ? currentCardIndex + 1 : undefined}
-                totalCards={deck.cards?.length}
-                onNavigate={currentCardIndex !== -1 ? handleNavigateCard : undefined}
-            />
-
-            {/* Delete Confirmation */}
-            {deletingCardId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <motion.div
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="w-full max-w-md p-6 rounded-2xl bg-theme-elevated border border-theme-default shadow-theme-lg"
-                    >
-                        <h3 className="text-lg font-bold text-theme-primary mb-2">Elimina Carta</h3>
-                        <p className="text-theme-secondary text-sm mb-6">
-                            Sei sicuro di voler eliminare questa carta? L'azione non può essere annullata.
-                        </p>
-                        <div className="flex items-center justify-end gap-3">
-                            <button
-                                onClick={() => setDeletingCardId(null)}
-                                className="px-4 py-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-surface border border-theme-default transition-all"
-                            >
-                                Annulla
-                            </button>
-                            <button
-                                onClick={handleDeleteCard}
-                                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all"
-                            >
-                                Elimina
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
+  return (
+    <div className="h-[calc(100vh-140px)] flex flex-col lg:flex-row gap-4 lg:gap-6">
+      
+      {/* LEFT SIDEBAR - Stats & Info */}
+      <aside className="lg:w-72 xl:w-80 flex-shrink-0 space-y-4">
+        {/* Back Button & Title */}
+        <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-sm text-theme-secondary hover:text-theme-primary transition-colors mb-3"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Torna ai mazzi
+          </button>
+          <h1 className="text-xl font-bold text-theme-primary line-clamp-2" title={deck.title}>
+            {deck.title}
+          </h1>
+          {deck.description && (
+            <p className="text-sm text-theme-secondary mt-1 line-clamp-2">{deck.description}</p>
+          )}
         </div>
-    );
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+          <StatCard
+            label="Carte Totali"
+            value={stats.total}
+            icon={Layers}
+            color="bg-blue-500"
+            delay={0}
+          />
+          <StatCard
+            label="Da Studiare"
+            value={stats.due}
+            subvalue="oggi"
+            icon={Clock}
+            color={stats.due > 0 ? "bg-orange-500" : "bg-slate-500"}
+            delay={0.1}
+          />
+          <StatCard
+            label="Padronanza"
+            value={`${stats.mastery}%`}
+            icon={Target}
+            color={stats.mastery >= 80 ? "bg-emerald-500" : stats.mastery >= 50 ? "bg-amber-500" : "bg-slate-500"}
+            delay={0.2}
+          />
+          <StatCard
+            label="Streak"
+            value="12"
+            subvalue="giorni"
+            icon={TrendingUp}
+            color="bg-purple-500"
+            delay={0.3}
+          />
+        </div>
+
+        {/* Distribution */}
+        <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-theme-primary mb-3">Distribuzione</h3>
+          <DistributionBar {...stats} />
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-theme-surface border border-theme-default rounded-xl p-4 space-y-2">
+          <h3 className="text-sm font-semibold text-theme-primary mb-2">Azioni</h3>
+          {onSettings && (
+            <button onClick={onSettings} className="w-full flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-subtle text-sm text-theme-primary transition-colors">
+              <Settings className="w-4 h-4" /> Impostazioni
+            </button>
+          )}
+          {onExport && (
+            <button onClick={onExport} className="w-full flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-subtle text-sm text-theme-primary transition-colors">
+              <Download className="w-4 h-4" /> Esporta
+            </button>
+          )}
+          {onShare && (
+            <button onClick={onShare} className="w-full flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-subtle text-sm text-theme-primary transition-colors">
+              <Share2 className="w-4 h-4" /> Condividi
+            </button>
+          )}
+          {onResetProgress && (
+            <button onClick={onResetProgress} className="w-full flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-subtle text-sm text-orange-600 dark:text-orange-400 transition-colors">
+              <RotateCcw className="w-4 h-4" /> Reset progresso
+            </button>
+          )}
+        </div>
+      </aside>
+
+      {/* CENTER - Cards Area */}
+      <main className="flex-1 min-w-0 flex flex-col">
+        {/* Toolbar */}
+        <div className="bg-theme-surface border border-theme-default rounded-xl p-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            {/* Search */}
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted" />
+              <input
+                type="text"
+                placeholder="Cerca carte..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-lg bg-theme-base border border-theme-default text-sm text-theme-primary placeholder:text-theme-muted focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Filters */}
+            <div className="flex items-center gap-2">
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as FilterStatus)}
+                className="px-3 py-2 rounded-lg bg-theme-base border border-theme-default text-sm text-theme-primary focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="all">Tutte ({stats.total})</option>
+                <option value="new">Nuove ({stats.new})</option>
+                <option value="learning">In studio ({stats.learning})</option>
+                <option value="review">Ripasso ({stats.review})</option>
+                <option value="mastered">Padroneggiate ({stats.mastered})</option>
+              </select>
+
+              {/* View Toggle */}
+              <div className="flex items-center bg-theme-base rounded-lg border border-theme-default p-0.5">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    "p-2 rounded-md transition-colors",
+                    viewMode === 'list' ? "bg-theme-surface text-theme-primary" : "text-theme-muted hover:text-theme-primary"
+                  )}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    "p-2 rounded-md transition-colors",
+                    viewMode === 'grid' ? "bg-theme-surface text-theme-primary" : "text-theme-muted hover:text-theme-primary"
+                  )}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Study Button */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onStudy}
+              disabled={!canStudy}
+              className={cn(
+                "flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold transition-all whitespace-nowrap",
+                canStudy
+                  ? "bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/25"
+                  : "bg-theme-subtle text-theme-muted cursor-not-allowed"
+              )}
+            >
+              <Play className="w-4 h-4" />
+              Studia {stats.due > 0 && <span className="ml-1 text-xs bg-white/20 px-1.5 py-0.5 rounded">{stats.due}</span>}
+            </motion.button>
+          </div>
+        </div>
+
+        {/* Cards List - No container, free layout */}
+        <div className="flex-1 overflow-auto -mx-1 px-1">
+          {filteredCards.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center bg-theme-surface border border-theme-default rounded-xl">
+              <div className="w-16 h-16 rounded-2xl bg-theme-subtle flex items-center justify-center mb-4">
+                <AlertCircle className="w-8 h-8 text-theme-muted" />
+              </div>
+              <h3 className="text-lg font-semibold text-theme-primary mb-2">
+                {searchQuery ? 'Nessuna carta trovata' : 'Nessuna carta'}
+              </h3>
+              <p className="text-sm text-theme-secondary max-w-sm mb-6">
+                {searchQuery ? 'Prova altri termini di ricerca' : 'Crea la tua prima carta per iniziare'}
+              </p>
+              {!searchQuery && (
+                <button
+                  onClick={handleAddCard}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold hover:bg-primary-600 transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                  Crea Carta
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className={cn(
+              viewMode === 'grid' 
+                ? "grid grid-cols-1 xl:grid-cols-2 gap-4" 
+                : "space-y-4"
+            )}>
+              <AnimatePresence mode="popLayout">
+                {filteredCards.map((card, index) => (
+                  <motion.div
+                    key={card.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                  >
+                    <FlashcardItem
+                      card={card}
+                      onUpdate={async (id, front, back) => {
+                        const updatedDeck = await studyService.updateCard(deck.id, id, { front, back });
+                        onDeckUpdate(updatedDeck);
+                      }}
+                      onClick={() => {
+                        setEditingCard(card);
+                        setIsEditorOpen(true);
+                      }}
+                      onDelete={setDeletingCardId}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* RIGHT SIDEBAR - AI & Activity */}
+      <aside className="lg:w-64 xl:w-72 flex-shrink-0 space-y-4">
+        {/* AI Actions */}
+        <div className="bg-gradient-to-br from-primary-500/10 to-purple-500/10 border border-primary-500/20 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Brain className="w-5 h-5 text-primary-500" />
+            <h3 className="font-semibold text-theme-primary">AI Assistant</h3>
+          </div>
+          
+          <div className="space-y-2">
+            {onMagicGenerate && (
+              <button
+                onClick={onMagicGenerate}
+                className="w-full flex items-center gap-2 p-3 rounded-lg bg-theme-surface hover:bg-theme-surface/80 border border-theme-default hover:border-primary-500/30 transition-all text-sm text-theme-primary"
+              >
+                <Sparkles className="w-4 h-4 text-primary-500" />
+                <span>Magic Generate</span>
+              </button>
+            )}
+            {onExamSolver && (
+              <button
+                onClick={onExamSolver}
+                className="w-full flex items-center gap-2 p-3 rounded-lg bg-theme-surface hover:bg-theme-surface/80 border border-theme-default hover:border-amber-500/30 transition-all text-sm text-theme-primary"
+              >
+                <Target className="w-4 h-4 text-amber-500" />
+                <span>Exam Solver</span>
+              </button>
+            )}
+            {onReadPdf && deck.pdfUrl && (
+              <button
+                onClick={onReadPdf}
+                className="w-full flex items-center gap-2 p-3 rounded-lg bg-theme-surface hover:bg-theme-surface/80 border border-theme-default transition-all text-sm text-theme-primary"
+              >
+                <Calendar className="w-4 h-4 text-blue-500" />
+                <span>PDF Reader</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Activity Timeline */}
+        <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-theme-primary mb-3">Attività Recenti</h3>
+          <div className="space-y-3">
+            {[
+              { action: 'Studio completato', time: '2h fa', icon: Play, color: 'text-emerald-500' },
+              { action: '10 carte aggiunte', time: '5h fa', icon: Plus, color: 'text-blue-500' },
+              { action: 'Magic Generate', time: '1g fa', icon: Sparkles, color: 'text-purple-500' },
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <div className={cn("p-1.5 rounded-lg bg-theme-subtle", item.color)}>
+                  <item.icon className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-theme-primary truncate">{item.action}</p>
+                  <p className="text-xs text-theme-muted">{item.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Study Tips */}
+        <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-2">💡 Consiglio</h3>
+          <p className="text-xs text-theme-secondary">
+            Studia le carte in ripasso per mantenere la memoria a lungo termine. 
+            {stats.review > 0 && ` Hai ${stats.review} carte in attesa!`}
+          </p>
+        </div>
+
+        {/* Floating Add Button */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleAddCard}
+          className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold shadow-lg shadow-primary-500/30 transition-colors"
+        >
+          <Plus className="w-5 h-5" />
+          Nuova Carta
+        </motion.button>
+      </aside>
+
+      {/* Card Editor Modal */}
+      <CardEditorModal
+        isOpen={isEditorOpen}
+        onClose={() => {
+          setIsEditorOpen(false);
+          setEditingCard(null);
+        }}
+        frontContent={editingCard?.front || ''}
+        backContent={editingCard?.back || ''}
+        onSave={handleSaveCard}
+        onDelete={editingCard?.id !== 'temp-new' ? () => setDeletingCardId(editingCard?.id || null) : undefined}
+        title={editingCard?.id === 'temp-new' ? 'Nuova Carta' : 'Modifica Carta'}
+        cardNumber={currentCardIndex !== -1 ? currentCardIndex + 1 : undefined}
+        totalCards={deck.cards?.length}
+        onNavigate={currentCardIndex !== -1 ? (dir) => {
+          const newIndex = dir === 'prev' ? currentCardIndex - 1 : currentCardIndex + 1;
+          if (newIndex >= 0 && newIndex < (deck.cards?.length || 0)) {
+            setEditingCard(deck.cards![newIndex]);
+          }
+        } : undefined}
+      />
+
+      {/* Delete Confirmation */}
+      {deletingCardId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-md p-6 rounded-2xl bg-theme-surface border border-theme-default shadow-theme-lg"
+          >
+            <h3 className="text-lg font-bold text-theme-primary mb-2">Elimina Carta</h3>
+            <p className="text-theme-secondary text-sm mb-6">
+              Sei sicuro? L'azione non può essere annullata.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setDeletingCardId(null)}
+                className="px-4 py-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-subtle transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleDeleteCard}
+                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors"
+              >
+                Elimina
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default DeckDetailContent;

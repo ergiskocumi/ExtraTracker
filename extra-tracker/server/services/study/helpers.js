@@ -4,9 +4,10 @@
  * Cross-cutting private methods used across multiple modules.
  */
 
-const Exam = require('../../models/Exam');
+const examRepository = require('../../repositories/ExamRepository');
 const fs = require('fs/promises');
 const path = require('path');
+const logger = require('../../utils/logger');
 const {
     PDF_UPLOADS_DIR,
     MIN_EASINESS_FACTOR,
@@ -71,7 +72,7 @@ module.exports = {
         try {
             files = await fs.readdir(PDF_UPLOADS_DIR);
         } catch (err) {
-            console.warn('[StudyService] Impossibile leggere directory PDF uploads:', err.message);
+            logger.warn('Helpers', 'Impossibile leggere directory PDF uploads', { message: err.message });
             return null;
         }
 
@@ -109,7 +110,7 @@ module.exports = {
         deck.pdfUrl = nextPdfUrl;
         await deck.save({ validateModifiedOnly: true });
 
-        console.warn('[StudyService] Riparato pdfUrl non valido', {
+        logger.warn('Helpers', 'Riparato pdfUrl non valido', {
             deckId,
             previousPdfUrl: currentPdfUrl,
             recoveredPdfUrl: nextPdfUrl || null,
@@ -123,12 +124,8 @@ module.exports = {
     // =========================================
 
     async _validateExamOwnership(tenantScope, examId) {
-        const userId = this._getUserId(tenantScope);
-        const exam = await Exam.findOne({ _id: examId, user: userId });
-        if (!exam) {
-            const AppError = require('../../utils/AppError');
-            throw AppError.notFound('Esame non trovato');
-        }
+        // Lancia AppError.notFound automaticamente se non trovato
+        await examRepository.findById(tenantScope, examId, { throwIfNotFound: true });
     },
 
     // =========================================
@@ -520,19 +517,17 @@ module.exports = {
         const repeatThreshold = Math.max(3, Math.ceil(pages.length * 0.45));
         const repeatedLines = [...lineFreq.entries()].filter(([, count]) => count >= repeatThreshold);
 
-        console.log(
-            `[PDF Quality] pages=${pages.length}, markers=${markerCount}, emptyPages=${emptyPages.length}, shortPages=${shortPages.length}, repeatedLines=${repeatedLines.length}`
-        );
+        logger.debug('Helpers', `PDF Quality: pages=${pages.length}, markers=${markerCount}, emptyPages=${emptyPages.length}, shortPages=${shortPages.length}, repeatedLines=${repeatedLines.length}`);
 
         if (markerCount !== pages.length) {
-            console.warn(`[PDF Quality] Marker mismatch: attesi ${pages.length}, trovati ${markerCount}`);
+            logger.warn('Helpers', `PDF Quality: Marker mismatch attesi ${pages.length}, trovati ${markerCount}`);
         }
         if (emptyPages.length > 0) {
-            console.warn(`[PDF Quality] Pagine quasi vuote: ${emptyPages.map((p) => p.num).join(', ')}`);
+            logger.warn('Helpers', `PDF Quality: Pagine quasi vuote: ${emptyPages.map((p) => p.num).join(', ')}`);
         }
         if (repeatedLines.length > 0) {
             const sample = repeatedLines.slice(0, 3).map(([line, count]) => `(${count}x) ${line.slice(0, 80)}`);
-            console.warn(`[PDF Quality] Possibili header/footer ripetuti: ${sample.join(' | ')}`);
+            logger.warn('Helpers', `PDF Quality: Possibili header/footer ripetuti: ${sample.join(' | ')}`);
         }
     },
 
@@ -597,7 +592,8 @@ module.exports = {
                 }
             }
 
-            console.warn('[StudyService] _parseJSONResponse: Fallito parsing JSON:', e.message, {
+            logger.warn('Helpers', '_parseJSONResponse: Fallito parsing JSON', {
+                message: e.message,
                 preview: cleaned.slice(0, 240),
                 length: cleaned.length,
             });

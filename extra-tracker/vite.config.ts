@@ -6,8 +6,22 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    dedupe: ['@tiptap/react', '@tiptap/pm', '@tiptap/starter-kit'],
+    dedupe: [
+      'react',
+      'react-dom',
+      'react-router',
+      'react-router-dom',
+      'framer-motion',
+      '@tiptap/react',
+      '@tiptap/pm',
+      '@tiptap/starter-kit',
+    ],
     alias: {
+      react: path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime.js'),
+      'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime.js'),
+      'framer-motion': path.resolve(__dirname, 'node_modules/framer-motion'),
       '~landing': path.resolve(__dirname, 'landing/src'),
     },
   },

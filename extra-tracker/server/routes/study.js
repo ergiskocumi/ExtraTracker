@@ -15,10 +15,14 @@ const path = require('path');
 const { requireAuth } = require('../middleware/auth');
 const { tenantContext } = require('../middleware/tenantContext');
 const { aiLimiter } = require('../middleware/rateLimiter');
+const { validatePdf } = require('../middleware/validatePdf');
+const logger = require('../utils/logger');
 const rateLimit = require('express-rate-limit');
 
-// Controller
-const studyController = require('../controllers/studyController');
+// Controllers
+const deckController = require('../controllers/deckController');
+const studySessionController = require('../controllers/studySessionController');
+const examController = require('../controllers/examController');
 
 // =========================================
 // MULTER CONFIG - Disk Storage per PDF (persistente)
@@ -135,28 +139,28 @@ router.use(tenantContext({ required: true }));
 // ROUTES
 // =========================================
 
-router.get('/dashboard', studyController.getDashboard);
-router.get('/exam/:examId/quizzes', studyController.getExamSavedQuizzes);
-router.get('/:id/session', studyController.getSession);
-router.get('/:id', studyController.getDeckById);
-router.post('/', studyController.createDeck);
-router.patch('/:id', studyController.updateDeck);
-router.post('/:id/quizzes', studyController.saveQuizSnapshot);
-router.post('/:id/cards', studyController.addCard);
-router.post('/:id/cards/insert', studyController.addCardAtPosition); // Inserimento in posizione specifica
-router.put('/:id/cards/reorder', studyController.reorderCards); // Riordinamento card
-router.put('/:id/cards/:cardId', studyController.updateCard);
-router.patch('/:id/cards/:cardId/answer', studyController.updateCardAnswer);
-router.put('/:id/settings', studyController.updateDeckSettings);
-router.delete('/:id/cards/:cardId', studyController.deleteCard);
-router.post('/:id/session-complete', studyController.completeSession);
-router.post('/:id/review', studyController.submitReview);
-router.post('/:id/verify-answer', studyController.verifyAnswer);
+router.get('/dashboard', studySessionController.getDashboard);
+router.get('/exam/:examId/quizzes', deckController.getExamSavedQuizzes);
+router.get('/:id/session', studySessionController.getSession);
+router.get('/:id', deckController.getDeckById);
+router.post('/', deckController.createDeck);
+router.patch('/:id', deckController.updateDeck);
+router.post('/:id/quizzes', deckController.saveQuizSnapshot);
+router.post('/:id/cards', deckController.addCard);
+router.post('/:id/cards/insert', deckController.addCardAtPosition); // Inserimento in posizione specifica
+router.put('/:id/cards/reorder', deckController.reorderCards); // Riordinamento card
+router.put('/:id/cards/:cardId', deckController.updateCard);
+router.patch('/:id/cards/:cardId/answer', deckController.updateCardAnswer);
+router.put('/:id/settings', deckController.updateDeckSettings);
+router.delete('/:id/cards/:cardId', deckController.deleteCard);
+router.post('/:id/session-complete', studySessionController.completeSession);
+router.post('/:id/review', studySessionController.submitReview);
+router.post('/:id/verify-answer', studySessionController.verifyAnswer);
 // AI Chat - Rate limited: 10 chiamate per ora per utente
-router.post('/:id/chat', aiLimiter, studyController.chatWithTutor);
+router.post('/:id/chat', aiLimiter, studySessionController.chatWithTutor);
 // Exam Question Answering - Rate limited: 10 chiamate per ora per utente
-router.post('/:id/answer-question', aiLimiter, studyController.answerExamQuestion);
-router.delete('/:id', studyController.deleteDeck);
+router.post('/:id/answer-question', aiLimiter, studySessionController.answerExamQuestion);
+router.delete('/:id', deckController.deleteDeck);
 
 // =========================================
 // EXAM PROGRESS - Pausa/Resume
@@ -166,41 +170,40 @@ router.delete('/:id', studyController.deleteDeck);
  * POST /api/study/:id/exam-progress
  * Salva il progresso di un esame in corso per pausa/resume
  */
-router.post('/:id/exam-progress', studyController.saveExamProgress);
+router.post('/:id/exam-progress', studySessionController.saveExamProgress);
 
 /**
  * GET /api/study/:id/exam-progress
  * Recupera il progresso salvato di un esame
  */
-router.get('/:id/exam-progress', studyController.getExamProgress);
+router.get('/:id/exam-progress', studySessionController.getExamProgress);
 
 /**
  * DELETE /api/study/:id/exam-progress
  * Cancella il progresso salvato di un esame
  */
-router.delete('/:id/exam-progress', studyController.clearExamProgress);
+router.delete('/:id/exam-progress', studySessionController.clearExamProgress);
 
 /**
  * POST /api/study/:id/reset-distractors
  * Resetta distrattori AI per forzare rigenerazione con nuovo modello pedagogico
  */
-router.post('/:id/reset-distractors', studyController.resetDistractors);
+router.post('/:id/reset-distractors', deckController.resetDistractors);
 
 // 🪄 Magic Generate from PDF (con multer middleware)
 // AI Generate - Rate limited: 10 chiamate per ora per utente
 router.post('/:id/generate-pdf', aiLimiter, (req, res, next) => {
     upload.single('pdf')(req, res, (err) => {
         if (err) {
-            console.error('Multer error:', err.message);
+            logger.warn('StudyRoutes', 'Multer error (generate-pdf)', { message: err.message });
             return res.status(400).json({
                 success: false,
                 error: { message: err.message || 'Errore nel caricamento del file' }
             });
         }
-        console.log('📄 File ricevuto:', req.file ? req.file.originalname : 'NESSUN FILE');
         next();
     });
-}, studyController.uploadAndGenerate);
+}, validatePdf, examController.uploadAndGenerate);
 
 // =========================================
 // RECOVERY PLAN - Exam Recovery Actions
@@ -210,13 +213,13 @@ router.post('/:id/generate-pdf', aiLimiter, (req, res, next) => {
  * POST /api/study/exam/:examId/reset-cards
  * Resetta le carte di tutti i deck associati a un esame
  */
-router.post('/exam/:examId/reset-cards', studyController.resetExamCards);
+router.post('/exam/:examId/reset-cards', examController.resetExamCards);
 
 /**
  * POST /api/study/exam/:examId/generate-recovery-questions
  * Genera domande AI di approfondimento basate sulle difficoltà
  */
-router.post('/exam/:examId/generate-recovery-questions', aiLimiter, studyController.generateRecoveryQuestions);
+router.post('/exam/:examId/generate-recovery-questions', aiLimiter, examController.generateRecoveryQuestions);
 
 /**
  * POST /api/study/exam-solver/extract-questions
@@ -226,16 +229,15 @@ router.post('/exam/:examId/generate-recovery-questions', aiLimiter, studyControl
 router.post('/exam-solver/extract-questions', aiLimiter, (req, res, next) => {
     examSolverUpload.single('questionsFile')(req, res, (err) => {
         if (err) {
-            console.error('Multer error (extract-questions):', err.message);
+            logger.warn('StudyRoutes', 'Multer error (extract-questions)', { message: err.message });
             return res.status(400).json({
                 success: false,
                 error: { message: err.message || 'Errore nel caricamento del file' }
             });
         }
-        console.log('📄 Extract Questions file ricevuto:', req.file?.originalname || 'NONE');
         next();
     });
-}, studyController.extractQuestions);
+}, examController.extractQuestions);
 
 /**
  * POST /api/study/exam-solver/generate-answers
@@ -245,16 +247,15 @@ router.post('/exam-solver/extract-questions', aiLimiter, (req, res, next) => {
 router.post('/exam-solver/generate-answers', examSolverLimiter, (req, res, next) => {
     examSolverUpload.single('sourceFile')(req, res, (err) => {
         if (err) {
-            console.error('Multer error (generate-answers):', err.message);
+            logger.warn('StudyRoutes', 'Multer error (generate-answers)', { message: err.message });
             return res.status(400).json({
                 success: false,
                 error: { message: err.message || 'Errore nel caricamento del file' }
             });
         }
-        console.log('📄 Generate Answers file ricevuto:', req.file?.originalname || 'NONE');
         next();
     });
-}, studyController.generateAnswers);
+}, validatePdf, examController.generateAnswers);
 
 /**
  * POST /api/study/exam-solver
@@ -274,18 +275,14 @@ router.post('/exam-solver', examSolverLimiter, (req, res, next) => {
         { name: 'sourceFile', maxCount: 1 },
     ])(req, res, (err) => {
         if (err) {
-            console.error('Multer error (exam-solver):', err.message);
+            logger.warn('StudyRoutes', 'Multer error (exam-solver)', { message: err.message });
             return res.status(400).json({
                 success: false,
                 error: { message: err.message || 'Errore nel caricamento dei file' }
             });
         }
-        console.log('📄 Exam Solver files ricevuti:', {
-            questionsFile: req.files?.questionsFile ? req.files.questionsFile[0]?.originalname : 'NONE',
-            sourceFile: req.files?.sourceFile ? req.files.sourceFile[0]?.originalname : 'NONE',
-        });
         next();
     });
-}, studyController.examSolver);
+}, examController.examSolver);
 
 module.exports = router;

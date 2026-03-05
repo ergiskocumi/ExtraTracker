@@ -11,6 +11,7 @@
 import { memo, useEffect, useRef, lazy, Suspense } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { cn } from '../../lib/utils';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -120,17 +121,30 @@ Footer.displayName = 'Footer';
 // MAIN LAYOUT
 // ============================================
 
+// Routes che devono occupare tutto lo schermo (full-width)
+const FULL_WIDTH_ROUTES = ['/ai-dashboard', '/dashboard', '/study', '/settings'];
+
 export const AppLayout = () => {
     const { pathname } = useLocation();
     const hideFooter = pathname.startsWith('/study');
+    
+    // Controlla se la route corrente è full-width (esatta o sotto-route)
+    const isFullWidth = FULL_WIDTH_ROUTES.some(route => 
+        pathname === route || pathname.startsWith(route + '/')
+    );
 
     return (
         <div className="flex flex-col min-h-screen">
             {/* Header */}
             <Header />
 
-            {/* Main Content */}
-            <main className="flex-1 w-full max-w-6xl px-4 sm:px-6 py-6 sm:py-8 mx-auto relative z-0">
+            {/* Main Content - Full width per dashboard/study con padding, constrained per altre */}
+            <main className={cn(
+                "flex-1 w-full relative z-0",
+                isFullWidth 
+                    ? "p-4 sm:p-6 lg:p-8 [&>*]:!w-full [&>*]:!max-w-none [&_*]:!max-w-none" 
+                    : "max-w-6xl px-4 sm:px-6 py-6 sm:py-8 mx-auto"
+            )}>
                 <Outlet />
             </main>
 

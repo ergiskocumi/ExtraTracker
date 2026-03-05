@@ -9,6 +9,8 @@
  * - Anki Algorithm - Learning steps, lapse handling, easy bonus
  */
 
+const AppError = require('../utils/AppError');
+
 const MIN_EASINESS_FACTOR = 1.3;
 const DEFAULT_EASINESS_FACTOR = 2.5;
 
@@ -30,7 +32,7 @@ class SM2Algorithm {
     static processReview(card, rating) {
         const quality = Number(rating);
         if (!Number.isFinite(quality) || quality < 1 || quality > 5) {
-            throw new Error('Rating deve essere tra 1 e 5');
+            throw AppError.validation('Rating non valido: deve essere compreso tra 1 e 5', { received: rating }, { suggestion: 'Usa un valore intero da 1 a 5' });
         }
 
         const previousEF = Number(card.easinessFactor ?? DEFAULT_EASINESS_FACTOR);
@@ -119,7 +121,7 @@ class FSRSAlgorithm {
     static processReview(card, rating) {
         const quality = Number(rating);
         if (!Number.isFinite(quality) || quality < 1 || quality > 5) {
-            throw new Error('Rating deve essere tra 1 e 5');
+            throw AppError.validation('Rating non valido: deve essere compreso tra 1 e 5', { received: rating }, { suggestion: 'Usa un valore intero da 1 a 5' });
         }
 
         const W = this.W;
@@ -210,7 +212,7 @@ class LeitnerAlgorithm {
     static processReview(card, rating) {
         const quality = Number(rating);
         if (!Number.isFinite(quality) || quality < 1 || quality > 5) {
-            throw new Error('Rating deve essere tra 1 e 5');
+            throw AppError.validation('Rating non valido: deve essere compreso tra 1 e 5', { received: rating }, { suggestion: 'Usa un valore intero da 1 a 5' });
         }
 
         const currentBox = Number(card.box ?? 1);
@@ -280,7 +282,7 @@ class AnkiAlgorithm {
     static processReview(card, rating) {
         const quality = Number(rating);
         if (!Number.isFinite(quality) || quality < 1 || quality > 5) {
-            throw new Error('Rating deve essere tra 1 e 5');
+            throw AppError.validation('Rating non valido: deve essere compreso tra 1 e 5', { received: rating }, { suggestion: 'Usa un valore intero da 1 a 5' });
         }
 
         const previousEF = Number(card.easinessFactor ?? DEFAULT_EASINESS_FACTOR);

@@ -4,10 +4,10 @@
  * Answer verification, session completion, SM-2 review, exam progress.
  */
 
-const Deck = require('../../models/Deck');
 const AppError = require('../../utils/AppError');
 const { checkAnswerSimilarity } = require('../../utils/stringAnalysis');
 const { AlgorithmFactory } = require('../spacedRepetitionAlgorithms');
+const logger = require('../../utils/logger');
 
 module.exports = {
 
@@ -16,21 +16,11 @@ module.exports = {
     // =========================================
 
     async verifyAnswer(tenantScope, deckId, cardId, userAnswer) {
-        const userId = this._getUserId(tenantScope);
-
         if (!userAnswer || typeof userAnswer !== 'string') {
             throw AppError.validation('La risposta e\' obbligatoria');
         }
 
-        const deck = await Deck.findOne({
-            _id: deckId,
-            user: userId,
-            'cards._id': cardId,
-        });
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         const card = deck.cards.id(cardId);
         if (!card) {
@@ -47,12 +37,7 @@ module.exports = {
     // =========================================
 
     async completeSession(tenantScope, deckId, sessionData = {}) {
-        const userId = this._getUserId(tenantScope);
-
-        const deck = await Deck.findOne({ _id: deckId, user: userId }).select('_id');
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         const stats = sessionData?.stats && typeof sessionData.stats === 'object'
             ? sessionData.stats
@@ -90,8 +75,6 @@ module.exports = {
     // =========================================
 
     async saveExamProgress(tenantScope, deckId, progressData = {}) {
-        const userId = this._getUserId(tenantScope);
-
         if (!progressData || typeof progressData !== 'object') {
             throw AppError.validation('Dati di progresso non validi');
         }
@@ -110,17 +93,9 @@ module.exports = {
             pausedAt: new Date(),
         };
 
-        const deck = await Deck.findOneAndUpdate(
-            { _id: deckId, user: userId },
-            { $set: { examProgress } },
-            { new: true }
-        );
+        const deck = await this.update(tenantScope, deckId, { examProgress });
 
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
-
-        console.log(`[StudyService] Exam progress saved for deck ${deckId}`);
+        logger.debug('ReviewLogic', `Exam progress saved for deck ${deckId}`);
 
         return {
             success: true,
@@ -130,13 +105,7 @@ module.exports = {
     },
 
     async getExamProgress(tenantScope, deckId) {
-        const userId = this._getUserId(tenantScope);
-
-        const deck = await Deck.findOne({ _id: deckId, user: userId }).select('examProgress');
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
+        const deck = await this.findById(tenantScope, deckId, { select: 'examProgress', throwIfNotFound: true });
 
         if (!deck.examProgress) {
             return null;
@@ -146,19 +115,9 @@ module.exports = {
     },
 
     async clearExamProgress(tenantScope, deckId) {
-        const userId = this._getUserId(tenantScope);
+        await this.update(tenantScope, deckId, { examProgress: null });
 
-        const deck = await Deck.findOneAndUpdate(
-            { _id: deckId, user: userId },
-            { $set: { examProgress: null } },
-            { new: true }
-        );
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo');
-        }
-
-        console.log(`[StudyService] Exam progress cleared for deck ${deckId}`);
+        logger.debug('ReviewLogic', `Exam progress cleared for deck ${deckId}`);
 
         return {
             success: true,
@@ -171,7 +130,6 @@ module.exports = {
     // =========================================
 
     async processCardReview(tenantScope, deckId, cardId, rating, sessionMeta = null) {
-        const userId = this._getUserId(tenantScope);
         const quality = Number(rating);
 
         if (!Number.isFinite(quality) || quality < 1 || quality > 5) {
@@ -183,15 +141,7 @@ module.exports = {
             return { skipped: true, reason: 'ai-generated' };
         }
 
-        const deck = await Deck.findOne({
-            _id: deckId,
-            user: userId,
-            'cards._id': cardId,
-        });
-
-        if (!deck) {
-            throw AppError.notFound('Mazzo o card');
-        }
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         const card = deck.cards.id(cardId);
         if (!card) {

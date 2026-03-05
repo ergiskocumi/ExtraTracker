@@ -1,18 +1,21 @@
 /**
- * 🎴 FLASHCARD ITEM - View Mode Component
- * =======================================
+ * 🎴 FLASHCARD ITEM - View Mode Component v2
+ * ===========================================
  *
- * Displays the card in view mode (non-editing).
- * Optimized with React.memo to prevent unnecessary re-renders.
+ * Design moderno e pulito:
+ * - Card a tutta larghezza senza container ingombrante
+ * - Sezioni Front/Back chiaramente separate
+ * - Badge stato colorato
+ * - Azioni in hover
+ * - Ottimizzato per la leggibilità
  */
 
 import React, { memo } from 'react';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
-import { FileSearch } from 'lucide-react';
+import { FileSearch, Clock, CheckCircle, Sparkles, BookOpen } from 'lucide-react';
 import type { Card } from '../../services/studyService';
-import { BADGE_STYLES, BUTTON_STYLES, TEXT_CONTENT, ICON_SIZES, LAYOUT } from './FlashcardItem.constants';
-import type { ButtonState } from './FlashcardItem.types';
 import { CardContentRenderer } from './CardContentRenderer/index';
+import { cn } from '../../../../lib/utils';
 
 // ============================================
 // TYPES
@@ -20,13 +23,55 @@ import { CardContentRenderer } from './CardContentRenderer/index';
 
 interface ViewModeProps {
     card: Card;
-    buttonState: ButtonState;
+    buttonState: {
+        hasSourceMetadata: boolean;
+        hasOnShowSource: boolean;
+    };
     isSourceActive: boolean;
     onEdit: () => void;
     onDelete?: (cardId: string) => void;
     onShowSource?: (e: React.MouseEvent) => void;
     onCardClick?: (e: React.MouseEvent) => void;
 }
+
+// ============================================
+// STATUS CONFIG
+// ============================================
+
+const STATUS_CONFIG = {
+    new: { 
+        label: 'Nuova', 
+        color: 'bg-blue-500', 
+        textColor: 'text-blue-700 dark:text-blue-300',
+        bgColor: 'bg-blue-500/10',
+        borderColor: 'border-blue-500/20',
+        icon: Sparkles 
+    },
+    learning: { 
+        label: 'In studio', 
+        color: 'bg-amber-500', 
+        textColor: 'text-amber-700 dark:text-amber-300',
+        bgColor: 'bg-amber-500/10',
+        borderColor: 'border-amber-500/20',
+        icon: BookOpen 
+    },
+    review: { 
+        label: 'Da ripassare', 
+        color: 'bg-orange-500', 
+        textColor: 'text-orange-700 dark:text-orange-300',
+        bgColor: 'bg-orange-500/10',
+        borderColor: 'border-orange-500/20',
+        icon: Clock 
+    },
+    mastered: { 
+        label: 'Padroneggiata', 
+        color: 'bg-emerald-500', 
+        textColor: 'text-emerald-700 dark:text-emerald-300',
+        bgColor: 'bg-emerald-500/10',
+        borderColor: 'border-emerald-500/20',
+        icon: CheckCircle 
+    },
+};
 
 // ============================================
 // COMPONENT
@@ -41,106 +86,143 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
     onShowSource,
     onCardClick,
 }) => {
-    const getShowSourceButtonClasses = (): string => {
-        const base = `${BUTTON_STYLES.base.size} ${BUTTON_STYLES.base.borderRadius} ${BUTTON_STYLES.base.border} ${BUTTON_STYLES.base.transition} ${BUTTON_STYLES.base.active}`;
-        
-        if (!buttonState.hasOnShowSource) {
-            return `${base} ${BUTTON_STYLES.showSource.disabled.border} ${BUTTON_STYLES.showSource.disabled.background} ${BUTTON_STYLES.showSource.disabled.text} ${BUTTON_STYLES.showSource.disabled.opacity} ${BUTTON_STYLES.showSource.disabled.cursor}`;
-        }
-        
-        if (isSourceActive) {
-            return `${base} ${BUTTON_STYLES.showSource.active.border} ${BUTTON_STYLES.showSource.active.background} ${BUTTON_STYLES.showSource.active.text} ${BUTTON_STYLES.showSource.active.hover.background} ${BUTTON_STYLES.showSource.active.shadow}`;
-        }
-        
-        return `${base} ${BUTTON_STYLES.showSource.default.border} ${BUTTON_STYLES.showSource.default.background} ${BUTTON_STYLES.showSource.default.text} ${BUTTON_STYLES.showSource.default.hover.text} ${BUTTON_STYLES.showSource.default.hover.background} ${BUTTON_STYLES.showSource.default.hover.border} ${BUTTON_STYLES.showSource.default.shadow}`;
-    };
+    const status = STATUS_CONFIG[card.status] || STATUS_CONFIG.new;
+    const StatusIcon = status.icon;
 
     return (
-        <div
-            className="space-y-4"
+        <div 
+            className="group relative"
             onClick={onCardClick}
         >
-            {/* Question Section */}
-            <div className="relative flex items-start gap-4 min-w-0">
-                <div className={`${BADGE_STYLES.question.size} ${BADGE_STYLES.question.borderRadius} ${BADGE_STYLES.question.background} ${BADGE_STYLES.question.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.question.text} flex-shrink-0 ${BADGE_STYLES.question.shadow} mt-0.5`}>
-                    Q
-                </div>
-                <div className="flex-1 min-w-0 pt-0.5 pr-0 sm:pr-28">
-                    <CardContentRenderer
-                        content={card.front}
-                        variant="question"
-                        size="base"
-                    />
-                </div>
+            {/* Card Container */}
+            <div className={cn(
+                "relative bg-theme-surface border rounded-xl overflow-hidden transition-all duration-200",
+                "hover:shadow-lg hover:border-theme-strong",
+                isSourceActive 
+                    ? "border-primary-500 ring-2 ring-primary-500/20" 
+                    : "border-theme-default"
+            )}>
+                {/* Header with Status Badge */}
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-theme-subtle bg-theme-subtle/30">
+                    <div className="flex items-center gap-2">
+                        <span className={cn(
+                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+                            status.bgColor, status.textColor, status.borderColor, "border"
+                        )}>
+                            <StatusIcon className="w-3.5 h-3.5" />
+                            {status.label}
+                        </span>
+                        
+                        {/* Interval badge if not new */}
+                        {card.status !== 'new' && card.interval > 0 && (
+                            <span className="text-xs text-theme-muted">
+                                · {card.interval}g
+                            </span>
+                        )}
+                    </div>
 
-                {/* Action Buttons */}
-                <div
-                    className={`absolute right-0 top-0 flex items-center ${LAYOUT.spacing.gapButtons} opacity-100 translate-x-0 pointer-events-auto sm:opacity-0 sm:translate-x-2 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:translate-x-0 sm:group-hover:pointer-events-auto transition-all duration-200 ease-out`}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {/* Show Source Button */}
-                    {buttonState.hasSourceMetadata && (
+                    {/* Action Buttons - Always visible on mobile, hover on desktop */}
+                    <div className="flex items-center gap-1">
+                        {buttonState.hasSourceMetadata && buttonState.hasOnShowSource && (
+                            <button
+                                onClick={onShowSource}
+                                className={cn(
+                                    "p-1.5 rounded-lg transition-colors",
+                                    isSourceActive 
+                                        ? "bg-primary-500 text-white" 
+                                        : "text-theme-muted hover:text-theme-primary hover:bg-theme-card"
+                                )}
+                                title="Mostra sorgente"
+                            >
+                                <FileSearch className="w-4 h-4" />
+                            </button>
+                        )}
+                        
                         <button
-                            type="button"
-                            onClick={onShowSource}
-                            disabled={!buttonState.hasOnShowSource}
-                            className={getShowSourceButtonClasses()}
-                            aria-label={
-                                buttonState.hasOnShowSource
-                                    ? TEXT_CONTENT.ariaLabels.showSource
-                                    : TEXT_CONTENT.ariaLabels.showSourceDisabled
-                            }
-                            title={
-                                buttonState.hasOnShowSource
-                                    ? TEXT_CONTENT.buttons.showSource
-                                    : TEXT_CONTENT.buttons.showSourceDisabled
-                            }
-                        >
-                            <FileSearch className={ICON_SIZES.medium} />
-                        </button>
-                    )}
-
-                    {/* Edit Button */}
-                    <button
-                        type="button"
-                        onClick={onEdit}
-                        className={`${BUTTON_STYLES.base.size} ${BUTTON_STYLES.base.borderRadius} ${BUTTON_STYLES.base.border} ${BUTTON_STYLES.base.transition} ${BUTTON_STYLES.base.active} ${BUTTON_STYLES.edit.border} ${BUTTON_STYLES.edit.background} ${BUTTON_STYLES.edit.text} ${BUTTON_STYLES.edit.hover.text} ${BUTTON_STYLES.edit.hover.background}`}
-                        aria-label={TEXT_CONTENT.ariaLabels.edit}
-                        title={TEXT_CONTENT.buttons.edit}
-                    >
-                        <FiEdit2 className={ICON_SIZES.medium} />
-                    </button>
-
-                    {/* Delete Button */}
-                    {onDelete && (
-                        <button
-                            type="button"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onDelete(card.id);
+                                onEdit();
                             }}
-                            className={`${BUTTON_STYLES.base.size} ${BUTTON_STYLES.base.borderRadius} ${BUTTON_STYLES.base.border} ${BUTTON_STYLES.base.transition} ${BUTTON_STYLES.base.active} ${BUTTON_STYLES.delete.border} ${BUTTON_STYLES.delete.background} ${BUTTON_STYLES.delete.text} ${BUTTON_STYLES.delete.hover.text} ${BUTTON_STYLES.delete.hover.background}`}
-                            aria-label={TEXT_CONTENT.ariaLabels.delete}
-                            title={TEXT_CONTENT.buttons.delete}
+                            className="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-card transition-colors"
+                            title="Modifica"
                         >
-                            <FiTrash2 className={ICON_SIZES.medium} />
+                            <FiEdit2 className="w-4 h-4" />
                         </button>
-                    )}
+                        
+                        {onDelete && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(card.id);
+                                }}
+                                className="p-1.5 rounded-lg text-theme-muted hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                title="Elimina"
+                            >
+                                <FiTrash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
                 </div>
-            </div>
 
-            {/* Answer Section */}
-            <div className={`flex items-start gap-4 ${LAYOUT.spacing.paddingTop} ${LAYOUT.divider.border} min-w-0`}>
-                <div className={`${BADGE_STYLES.answer.size} ${BADGE_STYLES.answer.borderRadius} ${BADGE_STYLES.answer.background} ${BADGE_STYLES.answer.border} backdrop-blur-sm flex items-center justify-center ${BADGE_STYLES.answer.text} flex-shrink-0 ${BADGE_STYLES.answer.shadow} mt-0.5`}>
-                    A
+                {/* Content Area */}
+                <div className="p-4">
+                    {/* Front Side */}
+                    <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-theme-muted">
+                                Fronte
+                            </span>
+                            <div className="flex-1 h-px bg-theme-subtle" />
+                        </div>
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <CardContentRenderer
+                                content={card.front}
+                                variant="question"
+                                size="base"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="relative my-4">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-theme-subtle" />
+                        </div>
+                        <div className="relative flex justify-center">
+                            <span className="bg-theme-surface px-3 text-[10px] font-medium text-theme-muted uppercase tracking-wider">
+                                Retro
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Back Side */}
+                    <div>
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <CardContentRenderer
+                                content={card.back}
+                                variant="answer"
+                                size="base"
+                            />
+                        </div>
+                    </div>
                 </div>
-                <div className="flex-1 min-w-0 pt-0.5">
-                    <CardContentRenderer
-                        content={card.back}
-                        variant="answer"
-                        size="base"
-                    />
-                </div>
+
+                {/* Footer - Metadata */}
+                {(card.interval > 0 || card.repetitions > 0) && (
+                    <div className="px-4 py-2 border-t border-theme-subtle bg-theme-subtle/20">
+                        <div className="flex items-center gap-4 text-xs text-theme-muted">
+                            {card.repetitions > 0 && (
+                                <span>📚 {card.repetitions} ripetizioni</span>
+                            )}
+                            {card.interval > 0 && (
+                                <span>📅 Intervallo: {card.interval} giorni</span>
+                            )}
+                            {card.easinessFactor && card.easinessFactor !== 2.5 && (
+                                <span>🎯 EF: {card.easinessFactor.toFixed(2)}</span>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -148,6 +230,5 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
 
 /**
  * Memoized ViewMode component.
- * Re-renders only when props change.
  */
 export const ViewMode = memo(ViewModeComponent);

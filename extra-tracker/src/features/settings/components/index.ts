@@ -1,18 +1,17 @@
-/**
- * 🎨 SETTINGS COMPONENTS - Esportazioni centralizzate
- */
+// Components
+export { SettingsCard } from './SettingsCard';
+export { SettingsFormField } from './SettingsFormField';
+export { SettingsToggle } from './SettingsToggle';
 
+// Main Settings Components
 export { ProfileSettings } from './ProfileSettings';
 export { PreferencesSettings } from './PreferencesSettings';
+
+// Legacy exports for compatibility
 export { SecuritySettings } from './SecuritySettings';
-export { AccountSettings } from './AccountSettings/index';
 export { NotificationsSettings } from './NotificationsSettings';
 export { PrivacySettings } from './PrivacySettings';
+export { AccountSettings } from './AccountSettings';
 export { AvatarUpload } from './AvatarUpload';
-export { ConfirmModal } from './ConfirmModal';
 export { SettingsSearch } from './SettingsSearch';
-export { SettingsTooltip } from './SettingsTooltip';
-export { BackupManager } from './BackupManager';
-
-// Export dei tipi
-export type { FormStatus } from './types';
+export { ConfirmModal } from './ConfirmModal';

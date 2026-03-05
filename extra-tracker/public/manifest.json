@@ -1,0 +1,16 @@
+{
+  "name": "Silvi.AI",
+  "short_name": "Silvi",
+  "description": "Trasforma i tuoi PDF in flashcard intelligenti con AI",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#7c3aed",
+  "background_color": "#0a0a1a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
