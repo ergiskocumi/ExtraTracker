@@ -1,15 +1,16 @@
 /**
- * Header Component - Simplified
+ * Header Component - With SilviLogo
  * 
  * Features:
  * - Fixed position with glassmorphism on scroll
  * - Responsive design with mobile hamburger menu
  * - Smooth scroll navigation
- * - CSS transitions instead of complex animations
+ * - SilviLogo component integration
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Menu, X, GraduationCap } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Menu, X } from 'lucide-react';
 
 // ============================================
 // TYPES & INTERFACES
@@ -33,6 +34,54 @@ const navLinks: NavLink[] = [
   { label: 'Prezzi', href: '#pricing' },
   { label: 'FAQ', href: '#faq' },
 ];
+
+// ============================================
+// SILVI.AI LOGO COMPONENT
+// ============================================
+const SilviLogo = ({ className = '' }: { className?: string }) => {
+  return (
+    <motion.div 
+      className={`relative ${className}`}
+      whileHover={{ scale: 1.05 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+    >
+      <svg
+        viewBox="0 0 48 48"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full"
+      >
+        <defs>
+          <linearGradient id="headerLogoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#8b5cf6" />
+            <stop offset="50%" stopColor="#7c3aed" />
+            <stop offset="100%" stopColor="#a78bfa" />
+          </linearGradient>
+        </defs>
+        
+        {/* Outer rounded square */}
+        <rect
+          x="4"
+          y="4"
+          width="40"
+          height="40"
+          rx="10"
+          fill="url(#headerLogoGradient)"
+        />
+        
+        {/* Inner "S" shape */}
+        <path
+          d="M16 18C16 16.8954 16.8954 16 18 16H24C25.1046 16 26 16.8954 26 18V20C26 21.1046 25.1046 22 24 22H20C18.8954 22 18 22.8954 18 24V30C18 31.1046 18.8954 32 20 32H30C31.1046 32 32 31.1046 32 30V26C32 24.8954 31.1046 24 30 24H26"
+          stroke="white"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </svg>
+    </motion.div>
+  );
+};
 
 // ============================================
 // MAIN HEADER COMPONENT
@@ -108,14 +157,12 @@ export const Header = ({ appUrl = '/', useRouterLinks: _useRouterLinks = false }
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-20">
-          {/* Logo */}
+          {/* Logo with SilviLogo component */}
           <a
             href="#"
-            className="flex items-center gap-2 group transition-transform duration-200 hover:scale-[1.02]"
+            className="flex items-center gap-3 group transition-transform duration-200 hover:scale-[1.02]"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20 transition-shadow duration-300 group-hover:shadow-violet-500/40">
-              <GraduationCap className="w-5 h-5 text-white" />
-            </div>
+            <SilviLogo className="w-10 h-10" />
             <span className="text-xl font-bold bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">
               Silvi.AI
             </span>

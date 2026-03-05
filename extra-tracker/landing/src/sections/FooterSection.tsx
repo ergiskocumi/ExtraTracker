@@ -1,17 +1,16 @@
 /**
- * 🦶 Footer Section Component
+ * 🦶 Footer Section Component - Improved Spacing
  * 
  * Features:
- * - 5-column layout (brand + 4 link columns)
- * - Scroll-triggered entrance with staggered columns
- * - Social icon hover effects
- * - Link hover color transitions
- * - Modern glassmorphism styling
+ * - Better padding and spacing throughout
+ * - Improved visual hierarchy
+ * - SilviLogo component integration
+ * - More breathing room between elements
  */
 
 import { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { Twitter, Instagram, Linkedin, Github, Sparkles } from 'lucide-react';
+import { Twitter, Instagram, Linkedin, Github } from 'lucide-react';
 
 // ============================================
 // TYPES & INTERFACES
@@ -96,6 +95,54 @@ const linkVariants = {
 };
 
 // ============================================
+// SILVI.AI LOGO COMPONENT
+// ============================================
+const SilviLogo = ({ className = '' }: { className?: string }) => {
+  return (
+    <motion.div 
+      className={`relative ${className}`}
+      whileHover={{ scale: 1.05 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+    >
+      <svg
+        viewBox="0 0 48 48"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full"
+      >
+        <defs>
+          <linearGradient id="footerLogoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#8b5cf6" />
+            <stop offset="50%" stopColor="#7c3aed" />
+            <stop offset="100%" stopColor="#a78bfa" />
+          </linearGradient>
+        </defs>
+        
+        {/* Outer rounded square */}
+        <rect
+          x="4"
+          y="4"
+          width="40"
+          height="40"
+          rx="10"
+          fill="url(#footerLogoGradient)"
+        />
+        
+        {/* Inner "S" shape */}
+        <path
+          d="M16 18C16 16.8954 16.8954 16 18 16H24C25.1046 16 26 16.8954 26 18V20C26 21.1046 25.1046 22 24 22H20C18.8954 22 18 22.8954 18 24V30C18 31.1046 18.8954 32 20 32H30C31.1046 32 32 31.1046 32 30V26C32 24.8954 31.1046 24 30 24H26"
+          stroke="white"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </svg>
+    </motion.div>
+  );
+};
+
+// ============================================
 // SOCIAL ICON COMPONENT
 // ============================================
 interface SocialIconProps {
@@ -120,7 +167,7 @@ const SocialIcon = ({ icon: Icon, label, href, index }: SocialIconProps) => {
       }}
       whileHover={{ scale: 1.15, y: -2 }}
       whileTap={{ scale: 0.95 }}
-      className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center
+      className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center
                  text-white/50 hover:text-violet-400 hover:border-violet-500/30 hover:bg-violet-500/10
                  transition-colors duration-300"
     >
@@ -143,7 +190,7 @@ const LinkColumn = ({ column, columnIndex }: LinkColumnProps) => {
       variants={columnVariants}
       custom={columnIndex}
     >
-      <h4 className="text-sm font-semibold text-white mb-4 tracking-wide">
+      <h4 className="text-sm font-semibold text-white mb-5 tracking-wide">
         {column.title}
       </h4>
       <motion.ul
@@ -151,7 +198,7 @@ const LinkColumn = ({ column, columnIndex }: LinkColumnProps) => {
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
-        className="space-y-3"
+        className="space-y-4"
       >
         {column.links.map((link, linkIndex) => (
           <motion.li key={link} variants={linkVariants} custom={linkIndex}>
@@ -168,24 +215,6 @@ const LinkColumn = ({ column, columnIndex }: LinkColumnProps) => {
         ))}
       </motion.ul>
     </motion.div>
-  );
-};
-
-// ============================================
-// LOGO COMPONENT
-// ============================================
-const Logo = () => {
-  return (
-    <a href="#" className="flex items-center gap-2 group">
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-purple-600 
-                      flex items-center justify-center shadow-lg shadow-violet-500/20
-                      group-hover:shadow-violet-500/30 transition-shadow duration-300">
-        <Sparkles className="w-5 h-5 text-white" />
-      </div>
-      <span className="text-xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-        Silvi.AI
-      </span>
-    </a>
   );
 };
 
@@ -215,26 +244,31 @@ export const FooterSection = ({ }: FooterSectionProps) => {
 
       <div className="relative z-10">
         {/* Main Footer Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-24">
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate={isInView ? 'visible' : 'hidden'}
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 lg:gap-12"
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-10 lg:gap-16"
           >
             {/* Brand Column */}
             <motion.div
               variants={columnVariants}
               className="col-span-2 md:col-span-3 lg:col-span-2"
             >
-              <Logo />
-              <p className="mt-4 text-sm text-white/50 max-w-xs leading-relaxed">
+              <a href="#" className="flex items-center gap-3 group">
+                <SilviLogo className="w-11 h-11" />
+                <span className="text-xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                  Silvi.AI
+                </span>
+              </a>
+              <p className="mt-6 text-sm text-white/50 max-w-xs leading-relaxed">
                 L&apos;app definitiva per studenti universitari. Time tracking, gestione progetti, 
                 AI che genera flashcards e risolve esami.
               </p>
 
               {/* Social Icons */}
-              <div className="flex items-center gap-3 mt-6">
+              <div className="flex items-center gap-4 mt-8">
                 {SOCIAL_LINKS.map((social, index) => (
                   <SocialIcon
                     key={social.label}
@@ -256,12 +290,12 @@ export const FooterSection = ({ }: FooterSectionProps) => {
 
         {/* Bottom Bar */}
         <div className="border-t border-white/5">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
               transition={{ duration: 0.6, delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="flex flex-col md:flex-row items-center justify-between gap-4"
+              className="flex flex-col md:flex-row items-center justify-between gap-6"
             >
               {/* Copyright */}
               <p className="text-sm text-white/40 text-center md:text-left">
@@ -269,7 +303,7 @@ export const FooterSection = ({ }: FooterSectionProps) => {
               </p>
 
               {/* Legal Links */}
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-8">
                 <a
                   href="#"
                   className="text-sm text-white/40 hover:text-white/70 transition-colors duration-300"

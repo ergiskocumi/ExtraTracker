@@ -275,7 +275,7 @@ export const CTASection = ({ onPrimaryClick, onSecondaryClick, appUrl = '/' }: C
             <AnimatedBackground />
 
             {/* Content */}
-            <div className="relative z-10 px-8 py-16 md:px-16 md:py-20 text-center">
+            <div className="relative z-10 px-8 py-16 md:px-16 md:py-24 text-center">
               {/* Sparkle badge */}
               <motion.div
                 variants={fadeUpVariants}
@@ -298,7 +298,7 @@ export const CTASection = ({ onPrimaryClick, onSecondaryClick, appUrl = '/' }: C
                 initial="hidden"
                 animate={isInView ? 'visible' : 'hidden'}
                 transition={{ delay: 0.1 }}
-                className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 leading-tight"
+                className="text-3xl md:text-4xl lg:text-5xl font-bold mb-8 leading-tight"
               >
                 <span className="bg-gradient-to-r from-white via-white to-white/80 bg-clip-text text-transparent">
                   Pronto a superare i tuoi esami?
@@ -311,7 +311,7 @@ export const CTASection = ({ onPrimaryClick, onSecondaryClick, appUrl = '/' }: C
                 initial="hidden"
                 animate={isInView ? 'visible' : 'hidden'}
                 transition={{ delay: 0.2 }}
-                className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto mb-10"
+                className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto mb-12 leading-relaxed"
               >
                 Unisciti a{' '}
                 <span className="text-white/70 font-semibold">50.000+ studenti</span>{' '}
@@ -323,7 +323,7 @@ export const CTASection = ({ onPrimaryClick, onSecondaryClick, appUrl = '/' }: C
                 variants={containerVariants}
                 initial="hidden"
                 animate={isInView ? 'visible' : 'hidden'}
-                className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12"
+                className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14"
               >
                 <motion.div variants={fadeUpVariants}>
                   <MagneticButton onClick={handlePrimaryClick} variant="primary">
