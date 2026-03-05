@@ -275,7 +275,7 @@ export const DeckDetailPage: React.FC = () => {
 
     return (
         <>
-            <div className="w-full max-w-[1920px] mx-auto">
+            <div className="w-full">
                 <DeckDetailContent
                     deck={deck}
                     onBack={handleBack}
