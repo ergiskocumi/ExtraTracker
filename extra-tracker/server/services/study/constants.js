@@ -58,17 +58,16 @@ const QUIZ_PADDING_SEGMENTS = [
 ];
 
 // =========================================
-// 🆕 SMART GENERATION V3 - OPTIMIZED CONFIGURATION
+// 🆕 PAGE-FIRST GENERATION V4 - CONFIGURATION
 // =========================================
-const SEMANTIC_CHUNK_SIZE = 12000;
-const SEMANTIC_CHUNK_OVERLAP = 500;
-const MIN_SEMANTIC_CHUNK = 300;
+const PAGE_CHUNK_BUDGET = 10000;
+const CHARS_PER_CARD_BASE = 1400;
 const MIN_CHUNK_LENGTH = 200;
 
 const BATCH_SIZE = 2;
 
 const MIN_CARDS_PER_CHUNK = 2;
-const MAX_CARDS_PER_CHUNK = 10;
+const MAX_CARDS_PER_CHUNK = 15;
 const DEFAULT_MAX_TOTAL_CARDS = 140;
 const MAX_TOTAL_CARDS_HARD_CAP = 260;
 const ENV_MAX_TOTAL_CARDS = Number.parseInt(
@@ -79,16 +78,7 @@ const MAX_TOTAL_CARDS = Number.isFinite(ENV_MAX_TOTAL_CARDS) && ENV_MAX_TOTAL_CA
     ? Math.min(MAX_TOTAL_CARDS_HARD_CAP, Math.max(40, ENV_MAX_TOTAL_CARDS))
     : DEFAULT_MAX_TOTAL_CARDS;
 
-const SIMILARITY_THRESHOLD = 0.65;
-
-const QUESTION_TYPES = {
-    definition: { weight: 2, prompt: 'domande di DEFINIZIONE (Cosa significa/è X?)' },
-    explanation: { weight: 2, prompt: 'domande di SPIEGAZIONE (Come funziona X? Perché X?)' },
-    causeEffect: { weight: 1.5, prompt: 'domande CAUSA-EFFETTO (Cosa succede se X? Perché X causa Y?)' },
-    application: { weight: 1.5, prompt: 'domande di APPLICAZIONE (Come si usa X? In quale caso si applica?)' },
-    comparison: { weight: 1, prompt: 'domande di CONFRONTO (Differenza tra X e Y?)' },
-    process: { weight: 1, prompt: 'domande su PROCESSI/SEQUENZE (Quali sono i passaggi per X?)' },
-};
+const SIMILARITY_THRESHOLD = 0.55;
 
 // =========================================
 // CONFIGURAZIONE MODELLO AI
@@ -149,9 +139,9 @@ module.exports = {
     QUIZ_DEBUG_LOGS,
     INCOMPLETE_TRAILING_WORDS,
     QUIZ_PADDING_SEGMENTS,
-    SEMANTIC_CHUNK_SIZE,
-    SEMANTIC_CHUNK_OVERLAP,
-    MIN_SEMANTIC_CHUNK,
+    PAGE_CHUNK_BUDGET,
+    CHARS_PER_CARD_BASE,
+
     MIN_CHUNK_LENGTH,
     BATCH_SIZE,
     MIN_CARDS_PER_CHUNK,
@@ -160,7 +150,7 @@ module.exports = {
     MAX_TOTAL_CARDS_HARD_CAP,
     MAX_TOTAL_CARDS,
     SIMILARITY_THRESHOLD,
-    QUESTION_TYPES,
+
     FALLBACK_AI_MODEL,
     KNOWN_OPENAI_MODELS,
     ACTIVE_AI_MODEL,

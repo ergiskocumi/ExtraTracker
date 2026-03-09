@@ -1,8 +1,8 @@
 /**
- * 📄 STUDY SERVICE - PDF Card Generation
- * ========================================
+ * 📄 STUDY SERVICE - PDF Card Generation (V4: Page-First)
+ * ========================================================
  * Generate flashcards from PDF documents using AI.
- * Semantic chunking, concept extraction, batch generation, deduplication.
+ * Page-first chunking, one formula, zero recovery.
  */
 
 const path = require('path');
@@ -17,29 +17,27 @@ const {
     ACTIVE_AI_MODEL,
     DEFAULT_EASINESS_FACTOR,
     MAX_EXTRACTED_TEXT_STORE_LENGTH,
-    SEMANTIC_CHUNK_SIZE,
-    SEMANTIC_CHUNK_OVERLAP,
-    MIN_SEMANTIC_CHUNK,
+    PAGE_CHUNK_BUDGET,
+    CHARS_PER_CARD_BASE,
+    MIN_CHUNK_LENGTH,
     BATCH_SIZE,
     MIN_CARDS_PER_CHUNK,
     MAX_CARDS_PER_CHUNK,
-    MAX_TOTAL_CARDS,
     SIMILARITY_THRESHOLD,
-    QUESTION_TYPES,
 } = require('./constants');
 const logger = require('../../utils/logger');
 
 let hasLoggedVectorStoreDisabled = false;
+const MIN_PAGE_TEXT_FOR_COVERAGE = 80;
 
 module.exports = {
 
     // =========================================
-    // MAGIC GENERATE V2
+    // MAIN ORCHESTRATION (6 steps)
     // =========================================
 
     async generateCardsFromPDF(tenantScope, deckId, pdfFilePath, options = {}) {
         const userId = this._getUserId(tenantScope);
-
         const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
 
         if (!pdfFilePath || typeof pdfFilePath !== 'string') {
@@ -50,6 +48,7 @@ module.exports = {
 
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'analyzing', message: 'Analisi documento...' });
 
+        // Step 1: Parse PDF
         let pdfBuffer;
         try {
             pdfBuffer = await fs.readFile(pdfFilePath);
@@ -84,14 +83,14 @@ module.exports = {
         deck.extractedText = this._truncateText(normalizedText, MAX_EXTRACTED_TEXT_STORE_LENGTH);
         await deck.save({ validateModifiedOnly: true });
 
-        // Blueprint analysis
+        // Step 2: Blueprint analysis
         logger.info('PdfGeneration', 'FASE 1: Analisi strutturale');
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'blueprint', message: 'Identifico struttura documento...' });
 
         const blueprint = await this._analyzeDocumentStructure(normalizedText);
         logger.debug('PdfGeneration', 'Blueprint', blueprint);
 
-        // Vector ingest (fire-and-forget). Non blocca la generazione flashcard.
+        // Vector ingest (fire-and-forget)
         if (typeof vectorStoreService.isConfigured === 'function' && !vectorStoreService.isConfigured()) {
             if (!hasLoggedVectorStoreDisabled) {
                 logger.info('PdfGeneration', 'Vector store disabilitato: ingest saltato');
@@ -108,89 +107,62 @@ module.exports = {
             });
         }
 
-        // Semantic chunking
-        logger.info('PdfGeneration', 'FASE 2: Semantic chunking');
-        const semanticChunks = this._createSemanticChunks(normalizedText);
-        logger.info('PdfGeneration', `Creati ${semanticChunks.length} chunk semantici`);
+        // Step 3: Page-first chunking
+        logger.info('PdfGeneration', 'FASE 2: Page-first chunking');
+        const chunks = this._createPageFirstChunks(normalizedText);
+        logger.info('PdfGeneration', `Creati ${chunks.length} chunk page-first`);
 
         sseManager.sendToUser(userId, 'pdf-progress', {
             step: 'chunking',
-            totalChunks: semanticChunks.length,
-            message: `Diviso in ${semanticChunks.length} sezioni`
+            totalChunks: chunks.length,
+            message: `Diviso in ${chunks.length} sezioni`
         });
 
-        // Local concept extraction
+        // Step 4: Concept extraction
         logger.info('PdfGeneration', 'FASE 3: Estrazione concetti');
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'concepts', message: 'Estraggo concetti chiave...' });
 
         const globalConcepts = this._extractConceptsLocally(normalizedText);
         logger.info('PdfGeneration', `Estratti ${globalConcepts.length} concetti chiave`);
 
-        // Auto card cap
-        const autoCardCap = this._estimateOptimalGenerationCardCap({
-            textLength: normalizedText.length,
-            densityScore: blueprint?.densityScore,
-            chunkCount: semanticChunks.length,
-            conceptCount: globalConcepts.length,
-        });
-        const generationCardCap = this._resolveGenerationCardCap(options?.maxCards, autoCardCap);
-        const generationBudget = this._resolveGenerationBudget(generationCardCap, semanticChunks.length);
-
-        logger.debug('PdfGeneration', 'Target card', { autoCardCap, generationCardCap, generationBudget });
-
-        // Batch generation
+        // Step 5: Batch generation
         logger.info('PdfGeneration', 'FASE 4: Generazione flashcard (batch parallelo)');
-        let allGeneratedCards = [];
+        const allGeneratedCards = [];
         const usedConcepts = new Set();
 
         const batches = [];
-        for (let i = 0; i < semanticChunks.length; i += BATCH_SIZE) {
-            batches.push(semanticChunks.slice(i, i + BATCH_SIZE));
+        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+            batches.push(chunks.slice(i, i + BATCH_SIZE));
         }
-
-        const batchTargets = this._allocateBatchTargets(batches, generationBudget);
-        const plannedTotal = batchTargets.reduce((sum, value) => sum + value, 0);
-
-        logger.debug('PdfGeneration', 'Batch processing', { batches: batches.length, batchSize: BATCH_SIZE, plannedTotal });
 
         sseManager.sendToUser(userId, 'pdf-progress', {
             step: 'generating',
             currentChunk: 1,
-            totalChunks: semanticChunks.length,
+            totalChunks: chunks.length,
             generatedSoFar: 0,
-            message: `Genero flashcard da ${batches.length} sezioni in parallelo (target automatico)...`
+            message: `Genero flashcard da ${batches.length} batch in parallelo...`
         });
 
         const batchPromises = batches.map((batch, batchIdx) => {
-                const targetCards = batchTargets[batchIdx] || this._calculateBatchTarget(batch);
-                const totalBatchChars = batch.reduce((sum, c) => sum + (c?.text?.length || 0), 0);
-                logger.debug('PdfGeneration', `Batch ${batchIdx + 1}/${batches.length}`, { chunks: batch.length, chars: totalBatchChars, targetCards });
+            const cardTarget = this._calculateBatchCardTarget(batch, blueprint);
+            const totalBatchChars = batch.reduce((sum, c) => sum + (c?.text?.length || 0), 0);
+            logger.debug('PdfGeneration', `Batch ${batchIdx + 1}/${batches.length}`, {
+                chunks: batch.length,
+                chars: totalBatchChars,
+                cardTarget,
+            });
 
-                return this._generateCardsBatch(
-                    batch,
-                    blueprint,
-                    targetCards,
-                    usedConcepts,
-                    batchIdx,
-                    batches.length,
-                    { userId, deckId }
-                ).catch(async (err) => {
-                    logger.error('PdfGeneration', `Errore batch ${batchIdx + 1}`, err);
-                    const fallbackCards = [];
-                    for (const chunk of batch) {
-                        try {
-                            const singleTarget = this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
-                            const singleCards = await this._generateCardsSingle(
-                                chunk, blueprint, singleTarget, usedConcepts,
-                                batchIdx * BATCH_SIZE, semanticChunks.length,
-                                { userId, deckId }
-                            );
-                            fallbackCards.push(...singleCards);
-                        } catch (singleErr) {
-                            logger.error('PdfGeneration', 'Fallback singolo fallito', singleErr);
-                        }
-                }
-                return fallbackCards;
+            return this._generateCardsBatch(
+                batch,
+                blueprint,
+                cardTarget,
+                usedConcepts,
+                batchIdx,
+                batches.length,
+                { userId, deckId }
+            ).catch(err => {
+                logger.error('PdfGeneration', `Errore batch ${batchIdx + 1}`, err);
+                return [];
             });
         });
 
@@ -207,8 +179,8 @@ module.exports = {
 
             sseManager.sendToUser(userId, 'pdf-progress', {
                 step: 'generating',
-                currentChunk: Math.min((i + 1) * BATCH_SIZE, semanticChunks.length),
-                totalChunks: semanticChunks.length,
+                currentChunk: Math.min((i + 1) * BATCH_SIZE, chunks.length),
+                totalChunks: chunks.length,
                 generatedSoFar: allGeneratedCards.length,
                 message: `Completato batch ${i + 1}/${batches.length}...`
             });
@@ -216,7 +188,7 @@ module.exports = {
 
         logger.info('PdfGeneration', `Totale card pre-deduplica: ${allGeneratedCards.length}`);
 
-        // Deduplication
+        // Step 6: Deduplication + Validation + Save
         logger.info('PdfGeneration', 'FASE 5: Deduplica semantica');
         sseManager.sendToUser(userId, 'pdf-progress', { step: 'deduplicating', message: 'Rimuovo duplicati...' });
 
@@ -231,10 +203,8 @@ module.exports = {
             logger.info('PdfGeneration', `Rimossi ${removedExisting} duplicati esistenti`);
         }
 
-        // Validation & save
         const validCards = cardsWithoutExistingDuplicates
             .filter(card => this._validateCardQuality(card))
-            .slice(0, generationCardCap)
             .map(card => {
                 const cardData = {
                     front: card.front.trim(),
@@ -261,6 +231,15 @@ module.exports = {
                 return cardData;
             });
 
+        // Ordina per pagina PDF (cronologico) — card senza pagina vanno in fondo
+        validCards.sort((a, b) => {
+            const pageA = a.sourceMetadata?.pageNumber ?? Infinity;
+            const pageB = b.sourceMetadata?.pageNumber ?? Infinity;
+            return pageA - pageB;
+        });
+
+        this._logPageCoverageDiagnostics(pdfData, validCards);
+
         if (validCards.length === 0) {
             sseManager.sendToUser(userId, 'pdf-progress', { step: 'completed', totalCards: 0 });
             return {
@@ -284,106 +263,193 @@ module.exports = {
             deck: deck.toJSON(),
             generatedCount: validCards.length,
             stats: {
-                totalChunks: semanticChunks.length,
+                totalChunks: chunks.length,
                 totalBatches: batches.length,
                 duplicatesRemoved: removedCount + removedExisting,
                 conceptsExtracted: globalConcepts.length,
-                autoTargetCards: autoCardCap,
-                generationBudget,
-                maxCardsApplied: generationCardCap,
+                generationMode: 'page-first-v4',
             }
         };
     },
 
     // =========================================
-    // CHUNKING & CONCEPT EXTRACTION
+    // PAGE-FIRST CHUNKING
     // =========================================
 
-    _createSemanticChunks(text) {
-        if (!text || text.length <= SEMANTIC_CHUNK_SIZE) {
-            return [{
-                text,
-                hasTitles: this._detectTitles(text),
-                pageNumbers: this._extractPageNumbers(text),
-            }];
+    _createPageFirstChunks(text) {
+        if (!text || typeof text !== 'string') {
+            return [{ text: '', hasTitles: false, pageNumbers: [] }];
+        }
+
+        const pageSections = this._splitTextIntoPageSections(text);
+
+        if (pageSections.length === 0) {
+            return this._chunkPlainText(text);
         }
 
         const chunks = [];
-        let start = 0;
-        let iterations = 0;
-        const MAX_ITERATIONS = 200;
+        let currentParts = [];
+        let currentPages = [];
+        let currentLength = 0;
 
-        while (start < text.length && iterations < MAX_ITERATIONS) {
-            iterations++;
-            let end = Math.min(start + SEMANTIC_CHUNK_SIZE, text.length);
+        for (const section of pageSections) {
+            const pageBlock = `--- PAGE ${section.pageNumber} ---\n${section.text}`;
 
-            if (end < text.length) {
-                const searchStart = Math.max(start, end - 2000);
-                const searchZone = text.slice(searchStart, end);
-
-                let bestBreak = -1;
-
-                const pageIdx = Math.max(
-                    searchZone.lastIndexOf('--- PAGE'),
-                    searchZone.lastIndexOf('--- Pagina')
-                );
-                if (pageIdx > 100) {
-                    bestBreak = pageIdx;
+            if (pageBlock.length > PAGE_CHUNK_BUDGET) {
+                // Flush current accumulator first
+                if (currentParts.length > 0) {
+                    chunks.push(this._buildChunk(currentParts, currentPages));
+                    currentParts = [];
+                    currentPages = [];
+                    currentLength = 0;
                 }
-
-                if (bestBreak === -1) {
-                    const doubleNewline = searchZone.lastIndexOf('\n\n');
-                    if (doubleNewline > 100) {
-                        bestBreak = doubleNewline + 2;
-                    }
-                }
-
-                if (bestBreak === -1) {
-                    const sentenceEnd = searchZone.lastIndexOf('. ');
-                    if (sentenceEnd > 100) {
-                        bestBreak = sentenceEnd + 2;
-                    }
-                }
-
-                if (bestBreak > 0) {
-                    end = searchStart + bestBreak;
-                }
+                // Split large page by paragraphs
+                const subChunks = this._splitLargePageByParagraphs(section, PAGE_CHUNK_BUDGET);
+                chunks.push(...subChunks);
+                continue;
             }
 
-            if (end <= start) {
-                end = Math.min(start + SEMANTIC_CHUNK_SIZE, text.length);
+            if (currentLength > 0 && currentLength + pageBlock.length > PAGE_CHUNK_BUDGET) {
+                chunks.push(this._buildChunk(currentParts, currentPages));
+                currentParts = [];
+                currentPages = [];
+                currentLength = 0;
             }
 
-            const chunkText = text.slice(start, end).trim();
+            currentParts.push(pageBlock);
+            currentPages.push(section.pageNumber);
+            currentLength += pageBlock.length;
+        }
 
-            if (chunkText.length >= MIN_SEMANTIC_CHUNK) {
+        if (currentParts.length > 0) {
+            chunks.push(this._buildChunk(currentParts, currentPages));
+        }
+
+        this._logChunkingDiagnostics({
+            totalChars: text.length,
+            detectedPageNumbers: pageSections.map(s => s.pageNumber),
+            chunks,
+        });
+
+        return chunks.length > 0 ? chunks : [{ text, hasTitles: this._detectTitles(text), pageNumbers: [] }];
+    },
+
+    _splitLargePageByParagraphs(section, budget) {
+        const paragraphs = section.text.split(/\n\n+/).filter(p => p.trim());
+        const chunks = [];
+        let currentParts = [];
+        let currentLength = 0;
+        const pageHeader = `--- PAGE ${section.pageNumber} ---\n`;
+        const headerLen = pageHeader.length;
+
+        for (const paragraph of paragraphs) {
+            const trimmed = paragraph.trim();
+            if (!trimmed) continue;
+
+            const candidateLen = currentLength + (currentParts.length > 0 ? 2 : headerLen) + trimmed.length;
+
+            if (currentParts.length > 0 && candidateLen > budget) {
+                chunks.push({
+                    text: pageHeader + currentParts.join('\n\n'),
+                    hasTitles: this._detectTitles(currentParts.join('\n\n')),
+                    pageNumbers: [section.pageNumber],
+                });
+                currentParts = [];
+                currentLength = headerLen;
+            }
+
+            if (currentParts.length === 0) {
+                currentLength = headerLen;
+            }
+
+            currentParts.push(trimmed);
+            currentLength += trimmed.length + (currentParts.length > 1 ? 2 : 0);
+        }
+
+        if (currentParts.length > 0) {
+            chunks.push({
+                text: pageHeader + currentParts.join('\n\n'),
+                hasTitles: this._detectTitles(currentParts.join('\n\n')),
+                pageNumbers: [section.pageNumber],
+            });
+        }
+
+        return chunks;
+    },
+
+    _chunkPlainText(text) {
+        const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+        if (paragraphs.length === 0) return [{ text, hasTitles: false, pageNumbers: [] }];
+
+        const chunks = [];
+        let currentParts = [];
+        let currentLength = 0;
+
+        for (const paragraph of paragraphs) {
+            const trimmed = paragraph.trim();
+            if (!trimmed) continue;
+
+            if (currentLength > 0 && currentLength + trimmed.length + 2 > PAGE_CHUNK_BUDGET) {
+                const chunkText = currentParts.join('\n\n');
                 chunks.push({
                     text: chunkText,
                     hasTitles: this._detectTitles(chunkText),
                     pageNumbers: this._extractPageNumbers(chunkText),
                 });
+                currentParts = [];
+                currentLength = 0;
             }
 
-            const newStart = end - SEMANTIC_CHUNK_OVERLAP;
-            const minAdvance = Math.min(SEMANTIC_CHUNK_SIZE - SEMANTIC_CHUNK_OVERLAP, end - start);
-
-            start = Math.max(newStart, start + minAdvance);
-            if (start > end) start = end;
-
-            if (start >= text.length - MIN_SEMANTIC_CHUNK) {
-                break;
-            }
+            currentParts.push(trimmed);
+            currentLength += trimmed.length + 2;
         }
 
-        if (iterations >= MAX_ITERATIONS) {
-            logger.warn('PdfGeneration', 'Chunking: raggiunto limite iterazioni');
+        if (currentParts.length > 0) {
+            const chunkText = currentParts.join('\n\n');
+            chunks.push({
+                text: chunkText,
+                hasTitles: this._detectTitles(chunkText),
+                pageNumbers: this._extractPageNumbers(chunkText),
+            });
         }
 
-        return chunks.length > 0 ? chunks : [{
+        return chunks.length > 0 ? chunks : [{ text, hasTitles: false, pageNumbers: [] }];
+    },
+
+    _buildChunk(parts, pageNumbers) {
+        const text = parts.join('\n\n').trim();
+        return {
             text,
             hasTitles: this._detectTitles(text),
-            pageNumbers: this._extractPageNumbers(text),
-        }];
+            pageNumbers: [...new Set(pageNumbers)].sort((a, b) => a - b),
+        };
+    },
+
+    _splitTextIntoPageSections(text) {
+        if (!text || typeof text !== 'string') return [];
+
+        const markerRegex = /---\s*(?:PAGE|Pagina)\s+(\d+)\s*---/g;
+        const matches = [];
+        let match;
+
+        while ((match = markerRegex.exec(text)) !== null) {
+            matches.push({
+                index: match.index,
+                markerLength: match[0].length,
+                pageNumber: parseInt(match[1], 10),
+            });
+        }
+
+        if (matches.length === 0) return [];
+
+        return matches.map((current, index) => {
+            const contentStart = current.index + current.markerLength;
+            const contentEnd = index + 1 < matches.length ? matches[index + 1].index : text.length;
+            return {
+                pageNumber: current.pageNumber,
+                text: text.slice(contentStart, contentEnd).trim(),
+            };
+        }).filter(s => s.text.length >= MIN_PAGE_TEXT_FOR_COVERAGE);
     },
 
     _extractPageNumbers(text) {
@@ -403,6 +469,29 @@ module.exports = {
 
         return Array.from(pageNumbers).sort((a, b) => a - b);
     },
+
+    // =========================================
+    // CARD COUNT FORMULA (ONE FORMULA)
+    // =========================================
+
+    _calculateCardTarget(chunkChars, densityScore) {
+        const densityMultiplier = 0.8 + ((densityScore || 0.5) * 0.5);
+        const raw = Math.ceil(chunkChars / CHARS_PER_CARD_BASE * densityMultiplier);
+        return Math.max(MIN_CARDS_PER_CHUNK, Math.min(MAX_CARDS_PER_CHUNK, raw));
+    },
+
+    _calculateBatchCardTarget(batch, blueprint) {
+        let total = 0;
+        for (const chunk of batch) {
+            total += this._calculateCardTarget(chunk.text.length, blueprint?.densityScore);
+        }
+        return total;
+    },
+
+
+    // =========================================
+    // CONCEPT EXTRACTION
+    // =========================================
 
     _extractKeyConcepts(text, _blueprint) {
         return this._extractConceptsLocally(text);
@@ -435,153 +524,23 @@ module.exports = {
             freq[word] = (freq[word] || 0) + 1;
         }
 
-        const concepts = Object.entries(freq)
+        return Object.entries(freq)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 25)
             .map(([word]) => word);
-
-        logger.debug('PdfGeneration', `Estratti ${concepts.length} concetti`);
-        return concepts;
     },
 
     // =========================================
-    // GENERATION V2 HELPERS
+    // BATCH GENERATION
     // =========================================
 
-    async _generateCardsV2(chunkText, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks) {
-        const chunk = {
-            text: chunkText,
-            hasTitles: this._detectTitles(chunkText),
-            pageNumbers: this._extractPageNumbers(chunkText),
-        };
-        return this._generateCardsSingle(chunk, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks);
-    },
-
-    _selectQuestionTypes(chunkIndex, totalChunks) {
-        const allTypes = Object.entries(QUESTION_TYPES);
-
-        const offset = chunkIndex % allTypes.length;
-        const selectedTypes = [];
-
-        for (let i = 0; i < Math.min(4, allTypes.length); i++) {
-            const typeIndex = (offset + i) % allTypes.length;
-            const [name, config] = allTypes[typeIndex];
-            selectedTypes.push(`- ${config.prompt}`);
-        }
-
-        return selectedTypes.join('\n');
-    },
-
-    _calculateChunkTarget(chunkLength, hasTitles) {
-        let target = Math.ceil(chunkLength / 1200);
-        if (hasTitles) target = Math.ceil(target * 1.1);
-        return Math.max(MIN_CARDS_PER_CHUNK, Math.min(MAX_CARDS_PER_CHUNK, target));
-    },
-
-    _calculateBatchTarget(batch) {
-        let totalTarget = 0;
-        for (const chunk of batch) {
-            totalTarget += this._calculateChunkTarget(chunk.text.length, chunk.hasTitles);
-        }
-        return Math.min(totalTarget, MAX_CARDS_PER_CHUNK * BATCH_SIZE);
-    },
-
-    _estimateOptimalGenerationCardCap({ textLength = 0, densityScore = 0.5, chunkCount = 0, conceptCount = 0 } = {}) {
-        const safeTextLength = Math.max(0, Math.round(this._toNumber(textLength, 0)));
-        const safeChunkCount = Math.max(1, Math.round(this._toNumber(chunkCount, 1)));
-        const safeConceptCount = Math.max(0, Math.round(this._toNumber(conceptCount, 0)));
-        const safeDensity = Math.min(1, Math.max(0.2, this._toNumber(densityScore, 0.5)));
-
-        const lengthBased = Math.ceil(safeTextLength / 1500);
-        const chunkBased = Math.ceil(safeChunkCount * 5.5);
-        const conceptBased = Math.ceil(safeConceptCount * 0.9);
-
-        let estimate = Math.max(lengthBased, chunkBased, conceptBased, 18);
-        if (safeDensity >= 0.75) estimate = Math.round(estimate * 1.15);
-        else if (safeDensity <= 0.35) estimate = Math.round(estimate * 0.85);
-
-        const lowerBound = Math.max(16, Math.min(24, safeChunkCount * 3));
-        const upperBound = Math.min(MAX_TOTAL_CARDS, Math.max(48, safeChunkCount * 12));
-
-        return Math.min(upperBound, Math.max(lowerBound, estimate));
-    },
-
-    _resolveGenerationBudget(generationCardCap = MAX_TOTAL_CARDS, chunkCount = 0) {
-        const cap = Math.min(MAX_TOTAL_CARDS, Math.max(20, Math.round(this._toNumber(generationCardCap, MAX_TOTAL_CARDS))));
-        const safeChunkCount = Math.max(1, Math.round(this._toNumber(chunkCount, 1)));
-        const buffer = cap <= 40 ? 4 : cap <= 80 ? 6 : 8;
-        const minimumCoverage = safeChunkCount * 2;
-
-        return Math.min(MAX_TOTAL_CARDS, Math.max(cap + buffer, minimumCoverage));
-    },
-
-    _allocateBatchTargets(batches, generationBudget = MAX_TOTAL_CARDS) {
-        if (!Array.isArray(batches) || batches.length === 0) return [];
-
-        const baseTargets = batches.map((batch) => this._calculateBatchTarget(batch));
-        const baseTotal = baseTargets.reduce((sum, value) => sum + value, 0);
-        const safeBudget = Math.max(batches.length, Math.round(this._toNumber(generationBudget, baseTotal)));
-
-        if (baseTotal <= safeBudget) return baseTargets;
-
-        const rawTargets = baseTargets.map((target, idx) => ({
-            idx,
-            scaled: (target * safeBudget) / Math.max(1, baseTotal),
-        }));
-
-        const allocated = rawTargets.map(({ scaled }) => Math.max(1, Math.floor(scaled)));
-        let allocatedTotal = allocated.reduce((sum, value) => sum + value, 0);
-
-        while (allocatedTotal > safeBudget) {
-            let candidateIdx = -1;
-            let candidateValue = 0;
-            for (let i = 0; i < allocated.length; i++) {
-                if (allocated[i] > 1 && allocated[i] > candidateValue) {
-                    candidateIdx = i;
-                    candidateValue = allocated[i];
-                }
-            }
-            if (candidateIdx === -1) break;
-            allocated[candidateIdx] -= 1;
-            allocatedTotal -= 1;
-        }
-
-        if (allocatedTotal < safeBudget) {
-            const priorities = rawTargets
-                .map(({ idx, scaled }) => ({ idx, fraction: scaled - Math.floor(scaled) }))
-                .sort((a, b) => b.fraction - a.fraction);
-
-            let guard = 0;
-            while (allocatedTotal < safeBudget && guard < safeBudget * 3) {
-                guard += 1;
-                let changed = false;
-                for (const item of priorities) {
-                    if (allocatedTotal >= safeBudget) break;
-                    if (allocated[item.idx] >= baseTargets[item.idx]) continue;
-                    allocated[item.idx] += 1;
-                    allocatedTotal += 1;
-                    changed = true;
-                }
-                if (!changed) break;
-            }
-        }
-
-        return allocated;
-    },
-
-    // =========================================
-    // BATCH & SINGLE GENERATION
-    // =========================================
-
-    async _generateCardsBatch(chunks, blueprint, targetCount, usedConcepts, batchIndex, totalBatches, telemetry = {}) {
+    async _generateCardsBatch(chunks, blueprint, cardTarget, usedConcepts, batchIndex, totalBatches, telemetry = {}) {
         const globalContext = blueprint?.globalContext || 'Documento accademico';
         const documentType = blueprint?.documentType || 'other';
 
         const avoidList = usedConcepts.size > 0
-            ? `\n⚠️ EVITA domande su questi concetti già trattati: ${[...usedConcepts].slice(-20).join(', ')}`
+            ? `\nCONCETTI GIÀ TRATTATI (non ripetere): ${[...usedConcepts].slice(-20).join(', ')}`
             : '';
-
-        const questionTypes = this._selectQuestionTypes(batchIndex, totalBatches);
 
         const combinedText = chunks.map((chunk, idx) => {
             const pageInfo = chunk.pageNumbers?.length > 0
@@ -590,64 +549,38 @@ module.exports = {
             return `=== SEZIONE ${idx + 1} ${pageInfo} ===\n${chunk.text}`;
         }).join('\n\n');
 
-        const systemPrompt = `Sei un ESPERTO CREATORE DI FLASHCARD per studenti universitari che devono RIPASSARE per un esame.
-Lo studente deve memorizzare TUTTO il contenuto del documento. Ogni concetto importante deve avere almeno una flashcard.
+        const systemPrompt = `# RUOLO
+Agisci come un Professore Universitario esperto in didattica. Il tuo obiettivo è trasformare il materiale di studio in Flashcard di ALTO LIVELLO per un ripasso concettuale profondo.
 
 📚 CONTESTO DOCUMENTO: "${globalContext}"
 📄 TIPO: ${documentType}
 
-🎯 CREA ${targetCount} FLASHCARD seguendo queste REGOLE FONDAMENTALI:
-
-⚠️ REGOLA COPERTURA COMPLETA:
-- Devi coprire TUTTE le pagine del testo, incluse le prime pagine introduttive
-- NON saltare nessuna sezione importante
-- Ogni definizione, concetto chiave, processo deve avere una flashcard
-
-⚠️ REGOLA ELENCHI/LISTE:
-- Quando nel testo c'è un ELENCO (es: "I 5 tipi di X sono: A, B, C, D, E"), crea UNA flashcard che chiede TUTTI gli elementi
-- Esempio corretto: "Quali sono i 5 tipi di X?" → "I 5 tipi sono: A, B, C, D, E"
-- NON creare 5 domande separate per ogni elemento dell'elenco
-
-TIPI DI DOMANDE (varietà obbligatoria):
-${questionTypes}
-
-📏 FORMATO:
-- FRONT: Domanda specifica, min 10 parole. Deve testare COMPRENSIONE, non memoria superficiale.
-- BACK: Risposta COMPLETA con tutti i dettagli rilevanti. Min 20 parole. Se è un elenco, includi TUTTI i punti.
+# OBIETTIVO E COPERTURA
+- Analizza l'INTERO testo fornito (dalla prima all'ultima riga).
+- Estrai ogni concetto, teoria, processo o classificazione.
+- Ignora calcoli numerici specifici, dati puramente statistici di esempi o esercizi svolti. Focalizzati sulla LOGICA dietro di essi.
+- Genera esattamente ${cardTarget} flashcard.
 ${avoidList}
 
-❌ EVITA ASSOLUTAMENTE:
-- Domande su siti web, link, bibliografia, numeri pagina
-- Domande generiche "Cos'è X?" senza contesto
-- Domande sì/no
-- Domande su dettagli irrilevanti (date pubblicazione, autori citati)
-- Due domande sullo stesso concetto
-- Chiedere UN SOLO elemento di un elenco invece di tutti
+# REGOLE DI SCRITTURA (STILE ESPOSITIVO)
+1. LINGUAGGIO AUTONOMO: Non fare mai riferimento al file (EVITA: "come dice il testo", "nel pdf", "l'autore sostiene"). La flashcard deve essere un'unità di conoscenza a sé stante.
+2. NESSUN ESEMPIO SPECIFICO: Se il testo presenta un esempio (es. "Il caso della ditta Rossi"), estrai la regola generale che l'esempio illustra, ma non citare il caso specifico nella domanda.
+3. RISPOSTE DISCORSIVE: Ogni risposta deve essere un mini-discorso di senso compiuto (minimo 3-4 frasi articolate). Deve permettere allo studente di simulare una risposta orale all'esame.
+4. ELENCHI COMPLETI: Se un concetto è diviso in punti, la risposta DEVE elencarli tutti.
 
-✅ PRIVILEGIA:
-- "Quali sono tutti i tipi/elementi/fasi di X?" - elenchi completi
-- "Perché X causa Y?" - causa-effetto
-- "Qual è la differenza tra X e Y?" - confronti
-- "Come funziona il processo di X?" - meccanismi
-- "Quali sono le caratteristiche principali di X?" - definizioni complete
+# STRUTTURA OUTPUT (JSON FORMAT)
+Genera le flashcard nel seguente formato JSON:
+{"flashcards":[{"front":"Domanda concettuale e stimolante","back":"Risposta esaustiva, tecnica e articolata","metadata":{"page":N,"key_concept":"Il nucleo teorico toccato"}}]}
 
-📌 SOURCE METADATA (obbligatorio per ogni flashcard):
-- page_number: numero pagina (intero)
-- original_quote: CITAZIONE dal testo originale (MINIMO 50 caratteri, idealmente 100-200)
-  DEVE essere una o più FRASI CONSECUTIVE che contengano il concetto.
-  L'utente userà questa citazione per trovare il passaggio nel PDF.
-
-OUTPUT JSON:
-{"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"citazione di almeno 50 caratteri dal testo..."}}]}`;
-
-        const tokenBudget = Math.min(targetCount * 300 + 200, 16000);
+# COSA EVITARE
+- Domande mnemoniche su date, nomi di autori minori o bibliografia.
+- Domande che richiedono la conoscenza di un esempio specifico per rispondere.
+- Risposte telegrafiche o semplici definizioni da dizionario.`;
 
         const MAX_RETRIES = 2;
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
-                const baseTemp = attempt === 1 ? 0.6 : 0.4;
-                const tempJitter = (batchIndex * 0.05) + (Math.random() * 0.1);
-                const temperature = Math.min(baseTemp + tempJitter, 1.0);
+                const temperature = attempt === 1 ? 0.1 : 0.05;
                 const messages = [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: combinedText }
@@ -665,7 +598,7 @@ OUTPUT JSON:
                             deckId: telemetry?.deckId ? String(telemetry.deckId) : '',
                             batchIndex: batchIndex + 1,
                             totalBatches,
-                            targetCount,
+                            cardTarget,
                             retryAttempt: attempt,
                             chunkCount: chunks.length,
                         },
@@ -674,14 +607,15 @@ OUTPUT JSON:
                         model: ACTIVE_AI_MODEL,
                         messages,
                         temperature,
-                        max_completion_tokens: tokenBudget,
                         response_format: { type: 'json_object' },
                     })
                 );
 
                 if (completion.usage) {
-                    const pct = Math.round((completion.usage.completion_tokens / tokenBudget) * 100);
-                    logger.debug('PdfGeneration', `Batch ${batchIndex + 1} tokens`, { promptTokens: completion.usage.prompt_tokens, completionTokens: completion.usage.completion_tokens, tokenBudget, temperature: temperature.toFixed(2) });
+                    logger.debug('PdfGeneration', `Batch ${batchIndex + 1} tokens`, {
+                        promptTokens: completion.usage.prompt_tokens,
+                        completionTokens: completion.usage.completion_tokens,
+                    });
                 }
 
                 const response = completion.choices[0]?.message?.content;
@@ -698,7 +632,7 @@ OUTPUT JSON:
                     .filter(c => c.front && c.back);
 
                 if (normalizedCards.length === 0 && attempt < MAX_RETRIES) {
-                    logger.warn('PdfGeneration', `Batch ${batchIndex + 1}: risposta senza card`, { attempt, maxRetries: MAX_RETRIES });
+                    logger.warn('PdfGeneration', `Batch ${batchIndex + 1}: risposta senza card`, { attempt });
                     await this._sleep(500);
                     continue;
                 }
@@ -714,91 +648,6 @@ OUTPUT JSON:
         return [];
     },
 
-    async _generateCardsSingle(chunk, blueprint, targetCount, usedConcepts, chunkIndex, totalChunks, telemetry = {}) {
-        const globalContext = blueprint?.globalContext || 'Documento accademico';
-        const documentType = blueprint?.documentType || 'other';
-
-        const avoidList = usedConcepts.size > 0
-            ? `\n⚠️ EVITA domande su questi concetti già trattati: ${[...usedConcepts].slice(-20).join(', ')}`
-            : '';
-
-        const questionTypes = this._selectQuestionTypes(chunkIndex, totalChunks);
-
-        const systemPrompt = `Sei un ESPERTO CREATORE DI FLASHCARD per studenti che devono RIPASSARE per un esame.
-Lo studente deve memorizzare TUTTO. Ogni concetto importante deve avere almeno una flashcard.
-
-📚 CONTESTO: "${globalContext}"
-📄 TIPO: ${documentType} | SEZIONE: ${chunkIndex + 1}/${totalChunks}
-
-🎯 CREA ${targetCount} FLASHCARD seguendo queste REGOLE:
-
-⚠️ REGOLA ELENCHI: Se c'è un ELENCO (es: "I tipi di X sono: A, B, C"), crea UNA flashcard che chiede TUTTI gli elementi, non domande separate.
-
-TIPI DI DOMANDE:
-${questionTypes}
-
-📏 FORMATO:
-- FRONT: Domanda specifica, min 10 parole.
-- BACK: Risposta COMPLETA con tutti i dettagli. Min 20 parole. Se è un elenco, includi TUTTI i punti.
-${avoidList}
-
-❌ EVITA: siti web, link, bibliografia, domande generiche, sì/no, dettagli irrilevanti, chiedere UN SOLO elemento di un elenco.
-
-✅ PRIVILEGIA: "Quali sono tutti i tipi/fasi di X?", causa-effetto, confronti, meccanismi.
-
-📌 SOURCE: Per ogni card includi page_number + original_quote (min 50 char, idealmente 100-200).
-
-OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_number":N,"original_quote":"citazione di almeno 50 caratteri dal testo..."}}]}`;
-
-        const tokenBudget = Math.min(targetCount * 300 + 200, 8000);
-        const temperature = 0.6 + (Math.random() * 0.15);
-
-        try {
-            const messages = [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: chunk.text }
-            ];
-
-            const completion = await aiUsageService.runTrackedChatCompletion(
-                {
-                    userId: telemetry?.userId,
-                    mode: 'flashcards',
-                    feature: 'flashcards_single_generation',
-                    model: ACTIVE_AI_MODEL,
-                    messages,
-                    promptLengthChars: systemPrompt.length + (chunk?.text?.length || 0),
-                    metadata: {
-                        deckId: telemetry?.deckId ? String(telemetry.deckId) : '',
-                        chunkIndex: chunkIndex + 1,
-                        totalChunks,
-                        targetCount,
-                    },
-                },
-                () => openai.chat.completions.create({
-                    model: ACTIVE_AI_MODEL,
-                    messages,
-                    temperature: Math.min(temperature, 1.0),
-                    max_completion_tokens: tokenBudget,
-                    response_format: { type: 'json_object' },
-                })
-            );
-
-            const response = completion.choices[0]?.message?.content;
-            if (!response) return [];
-
-            const cleaned = this._cleanJSON(response);
-            const parsed = JSON.parse(cleaned);
-            const cards = this._extractGeneratedCards(parsed);
-
-            return cards
-                .map(c => this._normalizeGeneratedCard(c))
-                .filter(c => c.front && c.back);
-
-        } catch (err) {
-            logger.error('PdfGeneration', 'Single generation fallito', err);
-            return [];
-        }
-    },
 
     // =========================================
     // DEDUPLICATION & VALIDATION
@@ -813,21 +662,6 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
             /^Sezione\s+\d+/im,
         ];
         return titlePatterns.some(p => p.test(text));
-    },
-
-    _extractConceptKey(question) {
-        if (!question || typeof question !== 'string') return null;
-
-        const normalized = question
-            .toLowerCase()
-            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-            .split(/\s+/)
-            .filter(w => w.length > 3)
-            .slice(0, 5)
-            .sort()
-            .join('_');
-
-        return normalized || null;
     },
 
     _deduplicateCards(cards) {
@@ -935,10 +769,11 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
         const front = card.front?.trim() || '';
         const back = card.back?.trim() || '';
 
-        if (front.length < 10 || back.length < 15) return false;
+        if (front.length < 15 || back.length < 50) return false;
 
-        const wordCount = back.split(/\s+/).length;
-        if (wordCount < 3) return false;
+        const frontWords = front.split(/\s+/).length;
+        const backWords = back.split(/\s+/).length;
+        if (frontWords < 5 || backWords < 15) return false;
 
         return true;
     },
@@ -1187,17 +1022,65 @@ OUTPUT JSON: {"cards":[{"front":"...","back":"...","source_metadata":{"page_numb
         return Math.max(0.2, Math.min(1, score));
     },
 
-    _resolveGenerationCardCap(requestedMaxCards = 0, recommendedMaxCards = MAX_TOTAL_CARDS) {
-        const recommended = Math.min(
-            MAX_TOTAL_CARDS,
-            Math.max(20, Math.round(this._toNumber(recommendedMaxCards, MAX_TOTAL_CARDS)))
-        );
+    // =========================================
+    // DIAGNOSTICS
+    // =========================================
 
-        const parsed = this._toNumber(requestedMaxCards, 0);
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-            return recommended;
+    _logChunkingDiagnostics({ totalChars = 0, detectedPageNumbers = [], chunks = [] } = {}) {
+        const chunkSummaries = (Array.isArray(chunks) ? chunks : []).map((chunk, index) => ({
+            index: index + 1,
+            chars: chunk?.text?.length || 0,
+            pages: Array.isArray(chunk?.pageNumbers) ? chunk.pageNumbers : [],
+            hasTitles: Boolean(chunk?.hasTitles),
+        }));
+        const expectedPages = Array.isArray(detectedPageNumbers) ? detectedPageNumbers.filter(p => Number.isFinite(p)) : [];
+        const coveredPages = Array.from(new Set(chunkSummaries.flatMap(c => c.pages))).sort((a, b) => a - b);
+        const missingPages = expectedPages.filter(p => !coveredPages.includes(p));
+
+        logger.info('PdfGeneration', 'Chunking diagnostics', {
+            totalChars,
+            totalPagesDetected: expectedPages.length,
+            coveredPages,
+            missingPages,
+            totalChunks: chunkSummaries.length,
+            chunkBudget: PAGE_CHUNK_BUDGET,
+        });
+
+        for (const chunk of chunkSummaries) {
+            logger.debug('PdfGeneration', `Chunk ${chunk.index}`, chunk);
+        }
+    },
+
+    _logPageCoverageDiagnostics(pdfData, validCards) {
+        const pages = Array.isArray(pdfData?.pages) ? pdfData.pages : [];
+        const meaningfulPages = pages
+            .filter(p => (typeof p?.text === 'string' ? p.text.trim().length : 0) >= MIN_PAGE_TEXT_FOR_COVERAGE)
+            .map(p => Number(p.num))
+            .filter(n => Number.isFinite(n) && n > 0);
+
+        if (meaningfulPages.length === 0) return;
+
+        const coveredPages = new Set();
+        for (const card of validCards) {
+            const pageNumber = Number(card?.sourceMetadata?.pageNumber);
+            if (Number.isFinite(pageNumber) && pageNumber > 0) {
+                coveredPages.add(pageNumber);
+            }
         }
 
-        return Math.min(MAX_TOTAL_CARDS, Math.max(20, Math.round(parsed)));
+        const uncoveredPages = meaningfulPages.filter(p => !coveredPages.has(p));
+
+        if (uncoveredPages.length > 0) {
+            logger.warn('PdfGeneration', 'Pagine senza card dopo generazione (diagnostico, nessuna azione)', {
+                totalMeaningfulPages: meaningfulPages.length,
+                coveredPages: coveredPages.size,
+                uncoveredPages,
+            });
+        } else {
+            logger.info('PdfGeneration', 'Copertura pagine completa', {
+                totalMeaningfulPages: meaningfulPages.length,
+                totalCards: validCards.length,
+            });
+        }
     },
 };
