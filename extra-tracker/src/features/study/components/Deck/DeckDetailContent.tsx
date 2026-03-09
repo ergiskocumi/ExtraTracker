@@ -19,6 +19,7 @@ import {
   RotateCcw,
   LayoutGrid,
   List,
+  ListChecks,
   Search,
   Filter,
   Clock,
@@ -510,6 +511,21 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
               >
                 <Target className="w-4 h-4 text-amber-500" />
                 <span>Exam Solver</span>
+              </button>
+            )}
+            {onGenerateQuiz && (
+              <button
+                onClick={onGenerateQuiz}
+                disabled={stats.total < 10}
+                title={stats.total < 10 ? 'Crea almeno 10 flashcard per sbloccare il quiz' : 'Genera un quiz da questo mazzo'}
+                className={`w-full flex items-center gap-2 p-3 rounded-lg border transition-all text-sm ${
+                  stats.total >= 10
+                    ? 'bg-theme-surface hover:bg-theme-surface/80 border-theme-default hover:border-indigo-500/30 text-theme-primary'
+                    : 'bg-theme-surface/50 border-theme-default text-theme-muted cursor-not-allowed'
+                }`}
+              >
+                <ListChecks className={`w-4 h-4 ${stats.total >= 10 ? 'text-indigo-500' : 'text-theme-muted'}`} />
+                <span>Genera Quiz</span>
               </button>
             )}
             {onReadPdf && deck.pdfUrl && (
