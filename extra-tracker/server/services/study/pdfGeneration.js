@@ -570,7 +570,10 @@ ${avoidList}
 
 # STRUTTURA OUTPUT (JSON FORMAT)
 Genera le flashcard nel seguente formato JSON:
-{"flashcards":[{"front":"Domanda concettuale e stimolante","back":"Risposta esaustiva, tecnica e articolata","metadata":{"page":N,"key_concept":"Il nucleo teorico toccato"}}]}
+{"flashcards":[{"front":"Domanda concettuale e stimolante","back":"Risposta esaustiva, tecnica e articolata","source_metadata":{"page_number":N,"original_quote":"estratto testuale dal materiale (50-200 caratteri)","key_concept":"Il nucleo teorico toccato"}}]}
+
+- "page_number": numero della pagina da cui è tratto il concetto (null se non identificabile).
+- "original_quote": citazione LETTERALE dal testo fornito (minimo 50 caratteri, idealmente 100-200). Deve essere un estratto reale, non una parafrasi.
 
 # COSA EVITARE
 - Domande mnemoniche su date, nomi di autori minori o bibliografia.
