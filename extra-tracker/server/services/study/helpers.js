@@ -230,22 +230,28 @@ module.exports = {
             back: this._sanitizeGeneratedCardText(rawBack, { isFront: false }),
         };
 
-        if (card.source_metadata || card.sourceMetadata) {
-            const sourceMeta = card.source_metadata || card.sourceMetadata;
-            if (sourceMeta && typeof sourceMeta === 'object') {
-                const pageNumber = Number.isFinite(Number(sourceMeta.page_number ?? sourceMeta.pageNumber))
-                    ? Number(sourceMeta.page_number ?? sourceMeta.pageNumber)
-                    : null;
-                const originalQuote = typeof sourceMeta.original_quote === 'string'
-                    ? sourceMeta.original_quote.trim()
-                    : (typeof sourceMeta.originalQuote === 'string' ? sourceMeta.originalQuote.trim() : null);
+        // Support multiple AI output formats: source_metadata, sourceMetadata, metadata
+        const sourceMeta = card.source_metadata || card.sourceMetadata || card.metadata;
+        if (sourceMeta && typeof sourceMeta === 'object') {
+            const rawPage = sourceMeta.page_number ?? sourceMeta.pageNumber ?? sourceMeta.page;
+            const pageNumber = Number.isFinite(Number(rawPage)) ? Number(rawPage) : null;
 
-                if (pageNumber !== null && pageNumber > 0 && originalQuote && originalQuote.length >= 50) {
-                    normalized.sourceMetadata = {
-                        pageNumber: pageNumber,
-                        originalText: originalQuote,
-                    };
-                }
+            const originalQuote = typeof sourceMeta.original_quote === 'string'
+                ? sourceMeta.original_quote.trim()
+                : (typeof sourceMeta.originalQuote === 'string'
+                    ? sourceMeta.originalQuote.trim()
+                    : (typeof sourceMeta.original_text === 'string' ? sourceMeta.original_text.trim() : null));
+
+            // Fallback: se non c'è original_quote, usa card.back come testo per l'highlight nel PDF
+            const effectiveText = (originalQuote && originalQuote.length >= 50)
+                ? originalQuote
+                : (normalized.back && normalized.back.length >= 50 ? normalized.back : null);
+
+            if (pageNumber !== null && pageNumber > 0 && effectiveText) {
+                normalized.sourceMetadata = {
+                    pageNumber: pageNumber,
+                    originalText: effectiveText,
+                };
             }
         }
 
