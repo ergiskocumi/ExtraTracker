@@ -46,14 +46,11 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
     // Quando il PDF è caricato, salta alla pagina e evidenzia il testo
     useEffect(() => {
         if (isLoaded && pdfReaderRef.current && pageNumber) {
-            // Delay minimo per rendering
             const timer = setTimeout(() => {
-                if (highlightText && highlightText.length >= 100) {
-                    // Se abbiamo testo sufficiente (1-2 righe), salta e evidenzia
+                if (highlightText && highlightText.trim().length >= 15) {
                     pdfReaderRef.current?.jumpToPageAndHighlight(pageNumber, highlightText);
                 } else {
-                    // Altrimenti salta solo alla pagina
-                    pdfReaderRef.current?.jumpToPage(pageNumber - 1); // 0-based
+                    pdfReaderRef.current?.jumpToPage(pageNumber - 1);
                 }
             }, 200);
 
@@ -132,7 +129,7 @@ export const SourceViewer: React.FC<SourceViewerProps> = ({
                     )}
 
                     {/* Highlight Preview */}
-                    {highlightText && highlightText.length >= 100 && (
+                    {highlightText && highlightText.trim().length >= 15 && (
                         <div className="px-6 py-3 border-b border-theme-default bg-violet-500/10">
                             <div className="flex items-center gap-2 mb-1">
                                 <Search className="w-3.5 h-3.5 text-violet-500" />

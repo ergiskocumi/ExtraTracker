@@ -19,6 +19,7 @@ import { Worker, Viewer } from '@react-pdf-viewer/core';
 import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
 import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation';
 import { searchPlugin } from '@react-pdf-viewer/search';
+import type { SearchPlugin } from '@react-pdf-viewer/search';
 import localWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
 // Import CSS required (CRITICAL for dark mode and text layer)
@@ -82,6 +83,61 @@ export interface PDFReaderRef {
      * @param text - Il testo da evidenziare
      */
     jumpToPageAndHighlight: (pageNumber: number, text: string) => void;
+}
+
+// ============================================
+// HIGHLIGHT HELPERS
+// ============================================
+
+/**
+ * Splits a source text into short keyword fragments (~6-8 words each)
+ * that are robust against whitespace/line-break differences in the PDF text layer.
+ *
+ * Strategy:
+ * 1. Split into sentences first (on . ! ? ; :)
+ * 2. Each sentence is further split into ~6 word windows with 2-word overlap
+ * 3. This ensures that even if the PDF breaks a line mid-sentence,
+ *    at least one fragment will match and get highlighted.
+ */
+const FRAGMENT_WORD_COUNT = 6;
+const FRAGMENT_OVERLAP_WORDS = 2;
+const MIN_FRAGMENT_CHARS = 20;
+const MAX_FRAGMENTS = 30; // cap to avoid performance issues
+
+function buildHighlightFragments(text: string): string[] {
+    const sentences = text
+        .split(/(?<=[.!?;:])\s+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+
+    const fragments: string[] = [];
+
+    for (const sentence of sentences) {
+        const words = sentence.split(/\s+/).filter(w => w.length > 0);
+
+        if (words.length <= FRAGMENT_WORD_COUNT) {
+            // Short sentence → use as-is if long enough
+            if (sentence.length >= MIN_FRAGMENT_CHARS) {
+                fragments.push(sentence);
+            }
+        } else {
+            // Slide a window of FRAGMENT_WORD_COUNT words with FRAGMENT_OVERLAP_WORDS overlap
+            const step = FRAGMENT_WORD_COUNT - FRAGMENT_OVERLAP_WORDS;
+            for (let i = 0; i < words.length; i += step) {
+                const windowWords = words.slice(i, i + FRAGMENT_WORD_COUNT);
+                const fragment = windowWords.join(' ');
+                if (fragment.length >= MIN_FRAGMENT_CHARS) {
+                    fragments.push(fragment);
+                }
+                // Stop if we've covered the end
+                if (i + FRAGMENT_WORD_COUNT >= words.length) break;
+            }
+        }
+
+        if (fragments.length >= MAX_FRAGMENTS) break;
+    }
+
+    return fragments.slice(0, MAX_FRAGMENTS);
 }
 
 // ============================================
@@ -389,8 +445,6 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                 const jumpToPage = pageNavigationPluginInstance.jumpToPage;
                 if (typeof jumpToPage === 'function') {
                     jumpToPage(pageIndex);
-                } else {
-                    console.warn('[PDFReader] jumpToPage method not available');
                 }
             } catch (err) {
                 console.error('[PDFReader] Error jumping to page:', err);
@@ -399,16 +453,11 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
         highlightText: (text: string) => {
             try {
                 const plugin = searchPluginInstance as any;
-
-                // Clear previous highlights
                 if (typeof plugin.clearHighlights === 'function') {
                     plugin.clearHighlights();
                 }
-
                 const normalizedText = text.replace(/\s+/g, ' ').trim();
                 if (!normalizedText) return;
-
-                // Try highlight method
                 if (typeof plugin.highlight === 'function') {
                     plugin.highlight(normalizedText);
                 }
@@ -418,40 +467,36 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
         },
         jumpToPageAndHighlight: (pageNumber: number, text: string) => {
             try {
-                // Jump to page first (convert 1-based to 0-based)
+                // Jump to page (1-based → 0-based)
                 const pageIndex = Math.max(0, pageNumber - 1);
                 const jumpToPage = pageNavigationPluginInstance.jumpToPage;
                 if (typeof jumpToPage === 'function') {
                     jumpToPage(pageIndex);
                 }
 
-                // Normalize and get first part of text
-                const searchText = text
-                    .replace(/\s+/g, ' ')
-                    .trim()
-                    .substring(0, 50)
-                    .trim();
+                const normalized = text.replace(/\s+/g, ' ').trim();
+                if (!normalized || normalized.length < 10) return;
 
-                if (!searchText || searchText.length < 5) return;
+                // Build short keyword fragments (~6-8 words each) from the source text.
+                // Why short? The PDF text layer often has different whitespace, hyphenation,
+                // and line-break positions vs the stored originalText. Long strings fail
+                // to match. Short fragments (30-60 chars) are much more reliable and
+                // together they light up the entire source passage like a highlighter pen.
+                const fragments = buildHighlightFragments(normalized);
 
-                // Delay to allow page to render, then highlight
+                if (fragments.length === 0) return;
+
+                // Delay to let the page render after the jump
                 setTimeout(() => {
                     try {
-                        const plugin = searchPluginInstance as any;
-
-                        // Clear previous highlights
-                        if (typeof plugin.clearHighlights === 'function') {
-                            plugin.clearHighlights();
-                        }
-
-                        // Use highlight with string (simpler API)
-                        if (typeof plugin.highlight === 'function') {
-                            plugin.highlight(searchText);
-                        }
+                        const plugin = searchPluginInstance as SearchPlugin;
+                        plugin.clearHighlights();
+                        // highlight() accepts SingleKeyword[] → all fragments highlighted at once
+                        plugin.highlight(fragments);
                     } catch {
                         // Silent fail
                     }
-                }, 500);
+                }, 600);
             } catch (err) {
                 console.error('[PDFReader] Error in jumpToPageAndHighlight:', err);
             }

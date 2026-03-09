@@ -115,16 +115,38 @@
 }
 
 .pdf-reader-shell .rpv-search__highlight {
-    background-color: rgba(139, 92, 246, 0.45) !important;
-    border-radius: 2px !important;
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.28) !important;
+    background-color: rgba(250, 204, 21, 0.45) !important;
+    border-bottom: 3px solid rgba(250, 204, 21, 0.90) !important;
+    border-radius: 1px !important;
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.25) !important;
+    mix-blend-mode: multiply;
 }
 
 .pdf-reader-shell .rpv-search__highlight--current {
-    background-color: rgba(139, 92, 246, 0.72) !important;
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.45), 0 3px 10px rgba(139, 92, 246, 0.28) !important;
+    background-color: rgba(250, 204, 21, 0.65) !important;
+    border-bottom: 3px solid rgba(234, 179, 8, 1) !important;
+    box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.50), 0 2px 8px rgba(234, 179, 8, 0.30) !important;
 }
 
 .pdf-reader-shell .rpv-search__highlights > div {
-    background-color: rgba(139, 92, 246, 0.42) !important;
+    background-color: rgba(250, 204, 21, 0.40) !important;
+    border-bottom: 3px solid rgba(250, 204, 21, 0.80) !important;
+}
+
+/* Dark mode: giallo più luminoso su sfondo scuro */
+.pdf-reader-dark .rpv-search__highlight {
+    background-color: rgba(250, 204, 21, 0.35) !important;
+    border-bottom: 3px solid rgba(250, 204, 21, 0.85) !important;
+    mix-blend-mode: normal;
+}
+
+.pdf-reader-dark .rpv-search__highlight--current {
+    background-color: rgba(250, 204, 21, 0.50) !important;
+    border-bottom: 3px solid rgba(250, 204, 21, 1) !important;
+    box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.40), 0 2px 12px rgba(250, 204, 21, 0.25) !important;
+}
+
+.pdf-reader-dark .rpv-search__highlights > div {
+    background-color: rgba(250, 204, 21, 0.30) !important;
+    border-bottom: 3px solid rgba(250, 204, 21, 0.75) !important;
 }
