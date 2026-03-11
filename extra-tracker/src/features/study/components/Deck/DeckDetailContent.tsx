@@ -702,7 +702,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
             value={selectedStudyMode}
             onChange={(e) => setSelectedStudyMode(e.target.value as StudyMode)}
             disabled={!canStudy}
-            className="flex-none min-h-[44px] px-3 py-2 rounded-xl bg-theme-surface border border-theme-default text-sm text-theme-primary disabled:opacity-40"
+            className="flex-none min-w-[108px] min-h-[44px] px-3 py-2 rounded-xl bg-theme-surface border border-theme-default text-sm text-theme-primary disabled:opacity-40"
             aria-label="Modalità di studio"
           >
             <option value="flashcard">Flashcard</option>
