@@ -78,6 +78,14 @@ export const StudyCard: React.FC<StudyCardProps> = ({
     const statusConfig = STATUS_CONFIG[card.status];
     const StatusIcon = statusConfig.icon;
 
+    // Reset hint quando cambia la carta
+    useEffect(() => {
+        setShowHint(false);
+    }, [card.id]);
+
+    // Testo hint: primi 50 caratteri del back, senza markup
+    const hintText = card.back.replace(/[*_`#>\[\]]/g, '').trim().slice(0, 50);
+
     // Keyboard shortcut per flip
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -198,6 +206,19 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                                     />
                                 </div>
                             </div>
+
+                            {/* Hint area - primi caratteri del back con blur */}
+                            {showHint && hintText && (
+                                <div
+                                    className="absolute bottom-12 left-4 right-4 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mb-1">Suggerimento</p>
+                                    <p className="text-xs text-theme-secondary blur-[3px] hover:blur-none transition-[filter] duration-300 select-none">
+                                        {hintText}{card.back.length > 50 ? '…' : ''}
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Footer hint */}
                             <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 text-center">
