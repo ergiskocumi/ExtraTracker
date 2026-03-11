@@ -8,7 +8,7 @@
  * - Focus management e accessibility
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Card, ReviewRating } from '../../services/studyService';
 
@@ -39,6 +39,22 @@ export const TypingView: React.FC<TypingViewProps> = ({
     const [isExiting, setIsExiting] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const timeoutRef = useRef<number | null>(null);
+    const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+
+    // Mobile keyboard: aggiusta l'altezza quando la tastiera occupa spazio
+    useEffect(() => {
+        const vv = window.visualViewport;
+        if (!vv) return;
+
+        const onResize = () => setViewportHeight(vv.height);
+        vv.addEventListener('resize', onResize);
+        return () => vv.removeEventListener('resize', onResize);
+    }, []);
+
+    const rootStyle = useMemo(
+        () => viewportHeight != null ? { height: `${viewportHeight}px` } : undefined,
+        [viewportHeight]
+    );
 
     useEffect(() => {
         setValue('');
@@ -113,7 +129,7 @@ export const TypingView: React.FC<TypingViewProps> = ({
                 : 'border-white/10 bg-white/[0.04] text-white/90 focus:ring-indigo-500/40';
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-4 h-full flex flex-col">
+        <div className="w-full max-w-4xl mx-auto px-4 h-full flex flex-col" style={rootStyle}>
             {/* Card Container - Flex grow per occupare spazio disponibile */}
             <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl overflow-hidden">
                 
