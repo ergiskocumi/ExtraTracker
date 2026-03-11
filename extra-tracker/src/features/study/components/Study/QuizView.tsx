@@ -102,6 +102,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
   const timeoutRef = useRef<number | null>(null);
   const optionsRef = useRef<(HTMLButtonElement | null)[]>([]);
   const dontKnowRef = useRef<HTMLButtonElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const resolvedOptions = useMemo(
     () => buildOptions(options, correctAnswer),
@@ -246,6 +247,54 @@ export const QuizView: React.FC<QuizViewProps> = ({
     optionsRef.current[0]?.focus();
   }, [card.id]);
 
+  // #region agent log
+  useEffect(() => {
+    const logLayout = () => {
+      try {
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const rect = containerRef.current?.getBoundingClientRect();
+
+        fetch(
+          "http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Debug-Session-Id": "a2a59a",
+            },
+            body: JSON.stringify({
+              sessionId: "a2a59a",
+              runId: "initial",
+              hypothesisId: "A",
+              location: "QuizView.tsx:layout",
+              message: "QuizView layout snapshot",
+              data: {
+                cardId: card.id,
+                isTrueFalse,
+                optionsCount: resolvedOptions.length,
+                viewportWidth,
+                viewportHeight,
+                containerWidth: rect?.width ?? null,
+                containerHeight: rect?.height ?? null,
+              },
+              timestamp: Date.now(),
+            }),
+          },
+        ).catch(() => {});
+      } catch {
+        // ignore logging errors
+      }
+    };
+
+    logLayout();
+    window.addEventListener("resize", logLayout);
+    return () => {
+      window.removeEventListener("resize", logLayout);
+    };
+  }, [card.id, isTrueFalse, resolvedOptions.length]);
+  // #endregion
+
   const getOptionStyles = (option: string) => {
     const baseStyles =
       "border rounded-2xl transition-all duration-200 text-left group relative overflow-hidden";
@@ -315,7 +364,10 @@ export const QuizView: React.FC<QuizViewProps> = ({
   const continueButtonText = result === "dontKnow" ? "Ho capito" : "Avanti";
 
   return (
-    <div className="flex flex-col w-full h-full max-w-5xl px-2 mx-auto sm:px-3 md:px-4">
+    <div
+      ref={containerRef}
+      className="flex flex-col w-full h-full max-w-6xl px-3 mx-auto sm:px-4 lg:px-6"
+    >
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden border rounded-2xl border-theme-default bg-theme-elevated shadow-theme-lg">
 
         {/* â”€â”€ Scrollable body â”€â”€ */}
@@ -323,7 +375,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
           {/* Area Domanda + feedback */}
           <div className="flex-none px-4 pt-4 pb-3 space-y-2 border-b sm:px-6 lg:px-8 sm:pt-5 sm:pb-4 border-theme-subtle">
-            <h2 className="text-sm font-semibold leading-snug break-words whitespace-pre-wrap sm:text-base md:text-lg lg:text-xl text-theme-primary">
+            <h2 className="text-base font-semibold leading-relaxed break-words whitespace-pre-wrap sm:text-lg md:text-xl lg:text-2xl text-theme-primary">
               {question}
             </h2>
 
@@ -440,7 +492,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                         <div className={`${getLabelStyles(option)} flex-shrink-0`}>{label}</div>
 
                         {/* Testo opzione */}
-                        <div className={`flex-1 text-left text-xs sm:text-sm md:text-[13px] lg:text-sm font-medium leading-snug ${
+                        <div className={`flex-1 text-left text-sm sm:text-base font-medium leading-relaxed ${
                           selectedOption || result
                             ? option.trim().toLowerCase() === normalizedCorrect
                               ? "text-emerald-700 dark:text-emerald-100"
