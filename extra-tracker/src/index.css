@@ -1708,10 +1708,35 @@ ol ol li::before {
   border-color: var(--border-default);
 }
 
-/* Focus visible styles */
+/* ============================================
+   FOCUS VISIBLE — WCAG AA compliant
+   Nasconde outline su click/touch, lo mostra solo con tastiera
+   ============================================ */
+
+/* Reset: nessun outline di default per click/touch */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Focus visibile per navigazione da tastiera — dark theme (default) */
+*:focus-visible {
+  outline: 2px solid var(--primary-400, #a78bfa);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Focus visibile per navigazione da tastiera — light theme */
 [data-theme="light"] *:focus-visible {
-  outline: 2px solid var(--primary-500);
-  outline-offset: 2px;
+  outline: 2px solid var(--primary-600, #7c3aed);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Componenti con border-radius più grandi: adatta l'outline */
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  border-radius: inherit;
 }
 
 /* ====================================
