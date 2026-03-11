@@ -186,8 +186,28 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   const [selectedStudyMode, setSelectedStudyMode] = useState<StudyMode>('flashcard');
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const stored = localStorage.getItem('deck-view-mode');
-    return stored === 'grid' ? 'grid' : 'list';
+    // Default context-aware: lista su mobile, griglia su desktop
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    if (stored === 'grid' || stored === 'list') return stored as ViewMode;
+    return isMobile ? 'list' : 'grid';
   });
+
+  // Comunicazione one-time: DeckSettings è stato rimosso
+  useEffect(() => {
+    const KEY = 'deck-settings-removed-notice-shown';
+    if (!localStorage.getItem(KEY)) {
+      localStorage.setItem(KEY, '1');
+      // Piccolo delay per non mostrarlo mentre la pagina sta ancora caricando
+      const t = window.setTimeout(() => {
+        emitToast.info('Le impostazioni SRS del mazzo sono ora gestite automaticamente. Nessuna azione richiesta.', {
+          title: 'Semplificazione',
+          duration: 6000,
+        });
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -327,8 +347,15 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           </motion.button>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+        {/* Stats essenziali — versione compatta visible su mobile, nascosta su desktop */}
+        <div className="lg:hidden flex items-center gap-3 px-1 py-0.5 flex-wrap text-sm text-theme-secondary">
+          <span className="flex items-center gap-1"><Layers className="w-3.5 h-3.5" />{stats.total} carte</span>
+          {stats.due > 0 && <span className="flex items-center gap-1 text-orange-500"><Clock className="w-3.5 h-3.5" />{stats.due} oggi</span>}
+          <span className="flex items-center gap-1"><Target className="w-3.5 h-3.5" />{stats.mastery}%</span>
+        </div>
+
+        {/* Stats Grid — solo desktop */}
+        <div className="hidden lg:grid grid-cols-1 gap-3">
           <StatCard
             label="Carte Totali"
             value={stats.total}
@@ -361,8 +388,8 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           />
         </div>
 
-        {/* Distribution */}
-        <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
+        {/* Distribution — solo desktop */}
+        <div className="hidden lg:block bg-theme-surface border border-theme-default rounded-xl p-4">
           <h3 className="text-sm font-semibold text-theme-primary mb-3">Distribuzione</h3>
           <DistributionBar {...stats} />
         </div>
