@@ -108,6 +108,9 @@ export const QuizView: React.FC<QuizViewProps> = ({
     [options, correctAnswer],
   );
 
+  // Avvisa se l'AI non ha generato abbastanza distractor (< 3 opzioni reali)
+  const usedFallbackOptions = !isTrueFalse && options.filter(o => typeof o === 'string' && o.trim()).length < 3;
+
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -328,6 +331,16 @@ export const QuizView: React.FC<QuizViewProps> = ({
             <h2 className="text-base font-semibold leading-relaxed break-words whitespace-pre-wrap sm:text-lg md:text-xl lg:text-2xl text-theme-primary">
               {question}
             </h2>
+
+            {/* Badge AI distractor fallback */}
+            {usedFallbackOptions && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-amber-600/80 dark:text-amber-400/70">
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Alcune opzioni sono state generate automaticamente
+              </span>
+            )}
 
             {/* Badge esito */}
             <AnimatePresence mode="wait">
