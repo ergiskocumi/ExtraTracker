@@ -39,16 +39,43 @@ export const TypingView: React.FC<TypingViewProps> = ({
     const [isExiting, setIsExiting] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const timeoutRef = useRef<number | null>(null);
+    const rafRef = useRef<number | null>(null);
+    const debounceRef = useRef<number | null>(null);
     const [viewportHeight, setViewportHeight] = useState<number | null>(null);
 
-    // Mobile keyboard: aggiusta l'altezza quando la tastiera occupa spazio
+    // Mobile keyboard: aggiusta l'altezza usando visualViewport (con rAF per Android)
+    // o window.innerHeight come fallback debounced.
     useEffect(() => {
         const vv = window.visualViewport;
-        if (!vv) return;
 
-        const onResize = () => setViewportHeight(vv.height);
-        vv.addEventListener('resize', onResize);
-        return () => vv.removeEventListener('resize', onResize);
+        const applyHeight = (h: number) => {
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            rafRef.current = requestAnimationFrame(() => setViewportHeight(h));
+        };
+
+        if (vv) {
+            // Leggi subito al mount (gestisce tastiera già aperta)
+            applyHeight(vv.height);
+            const onResize = () => applyHeight(vv.height);
+            vv.addEventListener('resize', onResize);
+            return () => {
+                vv.removeEventListener('resize', onResize);
+                if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            };
+        } else {
+            // Fallback: window.innerHeight con debounce 100ms
+            const onResize = () => {
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+                debounceRef.current = window.setTimeout(() => {
+                    setViewportHeight(window.innerHeight);
+                }, 100);
+            };
+            window.addEventListener('resize', onResize);
+            return () => {
+                window.removeEventListener('resize', onResize);
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+            };
+        }
     }, []);
 
     const rootStyle = useMemo(

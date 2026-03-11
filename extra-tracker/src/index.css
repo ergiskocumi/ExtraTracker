@@ -1739,6 +1739,34 @@ a:focus-visible {
   border-radius: inherit;
 }
 
+/* Focus ring su bottoni colorati (indigo, rose, emerald, amber, etc.)
+ * Doppio ring: box-shadow bianco interno + outline colorato esterno.
+ * Garantisce contrasto ≥ 3:1 su qualsiasi background (WCAG AA).
+ */
+button:focus-visible[class*="bg-indigo"],
+button:focus-visible[class*="bg-primary"],
+button:focus-visible[class*="bg-rose"],
+button:focus-visible[class*="bg-emerald"],
+button:focus-visible[class*="bg-amber"],
+button:focus-visible[class*="bg-violet"],
+button:focus-visible[class*="bg-blue"] {
+  outline: 2px solid var(--primary-400, #a78bfa);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px white inset;
+}
+
+[data-theme="light"] button:focus-visible[class*="bg-indigo"],
+[data-theme="light"] button:focus-visible[class*="bg-primary"],
+[data-theme="light"] button:focus-visible[class*="bg-rose"],
+[data-theme="light"] button:focus-visible[class*="bg-emerald"],
+[data-theme="light"] button:focus-visible[class*="bg-amber"],
+[data-theme="light"] button:focus-visible[class*="bg-violet"],
+[data-theme="light"] button:focus-visible[class*="bg-blue"] {
+  outline: 2px solid #1e1b4b;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px white inset;
+}
+
 /* ====================================
    LIGHT THEME TUNING (Section-Based)
    ==================================== */
