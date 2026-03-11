@@ -212,7 +212,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
             onClick={onClick}
             className={`
                 relative rounded-2xl border overflow-hidden cursor-pointer
-                transition-all duration-300
+                transition-all duration-300 h-full flex flex-col
                 ${isUrgent || isOverdue
                     ? 'border-orange-500/40 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent shadow-lg shadow-orange-500/10'
                     : isCompleted
@@ -224,7 +224,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
             `}
         >
             {/* Header con Icona, Titolo e Stato */}
-            <div className="p-5 pb-4">
+            <div className="p-5 pb-4 flex-1 flex flex-col">
                 <div className="flex items-start gap-4 mb-4">
                     {/* Icona Esame */}
                     <div className={`
@@ -394,7 +394,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                 )}
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 mt-auto pt-3">
                     <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 border border-white/10">
                         <Layers className="w-4 h-4 text-primary-400" />
                         <div>

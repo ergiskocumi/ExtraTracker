@@ -55,13 +55,6 @@ export interface Deck {
     createdAt?: string;
     updatedAt?: string;
     pinned?: boolean; // Preferiti - da implementare nel backend
-    // Impostazioni deck
-    algorithm?: 'sm2' | 'fsrs' | 'leitner' | 'anki';
-    aiSettings?: {
-        style?: 'comprehensive' | 'conceptual' | 'factual' | 'application';
-        difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
-        questionTypes?: string[];
-    };
     savedQuizzes?: SavedQuizSnapshot[];
 }
 
@@ -200,14 +193,6 @@ export interface ExamAnswer {
     relatedTopics: string[] | null;
 }
 
-export interface DeckSettings {
-    algorithm?: 'sm2' | 'fsrs' | 'leitner' | 'anki';
-    aiSettings?: {
-        style?: 'comprehensive' | 'conceptual' | 'factual' | 'application';
-        difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
-        questionTypes?: string[];
-    };
-}
 
 // ============================================
 // HELPERS
@@ -290,9 +275,6 @@ const normalizeSavedQuiz = (raw: any): SavedQuizSnapshot => {
 const normalizeDeck = (raw: any): Deck => {
     const cards = Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [];
     
-    // Normalizza le impostazioni (supporta sia camelCase che snake_case dal backend)
-    const aiSettings = raw.aiSettings || raw.ai_settings;
-    
     return {
         id: raw.id || raw._id?.toString() || raw._id,
         examId: raw.examId?.toString() || raw.examId,
@@ -306,13 +288,6 @@ const normalizeDeck = (raw: any): Deck => {
         dueCount: safeNumber(raw.dueCount, cards.length),
         createdAt: raw.createdAt,
         updatedAt: raw.updatedAt,
-        // Impostazioni
-        algorithm: raw.algorithm,
-        aiSettings: aiSettings ? {
-            style: aiSettings.style,
-            difficulty: aiSettings.difficulty,
-            questionTypes: aiSettings.questionTypes || aiSettings.question_types,
-        } : undefined,
         savedQuizzes: Array.isArray(raw.savedQuizzes) ? raw.savedQuizzes.map(normalizeSavedQuiz) : [],
     };
 };
@@ -668,25 +643,6 @@ class StudyService {
         });
 
         return unwrap(response, 'Errore nella risposta alla domanda');
-    }
-
-    /**
-     * Aggiorna le impostazioni del deck (algoritmo e AI)
-     */
-    async updateDeckSettings(deckId: string, settings: DeckSettings): Promise<Deck> {
-        // Converti da camelCase a snake_case per il backend
-        const payload = {
-            algorithm: settings.algorithm,
-            ai_settings: settings.aiSettings ? {
-                style: settings.aiSettings.style,
-                difficulty: settings.aiSettings.difficulty,
-                question_types: settings.aiSettings.questionTypes,
-            } : undefined,
-        };
-        
-        const response = await apiClient.put<any>(`${this.baseUrl}/${deckId}/settings`, payload);
-        const raw = unwrap(response, 'Errore nell\'aggiornamento delle impostazioni');
-        return normalizeDeck(raw);
     }
 
     /**

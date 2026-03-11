@@ -398,7 +398,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                                 <h3 className="text-lg font-semibold text-white/80 px-4">Esami Attivi</h3>
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
                             </div>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 items-stretch">
                                 {filteredAndSortedExams
                                     .filter(e => e.status === 'active')
                                     .map((exam, index) => {
@@ -449,7 +449,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                                     </h3>
                                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent"></div>
                                 </div>
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 items-stretch">
                                     {completedExams.map((exam, index) => {
                                         const stats = getExamStats(exam.id);
                                         return (

@@ -13,7 +13,6 @@ import {
   Plus,
   AlertCircle,
   Sparkles,
-  Settings,
   Download,
   Share2,
   RotateCcw,
@@ -72,7 +71,6 @@ interface DeckDetailContentProps {
   onMagicGenerate?: () => void;
   onDeckUpdate: (deck: Deck) => void;
   onDeleteDeck?: () => void;
-  onSettings?: () => void;
   onExport?: () => void;
   onShare?: () => void;
   onResetProgress?: () => void;
@@ -179,7 +177,6 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   onMagicGenerate,
   onDeckUpdate,
   onDeleteDeck,
-  onSettings,
   onExport,
   onShare,
   onResetProgress,
@@ -354,11 +351,6 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
         {/* Quick Actions */}
         <div className="bg-theme-surface border border-theme-default rounded-xl p-4 space-y-2">
           <h3 className="text-sm font-semibold text-theme-primary mb-2">Azioni</h3>
-          {onSettings && (
-            <button onClick={onSettings} className="w-full flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-subtle text-sm text-theme-primary transition-colors">
-              <Settings className="w-4 h-4" /> Impostazioni
-            </button>
-          )}
           {onExport && (
             <button onClick={onExport} className="w-full flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-subtle text-sm text-theme-primary transition-colors">
               <Download className="w-4 h-4" /> Esporta
