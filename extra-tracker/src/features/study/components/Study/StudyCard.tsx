@@ -119,7 +119,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
             scale: 1,
             rotateY: 0,
             transition: {
-                duration: 0.4,
+                duration: 0.15,
                 ease: CARD_TRANSITION_EASE,
             },
         },
@@ -130,7 +130,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
             scale: 0.9,
             rotateY: 0,
             transition: {
-                duration: 0.3,
+                duration: 0.12,
                 ease: 'easeIn',
             },
         }),
@@ -168,7 +168,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                 className="relative w-full h-full"
                 style={{ transformStyle: 'preserve-3d' }}
                 animate={{ rotateY: isFlipped ? 180 : 0 }}
-                    transition={{ duration: 0.6, ease: FLIP_TRANSITION_EASE }}
+                    transition={{ duration: 0.45, ease: FLIP_TRANSITION_EASE }}
                 >
                     {/* FRONT SIDE */}
                     <div
