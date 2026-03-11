@@ -102,7 +102,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
   const timeoutRef = useRef<number | null>(null);
   const optionsRef = useRef<(HTMLButtonElement | null)[]>([]);
   const dontKnowRef = useRef<HTMLButtonElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const resolvedOptions = useMemo(
     () => buildOptions(options, correctAnswer),
@@ -247,54 +246,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
     optionsRef.current[0]?.focus();
   }, [card.id]);
 
-  // #region agent log
-  useEffect(() => {
-    const logLayout = () => {
-      try {
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        const rect = containerRef.current?.getBoundingClientRect();
-
-        fetch(
-          "http://127.0.0.1:7244/ingest/f83237b4-4e05-491b-b343-eba64fcbd5fe",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Debug-Session-Id": "a2a59a",
-            },
-            body: JSON.stringify({
-              sessionId: "a2a59a",
-              runId: "initial",
-              hypothesisId: "A",
-              location: "QuizView.tsx:layout",
-              message: "QuizView layout snapshot",
-              data: {
-                cardId: card.id,
-                isTrueFalse,
-                optionsCount: resolvedOptions.length,
-                viewportWidth,
-                viewportHeight,
-                containerWidth: rect?.width ?? null,
-                containerHeight: rect?.height ?? null,
-              },
-              timestamp: Date.now(),
-            }),
-          },
-        ).catch(() => {});
-      } catch {
-        // ignore logging errors
-      }
-    };
-
-    logLayout();
-    window.addEventListener("resize", logLayout);
-    return () => {
-      window.removeEventListener("resize", logLayout);
-    };
-  }, [card.id, isTrueFalse, resolvedOptions.length]);
-  // #endregion
-
   const getOptionStyles = (option: string) => {
     const baseStyles =
       "border rounded-2xl transition-all duration-200 text-left group relative overflow-hidden";
@@ -365,7 +316,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
   return (
     <div
-      ref={containerRef}
       className="flex flex-col w-full h-full max-w-6xl px-3 mx-auto sm:px-4 lg:px-6"
     >
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden border rounded-2xl border-theme-default bg-theme-elevated shadow-theme-lg">
