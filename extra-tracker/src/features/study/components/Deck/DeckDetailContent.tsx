@@ -40,6 +40,24 @@ import { CardEditorModal } from './CardEditorModal';
 import { cn } from '../../../../lib/utils';
 
 // ============================================
+// HELPERS
+// ============================================
+
+const formatRelativeTime = (isoString: string | undefined): string => {
+  if (!isoString) return '';
+  const diff = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return 'poco fa';
+  if (minutes < 60) return `${minutes}m fa`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h fa`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}g fa`;
+  const months = Math.floor(days / 30);
+  return `${months} mes. fa`;
+};
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -315,10 +333,10 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           />
           <StatCard
             label="Streak"
-            value="12"
-            subvalue="giorni"
+            value="—"
+            subvalue="in arrivo"
             icon={TrendingUp}
-            color="bg-purple-500"
+            color="bg-slate-500"
             delay={0.3}
           />
         </div>
@@ -575,27 +593,45 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           </div>
         )}
 
-        {/* Activity Timeline */}
-        <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-theme-primary mb-3">Attività Recenti</h3>
-          <div className="space-y-3">
-            {[
-              { action: 'Studio completato', time: '2h fa', icon: Play, color: 'text-emerald-500' },
-              { action: '10 carte aggiunte', time: '5h fa', icon: Plus, color: 'text-blue-500' },
-              { action: 'Magic Generate', time: '1g fa', icon: Sparkles, color: 'text-purple-500' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className={cn("p-1.5 rounded-lg bg-theme-subtle", item.color)}>
-                  <item.icon className="w-3.5 h-3.5" />
+        {/* Activity Timeline - basata su dati reali del deck */}
+        {(deck.updatedAt || deck.createdAt) && (
+          <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-theme-primary mb-3">Info Mazzo</h3>
+            <div className="space-y-3">
+              {deck.updatedAt && (
+                <div className="flex items-start gap-3">
+                  <div className="p-1.5 rounded-lg bg-theme-subtle text-blue-500">
+                    <Clock className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-theme-primary">Ultimo aggiornamento</p>
+                    <p className="text-xs text-theme-muted">{formatRelativeTime(deck.updatedAt)}</p>
+                  </div>
+                </div>
+              )}
+              {deck.createdAt && (
+                <div className="flex items-start gap-3">
+                  <div className="p-1.5 rounded-lg bg-theme-subtle text-emerald-500">
+                    <Calendar className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-theme-primary">Creato</p>
+                    <p className="text-xs text-theme-muted">{formatRelativeTime(deck.createdAt)}</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-start gap-3">
+                <div className="p-1.5 rounded-lg bg-theme-subtle text-purple-500">
+                  <Layers className="w-3.5 h-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-theme-primary truncate">{item.action}</p>
-                  <p className="text-xs text-theme-muted">{item.time}</p>
+                  <p className="text-sm text-theme-primary">Carte nel mazzo</p>
+                  <p className="text-xs text-theme-muted">{stats.total} totali · {stats.mastered} padroneggiate</p>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Study Tips */}
         <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
