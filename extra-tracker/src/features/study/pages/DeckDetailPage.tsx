@@ -14,7 +14,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
-import { studyService, type Deck, type QuizType } from '../services/studyService';
+import { studyService, type Deck, type QuizType, type SavedQuizSnapshot } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { DeckDetailContent } from '../components/Deck/DeckDetailContent';
 import { DeckSettings } from '../components/Deck/DeckSettings';
@@ -119,12 +119,22 @@ export const DeckDetailPage: React.FC = () => {
 
             if (sourceCardIds.length > 0) {
                 try {
-                    await studyService.saveQuizSnapshot(id, {
+                    const savedQuiz = await studyService.saveQuizSnapshot(id, {
                         quizType: config.quizType,
                         questionCount: preparedSession.cards.length,
                         sourceCardIds,
                         source: 'chapter',
                         name: `Quiz ${preparedSession.cards.length} domande`,
+                    });
+                    // Aggiorna lo state locale del deck per mostrare il nuovo quiz salvato
+                    setDeck(prev => {
+                        if (!prev) return prev;
+                        const existing = prev.savedQuizzes ?? [];
+                        const alreadyExists = existing.some(q => q.id === savedQuiz.id);
+                        return {
+                            ...prev,
+                            savedQuizzes: alreadyExists ? existing : [savedQuiz, ...existing],
+                        };
                     });
                 } catch (snapshotError) {
                     // Non blocca l'avvio del quiz se il salvataggio storico fallisce.
@@ -139,6 +149,9 @@ export const DeckDetailPage: React.FC = () => {
             params.set('quizType', config.quizType);
             params.set('quizSource', 'chapter');
             params.set('run', String(Date.now()));
+            if (sourceCardIds.length > 0) {
+                params.set('sourceCardIds', sourceCardIds.join(','));
+            }
 
             navigate(`/study/${id}/session?${params.toString()}`, {
                 state: {
@@ -149,6 +162,46 @@ export const DeckDetailPage: React.FC = () => {
         } catch (err: any) {
             emitToast.error(err?.message || 'Errore nella preparazione del quiz');
             throw err;
+        }
+    }, [id, deck, navigate]);
+
+    const handleRepeatSavedQuiz = useCallback(async (savedQuiz: SavedQuizSnapshot) => {
+        if (!id || !deck) return;
+
+        try {
+            const preparedSession = await studyService.getSession(id, {
+                mode: 'quiz',
+                focus: 'all',
+                questionCount: savedQuiz.questionCount,
+                limit: savedQuiz.questionCount,
+                quizType: savedQuiz.quizType,
+                sourceCardIds: savedQuiz.sourceCardIds,
+            });
+
+            if (preparedSession.cards.length === 0) {
+                emitToast.info('Nessuna carta disponibile per questo quiz');
+                return;
+            }
+
+            const params = new URLSearchParams();
+            params.set('mode', 'quiz');
+            params.set('focus', 'all');
+            params.set('questions', String(savedQuiz.questionCount));
+            params.set('quizType', savedQuiz.quizType);
+            params.set('quizSource', 'saved');
+            params.set('run', String(Date.now()));
+            if (savedQuiz.sourceCardIds.length > 0) {
+                params.set('sourceCardIds', savedQuiz.sourceCardIds.join(','));
+            }
+
+            navigate(`/study/${id}/session?${params.toString()}`, {
+                state: {
+                    preparedSession,
+                    preparedAt: Date.now(),
+                },
+            });
+        } catch (err: any) {
+            emitToast.error(err?.message || 'Errore nel caricamento del quiz');
         }
     }, [id, deck, navigate]);
 
@@ -281,6 +334,7 @@ export const DeckDetailPage: React.FC = () => {
                     onBack={handleBack}
                     onStudy={handleStudy}
                     onGenerateQuiz={() => setIsGenerateQuizOpen(true)}
+                    onRepeatSavedQuiz={handleRepeatSavedQuiz}
                     onExamSolver={() => setIsExamSolverOpen(true)}
                     onReadPdf={deck.pdfUrl ? handleReadPdf : undefined}
                     onMagicGenerate={() => setIsMagicGenerateOpen(true)}

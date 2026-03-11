@@ -32,7 +32,7 @@ import {
   Layers,
   Brain,
 } from 'lucide-react';
-import type { Deck, Card } from '../../services/studyService';
+import type { Deck, Card, SavedQuizSnapshot } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { FlashcardItem } from '../Flashcard/FlashcardItem';
@@ -48,6 +48,7 @@ interface DeckDetailContentProps {
   onBack: () => void;
   onStudy: () => void;
   onGenerateQuiz?: () => void;
+  onRepeatSavedQuiz?: (quiz: SavedQuizSnapshot) => void;
   onExamSolver?: () => void;
   onReadPdf?: () => void;
   onMagicGenerate?: () => void;
@@ -154,6 +155,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   onBack,
   onStudy,
   onGenerateQuiz,
+  onRepeatSavedQuiz,
   onExamSolver,
   onReadPdf,
   onMagicGenerate,
@@ -539,6 +541,39 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
             )}
           </div>
         </div>
+
+        {/* Saved Quizzes */}
+        {onRepeatSavedQuiz && (deck.savedQuizzes?.length ?? 0) > 0 && (
+          <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <ListChecks className="w-4 h-4 text-indigo-500" />
+              <h3 className="text-sm font-semibold text-theme-primary">Quiz Salvati</h3>
+            </div>
+            <div className="space-y-2">
+              {(deck.savedQuizzes ?? []).slice(0, 5).map((quiz) => (
+                <div
+                  key={quiz.id}
+                  className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-theme-base border border-theme-default"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-theme-primary truncate">{quiz.name || `Quiz ${quiz.questionCount} domande`}</p>
+                    <p className="text-[11px] text-theme-muted mt-0.5">
+                      {quiz.quizType === 'true_false' ? 'Vero/Falso' : 'Scelta multipla'} · {quiz.questionCount} dom.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => onRepeatSavedQuiz(quiz)}
+                    className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-medium transition-colors"
+                    title="Rifai questo quiz"
+                  >
+                    <Play className="w-3 h-3" />
+                    Rifai
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Activity Timeline */}
         <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
