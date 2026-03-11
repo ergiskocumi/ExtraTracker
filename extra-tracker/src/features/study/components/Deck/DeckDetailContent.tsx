@@ -423,13 +423,13 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
               </div>
             </div>
 
-            {/* Study Mode + Button */}
-            <div className="flex items-center gap-1.5">
+            {/* Study Mode + Button — nascosto su mobile (c'è la bottom bar) */}
+            <div className="hidden sm:flex items-center gap-1.5">
               <select
                 value={selectedStudyMode}
                 onChange={(e) => setSelectedStudyMode(e.target.value as StudyMode)}
                 disabled={!canStudy}
-                className="px-2.5 py-2 rounded-lg bg-theme-base border border-theme-default text-sm text-theme-primary focus:ring-2 focus:ring-primary-500 disabled:opacity-40"
+                className="min-h-[44px] px-2.5 py-2 rounded-lg bg-theme-base border border-theme-default text-sm text-theme-primary focus:ring-2 focus:ring-primary-500 disabled:opacity-40"
                 aria-label="Modalità di studio"
               >
                 <option value="flashcard">Flashcard</option>
@@ -442,7 +442,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                 onClick={() => onStudy(selectedStudyMode)}
                 disabled={!canStudy}
                 className={cn(
-                  "flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold transition-all whitespace-nowrap",
+                  "min-h-[44px] flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold transition-all whitespace-nowrap",
                   canStudy
                     ? "bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/25"
                     : "bg-theme-subtle text-theme-muted cursor-not-allowed"
@@ -684,6 +684,37 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           }
         } : undefined}
       />
+
+      {/* Mobile Bottom Action Bar — visibile solo su schermi piccoli (thumb zone) */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 px-4 pb-safe-area-inset-bottom pt-3 pb-4 bg-theme-elevated/95 backdrop-blur-xl border-t border-theme-default">
+        <div className="flex items-center gap-2 max-w-lg mx-auto">
+          <select
+            value={selectedStudyMode}
+            onChange={(e) => setSelectedStudyMode(e.target.value as StudyMode)}
+            disabled={!canStudy}
+            className="flex-none min-h-[44px] px-3 py-2 rounded-xl bg-theme-surface border border-theme-default text-sm text-theme-primary disabled:opacity-40"
+            aria-label="Modalità di studio"
+          >
+            <option value="flashcard">Flashcard</option>
+            <option value="typing">Typing</option>
+            <option value="mix">Mix</option>
+          </select>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onStudy(selectedStudyMode)}
+            disabled={!canStudy}
+            className={cn(
+              "flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl font-semibold transition-all",
+              canStudy
+                ? "bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/25"
+                : "bg-theme-subtle text-theme-muted cursor-not-allowed"
+            )}
+          >
+            <Play className="w-4 h-4" />
+            Studia {stats.due > 0 && <span className="ml-1 text-xs bg-white/20 px-1.5 py-0.5 rounded">{stats.due}</span>}
+          </motion.button>
+        </div>
+      </div>
 
       {/* Delete Confirmation */}
       {deletingCardId && (
