@@ -34,6 +34,7 @@ export const TypingView: React.FC<TypingViewProps> = ({
     const [value, setValue] = useState('');
     const [status, setStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
     const [feedback, setFeedback] = useState('');
+    const [similarity, setSimilarity] = useState<number | null>(null);
     const [isChecking, setIsChecking] = useState(false);
     const [isExiting, setIsExiting] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -43,6 +44,7 @@ export const TypingView: React.FC<TypingViewProps> = ({
         setValue('');
         setStatus('idle');
         setFeedback('');
+        setSimilarity(null);
         setIsChecking(false);
         setIsExiting(false);
         inputRef.current?.focus();
@@ -74,7 +76,9 @@ export const TypingView: React.FC<TypingViewProps> = ({
         try {
             const result = await onVerify(trimmed);
             const isCorrect = result.correct;
+            const sim = typeof result.similarity === 'number' ? result.similarity : null;
             setStatus(isCorrect ? 'correct' : 'wrong');
+            setSimilarity(sim);
             setFeedback(isCorrect ? 'Esatto!' : 'Non proprio.');
 
             const rating: ReviewRating = isCorrect ? 5 : 1;
@@ -201,13 +205,22 @@ export const TypingView: React.FC<TypingViewProps> = ({
                                         transition={{ duration: 0.2 }}
                                         className="rounded-2xl border border-rose-500/20 bg-rose-500/10 overflow-hidden"
                                     >
-                                        <div className="px-6 py-3 border-b border-rose-500/20">
+                                        <div className="px-6 py-3 border-b border-rose-500/20 flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2 text-rose-200/70 text-sm uppercase tracking-[0.15em]">
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
                                                 La risposta corretta era
                                             </div>
+                                            {similarity !== null && (
+                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                                                    similarity >= 0.8
+                                                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                                                        : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                                                }`}>
+                                                    Somiglianza: {Math.round(similarity * 100)}%
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="px-6 py-4 bg-rose-500/5">
                                             <p className="text-white text-lg font-medium break-words">{answer}</p>
