@@ -200,15 +200,13 @@ export const StudySessionPage: React.FC = () => {
                     try {
                         const progress = await studyService.getExamProgress(deckId);
                         if (progress) {
-                            console.log('[StudySessionPage] Found saved exam progress, showing resume modal');
                             setSavedProgress(progress);
                             setShowResumeModal(true);
                             setIsLoading(false);
                             return; // Aspetta che l'utente scelga se riprendere o ricominciare
                         }
-                    } catch (err: any) {
+                    } catch {
                         // Se non c'è progresso salvato (404), continua con nuova sessione
-                        console.log('[StudySessionPage] No saved progress found, starting new session');
                     }
                 }
 
@@ -232,14 +230,6 @@ export const StudySessionPage: React.FC = () => {
 
                 const orderedCards = data.cards;
                 const cardModes = data.cardModes ?? buildFallbackCardModes(orderedCards, mode);
-
-                // DEBUG: Check if cards have isTrueFalse flag
-                console.log('[StudySessionPage] Session loaded:', {
-                    examType,
-                    totalCards: orderedCards.length,
-                    firstCard: orderedCards[0],
-                    hasIsTrueFalse: !!(orderedCards[0] as any)?.isTrueFalse
-                });
 
                 setSession({ ...data, cards: orderedCards, cardModes });
                 setStats({ total: orderedCards.length, hard: 0, good: 0, easy: 0 });
@@ -311,8 +301,6 @@ export const StudySessionPage: React.FC = () => {
             await studyService.clearExamProgress(deckId);
             setSavedProgress(null);
             setShowResumeModal(false);
-
-            console.log('[StudySessionPage] Starting fresh exam with current parameters');
 
             // Carica nuova sessione con i parametri CORRENTI (dalla URL)
             const data = await studyService.getSession(deckId, {
@@ -609,7 +597,6 @@ export const StudySessionPage: React.FC = () => {
                     pausedAt: new Date().toISOString(),
                 });
 
-                console.log('[StudySessionPage] Progress saved on exit');
                 emitToast.success('Progresso salvato! Puoi riprendere l\'esame quando vuoi.');
             } catch (err) {
                 console.error('[StudySessionPage] Error saving progress on exit:', err);
@@ -931,16 +918,7 @@ export const StudySessionPage: React.FC = () => {
                                 isSubmitting={isSubmitting}
                                 onSubmitReview={handleRate}
                                 onNext={handleNext}
-                                isTrueFalse={(() => {
-                                    const flag = (currentCard as any).isTrueFalse ?? false;
-                                    console.log('[StudySessionPage] Rendering QuizView:', {
-                                        cardId: currentCard.id,
-                                        isTrueFalse: flag,
-                                        options: currentCard.options,
-                                        front: currentCard.front.substring(0, 50) + '...'
-                                    });
-                                    return flag;
-                                })()}
+                                isTrueFalse={(currentCard as any).isTrueFalse ?? false}
                             />
                         </motion.div>
                     )}
