@@ -362,7 +362,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           )}
           {onShare && (
             <button onClick={onShare} className="w-full flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-subtle text-sm text-theme-primary transition-colors">
-              <Share2 className="w-4 h-4" /> Condividi
+              <Share2 className="w-4 h-4" /> Copia link
             </button>
           )}
           {onResetProgress && (
