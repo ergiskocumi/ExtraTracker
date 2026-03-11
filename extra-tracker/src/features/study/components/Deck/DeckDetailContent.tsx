@@ -7,7 +7,7 @@
  * - Sidebar destra: Timeline attività e suggerimenti AI
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
