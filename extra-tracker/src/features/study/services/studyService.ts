@@ -902,6 +902,16 @@ class StudyService {
     }
 
     /**
+     * 🔄 Resetta il progresso di studio di tutte le carte di un deck
+     * Riporta ogni carta a status 'new' e azzera i parametri SRS (interval, repetitions, easinessFactor)
+     */
+    async resetDeckProgress(deckId: string): Promise<Deck> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/reset-progress`, {});
+        const raw = unwrap(response, 'Errore nel reset del progresso');
+        return normalizeDeck(raw);
+    }
+
+    /**
      * 🔄 Resetta distrattori AI di tutte le card di un deck
      * Forza la rigenerazione con il nuovo modello/prompt pedagogico
      */

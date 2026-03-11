@@ -221,32 +221,16 @@ export const DeckDetailPage: React.FC = () => {
 
     const handleResetProgress = useCallback(async () => {
         if (!id || !deck) return;
-        
+
         try {
-            // Resetta tutte le carte a stato 'new' e ripristina i parametri SRS
-            const updatedCards = deck.cards?.map(card => ({
-                ...card,
-                status: 'new' as const,
-                interval: 0,
-                repetitions: 0,
-                easinessFactor: 2.5,
-                nextReviewDate: new Date().toISOString(),
-            }));
-            
-            // Aggiorna il deck sul server (se c'è un endpoint specifico, usalo)
-            // Per ora simuliamo il reset locale
-            const updatedDeck = { ...deck, cards: updatedCards || [] };
+            const updatedDeck = await studyService.resetDeckProgress(id);
             setDeck(updatedDeck);
-            
-            emitToast.success('Progresso resettato con successo');
             setIsResetModalOpen(false);
-            
-            // Ricarica il deck per sincronizzare
-            await loadDeck();
-        } catch (error) {
-            emitToast.error('Errore nel reset del progresso');
+            emitToast.success('Progresso resettato con successo');
+        } catch (error: any) {
+            emitToast.error(error?.message || 'Errore nel reset del progresso');
         }
-    }, [id, deck, loadDeck]);
+    }, [id, deck]);
 
     const handleExport = useCallback(() => {
         if (!deck) return;
