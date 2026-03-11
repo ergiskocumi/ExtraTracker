@@ -745,6 +745,7 @@ export const StudySessionPage: React.FC = () => {
                     wrongAnswers={wrongAnswersForReview}
                     isExamMode={mode === 'exam'}
                     isQuizMode={mode === 'quiz'}
+                    isTypingMode={mode === 'typing'}
                     onStudyErrors={mode === 'quiz' ? handleStudyErrors : undefined}
                 />
             </div>

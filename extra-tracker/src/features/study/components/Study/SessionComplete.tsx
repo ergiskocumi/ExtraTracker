@@ -44,6 +44,7 @@ interface SessionCompleteProps {
     wrongAnswers?: WrongAnswer[];
     isExamMode?: boolean;
     isQuizMode?: boolean;
+    isTypingMode?: boolean;
     onStudyErrors?: () => void;
 }
 
@@ -141,6 +142,7 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
     wrongAnswers = [],
     isExamMode = false,
     isQuizMode = false,
+    isTypingMode = false,
     onStudyErrors,
 }) => {
     const [activeTab, setActiveTab] = useState<'overview' | 'errors' | 'performance'>('overview');
@@ -209,7 +211,7 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                         >
                             {performance.sub}
                         </motion.p>
-                        {(isExamMode || isQuizMode) && (
+                        {(isExamMode || isQuizMode || isTypingMode) && (
                             <motion.p
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -350,7 +352,7 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                 )}
 
                 {/* TAB: Domande da rivedere */}
-                {activeTab === 'errors' && (isExamMode || isQuizMode) && (
+                {activeTab === 'errors' && (isExamMode || isQuizMode || isTypingMode) && (
                     <motion.section
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -500,7 +502,15 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
                                     <span className="font-semibold text-theme-primary">
                                         {totalCards} domanda{totalCards === 1 ? '' : 'e'}
                                     </span>
-                                    . Questo riepilogo potrà in futuro confrontare il tempo con i tuoi quiz precedenti.
+                                    {totalCards > 0 && (
+                                        <>
+                                            {' '}— in media{' '}
+                                            <span className="font-semibold text-theme-primary">
+                                                {Math.round(durationSeconds / totalCards)}s
+                                            </span>{' '}
+                                            per domanda.
+                                        </>
+                                    )}
                                 </p>
                             </div>
                         </div>
