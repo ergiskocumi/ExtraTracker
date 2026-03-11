@@ -582,8 +582,9 @@ export const StudySessionPage: React.FC = () => {
     }, [session, currentCard, isSubmitting, currentCardIndex, mode, cardMode, handleComplete]);
 
     const handleBack = useCallback(async () => {
-        // Se non è exam mode e ci sono progressi, chiedi conferma
-        if (mode !== 'exam' && currentCardIndex > 0 && !showExitConfirm) {
+        // Se non è exam mode e ci sono progressi (almeno 1 carta valutata), chiedi conferma
+        const totalAnswered = stats.total;
+        if (mode !== 'exam' && totalAnswered > 0 && !showExitConfirm) {
             setShowExitConfirm(true);
             return;
         }
@@ -861,7 +862,25 @@ export const StudySessionPage: React.FC = () => {
                     </div>
 
                     {/* Right: Timer & Actions */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        {/* Mix/Exam mode: badge tipo carta corrente */}
+                        {(mode === 'mix' || mode === 'exam') && currentCard && (
+                            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
+                                cardMode === 'typing'
+                                    ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+                                    : cardMode === 'quiz'
+                                        ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                        : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            }`}>
+                                <span aria-hidden>
+                                    {cardMode === 'typing' ? '⌨️' : cardMode === 'quiz' ? '❓' : '🃏'}
+                                </span>
+                                <span className="hidden sm:inline">
+                                    {cardMode === 'typing' ? 'Typing' : cardMode === 'quiz' ? 'Quiz' : 'Flashcard'}
+                                </span>
+                            </div>
+                        )}
+
                         {/* Countdown Timer (if limit set) */}
                         {timeLeft !== null && (
                             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-mono tabular-nums ${
