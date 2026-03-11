@@ -14,7 +14,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
-import { studyService, type Deck, type QuizType, type SavedQuizSnapshot } from '../services/studyService';
+import { studyService, type Deck, type QuizType, type SavedQuizSnapshot, type StudyMode } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { DeckDetailContent } from '../components/Deck/DeckDetailContent';
 import { DeckSettings } from '../components/Deck/DeckSettings';
@@ -67,9 +67,9 @@ export const DeckDetailPage: React.FC = () => {
     useScrollToTop([id]);
 
     // Handlers
-    const handleStudy = useCallback(() => {
+    const handleStudy = useCallback((mode: StudyMode) => {
         if (!id) return;
-        navigate(`/study/${id}`);
+        navigate(`/study/${id}?mode=${mode}`);
     }, [id, navigate]);
 
     const handleBack = useCallback(() => {

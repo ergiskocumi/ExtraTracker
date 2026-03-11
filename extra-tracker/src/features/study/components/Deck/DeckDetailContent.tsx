@@ -32,7 +32,7 @@ import {
   Layers,
   Brain,
 } from 'lucide-react';
-import type { Deck, Card, SavedQuizSnapshot } from '../../services/studyService';
+import type { Deck, Card, SavedQuizSnapshot, StudyMode } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { FlashcardItem } from '../Flashcard/FlashcardItem';
@@ -64,7 +64,7 @@ const formatRelativeTime = (isoString: string | undefined): string => {
 interface DeckDetailContentProps {
   deck: Deck;
   onBack: () => void;
-  onStudy: () => void;
+  onStudy: (mode: StudyMode) => void;
   onGenerateQuiz?: () => void;
   onRepeatSavedQuiz?: (quiz: SavedQuizSnapshot) => void;
   onExamSolver?: () => void;
@@ -185,6 +185,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   onResetProgress,
 }) => {
   // State
+  const [selectedStudyMode, setSelectedStudyMode] = useState<StudyMode>('flashcard');
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const stored = localStorage.getItem('deck-view-mode');
     return stored === 'grid' ? 'grid' : 'list';
@@ -430,22 +431,35 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
               </div>
             </div>
 
-            {/* Study Button */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onStudy}
-              disabled={!canStudy}
-              className={cn(
-                "flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold transition-all whitespace-nowrap",
-                canStudy
-                  ? "bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/25"
-                  : "bg-theme-subtle text-theme-muted cursor-not-allowed"
-              )}
-            >
-              <Play className="w-4 h-4" />
-              Studia {stats.due > 0 && <span className="ml-1 text-xs bg-white/20 px-1.5 py-0.5 rounded">{stats.due}</span>}
-            </motion.button>
+            {/* Study Mode + Button */}
+            <div className="flex items-center gap-1.5">
+              <select
+                value={selectedStudyMode}
+                onChange={(e) => setSelectedStudyMode(e.target.value as StudyMode)}
+                disabled={!canStudy}
+                className="px-2.5 py-2 rounded-lg bg-theme-base border border-theme-default text-sm text-theme-primary focus:ring-2 focus:ring-primary-500 disabled:opacity-40"
+                aria-label="Modalità di studio"
+              >
+                <option value="flashcard">Flashcard</option>
+                <option value="typing">Typing</option>
+                <option value="mix">Mix</option>
+              </select>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onStudy(selectedStudyMode)}
+                disabled={!canStudy}
+                className={cn(
+                  "flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold transition-all whitespace-nowrap",
+                  canStudy
+                    ? "bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/25"
+                    : "bg-theme-subtle text-theme-muted cursor-not-allowed"
+                )}
+              >
+                <Play className="w-4 h-4" />
+                Studia {stats.due > 0 && <span className="ml-1 text-xs bg-white/20 px-1.5 py-0.5 rounded">{stats.due}</span>}
+              </motion.button>
+            </div>
           </div>
         </div>
 
