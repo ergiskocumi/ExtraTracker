@@ -34,10 +34,10 @@
   --text-disabled: rgba(255, 255, 255, 0.5);
   --text-placeholder: rgba(255, 255, 255, 0.42);
   
-  /* Borders */
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.2);
+  /* Borders — alzato per visibilità card in dark mode */
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --border-default: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.26);
   --border-focus: rgba(124, 58, 237, 0.5);
   
   /* Shadows */

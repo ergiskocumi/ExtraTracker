@@ -962,12 +962,18 @@ export const StudySessionPage: React.FC = () => {
 
             {/* Controls */}
             {isFlashcardMode && (
-                <footer className="study-session-footer flex-none px-4 sm:px-6 py-4 sm:py-6 border-t border-theme-default bg-theme-base backdrop-blur-xl">
-                    <StudyControls
-                        onRate={handleRate}
-                        disabled={isSubmitting}
-                        visible={isFlipped}
-                    />
+                <footer className="study-session-footer flex-none border-t border-theme-default bg-theme-base backdrop-blur-xl">
+                    {/* Titolo mazzo — sempre visibile, thumb zone friendly */}
+                    <div className="px-4 sm:px-6 pt-2 pb-1 flex items-center justify-center">
+                        <span className="text-xs text-theme-muted truncate max-w-[240px]">{session.deck.title}</span>
+                    </div>
+                    <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+                        <StudyControls
+                            onRate={handleRate}
+                            disabled={isSubmitting}
+                            visible={isFlipped}
+                        />
+                    </div>
                 </footer>
             )}
 
