@@ -7,6 +7,10 @@ export default {
   ],
   theme: {
     extend: {
+      maxWidth: {
+        content: '72rem',        // ~1152px - layout standard
+        'content-wide': '90rem', // ~1440px - layout ampio ma centrato
+      },
       colors: {
         // Dark theme base colors
         dark: {
