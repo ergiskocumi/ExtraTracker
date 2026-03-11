@@ -37,6 +37,7 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
     });
     const [saving, setSaving] = useState(false);
     const [showAlgorithmInfo, setShowAlgorithmInfo] = useState(false);
+    const originalAlgorithm = deck.algorithm || 'sm2';
 
     // Stato per la gestione dell'esame associato
     const [exams, setExams] = useState<Exam[]>([]);
@@ -292,6 +293,16 @@ export const DeckSettings: React.FC<DeckSettingsProps> = ({ deck, onUpdate }) =>
                         </label>
                     ))}
                 </div>
+                {settings.algorithm !== originalAlgorithm && (
+                    <div className="mt-3 flex items-start gap-2 px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/10">
+                        <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                            Cambiare algoritmo reimposterà i progressi di ripetizione spaziata di tutte le carte del mazzo.
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Impostazioni AI */}
