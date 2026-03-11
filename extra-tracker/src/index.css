@@ -30,9 +30,9 @@
   /* Text - White to gray scale */
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.85);
-  --text-muted: rgba(255, 255, 255, 0.6);
-  --text-disabled: rgba(255, 255, 255, 0.4);
-  --text-placeholder: rgba(255, 255, 255, 0.35);
+  --text-muted: rgba(255, 255, 255, 0.72);
+  --text-disabled: rgba(255, 255, 255, 0.5);
+  --text-placeholder: rgba(255, 255, 255, 0.42);
   
   /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.06);
@@ -112,9 +112,9 @@
   /* Text - Dark slate for maximum readability */
   --text-primary: #1a1a2e;
   --text-secondary: #253246;
-  --text-muted: #4b5a71;
-  --text-disabled: #7f8ca3;
-  --text-placeholder: #7f8ca3;
+  --text-muted: #3d4f68;
+  --text-disabled: #5d6e87;
+  --text-placeholder: #6b7c96;
   
   /* Borders - Stronger for better element recognition */
   --border-subtle: rgba(15, 23, 42, 0.1);
