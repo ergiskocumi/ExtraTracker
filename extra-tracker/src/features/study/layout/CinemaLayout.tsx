@@ -89,7 +89,7 @@ const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef, onSearchError }) =
                             border border-white/15 hover:border-white/30
                             text-white/80 hover:text-white
                             flex items-center justify-center
-                            opacity-0 group-hover/pdf:opacity-100
+                            opacity-40 group-hover/pdf:opacity-100
                             transition-all duration-200
                             focus-visible:opacity-100
                         "
@@ -108,7 +108,7 @@ const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef, onSearchError }) =
                             border border-white/15 hover:border-white/30
                             text-white/80 hover:text-white
                             flex items-center justify-center
-                            opacity-0 group-hover/pdf:opacity-100
+                            opacity-40 group-hover/pdf:opacity-100
                             transition-all duration-200
                             focus-visible:opacity-100
                         "

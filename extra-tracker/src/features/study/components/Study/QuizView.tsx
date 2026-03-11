@@ -334,11 +334,11 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
             {/* Badge AI distractor fallback */}
             {usedFallbackOptions && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-amber-600/80 dark:text-amber-400/70">
-                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Alcune opzioni sono state generate automaticamente
+                Opzioni generate automaticamente
               </span>
             )}
 
