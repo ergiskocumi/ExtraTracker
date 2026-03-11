@@ -342,37 +342,44 @@ export const QuizView: React.FC<QuizViewProps> = ({
               </span>
             )}
 
-            {/* Badge esito */}
+            {/* Feedback esito — barra prominente: icona + colore (mai solo colore) */}
             <AnimatePresence mode="wait">
               {result === "correct" && (
-                <motion.span key="correct"
-                  initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400"
+                <motion.div key="correct"
+                  initial={{ opacity: 0, scale: 0.92, y: 4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30"
                 >
-                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Corretto
-                </motion.span>
+                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-300">Corretto!</span>
+                </motion.div>
               )}
               {result === "wrong" && (
                 <motion.div key="wrong"
-                  initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="space-y-1.5"
+                  initial={{ opacity: 0, scale: 0.92, y: 4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                  className="space-y-2"
                 >
-                  <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-rose-600 dark:text-rose-400">
-                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Sbagliato
-                  </span>
-                  {/* Spiegazione inline sotto il badge */}
+                  <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30">
+                    <span className="flex-shrink-0 w-7 h-7 rounded-full bg-rose-500 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </span>
+                    <span className="text-sm font-bold text-rose-600 dark:text-rose-300">Sbagliato</span>
+                  </div>
                   {selectedExplanation && (
                     <motion.div
                       initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: 0.1 }}
+                      transition={{ duration: 0.15, delay: 0.08 }}
                       className="flex items-start gap-2 px-3 py-2 border rounded-lg border-rose-500/20 bg-rose-500/5"
                     >
                       <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -385,19 +392,18 @@ export const QuizView: React.FC<QuizViewProps> = ({
               )}
               {result === "dontKnow" && (
                 <motion.div key="dontknow"
-                  initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="space-y-1.5"
+                  initial={{ opacity: 0, scale: 0.92, y: 4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30"
                 >
-                  <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-amber-600 dark:text-amber-400">
-                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Non lo sapevo
                   </span>
-                  <p className="text-xs text-amber-600/80 dark:text-amber-200/60">
-                    La risposta corretta Ã¨ evidenziata nelle opzioni
-                  </p>
+                  <span className="text-sm font-bold text-amber-700 dark:text-amber-300">La risposta è evidenziata</span>
                 </motion.div>
               )}
             </AnimatePresence>
