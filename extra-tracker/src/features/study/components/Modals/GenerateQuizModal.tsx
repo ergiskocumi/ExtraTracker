@@ -51,7 +51,6 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
 
         const needsDynamicAllOption =
             totalCards >= MIN_QUIZ_CARDS &&
-            totalCards < 40 &&
             !PRESET_COUNTS.includes(totalCards as (typeof PRESET_COUNTS)[number]);
 
         if (needsDynamicAllOption) {
