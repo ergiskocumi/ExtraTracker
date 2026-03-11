@@ -185,7 +185,10 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   onResetProgress,
 }) => {
   // State
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const stored = localStorage.getItem('deck-view-mode');
+    return stored === 'grid' ? 'grid' : 'list';
+  });
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -407,7 +410,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
               {/* View Toggle */}
               <div className="flex items-center bg-theme-base rounded-lg border border-theme-default p-0.5">
                 <button
-                  onClick={() => setViewMode('list')}
+                  onClick={() => { setViewMode('list'); localStorage.setItem('deck-view-mode', 'list'); }}
                   className={cn(
                     "p-2 rounded-md transition-colors",
                     viewMode === 'list' ? "bg-theme-surface text-theme-primary" : "text-theme-muted hover:text-theme-primary"
@@ -416,7 +419,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                   <List className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => setViewMode('grid')}
+                  onClick={() => { setViewMode('grid'); localStorage.setItem('deck-view-mode', 'grid'); }}
                   className={cn(
                     "p-2 rounded-md transition-colors",
                     viewMode === 'grid' ? "bg-theme-surface text-theme-primary" : "text-theme-muted hover:text-theme-primary"
