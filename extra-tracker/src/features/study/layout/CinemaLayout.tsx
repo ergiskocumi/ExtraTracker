@@ -141,6 +141,8 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
     const { deckId } = useParams<{ deckId: string }>();
     const pdfReaderRef = useRef<PDFReaderRef>(null);
     const [activeSourceCardId, setActiveSourceCardId] = useState<string | null>(null);
+    // Mobile tab switch: 'pdf' | 'cards'
+    const [mobileTab, setMobileTab] = useState<'pdf' | 'cards'>('pdf');
 
     // Keyboard shortcuts: ArrowLeft/Right per navigare le pagine del PDF
     useEffect(() => {
@@ -250,56 +252,108 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
                     `,
                 }}
             />
-            {/* Main Body - Container principale con stile moderno */}
-            <div className="flex-1 w-full h-full overflow-hidden">
+
+            {/* Mobile: Tab switcher PDF | Card — visibile solo su sm- */}
+            <div className="sm:hidden flex-none flex items-center gap-1 px-3 pt-2 pb-1">
+                <button
+                    onClick={() => setMobileTab('pdf')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold transition-all ${
+                        mobileTab === 'pdf'
+                            ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                            : 'text-theme-muted hover:text-theme-primary hover:bg-theme-surface border border-transparent'
+                    }`}
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    PDF
+                </button>
+                <button
+                    onClick={() => setMobileTab('cards')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold transition-all ${
+                        mobileTab === 'cards'
+                            ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                            : 'text-theme-muted hover:text-theme-primary hover:bg-theme-surface border border-transparent'
+                    }`}
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    Card
+                </button>
+            </div>
+
+            {/* Main Body */}
+            <div className="flex-1 w-full min-h-0 overflow-hidden">
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.25, ease: 'easeOut' }}
                     className="h-full w-full px-2 sm:px-3 pb-2 sm:pb-3"
                 >
-                    <Group orientation="horizontal" className="h-full w-full">
-                        {/* Pannello Sinistro - PDF Viewer */}
-                        <Panel 
-                            defaultSize={PANEL_SIZES.LEFT_DEFAULT} 
-                            minSize={PANEL_SIZES.LEFT_MIN} 
-                            className="h-full w-full overflow-hidden min-w-0 pr-1 sm:pr-2"
-                        >
-                            <div className="h-full w-full rounded-2xl border border-theme-default bg-theme-elevated shadow-theme-md overflow-hidden">
-                                <PDFPanel 
-                                    pdfSrc={pdfSrc} 
-                                    pdfReaderRef={pdfReaderRef}
-                                    onSearchError={handleSearchError}
-                                />
-                            </div>
-                        </Panel>
+                    {/* Desktop: split panel */}
+                    <div className="hidden sm:block h-full w-full">
+                        <Group orientation="horizontal" className="h-full w-full">
+                            <Panel
+                                defaultSize={PANEL_SIZES.LEFT_DEFAULT}
+                                minSize={PANEL_SIZES.LEFT_MIN}
+                                className="h-full w-full overflow-hidden min-w-0 pr-1 sm:pr-2"
+                            >
+                                <div className="h-full w-full rounded-2xl border border-theme-default bg-theme-elevated shadow-theme-md overflow-hidden">
+                                    <PDFPanel
+                                        pdfSrc={pdfSrc}
+                                        pdfReaderRef={pdfReaderRef}
+                                        onSearchError={handleSearchError}
+                                    />
+                                </div>
+                            </Panel>
+                            <Separator className="w-2 sm:w-3 bg-transparent cursor-col-resize relative group">
+                                <div className="absolute inset-y-2 left-1/2 -translate-x-1/2 w-px bg-theme-surface group-hover:bg-primary-500/70 transition-colors rounded-full" />
+                            </Separator>
+                            <Panel
+                                defaultSize={PANEL_SIZES.RIGHT_DEFAULT}
+                                minSize={PANEL_SIZES.RIGHT_MIN}
+                                className="h-full overflow-hidden min-w-0 pl-1 sm:pl-2"
+                            >
+                                <div className="h-full rounded-2xl border border-theme-default bg-theme-elevated shadow-theme-md overflow-hidden">
+                                    <StudySidebar
+                                        deck={deck}
+                                        pdfSrc={pdfSrc}
+                                        onAddCard={handleAddCard}
+                                        onUpdateCard={handleUpdateCard}
+                                        compactMode={true}
+                                        onNavigateBack={handleNavigateBack}
+                                        onDeckUpdate={onDeckUpdate}
+                                        onShowSource={handleShowSource}
+                                        activeSourceCardId={activeSourceCardId}
+                                    />
+                                </div>
+                            </Panel>
+                        </Group>
+                    </div>
 
-                        {/* Resize Handle - Stile moderno discreto */}
-                        <Separator className="w-2 sm:w-3 bg-transparent cursor-col-resize relative group">
-                            <div className="absolute inset-y-2 left-1/2 -translate-x-1/2 w-px bg-theme-surface group-hover:bg-primary-500/70 transition-colors rounded-full" />
-                        </Separator>
-
-                        {/* Pannello Destro - Tools (Flashcards & Chat) */}
-                        <Panel 
-                            defaultSize={PANEL_SIZES.RIGHT_DEFAULT} 
-                            minSize={PANEL_SIZES.RIGHT_MIN} 
-                            className="h-full overflow-hidden min-w-0 pl-1 sm:pl-2"
-                        >
-                            <div className="h-full rounded-2xl border border-theme-default bg-theme-elevated shadow-theme-md overflow-hidden">
-                                <StudySidebar
-                                    deck={deck}
-                                    pdfSrc={pdfSrc}
-                                    onAddCard={handleAddCard}
-                                    onUpdateCard={handleUpdateCard}
-                                    compactMode={true}
-                                    onNavigateBack={handleNavigateBack}
-                                    onDeckUpdate={onDeckUpdate}
-                                    onShowSource={handleShowSource}
-                                    activeSourceCardId={activeSourceCardId}
-                                />
-                            </div>
-                        </Panel>
-                    </Group>
+                    {/* Mobile: fullscreen tab singolo */}
+                    <div className="sm:hidden h-full w-full rounded-2xl border border-theme-default bg-theme-elevated shadow-theme-md overflow-hidden">
+                        {mobileTab === 'pdf' ? (
+                            <PDFPanel
+                                pdfSrc={pdfSrc}
+                                pdfReaderRef={pdfReaderRef}
+                                onSearchError={handleSearchError}
+                            />
+                        ) : (
+                            <StudySidebar
+                                deck={deck}
+                                pdfSrc={pdfSrc}
+                                onAddCard={handleAddCard}
+                                onUpdateCard={handleUpdateCard}
+                                compactMode={true}
+                                onNavigateBack={handleNavigateBack}
+                                onDeckUpdate={onDeckUpdate}
+                                onShowSource={handleShowSource}
+                                activeSourceCardId={activeSourceCardId}
+                            />
+                        )}
+                    </div>
                 </motion.div>
             </div>
         </div>
