@@ -69,14 +69,20 @@ export interface PDFReaderRef {
      * Salta a una pagina specifica (0-based index)
      */
     jumpToPage: (pageIndex: number) => void;
-    
+
+    /** Salta alla pagina precedente */
+    jumpToPreviousPage: () => void;
+
+    /** Salta alla pagina successiva */
+    jumpToNextPage: () => void;
+
     /**
      * Cerca ed evidenzia un testo nel PDF
      * @param text - Il testo da cercare
      * @param options - Opzioni di ricerca (case sensitive, whole word, etc.)
      */
     highlightText: (text: string, options?: { caseSensitive?: boolean; wholeWords?: boolean }) => void;
-    
+
     /**
      * Salta a una pagina e poi evidenzia un testo
      * @param pageNumber - Numero di pagina (1-based)
@@ -448,6 +454,26 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                 }
             } catch (err) {
                 console.error('[PDFReader] Error jumping to page:', err);
+            }
+        },
+        jumpToPreviousPage: () => {
+            try {
+                const plugin = pageNavigationPluginInstance as any;
+                if (typeof plugin.jumpToPreviousPage === 'function') {
+                    plugin.jumpToPreviousPage();
+                }
+            } catch (err) {
+                console.error('[PDFReader] Error jumping to previous page:', err);
+            }
+        },
+        jumpToNextPage: () => {
+            try {
+                const plugin = pageNavigationPluginInstance as any;
+                if (typeof plugin.jumpToNextPage === 'function') {
+                    plugin.jumpToNextPage();
+                }
+            } catch (err) {
+                console.error('[PDFReader] Error jumping to next page:', err);
             }
         },
         highlightText: (text: string) => {

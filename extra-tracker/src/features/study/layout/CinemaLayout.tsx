@@ -10,7 +10,7 @@
  * - Callback memoizzati
  */
 
-import React, { memo, useCallback, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Panel, Group, Separator } from 'react-resizable-panels';
@@ -62,23 +62,63 @@ interface PDFPanelProps {
 }
 
 const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef, onSearchError }) => {
-    /**
-     * Keep PDFReader mounted to preserve its internal state.
-     * It safely handles a null pdfUrl internally.
-     */
-    
-    // Normalize pdfSrc to ensure it's either a valid string or null
     const normalizedPdfSrc = (pdfSrc && typeof pdfSrc === 'string') ? pdfSrc : null;
 
+    const goToPrev = useCallback(() => pdfReaderRef.current?.jumpToPreviousPage(), [pdfReaderRef]);
+    const goToNext = useCallback(() => pdfReaderRef.current?.jumpToNextPage(), [pdfReaderRef]);
+
     return (
-        <div className="h-full w-full">
-            {/* Always render PDFReader - it handles null pdfUrl internally */}
-            <PDFReader 
-                ref={pdfReaderRef} 
+        <div className="relative h-full w-full group/pdf">
+            <PDFReader
+                ref={pdfReaderRef}
                 pdfUrl={normalizedPdfSrc}
                 onSearchError={onSearchError}
                 className="scrollbar-pdf"
             />
+
+            {/* Overlay page navigation arrows — visibili al hover del panel */}
+            {normalizedPdfSrc && (
+                <>
+                    <button
+                        onClick={goToPrev}
+                        aria-label="Pagina precedente"
+                        className="
+                            absolute left-2 top-1/2 -translate-y-1/2 z-20
+                            w-9 h-9 rounded-full
+                            bg-black/40 hover:bg-black/65 backdrop-blur-sm
+                            border border-white/15 hover:border-white/30
+                            text-white/80 hover:text-white
+                            flex items-center justify-center
+                            opacity-0 group-hover/pdf:opacity-100
+                            transition-all duration-200
+                            focus-visible:opacity-100
+                        "
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={goToNext}
+                        aria-label="Pagina successiva"
+                        className="
+                            absolute right-2 top-1/2 -translate-y-1/2 z-20
+                            w-9 h-9 rounded-full
+                            bg-black/40 hover:bg-black/65 backdrop-blur-sm
+                            border border-white/15 hover:border-white/30
+                            text-white/80 hover:text-white
+                            flex items-center justify-center
+                            opacity-0 group-hover/pdf:opacity-100
+                            transition-all duration-200
+                            focus-visible:opacity-100
+                        "
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </>
+            )}
         </div>
     );
 });
@@ -101,6 +141,23 @@ export const CinemaLayout: React.FC<CinemaLayoutProps> = memo(({
     const { deckId } = useParams<{ deckId: string }>();
     const pdfReaderRef = useRef<PDFReaderRef>(null);
     const [activeSourceCardId, setActiveSourceCardId] = useState<string | null>(null);
+
+    // Keyboard shortcuts: ArrowLeft/Right per navigare le pagine del PDF
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                pdfReaderRef.current?.jumpToPreviousPage();
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                pdfReaderRef.current?.jumpToNextPage();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
 
     /**
