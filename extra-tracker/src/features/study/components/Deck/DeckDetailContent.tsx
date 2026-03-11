@@ -30,6 +30,7 @@ import {
   Target,
   Layers,
   Brain,
+  FileText,
 } from 'lucide-react';
 import type { Deck, Card, SavedQuizSnapshot, StudyMode } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
@@ -308,6 +309,24 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           )}
         </div>
 
+        {/* Banner PDF — visibile e trovabile quando il deck ha un documento */}
+        {onReadPdf && deck.pdfUrl && (
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={onReadPdf}
+            className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/25 hover:border-blue-500/40 transition-all text-left"
+          >
+            <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-blue-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-theme-primary">Apri PDF</p>
+              <p className="text-xs text-theme-muted truncate">Leggi e sottolinea il documento</p>
+            </div>
+          </motion.button>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
           <StatCard
@@ -555,15 +574,6 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
               >
                 <ListChecks className={`w-4 h-4 ${stats.total >= 10 ? 'text-indigo-500' : 'text-theme-muted'}`} />
                 <span>Genera Quiz</span>
-              </button>
-            )}
-            {onReadPdf && deck.pdfUrl && (
-              <button
-                onClick={onReadPdf}
-                className="w-full flex items-center gap-2 p-3 rounded-lg bg-theme-surface hover:bg-theme-surface/80 border border-theme-default transition-all text-sm text-theme-primary"
-              >
-                <Calendar className="w-4 h-4 text-blue-500" />
-                <span>PDF Reader</span>
               </button>
             )}
           </div>

@@ -251,11 +251,19 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                             </div>
 
                             {/* Content */}
-                            <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 md:p-12 pt-16 sm:pt-20">
-                                <div className="text-center max-w-lg w-full overflow-y-auto max-h-full">
-                                    <CardContentRenderer 
-                                        content={card.back}
-                                        className="text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-theme-primary leading-relaxed"
+                            <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 md:p-12 pt-16 sm:pt-20 pb-12 sm:pb-14">
+                                <div className="relative w-full max-w-lg">
+                                    <div className="overflow-y-auto max-h-full text-center" style={{ maxHeight: 'clamp(120px, 40vh, 320px)' }}>
+                                        <CardContentRenderer
+                                            content={card.back}
+                                            className="text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-theme-primary leading-relaxed"
+                                        />
+                                    </div>
+                                    {/* Scroll shadow: compare quando il contenuto supera l'altezza */}
+                                    <div
+                                        className="pointer-events-none absolute bottom-0 left-0 right-0 h-8"
+                                        style={{ background: 'linear-gradient(to bottom, transparent, var(--bg-card, rgba(255,255,255,0.06)))' }}
+                                        aria-hidden
                                     />
                                 </div>
                             </div>
