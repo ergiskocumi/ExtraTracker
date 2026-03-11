@@ -258,7 +258,14 @@ export const TypingView: React.FC<TypingViewProps> = ({
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                             </svg>
                                         </div>
-                                        <span className="text-base text-emerald-200 font-medium">{feedback}</span>
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            <span className="text-base text-emerald-200 font-medium">{feedback}</span>
+                                            {similarity !== null && (
+                                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                                    {Math.round(similarity * 100)}% preciso
+                                                </span>
+                                            )}
+                                        </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
