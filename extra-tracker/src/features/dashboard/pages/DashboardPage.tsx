@@ -199,7 +199,7 @@ export const DashboardPage = () => {
                                         onClick={() => navigate(`/study/${deck.id}/session?mode=flashcard`)}
                                         onMouseEnter={pagePreloaders.studySession}
                                         onFocus={pagePreloaders.studySession}
-                                        className={`dashboard-card-cta w-full py-2.5 sm:py-3 px-4 rounded-xl text-sm font-semibold tracking-wide transition-all duration-300 border
+                                        className={`dashboard-card-cta inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-semibold tracking-wide transition-all duration-300 border
                                                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent
                                                  ${hasDueCards ? 'dashboard-card-cta--accent' : 'dashboard-card-cta--quiet'}
                                                  ${hasDueCards
@@ -207,7 +207,7 @@ export const DashboardPage = () => {
                                                     : 'bg-theme-surface border-theme-default text-theme-secondary hover:bg-theme-card hover:text-theme-primary hover:border-theme-strong'
                                                  }`}
                                     >
-                                        {hasDueCards ? 'Ripassa Ora' : 'Ripassa'}
+                                        {hasDueCards ? 'Ripassa ora' : 'Ripassa'}
                                     </button>
                                 </div>
                             </div>
