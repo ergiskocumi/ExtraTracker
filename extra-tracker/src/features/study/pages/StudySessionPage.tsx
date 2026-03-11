@@ -131,6 +131,9 @@ export const StudySessionPage: React.FC = () => {
         easy: 0,
     });
 
+    // Conferma uscita sessione
+    const [showExitConfirm, setShowExitConfirm] = useState(false);
+
     // Pausa/Resume state (solo per mode='exam')
     const [showResumeModal, setShowResumeModal] = useState(false);
     const [savedProgress, setSavedProgress] = useState<any | null>(null);
@@ -579,6 +582,13 @@ export const StudySessionPage: React.FC = () => {
     }, [session, currentCard, isSubmitting, currentCardIndex, mode, cardMode, handleComplete]);
 
     const handleBack = useCallback(async () => {
+        // Se non è exam mode e ci sono progressi, chiedi conferma
+        if (mode !== 'exam' && currentCardIndex > 0 && !showExitConfirm) {
+            setShowExitConfirm(true);
+            return;
+        }
+        setShowExitConfirm(false);
+
         // Se è un esame e ci sono progressi, salva prima di uscire
         if (mode === 'exam' && session && deckId && currentCardIndex > 0) {
             try {
@@ -605,7 +615,7 @@ export const StudySessionPage: React.FC = () => {
         }
 
         navigate(deckId ? `/study/deck/${deckId}` : '/study');
-    }, [navigate, deckId, mode, session, currentCardIndex, stats, elapsedSeconds, answersHistory, focus, length, timeLimitMinutes, questionCount, direction, examType, examDifficulty]);
+    }, [navigate, deckId, mode, session, currentCardIndex, stats, elapsedSeconds, answersHistory, focus, length, timeLimitMinutes, questionCount, direction, examType, examDifficulty, showExitConfirm]);
 
     const resetForNewQuizRun = useCallback(() => {
         if (sessionKey) {
@@ -834,7 +844,7 @@ export const StudySessionPage: React.FC = () => {
                         <div className="p-1.5 rounded-lg bg-theme-surface border border-theme-default group-hover:border-theme-strong transition-colors">
                             <ArrowLeft className="w-4 h-4" />
                         </div>
-                        <span className="hidden sm:inline text-sm font-medium">Esci</span>
+                        <span className="text-sm font-medium">Esci</span>
                     </button>
 
                     {/* Center: Progress & Stats */}
@@ -959,6 +969,32 @@ export const StudySessionPage: React.FC = () => {
                         visible={isFlipped}
                     />
                 </footer>
+            )}
+
+            {/* Conferma uscita sessione */}
+            {showExitConfirm && (
+                <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="w-full max-w-sm rounded-2xl bg-theme-elevated border border-theme-default shadow-theme-lg p-6 space-y-4">
+                        <div className="text-center">
+                            <p className="text-base font-semibold text-theme-primary">Uscire dalla sessione?</p>
+                            <p className="text-sm text-theme-muted mt-1">Il progresso di questa sessione non verrà salvato.</p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowExitConfirm(false)}
+                                className="flex-1 min-h-[44px] rounded-xl border border-theme-default text-theme-secondary hover:text-theme-primary hover:bg-theme-surface font-medium transition-all"
+                            >
+                                Continua
+                            </button>
+                            <button
+                                onClick={handleBack}
+                                className="flex-1 min-h-[44px] rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-semibold transition-all"
+                            >
+                                Esci
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
