@@ -839,13 +839,11 @@ export const StudySessionPage: React.FC = () => {
                     {/* Left: Exit Button */}
                     <button
                         onClick={handleBack}
-                        className="flex items-center gap-2 px-3 py-2 -ml-2 rounded-xl text-theme-secondary hover:text-theme-primary hover:bg-theme-surface transition-all group"
+                        className="flex items-center gap-2.5 px-4 py-2 -ml-2 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white border border-indigo-500/20 hover:border-indigo-500 shadow-sm shadow-indigo-500/10 transition-all duration-300 group active:scale-95"
                         title="Esci dalla sessione"
                     >
-                        <div className="p-1.5 rounded-lg bg-theme-surface border border-theme-default group-hover:border-theme-strong transition-colors">
-                            <ArrowLeft className="w-4 h-4" />
-                        </div>
-                        <span className="text-sm font-medium">Esci</span>
+                        <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                        <span className="text-sm font-bold tracking-tight">Esci</span>
                     </button>
 
                     {/* Center: Progress & Stats */}

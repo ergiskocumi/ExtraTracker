@@ -31,6 +31,8 @@ import {
   Lightbulb,
   MoreHorizontal,
   BookOpen,
+  MonitorPlay,
+  Zap,
 } from 'lucide-react';
 import type { Deck, Card, SavedQuizSnapshot, StudyMode } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
@@ -294,14 +296,16 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
       {/* ───────── PAGE HEADER ───────── */}
       <header className="mb-6">
         {/* Breadcrumb row */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-6">
           <button
             onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm text-theme-secondary hover:text-theme-primary transition-colors"
+            className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-theme-surface border border-theme-default text-xs font-semibold text-theme-secondary hover:text-primary-500 hover:border-primary-500/30 hover:bg-primary-500/5 transition-all active:scale-95 shadow-sm"
           >
-            <ChevronLeft className="w-4 h-4" />
-            <span>Mazzi</span>
+            <ChevronLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+            <span>Torna all'Esame</span>
           </button>
+          <div className="h-4 w-px bg-theme-subtle mx-1" />
+          <span className="text-xs font-medium text-theme-muted">Dettaglio Capitolo</span>
         </div>
 
         {/* Title + actions row */}
@@ -323,10 +327,21 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
             {onReadPdf && deck.pdfUrl && (
               <button
                 onClick={onReadPdf}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-500/8 hover:bg-blue-500/15 border border-blue-500/20 transition-colors"
+                className="group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-xl text-sm font-bold text-white overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                <FileText className="w-4 h-4" />
-                PDF
+                {/* Background Gradient & Effects */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 group-hover:from-blue-500 group-hover:to-indigo-500 transition-colors" />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_70%)] transition-opacity" />
+                
+                <div className="relative flex items-center gap-2 !text-white">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-white/20 backdrop-blur-sm">
+                    <MonitorPlay className="w-3.5 h-3.5 !text-white" strokeWidth={2.5} />
+                  </div>
+                  <span className="tracking-tight !text-white">Focus & Flow</span>
+                </div>
+                
+                {/* Subtle Glow */}
+                <div className="absolute -inset-px rounded-xl border border-white/20 pointer-events-none" />
               </button>
             )}
 
@@ -348,40 +363,46 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
               className={cn(
                 'min-h-[40px] inline-flex items-center gap-2 px-5 py-2 rounded-lg font-semibold text-sm transition-colors',
                 canStudy
-                  ? 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white shadow-md shadow-primary-500/20'
+                  ? 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700 !text-white shadow-md shadow-primary-500/20'
                   : 'bg-theme-subtle text-theme-muted cursor-not-allowed',
               )}
             >
-              <Play className="w-4 h-4" />
-              Studia
+              <Play className="w-4 h-4 !text-white" />
+              <span className="!text-white">Studia</span>
               {stats.due > 0 && (
-                <span className="ml-0.5 text-xs bg-white/20 px-1.5 py-0.5 rounded">{stats.due}</span>
+                <span className="ml-0.5 text-xs bg-white/20 !text-white px-1.5 py-0.5 rounded">{stats.due}</span>
               )}
             </button>
           </div>
         </div>
 
         {/* Compact stats bar */}
-        <div className="mt-5 flex items-center gap-5 text-sm">
-          <span className="flex items-center gap-1.5 text-theme-secondary tabular-nums">
-            <Layers className="w-4 h-4 text-sky-500" />
-            <span className="font-semibold text-theme-primary">{stats.total}</span> carte
-          </span>
+        <div className="mt-6 flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-500/5 border border-sky-500/10 text-xs sm:text-sm transition-colors hover:bg-sky-500/10">
+            <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-500" />
+            <span className="font-bold text-theme-primary tabular-nums">{stats.total}</span>
+            <span className="text-theme-secondary font-medium">carte</span>
+          </div>
+
           {stats.due > 0 && (
-            <span className="flex items-center gap-1.5 text-theme-secondary tabular-nums">
-              <Clock className="w-4 h-4 text-orange-500" />
-              <span className="font-semibold text-orange-600 dark:text-orange-400">{stats.due}</span> da studiare
-            </span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/5 border border-orange-500/10 text-xs sm:text-sm transition-colors hover:bg-orange-500/10">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
+              <span className="font-bold text-orange-600 dark:text-orange-400 tabular-nums">{stats.due}</span>
+              <span className="text-theme-secondary font-medium">da studiare</span>
+            </div>
           )}
-          <span className="flex items-center gap-1.5 text-theme-secondary tabular-nums">
-            <Target className="w-4 h-4 text-emerald-500" />
-            <span className="font-semibold text-theme-primary">{stats.mastery}%</span> padronanza
-          </span>
+
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-xs sm:text-sm transition-colors hover:bg-emerald-500/10">
+            <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
+            <span className="font-bold text-theme-primary tabular-nums">{stats.mastery}%</span>
+            <span className="text-theme-secondary font-medium">padronanza</span>
+          </div>
+
           {deck.updatedAt && (
-            <span className="hidden md:flex items-center gap-1.5 text-theme-muted text-xs">
-              <Calendar className="w-3.5 h-3.5" />
-              Aggiornato {formatRelativeTime(deck.updatedAt)}
-            </span>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-theme-subtle/30 border border-theme-default text-[11px] text-theme-muted">
+              <Calendar className="w-3 h-3" />
+              <span>Aggiornato {formatRelativeTime(deck.updatedAt)}</span>
+            </div>
           )}
         </div>
       </header>
@@ -553,27 +574,37 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           {/* AI tools */}
           <SidebarSection
             title="Strumenti AI"
-            icon={Brain}
+            icon={Sparkles}
             iconColor="text-primary-500"
-            className="border-primary-500/15 bg-gradient-to-b from-primary-500/[0.04] to-transparent"
+            className="border-primary-500/20 bg-gradient-to-br from-primary-500/[0.05] via-transparent to-primary-500/[0.02] shadow-sm shadow-primary-500/5"
           >
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-1 gap-2">
               {onMagicGenerate && (
                 <button
                   onClick={onMagicGenerate}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-theme-primary hover:bg-theme-subtle active:bg-theme-base transition-colors"
+                  className="group w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold text-theme-primary bg-theme-surface border border-theme-default hover:border-primary-500/40 hover:bg-primary-500/[0.02] hover:shadow-md hover:shadow-primary-500/5 transition-all active:scale-[0.98]"
                 >
-                  <Sparkles className="w-4 h-4 text-primary-500 flex-shrink-0" />
-                  Magic Generate
+                  <div className="w-8 h-8 rounded-lg bg-primary-500/10 flex items-center justify-center group-hover:bg-primary-500/20 transition-colors">
+                    <Sparkles className="w-4 h-4 text-primary-500" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <span>Magic Generate</span>
+                    <span className="text-[10px] text-theme-muted font-normal group-hover:text-primary-500/70 transition-colors">Crea flashcard istantanee</span>
+                  </div>
                 </button>
               )}
               {onExamSolver && (
                 <button
                   onClick={onExamSolver}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-theme-primary hover:bg-theme-subtle active:bg-theme-base transition-colors"
+                  className="group w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold text-theme-primary bg-theme-surface border border-theme-default hover:border-amber-500/40 hover:bg-amber-500/[0.02] hover:shadow-md hover:shadow-amber-500/5 transition-all active:scale-[0.98]"
                 >
-                  <Target className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                  Exam Solver
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
+                    <Target className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <span>Exam Solver</span>
+                    <span className="text-[10px] text-theme-muted font-normal group-hover:text-amber-500/70 transition-colors">Risolvi simulazioni d'esame</span>
+                  </div>
                 </button>
               )}
               {onGenerateQuiz && (
@@ -586,19 +617,27 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                       : 'Genera un quiz da questo mazzo'
                   }
                   className={cn(
-                    'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors',
+                    'group w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98]',
                     stats.total >= 10
-                      ? 'text-theme-primary hover:bg-theme-subtle active:bg-theme-base'
-                      : 'text-theme-muted cursor-not-allowed opacity-50',
+                      ? 'text-theme-primary bg-theme-surface border border-theme-default hover:border-indigo-500/40 hover:bg-indigo-500/[0.02] hover:shadow-md hover:shadow-indigo-500/5'
+                      : 'text-theme-muted bg-theme-surface/50 border border-theme-subtle cursor-not-allowed opacity-60',
                   )}
                 >
-                  <ListChecks
-                    className={cn(
-                      'w-4 h-4 flex-shrink-0',
-                      stats.total >= 10 ? 'text-indigo-500' : 'text-theme-muted',
-                    )}
-                  />
-                  Genera Quiz
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                    stats.total >= 10 ? "bg-indigo-500/10 group-hover:bg-indigo-500/20" : "bg-theme-subtle"
+                  )}>
+                    <ListChecks
+                      className={cn(
+                        'w-4 h-4 flex-shrink-0',
+                        stats.total >= 10 ? 'text-indigo-500' : 'text-theme-muted',
+                      )}
+                    />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <span>Genera Quiz</span>
+                    <span className="text-[10px] text-theme-muted font-normal group-hover:text-indigo-500/70 transition-colors">Mettiti alla prova</span>
+                  </div>
                 </button>
               )}
             </div>
@@ -640,14 +679,25 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           {onReadPdf && deck.pdfUrl && (
             <button
               onClick={onReadPdf}
-              className="sm:hidden w-full flex items-center gap-3 p-3.5 rounded-xl bg-blue-500/8 hover:bg-blue-500/15 active:bg-blue-500/20 border border-blue-500/20 transition-colors text-left"
+              className="sm:hidden w-full group relative flex items-center gap-4 p-4 rounded-2xl overflow-hidden transition-all active:scale-[0.98]"
             >
-              <div className="w-9 h-9 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0">
-                <FileText className="w-5 h-5 text-blue-500" />
+              {/* Background with vibrant gradient */}
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 shadow-lg shadow-blue-500/20" />
+              
+              <div className="relative w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0 border border-white/30">
+                <MonitorPlay className="w-6 h-6 text-white" strokeWidth={2.5} />
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-theme-primary">Apri PDF</p>
-                <p className="text-xs text-theme-muted truncate">Leggi e sottolinea il documento</p>
+              
+              <div className="relative min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-base font-bold !text-white tracking-tight">Focus & Flow</p>
+                  <div className="px-1.5 py-0.5 rounded-md bg-white/20 border border-white/30 text-[10px] font-black !text-white uppercase tracking-widest">Cinema</div>
+                </div>
+                <p className="text-xs !text-white/80 mt-0.5 line-clamp-1">Studio immersivo: PDF e Flashcard affiancati</p>
+              </div>
+
+              <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white group-active:scale-90 transition-all">
+                <ChevronLeft className="w-4 h-4 rotate-180" />
               </div>
             </button>
           )}
@@ -795,14 +845,14 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
             className={cn(
               'flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors',
               canStudy
-                ? 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white shadow-lg shadow-primary-500/25'
+                ? 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700 !text-white shadow-lg shadow-primary-500/25'
                 : 'bg-theme-subtle text-theme-muted cursor-not-allowed',
             )}
           >
-            <Play className="w-4 h-4" />
-            Studia
+            <Play className="w-4 h-4 !text-white" />
+            <span className="!text-white">Studia</span>
             {stats.due > 0 && (
-              <span className="ml-0.5 text-xs bg-white/20 px-1.5 py-0.5 rounded">{stats.due}</span>
+              <span className="ml-0.5 text-xs bg-white/20 !text-white px-1.5 py-0.5 rounded">{stats.due}</span>
             )}
           </button>
         </div>

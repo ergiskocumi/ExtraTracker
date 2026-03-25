@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, HelpCircle, Lightbulb, AlertCircle } from "lucide-react";
+import { Check, X, HelpCircle, Lightbulb, AlertCircle, Quote } from "lucide-react";
 import type { Card, ReviewRating } from "../../services/studyService";
 import { cn } from "../../../../lib/utils";
 
@@ -251,10 +251,17 @@ export const QuizView: React.FC<QuizViewProps> = ({
   }, [card.id]);
 
   const getOptionStyles = (option: string) => {
+    const isVero = option.toLowerCase().includes("vero") || option.toLowerCase().includes("true");
+    const isFalso = option.toLowerCase().includes("falso") || option.toLowerCase().includes("false");
+    
     const baseStyles =
-      "border rounded-2xl transition-all duration-200 text-left group relative overflow-hidden flex flex-col items-center justify-center p-4 min-h-[120px] sm:min-h-[160px]";
+      "border-2 rounded-3xl transition-all duration-300 text-left group relative overflow-hidden flex flex-col items-center justify-center p-6 min-h-[180px] sm:min-h-[220px] shadow-sm";
 
     if (!selectedOption && !result) {
+      if (isTrueFalse) {
+        if (isVero) return cn(baseStyles, "border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:shadow-emerald-500/10");
+        if (isFalso) return cn(baseStyles, "border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 hover:border-rose-500/40 hover:shadow-rose-500/10");
+      }
       return cn(
         baseStyles,
         "border-theme-default bg-theme-surface hover:bg-theme-surface-hover hover:border-primary-500/30 hover:shadow-lg hover:shadow-primary-500/5"
@@ -267,27 +274,27 @@ export const QuizView: React.FC<QuizViewProps> = ({
     if (result === "dontKnow" && isCorrectOption) {
       return cn(
         baseStyles,
-        "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-100 scale-[1.02] ring-2 ring-amber-500/30 shadow-lg shadow-amber-500/10"
+        "border-amber-500 bg-amber-500/20 text-amber-700 dark:text-amber-100 scale-[1.02] ring-4 ring-amber-500/20 shadow-xl shadow-amber-500/20"
       );
     }
 
     if (isCorrectOption) {
       return cn(
         baseStyles,
-        "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-100 scale-[1.02] shadow-lg shadow-emerald-500/10"
+        "border-emerald-500 bg-emerald-500/20 text-emerald-700 dark:text-emerald-100 scale-[1.02] shadow-xl shadow-emerald-500/20"
       );
     }
 
     if (isSelectedOption) {
       return cn(
         baseStyles,
-        "border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-100 shadow-lg shadow-rose-500/10"
+        "border-rose-500 bg-rose-500/20 text-rose-700 dark:text-rose-100 shadow-xl shadow-rose-500/20"
       );
     }
 
     return cn(
       baseStyles,
-      "border-theme-subtle bg-theme-surface/30 text-theme-disabled scale-[0.98] opacity-60"
+      "border-theme-subtle bg-theme-surface/30 text-theme-disabled scale-[0.98] opacity-40 grayscale"
     );
   };
 
@@ -335,99 +342,147 @@ export const QuizView: React.FC<QuizViewProps> = ({
   const continueButtonText = result === "dontKnow" ? "Ho capito" : "Avanti";
 
   return (
-    <div className="flex flex-col w-full h-full max-w-6xl px-3 mx-auto sm:px-4 lg:px-6">
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden border rounded-2xl border-theme-default bg-theme-elevated shadow-theme-lg">
-        
-        {/* area domanda */}
-        <div className="flex-none px-6 py-8 sm:px-10 sm:py-12 border-b border-theme-subtle bg-theme-surface/30">
+    <div className="flex flex-col w-full h-full max-w-6xl px-3 mx-auto sm:px-4 lg:px-6 gap-4 sm:gap-6 py-2 sm:py-4">
+      <motion.div 
+        layout
+        transition={{
+          layout: { type: "spring", stiffness: 200, damping: 30 },
+        }}
+        className={cn(
+          "flex-1 flex flex-col min-h-0",
+          !result ? "justify-center" : "justify-start pt-4"
+        )}
+      >
+        {/* area domanda - Dimensioni ottimizzate per visibilità immediata */}
+        <motion.div 
+          layout
+          transition={{
+            layout: { type: "spring", stiffness: 200, damping: 30 },
+          }}
+          className={cn(
+            "flex-none relative overflow-hidden border rounded-[2rem] border-theme-default bg-theme-elevated shadow-theme-lg p-6 sm:p-10 lg:p-12",
+            !result ? "mb-6 sm:mb-10" : "mb-4 sm:mb-6"
+          )}
+        >
+          {/* Decorazione Quote - Più elegante e viola */}
+          <div className="absolute top-4 left-6 text-purple-500/10">
+            <Quote className="w-8 h-8 sm:w-12 sm:h-12 fill-current" />
+          </div>
+
           <motion.h2 
+            layout="position"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-xl font-bold leading-tight text-center break-words whitespace-pre-wrap sm:text-2xl md:text-3xl lg:text-4xl text-theme-primary"
+            className="relative z-10 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold leading-relaxed text-center break-words whitespace-pre-wrap text-theme-primary tracking-tight max-w-3xl mx-auto"
+            style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" }}
           >
             {question}
           </motion.h2>
 
-          {/* Badge AI distractor fallback */}
+          {/* Badge AI distractor fallback - Più compatto */}
           {usedFallbackOptions && (
-            <div className="flex justify-center mt-4">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400">
-                <AlertCircle className="w-3.5 h-3.5" />
-                Opzioni generate automaticamente
+            <motion.div layout="position" className="flex justify-center mt-4">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+                <AlertCircle className="w-3 h-3" />
+                AI Generated
               </span>
-            </div>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
 
-        {/* area feedback e opzioni */}
-        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
-          {/* Feedback esito */}
+        {/* Area Feedback e Opzioni - Ottimizzata per evitare scroll */}
+        <div className="flex flex-col min-h-0 gap-4 sm:gap-6">
+          {/* Feedback esito - Più compatto */}
           <AnimatePresence mode="wait">
             {result && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="px-6 py-4 border-b border-theme-subtle"
+                initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                transition={{ 
+                  type: "spring", 
+                  stiffness: 300, 
+                  damping: 25,
+                  opacity: { duration: 0.2 }
+                }}
+                className="w-full max-w-4xl mx-auto mb-4 sm:mb-6"
               >
                 {result === "correct" && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                        <Check className="w-5 h-5 text-white" strokeWidth={3} />
+                    <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-[2rem] bg-emerald-500/10 border-2 border-emerald-500/20 shadow-lg shadow-emerald-500/5">
+                      <div className="p-2 rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+                        <Check className="w-6 h-6" strokeWidth={4} />
                       </div>
-                      <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">Ottimo! Risposta corretta.</span>
+                      <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight uppercase italic">Ottimo lavoro!</span>
                     </div>
                     {explanation && (
-                      <div className="flex items-start gap-3 px-4 py-3 border rounded-xl border-emerald-500/10 bg-emerald-500/5">
-                        <Lightbulb className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm leading-relaxed text-theme-secondary">{explanation}</p>
-                      </div>
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="px-8 py-6 border-2 rounded-[2rem] border-emerald-500/10 bg-emerald-500/5 shadow-inner"
+                      >
+                        <p className="text-base sm:text-lg md:text-xl leading-relaxed text-theme-primary text-center font-medium italic">
+                          <Quote className="w-4 h-4 inline-block -mt-2 mr-2 opacity-20 rotate-180" />
+                          {explanation}
+                          <Quote className="w-4 h-4 inline-block -mt-2 ml-2 opacity-20" />
+                        </p>
+                      </motion.div>
                     )}
                   </div>
                 )}
 
                 {result === "wrong" && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center shadow-lg shadow-rose-500/20">
-                        <X className="w-5 h-5 text-white" strokeWidth={3} />
+                    <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-[2rem] bg-rose-500/10 border-2 border-rose-500/20 shadow-lg shadow-rose-500/5">
+                      <div className="p-2 rounded-full bg-rose-500 text-white shadow-lg shadow-rose-500/20">
+                        <X className="w-6 h-6" strokeWidth={4} />
                       </div>
-                      <span className="text-lg font-bold text-rose-600 dark:text-rose-400">Quasi! La risposta corretta era un'altra.</span>
+                      <span className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight uppercase italic">Non proprio...</span>
                     </div>
                     {(selectedExplanation || explanation) && (
-                      <div className="flex items-start gap-3 px-4 py-3 border rounded-xl border-rose-500/10 bg-rose-500/5">
-                        <HelpCircle className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" />
-                        <div className="space-y-2">
-                          {selectedExplanation && <p className="text-sm leading-relaxed text-theme-secondary">{selectedExplanation}</p>}
-                          {explanation && <p className="text-sm leading-relaxed text-theme-secondary">{explanation}</p>}
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="px-8 py-6 border-2 rounded-[2rem] border-rose-500/10 bg-rose-500/5 shadow-inner"
+                      >
+                        <div className="space-y-3 text-center">
+                          {selectedExplanation && (
+                            <p className="text-base sm:text-lg md:text-xl leading-relaxed text-theme-primary font-medium italic">
+                              {selectedExplanation}
+                            </p>
+                          )}
+                          {explanation && (
+                            <p className="text-base sm:text-lg md:text-xl leading-relaxed text-theme-secondary font-medium italic opacity-80">
+                              {explanation}
+                            </p>
+                          )}
                         </div>
-                      </div>
-                    )}
-                    {isTrueFalse && correctStatement && (
-                      <div className="flex items-start gap-3 px-4 py-3 border rounded-xl border-emerald-500/10 bg-emerald-500/5">
-                        <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm leading-relaxed text-theme-secondary">
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">Versione corretta:</span> {correctStatement}
-                        </p>
-                      </div>
+                      </motion.div>
                     )}
                   </div>
                 )}
 
                 {result === "dontKnow" && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-                        <HelpCircle className="w-5 h-5 text-white" strokeWidth={3} />
+                    <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-[2rem] bg-amber-500/10 border-2 border-amber-500/20 shadow-lg shadow-amber-500/5">
+                      <div className="p-2 rounded-full bg-amber-500 text-white shadow-lg shadow-amber-500/20">
+                        <HelpCircle className="w-6 h-6" strokeWidth={4} />
                       </div>
-                      <span className="text-lg font-bold text-amber-600 dark:text-amber-400">Nessun problema, ecco la soluzione.</span>
+                      <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 tracking-tight uppercase italic">Ecco la soluzione</span>
                     </div>
                     {explanation && (
-                      <div className="flex items-start gap-3 px-4 py-3 border rounded-xl border-amber-500/10 bg-amber-500/5">
-                        <Lightbulb className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm leading-relaxed text-theme-secondary">{explanation}</p>
-                      </div>
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="px-8 py-6 border-2 rounded-[2rem] border-amber-500/10 bg-amber-500/5 shadow-inner"
+                      >
+                        <p className="text-base sm:text-lg md:text-xl leading-relaxed text-theme-primary text-center font-medium italic">
+                          {explanation}
+                        </p>
+                      </motion.div>
                     )}
                   </div>
                 )}
@@ -435,13 +490,26 @@ export const QuizView: React.FC<QuizViewProps> = ({
             )}
           </AnimatePresence>
 
-          {/* Area Opzioni */}
-          <div className="p-6 sm:p-8 lg:p-10">
+          {/* Area Opzioni - Grid ottimizzata */}
+          <motion.div 
+            layout
+            transition={{
+              layout: { type: "spring", stiffness: 200, damping: 30 },
+            }}
+            className={cn(
+              "flex items-center justify-center",
+              !result ? "flex-1" : "flex-none"
+            )}
+          >
             <motion.div
+              layout
               animate={isShaking ? { x: [-6, 6, -5, 5, -3, 3, 0] } : {}}
-              transition={{ duration: 0.35, ease: "easeOut" }}
+              transition={{ 
+                x: { duration: 0.35, ease: "easeOut" },
+                layout: { type: "spring", stiffness: 200, damping: 30 }
+              }}
               className={cn(
-                "grid gap-4 sm:gap-6",
+                "grid gap-4 sm:gap-6 w-full max-w-5xl mx-auto",
                 isTrueFalse ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 md:grid-cols-2"
               )}
             >
@@ -457,93 +525,89 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     ref={(el) => { optionsRef.current[index] = el; }}
                     onClick={() => handleSelect(option)}
                     disabled={!!selectedOption || isSubmitting || !!result}
-                    className={getOptionStyles(option)}
+                    className={cn(
+                      getOptionStyles(option),
+                      "min-h-[140px] sm:min-h-[180px]" // Altezza ridotta per visibilità
+                    )}
                   >
                     {!isTrueFalse && <div className={getLabelStyles(option)}>{String.fromCharCode(65 + index)}</div>}
                     
                     <div className="flex flex-col items-center gap-4">
                       {isTrueFalse && (
                         <div className={cn(
-                          "w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300",
-                          isVero ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500",
-                          (selectedOption || result) && !isCorrectOption && !isSelectedOption && "opacity-40 grayscale"
+                          "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 shadow-inner",
+                          isVero ? "bg-emerald-500/20 text-emerald-500" : "bg-rose-500/20 text-rose-500",
+                          (selectedOption || result) && !isCorrectOption && !isSelectedOption && "opacity-20 grayscale"
                         )}>
-                          {isVero ? <Check className="w-8 h-8" strokeWidth={3} /> : <X className="w-8 h-8" strokeWidth={3} />}
+                          {isVero ? <Check className="w-8 h-8" strokeWidth={4} /> : <X className="w-8 h-8" strokeWidth={4} />}
                         </div>
                       )}
                       
                       <span className={cn(
-                        "text-lg font-bold text-center sm:text-xl",
+                        "text-xl font-black text-center sm:text-2xl tracking-tight transition-colors duration-300",
                         (selectedOption || result) && !isCorrectOption && !isSelectedOption && "text-theme-disabled"
                       )}>
                         {option}
                       </span>
                     </div>
 
-                    {/* Feedback Icon */}
+                    {/* Feedback Icon Overlay */}
                     <AnimatePresence>
                       {(selectedOption || result === "dontKnow") && isCorrectOption && (
                         <motion.div 
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30"
+                          initial={{ scale: 0, opacity: 0, rotate: -20 }}
+                          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shadow-xl shadow-emerald-500/40 border-2 border-white dark:border-emerald-400"
                         >
                           <Check className="w-5 h-5 text-white" strokeWidth={3} />
                         </motion.div>
                       )}
                       {isSelectedOption && !isCorrectOption && (
                         <motion.div 
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center shadow-lg shadow-rose-500/30"
+                          initial={{ scale: 0, opacity: 0, rotate: 20 }}
+                          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center shadow-xl shadow-rose-500/40 border-2 border-white dark:border-rose-400"
                         >
                           <X className="w-5 h-5 text-white" strokeWidth={3} />
                         </motion.div>
                       )}
                     </AnimatePresence>
-
-                    {/* Shortcut key */}
-                    {!selectedOption && !result && !isTrueFalse && (
-                      <div className="absolute bottom-3 right-3 px-2 py-1 rounded bg-theme-elevated border border-theme-default text-[10px] font-mono text-theme-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                        {index + 1}
-                      </div>
-                    )}
                   </button>
                 );
               })}
             </motion.div>
-          </div>
+          </motion.div>
         </div>
+      </motion.div>
 
-        {/* Footer */}
-        <div className="flex-none border-t border-theme-subtle bg-theme-surface/50 px-6 py-4 flex items-center gap-4">
-          {!selectedOption && !result && (
-            <button
-              ref={dontKnowRef}
-              onClick={handleDontKnow}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400 font-bold transition-all hover:bg-amber-500/10 active:scale-95 disabled:opacity-50"
-            >
-              <HelpCircle className="w-5 h-5" />
-              <span>Non lo so</span>
-              <kbd className="hidden sm:inline-flex ml-2 px-1.5 py-0.5 rounded bg-amber-500/10 font-mono text-[10px]">0</kbd>
-            </button>
-          )}
-
+      {/* Footer - Actions compatte */}
+      <div className="flex-none flex items-center justify-center gap-4 py-2">
+        {!selectedOption && !result && (
           <button
-            onClick={canContinue ? handleContinue : undefined}
-            disabled={!canContinue || isExiting}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-200",
-              canContinue
-                ? "bg-primary-500 text-white shadow-xl shadow-primary-500/20 hover:bg-primary-400 hover:-translate-y-0.5 active:translate-y-0"
-                : "bg-theme-surface border border-theme-default text-theme-muted cursor-not-allowed"
-            )}
+            ref={dontKnowRef}
+            onClick={handleDontKnow}
+            disabled={isSubmitting}
+            className="group flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400 font-black transition-all hover:bg-amber-500/10 active:scale-95 disabled:opacity-50"
           >
-            <span>{canContinue ? continueButtonText : "Seleziona una risposta"}</span>
-            {canContinue && <Check className="w-6 h-6" />}
+            <HelpCircle className="w-5 h-5 transition-transform group-hover:rotate-12" />
+            <span className="text-sm">Non lo so</span>
+            <kbd className="hidden sm:inline-flex ml-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 font-mono text-[10px] border border-amber-500/20">0</kbd>
           </button>
-        </div>
+        )}
+
+        <button
+          onClick={canContinue ? handleContinue : undefined}
+          disabled={!canContinue || isExiting}
+          className={cn(
+            "min-w-[200px] flex items-center justify-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-lg transition-all duration-300 shadow-xl",
+            canContinue
+              ? "bg-primary-500 text-white shadow-primary-500/30 hover:bg-primary-400 hover:-translate-y-0.5 active:translate-y-0"
+              : "bg-theme-surface border-2 border-theme-default text-theme-muted cursor-not-allowed opacity-50"
+          )}
+        >
+          <span className="text-base text-white">{canContinue ? continueButtonText : "Seleziona una risposta"}</span>
+          {canContinue && <motion.div animate={{ x: [0, 3, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}><Check className="w-5 h-5 text-white" strokeWidth={3} /></motion.div>}
+        </button>
       </div>
     </div>
   );

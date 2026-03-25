@@ -49,108 +49,90 @@ export const StudyProgress: React.FC<StudyProgressProps> = ({
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // Generate segment dots
-    const segments = Array.from({ length: Math.min(totalCards, 20) }, (_, i) => {
-        const segmentIndex = Math.floor((i / 20) * totalCards);
-        const isCompleted = segmentIndex < currentIndex;
-        const isCurrent = segmentIndex === currentIndex;
-        
-        return { isCompleted, isCurrent };
-    });
-
     return (
-        <div className="study-progress w-full max-w-3xl md:max-w-4xl mx-auto space-y-2 sm:space-y-4">
+        <div className="study-progress w-full max-w-4xl mx-auto space-y-2 sm:space-y-3">
             {/* Top row: Title & Timer */}
-            <div className="flex items-center justify-between px-1 sm:px-2 md:px-3">
-                <div className="flex items-center gap-3">
-                    <h2 className="text-base sm:text-lg md:text-xl font-semibold text-theme-primary truncate max-w-[140px] sm:max-w-sm md:max-w-md">
+            <div className="flex items-center justify-between px-1 sm:px-2">
+                <div className="flex items-center gap-3 min-w-0">
+                    <h2 className="text-base sm:text-lg font-bold text-theme-primary truncate max-w-[180px] sm:max-w-md">
                         {deckTitle}
                     </h2>
-                    <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-theme-surface border border-theme-default text-xs md:text-sm text-theme-muted capitalize">
+                    <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-theme-surface border border-theme-default text-[10px] font-bold text-theme-muted uppercase tracking-wider">
                         {mode}
                     </span>
                 </div>
                 
-                <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-theme-surface border border-theme-default">
-                    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-theme-muted" />
-                    <span className="text-xs sm:text-sm font-mono text-theme-secondary">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-theme-surface border border-theme-default shadow-sm">
+                    <Clock className="w-3.5 h-3.5 text-theme-muted" />
+                    <span className="text-sm font-bold font-mono text-theme-secondary tabular-nums">
                         {formatTime(elapsedSeconds)}
                     </span>
                 </div>
             </div>
 
             {/* Progress bar with segments */}
-            <div className="relative">
+            <div className="relative px-1">
                 {/* Background track */}
-                <div className="study-progress-track h-2.5 sm:h-3 bg-theme-surface border border-theme-subtle rounded-full overflow-hidden shadow-inner">
+                <div className="study-progress-track h-2.5 sm:h-3 bg-theme-surface border border-theme-default rounded-full overflow-hidden shadow-inner relative">
                     <motion.div
-                        className="h-full bg-gradient-to-r from-primary-500 via-primary-400 to-primary-500 relative"
+                        className="h-full bg-gradient-to-r from-primary-600 via-primary-500 to-primary-400 relative"
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
-                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     >
-                        <div className="absolute inset-0 bg-white/20" style={{ backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)', backgroundSize: '1rem 1rem' }} />
+                        {/* Subtle shine effect */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
                     </motion.div>
                 </div>
 
-                {/* Segment dots */}
-                <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 flex justify-between px-1 pointer-events-none">
-                    {segments.map((segment, i) => (
-                        <motion.div
-                            key={i}
-                            className={`study-progress-dot w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                                segment.isCompleted 
-                                    ? 'bg-primary-200 dark:bg-primary-700' 
-                                    : segment.isCurrent
-                                        ? 'bg-white ring-2 ring-primary-500 shadow-lg scale-150'
-                                        : 'bg-theme-subtle'
-                            }`}
-                            initial={false}
-                            animate={{
-                                scale: segment.isCurrent ? 1.5 : segment.isCompleted ? 0.8 : 0.6,
-                                opacity: segment.isCurrent ? 1 : 0.5
-                            }}
-                        />
-                    ))}
-                </div>
+                {/* Percentage indicator floating */}
+                <motion.div 
+                    className="absolute -top-6 text-[10px] font-black text-primary-500 bg-theme-base px-1.5 py-0.5 rounded border border-primary-500/20 shadow-sm"
+                    animate={{ left: `${progress}%` }}
+                    style={{ x: '-50%' }}
+                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                >
+                    {Math.round(progress)}%
+                </motion.div>
             </div>
 
             {/* Stats row */}
-            <div className="flex items-center justify-between px-1 sm:px-2 md:px-3">
-                <div className="flex items-center gap-3 sm:gap-6">
+            <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-4 sm:gap-6">
                     {/* Remaining */}
-                    <div className="flex items-center gap-2">
-                        <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-theme-muted" />
-                        <span className="text-xs sm:text-sm text-theme-secondary">
-                            <span className="font-semibold text-theme-primary">{remaining}</span> rimaste
+                    <div className="flex items-center gap-1.5">
+                        <Target className="w-3.5 h-3.5 text-theme-muted" />
+                        <span className="text-xs text-theme-secondary">
+                            <span className="font-bold text-theme-primary">{remaining}</span> rimaste
                         </span>
                     </div>
 
                     {/* Correct */}
                     {correctCount > 0 && (
-                        <div className="hidden sm:flex items-center gap-2">
-                            <Trophy className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                            <span className="text-sm text-emerald-600 dark:text-emerald-400">
-                                <span className="font-semibold">{correctCount}</span> ok
+                        <div className="flex items-center gap-1.5">
+                            <Trophy className="w-3.5 h-3.5 text-emerald-500" />
+                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                {correctCount}
                             </span>
                         </div>
                     )}
 
                     {/* Wrong */}
                     {wrongCount > 0 && (
-                        <div className="hidden sm:flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                            <span className="text-sm text-orange-600 dark:text-orange-400">
-                                <span className="font-semibold">{wrongCount}</span> difficili
+                        <div className="flex items-center gap-1.5">
+                            <Zap className="w-3.5 h-3.5 text-rose-500" />
+                            <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                                {wrongCount}
                             </span>
                         </div>
                     )}
                 </div>
 
-                {/* Percentage */}
-                <span className="text-xs sm:text-sm font-medium text-theme-muted">
-                    {Math.round(progress)}%
-                </span>
+                {/* Status indicator */}
+                <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
+                    <span className="text-[10px] font-bold text-theme-muted uppercase tracking-widest">In Corso</span>
+                </div>
             </div>
         </div>
     );
