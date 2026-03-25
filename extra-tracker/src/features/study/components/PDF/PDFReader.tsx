@@ -89,6 +89,16 @@ export interface PDFReaderRef {
      * @param text - Il testo da evidenziare
      */
     jumpToPageAndHighlight: (pageNumber: number, text: string) => void;
+
+    /**
+     * Zoom helpers (professional controls).
+     * Scale is relative where 1.0 === 100%.
+     */
+    zoomIn: () => void;
+    zoomOut: () => void;
+    zoomToScale: (scale: number) => void;
+    fitToPage: () => void;
+    fitToWidth: () => void;
 }
 
 // ============================================
@@ -444,6 +454,68 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
         return <PDFLoadingState progress={typeof percentages === 'number' ? percentages : undefined} />;
     }, []);
 
+    // ============================================
+    // ZOOM HELPERS (imperative toolbar)
+    // ============================================
+    const clampScale = useCallback((scale: number): number => {
+        return Math.max(0.5, Math.min(3.0, scale));
+    }, []);
+
+    const getZoomPluginSafe = useCallback((): any | null => {
+        // defaultLayoutPlugin instance keeps zoom plugin under toolbarPlugin.zoomPlugin
+        const toolbarPlugin = (defaultLayoutPluginInstance as any).toolbarPlugin;
+        return toolbarPlugin?.zoomPlugin ?? (defaultLayoutPluginInstance as any).zoomPlugin ?? null;
+    }, [defaultLayoutPluginInstance]);
+
+    const getCurrentScaleSafe = useCallback((): number | null => {
+        const zoomPlugin = getZoomPluginSafe();
+        if (!zoomPlugin) return null;
+        try {
+            if (typeof zoomPlugin.getCurrentScale === 'function') {
+                const scale = zoomPlugin.getCurrentScale();
+                return typeof scale === 'number' ? scale : null;
+            }
+        } catch {
+            // ignore
+        }
+        return null;
+    }, [getZoomPluginSafe]);
+
+    const applyZoomToScale = useCallback((scale: number) => {
+        const zoomPlugin = getZoomPluginSafe();
+        if (!zoomPlugin) return;
+        const clamped = clampScale(scale);
+        try {
+            if (typeof zoomPlugin.zoomTo === 'function') {
+                zoomPlugin.zoomTo(clamped);
+            } else if (typeof zoomPlugin.zoom === 'function') {
+                zoomPlugin.zoom(clamped);
+            }
+        } catch (err) {
+            console.warn('[PDFReader] Error applying zoom:', err);
+        }
+    }, [clampScale, getZoomPluginSafe]);
+
+    const fitTo = useCallback((kind: 'page' | 'width') => {
+        const zoomPlugin = getZoomPluginSafe();
+        if (!zoomPlugin) return;
+        try {
+            if (kind === 'page' && typeof zoomPlugin.fitToPage === 'function') {
+                zoomPlugin.fitToPage();
+                return;
+            }
+            if (kind === 'width' && typeof zoomPlugin.fitToWidth === 'function') {
+                zoomPlugin.fitToWidth();
+                return;
+            }
+
+            // Fallback: choose a sane scale rather than doing nothing.
+            applyZoomToScale(kind === 'page' ? 1.0 : 1.1);
+        } catch (err) {
+            console.warn('[PDFReader] Error fitting zoom:', err);
+        }
+    }, [applyZoomToScale, getZoomPluginSafe]);
+
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
         jumpToPage: (pageIndex: number) => {
@@ -527,7 +599,25 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                 console.error('[PDFReader] Error in jumpToPageAndHighlight:', err);
             }
         },
-    }), [pageNavigationPluginInstance, searchPluginInstance]);
+
+        zoomIn: () => {
+            const current = getCurrentScaleSafe() ?? 1;
+            applyZoomToScale(current + 0.1);
+        },
+        zoomOut: () => {
+            const current = getCurrentScaleSafe() ?? 1;
+            applyZoomToScale(current - 0.1);
+        },
+        zoomToScale: (scale: number) => {
+            applyZoomToScale(scale);
+        },
+        fitToPage: () => {
+            fitTo('page');
+        },
+        fitToWidth: () => {
+            fitTo('width');
+        },
+    }), [pageNavigationPluginInstance, searchPluginInstance, applyZoomToScale, getCurrentScaleSafe, fitTo]);
 
     // LINE 3: Pinch-to-Zoom handler (trackpad)
     useEffect(() => {
@@ -656,6 +746,8 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
     return (
         <div 
             ref={containerRef}
+            id="pdf-reader"
+            data-testid="pdf-reader"
             className={`h-full w-full pdf-reader-shell ${themeClass} ${className}`}
         >
             <Worker workerUrl={workerUrl}>

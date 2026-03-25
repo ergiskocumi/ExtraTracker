@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Panel, Group, Separator } from 'react-resizable-panels';
-import { ChevronLeft, ChevronRight, FileText, Layers, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, Layers, GripVertical, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-react';
 import PDFReader from '../components/PDF/PDFReaderLazy';
 import type { PDFReaderRef } from '../components/PDF/PDFReader';
 import { StudySidebar } from '../components/Study/StudySidebar';
@@ -48,6 +48,11 @@ const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef, onSearchError }) =
 
     const goToPrev = useCallback(() => pdfReaderRef.current?.jumpToPreviousPage(), [pdfReaderRef]);
     const goToNext = useCallback(() => pdfReaderRef.current?.jumpToNextPage(), [pdfReaderRef]);
+    const zoomIn = useCallback(() => pdfReaderRef.current?.zoomIn(), [pdfReaderRef]);
+    const zoomOut = useCallback(() => pdfReaderRef.current?.zoomOut(), [pdfReaderRef]);
+    const resetZoom = useCallback(() => pdfReaderRef.current?.zoomToScale(1), [pdfReaderRef]);
+    const fitToPage = useCallback(() => pdfReaderRef.current?.fitToPage(), [pdfReaderRef]);
+    const fitToWidth = useCallback(() => pdfReaderRef.current?.fitToWidth(), [pdfReaderRef]);
 
     return (
         <div className="relative h-full w-full group/pdf">
@@ -96,6 +101,113 @@ const PDFPanel = memo<PDFPanelProps>(({ pdfSrc, pdfReaderRef, onSearchError }) =
                     >
                         <ChevronRight className="w-4 h-4" />
                     </button>
+
+                    {/* Zoom toolbar (big, student-friendly controls) */}
+                    <div
+                        className="
+                            absolute right-3 top-3 z-30
+                            flex flex-col gap-2
+                            opacity-100 sm:opacity-0 group-hover/pdf:opacity-100
+                            transition-opacity duration-200
+                            pointer-events-auto sm:pointer-events-none sm:group-hover/pdf:pointer-events-auto
+                        "
+                    >
+                        <button
+                            type="button"
+                            onClick={zoomIn}
+                            aria-label="Zoom in"
+                            title="Zoom in"
+                            className="
+                                pointer-events-auto
+                                w-11 h-11 rounded-xl
+                                bg-black/45 hover:bg-black/70 backdrop-blur-md
+                                border border-white/10 hover:border-white/25
+                                text-white/90 hover:text-white
+                                flex items-center justify-center
+                                active:scale-95
+                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50
+                                transition-all duration-200
+                            "
+                        >
+                            <ZoomIn className="w-5 h-5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={zoomOut}
+                            aria-label="Zoom out"
+                            title="Zoom out"
+                            className="
+                                pointer-events-auto
+                                w-11 h-11 rounded-xl
+                                bg-black/45 hover:bg-black/70 backdrop-blur-md
+                                border border-white/10 hover:border-white/25
+                                text-white/90 hover:text-white
+                                flex items-center justify-center
+                                active:scale-95
+                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50
+                                transition-all duration-200
+                            "
+                        >
+                            <ZoomOut className="w-5 h-5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={resetZoom}
+                            aria-label="Reset zoom to 100%"
+                            title="Reset to 100%"
+                            className="
+                                pointer-events-auto
+                                w-11 h-11 rounded-xl
+                                bg-black/35 hover:bg-black/60 backdrop-blur-md
+                                border border-white/10 hover:border-white/25
+                                text-white/90 hover:text-white
+                                flex items-center justify-center
+                                active:scale-95
+                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50
+                                transition-all duration-200
+                            "
+                        >
+                            <Minimize2 className="w-5 h-5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={fitToPage}
+                            aria-label="Fit to page"
+                            title="Fit to page"
+                            className="
+                                pointer-events-auto
+                                w-11 h-11 rounded-xl
+                                bg-black/35 hover:bg-black/60 backdrop-blur-md
+                                border border-white/10 hover:border-white/25
+                                text-white/90 hover:text-white
+                                flex items-center justify-center
+                                active:scale-95
+                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50
+                                transition-all duration-200
+                            "
+                        >
+                            <Maximize2 className="w-5 h-5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={fitToWidth}
+                            aria-label="Fit to width"
+                            title="Fit to width"
+                            className="
+                                pointer-events-auto
+                                w-11 h-11 rounded-xl
+                                bg-black/35 hover:bg-black/60 backdrop-blur-md
+                                border border-white/10 hover:border-white/25
+                                text-white/90 hover:text-white
+                                flex items-center justify-center
+                                active:scale-95
+                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50
+                                transition-all duration-200
+                            "
+                        >
+                            <Maximize2 className="w-5 h-5 rotate-180" />
+                        </button>
+                    </div>
                 </>
             )}
         </div>
