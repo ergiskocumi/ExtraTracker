@@ -3204,6 +3204,24 @@ button:focus-visible[class*="bg-blue"] {
 /* ============================================
    LANDING PAGE (integrated) - CSS variables & theme
    ============================================ */
+/* ============================================
+   CINEMA PAGE ANIMATIONS
+   ============================================ */
+@keyframes cinema-enter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes cinema-content-slide {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.cinema-layout-enter {
+    animation: cinema-enter 0.2s ease-out both;
+}
+.cinema-content-enter {
+    animation: cinema-content-slide 0.25s ease-out 0.05s both;
+}
+
 :root {
   --landing-bg: #0a0a1a;
   --landing-text: #f8fafc;
