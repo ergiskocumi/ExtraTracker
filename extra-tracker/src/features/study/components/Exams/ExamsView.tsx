@@ -260,7 +260,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                 <p className="text-white/60 mb-4">{error}</p>
                 <button
                     onClick={loadExams}
-                    className="px-4 py-2 rounded-xl bg-white/10 text-white hover:bg-white/15 transition-all"
+                    className="px-4 py-2 rounded-xl bg-theme-elevated text-theme-primary hover:bg-theme-surface transition-all"
                 >
                     Riprova
                 </button>
@@ -375,8 +375,8 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                 />
             ) : filteredAndSortedExams.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-                        <BookOpen className="w-10 h-10 text-white/40" />
+                    <div className="w-20 h-20 rounded-2xl bg-theme-surface border border-theme-default flex items-center justify-center mb-4">
+                        <BookOpen className="w-10 h-10 text-theme-muted" />
                     </div>
                     <h3 className="text-xl font-semibold text-white mb-2">
                         Nessun esame trovato

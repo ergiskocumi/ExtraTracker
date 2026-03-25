@@ -129,7 +129,7 @@ export const DeckCardList: React.FC<DeckCardListProps> = ({
                 {/* Progress Bar - Compact */}
                 {totalCards > 0 && (
                     <div className="w-24 hidden sm:block">
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-theme-surface rounded-full overflow-hidden">
                             <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${masteryPercent}%` }}
@@ -217,7 +217,7 @@ export const DeckCardList: React.FC<DeckCardListProps> = ({
                                         className={`p-1.5 rounded-lg border transition-colors
                                             ${deck.pinned
                                                 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                                                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border-white/10'
+                                                : 'bg-theme-surface text-theme-muted hover:bg-theme-elevated hover:text-theme-primary border-theme-default'
                                             }`}
                                         title={deck.pinned ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
                                     >
@@ -232,8 +232,8 @@ export const DeckCardList: React.FC<DeckCardListProps> = ({
                                         e.stopPropagation();
                                         onViewDetail(deck.id);
                                     }}
-                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 
-                                               text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                                    className="p-1.5 rounded-lg bg-theme-surface border border-theme-default 
+                                               text-theme-muted hover:bg-theme-elevated hover:text-theme-primary transition-colors"
                                     title="Dettagli"
                                 >
                                     <MoreVertical className="w-3.5 h-3.5" />

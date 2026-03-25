@@ -70,11 +70,11 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="p-4 rounded-xl bg-white/5 border border-white/10"
+                    className="p-4 rounded-xl bg-theme-surface border border-theme-default"
                 >
                     <BookOpen className="w-6 h-6 text-primary-400 mb-2 mx-auto" />
-                    <h3 className="text-sm font-semibold text-white mb-1">Crea manualmente</h3>
-                    <p className="text-xs text-white/50">
+                    <h3 className="text-sm font-semibold text-theme-primary mb-1">Crea manualmente</h3>
+                    <p className="text-xs text-theme-muted">
                         Aggiungi carte una per una per un controllo totale
                     </p>
                 </motion.div>
@@ -82,11 +82,11 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="p-4 rounded-xl bg-white/5 border border-white/10"
+                    className="p-4 rounded-xl bg-theme-surface border border-theme-default"
                 >
                     <Upload className="w-6 h-6 text-amber-400 mb-2 mx-auto" />
-                    <h3 className="text-sm font-semibold text-white mb-1">Carica PDF</h3>
-                    <p className="text-xs text-white/50">
+                    <h3 className="text-sm font-semibold text-theme-primary mb-1">Carica PDF</h3>
+                    <p className="text-xs text-theme-muted">
                         Silvi AI genera automaticamente le flashcard
                     </p>
                 </motion.div>
@@ -94,11 +94,11 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="p-4 rounded-xl bg-white/5 border border-white/10"
+                    className="p-4 rounded-xl bg-theme-surface border border-theme-default"
                 >
                     <Lightbulb className="w-6 h-6 text-blue-400 mb-2 mx-auto" />
-                    <h3 className="text-sm font-semibold text-white mb-1">Organizza</h3>
-                    <p className="text-xs text-white/50">
+                    <h3 className="text-sm font-semibold text-theme-primary mb-1">Organizza</h3>
+                    <p className="text-xs text-theme-muted">
                         Usa cartelle e tag per organizzare i tuoi mazzi
                     </p>
                 </motion.div>

@@ -220,7 +220,7 @@ export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setIsExpanded(!isExpanded)}
-                        className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                        className="p-2 rounded-lg bg-theme-surface hover:bg-theme-elevated text-theme-muted hover:text-theme-primary transition-colors"
                         aria-label={isExpanded ? 'Collassa' : 'Espandi'}
                     >
                         <motion.div

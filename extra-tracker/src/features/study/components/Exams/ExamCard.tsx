@@ -271,8 +271,8 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                 className={`
                                     p-2 rounded-lg transition-all
                                     ${isMenuOpen
-                                        ? 'bg-white/10 text-white'
-                                        : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                                        ? 'bg-theme-elevated text-theme-primary'
+                                        : 'bg-theme-surface text-theme-muted hover:bg-theme-elevated hover:text-theme-primary'
                                     }
                                 `}
                                 aria-label="Menu opzioni"
@@ -287,12 +287,12 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: -8, scale: 0.95 }}
                                         transition={{ duration: 0.15 }}
-                                        className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-white/15 bg-slate-900 shadow-2xl shadow-black/60 overflow-hidden z-50"
+                                        className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-theme-default bg-theme-elevated shadow-2xl shadow-black/60 overflow-hidden z-50"
                                     >
                                         {isCompleted && onReactivate && (
                                             <button
                                                 onClick={handleReactivateClick}
-                                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-blue-400 hover:bg-blue-500/15 transition-colors border-b border-white/10"
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-blue-400 hover:bg-blue-500/15 transition-colors border-b border-theme-subtle"
                                             >
                                                 <RotateCcw className="w-4 h-4" />
                                                 <span className="text-sm font-medium">Riattiva</span>
@@ -338,7 +338,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                         </div>
                         
                         {/* Barra Distribuzione */}
-                        <div className="h-2 bg-white/10 rounded-full overflow-hidden flex">
+                        <div className="h-2 bg-theme-surface rounded-full overflow-hidden flex">
                             {distribution.new > 0 && (
                                 <div 
                                     className="h-full bg-blue-500"
@@ -395,26 +395,26 @@ export const ExamCard: React.FC<ExamCardProps> = ({
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 gap-3 mt-auto pt-3">
-                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-theme-surface border border-theme-default">
                         <Layers className="w-4 h-4 text-primary-400" />
                         <div>
-                            <p className="text-lg font-bold text-white leading-none">{deckCount}</p>
-                            <p className="text-[10px] text-white/50 uppercase tracking-wide">Mazzi</p>
+                            <p className="text-lg font-bold text-theme-primary leading-none">{deckCount}</p>
+                            <p className="text-[10px] text-theme-muted uppercase tracking-wide">Mazzi</p>
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-theme-surface border border-theme-default">
                         <Target className="w-4 h-4 text-emerald-400" />
                         <div>
-                            <p className="text-lg font-bold text-white leading-none">{masteryPercent}%</p>
-                            <p className="text-[10px] text-white/50 uppercase tracking-wide">Padronanza</p>
+                            <p className="text-lg font-bold text-theme-primary leading-none">{masteryPercent}%</p>
+                            <p className="text-[10px] text-theme-muted uppercase tracking-wide">Padronanza</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Footer con Scadenza */}
-            <div className="px-5 py-3 border-t border-white/10 bg-white/[0.03]">
+            <div className="px-5 py-3 border-t border-theme-subtle bg-theme-surface/50">
                 <div className="flex items-center justify-between">
                     {/* Scadenza */}
                     <div className="flex items-center gap-2.5">
@@ -424,10 +424,10 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                 ? 'bg-red-500/20 border border-red-500/30'
                                 : isUrgent
                                     ? 'bg-orange-500/20 border border-orange-500/30'
-                                    : 'bg-white/5 border border-white/10'
-                            }
-                        `}>
-                            <Calendar className={`w-3.5 h-3.5 ${isOverdue ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-white/60'}`} />
+                                    : 'bg-theme-surface border border-theme-default'
+                                }
+                            `}>
+                                <Calendar className={`w-3.5 h-3.5 ${isOverdue ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-theme-muted'}`} />
                         </div>
                         <div>
                             <p className="text-[10px] text-white/40 uppercase tracking-wide">Scadenza</p>

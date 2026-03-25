@@ -49,7 +49,7 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
                 {/* Collapse Toggle */}
                 <button
                     onClick={onToggleCollapse}
-                    className="p-1 rounded-lg hover:bg-white/5 transition-colors"
+                    className="p-1 rounded-lg hover:bg-theme-surface transition-colors"
                 >
                     {isCollapsed ? (
                         <ChevronRight className="w-5 h-5 text-white/60" />
@@ -133,7 +133,7 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
             <div className="relative">
                 <button
                     onClick={() => setShowMenu(!showMenu)}
-                    className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                    className="p-2 rounded-lg hover:bg-theme-surface transition-colors"
                 >
                     <MoreVertical className="w-5 h-5 text-white/50" />
                 </button>
@@ -147,7 +147,7 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: -10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
-                            className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-zinc-900/95 border border-white/10 
+                            className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-theme-elevated border border-theme-default 
                                      backdrop-blur-xl shadow-xl z-20 py-2"
                         >
                             <button
@@ -155,8 +155,8 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
                                     onViewFolder?.(folder.id);
                                     setShowMenu(false);
                                 }}
-                                className="w-full px-4 py-2 text-left text-sm text-white/80 hover:bg-white/5 transition-colors"
-                            >
+                                className="w-full px-4 py-2 text-left text-sm text-theme-secondary hover:bg-theme-surface transition-colors"
+                                >
                                 Apri cartella
                             </button>
                             <button
@@ -164,7 +164,7 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
                                     // TODO: Implementare "Studia tutti i deck della cartella"
                                     setShowMenu(false);
                                 }}
-                                className="w-full px-4 py-2 text-left text-sm text-white/80 hover:bg-white/5 transition-colors"
+                                className="w-full px-4 py-2 text-left text-sm text-theme-secondary hover:bg-theme-surface transition-colors"
                             >
                                 Studia tutti
                             </button>

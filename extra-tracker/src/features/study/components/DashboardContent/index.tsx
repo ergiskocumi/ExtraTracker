@@ -65,7 +65,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
                 <p className="text-white/60 mb-6 text-lg">{error}</p>
                 <button
                     onClick={onRetry}
-                    className="px-6 py-3 rounded-xl bg-white/10 text-white hover:bg-white/15 transition-all"
+                    className="px-6 py-3 rounded-xl bg-theme-elevated text-theme-primary hover:bg-theme-surface transition-all"
                 >
                     Riprova
                 </button>
@@ -88,8 +88,8 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center justify-center py-16 sm:py-24 px-6 text-center"
             >
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6">
-                    <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 text-white/40" />
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-theme-surface border border-theme-default flex items-center justify-center mb-6">
+                    <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 text-theme-muted" />
                 </div>
                 <h3 className="text-xl sm:text-2xl font-semibold text-white mb-2">
                     Nessun mazzo corrisponde ai filtri
@@ -109,7 +109,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
                 <div className="flex flex-col sm:flex-row items-center gap-3">
                     <button
                         onClick={onFilterReset}
-                        className="px-6 py-3 rounded-xl bg-white/10 text-white hover:bg-white/15 transition-all font-medium"
+                        className="px-6 py-3 rounded-xl bg-theme-elevated text-theme-primary hover:bg-theme-surface transition-all font-medium"
                     >
                         Mostra tutti i mazzi
                     </button>

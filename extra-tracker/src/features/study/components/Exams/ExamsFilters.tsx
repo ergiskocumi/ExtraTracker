@@ -73,18 +73,18 @@ export const ExamsFilters: React.FC<ExamsFiltersProps> = ({
         <div className="space-y-4 mb-6">
             {/* Search */}
             <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-theme-muted" />
                 <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
                     placeholder="Cerca esami e mazzi..."
-                    className="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all text-base"
+                    className="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-theme-surface border border-theme-default text-theme-primary placeholder-white/30 focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all text-base"
                 />
                 {searchQuery && (
                     <button
                         onClick={() => onSearchChange('')}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-elevated transition-colors"
                         aria-label="Cancella ricerca"
                     >
                         <X className="w-4 h-4" />
@@ -137,7 +137,7 @@ export const ExamsFilters: React.FC<ExamsFiltersProps> = ({
                     <select
                         value={sortBy}
                         onChange={(e) => onSortChange(e.target.value as ExamSortOption)}
-                        className="appearance-none px-4 py-2.5 pr-10 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-medium focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all cursor-pointer"
+                        className="appearance-none px-4 py-2.5 pr-10 rounded-xl bg-theme-surface border border-theme-default text-theme-primary text-sm font-medium focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all cursor-pointer"
                     >
                         {sortOptions.map((option) => (
                             <option key={option.key} value={option.key} className="bg-zinc-900">
@@ -146,7 +146,7 @@ export const ExamsFilters: React.FC<ExamsFiltersProps> = ({
                         ))}
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                        <Filter className="w-4 h-4 text-white/40" />
+                        <Filter className="w-4 h-4 text-theme-muted" />
                     </div>
                 </div>
             </div>

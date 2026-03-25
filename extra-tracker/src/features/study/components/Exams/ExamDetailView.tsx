@@ -187,14 +187,14 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                         </div>
 
                         {/* View Toggle */}
-                        <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-1 p-1 rounded-xl bg-theme-surface border border-theme-default">
                             <button
                                 onClick={() => setLocalViewMode('grid')}
                                 className={`
                                     p-2 rounded-lg transition-all
                                     ${localViewMode === 'grid' 
-                                        ? 'bg-primary-500 text-white' 
-                                        : 'text-white/50 hover:text-white hover:bg-white/10'
+                                        ? 'bg-primary-500 text-white keep-light-text' 
+                                        : 'text-theme-muted hover:text-theme-primary hover:bg-theme-elevated'
                                     }
                                 `}
                                 aria-label="Vista griglia"
@@ -206,8 +206,8 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                                 className={`
                                     p-2 rounded-lg transition-all
                                     ${localViewMode === 'list' 
-                                        ? 'bg-primary-500 text-white' 
-                                        : 'text-white/50 hover:text-white hover:bg-white/10'
+                                        ? 'bg-primary-500 text-white keep-light-text' 
+                                        : 'text-theme-muted hover:text-theme-primary hover:bg-theme-elevated'
                                     }
                                 `}
                                 aria-label="Vista lista"
@@ -237,7 +237,7 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={() => {/* TODO: Open create deck modal */}}
-                                className="px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/40 transition-all flex items-center gap-2"
+                                className="px-6 py-3 rounded-xl bg-primary-500 text-white keep-light-text font-semibold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/40 transition-all flex items-center gap-2"
                             >
                                 <span>Crea Primo Mazzo</span>
                             </motion.button>

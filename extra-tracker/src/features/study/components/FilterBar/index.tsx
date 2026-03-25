@@ -61,18 +61,18 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
             {/* Search */}
             <div className="relative">
-                <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-white/30" />
+                <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-theme-muted" />
                 <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
                     placeholder="Cerca mazzi..."
-                    className="w-full pl-10 sm:pl-12 pr-10 sm:pr-4 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all text-sm sm:text-base touch-manipulation"
+                    className="w-full pl-10 sm:pl-12 pr-10 sm:pr-4 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-theme-surface border border-theme-default text-theme-primary placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all text-sm sm:text-base touch-manipulation"
                 />
                 {searchQuery && (
                     <button
                         onClick={() => onSearchChange('')}
-                        className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-1 rounded-lg text-white/40 hover:text-white active:bg-white/10 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center"
+                        className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-1 rounded-lg text-theme-muted hover:text-theme-primary active:bg-theme-elevated touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center"
                         aria-label="Cancella ricerca"
                     >
                         <X className="w-4 h-4" />
@@ -98,7 +98,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                                     min-h-[40px] sm:min-h-[44px]
                                     ${activeFilter === filter.key
                                         ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                                        : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 border border-white/10 active:bg-white/10'
+                                        : 'bg-theme-surface text-theme-muted hover:bg-theme-elevated hover:text-theme-secondary border border-theme-default active:bg-theme-elevated'
                                     }
                                 `}
                             >
@@ -126,13 +126,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                                         transition={{ duration: 0.2 }}
-                                        className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-64 p-3 rounded-xl bg-zinc-900/95 border border-white/10 backdrop-blur-xl shadow-2xl"
+                                        className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-64 p-3 rounded-xl bg-theme-elevated border border-theme-default backdrop-blur-xl shadow-2xl"
                                     >
-                                        <p className="text-xs text-white/80 leading-relaxed">
+                                        <p className="text-xs text-theme-secondary leading-relaxed">
                                             {filter.description}
                                         </p>
                                         {/* Freccia */}
-                                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 border-l border-t border-white/10 rotate-45" />
+                                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-theme-elevated border-l border-t border-theme-default rotate-45" />
                                     </motion.div>
                                 )}
                             </AnimatePresence>
