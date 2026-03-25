@@ -39,7 +39,8 @@ export const DeckDetailPage: React.FC = () => {
     const [isExamSolverOpen, setIsExamSolverOpen] = useState(false);
     const [isMagicGenerateOpen, setIsMagicGenerateOpen] = useState(false);
     const [isGenerateQuizOpen, setIsGenerateQuizOpen] = useState(false);
-const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
     // Load deck
@@ -92,7 +93,8 @@ const [isResetModalOpen, setIsResetModalOpen] = useState(false);
     const handleGenerateQuizSession = useCallback(async (config: { questionCount: number; quizType: QuizType }) => {
         if (!id || !deck) return;
 
-        if ((deck.cards?.length || 0) < 10) {
+        const canGenerateTrueFalseFromPdf = config.quizType === 'true_false' && Boolean(deck.pdfUrl);
+        if (!canGenerateTrueFalseFromPdf && (deck.cards?.length || 0) < 10) {
             emitToast.info('Crea almeno 10 flashcard per sbloccare la generazione del quiz');
             return;
         }
@@ -214,6 +216,8 @@ const [isResetModalOpen, setIsResetModalOpen] = useState(false);
         } catch (err: any) {
             emitToast.error(err.message || 'Errore nell\'eliminazione');
             setIsDeleting(false);
+        } finally {
+            setIsDeleteModalOpen(false);
         }
     }, [id, deck, navigate]);
 
@@ -296,14 +300,12 @@ const [isResetModalOpen, setIsResetModalOpen] = useState(false);
                     </svg>
                 </motion.div>
                 <p className="text-theme-secondary text-lg">{error || 'Mazzo non trovato'}</p>
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                <button
                     onClick={() => navigate('/study')}
-                    className="px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold shadow-lg shadow-primary-500/30"
+                    className="px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white font-semibold shadow-lg shadow-primary-500/30 transition-colors"
                 >
                     Torna ai Mazzi
-                </motion.button>
+                </button>
             </div>
         );
     }
@@ -321,7 +323,7 @@ const [isResetModalOpen, setIsResetModalOpen] = useState(false);
                     onReadPdf={deck.pdfUrl ? handleReadPdf : undefined}
                     onMagicGenerate={() => setIsMagicGenerateOpen(true)}
                     onDeckUpdate={handleDeckUpdate}
-                    onDeleteDeck={() => setIsDeleting(true)}
+                    onDeleteDeck={() => setIsDeleteModalOpen(true)}
                     onExport={handleExport}
                     onShare={handleShare}
                     onResetProgress={() => setIsResetModalOpen(true)}
@@ -360,6 +362,7 @@ const [isResetModalOpen, setIsResetModalOpen] = useState(false);
             <GenerateQuizModal
                 isOpen={isGenerateQuizOpen}
                 totalCards={deck.cards?.length || 0}
+                hasPdf={Boolean(deck.pdfUrl)}
                 onClose={() => setIsGenerateQuizOpen(false)}
                 onGenerate={handleGenerateQuizSession}
             />
@@ -378,7 +381,7 @@ const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
             {/* Delete Deck Confirmation */}
             <ConfirmationModal
-                isOpen={isDeleting}
+                isOpen={isDeleteModalOpen}
                 title="Elimina Mazzo"
                 description={`Sei sicuro di voler eliminare il mazzo "${deck.title}"? Verranno eliminate tutte le ${deck.totalCards} carte. L'azione è irreversibile.`}
                 confirmLabel="Elimina"
@@ -386,7 +389,7 @@ const [isResetModalOpen, setIsResetModalOpen] = useState(false);
                 destructive
                 isLoading={isDeleting}
                 onConfirm={handleDeleteDeck}
-                onCancel={() => setIsDeleting(false)}
+                onCancel={() => setIsDeleteModalOpen(false)}
             />
         </>
     );

@@ -948,7 +948,9 @@ export const StudySessionPage: React.FC = () => {
                                 isSubmitting={isSubmitting}
                                 onSubmitReview={handleRate}
                                 onNext={handleNext}
-                                isTrueFalse={(currentCard as any).isTrueFalse ?? false}
+                                isTrueFalse={currentCard.isTrueFalse ?? false}
+                                correctStatement={currentCard.correctStatement}
+                                explanation={currentCard.explanation}
                             />
                         </motion.div>
                     )}

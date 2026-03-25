@@ -29,6 +29,12 @@ export interface Card {
     repetitions: number;
     nextReviewDate: string;
     status: CardStatus;
+    /** True/False mode flag */
+    isTrueFalse?: boolean;
+    /** For false T/F statements: the corrected version */
+    correctStatement?: string | null;
+    /** Explanation for the answer (T/F and MCQ) */
+    explanation?: string;
     /**
      * Metadata per tracciare la fonte originale nel PDF
      * Usato per il "Jump to Source" feature
@@ -248,6 +254,11 @@ const normalizeCard = (raw: any): Card => {
         repetitions: safeNumber(raw.repetitions, 0),
         nextReviewDate: raw.nextReviewDate || new Date().toISOString(),
         status: raw.status || 'new',
+        isTrueFalse: raw.isTrueFalse === true ? true : undefined,
+        correctStatement: typeof raw.correctStatement === 'string' ? raw.correctStatement : undefined,
+        explanation: typeof raw.explanation === 'string' ? raw.explanation
+            : typeof raw.correctAnswerExplanation === 'string' ? raw.correctAnswerExplanation
+            : undefined,
         sourceMetadata,
     };
 };

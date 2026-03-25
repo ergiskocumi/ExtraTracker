@@ -9,6 +9,7 @@ const examRepository = require('../../repositories/ExamRepository');
 const folderRepository = require('../../repositories/FolderRepository');
 const { DEFAULT_EASINESS_FACTOR } = require('./constants');
 const logger = require('../../utils/logger');
+const { resolveQuizSnapshotSourceCardIds } = require('./syntheticQuizIds');
 
 module.exports = {
 
@@ -293,15 +294,10 @@ module.exports = {
         const cardIdSet = new Set(
             (deck.cards || []).map(card => card?._id?.toString()).filter(Boolean)
         );
-        const sourceCardIds = Array.isArray(payload.sourceCardIds)
-            ? [...new Set(payload.sourceCardIds
-                .map(id => String(id || '').trim())
-                .filter(id => id.length > 0 && cardIdSet.has(id)))]
-            : [];
-
-        const isAiGeneratedQuiz = sourceCardIds.length === 0 &&
-            Array.isArray(payload.sourceCardIds) &&
-            payload.sourceCardIds.some(id => String(id).startsWith('quiz_ai_'));
+        const { sourceCardIds, isSyntheticOnlyQuiz: isAiGeneratedQuiz } = resolveQuizSnapshotSourceCardIds(
+            payload.sourceCardIds,
+            [...cardIdSet],
+        );
 
         if (sourceCardIds.length === 0 && !isAiGeneratedQuiz) {
             throw AppError.validation('Impossibile salvare il quiz: nessuna flashcard valida associata');
@@ -313,7 +309,9 @@ module.exports = {
         );
         const questionCount = Math.max(
             1,
-            Math.min(sourceCardIds.length, Math.round(questionCountRaw > 0 ? questionCountRaw : sourceCardIds.length))
+            isAiGeneratedQuiz
+                ? Math.round(questionCountRaw > 0 ? questionCountRaw : sourceCardIds.length)
+                : Math.min(sourceCardIds.length, Math.round(questionCountRaw > 0 ? questionCountRaw : sourceCardIds.length))
         );
 
         const quizType = this._normalizeQuizType(payload.quizType);

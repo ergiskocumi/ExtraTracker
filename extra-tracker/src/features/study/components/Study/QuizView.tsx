@@ -33,6 +33,8 @@ interface QuizViewProps {
   ) => Promise<boolean | void>;
   onNext: () => void;
   isTrueFalse?: boolean; // Modalita Vero/Falso
+  correctStatement?: string | null; // Per V/F AI: la versione corretta dello statement falso
+  explanation?: string; // Spiegazione AI per la risposta (V/F e MCQ)
 }
 
 const fallbackOptions = [
@@ -91,6 +93,8 @@ export const QuizView: React.FC<QuizViewProps> = ({
   onSubmitReview,
   onNext,
   isTrueFalse = false,
+  correctStatement,
+  explanation,
 }) => {
   const normalizedCorrect = correctAnswer.trim().toLowerCase();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -350,14 +354,28 @@ export const QuizView: React.FC<QuizViewProps> = ({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30"
+                  className="space-y-2"
                 >
-                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </span>
-                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-300">Corretto!</span>
+                  <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30">
+                    <span className="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-300">Corretto!</span>
+                  </div>
+                  {isTrueFalse && explanation && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15, delay: 0.08 }}
+                      className="flex items-start gap-2 px-3 py-2 border rounded-lg border-emerald-500/20 bg-emerald-500/5"
+                    >
+                      <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      <span className="text-xs leading-relaxed text-emerald-600/90 dark:text-emerald-200/80">{explanation}</span>
+                    </motion.div>
+                  )}
                 </motion.div>
               )}
               {result === "wrong" && (
@@ -388,6 +406,32 @@ export const QuizView: React.FC<QuizViewProps> = ({
                       <span className="text-xs leading-relaxed text-rose-600/90 dark:text-rose-200/80">{selectedExplanation}</span>
                     </motion.div>
                   )}
+                  {isTrueFalse && explanation && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15, delay: 0.12 }}
+                      className="flex items-start gap-2 px-3 py-2 border rounded-lg border-rose-500/20 bg-rose-500/5"
+                    >
+                      <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      <span className="text-xs leading-relaxed text-rose-600/90 dark:text-rose-200/80">{explanation}</span>
+                    </motion.div>
+                  )}
+                  {isTrueFalse && correctStatement && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15, delay: 0.18 }}
+                      className="flex items-start gap-2 px-3 py-2 border rounded-lg border-emerald-500/20 bg-emerald-500/5"
+                    >
+                      <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-xs leading-relaxed text-emerald-600/90 dark:text-emerald-200/80">
+                        <span className="font-semibold">Versione corretta:</span> {correctStatement}
+                      </span>
+                    </motion.div>
+                  )}
                 </motion.div>
               )}
               {result === "dontKnow" && (
@@ -396,14 +440,42 @@ export const QuizView: React.FC<QuizViewProps> = ({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30"
+                  className="space-y-2"
                 >
-                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </span>
-                  <span className="text-sm font-bold text-amber-700 dark:text-amber-300">La risposta è evidenziata</span>
+                  <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30">
+                    <span className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </span>
+                    <span className="text-sm font-bold text-amber-700 dark:text-amber-300">La risposta è evidenziata</span>
+                  </div>
+                  {isTrueFalse && explanation && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15, delay: 0.08 }}
+                      className="flex items-start gap-2 px-3 py-2 border rounded-lg border-amber-500/20 bg-amber-500/5"
+                    >
+                      <svg className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      <span className="text-xs leading-relaxed text-amber-600/90 dark:text-amber-200/80">{explanation}</span>
+                    </motion.div>
+                  )}
+                  {isTrueFalse && correctStatement && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15, delay: 0.14 }}
+                      className="flex items-start gap-2 px-3 py-2 border rounded-lg border-emerald-500/20 bg-emerald-500/5"
+                    >
+                      <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-xs leading-relaxed text-emerald-600/90 dark:text-emerald-200/80">
+                        <span className="font-semibold">Versione corretta:</span> {correctStatement}
+                      </span>
+                    </motion.div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

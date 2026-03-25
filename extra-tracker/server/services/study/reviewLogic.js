@@ -8,6 +8,7 @@ const AppError = require('../../utils/AppError');
 const { checkAnswerSimilarity } = require('../../utils/stringAnalysis');
 const { AlgorithmFactory } = require('../spacedRepetitionAlgorithms');
 const logger = require('../../utils/logger');
+const { isSyntheticQuizCardId } = require('./syntheticQuizIds');
 
 module.exports = {
 
@@ -137,7 +138,7 @@ module.exports = {
         }
 
         // Card generate da AI: nessun ID MongoDB reale, skip SRS tracking.
-        if (typeof cardId === 'string' && cardId.startsWith('quiz_ai_')) {
+        if (isSyntheticQuizCardId(cardId)) {
             return { skipped: true, reason: 'ai-generated' };
         }
 
