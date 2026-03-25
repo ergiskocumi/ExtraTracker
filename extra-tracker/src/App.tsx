@@ -2,7 +2,7 @@
  * 🚀 APP - Entry point con routing autenticato
  *
  * Sistema di routing:
- * - / → Landing (pubblico); se autenticato redirect a /dashboard
+ * - / → Redirect a /login; se autenticato redirect a /dashboard
  * - /login, /register, /forgot-password, /reset-password, /verify-email → Pagine pubbliche (AuthLayout)
  * - /dashboard, /settings, /study... → Pagine protette (AppLayout)
  */
@@ -15,11 +15,7 @@ import { FlashcardGenerationProvider } from './features/study/context/FlashcardG
 import { ProtectedRoute, useAuth } from './features/auth/context/AuthContext';
 import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
-import { useSettings } from './features/settings/context/SettingsContext';
 import { WorkLogProvider } from './features/tracker/context/WorkLogContext';
-
-// Landing (integrata: link React Router)
-const LandingPage = lazy(() => import('~landing/pages/LandingPage').then(m => ({ default: m.default })));
 
 // OTTIMIZZATO: Lazy loading per tutte le pagine (code splitting)
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -47,15 +43,7 @@ const PageLoader = () => (
     </div>
 );
 
-const HomeRedirect = () => {
-    const { hasLoaded } = useSettings();
-
-    if (!hasLoaded) return null;
-
-    return <Navigate to="/dashboard" replace />;
-};
-
-/** Route radice: landing se non autenticato, redirect a dashboard se autenticato */
+/** Route radice: login se non autenticato, dashboard se autenticato */
 const RootRoute = () => {
     const { isAuthenticated, isLoading } = useAuth();
 
@@ -74,16 +62,16 @@ const RootRoute = () => {
         return <Navigate to="/dashboard" replace />;
     }
 
-    return <LandingPage useRouterLinks appUrl="" />;
+    return <Navigate to="/login" replace />;
 };
 
 function App() {
     return (
         <Suspense fallback={<PageLoader />}>
             <Routes>
-                {/* ===== LANDING (pubblica) ===== */}
+                {/* ===== ROUTE RADICE ===== */}
                 <Route path="/" element={<RootRoute />} />
-                <Route path="/landing" element={<LandingPage useRouterLinks appUrl="" />} />
+                <Route path="/landing" element={<Navigate to="/" replace />} />
 
                 {/* ===== ROUTE PUBBLICHE (Auth) ===== */}
                 <Route element={<AuthLayout />}>
