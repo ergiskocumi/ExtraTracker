@@ -1,10 +1,10 @@
 /**
- * DECK DETAIL CONTENT v2 - Full Width Professional Layout
- * 
- * Layout a 3 colonne:
- * - Sidebar sinistra: Statistiche e info deck (sticky)
- * - Area centrale: Griglia card + toolbar
- * - Sidebar destra: Timeline attività e suggerimenti AI
+ * DECK DETAIL CONTENT — Redesigned 2-column layout
+ *
+ * Architecture:
+ *   PageHeader  — breadcrumb, title, primary CTA, PDF link
+ *   Main + Sidebar (lg) — cards on the left, contextual panel on the right
+ *   Mobile bottom bar — fixed study CTA in thumb zone
  */
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
@@ -20,17 +20,17 @@ import {
   List,
   ListChecks,
   Search,
-  Filter,
   Clock,
-  TrendingUp,
   Calendar,
-  MoreVertical,
   ChevronLeft,
   Play,
   Target,
   Layers,
   Brain,
   FileText,
+  Lightbulb,
+  MoreHorizontal,
+  BookOpen,
 } from 'lucide-react';
 import type { Deck, Card, SavedQuizSnapshot, StudyMode } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
@@ -39,9 +39,7 @@ import { FlashcardItem } from '../Flashcard/FlashcardItem';
 import { CardEditorModal } from './CardEditorModal';
 import { cn } from '../../../../lib/utils';
 
-// ============================================
-// HELPERS
-// ============================================
+// ─── Helpers ────────────────────────────────────────────────────
 
 const formatRelativeTime = (isoString: string | undefined): string => {
   if (!isoString) return '';
@@ -57,9 +55,7 @@ const formatRelativeTime = (isoString: string | undefined): string => {
   return `${months} mes. fa`;
 };
 
-// ============================================
-// TYPES
-// ============================================
+// ─── Types ──────────────────────────────────────────────────────
 
 interface DeckDetailContentProps {
   deck: Deck;
@@ -80,81 +76,48 @@ interface DeckDetailContentProps {
 type ViewMode = 'grid' | 'list';
 type FilterStatus = 'all' | 'new' | 'learning' | 'review' | 'mastered';
 
-// ============================================
-// STAT CARD COMPONENT
-// ============================================
+// ─── Sub-components ─────────────────────────────────────────────
 
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  subvalue?: string;
-  icon: React.ElementType;
-  color: string;
-  delay?: number;
-}
-
-const StatCard = ({ label, value, subvalue, icon: Icon, color, delay = 0 }: StatCardProps) => (
-  <motion.div
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay }}
-    className="bg-theme-surface border border-theme-default rounded-xl p-4 hover:border-theme-strong transition-colors"
-  >
-    <div className="flex items-start justify-between">
-      <div>
-        <p className="text-xs text-theme-muted uppercase tracking-wider mb-1">{label}</p>
-        <p className="text-2xl font-bold text-theme-primary">{value}</p>
-        {subvalue && <p className="text-xs text-theme-secondary mt-0.5">{subvalue}</p>}
-      </div>
-      <div className={cn("p-2 rounded-lg", color)}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
-    </div>
-  </motion.div>
-);
-
-// ============================================
-// PROGRESS BAR COMPONENT
-// ============================================
-
-const DistributionBar = ({ 
-  new: newCount, 
-  learning, 
-  review, 
-  mastered, 
-  total 
-}: { 
-  new: number; 
-  learning: number; 
-  review: number; 
-  mastered: number; 
+const DistributionBar = ({
+  new: newCount,
+  learning,
+  review,
+  mastered,
+  total,
+}: {
+  new: number;
+  learning: number;
+  review: number;
+  mastered: number;
   total: number;
 }) => {
   const items = [
-    { count: newCount, color: 'bg-blue-500', label: 'Nuove' },
+    { count: newCount, color: 'bg-sky-500', label: 'Nuove' },
     { count: learning, color: 'bg-amber-500', label: 'In studio' },
     { count: review, color: 'bg-orange-500', label: 'Ripasso' },
     { count: mastered, color: 'bg-emerald-500', label: 'Padroneggiate' },
   ].filter(i => i.count > 0);
 
+  if (total === 0) return null;
+
   return (
-    <div className="space-y-3">
-      <div className="h-2.5 bg-theme-elevated rounded-full overflow-hidden flex border border-theme-default">
+    <div className="space-y-2.5">
+      <div className="h-2 bg-theme-base rounded-full overflow-hidden flex">
         {items.map((item, idx) => (
           <motion.div
             key={item.label}
             initial={{ width: 0 }}
             animate={{ width: `${(item.count / total) * 100}%` }}
-            transition={{ duration: 0.5, delay: idx * 0.1 }}
-            className={cn("h-full", item.color)}
+            transition={{ duration: 0.6, delay: idx * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className={cn('h-full first:rounded-l-full last:rounded-r-full', item.color)}
             title={`${item.label}: ${item.count}`}
           />
         ))}
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
         {items.map(item => (
-          <span key={item.label} className="flex items-center gap-1.5 text-theme-secondary">
-            <span className={cn("w-2 h-2 rounded-full", item.color)} />
+          <span key={item.label} className="flex items-center gap-1.5 text-xs text-theme-secondary">
+            <span className={cn('w-1.5 h-1.5 rounded-full', item.color)} />
             {item.label} ({item.count})
           </span>
         ))}
@@ -163,9 +126,33 @@ const DistributionBar = ({
   );
 };
 
-// ============================================
-// MAIN COMPONENT
-// ============================================
+interface SidebarSectionProps {
+  title?: string;
+  icon?: React.ElementType;
+  iconColor?: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+const SidebarSection: React.FC<SidebarSectionProps> = ({
+  title,
+  icon: Icon,
+  iconColor = 'text-theme-muted',
+  children,
+  className,
+}) => (
+  <div className={cn('rounded-xl border border-theme-default bg-theme-surface p-4', className)}>
+    {title && (
+      <div className="flex items-center gap-2 mb-3">
+        {Icon && <Icon className={cn('w-4 h-4', iconColor)} />}
+        <h3 className="text-[13px] font-semibold text-theme-primary tracking-tight">{title}</h3>
+      </div>
+    )}
+    {children}
+  </div>
+);
+
+// ─── Main component ─────────────────────────────────────────────
 
 export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   deck,
@@ -182,41 +169,38 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   onShare,
   onResetProgress,
 }) => {
-  // State
+  // ── State ──
   const [selectedStudyMode, setSelectedStudyMode] = useState<StudyMode>('flashcard');
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const stored = localStorage.getItem('deck-view-mode');
-    // Default context-aware: lista su mobile, griglia su desktop
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
     if (stored === 'grid' || stored === 'list') return stored as ViewMode;
     return isMobile ? 'list' : 'grid';
   });
 
-  // Comunicazione one-time: DeckSettings è stato rimosso
   useEffect(() => {
     const KEY = 'deck-settings-removed-notice-shown';
     if (!localStorage.getItem(KEY)) {
       localStorage.setItem(KEY, '1');
-      // Piccolo delay per non mostrarlo mentre la pagina sta ancora caricando
       const t = window.setTimeout(() => {
-        emitToast.info('Le impostazioni SRS del mazzo sono ora gestite automaticamente. Nessuna azione richiesta.', {
-          title: 'Semplificazione',
-          duration: 6000,
-        });
+        emitToast.info(
+          'Le impostazioni SRS del mazzo sono ora gestite automaticamente. Nessuna azione richiesta.',
+          { title: 'Semplificazione', duration: 6000 },
+        );
       }, 800);
       return () => clearTimeout(t);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Editor State
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
+  const [showMoreActions, setShowMoreActions] = useState(false);
 
-  // Stats calculation
+  // ── Derived data ──
   const stats = useMemo(() => {
     const cards = deck.cards || [];
     const total = cards.length;
@@ -226,33 +210,31 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
     const mastered = cards.filter(c => c.status === 'mastered').length;
     const dueCount = deck.dueCount || 0;
     const masteryPercent = total > 0 ? Math.round((mastered / total) * 100) : 0;
-    
+
     return {
-      total, new: newCards, learning, review, mastered, 
-      due: dueCount, mastery: masteryPercent
+      total,
+      new: newCards,
+      learning,
+      review,
+      mastered,
+      due: dueCount,
+      mastery: masteryPercent,
     };
   }, [deck.cards, deck.dueCount]);
 
-  // Filter and sort cards
   const filteredCards = useMemo(() => {
     let cards = [...(deck.cards || [])];
-
-    if (filter !== 'all') {
-      cards = cards.filter(c => c.status === filter);
-    }
-
+    if (filter !== 'all') cards = cards.filter(c => c.status === filter);
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      cards = cards.filter(c => 
-        c.front.toLowerCase().includes(query) ||
-        c.back.toLowerCase().includes(query)
-      );
+      const q = searchQuery.toLowerCase();
+      cards = cards.filter(c => c.front.toLowerCase().includes(q) || c.back.toLowerCase().includes(q));
     }
-
     return cards;
   }, [deck.cards, filter, searchQuery]);
 
-  // Handlers
+  const canStudy = stats.due > 0 || stats.new > 0 || stats.learning > 0 || stats.review > 0;
+
+  // ── Handlers ──
   const handleAddCard = useCallback(() => {
     setEditingCard({
       id: 'temp-new',
@@ -267,25 +249,27 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
     setIsEditorOpen(true);
   }, []);
 
-  const handleSaveCard = useCallback(async (front: string, back: string) => {
-    if (!editingCard) return;
-
-    try {
-      if (editingCard.id === 'temp-new') {
-        const updatedDeck = await studyService.addCard(deck.id, { front, back });
-        onDeckUpdate(updatedDeck);
-        emitToast.success('Carta aggiunta!');
-      } else {
-        const updatedDeck = await studyService.updateCard(deck.id, editingCard.id, { front, back });
-        onDeckUpdate(updatedDeck);
-        emitToast.success('Carta aggiornata!');
+  const handleSaveCard = useCallback(
+    async (front: string, back: string) => {
+      if (!editingCard) return;
+      try {
+        if (editingCard.id === 'temp-new') {
+          const updatedDeck = await studyService.addCard(deck.id, { front, back });
+          onDeckUpdate(updatedDeck);
+          emitToast.success('Carta aggiunta!');
+        } else {
+          const updatedDeck = await studyService.updateCard(deck.id, editingCard.id, { front, back });
+          onDeckUpdate(updatedDeck);
+          emitToast.success('Carta aggiornata!');
+        }
+        setIsEditorOpen(false);
+        setEditingCard(null);
+      } catch (error: any) {
+        emitToast.error(error.message || 'Errore nel salvare');
       }
-      setIsEditorOpen(false);
-      setEditingCard(null);
-    } catch (error: any) {
-      emitToast.error(error.message || 'Errore nel salvare');
-    }
-  }, [editingCard, deck.id, onDeckUpdate]);
+    },
+    [editingCard, deck.id, onDeckUpdate],
+  );
 
   const handleDeleteCard = useCallback(async () => {
     if (!deletingCardId) return;
@@ -304,140 +288,128 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
     return deck.cards?.findIndex(c => c.id === editingCard.id) ?? -1;
   }, [editingCard, deck.cards]);
 
-  const hasCards = stats.total > 0;
-  const canStudy = stats.due > 0 || stats.new > 0 || stats.learning > 0 || stats.review > 0;
-
+  // ── Render ──
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col lg:flex-row gap-4 lg:gap-6">
-      
-      {/* LEFT SIDEBAR - Stats & Info */}
-      <aside className="lg:w-72 xl:w-80 flex-shrink-0 space-y-4">
-        {/* Back Button & Title */}
-        <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
+    <div className="pb-24 sm:pb-0">
+      {/* ───────── PAGE HEADER ───────── */}
+      <header className="mb-6">
+        {/* Breadcrumb row */}
+        <div className="flex items-center gap-3 mb-4">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-sm text-theme-secondary hover:text-theme-primary transition-colors mb-3"
+            className="inline-flex items-center gap-1.5 text-sm text-theme-secondary hover:text-theme-primary transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
-            Torna ai mazzi
+            <span>Mazzi</span>
           </button>
-          <h1 className="text-xl font-bold text-theme-primary line-clamp-2" title={deck.title}>
-            {deck.title}
-          </h1>
-          {deck.description && (
-            <p className="text-sm text-theme-secondary mt-1 line-clamp-2">{deck.description}</p>
-          )}
         </div>
 
-        {/* Banner PDF — visibile e trovabile quando il deck ha un documento */}
-        {onReadPdf && deck.pdfUrl && (
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            onClick={onReadPdf}
-            className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/25 hover:border-blue-500/40 transition-all text-left"
-          >
-            <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-blue-500" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-theme-primary">Apri PDF</p>
-              <p className="text-xs text-theme-muted truncate">Leggi e sottolinea il documento</p>
-            </div>
-          </motion.button>
-        )}
+        {/* Title + actions row */}
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <h1
+              className="text-2xl sm:text-3xl font-extrabold text-theme-primary tracking-tight leading-tight line-clamp-2"
+              title={deck.title}
+            >
+              {deck.title}
+            </h1>
+            {deck.description && (
+              <p className="text-sm text-theme-secondary mt-1.5 line-clamp-2 max-w-2xl">{deck.description}</p>
+            )}
+          </div>
 
-        {/* Stats essenziali — versione compatta visible su mobile, nascosta su desktop */}
-        <div className="lg:hidden flex items-center gap-3 px-1 py-0.5 flex-wrap text-sm text-theme-secondary">
-          <span className="flex items-center gap-1"><Layers className="w-3.5 h-3.5" />{stats.total} carte</span>
-          {stats.due > 0 && <span className="flex items-center gap-1 text-orange-500"><Clock className="w-3.5 h-3.5" />{stats.due} oggi</span>}
-          <span className="flex items-center gap-1"><Target className="w-3.5 h-3.5" />{stats.mastery}%</span>
-        </div>
+          {/* Desktop actions */}
+          <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+            {onReadPdf && deck.pdfUrl && (
+              <button
+                onClick={onReadPdf}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-500/8 hover:bg-blue-500/15 border border-blue-500/20 transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                PDF
+              </button>
+            )}
 
-        {/* Stats Grid — solo desktop */}
-        <div className="hidden lg:grid grid-cols-1 gap-3">
-          <StatCard
-            label="Carte Totali"
-            value={stats.total}
-            icon={Layers}
-            color="bg-blue-500"
-            delay={0}
-          />
-          <StatCard
-            label="Da Studiare"
-            value={stats.due}
-            subvalue="oggi"
-            icon={Clock}
-            color={stats.due > 0 ? "bg-orange-500" : "bg-slate-500"}
-            delay={0.1}
-          />
-          <StatCard
-            label="Padronanza"
-            value={`${stats.mastery}%`}
-            icon={Target}
-            color={stats.mastery >= 80 ? "bg-emerald-500" : stats.mastery >= 50 ? "bg-amber-500" : "bg-slate-500"}
-            delay={0.2}
-          />
-          <StatCard
-            label="Streak"
-            value="—"
-            subvalue="in arrivo"
-            icon={TrendingUp}
-            color="bg-slate-500"
-            delay={0.3}
-          />
-        </div>
+            <select
+              value={selectedStudyMode}
+              onChange={e => setSelectedStudyMode(e.target.value as StudyMode)}
+              disabled={!canStudy}
+              className="min-h-[40px] px-3 py-2 rounded-lg bg-theme-surface border border-theme-default text-sm text-theme-primary disabled:opacity-40"
+              aria-label="Modalità di studio"
+            >
+              <option value="flashcard">Flashcard</option>
+              <option value="typing">Typing</option>
+              <option value="mix">Mix</option>
+            </select>
 
-        {/* Distribution — solo desktop */}
-        <div className="hidden lg:block bg-theme-surface border border-theme-default rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-theme-primary mb-3">Distribuzione</h3>
-          <DistributionBar {...stats} />
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-theme-surface border border-theme-default rounded-xl p-4 space-y-2">
-          <h3 className="text-sm font-semibold text-theme-primary mb-2">Azioni</h3>
-          {onExport && (
-            <button onClick={onExport} className="w-full flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-subtle text-sm text-theme-primary transition-colors">
-              <Download className="w-4 h-4" /> Esporta
+            <button
+              onClick={() => onStudy(selectedStudyMode)}
+              disabled={!canStudy}
+              className={cn(
+                'min-h-[40px] inline-flex items-center gap-2 px-5 py-2 rounded-lg font-semibold text-sm transition-colors',
+                canStudy
+                  ? 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white shadow-md shadow-primary-500/20'
+                  : 'bg-theme-subtle text-theme-muted cursor-not-allowed',
+              )}
+            >
+              <Play className="w-4 h-4" />
+              Studia
+              {stats.due > 0 && (
+                <span className="ml-0.5 text-xs bg-white/20 px-1.5 py-0.5 rounded">{stats.due}</span>
+              )}
             </button>
+          </div>
+        </div>
+
+        {/* Compact stats bar */}
+        <div className="mt-5 flex items-center gap-5 text-sm">
+          <span className="flex items-center gap-1.5 text-theme-secondary tabular-nums">
+            <Layers className="w-4 h-4 text-sky-500" />
+            <span className="font-semibold text-theme-primary">{stats.total}</span> carte
+          </span>
+          {stats.due > 0 && (
+            <span className="flex items-center gap-1.5 text-theme-secondary tabular-nums">
+              <Clock className="w-4 h-4 text-orange-500" />
+              <span className="font-semibold text-orange-600 dark:text-orange-400">{stats.due}</span> da studiare
+            </span>
           )}
-          {onShare && (
-            <button onClick={onShare} className="w-full flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-subtle text-sm text-theme-primary transition-colors">
-              <Share2 className="w-4 h-4" /> Copia link
-            </button>
-          )}
-          {onResetProgress && (
-            <button onClick={onResetProgress} className="w-full flex items-center gap-2 p-2.5 rounded-lg hover:bg-theme-subtle text-sm text-orange-600 dark:text-orange-400 transition-colors">
-              <RotateCcw className="w-4 h-4" /> Reset progresso
-            </button>
+          <span className="flex items-center gap-1.5 text-theme-secondary tabular-nums">
+            <Target className="w-4 h-4 text-emerald-500" />
+            <span className="font-semibold text-theme-primary">{stats.mastery}%</span> padronanza
+          </span>
+          {deck.updatedAt && (
+            <span className="hidden md:flex items-center gap-1.5 text-theme-muted text-xs">
+              <Calendar className="w-3.5 h-3.5" />
+              Aggiornato {formatRelativeTime(deck.updatedAt)}
+            </span>
           )}
         </div>
-      </aside>
+      </header>
 
-      {/* CENTER - Cards Area */}
-      <main className="flex-1 min-w-0 flex flex-col">
-        {/* Toolbar */}
-        <div className="bg-theme-surface border border-theme-default rounded-xl p-3 mb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      {/* ───────── MAIN 2-COLUMN LAYOUT ───────── */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* LEFT — Card browser (takes most space) */}
+        <main className="flex-1 min-w-0 space-y-4">
+          {/* Toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-theme-surface border border-theme-default">
             {/* Search */}
             <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted pointer-events-none" />
               <input
                 type="text"
                 placeholder="Cerca carte..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg bg-theme-base border border-theme-default text-sm text-theme-primary placeholder:text-theme-muted focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-lg bg-theme-base border border-theme-default text-sm text-theme-primary placeholder:text-theme-muted focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500/40 outline-none transition-shadow"
               />
             </div>
 
-            {/* Filters */}
             <div className="flex items-center gap-2">
+              {/* Filter */}
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value as FilterStatus)}
-                className="px-3 py-2 rounded-lg bg-theme-base border border-theme-default text-sm text-theme-primary focus:ring-2 focus:ring-primary-500"
+                onChange={e => setFilter(e.target.value as FilterStatus)}
+                className="min-h-[40px] px-3 py-2 rounded-lg bg-theme-base border border-theme-default text-sm text-theme-primary"
               >
                 <option value="all">Tutte ({stats.total})</option>
                 <option value="new">Nuove ({stats.new})</option>
@@ -446,99 +418,99 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                 <option value="mastered">Padroneggiate ({stats.mastered})</option>
               </select>
 
-              {/* View Toggle */}
+              {/* View toggle */}
               <div className="flex items-center bg-theme-base rounded-lg border border-theme-default p-0.5">
                 <button
-                  onClick={() => { setViewMode('list'); localStorage.setItem('deck-view-mode', 'list'); }}
+                  onClick={() => {
+                    setViewMode('list');
+                    localStorage.setItem('deck-view-mode', 'list');
+                  }}
                   className={cn(
-                    "p-2 rounded-md transition-colors",
-                    viewMode === 'list' ? "bg-theme-surface text-theme-primary" : "text-theme-muted hover:text-theme-primary"
+                    'p-2 rounded-md transition-colors',
+                    viewMode === 'list'
+                      ? 'bg-theme-surface text-theme-primary shadow-sm'
+                      : 'text-theme-muted hover:text-theme-primary',
                   )}
+                  aria-label="Vista lista"
                 >
                   <List className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => { setViewMode('grid'); localStorage.setItem('deck-view-mode', 'grid'); }}
+                  onClick={() => {
+                    setViewMode('grid');
+                    localStorage.setItem('deck-view-mode', 'grid');
+                  }}
                   className={cn(
-                    "p-2 rounded-md transition-colors",
-                    viewMode === 'grid' ? "bg-theme-surface text-theme-primary" : "text-theme-muted hover:text-theme-primary"
+                    'p-2 rounded-md transition-colors',
+                    viewMode === 'grid'
+                      ? 'bg-theme-surface text-theme-primary shadow-sm'
+                      : 'text-theme-muted hover:text-theme-primary',
                   )}
+                  aria-label="Vista griglia"
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
               </div>
-            </div>
 
-            {/* Study Mode + Button — nascosto su mobile (c'è la bottom bar) */}
-            <div className="hidden sm:flex items-center gap-1.5">
-              <select
-                value={selectedStudyMode}
-                onChange={(e) => setSelectedStudyMode(e.target.value as StudyMode)}
-                disabled={!canStudy}
-                className="min-h-[44px] px-2.5 py-2 rounded-lg bg-theme-base border border-theme-default text-sm text-theme-primary focus:ring-2 focus:ring-primary-500 disabled:opacity-40"
-                aria-label="Modalità di studio"
+              {/* Add card (inline, desktop) */}
+              <button
+                onClick={handleAddCard}
+                className="hidden sm:inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-lg text-sm font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400 hover:bg-primary-500/20 border border-primary-500/20 transition-colors"
               >
-                <option value="flashcard">Flashcard</option>
-                <option value="typing">Typing</option>
-                <option value="mix">Mix</option>
-              </select>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onStudy(selectedStudyMode)}
-                disabled={!canStudy}
-                className={cn(
-                  "min-h-[44px] flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold transition-all whitespace-nowrap",
-                  canStudy
-                    ? "bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/25"
-                    : "bg-theme-subtle text-theme-muted cursor-not-allowed"
-                )}
-              >
-                <Play className="w-4 h-4" />
-                Studia {stats.due > 0 && <span className="ml-1 text-xs bg-white/20 px-1.5 py-0.5 rounded">{stats.due}</span>}
-              </motion.button>
+                <Plus className="w-4 h-4" />
+                Aggiungi
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Cards List - No container, free layout */}
-        <div className="flex-1 overflow-auto -mx-1 px-1">
+          {/* Card count + distribution (inline, mobile only) */}
+          <div className="lg:hidden">
+            <DistributionBar {...stats} />
+          </div>
+
+          {/* Cards */}
           {filteredCards.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center bg-theme-surface border border-theme-default rounded-xl">
-              <div className="w-16 h-16 rounded-2xl bg-theme-subtle flex items-center justify-center mb-4">
-                <AlertCircle className="w-8 h-8 text-theme-muted" />
+            <div className="flex flex-col items-center justify-center py-20 text-center rounded-xl bg-theme-surface border border-dashed border-theme-default">
+              <div className="w-14 h-14 rounded-2xl bg-theme-subtle flex items-center justify-center mb-4">
+                {searchQuery ? (
+                  <Search className="w-7 h-7 text-theme-muted" />
+                ) : (
+                  <BookOpen className="w-7 h-7 text-theme-muted" />
+                )}
               </div>
-              <h3 className="text-lg font-semibold text-theme-primary mb-2">
-                {searchQuery ? 'Nessuna carta trovata' : 'Nessuna carta'}
+              <h3 className="text-base font-semibold text-theme-primary mb-1.5">
+                {searchQuery ? 'Nessun risultato' : 'Nessuna carta'}
               </h3>
-              <p className="text-sm text-theme-secondary max-w-sm mb-6">
-                {searchQuery ? 'Prova altri termini di ricerca' : 'Crea la tua prima carta per iniziare'}
+              <p className="text-sm text-theme-secondary max-w-xs mb-5">
+                {searchQuery
+                  ? 'Prova con termini diversi o rimuovi il filtro'
+                  : 'Aggiungi la tua prima flashcard per iniziare a studiare'}
               </p>
               {!searchQuery && (
                 <button
                   onClick={handleAddCard}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold hover:bg-primary-600 transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white text-sm font-semibold transition-colors"
                 >
-                  <Plus className="w-5 h-5" />
-                  Crea Carta
+                  <Plus className="w-4 h-4" />
+                  Crea prima carta
                 </button>
               )}
             </div>
           ) : (
-            <div className={cn(
-              viewMode === 'grid' 
-                ? "grid grid-cols-1 xl:grid-cols-2 gap-4" 
-                : "space-y-4"
-            )}>
+            <div
+              className={cn(
+                viewMode === 'grid' ? 'grid grid-cols-1 xl:grid-cols-2 gap-3' : 'space-y-3',
+              )}
+            >
               <AnimatePresence mode="popLayout">
                 {filteredCards.map((card, index) => (
                   <motion.div
                     key={card.id}
                     layout
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    transition={{ delay: Math.min(index * 0.025, 0.25) }}
                   >
                     <FlashcardItem
                       card={card}
@@ -557,150 +529,221 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
               </AnimatePresence>
             </div>
           )}
-        </div>
-      </main>
 
-      {/* RIGHT SIDEBAR - AI & Activity */}
-      <aside className="lg:w-64 xl:w-72 flex-shrink-0 space-y-4">
-        {/* AI Actions */}
-        <div className="bg-gradient-to-br from-primary-500/10 to-purple-500/10 border border-primary-500/20 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Brain className="w-5 h-5 text-primary-500" />
-            <h3 className="font-semibold text-theme-primary">AI Assistant</h3>
-          </div>
-          
-          <div className="space-y-2">
-            {onMagicGenerate && (
-              <button
-                onClick={onMagicGenerate}
-                className="w-full flex items-center gap-2 p-3 rounded-lg bg-theme-surface hover:bg-theme-surface/80 border border-theme-default hover:border-primary-500/30 transition-all text-sm text-theme-primary"
-              >
-                <Sparkles className="w-4 h-4 text-primary-500" />
-                <span>Magic Generate</span>
-              </button>
-            )}
-            {onExamSolver && (
-              <button
-                onClick={onExamSolver}
-                className="w-full flex items-center gap-2 p-3 rounded-lg bg-theme-surface hover:bg-theme-surface/80 border border-theme-default hover:border-amber-500/30 transition-all text-sm text-theme-primary"
-              >
-                <Target className="w-4 h-4 text-amber-500" />
-                <span>Exam Solver</span>
-              </button>
-            )}
-            {onGenerateQuiz && (
-              <button
-                onClick={onGenerateQuiz}
-                disabled={stats.total < 10}
-                title={stats.total < 10 ? 'Crea almeno 10 flashcard per sbloccare il quiz' : 'Genera un quiz da questo mazzo'}
-                className={`w-full flex items-center gap-2 p-3 rounded-lg border transition-all text-sm ${
-                  stats.total >= 10
-                    ? 'bg-theme-surface hover:bg-theme-surface/80 border-theme-default hover:border-indigo-500/30 text-theme-primary'
-                    : 'bg-theme-surface/50 border-theme-default text-theme-muted cursor-not-allowed'
-                }`}
-              >
-                <ListChecks className={`w-4 h-4 ${stats.total >= 10 ? 'text-indigo-500' : 'text-theme-muted'}`} />
-                <span>Genera Quiz</span>
-              </button>
-            )}
-          </div>
-        </div>
+          {/* Mobile add card FAB */}
+          <button
+            onClick={handleAddCard}
+            className="sm:hidden fixed right-4 z-20 w-14 h-14 rounded-full bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white shadow-lg shadow-primary-500/30 flex items-center justify-center transition-colors"
+            style={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom, 0px))' }}
+            aria-label="Aggiungi carta"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        </main>
 
-        {/* Saved Quizzes */}
-        {onRepeatSavedQuiz && (deck.savedQuizzes?.length ?? 0) > 0 && (
-          <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <ListChecks className="w-4 h-4 text-indigo-500" />
-              <h3 className="text-sm font-semibold text-theme-primary">Quiz Salvati</h3>
-            </div>
-            <div className="space-y-2">
-              {(deck.savedQuizzes ?? []).slice(0, 5).map((quiz) => (
-                <div
-                  key={quiz.id}
-                  className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-theme-base border border-theme-default"
+        {/* RIGHT — Sidebar (desktop: sticky, mobile: below cards) */}
+        <aside className="w-full lg:w-80 xl:w-[340px] flex-shrink-0 lg:sticky lg:top-[calc(var(--app-header-height,72px)+1.5rem)] lg:self-start lg:max-h-[calc(100dvh-var(--app-header-height,72px)-3rem)] lg:overflow-y-auto custom-scrollbar space-y-4">
+          {/* Distribution (desktop) */}
+          <div className="hidden lg:block">
+            <SidebarSection title="Distribuzione" icon={Layers} iconColor="text-sky-500">
+              <DistributionBar {...stats} />
+            </SidebarSection>
+          </div>
+
+          {/* AI tools */}
+          <SidebarSection
+            title="Strumenti AI"
+            icon={Brain}
+            iconColor="text-primary-500"
+            className="border-primary-500/15 bg-gradient-to-b from-primary-500/[0.04] to-transparent"
+          >
+            <div className="space-y-1.5">
+              {onMagicGenerate && (
+                <button
+                  onClick={onMagicGenerate}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-theme-primary hover:bg-theme-subtle active:bg-theme-base transition-colors"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-theme-primary truncate">{quiz.name || `Quiz ${quiz.questionCount} domande`}</p>
-                    <p className="text-[11px] text-theme-muted mt-0.5">
-                      {quiz.quizType === 'true_false' ? 'Vero/Falso' : 'Scelta multipla'} · {quiz.questionCount} dom.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => onRepeatSavedQuiz(quiz)}
-                    className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-medium transition-colors"
-                    title="Rifai questo quiz"
-                  >
-                    <Play className="w-3 h-3" />
-                    Rifai
-                  </button>
-                </div>
-              ))}
+                  <Sparkles className="w-4 h-4 text-primary-500 flex-shrink-0" />
+                  Magic Generate
+                </button>
+              )}
+              {onExamSolver && (
+                <button
+                  onClick={onExamSolver}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-theme-primary hover:bg-theme-subtle active:bg-theme-base transition-colors"
+                >
+                  <Target className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  Exam Solver
+                </button>
+              )}
+              {onGenerateQuiz && (
+                <button
+                  onClick={onGenerateQuiz}
+                  disabled={stats.total < 10}
+                  title={
+                    stats.total < 10
+                      ? 'Crea almeno 10 flashcard per sbloccare il quiz'
+                      : 'Genera un quiz da questo mazzo'
+                  }
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors',
+                    stats.total >= 10
+                      ? 'text-theme-primary hover:bg-theme-subtle active:bg-theme-base'
+                      : 'text-theme-muted cursor-not-allowed opacity-50',
+                  )}
+                >
+                  <ListChecks
+                    className={cn(
+                      'w-4 h-4 flex-shrink-0',
+                      stats.total >= 10 ? 'text-indigo-500' : 'text-theme-muted',
+                    )}
+                  />
+                  Genera Quiz
+                </button>
+              )}
             </div>
-          </div>
-        )}
+          </SidebarSection>
 
-        {/* Activity Timeline - basata su dati reali del deck */}
-        {(deck.updatedAt || deck.createdAt) && (
-          <div className="bg-theme-surface border border-theme-default rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-theme-primary mb-3">Info Mazzo</h3>
-            <div className="space-y-3">
-              {deck.updatedAt && (
-                <div className="flex items-start gap-3">
-                  <div className="p-1.5 rounded-lg bg-theme-subtle text-blue-500">
-                    <Clock className="w-3.5 h-3.5" />
+          {/* Saved quizzes */}
+          {onRepeatSavedQuiz && (deck.savedQuizzes?.length ?? 0) > 0 && (
+            <SidebarSection title="Quiz salvati" icon={ListChecks} iconColor="text-indigo-500">
+              <div className="space-y-1.5">
+                {(deck.savedQuizzes ?? []).slice(0, 5).map(quiz => (
+                  <div
+                    key={quiz.id}
+                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-theme-base"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-theme-primary truncate">
+                        {quiz.name || `Quiz ${quiz.questionCount} domande`}
+                      </p>
+                      <p className="text-[11px] text-theme-muted mt-0.5">
+                        {quiz.quizType === 'true_false' ? 'Vero/Falso' : 'Scelta multipla'} ·{' '}
+                        {quiz.questionCount} dom.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => onRepeatSavedQuiz(quiz)}
+                      className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-medium transition-colors"
+                      title="Rifai questo quiz"
+                    >
+                      <Play className="w-3 h-3" />
+                      Rifai
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-theme-primary">Ultimo aggiornamento</p>
-                    <p className="text-xs text-theme-muted">{formatRelativeTime(deck.updatedAt)}</p>
-                  </div>
-                </div>
-              )}
-              {deck.createdAt && (
-                <div className="flex items-start gap-3">
-                  <div className="p-1.5 rounded-lg bg-theme-subtle text-emerald-500">
-                    <Calendar className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-theme-primary">Creato</p>
-                    <p className="text-xs text-theme-muted">{formatRelativeTime(deck.createdAt)}</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-start gap-3">
-                <div className="p-1.5 rounded-lg bg-theme-subtle text-purple-500">
-                  <Layers className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-theme-primary">Carte nel mazzo</p>
-                  <p className="text-xs text-theme-muted">{stats.total} totali · {stats.mastered} padroneggiate</p>
-                </div>
+                ))}
+              </div>
+            </SidebarSection>
+          )}
+
+          {/* PDF banner (mobile, if not shown in header) */}
+          {onReadPdf && deck.pdfUrl && (
+            <button
+              onClick={onReadPdf}
+              className="sm:hidden w-full flex items-center gap-3 p-3.5 rounded-xl bg-blue-500/8 hover:bg-blue-500/15 active:bg-blue-500/20 border border-blue-500/20 transition-colors text-left"
+            >
+              <div className="w-9 h-9 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-5 h-5 text-blue-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-theme-primary">Apri PDF</p>
+                <p className="text-xs text-theme-muted truncate">Leggi e sottolinea il documento</p>
+              </div>
+            </button>
+          )}
+
+          {/* Tip */}
+          {stats.review > 0 && (
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-3.5">
+              <div className="flex items-start gap-2.5">
+                <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-theme-secondary leading-relaxed">
+                  Hai <span className="font-semibold text-amber-600 dark:text-amber-400">{stats.review}</span>{' '}
+                  carte in ripasso. Studiale per mantenere la memoria a lungo termine.
+                </p>
               </div>
             </div>
+          )}
+
+          {/* Quick actions */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMoreActions(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-theme-default bg-theme-surface text-sm text-theme-secondary hover:text-theme-primary transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <MoreHorizontal className="w-4 h-4" />
+                Altre azioni
+              </span>
+              <ChevronLeft
+                className={cn(
+                  'w-4 h-4 transition-transform duration-200',
+                  showMoreActions ? 'rotate-90' : '-rotate-90',
+                )}
+              />
+            </button>
+
+            <AnimatePresence>
+              {showMoreActions && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-2 space-y-1">
+                    {onExport && (
+                      <button
+                        onClick={onExport}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm text-theme-primary hover:bg-theme-subtle transition-colors"
+                      >
+                        <Download className="w-4 h-4 text-theme-muted" />
+                        Esporta mazzo
+                      </button>
+                    )}
+                    {onShare && (
+                      <button
+                        onClick={onShare}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm text-theme-primary hover:bg-theme-subtle transition-colors"
+                      >
+                        <Share2 className="w-4 h-4 text-theme-muted" />
+                        Copia link
+                      </button>
+                    )}
+                    {onResetProgress && (
+                      <button
+                        onClick={onResetProgress}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 transition-colors"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        Reset progresso
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        )}
 
-        {/* Study Tips */}
-        <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-2">💡 Consiglio</h3>
-          <p className="text-xs text-theme-secondary">
-            Studia le carte in ripasso per mantenere la memoria a lungo termine. 
-            {stats.review > 0 && ` Hai ${stats.review} carte in attesa!`}
-          </p>
-        </div>
+          {/* Deck info (collapsed) */}
+          {(deck.updatedAt || deck.createdAt) && (
+            <div className="px-1 space-y-2 text-xs text-theme-muted">
+              {deck.createdAt && (
+                <p>
+                  Creato {formatRelativeTime(deck.createdAt)}
+                </p>
+              )}
+              <p>
+                {stats.total} carte · {stats.mastered} padroneggiate
+              </p>
+            </div>
+          )}
+        </aside>
+      </div>
 
-        {/* Floating Add Button */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleAddCard}
-          className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold shadow-lg shadow-primary-500/30 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Nuova Carta
-        </motion.button>
-      </aside>
+      {/* ───────── MODALS & OVERLAYS ───────── */}
 
-      {/* Card Editor Modal */}
       <CardEditorModal
         isOpen={isEditorOpen}
         onClose={() => {
@@ -710,24 +753,34 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
         frontContent={editingCard?.front || ''}
         backContent={editingCard?.back || ''}
         onSave={handleSaveCard}
-        onDelete={editingCard?.id !== 'temp-new' ? () => setDeletingCardId(editingCard?.id || null) : undefined}
+        onDelete={
+          editingCard?.id !== 'temp-new' ? () => setDeletingCardId(editingCard?.id || null) : undefined
+        }
         title={editingCard?.id === 'temp-new' ? 'Nuova Carta' : 'Modifica Carta'}
         cardNumber={currentCardIndex !== -1 ? currentCardIndex + 1 : undefined}
         totalCards={deck.cards?.length}
-        onNavigate={currentCardIndex !== -1 ? (dir) => {
-          const newIndex = dir === 'prev' ? currentCardIndex - 1 : currentCardIndex + 1;
-          if (newIndex >= 0 && newIndex < (deck.cards?.length || 0)) {
-            setEditingCard(deck.cards![newIndex]);
-          }
-        } : undefined}
+        onNavigate={
+          currentCardIndex !== -1
+            ? dir => {
+                const newIndex = dir === 'prev' ? currentCardIndex - 1 : currentCardIndex + 1;
+                const cards = deck.cards ?? [];
+                if (newIndex >= 0 && newIndex < cards.length) {
+                  setEditingCard(cards[newIndex]);
+                }
+              }
+            : undefined
+        }
       />
 
-      {/* Mobile Bottom Action Bar — visibile solo su schermi piccoli (thumb zone) */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 px-4 pb-safe-area-inset-bottom pt-3 pb-4 bg-theme-elevated/95 backdrop-blur-xl border-t border-theme-default">
+      {/* Mobile bottom study bar */}
+      <div
+        className="sm:hidden fixed bottom-0 left-0 right-0 z-30 px-4 pt-3 bg-theme-elevated/95 backdrop-blur-xl border-t border-theme-default"
+        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+      >
         <div className="flex items-center gap-2 max-w-lg mx-auto">
           <select
             value={selectedStudyMode}
-            onChange={(e) => setSelectedStudyMode(e.target.value as StudyMode)}
+            onChange={e => setSelectedStudyMode(e.target.value as StudyMode)}
             disabled={!canStudy}
             className="flex-none min-w-[108px] min-h-[44px] px-3 py-2 rounded-xl bg-theme-surface border border-theme-default text-sm text-theme-primary disabled:opacity-40"
             aria-label="Modalità di studio"
@@ -736,30 +789,33 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
             <option value="typing">Typing</option>
             <option value="mix">Mix</option>
           </select>
-          <motion.button
-            whileTap={{ scale: 0.97 }}
+          <button
             onClick={() => onStudy(selectedStudyMode)}
             disabled={!canStudy}
             className={cn(
-              "flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl font-semibold transition-all",
+              'flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors',
               canStudy
-                ? "bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/25"
-                : "bg-theme-subtle text-theme-muted cursor-not-allowed"
+                ? 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white shadow-lg shadow-primary-500/25'
+                : 'bg-theme-subtle text-theme-muted cursor-not-allowed',
             )}
           >
             <Play className="w-4 h-4" />
-            Studia {stats.due > 0 && <span className="ml-1 text-xs bg-white/20 px-1.5 py-0.5 rounded">{stats.due}</span>}
-          </motion.button>
+            Studia
+            {stats.due > 0 && (
+              <span className="ml-0.5 text-xs bg-white/20 px-1.5 py-0.5 rounded">{stats.due}</span>
+            )}
+          </button>
         </div>
       </div>
 
-      {/* Delete Confirmation */}
+      {/* Delete confirmation */}
       {deletingCardId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-md p-6 rounded-2xl bg-theme-surface border border-theme-default shadow-theme-lg"
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className="w-full max-w-sm p-6 rounded-2xl bg-theme-surface border border-theme-default shadow-theme-lg"
           >
             <h3 className="text-lg font-bold text-theme-primary mb-2">Elimina Carta</h3>
             <p className="text-theme-secondary text-sm mb-6">
@@ -768,13 +824,13 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setDeletingCardId(null)}
-                className="px-4 py-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-subtle transition-colors"
+                className="px-4 py-2 rounded-lg text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-subtle transition-colors"
               >
                 Annulla
               </button>
               <button
                 onClick={handleDeleteCard}
-                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors"
+                className="px-4 py-2 rounded-lg text-sm bg-red-500 hover:bg-red-600 text-white font-medium transition-colors"
               >
                 Elimina
               </button>
