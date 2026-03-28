@@ -147,6 +147,32 @@ const normalizeTags = (tags) => {
     return [...new Set(normalized)];
 };
 
+// =========================================
+// QUIZ QUESTION SUB-SCHEMA (persisted at generation time)
+// =========================================
+
+const quizQuestionSchema = new mongoose.Schema({
+    questionText: { type: String, required: true },
+    correctAnswer: { type: String, required: true },
+    distractors: { type: [String], default: [] },
+    distractorExplanations: { type: [String], default: [] },
+    correctAnswerExplanation: { type: String, default: '' },
+    difficulty: { type: String, default: 'standard' },
+    options: { type: [String], default: [] },
+}, { _id: false });
+
+// =========================================
+// QUIZ ATTEMPT SUB-SCHEMA (recorded per retake)
+// =========================================
+
+const quizAttemptSchema = new mongoose.Schema({
+    score: { type: Number, required: true },
+    accuracy: { type: Number, required: true },
+    timeSeconds: { type: Number, default: 0 },
+    completedAt: { type: Date, default: Date.now },
+    wrongQuestionIndices: { type: [Number], default: [] },
+}, { _id: true });
+
 const savedQuizSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -172,6 +198,14 @@ const savedQuizSchema = new mongoose.Schema({
         type: String,
         enum: ['chapter', 'repeat', 'errors', 'saved'],
         default: 'chapter',
+    },
+    questions: {
+        type: [quizQuestionSchema],
+        default: [],
+    },
+    attempts: {
+        type: [quizAttemptSchema],
+        default: [],
     },
     createdAt: {
         type: Date,
@@ -353,11 +387,23 @@ deckSchema.set('toJSON', {
         }
 
         if (Array.isArray(ret.savedQuizzes)) {
-            ret.savedQuizzes = ret.savedQuizzes.map(quiz => ({
-                ...quiz,
-                id: quiz._id?.toString() || quiz.id,
-                _id: undefined,
-            }));
+            ret.savedQuizzes = ret.savedQuizzes.map(quiz => {
+                const attempts = Array.isArray(quiz.attempts) ? quiz.attempts : [];
+                const scores = attempts.map(a => a.score).filter(s => typeof s === 'number');
+                return {
+                    ...quiz,
+                    id: quiz._id?.toString() || quiz.id,
+                    _id: undefined,
+                    // Computed fields
+                    attemptCount: attempts.length,
+                    lastScore: scores.length > 0 ? scores[scores.length - 1] : undefined,
+                    bestScore: scores.length > 0 ? Math.max(...scores) : undefined,
+                    hasQuestions: Array.isArray(quiz.questions) && quiz.questions.length > 0,
+                    // Strip heavy data from listing
+                    questions: undefined,
+                    attempts: undefined,
+                };
+            });
         }
     }
 });

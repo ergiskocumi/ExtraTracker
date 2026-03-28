@@ -15,6 +15,7 @@ const {
     updateCardAnswerSchema,
     reorderCardsSchema,
     saveQuizSnapshotSchema,
+    recordQuizAttemptSchema,
     updateDeckSettingsSchema,
 } = require('../validators/studyValidators');
 
@@ -59,6 +60,22 @@ const saveQuizSnapshot = asyncHandler(async (req, res) => {
 const getExamSavedQuizzes = asyncHandler(async (req, res) => {
     const quizzes = await deckCrudService.getExamSavedQuizzes(req.tenantScope, req.params.examId);
     res.json({ success: true, data: quizzes });
+});
+
+const retakeSavedQuiz = asyncHandler(async (req, res) => {
+    const data = await deckCrudService.getSavedQuizForRetake(req.tenantScope, req.params.id, req.params.quizId);
+    res.json({ success: true, data });
+});
+
+const reviewSavedQuiz = asyncHandler(async (req, res) => {
+    const data = await deckCrudService.getSavedQuizForReview(req.tenantScope, req.params.id, req.params.quizId);
+    res.json({ success: true, data });
+});
+
+const recordQuizAttempt = asyncHandler(async (req, res) => {
+    const body = recordQuizAttemptSchema.parse(req.body);
+    const result = await deckCrudService.recordQuizAttempt(req.tenantScope, req.params.id, req.params.quizId, body);
+    res.status(201).json({ success: true, data: result });
 });
 
 const resetDistractors = asyncHandler(async (req, res) => {
@@ -131,6 +148,9 @@ module.exports = {
     saveQuizSnapshot,
     getExamSavedQuizzes,
     resetDistractors,
+    retakeSavedQuiz,
+    reviewSavedQuiz,
+    recordQuizAttempt,
     addCard,
     updateCard,
     updateCardAnswer,
