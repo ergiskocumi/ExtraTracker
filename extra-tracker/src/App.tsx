@@ -106,7 +106,6 @@ function App() {
                     <Route path="/study" element={<DecksDashboardPage />} />
                     <Route path="/study/deck/:id" element={<DeckDetailPage />} />
                     <Route path="/study/deck/:deckId/cinema" element={<CinemaPage />} />
-                    <Route path="/study/:deckId" element={<StudySessionPage />} />
                     <Route path="/study/:deckId/session" element={<StudySessionPage />} />
 
                     {/* Admin Routes */}
