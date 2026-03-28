@@ -81,7 +81,7 @@ describe('CinemaLayout - Navigation Tests', () => {
             <BrowserRouter>
                 <CinemaLayout
                     deck={mockDeck}
-                    pdfSrc={mockDeck.pdfUrl}
+                    pdfSrc={mockDeck.pdfUrl ?? null}
                     onUpdateCard={vi.fn()}
                 />
             </BrowserRouter>
@@ -104,7 +104,7 @@ describe('CinemaLayout - Navigation Tests', () => {
             <BrowserRouter>
                 <CinemaLayout
                     deck={mockDeck}
-                    pdfSrc={mockDeck.pdfUrl}
+                    pdfSrc={mockDeck.pdfUrl ?? null}
                     onUpdateCard={vi.fn()}
                     onNavigateBack={mockOnNavigateBack}
                 />
@@ -128,7 +128,7 @@ describe('CinemaLayout - Navigation Tests', () => {
             <BrowserRouter>
                 <CinemaLayout
                     deck={mockDeck}
-                    pdfSrc={mockDeck.pdfUrl}
+                    pdfSrc={mockDeck.pdfUrl ?? null}
                     onUpdateCard={vi.fn()}
                 />
             </BrowserRouter>

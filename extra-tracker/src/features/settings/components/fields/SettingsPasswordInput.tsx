@@ -8,7 +8,7 @@
  */
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 import { SettingsField } from './SettingsField';
 

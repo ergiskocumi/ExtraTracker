@@ -24,7 +24,7 @@ interface FlashcardInlineFormProps {
 export const FlashcardInlineForm: React.FC<FlashcardInlineFormProps> = ({
     onSave,
     onCancel,
-    position,
+    position: _position,
 }) => {
     const [front, setFront] = useState('');
     const [back, setBack] = useState('');

@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
-import { useSSE } from '../../../../hooks/useSSE';
+import { useSSE } from '../../hooks/useSSE';
 import { useFlashcardGeneration } from '../../context/FlashcardGenerationContext';
 import { parseMagicProgressEvent } from './magicGenerateEvents';
 
@@ -204,7 +204,7 @@ export const MagicGenerateModal: React.FC<MagicGenerateModalProps> = ({
         return [
             {
                 event: 'pdf-progress',
-                handler: (payload) => {
+                handler: (payload: { data?: unknown }) => {
                     const event = parseMagicProgressEvent(payload?.data);
                     if (!event) return;
 

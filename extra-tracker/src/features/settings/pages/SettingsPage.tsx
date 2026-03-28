@@ -19,7 +19,6 @@ import {
     Bell,
     Lock,
     Search,
-    WifiOff,
     Undo2,
     Redo2,
 } from 'lucide-react';
@@ -395,7 +394,7 @@ export const SettingsPage = () => {
                         )}
                         {activeTab === 'privacy' && (
                             <PrivacySettings
-                                onSave={async (data) => {
+                                onSave={async (_data) => {
                                     emitToast.success('Privacy aggiornata!');
                                     return true;
                                 }}

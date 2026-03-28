@@ -25,7 +25,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, BookOpen, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { studyService, type Deck } from '../../../services/studyService';
+import { studyService } from '../../../services/studyService';
 import examService from '../../../services/examService';
 import type { Exam } from '../../../types/exam';
 import { emitToast } from '../../../../../shared/components/toast';

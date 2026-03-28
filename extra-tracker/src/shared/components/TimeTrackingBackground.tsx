@@ -168,7 +168,7 @@ export const TimeTrackingBackground: React.FC = () => {
       width: `${30 + Math.random() * 40}%`,
     }));
 
-    const dataPoints = Array.from({ length: 12 }, (_, i) => ({
+    const dataPoints = Array.from({ length: 12 }, (_v, _i) => ({
       x: `${10 + Math.random() * 80}%`,
       y: `${10 + Math.random() * 80}%`,
       size: 20 + Math.random() * 40,

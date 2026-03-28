@@ -12,24 +12,14 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Folder, 
-    FolderOpen, 
-    ChevronRight, 
+    Folder,
+    ChevronRight,
     ChevronDown,
-    Plus,
     MoreVertical,
     Edit2,
     Trash2,
     Home,
-    Check,
-    X as XIcon,
-    Clock,
-    Zap,
     CheckCircle,
-    Star,
-    Target,
-    Calendar,
-    Wand2
 } from 'lucide-react';
 import { foldersService, type Folder as FolderType } from '../../services/foldersService';
 import { emitToast } from '../../../../shared/components/toast';
@@ -87,15 +77,6 @@ const FolderItem: React.FC<FolderItemProps> = ({
     const hasChildren = folder.children && folder.children.length > 0;
     const hasDecks = (folder.count || 0) > 0;
     const theme = getFolderTheme(folder.name, hasDecks);
-    const paddingLeft = `${level * 20 + 12}px`;
-
-    // Calcola priorità visiva (solo per colori, non testi)
-    const getPriorityColor = useMemo(() => {
-        if (!folderStats || folderStats.totalCards === 0) return 'text-white/70';
-        if (folderStats.dueCards === 0) return 'text-emerald-400';
-        const ratio = folderStats.dueCards / folderStats.totalCards;
-        return ratio > 0.5 ? 'text-amber-400' : 'text-violet-400';
-    }, [folderStats]);
 
     // Verifica se è critico (più del 50% da ripassare)
     const isCritical = useMemo(() => {

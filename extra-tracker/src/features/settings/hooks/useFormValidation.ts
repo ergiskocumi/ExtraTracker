@@ -28,7 +28,7 @@ interface UseFormValidationReturn<T extends Record<string, any>> {
 export const useFormValidation = <T extends Record<string, any>>(
     options: UseFormValidationOptions
 ): UseFormValidationReturn<T> => {
-    const { validationRules, validateOnChange = true, validateOnBlur = true } = options;
+    const { validationRules } = options;
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     /**

@@ -68,7 +68,6 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
     const [activeTab, setActiveTab] = useState<EditorTab>('split');
     const [isSaving, setIsSaving] = useState(false);
     const [showFullscreen, setShowFullscreen] = useState(false);
-    const [activeSide, setActiveSide] = useState<'front' | 'back'>('front');
 
     const frontRef = useRef<HTMLTextAreaElement>(null);
     const backRef = useRef<HTMLTextAreaElement>(null);
@@ -206,7 +205,6 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 ref={side === 'front' ? frontRef : backRef}
                 value={side === 'front' ? front : back}
                 onChange={(e) => side === 'front' ? setFront(e.target.value) : setBack(e.target.value)}
-                onFocus={() => setActiveSide(side)}
                 placeholder={side === 'front' ? 'Scrivi la domanda...' : 'Scrivi la risposta...'}
                 className="
                     flex-1 p-4 bg-transparent resize-none

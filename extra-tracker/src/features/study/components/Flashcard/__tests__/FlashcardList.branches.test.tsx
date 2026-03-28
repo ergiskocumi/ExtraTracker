@@ -431,7 +431,7 @@ describe('FlashcardList branch coverage', () => {
         fireEvent.click(screen.getByRole('button', { name: 'close-delete' }));
         expect(screen.getByTestId('delete-modal')).toBeInTheDocument();
 
-        resolveDelete?.();
+        resolveDelete!();
         await waitFor(() => {
             expect(screen.queryByTestId('delete-modal')).not.toBeInTheDocument();
         });

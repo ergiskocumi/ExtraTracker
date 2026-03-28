@@ -16,8 +16,6 @@ import {
     List,
     FolderOpen,
     GraduationCap,
-    History,
-    RefreshCw,
 } from 'lucide-react';
 import type { Exam } from '../../types/exam';
 import type { Deck, ExamSavedQuiz } from '../../services/studyService';
@@ -81,9 +79,9 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
     onCompleteExam,
     onDeleteExam,
     viewMode = 'grid',
-    savedQuizzes = [],
-    isLoadingSavedQuizzes = false,
-    onReplaySavedQuiz,
+    savedQuizzes: _savedQuizzes = [],
+    isLoadingSavedQuizzes: _isLoadingSavedQuizzes = false,
+    onReplaySavedQuiz: _onReplaySavedQuiz,
 }) => {
     const [localViewMode, setLocalViewMode] = React.useState<'grid' | 'list'>(viewMode === 'horizontal' ? 'list' : 'grid');
 
@@ -143,23 +141,6 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
         if (targetDeck && onExamSolver) {
             onExamSolver(targetDeck.id);
         }
-    };
-
-    const formatQuizDate = (value?: string) => {
-        if (!value) return 'Data non disponibile';
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return 'Data non disponibile';
-        return new Intl.DateTimeFormat('it-IT', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        }).format(date);
-    };
-
-    const quizTypeLabel = (quizType: ExamSavedQuiz['quizType']) => {
-        return quizType === 'true_false' ? 'Vero/Falso' : 'Scelta multipla';
     };
 
     return (
@@ -230,17 +211,9 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                             <h3 className="text-xl font-semibold text-white mb-2">
                                 Nessun mazzo per questo esame
                             </h3>
-                            <p className="text-white/50 text-sm mb-6 max-w-sm">
+                            <p className="text-white/50 text-sm max-w-sm">
                                 Crea il tuo primo mazzo per iniziare a studiare. Puoi aggiungere carte manualmente o generarle con l'AI.
                             </p>
-                            <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => {/* TODO: Open create deck modal */}}
-                                className="px-6 py-3 rounded-xl bg-primary-500 text-white keep-light-text font-semibold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/40 transition-all flex items-center gap-2"
-                            >
-                                <span>Crea Primo Mazzo</span>
-                            </motion.button>
                         </motion.div>
                     ) : (
                         <DeckGrid

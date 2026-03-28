@@ -214,7 +214,7 @@ export const BrandStory: React.FC = () => {
               {/* Progress indicator */}
               <div className="mt-6 pt-6 border-t border-white/5">
                 <div className="flex gap-2 justify-center">
-                  {(['intro', 'logo', 'grid'] as StoryChapter[]).map((c, i) => (
+                  {(['intro', 'logo', 'grid'] as StoryChapter[]).map((c, _i) => (
                     <motion.div
                       key={c}
                       className={`h-1 rounded-full transition-all duration-300 ${

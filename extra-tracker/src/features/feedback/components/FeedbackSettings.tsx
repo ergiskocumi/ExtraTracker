@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bug, MessageSquare, Plus } from 'lucide-react';
+import { MessageSquare, Plus } from 'lucide-react';
 import { FeedbackModal } from './FeedbackModal';
 import { MyFeedbackList } from './MyFeedbackList';
 

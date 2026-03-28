@@ -30,14 +30,14 @@ import {
     rectSortingStrategy,
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import type { Deck, Card } from '../../services/studyService';
+import type { Card } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { SortableItem } from './SortableItem';
 import { FlashcardInlineForm } from './FlashcardInlineForm';
 import { DeleteCardModal } from './DeleteCardModal';
 import { DRAG_AND_DROP, VIEW_MODE, TEXT_CONTENT, CONTENT_STYLES, GRID_STYLES, LIST_STYLES } from './FlashcardList.constants';
-import { haveCardIdsChanged, haveCardsChanged, calculateReorderResult, calculateInsertPosition, findCardById } from './FlashcardList.utils';
+import { haveCardsChanged, calculateReorderResult, calculateInsertPosition, findCardById } from './FlashcardList.utils';
 import type { FlashcardListProps } from './FlashcardList.types';
 import { InsertButton } from './FlashcardList.InsertButton';
 import { Header } from './FlashcardList.Header';

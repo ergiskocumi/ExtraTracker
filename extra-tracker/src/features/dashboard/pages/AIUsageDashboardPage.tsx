@@ -8,10 +8,9 @@ import {
   TrendingDown,
   RotateCw,
   BarChart3,
-  Clock,
   Zap,
   Filter,
-  Calendar,
+
   CheckCircle2,
   XCircle,
   ChevronLeft,
@@ -26,12 +25,9 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  BarChart,
-  Bar,
   Cell,
   PieChart,
   Pie,
-  Legend,
 } from 'recharts';
 import { aiUsageDashboardService, type AIUsageSummary, type AIUsageEventsResponse, type AIUsageEvent, type AIUsageDailyItem } from '../services/aiUsageDashboardService';
 import { cn } from '../../../lib/utils';
@@ -292,7 +288,7 @@ const CostDistributionChart = ({ data, title, loading }: { data: { name: string;
                 cornerRadius={6}
                 stroke="none"
               >
-                {data.map((entry, i) => (
+                {data.map((_entry, i) => (
                   <Cell 
                     key={i} 
                     fill={COLORS[i % COLORS.length]} 

@@ -14,7 +14,6 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Calendar,
-    TrendingUp,
     ArrowRight,
     Layers,
     FileText,
@@ -24,9 +23,6 @@ import {
     RotateCcw,
     Clock,
     Sparkles,
-    BookOpen,
-    GraduationCap,
-    Trophy,
     AlertCircle,
     CheckCircle,
     Archive,
@@ -298,15 +294,13 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                                 <span className="text-sm font-medium">Riattiva</span>
                                             </button>
                                         )}
-                                        {onDelete && (
-                                            <button
-                                                onClick={handleDeleteClick}
-                                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/15 transition-colors"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                                <span className="text-sm font-medium">Elimina</span>
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={handleDeleteClick}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/15 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            <span className="text-sm font-medium">Elimina</span>
+                                        </button>
                                     </motion.div>
                                 )}
                             </AnimatePresence>

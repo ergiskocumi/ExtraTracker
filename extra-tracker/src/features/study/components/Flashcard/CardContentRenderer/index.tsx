@@ -250,7 +250,7 @@ const createMarkdownComponents = (
     variant: ContentVariant,
     centered: boolean,
     cinemaMode: boolean,
-    onFormulaClick?: (latex: string) => void
+    _onFormulaClick?: (latex: string) => void
 ): Partial<Components> => ({
     // Paragrafi
     p: ({ children }) => (

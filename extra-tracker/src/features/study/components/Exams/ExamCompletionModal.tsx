@@ -306,9 +306,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                 difficulties,
             };
 
-            console.log('[ExamCompletionModal] Salvando esame come failed:', { examId: exam.id, outcome, status: 'failed' });
             await onComplete(exam.id, outcome, 'failed');
-            console.log('[ExamCompletionModal] Esame salvato come failed, passando a recovery-actions');
             setStep('recovery-actions');
         } catch (err: any) {
             console.error('[ExamCompletionModal] Errore nel salvataggio:', err);
@@ -326,9 +324,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
         }
         setIsLoading(true);
         try {
-            console.log('[ExamCompletionModal] Chiamando resetCards:', { examId: exam.id, type });
             await onResetCards(exam.id, type);
-            console.log('[ExamCompletionModal] Reset completato con successo');
             emitToast.success(type === 'all' ? 'Tutte le carte sono state resettate' : 'Le carte difficili sono state resettate');
             onClose();
         } catch (err: any) {
@@ -359,9 +355,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                 return;
             }
 
-            console.log('[ExamCompletionModal] Chiamando generateAIQuestions:', { examId: exam.id, topics });
             await onGenerateAIQuestions(exam.id, topics);
-            console.log('[ExamCompletionModal] Generazione AI completata con successo');
             emitToast.success('Domande AI generate con successo!');
             onClose();
         } catch (err: any) {

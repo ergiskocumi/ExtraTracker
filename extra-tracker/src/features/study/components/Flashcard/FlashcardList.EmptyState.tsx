@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { EMPTY_STATE_STYLES, TEXT_CONTENT } from './FlashcardList.constants';
+import { EMPTY_STATE_STYLES } from './FlashcardList.constants';
 import type { EmptyStateProps } from './FlashcardList.types';
 
 // ============================================

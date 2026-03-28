@@ -22,7 +22,6 @@ import {
     HelpCircle,
     Sparkles,
     MoreHorizontal,
-    AlertTriangle,
     Loader2,
 } from 'lucide-react';
 import { feedbackService } from '../services/feedbackService';

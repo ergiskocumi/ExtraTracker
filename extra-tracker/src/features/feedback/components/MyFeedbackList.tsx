@@ -7,7 +7,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    MessageSquare,
     Bug,
     Lightbulb,
     HelpCircle,
@@ -24,7 +23,6 @@ import {
 import { feedbackService } from '../services/feedbackService';
 import type { Feedback, FeedbackComment, FeedbackType } from '../types';
 import {
-    FEEDBACK_TYPE_LABELS,
     FEEDBACK_STATUS_LABELS,
     FEEDBACK_STATUS_COLORS,
     FEEDBACK_PRIORITY_LABELS,

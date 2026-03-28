@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HelpCircle, X } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
 
 interface SettingsTooltipProps {
     content: string;

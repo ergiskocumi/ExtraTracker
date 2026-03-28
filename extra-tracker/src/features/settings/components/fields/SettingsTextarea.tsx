@@ -8,7 +8,6 @@
  */
 
 import React from 'react';
-import { motion } from 'framer-motion';
 import { FileText } from 'lucide-react';
 import { SettingsField } from './SettingsField';
 

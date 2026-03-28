@@ -10,7 +10,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Tag as TagIcon, Plus, X } from 'lucide-react';
+import { Tag as TagIcon, Plus } from 'lucide-react';
 import { tagsService, type Tag } from '../../services/tagsService';
 import { emitToast } from '../../../../shared/components/toast';
 import { classList, studyOrgBadgeClass, studyOrgButtonClass, studyOrgFieldClass } from '../utils/studyButtonClasses';

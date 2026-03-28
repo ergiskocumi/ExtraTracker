@@ -71,7 +71,7 @@ export const useDeckHandlers = ({
         setIsExamSolverOpen(true);
     }, []);
 
-    const handleExamSolverSuccess = useCallback(async (deckId: string, stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number }) => {
+    const handleExamSolverSuccess = useCallback(async (_deckId: string, stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number }) => {
         await loadDecks();
         emitToast.success(
             `✅ Exam Solver completato! ${stats.totalFlashcards} flashcard generate (${stats.answersFound} risposte trovate, ${stats.answersNotFound} non trovate)`,
@@ -103,8 +103,6 @@ export const useDeckHandlers = ({
         if (config.examDifficulty) {
             params.set('examDifficulty', config.examDifficulty);
         }
-
-        console.log('[useDeckHandlers] Starting session with params:', Object.fromEntries(params));
 
         navigate(`/study/${studyDeck.id}/session?${params.toString()}`);
         setIsStudyModeOpen(false);
@@ -142,7 +140,6 @@ export const useDeckHandlers = ({
     }, [setDecks]);
 
     const handleDeckDrop = useCallback(async (deckId: string, folderId: string | null) => {
-        console.log('[useDeckHandlers] handleDeckDrop: Starting', { deckId, folderId });
         try {
             const currentDeck = decks.find(d => d.id === deckId);
             if (!currentDeck) {

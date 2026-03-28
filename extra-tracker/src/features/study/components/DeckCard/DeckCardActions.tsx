@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Plus, Play, BookOpen, Monitor } from 'lucide-react';
+import { Sparkles, Plus, Play, Monitor } from 'lucide-react';
 import type { Deck } from '../../services/studyService';
 
 interface DeckCardActionsProps {

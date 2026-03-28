@@ -17,8 +17,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ChevronDown,
-    ChevronUp,
     Edit3,
     Check,
     X,
@@ -469,7 +467,7 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
                 className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
             >
                 <AnimatePresence mode="popLayout">
-                    {filteredCards.map((card, index) => {
+                    {filteredCards.map((card, _index) => {
                         const originalIndex = cards.findIndex(c => c.id === card.id);
                         return (
                             <div

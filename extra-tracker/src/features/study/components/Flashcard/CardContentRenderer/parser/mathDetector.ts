@@ -14,17 +14,6 @@
  */
 
 /**
- * Caratteri che indicano contenuto matematico.
- */
-const MATH_CHARS = /[+\-*/=^_{}()[\]]/;
-
-/**
- * Pattern che indicano l'INIZIO di un'equazione.
- * Es: "V = ", "M = ", "a_{n|i} = "
- */
-const EQUATION_START = /(?:^|[.;:]\s*|,\s+)([A-Za-z](?:_\{[^}]+\}|_[a-zA-Z0-9]+)?)\s*=/;
-
-/**
  * Pattern per rilevare se il testo contiene già delimitatori LaTeX.
  */
 const HAS_LATEX_DELIMITERS = /\$[^$]+\$|\$\$[^$]+\$\$/;
@@ -174,7 +163,6 @@ function findEquationEnd(content: string, startIndex: number): number {
         const char = content[i];
         const nextChar = content[i + 1] || '';
         const nextNextChar = content[i + 2] || '';
-        const prevChar = content[i - 1] || '';
 
         // Traccia parentesi
         if (char === '(' || char === '[') parenDepth++;

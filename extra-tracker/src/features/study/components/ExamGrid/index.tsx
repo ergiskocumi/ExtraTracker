@@ -20,7 +20,7 @@ interface ExamGridProps {
 
 export const ExamGrid: React.FC<ExamGridProps> = ({
     exams,
-    decks,
+    decks: _decks,
     onExamClick,
     getExamStats,
     onRequestDeleteExam,

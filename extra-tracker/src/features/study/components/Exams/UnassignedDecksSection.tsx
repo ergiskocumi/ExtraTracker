@@ -15,7 +15,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, BookOpen, Plus } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import type { Deck } from '../../services/studyService';
 import type { Exam } from '../../types/exam';
 import { DeckCard } from '../DeckCard';
@@ -74,7 +74,7 @@ interface UnassignedDecksSectionProps {
 
 export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
     decks,
-    exams,
+    exams: _exams,
     tags,
     onDeckUpdate,
     onViewDetail,
@@ -85,7 +85,7 @@ export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
     onDelete,
     onExamSolver,
     onTogglePin,
-    viewMode = 'grid',
+    viewMode: _viewMode = 'grid',
 }) => {
     // ============================================
     // STATE MANAGEMENT
@@ -153,10 +153,6 @@ export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
      * 
      * @param deckId - ID del mazzo per cui aprire il modal
      */
-    const handleOpenChangeExamModal = (deckId: string) => {
-        setChangeExamModalDeckId(deckId);
-    };
-
     /**
      * Gestisce la chiusura del modal di cambio esame.
      */

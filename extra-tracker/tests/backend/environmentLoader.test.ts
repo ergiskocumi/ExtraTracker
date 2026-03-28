@@ -24,10 +24,13 @@ const clearMutatedEnv = () => {
     });
 };
 
+const LOGGER_MODULE = '../../server/utils/logger.js';
+
 const loadFreshEnvironmentIndex = () => {
     delete require.cache[require.resolve(INDEX_MODULE)];
     delete require.cache[require.resolve(DEV_MODULE)];
     delete require.cache[require.resolve(PROD_MODULE)];
+    delete require.cache[require.resolve(LOGGER_MODULE)];
     return require(INDEX_MODULE);
 };
 
@@ -71,7 +74,8 @@ describe('server/ENVIRONMENTS/index.js', () => {
         expect(envModule.isProduction).toBe(false);
         expect(envModule.config.server.nodeEnv).toBe('development');
 
-        expect(console.log).toHaveBeenCalledWith('🔧 Environment: development');
+        const logMessages = (console.log as any).mock.calls.flat().join(' ');
+        expect(logMessages).toContain('Environment: development');
     });
 
     it('uses explicit ENVIRONMENT aliases with higher priority than NODE_ENV', () => {
@@ -143,8 +147,9 @@ describe('server/ENVIRONMENTS/index.js', () => {
         expect(envModule.config.server.nodeEnv).toBe('production');
         expect(exitSpy).not.toHaveBeenCalled();
 
-        expect(console.log).toHaveBeenCalledWith('🔧 Environment: production');
-        expect(console.log).toHaveBeenCalledWith('🔧 NODE_ENV: production');
-        expect(console.log).toHaveBeenCalledWith('🔧 ENVIRONMENT: production');
+        const logMessages = (console.log as any).mock.calls.flat().join(' ');
+        expect(logMessages).toContain('Environment: production');
+        expect(logMessages).toContain('NODE_ENV: production');
+        expect(logMessages).toContain('ENVIRONMENT: production');
     });
 });

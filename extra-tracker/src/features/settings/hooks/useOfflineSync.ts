@@ -18,13 +18,6 @@ interface PendingChange<T> {
     section: string;
 }
 
-interface OfflineSyncState<T> {
-    isOnline: boolean;
-    pendingChanges: PendingChange<T>[];
-    isSyncing: boolean;
-    lastSyncAt: number | null;
-}
-
 interface UseOfflineSyncOptions<T> {
     storageKey: string;
     onSync: (changes: PendingChange<T>[]) => Promise<boolean>;

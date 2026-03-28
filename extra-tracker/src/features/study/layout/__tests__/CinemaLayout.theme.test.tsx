@@ -34,7 +34,7 @@ describe('CinemaLayout theme contract', () => {
             <BrowserRouter>
                 <CinemaLayout
                     deck={mockDeck}
-                    pdfSrc={mockDeck.pdfUrl}
+                    pdfSrc={mockDeck.pdfUrl ?? null}
                     onUpdateCard={vi.fn()}
                 />
             </BrowserRouter>

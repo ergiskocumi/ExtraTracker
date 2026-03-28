@@ -39,7 +39,7 @@ interface CinemaLayoutProps {
 
 interface PDFPanelProps {
     pdfSrc: string | null;
-    pdfReaderRef: React.RefObject<PDFReaderRef>;
+    pdfReaderRef: React.RefObject<PDFReaderRef | null>;
     onSearchError?: (message: string) => void;
 }
 

@@ -50,7 +50,7 @@ const DragHandleIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4
 export const SortableItem: React.FC<SortableItemProps> = ({
     card,
     index,
-    totalCards,
+    totalCards: _totalCards,
     onUpdate,
     onClick,
     onDelete,

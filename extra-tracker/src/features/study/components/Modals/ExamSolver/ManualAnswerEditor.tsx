@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Save, Search, Check, Loader2, AlertCircle } from 'lucide-react';
 import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
@@ -31,7 +31,7 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
     // State per ogni input
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [savingStates, setSavingStates] = useState<Record<string, 'idle' | 'saving' | 'saved'>>({});
-    const [autoSaveTimers, setAutoSaveTimers] = useState<Record<string, ReturnType<typeof setTimeout>>>({});
+    const [_autoSaveTimers, _setAutoSaveTimers] = useState<Record<string, ReturnType<typeof setTimeout>>>({});
     const autoSaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
     // Inizializza answers con i valori esistenti

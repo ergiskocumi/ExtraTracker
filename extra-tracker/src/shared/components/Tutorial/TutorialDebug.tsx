@@ -9,7 +9,7 @@ import { useTutorial } from '../../context/TutorialContext';
 import { Trash2, Play } from 'lucide-react';
 
 export const TutorialDebug: React.FC = () => {
-    const { state, currentConfig, startTutorial, isTutorialCompleted } = useTutorial();
+    const { state, currentConfig, startTutorial, isTutorialCompleted: _isTutorialCompleted } = useTutorial();
 
     const handleReset = (tutorialId: string) => {
         try {

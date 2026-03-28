@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Play, 
-    Sparkles, 
-    Plus, 
-    MoreVertical, 
+    Play,
+    Sparkles,
+    MoreVertical,
     Clock, 
     BookOpen,
     Monitor,
@@ -42,11 +41,11 @@ export const DeckCardList: React.FC<DeckCardListProps> = ({
     onStudy,
     onRead,
     onMagicGenerate,
-    onAddCard,
+    onAddCard: _onAddCard,
     onViewDetail,
-    onDelete,
-    onUpdate,
-    tags = [],
+    onDelete: _onDelete,
+    onUpdate: _onUpdate,
+    tags: _tags = [],
     onTogglePin,
 }) => {
     const [isHovered, setIsHovered] = useState(false);

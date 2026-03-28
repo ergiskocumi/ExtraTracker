@@ -95,7 +95,7 @@ export const DayDetail: React.FC<DayDetailProps> = ({
                 {/* Exam breakdown */}
                 {examBreakdown.length > 0 ? (
                     <div className="space-y-3">
-                        {examBreakdown.map(({ exam, dueCards, decks: examDecks, color }) => {
+                        {examBreakdown.map(({ exam, dueCards, decks: examDecks, color: _color }) => {
                             const ExamIcon = getExamIcon(exam.title, exam.description);
                             const examColors = getExamColors(exam.title, exam.description);
 

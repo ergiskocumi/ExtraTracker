@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, HelpCircle, Lightbulb, AlertCircle, Quote } from "lucide-react";
+import { Check, X, HelpCircle, AlertCircle, Quote } from "lucide-react";
 import type { Card, ReviewRating } from "../../services/studyService";
 import { cn } from "../../../../lib/utils";
 
@@ -53,7 +53,7 @@ const buildOptions = (options: string[], correctAnswer: string, isTrueFalse: boo
           o.toLowerCase().includes('vero') || o.toLowerCase().includes('true') ||
           o.toLowerCase().includes('falso') || o.toLowerCase().includes('false')
         )
-        .sort((a, b) => {
+        .sort((a, _b) => {
           const aIsTrue = a.toLowerCase().includes('vero') || a.toLowerCase().includes('true');
           return aIsTrue ? -1 : 1;
         })
@@ -104,7 +104,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
   onSubmitReview,
   onNext,
   isTrueFalse = false,
-  correctStatement,
+  correctStatement: _correctStatement,
   explanation,
 }) => {
   const normalizedCorrect = correctAnswer.trim().toLowerCase();
@@ -517,7 +517,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 const isCorrectOption = option.trim().toLowerCase() === normalizedCorrect;
                 const isSelectedOption = option === selectedOption;
                 const isVero = option.toLowerCase().includes("vero") || option.toLowerCase().includes("true");
-                const isFalso = option.toLowerCase().includes("falso") || option.toLowerCase().includes("false");
 
                 return (
                   <button

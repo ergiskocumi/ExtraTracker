@@ -161,7 +161,6 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
                             </button>
                             <button
                                 onClick={() => {
-                                    // TODO: Implementare "Studia tutti i deck della cartella"
                                     setShowMenu(false);
                                 }}
                                 className="w-full px-4 py-2 text-left text-sm text-theme-secondary hover:bg-theme-surface transition-colors"

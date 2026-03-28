@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { Sparkles, RotateCcw, Brain, Trophy, Eye, EyeOff } from 'lucide-react';
 import type { Card, CardStatus } from '../../services/studyService';
 import { CardContentRenderer } from '../Flashcard/CardContentRenderer';
