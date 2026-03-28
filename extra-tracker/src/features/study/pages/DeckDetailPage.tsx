@@ -14,13 +14,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
-import { studyService, type Deck, type QuizType, type SavedQuizSnapshot, type StudyMode } from '../services/studyService';
+import { studyService, type Deck, type QuizType, type SavedQuizSnapshot, type SavedQuizReviewResponse, type StudyMode } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { DeckDetailContent } from '../components/Deck/DeckDetailContent';
 import { ExamSolverModal } from '../components/Modals/ExamSolver';
 import { MagicGenerateModal } from '../components/Modals/MagicGenerateModal';
 import { GenerateQuizModal } from '../components/Modals/GenerateQuizModal';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
+import { QuizReviewMode } from '../components/Study/QuizReviewMode';
 
 // ============================================
 // MAIN PAGE COMPONENT
@@ -42,6 +43,7 @@ export const DeckDetailPage: React.FC = () => {
     const [isResetModalOpen, setIsResetModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [reviewData, setReviewData] = useState<SavedQuizReviewResponse | null>(null);
 
     // Load deck
     const loadDeck = useCallback(async () => {
@@ -68,7 +70,7 @@ export const DeckDetailPage: React.FC = () => {
     // Handlers
     const handleStudy = useCallback((mode: StudyMode) => {
         if (!id) return;
-        navigate(`/study/${id}?mode=${mode}`);
+        navigate(`/study/${id}/session?mode=${mode}`);
     }, [id, navigate]);
 
     const handleBack = useCallback(() => {
@@ -119,12 +121,28 @@ export const DeckDetailPage: React.FC = () => {
 
             if (sourceCardIds.length > 0) {
                 try {
+                    // Extract questions from prepared cards to persist them
+                    const questionsToSave = preparedSession.cards.map(card => ({
+                        questionText: card.front,
+                        correctAnswer: card.back,
+                        distractors: card.distractors || [],
+                        distractorExplanations: Array.isArray(card.distractorExplanations)
+                            ? card.distractorExplanations as unknown as string[]
+                            : card.distractorExplanations && typeof card.distractorExplanations === 'object'
+                                ? Object.values(card.distractorExplanations)
+                                : [],
+                        correctAnswerExplanation: card.explanation || '',
+                        difficulty: 'standard',
+                        options: card.options || [],
+                    }));
+
                     const savedQuiz = await studyService.saveQuizSnapshot(id, {
                         quizType: config.quizType,
                         questionCount: preparedSession.cards.length,
                         sourceCardIds,
                         source: 'chapter',
                         name: `Quiz ${preparedSession.cards.length} domande`,
+                        questions: questionsToSave,
                     });
                     // Aggiorna lo state locale del deck per mostrare il nuovo quiz salvato
                     setDeck(prev => {
@@ -169,6 +187,44 @@ export const DeckDetailPage: React.FC = () => {
         if (!id || !deck) return;
 
         try {
+            // If quiz has persisted questions, use instant retake (no AI)
+            if (savedQuiz.hasQuestions) {
+                const retakeData = await studyService.retakeSavedQuiz(id, savedQuiz.id);
+
+                if (retakeData.cards.length === 0) {
+                    emitToast.info('Nessuna domanda disponibile per questo quiz');
+                    return;
+                }
+
+                const fakeDeck: typeof deck = { ...deck, cards: retakeData.cards, totalCards: retakeData.cards.length, dueCount: retakeData.cards.length };
+                const preparedSession = {
+                    deck: fakeDeck,
+                    cards: retakeData.cards,
+                    remaining: retakeData.cards.length,
+                    total: retakeData.cards.length,
+                    mode: 'quiz' as const,
+                    meta: { quizType: retakeData.quizType, questionCount: retakeData.questionCount },
+                };
+
+                const params = new URLSearchParams();
+                params.set('mode', 'quiz');
+                params.set('focus', 'all');
+                params.set('questions', String(retakeData.questionCount));
+                params.set('quizType', retakeData.quizType);
+                params.set('quizSource', 'saved');
+                params.set('savedQuizId', savedQuiz.id);
+                params.set('run', String(Date.now()));
+
+                navigate(`/study/${id}/session?${params.toString()}`, {
+                    state: {
+                        preparedSession,
+                        preparedAt: Date.now(),
+                    },
+                });
+                return;
+            }
+
+            // Legacy fallback: quiz without persisted questions -> use AI
             const preparedSession = await studyService.getSession(id, {
                 mode: 'quiz',
                 focus: 'all',
@@ -204,6 +260,16 @@ export const DeckDetailPage: React.FC = () => {
             emitToast.error(err?.message || 'Errore nel caricamento del quiz');
         }
     }, [id, deck, navigate]);
+
+    const handleReviewSavedQuiz = useCallback(async (savedQuiz: SavedQuizSnapshot) => {
+        if (!id || !savedQuiz.hasQuestions) return;
+        try {
+            const data = await studyService.reviewSavedQuiz(id, savedQuiz.id);
+            setReviewData(data);
+        } catch (err: any) {
+            emitToast.error(err?.message || 'Errore nel caricamento della review');
+        }
+    }, [id]);
 
     const handleDeleteDeck = useCallback(async () => {
         if (!id || !deck) return;
@@ -319,6 +385,7 @@ export const DeckDetailPage: React.FC = () => {
                     onStudy={handleStudy}
                     onGenerateQuiz={() => setIsGenerateQuizOpen(true)}
                     onRepeatSavedQuiz={handleRepeatSavedQuiz}
+                    onReviewSavedQuiz={handleReviewSavedQuiz}
                     onExamSolver={() => setIsExamSolverOpen(true)}
                     onReadPdf={deck.pdfUrl ? handleReadPdf : undefined}
                     onMagicGenerate={() => setIsMagicGenerateOpen(true)}
@@ -334,7 +401,7 @@ export const DeckDetailPage: React.FC = () => {
             <ExamSolverModal
                 isOpen={isExamSolverOpen}
                 onClose={() => setIsExamSolverOpen(false)}
-                onSuccess={async (deckId, stats) => {
+                onSuccess={async (_deckId, stats) => {
                     await loadDeck();
                     emitToast.success(
                         `✅ Exam Solver completato! ${stats.totalFlashcards} flashcard generate`,
@@ -391,6 +458,16 @@ export const DeckDetailPage: React.FC = () => {
                 onConfirm={handleDeleteDeck}
                 onCancel={() => setIsDeleteModalOpen(false)}
             />
+
+            {/* Quiz Review Mode */}
+            <AnimatePresence>
+                {reviewData && (
+                    <QuizReviewMode
+                        data={reviewData}
+                        onClose={() => setReviewData(null)}
+                    />
+                )}
+            </AnimatePresence>
         </>
     );
 };

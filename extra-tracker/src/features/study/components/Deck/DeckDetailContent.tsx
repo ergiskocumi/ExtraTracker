@@ -11,7 +11,6 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
-  AlertCircle,
   Sparkles,
   Download,
   Share2,
@@ -26,13 +25,10 @@ import {
   Play,
   Target,
   Layers,
-  Brain,
-  FileText,
   Lightbulb,
   MoreHorizontal,
   BookOpen,
   MonitorPlay,
-  Zap,
 } from 'lucide-react';
 import type { Deck, Card, SavedQuizSnapshot, StudyMode } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
@@ -65,6 +61,7 @@ interface DeckDetailContentProps {
   onStudy: (mode: StudyMode) => void;
   onGenerateQuiz?: () => void;
   onRepeatSavedQuiz?: (quiz: SavedQuizSnapshot) => void;
+  onReviewSavedQuiz?: (quiz: SavedQuizSnapshot) => void;
   onExamSolver?: () => void;
   onReadPdf?: () => void;
   onMagicGenerate?: () => void;
@@ -162,11 +159,12 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   onStudy,
   onGenerateQuiz,
   onRepeatSavedQuiz,
+  onReviewSavedQuiz,
   onExamSolver,
   onReadPdf,
   onMagicGenerate,
   onDeckUpdate,
-  onDeleteDeck,
+  onDeleteDeck: _onDeleteDeck,
   onExport,
   onShare,
   onResetProgress,
@@ -650,25 +648,53 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
                 {(deck.savedQuizzes ?? []).slice(0, 5).map(quiz => (
                   <div
                     key={quiz.id}
-                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-theme-base"
+                    className="px-3 py-2.5 rounded-lg bg-theme-base space-y-1.5"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-theme-primary truncate">
-                        {quiz.name || `Quiz ${quiz.questionCount} domande`}
-                      </p>
-                      <p className="text-[11px] text-theme-muted mt-0.5">
-                        {quiz.quizType === 'true_false' ? 'Vero/Falso' : 'Scelta multipla'} ·{' '}
-                        {quiz.questionCount} dom.
-                      </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-theme-primary truncate">
+                          {quiz.name || `Quiz ${quiz.questionCount} domande`}
+                        </p>
+                        <p className="text-[11px] text-theme-muted mt-0.5">
+                          {quiz.quizType === 'true_false' ? 'Vero/Falso' : 'Scelta multipla'} ·{' '}
+                          {quiz.questionCount} dom.
+                          {quiz.attemptCount != null && quiz.attemptCount > 0 && (
+                            <> · {quiz.attemptCount} {quiz.attemptCount === 1 ? 'tentativo' : 'tentativi'}</>
+                          )}
+                        </p>
+                      </div>
+                      {quiz.bestScore != null && (
+                        <span className="flex-shrink-0 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                          Best: {quiz.bestScore}/{quiz.questionCount}
+                        </span>
+                      )}
                     </div>
-                    <button
-                      onClick={() => onRepeatSavedQuiz(quiz)}
-                      className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-medium transition-colors"
-                      title="Rifai questo quiz"
-                    >
-                      <Play className="w-3 h-3" />
-                      Rifai
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => onRepeatSavedQuiz(quiz)}
+                        className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-medium transition-colors"
+                        title={quiz.hasQuestions ? 'Rifai istantaneamente (senza AI)' : 'Rifai questo quiz'}
+                      >
+                        <Play className="w-3 h-3" />
+                        {quiz.hasQuestions ? 'Rifai' : 'Rigenera'}
+                      </button>
+                      {onReviewSavedQuiz && (
+                        <button
+                          onClick={() => onReviewSavedQuiz(quiz)}
+                          disabled={!quiz.hasQuestions}
+                          className={cn(
+                            'flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+                            quiz.hasQuestions
+                              ? 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400'
+                              : 'bg-theme-subtle text-theme-muted cursor-not-allowed opacity-50',
+                          )}
+                          title={quiz.hasQuestions ? 'Rivedi domande e risposte' : 'Non disponibile per quiz legacy'}
+                        >
+                          <BookOpen className="w-3 h-3" />
+                          Rivedi
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

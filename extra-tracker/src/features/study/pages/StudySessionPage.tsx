@@ -13,7 +13,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, X, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, Loader2, Clock } from 'lucide-react';
 import { StudyCard } from '../components/Study/StudyCard';
 import { StudyProgress } from '../components/Study/StudyProgress';
 import { StudyControls } from '../components/Study/StudyControls';
@@ -469,10 +469,30 @@ export const StudySessionPage: React.FC = () => {
                     console.error('Error clearing exam progress:', err);
                 });
             }
+
+            // Record quiz attempt if this is a saved quiz retake
+            const savedQuizId = searchParams.get('savedQuizId');
+            if (savedQuizId && mode === 'quiz') {
+                const correctCount = stats.good + stats.easy;
+                const totalAnswered = correctCount + stats.hard;
+                const accuracy = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
+                const wrongIndices = quizAnswerDetails
+                    .map((a, i) => (!a.correct ? i : -1))
+                    .filter(i => i >= 0);
+
+                studyService.recordQuizAttempt(deckId, savedQuizId, {
+                    score: correctCount,
+                    accuracy,
+                    timeSeconds: elapsedSeconds,
+                    wrongQuestionIndices: wrongIndices,
+                }).catch(err => {
+                    console.error('Error recording quiz attempt:', err);
+                });
+            }
         } catch (err) {
             console.error('Error completing session:', err);
         }
-    }, [session, deckId, mode, stats, elapsedSeconds, sessionKey, answersHistory, quizAnswerDetails, setWrongAnswersForReview]);
+    }, [session, deckId, mode, stats, elapsedSeconds, sessionKey, answersHistory, quizAnswerDetails, setWrongAnswersForReview, searchParams]);
 
     // Time limit warning
     useEffect(() => {
@@ -828,6 +848,8 @@ export const StudySessionPage: React.FC = () => {
             </div>
         );
     }
+
+    if (!session) return null;
 
     const timerWarning = timeLeft !== null && timeLeft <= 60;
 

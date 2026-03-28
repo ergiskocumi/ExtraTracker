@@ -72,6 +72,46 @@ export interface SavedQuizSnapshot {
     sourceCardIds: string[];
     source: 'chapter' | 'repeat' | 'errors' | 'saved';
     createdAt?: string;
+    attemptCount?: number;
+    lastScore?: number;
+    bestScore?: number;
+    hasQuestions?: boolean;
+}
+
+export interface QuizAttempt {
+    id: string;
+    score: number;
+    accuracy: number;
+    timeSeconds: number;
+    completedAt: string;
+    wrongQuestionIndices: number[];
+}
+
+export interface SavedQuizRetakeResponse {
+    quizId: string;
+    name: string;
+    quizType: QuizType;
+    questionCount: number;
+    cards: Card[];
+    attempts: QuizAttempt[];
+}
+
+export interface SavedQuizReviewQuestion {
+    questionText: string;
+    correctAnswer: string;
+    distractors: string[];
+    distractorExplanations: string[];
+    correctAnswerExplanation: string;
+    difficulty: string;
+    options: string[];
+}
+
+export interface SavedQuizReviewResponse {
+    quizId: string;
+    name: string;
+    quizType: QuizType;
+    questions: SavedQuizReviewQuestion[];
+    attempts: QuizAttempt[];
 }
 
 export interface ExamSavedQuiz extends SavedQuizSnapshot {
@@ -160,6 +200,15 @@ export interface SaveQuizSnapshotPayload {
     questionCount: number;
     sourceCardIds: string[];
     source?: 'chapter' | 'repeat' | 'errors' | 'saved';
+    questions?: Array<{
+        questionText: string;
+        correctAnswer: string;
+        distractors: string[];
+        distractorExplanations?: string[];
+        correctAnswerExplanation?: string;
+        difficulty?: string;
+        options?: string[];
+    }>;
 }
 
 export interface SessionCompleteResult {
@@ -280,6 +329,10 @@ const normalizeSavedQuiz = (raw: any): SavedQuizSnapshot => {
             : [],
         source: normalizedSource,
         createdAt: raw?.createdAt,
+        attemptCount: typeof raw?.attemptCount === 'number' ? raw.attemptCount : undefined,
+        lastScore: typeof raw?.lastScore === 'number' ? raw.lastScore : undefined,
+        bestScore: typeof raw?.bestScore === 'number' ? raw.bestScore : undefined,
+        hasQuestions: typeof raw?.hasQuestions === 'boolean' ? raw.hasQuestions : undefined,
     };
 };
 
@@ -586,8 +639,6 @@ class StudyService {
             formData.append('maxCards', String(Math.round(Number(options.maxCards))));
         }
 
-        console.log('📤 Uploading PDF:', file.name, file.size, 'bytes');
-
         // Chiamata API con FormData
         // NOTA: withCredentials: true per inviare cookies HttpOnly (auth)
         // NOTA: NON impostare Content-Type manualmente, il browser lo fa con boundary
@@ -599,21 +650,16 @@ class StudyService {
             headers: csrfHeader,
         });
 
-        console.log('📥 Response status:', response.status);
-
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            console.error('❌ Error response:', errorData);
             throw new Error(
-                errorData.error?.message || 
-                errorData.message || 
+                errorData.error?.message ||
+                errorData.message ||
                 `Errore ${response.status}: generazione fallita`
             );
         }
 
         const result = await response.json();
-        console.log('✅ Result:', result);
-        
         if (!result.success) {
             throw new Error(result.error?.message || result.message || 'Generazione fallita');
         }
@@ -700,8 +746,6 @@ class StudyService {
      * @returns Array di domande estratte
      */
     async extractExamQuestions(questionsFile: File): Promise<{ questions: string[] }> {
-        console.log('📤 Uploading questions file for extraction...');
-
         const formData = new FormData();
         formData.append('questionsFile', questionsFile);
 
@@ -742,8 +786,6 @@ class StudyService {
         flashcards: Array<{ id: string; front: string; back: string; found: boolean }>;
         stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number } 
     }> {
-        console.log('📤 Uploading source file and generating answers...');
-
         const formData = new FormData();
         formData.append('sourceFile', sourceFile);
         formData.append('selectedQuestions', JSON.stringify(selectedQuestions));
@@ -797,8 +839,6 @@ class StudyService {
      * @returns Deck e statistiche
      */
     async examSolver(formData: FormData): Promise<{ deck: Deck; stats: { questionsExtracted: number; answersFound: number; answersNotFound: number; totalFlashcards: number; processingTimeMs: number } }> {
-        console.log('📤 Uploading files for Exam Solver...');
-
         // Chiamata API con FormData
         const csrfHeader = await getCsrfHeader();
         const response = await fetch(`/api${this.baseUrl}/exam-solver`, {
@@ -808,14 +848,11 @@ class StudyService {
             headers: csrfHeader,
         });
 
-        console.log('📥 Response status:', response.status);
-
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            console.error('❌ Error response:', errorData);
             throw new Error(
-                errorData.error?.message || 
-                errorData.message || 
+                errorData.error?.message ||
+                errorData.message ||
                 `Errore ${response.status}: risoluzione esame fallita`
             );
         }
@@ -890,6 +927,34 @@ class StudyService {
     }> {
         const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/reset-distractors`, {});
         return unwrap(response, 'Errore nel reset dei distrattori');
+    }
+
+    async retakeSavedQuiz(deckId: string, quizId: string): Promise<SavedQuizRetakeResponse> {
+        const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/quizzes/${quizId}/retake`);
+        const raw = unwrap(response, 'Errore nel caricamento del quiz per retake');
+        return {
+            quizId: raw.quizId,
+            name: raw.name,
+            quizType: raw.quizType === 'true_false' ? 'true_false' : 'multiple_choice',
+            questionCount: raw.questionCount,
+            cards: Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [],
+            attempts: Array.isArray(raw.attempts) ? raw.attempts : [],
+        };
+    }
+
+    async reviewSavedQuiz(deckId: string, quizId: string): Promise<SavedQuizReviewResponse> {
+        const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/quizzes/${quizId}/review`);
+        return unwrap(response, 'Errore nel caricamento della review del quiz');
+    }
+
+    async recordQuizAttempt(deckId: string, quizId: string, data: {
+        score: number;
+        accuracy: number;
+        timeSeconds: number;
+        wrongQuestionIndices?: number[];
+    }): Promise<void> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/quizzes/${quizId}/attempts`, data);
+        unwrap(response, 'Errore nella registrazione del tentativo');
     }
 }
 
