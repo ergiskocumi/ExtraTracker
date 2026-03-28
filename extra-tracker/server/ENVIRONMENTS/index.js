@@ -63,9 +63,10 @@ if (currentEnvironment === 'production') {
 }
 
 // Log ambiente corrente
-console.log(`🔧 Environment: ${currentEnvironment}`);
-console.log(`🔧 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
-console.log(`🔧 ENVIRONMENT: ${process.env.ENVIRONMENT || 'not set (using NODE_ENV)'}`);
+const logger = require('../utils/logger');
+logger.info('Environment', `Environment: ${currentEnvironment}`);
+logger.info('Environment', `NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+logger.info('Environment', `ENVIRONMENT: ${process.env.ENVIRONMENT || 'not set (using NODE_ENV)'}`);
 
 module.exports = {
     config,

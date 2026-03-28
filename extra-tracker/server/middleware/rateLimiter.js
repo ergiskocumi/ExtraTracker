@@ -22,6 +22,7 @@ const rateLimit = require('express-rate-limit');
 const { RedisStore } = require('rate-limit-redis');
 const securityConfig = require('../config/security');
 const { getRedisAvailable, getRedisClient } = require('../config/redis');
+const logger = require('../utils/logger');
 
 // ==========================================
 // UTILITY FUNCTIONS
@@ -83,14 +84,14 @@ const sharedRateLimitStore = (() => {
     if (getRedisAvailable()) {
         const redisClient = getRedisClient();
         if (redisClient) {
-            console.log('✅ Rate limiter usando Redis (distribuito)');
+            logger.success('RateLimiter', 'Rate limiter usando Redis (distribuito)');
             return new RedisStore({
                 sendCommand: (...args) => redisClient.sendCommand(args),
                 prefix: 'rl:',
             });
         }
     }
-    console.log('⚠️  Rate limiter usando memoria locale (non distribuito)');
+    logger.warn('RateLimiter', 'Rate limiter usando memoria locale (non distribuito)');
     return undefined;
 })();
 

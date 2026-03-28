@@ -138,11 +138,7 @@ Pattern di distorsione VIETATI:
 
 function _logDebug(event, payload = {}) {
     if (!QUIZ_DEBUG_LOGS) return;
-    try {
-        console.log(`[TrueFalseGenerator] ${event}`, JSON.stringify(payload));
-    } catch {
-        console.log(`[TrueFalseGenerator] ${event}`, payload);
-    }
+    logger.debug('TrueFalseGenerator', event, payload);
 }
 
 function _parseJSONResponse(content) {

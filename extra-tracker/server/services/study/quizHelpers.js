@@ -6,6 +6,7 @@
 
 const { openai, DISTRACTOR_AI_MODEL, QUIZ_DEBUG_LOGS } = require('./constants');
 const aiUsageService = require('../aiUsageService');
+const logger = require('../../utils/logger');
 
 module.exports = {
 
@@ -15,11 +16,7 @@ module.exports = {
 
     _logQuizDebug(event, payload = {}) {
         if (!QUIZ_DEBUG_LOGS) return;
-        try {
-            console.log(`[StudyService.quiz] ${event}`, JSON.stringify(payload));
-        } catch {
-            console.log(`[StudyService.quiz] ${event}`, payload);
-        }
+        logger.debug('StudyService.quiz', event, payload);
     },
 
     _getOptionMetrics(options = []) {
@@ -99,7 +96,10 @@ module.exports = {
         };
 
         const hardCount = Math.max(1, Math.round(count * 0.25));
-        console.log(`[StudyService.generateQuizFromPDFText] Generating ${count} questions (${hardCount} hard, ${count - hardCount} standard) from text chunk of length ${pdfTextChunk.length}. Previous questions count: ${previousQuestions.length}`);
+        logger.debug('StudyService.quiz', `Generating ${count} questions (${hardCount} hard, ${count - hardCount} standard)`, {
+            textLength: pdfTextChunk.length,
+            previousQuestionsCount: previousQuestions.length,
+        });
         const systemPrompt = `Agisci come un esperto di Instructional Design, Cognitive Load Theory e Psicometria. Riceverai dei contenuti da studiare.
         Il tuo compito è generare ${count} domande a risposta multipla che testano la padronanza concettuale profonda, NON la memoria di lavoro.
 
@@ -370,7 +370,7 @@ module.exports = {
     // =========================================
 
     _transformToTrueFalse(cards, allAnswers = []) {
-        console.log(`[StudyService._transformToTrueFalse] Transforming ${cards.length} cards to TRUE/FALSE format`);
+        logger.debug('StudyService.quiz', `Transforming ${cards.length} cards to TRUE/FALSE format`);
 
         return cards.map((card, index) => {
             const isTrue = Math.random() < 0.5;
@@ -403,7 +403,7 @@ module.exports = {
             };
 
             if (index < 3) {
-                console.log(`[StudyService._transformToTrueFalse] Sample card #${index + 1}:`, {
+                logger.debug('StudyService.quiz', `Sample TF card #${index + 1}`, {
                     statement: statement.substring(0, 80) + '...',
                     correctAnswer,
                     isTrue,
