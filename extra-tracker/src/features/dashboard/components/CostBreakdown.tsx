@@ -92,10 +92,11 @@ export const CostBreakdown = ({ data, title, loading = false, className }: CostB
                 borderRadius: '8px',
                 color: '#F9FAFB',
               }}
-              formatter={(value: number | undefined, name: string | undefined, props: { payload?: { requests?: number } }) => {
+              formatter={(value, name, props) => {
+                const numValue = typeof value === 'number' ? value : 0;
                 const requests = props?.payload?.requests || 0;
                 return [
-                  `$${(value ?? 0).toFixed(4)}`,
+                  `$${numValue.toFixed(4)}`,
                   `${name ?? ''} (${requests} richieste)`
                 ];
               }}

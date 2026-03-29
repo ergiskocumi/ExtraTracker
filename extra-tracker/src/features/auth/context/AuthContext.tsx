@@ -11,7 +11,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { authService, type User, type LoginData, type RegisterData, type AuthResponse } from '../services/authService';
-import { getErrorMessage } from '../../../utils/errorMessage';
 
 // ==========================================
 // TIPI

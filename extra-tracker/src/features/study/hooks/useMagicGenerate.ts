@@ -140,8 +140,8 @@ export interface UseMagicGenerateReturn {
     progress: ProgressData;
     error: string | null;
     logs: LogEntry[];
-    logsEndRef: React.RefObject<HTMLDivElement>;
-    fileInputRef: React.RefObject<HTMLInputElement>;
+    logsEndRef: React.RefObject<HTMLDivElement | null>;
+    fileInputRef: React.RefObject<HTMLInputElement | null>;
 
     // Derived
     isProcessing: boolean;
@@ -193,8 +193,8 @@ export function useMagicGenerate({
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const logsEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const logsEndRef = useRef<HTMLDivElement | null>(null);
     const completionHandledRef = useRef(false);
 
     // Check if we have an active job for this deck

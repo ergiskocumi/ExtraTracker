@@ -9,7 +9,6 @@ import { motion } from 'framer-motion';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FiCheckCircle, FiXCircle, FiLoader, FiMail } from 'react-icons/fi';
 import { apiClient } from '../../../shared/services/apiClient';
-import { getErrorMessage } from '../../../utils/errorMessage';
 
 type VerificationStatus = 'loading' | 'success' | 'error' | 'no-token';
 

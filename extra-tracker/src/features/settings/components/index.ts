@@ -2,6 +2,8 @@
 export { SettingsCard } from './SettingsCard';
 export { SettingsFormField } from './SettingsFormField';
 export { SettingsToggle } from './SettingsToggle';
+export { SettingsSkeleton } from './SettingsSkeleton';
+export type { SectionConfig } from './SettingsSkeleton';
 
 // Main Settings Components
 export { ProfileSettings } from './ProfileSettings';

@@ -22,10 +22,10 @@ interface PDFChatProps {
 
 const LoadingBubble = () => (
     <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-xl bg-theme-surface border border-theme-default flex items-center justify-center">
+        <div className="flex items-center justify-center w-8 h-8 border rounded-xl bg-theme-surface border-theme-default">
             <FiCpu className="w-4 h-4 text-theme-secondary" />
         </div>
-        <div className="px-4 py-3 rounded-2xl bg-theme-surface border border-theme-default text-sm text-theme-secondary animate-pulse">
+        <div className="px-4 py-3 text-sm border rounded-2xl bg-theme-surface border-theme-default text-theme-secondary animate-pulse">
             L&apos;AI sta scrivendo...
         </div>
     </div>
@@ -89,7 +89,7 @@ export const PDFChat: React.FC<PDFChatProps> = ({
                 const reply = await studyService.askTutor(deckId, content, history);
                 setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
             } catch (err: unknown) {
-                const msg = getErrorMessage(err) || ‘Errore nella chat con l\u2019AI’;
+                const msg = getErrorMessage(err) || 'Errore nella chat con l\'AI';
                 setError(msg);
                 emitToast.error(msg, { title: 'AI Tutor' });
             } finally {
@@ -116,9 +116,9 @@ export const PDFChat: React.FC<PDFChatProps> = ({
     }, [disabled, isSending, onConsumePendingMessage, pendingMessage?.content, pendingMessage?.id, sendMessage]);
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="flex flex-col h-full">
             {/* Messages */}
-            <div className="flex-1 overflow-auto p-4 space-y-3 scrollbar-macos">
+            <div className="flex-1 p-4 space-y-3 overflow-auto scrollbar-macos">
                 {messages.map((m, idx) => {
                     const isUser = m.role === 'user';
                     return (
@@ -145,10 +145,10 @@ export const PDFChat: React.FC<PDFChatProps> = ({
 
                 {error && (
                     <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-rose-500/12 border border-rose-500/35 flex items-center justify-center">
+                        <div className="flex items-center justify-center w-8 h-8 border rounded-xl bg-rose-500/12 border-rose-500/35">
                             <FiAlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-300" />
                         </div>
-                        <div className="px-4 py-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-sm text-rose-700 dark:text-rose-200">
+                        <div className="px-4 py-3 text-sm border rounded-2xl bg-rose-500/10 border-rose-500/25 text-rose-700 dark:text-rose-200">
                             {error}
                         </div>
                     </div>
@@ -176,7 +176,7 @@ export const PDFChat: React.FC<PDFChatProps> = ({
                         }
                         rows={2}
                         disabled={disabled || isSending}
-                        className="flex-1 px-4 py-3 bg-theme-elevated border border-theme-default rounded-2xl text-theme-primary placeholder:text-theme-muted focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all resize-none disabled:opacity-50"
+                        className="flex-1 px-4 py-3 transition-all border resize-none bg-theme-elevated border-theme-default rounded-2xl text-theme-primary placeholder:text-theme-muted focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50"
                     />
                     <motion.button
                         whileHover={{ scale: canSend ? 1.02 : 1 }}
@@ -189,7 +189,7 @@ export const PDFChat: React.FC<PDFChatProps> = ({
                         Invia
                     </motion.button>
                 </div>
-                <p className="text-xs text-theme-muted mt-2">
+                <p className="mt-2 text-xs text-theme-muted">
                     L&apos;AI risponde solo usando il contenuto del PDF. Se l&apos;informazione non è nel testo, te lo dirà.
                 </p>
             </div>

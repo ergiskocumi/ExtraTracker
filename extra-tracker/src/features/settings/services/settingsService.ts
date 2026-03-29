@@ -9,7 +9,6 @@
  */
 
 import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
-import { getErrorMessage } from '../../../utils/errorMessage';
 
 // ==========================================
 // TIPI PROFILO

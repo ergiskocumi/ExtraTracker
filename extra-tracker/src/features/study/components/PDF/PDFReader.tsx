@@ -786,7 +786,7 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                                 pdfUrl={normalizedPdfUrl}
                             />
                         )}
-                        onDocumentLoad={(e) => {
+                        onDocumentLoad={(_e) => {
                             loadingProgressRef.current = 100;
                             documentLoadedRef.current = true;
                             onLoadSuccess?.();

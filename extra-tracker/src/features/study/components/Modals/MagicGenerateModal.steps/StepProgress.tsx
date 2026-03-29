@@ -12,7 +12,7 @@ import { PIPELINE_PHASES, stepLabel } from '../../../hooks/useMagicGenerate';
 interface StepProgressProps {
     progress: ProgressData;
     logs: LogEntry[];
-    logsEndRef: React.RefObject<HTMLDivElement>;
+    logsEndRef: React.RefObject<HTMLDivElement | null>;
     pipelineProgress: number;
     currentStepPosition: number;
     elapsedSeconds: number;

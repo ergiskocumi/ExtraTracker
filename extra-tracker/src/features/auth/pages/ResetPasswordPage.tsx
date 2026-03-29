@@ -9,7 +9,6 @@ import { motion } from 'framer-motion';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { FiLock, FiEye, FiEyeOff, FiCheckCircle, FiXCircle, FiLoader, FiCheck, FiX } from 'react-icons/fi';
 import { apiClient } from '../../../shared/services/apiClient';
-import { getErrorMessage } from '../../../utils/errorMessage';
 
 // Requisiti password
 const PASSWORD_REQUIREMENTS = [

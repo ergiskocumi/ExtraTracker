@@ -107,12 +107,12 @@ export const TokenChart = ({ data, loading = false, className }: TokenChartProps
                 borderRadius: '8px',
                 color: '#F9FAFB',
               }}
-              formatter={(value: number | undefined, name: string | undefined) => {
-                const v = value ?? 0;
+              formatter={(value, name) => {
+                const numValue = typeof value === 'number' ? value : 0;
                 if (name === 'Costo (USD)') {
-                  return [`$${v.toFixed(4)}`, name ?? ''];
+                  return [`$${numValue.toFixed(4)}`, name ?? ''];
                 }
-                return [v.toLocaleString('it-IT'), name ?? ''];
+                return [numValue.toLocaleString('it-IT'), name ?? ''];
               }}
             />
             <Area

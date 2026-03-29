@@ -14,7 +14,7 @@ interface StepUploadProps {
     error: string | null;
     estimatedAutoCards: number;
     estimatedDuration: string;
-    fileInputRef: React.RefObject<HTMLInputElement>;
+    fileInputRef: React.RefObject<HTMLInputElement | null>;
     onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onRemoveFile: (e: React.MouseEvent) => void;
     onChangeFile: (e: React.MouseEvent) => void;

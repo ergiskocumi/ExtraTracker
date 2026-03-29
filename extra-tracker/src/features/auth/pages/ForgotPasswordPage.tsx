@@ -9,7 +9,6 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FiMail, FiSend, FiLoader, FiCheckCircle, FiArrowLeft } from 'react-icons/fi';
 import { apiClient } from '../../../shared/services/apiClient';
-import { getErrorMessage } from '../../../utils/errorMessage';
 
 export const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');
