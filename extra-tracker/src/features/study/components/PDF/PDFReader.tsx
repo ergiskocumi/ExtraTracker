@@ -789,9 +789,6 @@ export const PDFReader = forwardRef<PDFReaderRef, PDFReaderProps>(({
                         onDocumentLoad={(e) => {
                             loadingProgressRef.current = 100;
                             documentLoadedRef.current = true;
-                            if (import.meta.env.DEV) {
-                                console.log('[PDFReader] PDF caricato:', e.doc.numPages, 'pagine');
-                            }
                             onLoadSuccess?.();
                         }}
                     />

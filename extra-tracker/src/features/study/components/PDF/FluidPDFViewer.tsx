@@ -43,10 +43,6 @@ const configurePdfWorker = (): void => {
     // Imposta sempre, anche se già configurato (per evitare percorsi relativi)
     pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
     
-    if (import.meta.env.DEV) {
-        console.log('📦 PDF.js Worker configurato (CDN):', workerUrl);
-        console.log('📦 PDF.js Version:', pdfjs.version);
-    }
 };
 
 // Configura il worker una sola volta all'avvio
@@ -447,9 +443,7 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
 
         verifyPdfAccessibility(normalizedPdfUrl)
             .then(isAccessible => {
-                if (isAccessible) {
-                    console.log('✅ PDF accessibile e pronto per il caricamento');
-                } else {
+                if (!isAccessible) {
                     console.warn('⚠️ PDF potrebbe non essere accessibile');
                 }
             })
@@ -460,9 +454,6 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
 
     // Handlers
     const handleDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-        if (import.meta.env.DEV) {
-            console.log('✅ PDF caricato con successo:', numPages, 'pagine');
-        }
         setNumPages(numPages);
         setLoading(false);
         setError(null);
