@@ -15,7 +15,7 @@ import { cn } from '../../lib/utils';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { FloatingGenerationIndicator } from '../../features/study/components/Generation';
+
 const GlobalFeedbackModal = lazy(() =>
     import('../../features/feedback/components/GlobalFeedbackModal').then((m) => ({
         default: m.GlobalFeedbackModal,
@@ -72,7 +72,7 @@ const Header = memo(() => {
                     {/* LEFT: Brand */}
                     <Link
                         to="/"
-                        className="flex items-center gap-3 group relative z-10"
+                        className="flex items-center gap-3 group relative z-10 rounded-lg focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-base"
                         title={`${APP_NAME}${appVersion ? ` v${appVersion}` : ''}`}
                     >
                         <motion.div 
@@ -157,7 +157,6 @@ export const AppLayout = () => {
             <Suspense fallback={null}>
                 <GlobalFeedbackModal />
                 <TutorialManager />
-                <FloatingGenerationIndicator />
             </Suspense>
         </div>
     );

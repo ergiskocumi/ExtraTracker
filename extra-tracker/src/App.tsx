@@ -11,11 +11,10 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
 import { FeedbackProvider } from './features/feedback/context/FeedbackContext';
-import { FlashcardGenerationProvider } from './features/study/context/FlashcardGenerationContext';
 import { ProtectedRoute, useAuth } from './features/auth/context/AuthContext';
 import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
-import { WorkLogProvider } from './features/tracker/context/WorkLogContext';
+import { StudyProviders } from './features/study/components/StudyProviders';
 
 // OTTIMIZZATO: Lazy loading per tutte le pagine (code splitting)
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -87,13 +86,9 @@ function App() {
                     element={
                         <ProtectedRoute redirectTo="/">
                             <SettingsProvider>
-                                <WorkLogProvider>
-                                    <FeedbackProvider>
-                                        <FlashcardGenerationProvider>
-                                            <AppLayout />
-                                        </FlashcardGenerationProvider>
-                                    </FeedbackProvider>
-                                </WorkLogProvider>
+                                <FeedbackProvider>
+                                    <AppLayout />
+                                </FeedbackProvider>
                             </SettingsProvider>
                         </ProtectedRoute>
                     }
@@ -102,11 +97,11 @@ function App() {
                     <Route path="/ai-dashboard" element={<AIUsageDashboardPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
 
-                    {/* Study / Flashcards */}
-                    <Route path="/study" element={<DecksDashboardPage />} />
-                    <Route path="/study/deck/:id" element={<DeckDetailPage />} />
-                    <Route path="/study/deck/:deckId/cinema" element={<CinemaPage />} />
-                    <Route path="/study/:deckId/session" element={<StudySessionPage />} />
+                    {/* Study / Flashcards - con StudyProviders */}
+                    <Route path="/study" element={<StudyProviders><DecksDashboardPage /></StudyProviders>} />
+                    <Route path="/study/deck/:id" element={<StudyProviders><DeckDetailPage /></StudyProviders>} />
+                    <Route path="/study/deck/:deckId/cinema" element={<StudyProviders><CinemaPage /></StudyProviders>} />
+                    <Route path="/study/:deckId/session" element={<StudyProviders><StudySessionPage /></StudyProviders>} />
 
                     {/* Admin Routes */}
                     <Route

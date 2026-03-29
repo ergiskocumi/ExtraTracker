@@ -2,6 +2,9 @@
  * 📚 Study Components - Barrel Export
  */
 
+// Providers
+export { StudyProviders } from './StudyProviders';
+
 // Flashcard components
 export { Flashcard, FlashcardSkeleton } from './Flashcard/Flashcard';
 export { FlashcardItem } from './Flashcard/FlashcardItem';
