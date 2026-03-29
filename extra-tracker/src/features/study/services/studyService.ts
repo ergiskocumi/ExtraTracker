@@ -1,91 +1,41 @@
 import { apiClient, type ApiResponse, getCsrfHeader } from '../../../shared/services/apiClient';
 export type { Tag } from './tagsService';
+import type {
+    Card,
+    Deck,
+    SavedQuizSnapshot,
+    QuizAttempt,
+    ExamSavedQuiz,
+    ReviewRating,
+    CardStatus,
+    StudyMode,
+    QuizType,
+    SessionFocus,
+    SessionLength,
+    SessionDirection,
+    ChatRole,
+} from '../../../types/domain';
+
+// Re-export canonical types so consumers can import from studyService
+export type {
+    Card,
+    Deck,
+    SavedQuizSnapshot,
+    QuizAttempt,
+    ExamSavedQuiz,
+    ReviewRating,
+    CardStatus,
+    StudyMode,
+    QuizType,
+    SessionFocus,
+    SessionLength,
+    SessionDirection,
+    ChatRole,
+};
 
 // ============================================
-// TYPES
+// STUDY-SPECIFIC TYPES (not in domain.ts)
 // ============================================
-
-export type ReviewRating = 1 | 2 | 3 | 4 | 5;
-export type CardStatus = 'new' | 'learning' | 'review' | 'mastered';
-export type StudyMode = 'flashcard' | 'quiz' | 'typing' | 'mix' | 'sprint' | 'focus' | 'exam';
-export type QuizType = 'multiple_choice' | 'true_false';
-export type SessionFocus = 'smart' | 'due' | 'weak' | 'all';
-export type SessionLength = 'short' | 'standard' | 'deep';
-export type SessionDirection = 'front' | 'back' | 'mixed';
-export type ChatRole = 'user' | 'assistant';
-
-export interface Card {
-    id: string;
-    front: string;
-    back: string;
-    canonicalBack?: string;
-    quizAnswerVariant?: string;
-    options?: string[];
-    distractors?: string[];
-    aiDistractorsFailed?: boolean;
-    distractorExplanations?: Record<string, string>;
-    easinessFactor: number;
-    interval: number;
-    repetitions: number;
-    nextReviewDate: string;
-    status: CardStatus;
-    /** True/False mode flag */
-    isTrueFalse?: boolean;
-    /** For false T/F statements: the corrected version */
-    correctStatement?: string | null;
-    /** Explanation for the answer (T/F and MCQ) */
-    explanation?: string;
-    /**
-     * Metadata per tracciare la fonte originale nel PDF
-     * Usato per il "Jump to Source" feature
-     */
-    sourceMetadata?: {
-        /** Numero di pagina (1-based index) */
-        pageNumber: number;
-        /** Il testo esatto nel PDF che ha generato questa card */
-        originalText: string;
-    };
-}
-
-export interface Deck {
-    id: string;
-    examId?: string;
-    title: string;
-    description?: string;
-    pdfUrl?: string | null;
-    tags: string[];
-    folderId?: string | null;
-    cards: Card[];
-    totalCards: number;
-    dueCount: number;
-    createdAt?: string;
-    updatedAt?: string;
-    pinned?: boolean; // Preferiti - da implementare nel backend
-    savedQuizzes?: SavedQuizSnapshot[];
-}
-
-export interface SavedQuizSnapshot {
-    id: string;
-    name: string;
-    quizType: QuizType;
-    questionCount: number;
-    sourceCardIds: string[];
-    source: 'chapter' | 'repeat' | 'errors' | 'saved';
-    createdAt?: string;
-    attemptCount?: number;
-    lastScore?: number;
-    bestScore?: number;
-    hasQuestions?: boolean;
-}
-
-export interface QuizAttempt {
-    id: string;
-    score: number;
-    accuracy: number;
-    timeSeconds: number;
-    completedAt: string;
-    wrongQuestionIndices: number[];
-}
 
 export interface SavedQuizRetakeResponse {
     quizId: string;
@@ -112,12 +62,6 @@ export interface SavedQuizReviewResponse {
     quizType: QuizType;
     questions: SavedQuizReviewQuestion[];
     attempts: QuizAttempt[];
-}
-
-export interface ExamSavedQuiz extends SavedQuizSnapshot {
-    deckId: string;
-    deckTitle: string;
-    examId?: string | null;
 }
 
 export interface ChatMessage {
