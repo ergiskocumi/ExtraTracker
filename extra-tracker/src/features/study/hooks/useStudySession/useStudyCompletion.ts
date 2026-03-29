@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 
 import type { StudySession, StudyMode } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
@@ -16,6 +16,11 @@ interface UseStudyCompletionParams {
     answersHistory: StudyAnswer[];
     quizAnswerDetails: QuizAnswerDetail[];
     savedQuizId: string | null;
+    isComplete: boolean;
+    setIsComplete: React.Dispatch<React.SetStateAction<boolean>>;
+    isCompleteRef: React.RefObject<boolean>;
+    wrongAnswersForReview: WrongAnswer[];
+    setWrongAnswersForReview: React.Dispatch<React.SetStateAction<WrongAnswer[]>>;
 }
 
 interface WrongAnswer {
@@ -44,12 +49,12 @@ export const useStudyCompletion = ({
     answersHistory,
     quizAnswerDetails,
     savedQuizId,
+    isComplete,
+    setIsComplete,
+    isCompleteRef,
+    wrongAnswersForReview,
+    setWrongAnswersForReview,
 }: UseStudyCompletionParams): UseStudyCompletionReturn => {
-    
-    const [isComplete, setIsComplete] = useState(false);
-    const isCompleteRef = useRef(false);
-    const [wrongAnswersForReview, setWrongAnswersForReview] = useState<WrongAnswer[]>([]);
-
     const completeSession = useCallback(async () => {
         if (!session || !deckId || isCompleteRef.current) return;
 
@@ -123,6 +128,14 @@ export const useStudyCompletion = ({
                     accuracy,
                     timeSeconds: elapsedSeconds,
                     wrongQuestionIndices: wrongIndices,
+                    strategy: session.meta?.retakeStrategy,
+                    results: quizAnswerDetails.map((answer, index) => ({
+                        questionId: answer.cardId,
+                        shownIndex: index,
+                        selectedAnswer: answer.userAnswer,
+                        correctAnswer: answer.correctAnswer,
+                        isCorrect: answer.correct,
+                    })),
                 }).catch(err => {
                     console.error('Error recording quiz attempt:', err);
                 });
@@ -130,7 +143,7 @@ export const useStudyCompletion = ({
         } catch (err) {
             console.error('Error completing session:', err);
         }
-    }, [session, deckId, mode, stats, elapsedSeconds, sessionKey, answersHistory, quizAnswerDetails, savedQuizId]);
+    }, [session, deckId, mode, stats, elapsedSeconds, sessionKey, answersHistory, quizAnswerDetails, savedQuizId, isCompleteRef, setIsComplete, setWrongAnswersForReview]);
 
     return {
         isComplete,

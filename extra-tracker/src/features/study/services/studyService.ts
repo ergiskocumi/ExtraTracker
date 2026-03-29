@@ -45,6 +45,23 @@ export interface SavedQuizRetakeResponse {
     questionCount: number;
     cards: Card[];
     attempts: QuizAttempt[];
+    strategy?: QuizRetakeStrategy;
+    session?: StudySession;
+}
+
+export interface QuizRetakeStrategyParams {
+    wrongWeight?: number;
+    recencyWeight?: number;
+    difficultyWeight?: number;
+    noveltyWeight?: number;
+    shuffleStrength?: number;
+}
+
+export interface QuizRetakeStrategy {
+    mode?: 'full' | 'weak_first' | 'errors_only' | 'spaced_mix';
+    targetCount?: number;
+    seed?: string;
+    params?: QuizRetakeStrategyParams;
 }
 
 export interface SavedQuizReviewQuestion {
@@ -63,6 +80,18 @@ export interface SavedQuizReviewResponse {
     quizType: QuizType;
     questions: SavedQuizReviewQuestion[];
     attempts: QuizAttempt[];
+}
+
+export interface PersistedQuizGenerationPayload {
+    name?: string;
+    quizType: QuizType;
+    questionCount: number;
+    source?: 'chapter' | 'repeat' | 'errors' | 'saved';
+}
+
+export interface PersistedQuizGenerationResult {
+    quiz: ExamSavedQuiz & { hasQuestions?: boolean };
+    session: StudySession;
 }
 
 export interface ChatMessage {
@@ -84,6 +113,8 @@ export interface StudySession {
         questionCount?: number;
         direction?: SessionDirection;
         quizType?: QuizType;
+        quizId?: string;
+        retakeStrategy?: QuizRetakeStrategy;
     };
 }
 
@@ -137,6 +168,8 @@ export interface SessionRequestOptions {
     examDifficulty?: string;
     quizType?: QuizType;
     sourceCardIds?: string[];
+    quizId?: string;
+    savedQuizId?: string;
 }
 
 export interface SaveQuizSnapshotPayload {
@@ -466,6 +499,8 @@ class StudyService {
         if (options.examType) params.set('examType', options.examType);
         if (options.examDifficulty) params.set('examDifficulty', options.examDifficulty);
         if (options.quizType) params.set('quizType', options.quizType);
+        if (options.quizId) params.set('quizId', options.quizId);
+        if (options.savedQuizId) params.set('savedQuizId', options.savedQuizId);
         if (Array.isArray(options.sourceCardIds) && options.sourceCardIds.length > 0) {
             params.set('sourceCardIds', options.sourceCardIds.join(','));
         }
@@ -488,6 +523,24 @@ class StudyService {
             deckId: String(raw?.deckId || deckId),
             deckTitle: typeof raw?.deckTitle === 'string' ? raw.deckTitle : '',
             examId: raw?.examId || null,
+        };
+    }
+
+    async generatePersistedQuiz(deckId: string, payload: PersistedQuizGenerationPayload): Promise<PersistedQuizGenerationResult> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/quizzes/generate`, payload);
+        const raw = unwrap(response, 'Errore nella generazione del quiz persistito');
+        const quizRaw = raw?.quiz ?? {};
+        const quiz: ExamSavedQuiz & { hasQuestions?: boolean } = {
+            ...normalizeSavedQuiz(quizRaw),
+            deckId: String(quizRaw?.deckId || deckId),
+            deckTitle: typeof quizRaw?.deckTitle === 'string' ? quizRaw.deckTitle : '',
+            examId: quizRaw?.examId || null,
+            hasQuestions: Boolean(quizRaw?.hasQuestions),
+        };
+
+        return {
+            quiz,
+            session: normalizeSession(raw?.session ?? {}),
         };
     }
 
@@ -870,8 +923,8 @@ class StudyService {
         return unwrap(response, 'Errore nel reset dei distrattori');
     }
 
-    async retakeSavedQuiz(deckId: string, quizId: string): Promise<SavedQuizRetakeResponse> {
-        const response = await apiClient.get<any>(`${this.baseUrl}/${deckId}/quizzes/${quizId}/retake`);
+    async retakeSavedQuiz(deckId: string, quizId: string, strategy: QuizRetakeStrategy = {}): Promise<SavedQuizRetakeResponse> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/quizzes/${quizId}/retake-session`, strategy);
         const raw = unwrap(response, 'Errore nel caricamento del quiz per retake');
         return {
             quizId: raw.quizId,
@@ -880,6 +933,8 @@ class StudyService {
             questionCount: raw.questionCount,
             cards: Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [],
             attempts: Array.isArray(raw.attempts) ? raw.attempts : [],
+            strategy: raw?.strategy as QuizRetakeStrategy | undefined,
+            session: raw?.session ? normalizeSession(raw.session) : undefined,
         };
     }
 
@@ -893,6 +948,16 @@ class StudyService {
         accuracy: number;
         timeSeconds: number;
         wrongQuestionIndices?: number[];
+        strategy?: QuizRetakeStrategy;
+        results?: Array<{
+            questionId: string;
+            shownIndex: number;
+            selectedAnswer: string;
+            correctAnswer: string;
+            isCorrect: boolean;
+            responseMs?: number;
+            skipped?: boolean;
+        }>;
     }): Promise<void> {
         const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/quizzes/${quizId}/attempts`, data);
         unwrap(response, 'Errore nella registrazione del tentativo');

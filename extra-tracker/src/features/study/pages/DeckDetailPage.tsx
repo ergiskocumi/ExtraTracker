@@ -18,6 +18,7 @@ import { studyService, type Deck, type QuizType, type SavedQuizSnapshot, type Sa
 import { emitToast } from '../../../shared/components/toast';
 import { getErrorMessage } from '../../../utils/errorMessage';
 import { DeckDetailContent } from '../components/Deck/DeckDetailContent';
+import { SavedQuizLibraryModal } from '../components/Deck/SavedQuizLibraryModal';
 import { ExamSolverModal } from '../components/Modals/ExamSolver';
 import { MagicGenerateModal } from '../components/Modals/MagicGenerateModal';
 import { GenerateQuizModal } from '../components/Modals/GenerateQuizModal';
@@ -45,6 +46,7 @@ export const DeckDetailPage: React.FC = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [reviewData, setReviewData] = useState<SavedQuizReviewResponse | null>(null);
+    const [isQuizLibraryOpen, setIsQuizLibraryOpen] = useState(false);
 
     // Load deck
     const loadDeck = useCallback(async () => {
@@ -103,13 +105,13 @@ export const DeckDetailPage: React.FC = () => {
         }
 
         try {
-            const preparedSession = await studyService.getSession(id, {
-                mode: 'quiz',
-                focus: 'all',
-                questionCount: config.questionCount,
-                limit: config.questionCount,
+            const generatedQuiz = await studyService.generatePersistedQuiz(id, {
                 quizType: config.quizType,
+                questionCount: config.questionCount,
+                source: 'chapter',
+                name: `Quiz ${config.questionCount} domande`,
             });
+            const preparedSession = generatedQuiz.session;
 
             if (preparedSession.cards.length === 0) {
                 emitToast.info('Nessuna carta disponibile per il quiz');
@@ -120,53 +122,24 @@ export const DeckDetailPage: React.FC = () => {
                 new Set(preparedSession.cards.map(card => card.id).filter(Boolean))
             );
 
-            if (sourceCardIds.length > 0) {
-                try {
-                    // Extract questions from prepared cards to persist them
-                    const questionsToSave = preparedSession.cards.map(card => ({
-                        questionText: card.front,
-                        correctAnswer: card.back,
-                        distractors: card.distractors || [],
-                        distractorExplanations: Array.isArray(card.distractorExplanations)
-                            ? card.distractorExplanations as unknown as string[]
-                            : card.distractorExplanations && typeof card.distractorExplanations === 'object'
-                                ? Object.values(card.distractorExplanations)
-                                : [],
-                        correctAnswerExplanation: card.explanation || '',
-                        difficulty: 'standard',
-                        options: card.options || [],
-                    }));
-
-                    const savedQuiz = await studyService.saveQuizSnapshot(id, {
-                        quizType: config.quizType,
-                        questionCount: preparedSession.cards.length,
-                        sourceCardIds,
-                        source: 'chapter',
-                        name: `Quiz ${preparedSession.cards.length} domande`,
-                        questions: questionsToSave,
-                    });
-                    // Aggiorna lo state locale del deck per mostrare il nuovo quiz salvato
-                    setDeck(prev => {
-                        if (!prev) return prev;
-                        const existing = prev.savedQuizzes ?? [];
-                        const alreadyExists = existing.some(q => q.id === savedQuiz.id);
-                        return {
-                            ...prev,
-                            savedQuizzes: alreadyExists ? existing : [savedQuiz, ...existing],
-                        };
-                    });
-                } catch (snapshotError) {
-                    // Non blocca l'avvio del quiz se il salvataggio storico fallisce.
-                    console.warn('[DeckDetailPage] saveQuizSnapshot failed:', snapshotError);
-                }
-            }
+            setDeck(prev => {
+                if (!prev) return prev;
+                const existing = prev.savedQuizzes ?? [];
+                const alreadyExists = existing.some(q => q.id === generatedQuiz.quiz.id);
+                return {
+                    ...prev,
+                    savedQuizzes: alreadyExists ? existing : [generatedQuiz.quiz, ...existing],
+                };
+            });
 
             const params = new URLSearchParams();
             params.set('mode', 'quiz');
             params.set('focus', 'all');
-            params.set('questions', String(config.questionCount));
+            params.set('questions', String(preparedSession.cards.length));
             params.set('quizType', config.quizType);
             params.set('quizSource', 'chapter');
+            params.set('savedQuizId', generatedQuiz.quiz.id);
+            params.set('quizId', generatedQuiz.quiz.id);
             params.set('run', String(Date.now()));
             if (sourceCardIds.length > 0) {
                 params.set('sourceCardIds', sourceCardIds.join(','));
@@ -190,7 +163,10 @@ export const DeckDetailPage: React.FC = () => {
         try {
             // If quiz has persisted questions, use instant retake (no AI)
             if (savedQuiz.hasQuestions) {
-                const retakeData = await studyService.retakeSavedQuiz(id, savedQuiz.id);
+                const retakeData = await studyService.retakeSavedQuiz(id, savedQuiz.id, {
+                    mode: 'full',
+                    targetCount: Math.max(savedQuiz.questionCount || 0, 1),
+                });
 
                 if (retakeData.cards.length === 0) {
                     emitToast.info('Nessuna domanda disponibile per questo quiz');
@@ -198,13 +174,17 @@ export const DeckDetailPage: React.FC = () => {
                 }
 
                 const fakeDeck: typeof deck = { ...deck, cards: retakeData.cards, totalCards: retakeData.cards.length, dueCount: retakeData.cards.length };
-                const preparedSession = {
+                const preparedSession = retakeData.session ?? {
                     deck: fakeDeck,
                     cards: retakeData.cards,
                     remaining: retakeData.cards.length,
                     total: retakeData.cards.length,
                     mode: 'quiz' as const,
-                    meta: { quizType: retakeData.quizType, questionCount: retakeData.questionCount },
+                    meta: {
+                        quizType: retakeData.quizType,
+                        questionCount: retakeData.questionCount,
+                        retakeStrategy: retakeData.strategy,
+                    },
                 };
 
                 const params = new URLSearchParams();
@@ -214,6 +194,10 @@ export const DeckDetailPage: React.FC = () => {
                 params.set('quizType', retakeData.quizType);
                 params.set('quizSource', 'saved');
                 params.set('savedQuizId', savedQuiz.id);
+                params.set('quizId', savedQuiz.id);
+                if (retakeData.cards.length > 0) {
+                    params.set('sourceCardIds', retakeData.cards.map(card => card.id).join(','));
+                }
                 params.set('run', String(Date.now()));
 
                 navigate(`/study/${id}/session?${params.toString()}`, {
@@ -385,8 +369,7 @@ export const DeckDetailPage: React.FC = () => {
                     onBack={handleBack}
                     onStudy={handleStudy}
                     onGenerateQuiz={() => setIsGenerateQuizOpen(true)}
-                    onRepeatSavedQuiz={handleRepeatSavedQuiz}
-                    onReviewSavedQuiz={handleReviewSavedQuiz}
+                    onOpenQuizLibrary={() => setIsQuizLibraryOpen(true)}
                     onExamSolver={() => setIsExamSolverOpen(true)}
                     onReadPdf={deck.pdfUrl ? handleReadPdf : undefined}
                     onMagicGenerate={() => setIsMagicGenerateOpen(true)}
@@ -397,6 +380,21 @@ export const DeckDetailPage: React.FC = () => {
                     onResetProgress={() => setIsResetModalOpen(true)}
                 />
             </div>
+
+            <SavedQuizLibraryModal
+                isOpen={isQuizLibraryOpen}
+                deckTitle={deck.title}
+                quizzes={deck.savedQuizzes ?? []}
+                onClose={() => setIsQuizLibraryOpen(false)}
+                onRepeatQuiz={(quiz) => {
+                    setIsQuizLibraryOpen(false);
+                    void handleRepeatSavedQuiz(quiz);
+                }}
+                onReviewQuiz={(quiz) => {
+                    setIsQuizLibraryOpen(false);
+                    void handleReviewSavedQuiz(quiz);
+                }}
+            />
 
             {/* Exam Solver Modal */}
             <ExamSolverModal

@@ -9,6 +9,7 @@ const { MIN_QUIZ_CARDS_REQUIRED, QUIZ_TYPES, DEFAULT_EASINESS_FACTOR, MIN_EASINE
 const { generateTrueFalseFromText } = require('./trueFalseGenerator');
 const { hasOnlySyntheticQuizCardIds } = require('./syntheticQuizIds');
 const { shouldRequireMinimumQuizCards } = require('./quizSessionRules');
+const persistedQuizService = require('./persistedQuizService');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -44,6 +45,9 @@ module.exports = {
         const examType = config.examType && typeof config.examType === 'string' ? config.examType.toLowerCase() : undefined;
         const examDifficulty = config.examDifficulty && typeof config.examDifficulty === 'string' ? config.examDifficulty.toLowerCase() : undefined;
         const quizType = this._normalizeQuizType(config.quizType);
+        const persistedQuizId = typeof config.quizId === 'string' && config.quizId.trim().length > 0
+            ? config.quizId.trim()
+            : (typeof config.savedQuizId === 'string' && config.savedQuizId.trim().length > 0 ? config.savedQuizId.trim() : '');
         const sourceCardIds = Array.isArray(config.sourceCardIds)
             ? config.sourceCardIds.map(id => String(id).trim()).filter(Boolean)
             : [];
@@ -53,6 +57,10 @@ module.exports = {
         const scopedQuizCards = mode === 'quiz' && sourceCardIds.length > 0 && !hasOnlySyntheticSourceCardIds
             ? cards.filter(card => sourceCardIdSet.has(this._resolveCardId(card)))
             : cards;
+        const dueCards = cards.filter(card => {
+            const nextReview = new Date(card.nextReviewDate);
+            return nextReview <= now;
+        });
 
         // DEBUG: Log exam configuration
         if (mode === 'exam') {
@@ -63,8 +71,18 @@ module.exports = {
             logger.debug('StudySession', 'questionCount', { requestedQuestions });
         }
 
-        if (mode === 'quiz' && sourceCardIds.length > 0 && !hasOnlySyntheticSourceCardIds && scopedQuizCards.length === 0) {
+        if (mode === 'quiz' && !persistedQuizId && sourceCardIds.length > 0 && !hasOnlySyntheticSourceCardIds && scopedQuizCards.length === 0) {
             throw AppError.validation('Nessuna flashcard valida per il quiz richiesto');
+        }
+
+        if (mode === 'quiz' && persistedQuizId) {
+            const persistedQuiz = await persistedQuizService.findQuizForDeck(tenantScope, deckId, persistedQuizId);
+            return persistedQuizService.buildSessionFromQuiz(deck, persistedQuiz, {
+                questionIds: sourceCardIds,
+                timeLimitMinutes,
+                totalCards: cards.length,
+                dueCount: dueCards.length,
+            });
         }
 
         const isMultipleChoiceQuiz = mode === 'quiz' && quizType !== QUIZ_TYPES.TRUE_FALSE;
@@ -87,11 +105,6 @@ module.exports = {
         }
 
         const availableCards = mode === 'quiz' ? scopedQuizCards : cards;
-
-        const dueCards = cards.filter(card => {
-            const nextReview = new Date(card.nextReviewDate);
-            return nextReview <= now;
-        });
 
         const defaultLimit = this._getDefaultSessionLimit(mode);
         const requestedQuestionLimit = (mode === 'exam' || mode === 'quiz') && requestedQuestions > 0

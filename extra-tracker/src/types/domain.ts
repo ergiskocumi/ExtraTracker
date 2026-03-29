@@ -100,6 +100,18 @@ export interface QuizAttempt {
     accuracy: number;
     timeSeconds: number;
     completedAt: string;
+    strategy?: {
+        mode: 'full' | 'weak_first' | 'errors_only' | 'spaced_mix';
+        targetCount: number;
+        seed?: string;
+        params?: {
+            wrongWeight?: number;
+            recencyWeight?: number;
+            difficultyWeight?: number;
+            noveltyWeight?: number;
+            shuffleStrength?: number;
+        };
+    };
     wrongQuestionIndices: number[];
 }
 

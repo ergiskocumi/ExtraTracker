@@ -5,6 +5,8 @@
  */
 
 const deckCrudService = require('../services/study/deckCrudService');
+const sessionQuizService = require('../services/study/sessionQuizService');
+const persistedQuizService = require('../services/study/persistedQuizService');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
 const {
@@ -15,9 +17,12 @@ const {
     updateCardAnswerSchema,
     reorderCardsSchema,
     saveQuizSnapshotSchema,
+    generatePersistedQuizSchema,
+    createRetakeSessionSchema,
     recordQuizAttemptSchema,
     updateDeckSettingsSchema,
 } = require('../validators/studyValidators');
+const { generateTrueFalseStatementsFromText } = require('../services/study/trueFalseGenerator');
 
 // =========================================
 // DECKS
@@ -57,6 +62,112 @@ const saveQuizSnapshot = asyncHandler(async (req, res) => {
     res.status(201).json({ success: true, data: snapshot });
 });
 
+const generatePersistedQuiz = asyncHandler(async (req, res) => {
+    const body = generatePersistedQuizSchema.parse(req.body);
+    const deck = await sessionQuizService.findById(req.tenantScope, req.params.id, {
+        select: '+extractedText +recentQuizQuestions',
+        throwIfNotFound: true,
+    });
+
+    await sessionQuizService._ensureDeckPdfUrlIntegrity(deck);
+
+    const extractedText = typeof deck.extractedText === 'string' ? deck.extractedText.trim() : '';
+    if (!extractedText) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Quiz AI non disponibile: carica un PDF per abilitare questa modalità.',
+                code: 'QUIZ_PDF_REQUIRED',
+            },
+        });
+    }
+
+    const previousQuestions = Array.isArray(deck.recentQuizQuestions)
+        ? deck.recentQuizQuestions.slice(-50)
+        : [];
+    const telemetry = {
+        userId: req.tenantScope?.userId,
+        deckId: deck._id,
+    };
+
+    let normalizedQuestions = [];
+    if (body.quizType === 'true_false') {
+        const statements = await generateTrueFalseStatementsFromText(
+            extractedText,
+            body.questionCount,
+            previousQuestions,
+            telemetry,
+            sessionQuizService._splitTextIntoChunks.bind(sessionQuizService),
+        );
+        normalizedQuestions = statements.map((statement) => ({
+            questionText: statement.statement,
+            correctAnswer: statement.isTrue ? 'Vero' : 'Falso',
+            options: ['Vero', 'Falso'],
+            distractors: [statement.isTrue ? 'Falso' : 'Vero'],
+            distractorExplanations: [],
+            correctAnswerExplanation: statement.explanation || '',
+            difficulty: statement.difficulty || 'standard',
+            correctStatement: statement.correctStatement || null,
+        }));
+    } else {
+        const questions = await sessionQuizService.generateQuizFromFullPDF(
+            extractedText,
+            body.questionCount,
+            previousQuestions,
+            telemetry,
+        );
+        normalizedQuestions = questions.map((question) => ({
+            questionText: question.questionText,
+            correctAnswer: question.correctAnswer,
+            distractors: Array.isArray(question.distractors) ? question.distractors : [],
+            distractorExplanations: Array.isArray(question.explanations) ? question.explanations : [],
+            correctAnswerExplanation: question.correctAnswerExplanation || '',
+            difficulty: question.difficulty || 'standard',
+        }));
+    }
+
+    const createdQuiz = await persistedQuizService.createGeneratedQuiz(req.tenantScope, deck, {
+        name: body.name,
+        quizType: body.quizType,
+        source: body.source,
+        questions: normalizedQuestions,
+        generatedFromText: extractedText,
+        pdfBased: true,
+        originKind: 'ai_pdf',
+    });
+
+    const session = persistedQuizService.buildSessionFromQuiz(deck, createdQuiz, {
+        questionIds: createdQuiz.questions.map((question) => question.questionId),
+    });
+
+    const newQuestionTexts = normalizedQuestions.map((question) => question.questionText);
+    setImmediate(() => {
+        sessionQuizService.updateRaw(req.tenantScope, deck._id, {
+            $push: { recentQuizQuestions: { $each: newQuestionTexts, $slice: -50 } },
+        }).catch(() => {});
+    });
+
+    res.status(201).json({
+        success: true,
+        data: {
+            quiz: {
+                id: createdQuiz._id.toString(),
+                deckId: deck._id.toString(),
+                deckTitle: deck.title,
+                examId: deck.examId ? deck.examId.toString() : null,
+                name: createdQuiz.name,
+                quizType: createdQuiz.quizType,
+                questionCount: createdQuiz.questionCount,
+                sourceCardIds: createdQuiz.questions.map((question) => question.questionId),
+                source: createdQuiz.source,
+                createdAt: createdQuiz.createdAt,
+                hasQuestions: true,
+            },
+            session,
+        },
+    });
+});
+
 const getExamSavedQuizzes = asyncHandler(async (req, res) => {
     const quizzes = await deckCrudService.getExamSavedQuizzes(req.tenantScope, req.params.examId);
     res.json({ success: true, data: quizzes });
@@ -64,6 +175,21 @@ const getExamSavedQuizzes = asyncHandler(async (req, res) => {
 
 const retakeSavedQuiz = asyncHandler(async (req, res) => {
     const data = await deckCrudService.getSavedQuizForRetake(req.tenantScope, req.params.id, req.params.quizId);
+    res.json({ success: true, data });
+});
+
+const createRetakeSession = asyncHandler(async (req, res) => {
+    const strategy = createRetakeSessionSchema.parse(req.body || {});
+    const deck = await deckCrudService.findById(req.tenantScope, req.params.id, {
+        throwIfNotFound: true,
+    });
+    const data = await deckCrudService.getSavedQuizForRetake(req.tenantScope, req.params.id, req.params.quizId, {
+        strategy,
+        includeSession: true,
+        deck,
+        totalCards: deck.totalCards || (Array.isArray(deck.cards) ? deck.cards.length : 0),
+        dueCount: deck.dueCount || 0,
+    });
     res.json({ success: true, data });
 });
 
@@ -146,9 +272,11 @@ module.exports = {
     getDeckById,
     updateDeckSettings,
     saveQuizSnapshot,
+    generatePersistedQuiz,
     getExamSavedQuizzes,
     resetDistractors,
     retakeSavedQuiz,
+    createRetakeSession,
     reviewSavedQuiz,
     recordQuizAttempt,
     addCard,

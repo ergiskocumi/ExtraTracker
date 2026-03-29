@@ -31,12 +31,27 @@ const getSession = asyncHandler(async (req, res) => {
         examDifficulty,
         quizType,
         sourceCardIds,
+        savedQuizId,
+        quizId,
     } = getSessionSchema.parse(req.query);
 
     const session = await sessionQuizService.getStudySession(
         req.tenantScope,
         req.params.id,
-        { mode, focus, limit, timeLimitMinutes, questionCount, direction, examType, examDifficulty, quizType, sourceCardIds }
+        {
+            mode,
+            focus,
+            limit,
+            timeLimitMinutes,
+            questionCount,
+            direction,
+            examType,
+            examDifficulty,
+            quizType,
+            sourceCardIds,
+            savedQuizId,
+            quizId,
+        }
     );
 
     res.json({ success: true, data: session });

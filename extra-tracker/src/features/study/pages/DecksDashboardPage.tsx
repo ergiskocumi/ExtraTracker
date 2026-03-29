@@ -220,10 +220,68 @@ export const DecksDashboardPage: React.FC = () => {
         };
     }, [selectedExamId]);
 
-    const handleReplaySavedQuiz = useCallback((quiz: ExamSavedQuiz) => {
+    const handleReplaySavedQuiz = useCallback(async (quiz: ExamSavedQuiz) => {
         if (!quiz.deckId || !Array.isArray(quiz.sourceCardIds) || quiz.sourceCardIds.length === 0) {
             emitToast.info('Questo quiz non è più disponibile');
             return;
+        }
+
+        if (quiz.hasQuestions) {
+            try {
+                const retakeData = await studyService.retakeSavedQuiz(quiz.deckId, quiz.id, {
+                    mode: 'full',
+                    targetCount: Math.max(quiz.questionCount || 0, 1),
+                });
+
+                if (retakeData.cards.length === 0) {
+                    emitToast.info('Nessuna domanda disponibile per questo quiz');
+                    return;
+                }
+
+                const preparedSession = retakeData.session ?? {
+                    deck: {
+                        id: quiz.deckId,
+                        examId: quiz.examId ?? undefined,
+                        title: quiz.deckTitle,
+                        tags: [],
+                        cards: retakeData.cards,
+                        totalCards: retakeData.cards.length,
+                        dueCount: retakeData.cards.length,
+                        savedQuizzes: [],
+                    },
+                    cards: retakeData.cards,
+                    remaining: retakeData.cards.length,
+                    total: retakeData.cards.length,
+                    mode: 'quiz' as const,
+                    meta: {
+                        quizType: retakeData.quizType,
+                        questionCount: retakeData.questionCount,
+                        retakeStrategy: retakeData.strategy,
+                    },
+                };
+
+                const params = new URLSearchParams();
+                params.set('mode', 'quiz');
+                params.set('focus', 'all');
+                params.set('questions', String(retakeData.questionCount));
+                params.set('quizType', retakeData.quizType);
+                params.set('sourceCardIds', retakeData.cards.map(card => card.id).join(','));
+                params.set('quizSource', 'saved');
+                params.set('savedQuizId', quiz.id);
+                params.set('quizId', quiz.id);
+                params.set('run', String(Date.now()));
+
+                navigate(`/study/${quiz.deckId}/session?${params.toString()}`, {
+                    state: {
+                        preparedSession,
+                        preparedAt: Date.now(),
+                    },
+                });
+                return;
+            } catch (_err) {
+                emitToast.error('Errore nel caricamento del quiz');
+                return;
+            }
         }
 
         const params = new URLSearchParams();

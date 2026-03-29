@@ -172,7 +172,7 @@ function _validateOutput(output, requestedCount) {
 
     const trueCount = output.statements.filter(s => s.isTrue).length;
     const ratio = trueCount / output.statements.length;
-    if (ratio < 0.3 || ratio > 0.7) {
+    if (output.statements.length >= 4 && (ratio < 0.3 || ratio > 0.7)) {
         checks.push({ level: 'warning', msg: `Sbilanciamento V/F: ${Math.round(ratio * 100)}% veri` });
     }
 
@@ -397,6 +397,16 @@ async function generateTrueFalseFromText(extractedText, questionCount, previousS
         totalGenerated: allStatements.length,
     });
 
+    if (allStatements.length >= 4) {
+        const totalTrueCount = allStatements.filter((statement) => statement.isTrue).length;
+        const totalRatio = totalTrueCount / allStatements.length;
+        if (totalRatio < 0.3 || totalRatio > 0.7) {
+            _logDebug('orchestrator-warnings', {
+                warnings: [`Sbilanciamento V/F finale: ${Math.round(totalRatio * 100)}% veri`],
+            });
+        }
+    }
+
     if (allStatements.length === 0) {
         throw new Error('Generazione V/F fallita: nessun statement valido prodotto');
     }
@@ -404,8 +414,69 @@ async function generateTrueFalseFromText(extractedText, questionCount, previousS
     return _mapStatementsToCards(allStatements);
 }
 
+async function generateTrueFalseStatementsFromText(extractedText, questionCount, previousStatements = [], telemetry = {}, splitTextFn) {
+    if (!extractedText || extractedText.trim().length < TF_MIN_TEXT_CHARS) {
+        throw new Error(`Testo troppo breve per generare V/F (minimo ${TF_MIN_TEXT_CHARS} caratteri)`);
+    }
+
+    const safeCount = Math.max(TF_MIN_STATEMENTS, Math.min(TF_MAX_STATEMENTS, questionCount));
+    const chunks = splitTextFn(extractedText, 5000, 500);
+
+    if (chunks.length === 0) {
+        throw new Error('Testo PDF non valido o vuoto');
+    }
+
+    const counts = buildChunkStatementCounts(chunks.length, safeCount);
+    const allStatements = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+        const countForChunk = counts[i];
+        if (countForChunk === 0) continue;
+
+        const seenStatements = [
+            ...previousStatements,
+            ...allStatements.map(s => s.statement),
+        ];
+
+        try {
+            const statements = await _generateChunk(chunks[i], countForChunk, seenStatements, {
+                ...telemetry,
+                chunkIndex: i + 1,
+                totalChunks: chunks.length,
+            });
+            allStatements.push(...statements);
+        } catch (err) {
+            _logDebug('orchestrator-chunk-error', {
+                chunkIndex: i,
+                error: err.message,
+            });
+        }
+
+        if (i < chunks.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+    }
+
+    if (allStatements.length >= 4) {
+        const totalTrueCount = allStatements.filter((statement) => statement.isTrue).length;
+        const totalRatio = totalTrueCount / allStatements.length;
+        if (totalRatio < 0.3 || totalRatio > 0.7) {
+            _logDebug('orchestrator-warnings', {
+                warnings: [`Sbilanciamento V/F finale: ${Math.round(totalRatio * 100)}% veri`],
+            });
+        }
+    }
+
+    if (allStatements.length === 0) {
+        throw new Error('Generazione V/F fallita: nessun statement valido prodotto');
+    }
+
+    return allStatements;
+}
+
 module.exports = {
     generateTrueFalseFromText,
+    generateTrueFalseStatementsFromText,
     // Exported for testing
     _generateChunk,
     _validateOutput,

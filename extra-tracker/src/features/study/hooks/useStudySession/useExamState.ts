@@ -46,7 +46,8 @@ interface UseExamStateReturn {
         resetStats: (total: number) => void,
         hasLoadedRef: React.RefObject<boolean>,
         quizType: QuizType,
-        sourceCardIdsKey: string
+        sourceCardIdsKey: string,
+        quizId: string | null
     ) => Promise<void>;
     handlePauseExam: (
         session: StudySession | null,
@@ -131,7 +132,8 @@ export const useExamState = ({
         resetStats: (total: number) => void,
         hasLoadedRef: React.RefObject<boolean>,
         quizType: QuizType,
-        sourceCardIdsKey: string
+        sourceCardIdsKey: string,
+        quizId: string | null
     ) => {
         if (!deckId) return;
 
@@ -150,6 +152,8 @@ export const useExamState = ({
                 examType,
                 examDifficulty,
                 quizType,
+                quizId: quizId || undefined,
+                savedQuizId: quizId || undefined,
                 sourceCardIds: sourceCardIdsKey ? sourceCardIdsKey.split('|') : undefined,
             });
 

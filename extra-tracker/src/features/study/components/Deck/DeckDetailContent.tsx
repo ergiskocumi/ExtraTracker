@@ -23,7 +23,7 @@ import {
   BookOpen,
   MonitorPlay,
 } from 'lucide-react';
-import type { Deck, Card, SavedQuizSnapshot, StudyMode } from '../../services/studyService';
+import type { Deck, Card, StudyMode } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { FlashcardItem } from '../Flashcard/FlashcardItem';
@@ -39,8 +39,7 @@ interface DeckDetailContentProps {
   onBack: () => void;
   onStudy: (mode: StudyMode) => void;
   onGenerateQuiz?: () => void;
-  onRepeatSavedQuiz?: (quiz: SavedQuizSnapshot) => void;
-  onReviewSavedQuiz?: (quiz: SavedQuizSnapshot) => void;
+  onOpenQuizLibrary?: () => void;
   onExamSolver?: () => void;
   onReadPdf?: () => void;
   onMagicGenerate?: () => void;
@@ -61,8 +60,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   onBack,
   onStudy,
   onGenerateQuiz,
-  onRepeatSavedQuiz,
-  onReviewSavedQuiz,
+  onOpenQuizLibrary,
   onExamSolver,
   onReadPdf,
   onMagicGenerate,
@@ -472,8 +470,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           onMagicGenerate={onMagicGenerate}
           onExamSolver={onExamSolver}
           onGenerateQuiz={onGenerateQuiz}
-          onRepeatSavedQuiz={onRepeatSavedQuiz}
-          onReviewSavedQuiz={onReviewSavedQuiz}
+          onOpenQuizLibrary={onOpenQuizLibrary}
           onExport={onExport}
           onShare={onShare}
           onResetProgress={onResetProgress}

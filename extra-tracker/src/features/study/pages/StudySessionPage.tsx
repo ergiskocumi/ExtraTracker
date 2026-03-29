@@ -67,7 +67,8 @@ export const StudySessionPage: React.FC = () => {
         .filter(Boolean)
         .join('|');
     const runKey = searchParams.get('run') || 'default';
-    const savedQuizId = searchParams.get('savedQuizId');
+    const quizId = searchParams.get('quizId') || searchParams.get('savedQuizId');
+    const savedQuizId = searchParams.get('savedQuizId') || searchParams.get('quizId');
 
     // ── Hook ──────────────────────────────────────────────────────────────
 
@@ -119,6 +120,7 @@ export const StudySessionPage: React.FC = () => {
         quizType,
         sourceCardIdsKey,
         runKey,
+        quizId,
         savedQuizId,
         preloadedSession,
     });

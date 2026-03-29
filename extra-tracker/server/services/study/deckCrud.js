@@ -10,6 +10,7 @@ const folderRepository = require('../../repositories/FolderRepository');
 const { DEFAULT_EASINESS_FACTOR } = require('./constants');
 const logger = require('../../utils/logger');
 const { resolveQuizSnapshotSourceCardIds } = require('./syntheticQuizIds');
+const persistedQuizService = require('./persistedQuizService');
 
 module.exports = {
 
@@ -347,7 +348,14 @@ module.exports = {
         };
     },
 
-    async getSavedQuizForRetake(tenantScope, deckId, quizId) {
+    async getSavedQuizForRetake(tenantScope, deckId, quizId, options = {}) {
+        const persistedQuiz = await persistedQuizService.findQuizForDeck(tenantScope, deckId, quizId, {
+            throwIfNotFound: false,
+        });
+        if (persistedQuiz) {
+            return persistedQuizService.getSavedQuizForRetake(tenantScope, deckId, quizId, options);
+        }
+
         const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
         const quiz = deck.savedQuizzes.id(quizId);
         if (!quiz) {
@@ -420,6 +428,13 @@ module.exports = {
     },
 
     async getSavedQuizForReview(tenantScope, deckId, quizId) {
+        const persistedQuiz = await persistedQuizService.findQuizForDeck(tenantScope, deckId, quizId, {
+            throwIfNotFound: false,
+        });
+        if (persistedQuiz) {
+            return persistedQuizService.getSavedQuizForReview(tenantScope, deckId, quizId);
+        }
+
         const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
         const quiz = deck.savedQuizzes.id(quizId);
         if (!quiz) {
@@ -461,6 +476,13 @@ module.exports = {
     },
 
     async recordQuizAttempt(tenantScope, deckId, quizId, attemptData) {
+        const persistedQuiz = await persistedQuizService.findQuizForDeck(tenantScope, deckId, quizId, {
+            throwIfNotFound: false,
+        });
+        if (persistedQuiz) {
+            return persistedQuizService.recordQuizAttempt(tenantScope, deckId, quizId, attemptData);
+        }
+
         const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
         const quiz = deck.savedQuizzes.id(quizId);
         if (!quiz) {
@@ -513,6 +535,8 @@ module.exports = {
             const deckSavedQuizzes = Array.isArray(deck.savedQuizzes) ? deck.savedQuizzes : [];
 
             for (const quiz of deckSavedQuizzes) {
+                const attempts = Array.isArray(quiz?.attempts) ? quiz.attempts : [];
+                const scores = attempts.map(a => a.score).filter(score => typeof score === 'number');
                 savedQuizzes.push({
                     id: quiz?._id?.toString(),
                     deckId,
@@ -526,6 +550,10 @@ module.exports = {
                         : [],
                     source: this._normalizeQuizSnapshotSource(quiz?.source),
                     createdAt: quiz?.createdAt || null,
+                    attemptCount: attempts.length,
+                    lastScore: scores.length > 0 ? scores[scores.length - 1] : undefined,
+                    bestScore: scores.length > 0 ? Math.max(...scores) : undefined,
+                    hasQuestions: Boolean(quiz?.quizRefId) || (Array.isArray(quiz?.questions) && quiz.questions.length > 0),
                 });
             }
         }
