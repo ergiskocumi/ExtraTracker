@@ -97,7 +97,7 @@ export const StudySessionPage: React.FC = () => {
         handleRate,
         handleNext,
         handleBack,
-        handleComplete,
+        // handleComplete,
         handleResumeExam,
         handleStartFresh,
         handlePauseExam,
