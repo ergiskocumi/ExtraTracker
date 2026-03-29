@@ -8,5 +8,4 @@ export { SettingsField } from './SettingsField';
 export { SettingsInput } from './SettingsInput';
 export { SettingsTextarea } from './SettingsTextarea';
 export { SettingsSelect } from './SettingsSelect';
-export { SettingsToggle } from './SettingsToggle';
 export { SettingsPasswordInput } from './SettingsPasswordInput';

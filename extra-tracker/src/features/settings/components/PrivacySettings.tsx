@@ -5,7 +5,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Eye, Users, Database, CheckCircle2, RotateCcw } from 'lucide-react';
-import { SettingsToggle, SettingsSelect } from './fields';
+import { SettingsToggle } from './SettingsToggle';
+import { SettingsSelect } from './fields';
 import { SettingsError, SettingsSuccess } from './feedback';
 import type { FormStatus } from './types';
 
@@ -122,6 +123,7 @@ export const PrivacySettings = ({ onSave, status }: PrivacySettingsProps) => {
                 </div>
 
                 <SettingsToggle
+                    variant="field"
                     label="Mostra stato attività"
                     description="Gli altri utenti possono vedere quando sei online"
                     checked={formData.showActivityStatus}
@@ -138,6 +140,7 @@ export const PrivacySettings = ({ onSave, status }: PrivacySettingsProps) => {
 
                 <div className="space-y-3">
                     <SettingsToggle
+                        variant="field"
                         label="Condivisione dati con partner"
                         description="Permetti di condividere dati anonimi con partner di fiducia per migliorare i servizi"
                         checked={formData.allowDataSharing}
@@ -145,7 +148,8 @@ export const PrivacySettings = ({ onSave, status }: PrivacySettingsProps) => {
                     />
 
                     <SettingsToggle
-                        label="Analytics e miglioramenti"
+                        variant="field"
+                    label="Analytics e miglioramenti"
                         description="Aiutaci a migliorare l'app inviando dati di utilizzo anonimi"
                         checked={formData.allowAnalytics}
                         onChange={(checked) => handleChange('allowAnalytics', checked)}

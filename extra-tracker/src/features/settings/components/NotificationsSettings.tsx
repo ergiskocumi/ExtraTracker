@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Bell, Clock, CheckCircle2, RotateCcw } from 'lucide-react';
-import { SettingsToggle } from './fields';
+import { SettingsToggle } from './SettingsToggle';
 import { SettingsError, SettingsSuccess } from './feedback';
 import type { UserNotifications } from '../services/settingsService';
 import type { FormStatus } from './types';
@@ -74,6 +74,7 @@ export const NotificationsSettings = ({ notifications, onSave, status }: Notific
 
                 <div className="space-y-3">
                     <SettingsToggle
+                        variant="field"
                         label="Notifiche email attive"
                         description="Attiva/disattiva tutte le notifiche via email"
                         checked={formData.email.enabled}
@@ -89,12 +90,14 @@ export const NotificationsSettings = ({ notifications, onSave, status }: Notific
                                 className="space-y-3 pl-4 border-l-2 border-primary-500/30 ml-2"
                             >
                                 <SettingsToggle
+                                    variant="field"
                                     label="Report settimanale"
                                     description="Ricevi un riepilogo settimanale delle tue attività"
                                     checked={formData.email.weeklyReport}
                                     onChange={(checked) => handleToggle('email', 'weeklyReport', checked)}
                                 />
                                 <SettingsToggle
+                                    variant="field"
                                     label="Aggiornamenti progetti"
                                     description="Notifiche quando ci sono cambiamenti nei progetti"
                                     checked={formData.email.projectUpdates}
@@ -118,6 +121,7 @@ export const NotificationsSettings = ({ notifications, onSave, status }: Notific
 
                 <div className="space-y-3">
                     <SettingsToggle
+                        variant="field"
                         label="Notifiche push attive"
                         description="Attiva/disattiva tutte le notifiche push"
                         checked={formData.push.enabled}
@@ -133,6 +137,7 @@ export const NotificationsSettings = ({ notifications, onSave, status }: Notific
                                 className="space-y-3 pl-4 border-l-2 border-primary-500/30 ml-2"
                             >
                                 <SettingsToggle
+                                    variant="field"
                                     label="Promemoria giornaliero"
                                     description="Ricevi un promemoria ogni giorno all'orario impostato"
                                     checked={formData.push.dailyReminder}
