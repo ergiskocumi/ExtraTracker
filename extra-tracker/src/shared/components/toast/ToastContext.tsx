@@ -25,13 +25,14 @@
  */
 
 import React, { createContext, useContext, useCallback, useReducer, useEffect } from 'react';
-import type { 
-    Toast, 
-    ToastType, 
-    ToastOptions, 
-    ToastContextValue, 
-    ToastPosition,
-    ToastProviderConfig 
+import { 
+    TOAST_DURATIONS,
+    type Toast, 
+    type ToastType, 
+    type ToastOptions, 
+    type ToastContextValue, 
+    type ToastPosition,
+    type ToastProviderConfig 
 } from './types';
 import { TOAST_EVENT, type ToastCustomEvent } from './toastEvents';
 import { ToastItem } from './ToastItem';
@@ -168,11 +169,14 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
             return id;
         }
         
+        // Usa durata specifica per tipo se non fornita esplicitamente
+        const typeSpecificDuration = TOAST_DURATIONS[type] ?? defaultDuration;
+        
         const toast: Toast = {
             id,
             type,
             message,
-            duration: options?.duration ?? defaultDuration,
+            duration: options?.duration ?? typeSpecificDuration,
             dismissible: options?.dismissible ?? true,
             title: options?.title,
             action: options?.action,

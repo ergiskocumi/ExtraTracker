@@ -15,6 +15,9 @@ export { ToastProvider, useToast } from './ToastContext';
 // Event Emitter per codice non-React
 export { emitToast, TOAST_EVENT } from './toastEvents';
 
+// Costanti (durate ottimizzate per tipo)
+export { TOAST_DURATIONS } from './types';
+
 // Types (per chi vuole usarli)
 export type { 
     Toast, 
