@@ -84,14 +84,6 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
         loadExams();
     }, [loadExams]);
 
-    // Espone la funzione loadExams tramite window per refresh esterno
-    useEffect(() => {
-        (window as any).__refreshExams = loadExams;
-        return () => {
-            delete (window as any).__refreshExams;
-        };
-    }, [loadExams]);
-
     // Delete handlers
     const handleRequestDeleteExam = useCallback((examId: string) => {
         setPendingDeleteExamId(examId);
@@ -136,30 +128,36 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
     const pendingDeleteExamDecks = pendingDeleteExam ? decks.filter(d => d.examId === pendingDeleteExamId) : [];
     const pendingDeleteExamCards = pendingDeleteExamDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
 
-    // Calcola statistiche per ogni esame
-    const getExamStats = (examId: string) => {
-        const examDecks = decks.filter(d => d.examId === examId);
-        const totalCards = examDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
-        const dueCards = examDecks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
-        
-        let masteredCards = 0;
-        examDecks.forEach(deck => {
-            masteredCards += deck.cards?.filter(c => c.status === 'mastered').length ?? 0;
-        });
-        const masteryPercent = totalCards > 0 ? Math.round((masteredCards / totalCards) * 100) : 0;
+    // Precomputa le statistiche di tutti gli esami una volta sola (evita O(n²) nel sort)
+    const examStatsMap = useMemo(() => {
+        const map = new Map<string, { deckCount: number; totalCards: number; dueCards: number; masteryPercent: number }>();
+        for (const exam of exams) {
+            const examDecks = decks.filter(d => d.examId === exam.id);
+            const totalCards = examDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
+            const dueCards = examDecks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
+            const masteredCards = examDecks.reduce((sum, deck) => sum + (deck.cards?.filter(c => c.status === 'mastered').length ?? 0), 0);
+            const masteryPercent = totalCards > 0 ? Math.round((masteredCards / totalCards) * 100) : 0;
+            map.set(exam.id, { deckCount: examDecks.length, totalCards, dueCards, masteryPercent });
+        }
+        return map;
+    }, [exams, decks]);
 
-        return {
-            deckCount: examDecks.length,
-            totalCards,
-            dueCards,
-            masteryPercent,
-        };
-    };
+    const getExamStats = useCallback((examId: string) => {
+        return examStatsMap.get(examId) ?? { deckCount: 0, totalCards: 0, dueCards: 0, masteryPercent: 0 };
+    }, [examStatsMap]);
 
-    // Ottieni i decks per un esame specifico (per la distribuzione carte)
-    const getExamDecks = (examId: string) => {
-        return decks.filter(d => d.examId === examId);
-    };
+    // Precomputa i decks per esame (per la distribuzione carte)
+    const examDecksMap = useMemo(() => {
+        const map = new Map<string, Deck[]>();
+        for (const exam of exams) {
+            map.set(exam.id, decks.filter(d => d.examId === exam.id));
+        }
+        return map;
+    }, [exams, decks]);
+
+    const getExamDecks = useCallback((examId: string) => {
+        return examDecksMap.get(examId) ?? [];
+    }, [examDecksMap]);
 
     // Filtra i mazzi in base alla ricerca
     const filteredDecks = useMemo(() => {
@@ -245,7 +243,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
         });
 
         return filtered;
-    }, [exams, searchQuery, filter, sortBy, decks]);
+    }, [exams, searchQuery, filter, sortBy, getExamStats]);
 
     if (isLoading) {
         return (

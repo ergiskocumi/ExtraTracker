@@ -208,102 +208,102 @@ const safeNumber = (value: unknown, fallback = 0): number => {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 };
 
-const normalizeCard = (raw: any): Card => {
+const normalizeCard = (raw: unknown): Card => {
+    const r = raw as Record<string, unknown>;
     // Normalizza sourceMetadata se presente (supporta sia camelCase che snake_case)
     let sourceMetadata: Card['sourceMetadata'] = undefined;
-    if (raw.sourceMetadata || raw.source_metadata) {
-        const sourceMeta = raw.sourceMetadata || raw.source_metadata;
+    if (r.sourceMetadata || r.source_metadata) {
+        const sourceMeta = (r.sourceMetadata || r.source_metadata) as Record<string, unknown>;
         if (sourceMeta && typeof sourceMeta === 'object') {
-            const pageNumber = Number.isFinite(Number(sourceMeta.pageNumber ?? sourceMeta.page_number)) 
-                ? Number(sourceMeta.pageNumber ?? sourceMeta.page_number) 
+            const pageNumber = Number.isFinite(Number(sourceMeta.pageNumber ?? sourceMeta.page_number))
+                ? Number(sourceMeta.pageNumber ?? sourceMeta.page_number)
                 : undefined;
             const originalText = typeof (sourceMeta.originalText ?? sourceMeta.original_text) === 'string'
-                ? (sourceMeta.originalText ?? sourceMeta.original_text).trim()
+                ? (sourceMeta.originalText ?? sourceMeta.original_text as string).trim()
                 : undefined;
-            
+
             if (pageNumber !== undefined && pageNumber > 0 && originalText && originalText.length >= 20) {
-                sourceMetadata = {
-                    pageNumber,
-                    originalText,
-                };
+                sourceMetadata = { pageNumber, originalText };
             }
         }
     }
 
     return {
-        id: raw.id || raw._id,
-        front: raw.front || '',
-        back: raw.back || '',
-        canonicalBack: typeof raw.canonicalBack === 'string' ? raw.canonicalBack : undefined,
-        quizAnswerVariant: typeof raw.quizAnswerVariant === 'string' ? raw.quizAnswerVariant : undefined,
-        options: Array.isArray(raw.options) ? raw.options : undefined,
-        distractors: Array.isArray(raw.distractors) ? raw.distractors : undefined,
-        aiDistractorsFailed: Boolean(raw.aiDistractorsFailed ?? raw.ai_distractors_failed),
-        distractorExplanations: (raw.distractorExplanations && typeof raw.distractorExplanations === 'object' && !Array.isArray(raw.distractorExplanations))
-            ? raw.distractorExplanations as Record<string, string>
+        id: (r.id || r._id) as string,
+        front: typeof r.front === 'string' ? r.front : '',
+        back: typeof r.back === 'string' ? r.back : '',
+        canonicalBack: typeof r.canonicalBack === 'string' ? r.canonicalBack : undefined,
+        quizAnswerVariant: typeof r.quizAnswerVariant === 'string' ? r.quizAnswerVariant : undefined,
+        options: Array.isArray(r.options) ? (r.options as string[]) : undefined,
+        distractors: Array.isArray(r.distractors) ? (r.distractors as string[]) : undefined,
+        aiDistractorsFailed: Boolean(r.aiDistractorsFailed ?? r.ai_distractors_failed),
+        distractorExplanations: (r.distractorExplanations && typeof r.distractorExplanations === 'object' && !Array.isArray(r.distractorExplanations))
+            ? r.distractorExplanations as Record<string, string>
             : undefined,
-        easinessFactor: safeNumber(raw.easinessFactor, 2.5),
-        interval: safeNumber(raw.interval, 0),
-        repetitions: safeNumber(raw.repetitions, 0),
-        nextReviewDate: raw.nextReviewDate || new Date().toISOString(),
-        status: raw.status || 'new',
-        isTrueFalse: raw.isTrueFalse === true ? true : undefined,
-        correctStatement: typeof raw.correctStatement === 'string' ? raw.correctStatement : undefined,
-        explanation: typeof raw.explanation === 'string' ? raw.explanation
-            : typeof raw.correctAnswerExplanation === 'string' ? raw.correctAnswerExplanation
+        easinessFactor: safeNumber(r.easinessFactor, 2.5),
+        interval: safeNumber(r.interval, 0),
+        repetitions: safeNumber(r.repetitions, 0),
+        nextReviewDate: typeof r.nextReviewDate === 'string' ? r.nextReviewDate : new Date().toISOString(),
+        status: (r.status as Card['status']) || 'new',
+        isTrueFalse: r.isTrueFalse === true ? true : undefined,
+        correctStatement: typeof r.correctStatement === 'string' ? r.correctStatement : undefined,
+        explanation: typeof r.explanation === 'string' ? r.explanation
+            : typeof r.correctAnswerExplanation === 'string' ? r.correctAnswerExplanation
             : undefined,
         sourceMetadata,
     };
 };
 
-const normalizeSavedQuiz = (raw: any): SavedQuizSnapshot => {
-    const source = typeof raw?.source === 'string' ? raw.source.toLowerCase() : 'chapter';
+const normalizeSavedQuiz = (raw: unknown): SavedQuizSnapshot => {
+    const r = raw as Record<string, unknown> | null | undefined;
+    const source = typeof r?.source === 'string' ? r.source.toLowerCase() : 'chapter';
     const allowedSources: SavedQuizSnapshot['source'][] = ['chapter', 'repeat', 'errors', 'saved'];
     const normalizedSource = allowedSources.includes(source as SavedQuizSnapshot['source'])
         ? source as SavedQuizSnapshot['source']
         : 'chapter';
 
     return {
-        id: String(raw?.id || raw?._id || ''),
-        name: typeof raw?.name === 'string' ? raw.name : '',
-        quizType: raw?.quizType === 'true_false' ? 'true_false' : 'multiple_choice',
-        questionCount: safeNumber(raw?.questionCount, 0),
-        sourceCardIds: Array.isArray(raw?.sourceCardIds)
-            ? raw.sourceCardIds.map((id: unknown) => String(id).trim()).filter(Boolean)
+        id: String(r?.id || r?._id || ''),
+        name: typeof r?.name === 'string' ? r.name : '',
+        quizType: r?.quizType === 'true_false' ? 'true_false' : 'multiple_choice',
+        questionCount: safeNumber(r?.questionCount, 0),
+        sourceCardIds: Array.isArray(r?.sourceCardIds)
+            ? (r.sourceCardIds as unknown[]).map((id) => String(id).trim()).filter(Boolean)
             : [],
         source: normalizedSource,
-        createdAt: raw?.createdAt,
-        attemptCount: typeof raw?.attemptCount === 'number' ? raw.attemptCount : undefined,
-        lastScore: typeof raw?.lastScore === 'number' ? raw.lastScore : undefined,
-        bestScore: typeof raw?.bestScore === 'number' ? raw.bestScore : undefined,
-        hasQuestions: typeof raw?.hasQuestions === 'boolean' ? raw.hasQuestions : undefined,
+        createdAt: r?.createdAt as string | undefined,
+        attemptCount: typeof r?.attemptCount === 'number' ? r.attemptCount : undefined,
+        lastScore: typeof r?.lastScore === 'number' ? r.lastScore : undefined,
+        bestScore: typeof r?.bestScore === 'number' ? r.bestScore : undefined,
+        hasQuestions: typeof r?.hasQuestions === 'boolean' ? r.hasQuestions : undefined,
     };
 };
 
-const normalizeDeck = (raw: any): Deck => {
-    const cards = Array.isArray(raw.cards) ? raw.cards.map(normalizeCard) : [];
-    
+const normalizeDeck = (raw: unknown): Deck => {
+    const r = raw as Record<string, unknown>;
+    const cards = Array.isArray(r.cards) ? (r.cards as unknown[]).map(normalizeCard) : [];
+
     return {
-        id: raw.id || raw._id?.toString() || raw._id,
-        examId: raw.examId?.toString() || raw.examId,
-        title: raw.title || 'Senza titolo',
-        description: raw.description,
-        pdfUrl: typeof raw.pdfUrl === 'string' && raw.pdfUrl.length > 0 ? raw.pdfUrl : null,
-        tags: Array.isArray(raw.tags) ? raw.tags : [],
-        folderId: raw.folderId?.toString() || raw.folderId || null,
+        id: (r.id || (r._id != null ? String(r._id) : undefined)) as string,
+        examId: r.examId != null ? String(r.examId) : undefined,
+        title: typeof r.title === 'string' ? r.title : 'Senza titolo',
+        description: typeof r.description === 'string' ? r.description : undefined,
+        pdfUrl: typeof r.pdfUrl === 'string' && r.pdfUrl.length > 0 ? r.pdfUrl : null,
+        tags: Array.isArray(r.tags) ? (r.tags as string[]) : [],
+        folderId: r.folderId != null ? String(r.folderId) : null,
         cards,
-        totalCards: safeNumber(raw.totalCards, cards.length),
-        dueCount: safeNumber(raw.dueCount, cards.length),
-        createdAt: raw.createdAt,
-        updatedAt: raw.updatedAt,
-        savedQuizzes: Array.isArray(raw.savedQuizzes) ? raw.savedQuizzes.map(normalizeSavedQuiz) : [],
+        totalCards: safeNumber(r.totalCards, cards.length),
+        dueCount: safeNumber(r.dueCount, cards.length),
+        createdAt: r.createdAt as string | undefined,
+        updatedAt: r.updatedAt as string | undefined,
+        savedQuizzes: Array.isArray(r.savedQuizzes) ? (r.savedQuizzes as unknown[]).map(normalizeSavedQuiz) : [],
     };
 };
 
 const normalizeDashboard = (payload: unknown): StudyDashboardResponse => {
     // Handle { decks, dueCardCount } format
     if (payload && typeof payload === 'object' && 'decks' in payload) {
-        const data = payload as { decks: any[]; dueCardCount?: number };
+        const data = payload as { decks: unknown[]; dueCardCount?: number };
         const decks = Array.isArray(data.decks) ? data.decks.map(normalizeDeck) : [];
         const dueCardCount = safeNumber(
             data.dueCardCount,
@@ -322,24 +322,25 @@ const normalizeDashboard = (payload: unknown): StudyDashboardResponse => {
     return { decks: [], dueCardCount: 0 };
 };
 
-const normalizeSession = (payload: any): StudySession => {
-    const deck = normalizeDeck(payload?.deck || payload || {});
-    const cards = Array.isArray(payload?.cards)
-        ? payload.cards.map(normalizeCard)
+const normalizeSession = (payload: unknown): StudySession => {
+    const p = payload as Record<string, unknown> | null | undefined;
+    const deck = normalizeDeck(p?.deck ?? payload ?? {});
+    const cards = Array.isArray(p?.cards)
+        ? (p.cards as unknown[]).map(normalizeCard)
         : deck.cards;
-    const cardModes = payload?.cardModes && typeof payload.cardModes === 'object'
-        ? payload.cardModes as Record<string, StudyMode>
+    const cardModes = p?.cardModes && typeof p.cardModes === 'object'
+        ? p.cardModes as Record<string, StudyMode>
         : undefined;
-    const meta = payload?.meta && typeof payload.meta === 'object'
-        ? payload.meta as StudySession['meta']
+    const meta = p?.meta && typeof p.meta === 'object'
+        ? p.meta as StudySession['meta']
         : undefined;
 
     return {
         deck,
         cards,
-        remaining: safeNumber(payload?.remaining, cards.length),
-        total: safeNumber(payload?.total, deck.totalCards || cards.length),
-        mode: payload?.mode,
+        remaining: safeNumber(p?.remaining, cards.length),
+        total: safeNumber(p?.total, deck.totalCards || cards.length),
+        mode: p?.mode as StudyMode | undefined,
         cardModes,
         meta,
     };
@@ -503,13 +504,14 @@ class StudyService {
         const raw = unwrap(response, 'Errore nel recupero dei quiz salvati');
         if (!Array.isArray(raw)) return [];
 
-        return raw.map((item: any) => {
+        return raw.map((item: unknown) => {
             const normalized = normalizeSavedQuiz(item);
+            const i = item as Record<string, unknown>;
             return {
                 ...normalized,
-                deckId: String(item?.deckId || ''),
-                deckTitle: typeof item?.deckTitle === 'string' ? item.deckTitle : 'Mazzo',
-                examId: item?.examId || null,
+                deckId: String(i?.deckId || ''),
+                deckTitle: typeof i?.deckTitle === 'string' ? i.deckTitle : 'Mazzo',
+                examId: (i?.examId as string | null | undefined) ?? null,
             };
         });
     }

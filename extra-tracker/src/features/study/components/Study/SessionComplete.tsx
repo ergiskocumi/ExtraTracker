@@ -360,13 +360,17 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
     useEffect(() => {
         if (prefersReducedMotion || typeof window === 'undefined') return;
         if (tier === 'warning') return;
-        const src =
-            tier === 'success'
-                ? '/sounds/quiz-success.mp3'
-                : '/sounds/quiz-fail.mp3';
+        const src = tier === 'success' ? '/sounds/quiz-success.mp3' : '/sounds/quiz-fail.mp3';
         const audio = new Audio(src);
         audio.volume = 0.2;
-        audio.play().catch(() => undefined);
+        // Suppress 404 / decode errors silently (file may not exist in all deployments)
+        const noop = () => undefined;
+        audio.addEventListener('error', noop);
+        audio.play().catch(noop);
+        return () => {
+            audio.pause();
+            audio.removeEventListener('error', noop);
+        };
     }, [tier, prefersReducedMotion]);
 
     const toggleCollapseAll = useCallback(
