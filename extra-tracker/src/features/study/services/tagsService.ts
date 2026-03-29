@@ -1,16 +1,5 @@
-import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
-
-// ============================================
-// HELPERS
-// ============================================
-
-const unwrap = <T>(response: ApiResponse<T>, fallbackMessage: string): T => {
-    if (!response.success || response.data === undefined) {
-        const errorMsg = response.error?.message || response.message || fallbackMessage;
-        throw new Error(errorMsg);
-    }
-    return response.data;
-};
+import { apiClient } from '../../../shared/services/apiClient';
+import { unwrap } from '../../../shared/services/apiHelpers';
 
 // ============================================
 // TYPES

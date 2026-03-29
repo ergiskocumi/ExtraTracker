@@ -1,4 +1,5 @@
-import { apiClient, type ApiResponse, getCsrfHeader } from '../../../shared/services/apiClient';
+import { apiClient, getCsrfHeader } from '../../../shared/services/apiClient';
+import { unwrap } from '../../../shared/services/apiHelpers';
 export type { Tag } from './tagsService';
 import type {
     Card,
@@ -197,13 +198,6 @@ export interface ExamAnswer {
 // HELPERS
 // ============================================
 
-const unwrap = <T>(response: ApiResponse<T>, fallbackMessage: string): T => {
-    if (!response.success || response.data === undefined) {
-        throw new Error(response.error?.message || response.message || fallbackMessage);
-    }
-    return response.data;
-};
-
 const safeNumber = (value: unknown, fallback = 0): number => {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 };
@@ -218,8 +212,9 @@ const normalizeCard = (raw: unknown): Card => {
             const pageNumber = Number.isFinite(Number(sourceMeta.pageNumber ?? sourceMeta.page_number))
                 ? Number(sourceMeta.pageNumber ?? sourceMeta.page_number)
                 : undefined;
-            const originalText = typeof (sourceMeta.originalText ?? sourceMeta.original_text) === 'string'
-                ? (sourceMeta.originalText ?? sourceMeta.original_text as string).trim()
+            const originalTextValue = sourceMeta.originalText ?? sourceMeta.original_text;
+            const originalText = typeof originalTextValue === 'string'
+                ? originalTextValue.trim()
                 : undefined;
 
             if (pageNumber !== undefined && pageNumber > 0 && originalText && originalText.length >= 20) {

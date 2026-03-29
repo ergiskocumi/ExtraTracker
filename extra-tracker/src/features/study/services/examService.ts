@@ -1,12 +1,6 @@
-import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
+import { apiClient } from '../../../shared/services/apiClient';
+import { unwrap } from '../../../shared/services/apiHelpers';
 import type { Exam, CreateExamPayload, UpdateExamPayload } from '../types/exam';
-
-const unwrap = <T>(response: ApiResponse<T>, fallbackMessage: string): T => {
-    if (!response.success || response.data === undefined) {
-        throw new Error(response.error?.message || response.message || fallbackMessage);
-    }
-    return response.data;
-};
 
 const examService = {
     async getAll(): Promise<Exam[]> {
