@@ -6,18 +6,9 @@
  */
 
 import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
+import type { User } from '../../../types/domain';
 
-// Tipi
-export interface User {
-    id: string;
-    email: string;
-    role?: 'user' | 'admin';
-    firstName?: string;
-    lastName?: string;
-    displayName?: string;
-    isEmailVerified?: boolean;
-    createdAt?: string;
-}
+export type { User };
 
 export interface AuthData {
     user: User;

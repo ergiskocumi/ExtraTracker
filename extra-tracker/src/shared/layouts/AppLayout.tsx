@@ -15,7 +15,7 @@ import { cn } from '../../lib/utils';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { FloatingGenerationIndicator } from '../../features/study/components/Generation';
+
 const GlobalFeedbackModal = lazy(() =>
     import('../../features/feedback/components/GlobalFeedbackModal').then((m) => ({
         default: m.GlobalFeedbackModal,
@@ -67,12 +67,12 @@ const Header = memo(() => {
             <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary-500/30 to-transparent opacity-80" />
 
             {/* Content */}
-            <div className="relative px-4 py-3 mx-auto max-w-7xl sm:px-6">
+            <div className="relative px-4 py-3 mx-auto max-w-content-wide sm:px-6">
                 <div className="flex items-center justify-between h-12">
                     {/* LEFT: Brand */}
                     <Link
                         to="/"
-                        className="flex items-center gap-3 group relative z-10"
+                        className="flex items-center gap-3 group relative z-10 rounded-lg focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-base"
                         title={`${APP_NAME}${appVersion ? ` v${appVersion}` : ''}`}
                     >
                         <motion.div 
@@ -138,14 +138,16 @@ export const AppLayout = () => {
             {/* Header */}
             <Header />
 
-            {/* Main Content - Full width per dashboard/study con padding, constrained per altre */}
-            <main className={cn(
-                "flex-1 w-full relative z-0",
-                isFullWidth 
-                    ? "p-4 sm:p-6 lg:p-8 [&>*]:!w-full [&>*]:!max-w-none [&_*]:!max-w-none" 
-                    : "max-w-6xl px-4 sm:px-6 py-6 sm:py-8 mx-auto"
-            )}>
-                <Outlet />
+            {/* Main Content - contenuto centrato, più ampio per dashboard/study */}
+            <main className="flex-1 w-full relative z-0">
+                <div
+                    className={cn(
+                        "mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8",
+                        isFullWidth ? "max-w-content-wide" : "max-w-5xl",
+                    )}
+                >
+                    <Outlet />
+                </div>
             </main>
 
             {/* Footer: nascosto in /study per non disturbare sessioni e studio */}
@@ -155,7 +157,6 @@ export const AppLayout = () => {
             <Suspense fallback={null}>
                 <GlobalFeedbackModal />
                 <TutorialManager />
-                <FloatingGenerationIndicator />
             </Suspense>
         </div>
     );

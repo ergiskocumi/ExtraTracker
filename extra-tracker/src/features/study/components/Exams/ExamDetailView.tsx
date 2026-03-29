@@ -16,8 +16,6 @@ import {
     List,
     FolderOpen,
     GraduationCap,
-    History,
-    RefreshCw,
 } from 'lucide-react';
 import type { Exam } from '../../types/exam';
 import type { Deck, ExamSavedQuiz } from '../../services/studyService';
@@ -81,9 +79,9 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
     onCompleteExam,
     onDeleteExam,
     viewMode = 'grid',
-    savedQuizzes = [],
-    isLoadingSavedQuizzes = false,
-    onReplaySavedQuiz,
+    savedQuizzes: _savedQuizzes = [],
+    isLoadingSavedQuizzes: _isLoadingSavedQuizzes = false,
+    onReplaySavedQuiz: _onReplaySavedQuiz,
 }) => {
     const [localViewMode, setLocalViewMode] = React.useState<'grid' | 'list'>(viewMode === 'horizontal' ? 'list' : 'grid');
 
@@ -145,23 +143,6 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
         }
     };
 
-    const formatQuizDate = (value?: string) => {
-        if (!value) return 'Data non disponibile';
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return 'Data non disponibile';
-        return new Intl.DateTimeFormat('it-IT', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        }).format(date);
-    };
-
-    const quizTypeLabel = (quizType: ExamSavedQuiz['quizType']) => {
-        return quizType === 'true_false' ? 'Vero/Falso' : 'Scelta multipla';
-    };
-
     return (
         <div className="space-y-6">
             {/* Stats Header */}
@@ -187,14 +168,14 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                         </div>
 
                         {/* View Toggle */}
-                        <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-1 p-1 rounded-xl bg-theme-surface border border-theme-default">
                             <button
                                 onClick={() => setLocalViewMode('grid')}
                                 className={`
                                     p-2 rounded-lg transition-all
                                     ${localViewMode === 'grid' 
-                                        ? 'bg-primary-500 text-white' 
-                                        : 'text-white/50 hover:text-white hover:bg-white/10'
+                                        ? 'bg-primary-500 text-white keep-light-text' 
+                                        : 'text-theme-muted hover:text-theme-primary hover:bg-theme-elevated'
                                     }
                                 `}
                                 aria-label="Vista griglia"
@@ -206,8 +187,8 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                                 className={`
                                     p-2 rounded-lg transition-all
                                     ${localViewMode === 'list' 
-                                        ? 'bg-primary-500 text-white' 
-                                        : 'text-white/50 hover:text-white hover:bg-white/10'
+                                        ? 'bg-primary-500 text-white keep-light-text' 
+                                        : 'text-theme-muted hover:text-theme-primary hover:bg-theme-elevated'
                                     }
                                 `}
                                 aria-label="Vista lista"
@@ -230,17 +211,9 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                             <h3 className="text-xl font-semibold text-white mb-2">
                                 Nessun mazzo per questo esame
                             </h3>
-                            <p className="text-white/50 text-sm mb-6 max-w-sm">
+                            <p className="text-white/50 text-sm max-w-sm">
                                 Crea il tuo primo mazzo per iniziare a studiare. Puoi aggiungere carte manualmente o generarle con l'AI.
                             </p>
-                            <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => {/* TODO: Open create deck modal */}}
-                                className="px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/40 transition-all flex items-center gap-2"
-                            >
-                                <span>Crea Primo Mazzo</span>
-                            </motion.button>
                         </motion.div>
                     ) : (
                         <DeckGrid
@@ -287,49 +260,6 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                         }}
                         totalCards={stats.totalCards}
                     />
-
-                    <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-                        <div className="flex items-center gap-2 mb-4">
-                            <History className="w-4 h-4 text-primary-300" />
-                            <h3 className="text-sm font-semibold text-white">Quiz salvati</h3>
-                        </div>
-
-                        {isLoadingSavedQuizzes ? (
-                            <p className="text-sm text-white/60">Caricamento storico quiz...</p>
-                        ) : savedQuizzes.length === 0 ? (
-                            <p className="text-sm text-white/60">
-                                Nessun quiz salvato per questo esame.
-                            </p>
-                        ) : (
-                            <div className="space-y-3">
-                                {savedQuizzes.map((quiz, index) => (
-                                    <div
-                                        key={quiz.id || `${quiz.deckId}-${index}`}
-                                        className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2"
-                                    >
-                                        <p className="text-sm font-semibold text-white truncate">
-                                            {quiz.name || `Quiz ${quiz.questionCount} domande`}
-                                        </p>
-                                        <p className="text-xs text-white/60 truncate">
-                                            {quiz.deckTitle} · {quizTypeLabel(quiz.quizType)}
-                                        </p>
-                                        <p className="text-xs text-white/50">
-                                            {quiz.questionCount} domande · {formatQuizDate(quiz.createdAt)}
-                                        </p>
-                                        <button
-                                            type="button"
-                                            onClick={() => onReplaySavedQuiz?.(quiz)}
-                                            disabled={!onReplaySavedQuiz || quiz.sourceCardIds.length === 0}
-                                            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary-500/80 hover:bg-primary-500 text-white text-xs font-semibold px-3 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                        >
-                                            <RefreshCw className="w-3.5 h-3.5" />
-                                            Rifai quiz
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
 
                     {/* Folders List (if any) */}
                     {stats.foldersCount > 0 && (

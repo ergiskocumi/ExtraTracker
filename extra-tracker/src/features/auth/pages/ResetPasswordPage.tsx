@@ -66,8 +66,8 @@ export const ResetPasswordPage = () => {
             } else {
                 setError('Errore durante il reset della password');
             }
-        } catch (err: any) {
-            setError(err.response?.data?.error?.message || 'Token non valido o scaduto');
+        } catch (err: unknown) {
+            setError((err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message || 'Token non valido o scaduto');
         } finally {
             setIsLoading(false);
         }

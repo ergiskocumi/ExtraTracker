@@ -15,14 +15,11 @@ import {
     ChevronRight, 
     ChevronDown,
     Layers,
-    FileText,
-    Target,
-    Calendar,
     CheckCircle,
 } from 'lucide-react';
 import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
-import { getExamIcon, getExamColors } from '../Exams/utils/examIcons';
+import { getExamIcon } from '../Exams/utils/examIcons';
 import { studyOrgBadgeClass, studyOrgButtonClass } from '../utils/studyButtonClasses';
 
 interface ExamStats {
@@ -64,8 +61,6 @@ const ExamItem: React.FC<ExamItemProps> = ({
 }) => {
     const examDecks = decks.filter(d => d.examId === exam.id);
     const ExamIcon = getExamIcon(exam.title, exam.description);
-    const examColors = getExamColors(exam.title, exam.description);
-
     // Calcola giorni alla scadenza
     const deadlineDate = new Date(exam.deadline);
     const daysUntilDeadline = Math.ceil((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -293,7 +288,7 @@ export const ExamTree: React.FC<ExamTreeProps> = ({
     selectedExamId,
     onExamSelect,
     onDeckClick,
-    onRefresh,
+    onRefresh: _onRefresh,
 }) => {
     const [expandedExams, setExpandedExams] = useState<Set<string>>(new Set());
 

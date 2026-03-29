@@ -3,6 +3,7 @@ import { studyService, type Deck } from '../services/studyService';
 import { foldersService, type Folder } from '../services/foldersService';
 import { tagsService, type Tag } from '../services/tagsService';
 import { emitToast } from '../../../shared/components/toast';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 export const useDashboardData = () => {
     const [decks, setDecks] = useState<Deck[]>([]);
@@ -19,8 +20,8 @@ export const useDashboardData = () => {
             const dashboardData = await studyService.getDashboard();
             setDecks(dashboardData.decks);
             setDueCardCount(dashboardData.dueCardCount);
-        } catch (err: any) {
-            setError(err.message || 'Errore nel caricamento');
+        } catch (err: unknown) {
+            setError(getErrorMessage(err) || 'Errore nel caricamento');
             emitToast.error('Impossibile caricare i mazzi');
         } finally {
             setIsLoading(false);
@@ -31,7 +32,7 @@ export const useDashboardData = () => {
         try {
             const folderTree = await foldersService.getFolderTree();
             setFolders(folderTree);
-        } catch (err: any) {
+        } catch (err: unknown) {
             emitToast.error('Errore nel caricamento delle cartelle');
         }
     }, []);
@@ -40,7 +41,7 @@ export const useDashboardData = () => {
         try {
             const allTags = await tagsService.getAllTags();
             setTags(allTags);
-        } catch (err: any) {
+        } catch (err: unknown) {
             emitToast.error('Errore nel caricamento dei tag');
         }
     }, []);

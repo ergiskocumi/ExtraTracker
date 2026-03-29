@@ -10,7 +10,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { CheckSquare, Square, Search, AlertCircle, RotateCcw } from 'lucide-react';
 import { QuestionsSkeleton } from './QuestionsSkeleton';
 import type { QuestionsPreviewProps } from './ExamSolverModal.types';
@@ -28,7 +28,7 @@ const useKeyboardShortcuts = (
     selectedIndices: Set<number>,
     onSelectionChange: (indices: Set<number>) => void,
     focusedIndex: number | null,
-    setFocusedIndex: (index: number | null) => void
+    _setFocusedIndex: (index: number | null) => void
 ) => {
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -181,7 +181,7 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
-    const [useGrouping, setUseGrouping] = useState(true);
+    const [useGrouping, _setUseGrouping] = useState(true);
     const hasQuestionsRef = useRef(false);
 
     // Track quando le domande arrivano per forzare re-render
@@ -448,7 +448,7 @@ export const QuestionsPreview: React.FC<QuestionsPreviewProps> = ({
                                             </div>
                                         )}
                                         <div className="space-y-2">
-                                            {group.questions.map((item, idx) => 
+                                            {group.questions.map((item, _idx) =>
                                                 renderQuestionItem(item, item.originalIndex)
                                             )}
                                         </div>

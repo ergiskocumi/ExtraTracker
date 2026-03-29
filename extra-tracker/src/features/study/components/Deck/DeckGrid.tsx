@@ -5,31 +5,18 @@ import type { Deck, Tag } from '../../services/studyService';
 // Import DeckCard from the main file for now (will be extracted later if needed)
 // This is a wrapper component for the grid layout
 
-interface DeckCardProps {
-    deck: Deck;
-    onStudy: (deckId: string) => void;
-    onRead?: (deckId: string) => void;
-    onMagicGenerate: (deck: Deck) => void;
-    onAddCard: (deckId: string) => void;
-    onViewDetail: (deckId: string) => void;
-    onDelete: (deck: Deck) => void;
-    onUpdate: (deck: Deck) => void;
-    onExamSolver?: (deckId: string) => void;
-    tags?: Tag[];
-    onTogglePin?: (deck: Deck) => void;
-}
-
 interface DeckGridProps {
     decks: Deck[];
     tags?: Tag[];
-    DeckCardComponent: React.ComponentType<DeckCardProps>;
-    onStudy: (deckId: string) => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    DeckCardComponent: React.ComponentType<any>;
+    onStudy?: (deckId: string) => void;
     onRead?: (deckId: string) => void;
-    onMagicGenerate: (deck: Deck) => void;
-    onAddCard: (deckId: string) => void;
-    onViewDetail: (deckId: string) => void;
-    onDelete: (deck: Deck) => void;
-    onUpdate: (deck: Deck) => void;
+    onMagicGenerate?: (deck: Deck) => void;
+    onAddCard?: (deckId: string) => void;
+    onViewDetail?: (deckId: string) => void;
+    onDelete?: (deck: Deck) => void;
+    onUpdate?: (deck: Deck) => void;
     onExamSolver?: (deckId: string) => void;
     isFolderSelected?: boolean;
     onTogglePin?: (deck: Deck) => void;
@@ -69,7 +56,7 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
             className={
                 viewMode === 'list'
                     ? 'space-y-3 sm:space-y-4'
-                    : 'grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6'
+                    : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6'
             }
         >
             <AnimatePresence mode="popLayout">

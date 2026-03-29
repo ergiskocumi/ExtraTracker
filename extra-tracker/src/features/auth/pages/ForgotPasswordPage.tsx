@@ -24,7 +24,7 @@ export const ForgotPasswordPage = () => {
         try {
             await apiClient.post<null>('/auth/forgot-password', { email });
             setIsSubmitted(true);
-        } catch (err: any) {
+        } catch (err: unknown) {
             // Non mostrare se l'email esiste o meno per sicurezza
             setIsSubmitted(true);
         } finally {

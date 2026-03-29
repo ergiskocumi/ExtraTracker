@@ -84,7 +84,7 @@ export const TutorialProvider: React.FC<TutorialProviderProps> = ({ children }) 
         isPaused: false,
     });
     
-    const [tutorials, setTutorials] = useState<Map<string, TutorialConfig>>(new Map());
+    const [_tutorials, setTutorials] = useState<Map<string, TutorialConfig>>(new Map());
     const [currentConfig, setCurrentConfig] = useState<TutorialConfig | null>(null);
     const [completedTutorials, setCompletedTutorials] = useState<Set<string>>(new Set());
 
@@ -96,9 +96,6 @@ export const TutorialProvider: React.FC<TutorialProviderProps> = ({ children }) 
                 const completed = JSON.parse(saved) as string[];
                 const completedSet = new Set(completed);
                 setCompletedTutorials(completedSet);
-                console.log('📚 Tutorial completati caricati:', Array.from(completedSet));
-            } else {
-                console.log('📚 Nessun tutorial completato trovato in localStorage');
             }
         } catch (err) {
             console.error('Errore caricamento tutorial completati:', err);
@@ -118,7 +115,6 @@ export const TutorialProvider: React.FC<TutorialProviderProps> = ({ children }) 
     const startTutorial = useCallback((tutorialId: string) => {
         // Controlla se è già completato
         if (completedTutorials.has(tutorialId)) {
-            console.log(`Tutorial ${tutorialId} già completato`);
             return;
         }
 
@@ -160,12 +156,7 @@ export const TutorialProvider: React.FC<TutorialProviderProps> = ({ children }) 
     // Registra un nuovo tutorial
     const registerTutorial = useCallback((config: TutorialConfig) => {
         const isCompleted = isTutorialCompletedInStorage(config.id);
-        console.log(`📝 Registrazione tutorial: ${config.id}`, { 
-            autoStart: config.autoStart, 
-            completed: isCompleted,
-            completedInState: completedTutorials.has(config.id)
-        });
-        
+
         setTutorials((prev) => {
             const next = new Map(prev);
             next.set(config.id, config);
@@ -174,16 +165,12 @@ export const TutorialProvider: React.FC<TutorialProviderProps> = ({ children }) 
 
         // Auto-start se configurato e non completato
         if (config.autoStart && !isCompleted) {
-            console.log(`⏳ Auto-start tutorial ${config.id} tra 1.5 secondi...`);
-            // Usa un timeout più lungo per assicurarsi che il rendering sia completo
             setTimeout(() => {
-                // Verifica ancora che non sia completato (controlla direttamente localStorage)
                 const stillNotCompleted = !isTutorialCompletedInStorage(config.id);
                 if (stillNotCompleted) {
                     setTutorials((currentTutorials) => {
                         const currentConfig = currentTutorials.get(config.id);
                         if (currentConfig) {
-                            console.log(`🚀 Avvio tutorial ${config.id}`);
                             setState({
                                 currentTutorial: config.id,
                                 currentStep: 0,
@@ -191,17 +178,11 @@ export const TutorialProvider: React.FC<TutorialProviderProps> = ({ children }) 
                                 isPaused: false,
                             });
                             setCurrentConfig(currentConfig);
-                        } else {
-                            console.warn(`⚠️ Tutorial ${config.id} non trovato nella Map`);
                         }
                         return currentTutorials;
                     });
-                } else {
-                    console.log(`⚠️ Tutorial ${config.id} completato nel frattempo`);
                 }
-            }, 1500); // Delay aumentato per permettere il rendering completo
-        } else if (config.autoStart && isCompleted) {
-            console.log(`⏭️ Tutorial ${config.id} già completato, skip auto-start`);
+            }, 1500);
         }
     }, [completedTutorials, isTutorialCompletedInStorage]);
 

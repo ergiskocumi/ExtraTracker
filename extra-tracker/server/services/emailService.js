@@ -12,6 +12,7 @@
 
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 // ==========================================
 // CONFIGURAZIONE
@@ -26,9 +27,10 @@ const createTransporter = async () => {
         // Crea account Ethereal dinamicamente
         const testAccount = await nodemailer.createTestAccount();
         
-        console.log('📧 Email Test Account creato:');
-        console.log(`   User: ${testAccount.user}`);
-        console.log(`   Pass: ${testAccount.pass}`);
+        logger.info('EmailService', 'Email Test Account creato', {
+            user: testAccount.user,
+            pass: testAccount.pass,
+        });
         
         return nodemailer.createTransport({
             host: 'smtp.ethereal.email',
@@ -375,17 +377,18 @@ class EmailService {
             // In sviluppo, mostra URL per visualizzare email
             if (process.env.NODE_ENV !== 'production') {
                 const previewUrl = nodemailer.getTestMessageUrl(info);
-                console.log('📧 Email inviata (test):');
-                console.log(`   To: ${mailOptions.to}`);
-                console.log(`   Subject: ${mailOptions.subject}`);
-                console.log(`   Preview: ${previewUrl}`);
+                logger.info('EmailService', 'Email inviata (test)', {
+                    to: mailOptions.to,
+                    subject: mailOptions.subject,
+                    preview: previewUrl,
+                });
                 return { success: true, previewUrl };
             }
             
-            console.log(`📧 Email inviata a ${mailOptions.to}`);
+            logger.success('EmailService', `Email inviata a ${mailOptions.to}`);
             return { success: true, messageId: info.messageId };
         } catch (error) {
-            console.error('❌ Errore invio email:', error);
+            logger.error('EmailService', 'Errore invio email', error);
             throw error;
         }
     }

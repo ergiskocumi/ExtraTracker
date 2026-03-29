@@ -10,7 +10,6 @@
 
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
-import type { Card } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { CARD_STYLES, ANIMATION_CONFIG, TEXT_CONTENT } from './FlashcardItem.constants';
 import { validateCardContent, isTemporaryCard, getButtonState, shouldHandleCardClick } from './FlashcardItem.utils';

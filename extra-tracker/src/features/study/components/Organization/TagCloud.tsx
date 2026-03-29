@@ -10,9 +10,10 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Tag as TagIcon, Plus, X } from 'lucide-react';
+import { Tag as TagIcon, Plus } from 'lucide-react';
 import { tagsService, type Tag } from '../../services/tagsService';
 import { emitToast } from '../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 import { classList, studyOrgBadgeClass, studyOrgButtonClass, studyOrgFieldClass } from '../utils/studyButtonClasses';
 
 interface TagCloudProps {
@@ -44,8 +45,8 @@ export const TagCloud: React.FC<TagCloudProps> = ({
             setNewTagName('');
             setIsCreating(false);
             onRefresh();
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nella creazione del tag');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nella creazione del tag');
         }
     };
 

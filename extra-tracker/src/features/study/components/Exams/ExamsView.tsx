@@ -11,6 +11,7 @@ import examService from '../../services/examService';
 import type { Tag } from '../../services/tagsService';
 import { ConfirmationModal } from '../../../../shared/components/ConfirmationModal';
 import { emitToast } from '../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 
 // ============================================
 // TYPES
@@ -72,8 +73,8 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             setError(null);
             const allExams = await examService.getAll();
             setExams(allExams);
-        } catch (err: any) {
-            setError(err.message || 'Errore nel caricamento degli esami');
+        } catch (err: unknown) {
+            setError(getErrorMessage(err) || 'Errore nel caricamento degli esami');
         } finally {
             setIsLoading(false);
         }
@@ -81,14 +82,6 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
 
     useEffect(() => {
         loadExams();
-    }, [loadExams]);
-
-    // Espone la funzione loadExams tramite window per refresh esterno
-    useEffect(() => {
-        (window as any).__refreshExams = loadExams;
-        return () => {
-            delete (window as any).__refreshExams;
-        };
     }, [loadExams]);
 
     // Delete handlers
@@ -120,10 +113,10 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             if (onRefresh) {
                 onRefresh();
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             // Rollback in caso di errore
             await loadExams();
-            emitToast.error(err.message || 'Errore nell\'eliminazione dell\'esame');
+            emitToast.error(getErrorMessage(err) || 'Errore nell\'eliminazione dell\'esame');
         } finally {
             setIsDeleting(false);
             setPendingDeleteExamId(null);
@@ -135,30 +128,36 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
     const pendingDeleteExamDecks = pendingDeleteExam ? decks.filter(d => d.examId === pendingDeleteExamId) : [];
     const pendingDeleteExamCards = pendingDeleteExamDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
 
-    // Calcola statistiche per ogni esame
-    const getExamStats = (examId: string) => {
-        const examDecks = decks.filter(d => d.examId === examId);
-        const totalCards = examDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
-        const dueCards = examDecks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
-        
-        let masteredCards = 0;
-        examDecks.forEach(deck => {
-            masteredCards += deck.cards?.filter(c => c.status === 'mastered').length ?? 0;
-        });
-        const masteryPercent = totalCards > 0 ? Math.round((masteredCards / totalCards) * 100) : 0;
+    // Precomputa le statistiche di tutti gli esami una volta sola (evita O(n²) nel sort)
+    const examStatsMap = useMemo(() => {
+        const map = new Map<string, { deckCount: number; totalCards: number; dueCards: number; masteryPercent: number }>();
+        for (const exam of exams) {
+            const examDecks = decks.filter(d => d.examId === exam.id);
+            const totalCards = examDecks.reduce((sum, deck) => sum + (deck.totalCards ?? deck.cards?.length ?? 0), 0);
+            const dueCards = examDecks.reduce((sum, deck) => sum + (deck.dueCount ?? 0), 0);
+            const masteredCards = examDecks.reduce((sum, deck) => sum + (deck.cards?.filter(c => c.status === 'mastered').length ?? 0), 0);
+            const masteryPercent = totalCards > 0 ? Math.round((masteredCards / totalCards) * 100) : 0;
+            map.set(exam.id, { deckCount: examDecks.length, totalCards, dueCards, masteryPercent });
+        }
+        return map;
+    }, [exams, decks]);
 
-        return {
-            deckCount: examDecks.length,
-            totalCards,
-            dueCards,
-            masteryPercent,
-        };
-    };
+    const getExamStats = useCallback((examId: string) => {
+        return examStatsMap.get(examId) ?? { deckCount: 0, totalCards: 0, dueCards: 0, masteryPercent: 0 };
+    }, [examStatsMap]);
 
-    // Ottieni i decks per un esame specifico (per la distribuzione carte)
-    const getExamDecks = (examId: string) => {
-        return decks.filter(d => d.examId === examId);
-    };
+    // Precomputa i decks per esame (per la distribuzione carte)
+    const examDecksMap = useMemo(() => {
+        const map = new Map<string, Deck[]>();
+        for (const exam of exams) {
+            map.set(exam.id, decks.filter(d => d.examId === exam.id));
+        }
+        return map;
+    }, [exams, decks]);
+
+    const getExamDecks = useCallback((examId: string) => {
+        return examDecksMap.get(examId) ?? [];
+    }, [examDecksMap]);
 
     // Filtra i mazzi in base alla ricerca
     const filteredDecks = useMemo(() => {
@@ -244,7 +243,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
         });
 
         return filtered;
-    }, [exams, searchQuery, filter, sortBy, decks]);
+    }, [exams, searchQuery, filter, sortBy, getExamStats]);
 
     if (isLoading) {
         return (
@@ -260,7 +259,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                 <p className="text-white/60 mb-4">{error}</p>
                 <button
                     onClick={loadExams}
-                    className="px-4 py-2 rounded-xl bg-white/10 text-white hover:bg-white/15 transition-all"
+                    className="px-4 py-2 rounded-xl bg-theme-elevated text-theme-primary hover:bg-theme-surface transition-all"
                 >
                     Riprova
                 </button>
@@ -375,8 +374,8 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                 />
             ) : filteredAndSortedExams.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-                        <BookOpen className="w-10 h-10 text-white/40" />
+                    <div className="w-20 h-20 rounded-2xl bg-theme-surface border border-theme-default flex items-center justify-center mb-4">
+                        <BookOpen className="w-10 h-10 text-theme-muted" />
                     </div>
                     <h3 className="text-xl font-semibold text-white mb-2">
                         Nessun esame trovato
@@ -398,7 +397,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                                 <h3 className="text-lg font-semibold text-white/80 px-4">Esami Attivi</h3>
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
                             </div>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 items-stretch">
                                 {filteredAndSortedExams
                                     .filter(e => e.status === 'active')
                                     .map((exam, index) => {
@@ -449,7 +448,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                                     </h3>
                                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent"></div>
                                 </div>
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 items-stretch">
                                     {completedExams.map((exam, index) => {
                                         const stats = getExamStats(exam.id);
                                         return (

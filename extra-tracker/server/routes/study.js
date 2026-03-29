@@ -146,6 +146,9 @@ router.get('/:id', deckController.getDeckById);
 router.post('/', deckController.createDeck);
 router.patch('/:id', deckController.updateDeck);
 router.post('/:id/quizzes', deckController.saveQuizSnapshot);
+router.get('/:id/quizzes/:quizId/retake', deckController.retakeSavedQuiz);
+router.get('/:id/quizzes/:quizId/review', deckController.reviewSavedQuiz);
+router.post('/:id/quizzes/:quizId/attempts', deckController.recordQuizAttempt);
 router.post('/:id/cards', deckController.addCard);
 router.post('/:id/cards/insert', deckController.addCardAtPosition); // Inserimento in posizione specifica
 router.put('/:id/cards/reorder', deckController.reorderCards); // Riordinamento card

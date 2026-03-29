@@ -1,43 +1,61 @@
-/**
- * 🎬 CINEMA PAGE - Controller per vista Cinema Split View
- * 
- * Gestisce il caricamento del deck e passa i dati a CinemaLayout.
- * 
- * Clean Code Principles:
- * - Single Responsibility: gestisce solo il caricamento e il routing dei dati
- * - Separation of Concerns: logica di business separata dalla presentazione
- * - Error Handling: gestione errori centralizzata e user-friendly
- */
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { FiAlertCircle, FiArrowLeft } from 'react-icons/fi';
+import { AlertCircle, ArrowLeft, FileText, Layers } from 'lucide-react';
 import { studyService, type Deck } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { CinemaLayout } from '../layout/CinemaLayout';
 
 // ============================================
-// CONSTANTS
-// ============================================
-
-const LOADING_SPINNER_SIZE_PX = 32;
-
-// ============================================
 // SUB-COMPONENTS
 // ============================================
 
-interface LoadingStateProps {
-    message?: string;
-}
-
-const LoadingState: React.FC<LoadingStateProps> = ({ message = 'Caricamento...' }) => (
-    <div className="fixed inset-0 h-screen w-screen bg-theme-base text-theme-primary flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-            <div
-                className="animate-spin border-2 border-theme-default border-t-primary-500 rounded-full"
-                style={{ width: `${LOADING_SPINNER_SIZE_PX}px`, height: `${LOADING_SPINNER_SIZE_PX}px` }}
-            />
-            <p className="text-theme-secondary text-sm">{message}</p>
+const CinemaSkeletonLoader: React.FC = () => (
+    <div
+        className="fixed left-0 right-0 bottom-0 bg-theme-base overflow-hidden flex flex-col"
+        style={{ top: 'var(--app-header-height, 56px)' }}
+    >
+        <div className="flex-1 flex gap-3 p-3 animate-pulse">
+            <div className="flex-[7] rounded-2xl bg-theme-surface border border-theme-default overflow-hidden">
+                <div className="h-10 bg-theme-subtle/40 border-b border-theme-default" />
+                <div className="p-6 space-y-4">
+                    <div className="h-4 bg-theme-subtle/60 rounded-lg w-3/4" />
+                    <div className="h-4 bg-theme-subtle/50 rounded-lg w-full" />
+                    <div className="h-4 bg-theme-subtle/40 rounded-lg w-5/6" />
+                    <div className="h-64 bg-theme-subtle/30 rounded-xl mt-6" />
+                </div>
+            </div>
+            <div className="flex-[3] rounded-2xl bg-theme-surface border border-theme-default overflow-hidden hidden sm:block">
+                <div className="px-4 pt-4 pb-2 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div className="h-6 w-20 bg-theme-subtle/50 rounded-full" />
+                        <div className="h-8 w-8 bg-theme-subtle/40 rounded-lg" />
+                    </div>
+                    <div className="h-px bg-theme-subtle/30" />
+                </div>
+                <div className="p-3 space-y-3">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="rounded-xl border border-theme-default p-3 space-y-2">
+                            <div className="flex items-center gap-2">
+                                <div className="h-5 w-16 bg-theme-subtle/50 rounded-full" />
+                            </div>
+                            <div className="h-3 bg-theme-subtle/40 rounded w-full" />
+                            <div className="h-3 bg-theme-subtle/30 rounded w-2/3" />
+                            <div className="h-px bg-theme-subtle/20 my-2" />
+                            <div className="h-3 bg-theme-subtle/35 rounded w-full" />
+                            <div className="h-3 bg-theme-subtle/25 rounded w-4/5" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                    <FileText className="w-8 h-8 text-primary-500/40" />
+                    <Layers className="w-5 h-5 text-primary-400/60 absolute -bottom-1 -right-1.5" />
+                </div>
+                <p className="text-xs text-theme-muted font-medium tracking-wide">Caricamento cinema...</p>
+            </div>
         </div>
     </div>
 );
@@ -45,19 +63,36 @@ const LoadingState: React.FC<LoadingStateProps> = ({ message = 'Caricamento...' 
 interface ErrorStateProps {
     error: string;
     onNavigateBack: () => void;
+    onRetry: () => void;
 }
 
-const ErrorState: React.FC<ErrorStateProps> = ({ error, onNavigateBack }) => (
-    <div className="fixed inset-0 h-screen w-screen bg-theme-base text-theme-primary flex flex-col items-center justify-center">
-        <FiAlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mb-4" />
-        <p className="text-theme-secondary mb-6 text-center px-4">{error}</p>
-        <button
-            onClick={onNavigateBack}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-theme-surface border border-theme-default hover:bg-theme-card hover:border-theme-strong text-theme-primary transition-all"
-        >
-            <FiArrowLeft className="w-4 h-4" />
-            Torna ai Mazzi
-        </button>
+const ErrorState: React.FC<ErrorStateProps> = ({ error, onNavigateBack, onRetry }) => (
+    <div
+        className="fixed left-0 right-0 bottom-0 bg-theme-base text-theme-primary flex flex-col items-center justify-center"
+        style={{ top: 'var(--app-header-height, 56px)' }}
+    >
+        <div className="flex flex-col items-center max-w-md px-6 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
+                <AlertCircle className="w-7 h-7 text-red-500 dark:text-red-400" />
+            </div>
+            <h2 className="text-lg font-semibold text-theme-primary mb-2">Impossibile caricare il mazzo</h2>
+            <p className="text-sm text-theme-secondary mb-6 leading-relaxed">{error}</p>
+            <div className="flex items-center gap-3">
+                <button
+                    onClick={onNavigateBack}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-theme-surface border border-theme-default hover:bg-theme-card hover:border-theme-strong text-sm font-medium text-theme-secondary hover:text-theme-primary transition-all duration-200 active:scale-[0.97]"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                    Indietro
+                </button>
+                <button
+                    onClick={onRetry}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-400 text-white text-sm font-medium shadow-lg shadow-primary-500/20 transition-all duration-200 active:scale-[0.97]"
+                >
+                    Riprova
+                </button>
+            </div>
+        </div>
     </div>
 );
 
@@ -74,7 +109,6 @@ export const CinemaPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Load deck
     const loadDeck = useCallback(async () => {
         if (!deckId) {
             setError('ID mazzo non valido');
@@ -85,24 +119,11 @@ export const CinemaPage: React.FC = () => {
         try {
             setIsLoading(true);
             setError(null);
-            
             const deckData = await studyService.getDeckById(deckId);
-            
-            if (import.meta.env.DEV) {
-                console.log('📚 Deck caricato:', {
-                    id: deckData.id,
-                    title: deckData.title,
-                    pdfUrl: deckData.pdfUrl,
-                    hasPdf: !!deckData.pdfUrl,
-                });
-            }
-            
             setDeck(deckData);
-        } catch (err: any) {
-            if (import.meta.env.DEV) {
-                console.error('❌ Errore nel caricamento del deck:', err);
-            }
-            setError(err.message || 'Errore nel caricamento del mazzo');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Errore nel caricamento del mazzo';
+            setError(message);
         } finally {
             setIsLoading(false);
         }
@@ -112,43 +133,9 @@ export const CinemaPage: React.FC = () => {
         loadDeck();
     }, [loadDeck]);
 
-    // Log PDF availability (solo in dev)
-    useEffect(() => {
-        if (!deck || !import.meta.env.DEV) return;
-
-        if (deck.pdfUrl) {
-            console.log('🎬 CinemaPage - PDF Source:', deck.pdfUrl);
-        } else {
-            console.warn('⚠️ CinemaPage - Nessun PDF disponibile per il deck:', deck.title);
-        }
-    }, [deck?.pdfUrl, deck?.title]);
-
-    // Handlers - Memoizzati per evitare re-render
-    const handleAddCard = useCallback(async () => {
-        if (!deckId || !deck) return;
-
-        try {
-            const front = window.prompt('Domanda:');
-            if (!front?.trim()) return;
-            
-            const back = window.prompt('Risposta:');
-            if (!back?.trim()) return;
-
-            const updatedDeck = await studyService.addCard(deckId, { 
-                front: front.trim(), 
-                back: back.trim() 
-            });
-            
-            setDeck(updatedDeck);
-            emitToast.success('Carta aggiunta!');
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nell\'aggiunta della carta');
-        }
-    }, [deckId, deck]);
-
     const handleUpdateCard = useCallback(async (
-        cardId: string, 
-        front: string, 
+        cardId: string,
+        front: string,
         back: string
     ) => {
         if (!deckId) return;
@@ -157,59 +144,46 @@ export const CinemaPage: React.FC = () => {
             const updatedDeck = await studyService.updateCard(deckId, cardId, { front, back });
             setDeck(updatedDeck);
             emitToast.success('Carta modificata!');
-        } catch (err: any) {
-            const errorMessage = err.message || 'Errore nella modifica della carta';
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Errore nella modifica della carta';
             emitToast.error(errorMessage);
             throw err;
         }
     }, [deckId]);
 
-    /**
-     * Handler per aggiornare il deck quando viene modificato (riordinamento, inserimento)
-     */
     const handleDeckUpdate = useCallback((updatedDeck: Deck) => {
         setDeck(updatedDeck);
     }, []);
 
-    // Memoize pdfSrc per evitare re-render inutili
     const pdfSrc = useMemo(() => deck?.pdfUrl || null, [deck?.pdfUrl]);
 
     const examIdFromState = (location.state as { examId?: string } | null)?.examId ?? null;
     const examId = deck?.examId ?? examIdFromState;
 
-    /**
-     * Handler per tornare ai mazzi dell'esame (se disponibile) o al dettaglio del mazzo
-     * 
-     * Se il deck è legato a un esame, torna alla lista dei mazzi dell'esame.
-     * Altrimenti mantiene il comportamento precedente (dettaglio mazzo o dashboard).
-     * 
-     * @returns {void}
-     */
     const handleNavigateBack = useCallback(() => {
         if (examId) {
             navigate('/study', { state: { examId } });
             return;
         }
-
         if (deckId) {
             navigate(`/study/deck/${deckId}`);
             return;
         }
-
         navigate('/study');
     }, [navigate, deckId, examId]);
 
     // ========== RENDER ==========
 
     if (isLoading) {
-        return <LoadingState message="Caricamento mazzo..." />;
+        return <CinemaSkeletonLoader />;
     }
 
     if (error || !deck) {
         return (
-            <ErrorState 
-                error={error || 'Mazzo non trovato'} 
-                onNavigateBack={handleNavigateBack} 
+            <ErrorState
+                error={error || 'Mazzo non trovato'}
+                onNavigateBack={handleNavigateBack}
+                onRetry={loadDeck}
             />
         );
     }
@@ -218,7 +192,6 @@ export const CinemaPage: React.FC = () => {
         <CinemaLayout
             deck={deck}
             pdfSrc={pdfSrc}
-            onAddCard={handleAddCard}
             onUpdateCard={handleUpdateCard}
             onNavigateBack={handleNavigateBack}
             onDeckUpdate={handleDeckUpdate}

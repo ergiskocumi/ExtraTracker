@@ -16,7 +16,7 @@ export const DeckCardProgress: React.FC<DeckCardProgressProps> = ({ masteryPerce
                     {masteryPercent}%
                 </span>
             </div>
-            <div className="h-1.5 sm:h-2 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-1.5 sm:h-2 bg-theme-surface rounded-full overflow-hidden">
                 <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${masteryPercent}%` }}

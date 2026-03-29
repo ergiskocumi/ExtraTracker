@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { Sparkles, RotateCcw, Brain, Trophy, Eye, EyeOff } from 'lucide-react';
 import type { Card, CardStatus } from '../../services/studyService';
 import { CardContentRenderer } from '../Flashcard/CardContentRenderer';
@@ -78,6 +78,14 @@ export const StudyCard: React.FC<StudyCardProps> = ({
     const statusConfig = STATUS_CONFIG[card.status];
     const StatusIcon = statusConfig.icon;
 
+    // Reset hint quando cambia la carta
+    useEffect(() => {
+        setShowHint(false);
+    }, [card.id]);
+
+    // Testo hint: primi 50 caratteri del back, senza markup
+    const hintText = card.back.replace(/[*_`#>\[\]]/g, '').trim().slice(0, 50);
+
     // Keyboard shortcut per flip
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -111,7 +119,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
             scale: 1,
             rotateY: 0,
             transition: {
-                duration: 0.4,
+                duration: 0.15,
                 ease: CARD_TRANSITION_EASE,
             },
         },
@@ -122,7 +130,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
             scale: 0.9,
             rotateY: 0,
             transition: {
-                duration: 0.3,
+                duration: 0.12,
                 ease: 'easeIn',
             },
         }),
@@ -160,7 +168,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                 className="relative w-full h-full"
                 style={{ transformStyle: 'preserve-3d' }}
                 animate={{ rotateY: isFlipped ? 180 : 0 }}
-                    transition={{ duration: 0.6, ease: FLIP_TRANSITION_EASE }}
+                    transition={{ duration: 0.45, ease: FLIP_TRANSITION_EASE }}
                 >
                     {/* FRONT SIDE */}
                     <div
@@ -193,11 +201,24 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                             <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 md:p-12 pt-16 sm:pt-20">
                                 <div className="text-center max-w-lg w-full">
                                     <CardContentRenderer 
-                                        content={card.front} 
-                                        className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-medium text-theme-primary leading-relaxed"
+                                        content={card.front}
+                                        className="text-base sm:text-xl md:text-2xl lg:text-3xl font-medium text-theme-primary leading-relaxed"
                                     />
                                 </div>
                             </div>
+
+                            {/* Hint area - primi caratteri del back con blur */}
+                            {showHint && hintText && (
+                                <div
+                                    className="absolute bottom-12 left-4 right-4 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mb-1">Suggerimento</p>
+                                    <p className="text-xs text-theme-secondary blur-[3px] hover:blur-none transition-[filter] duration-300 select-none">
+                                        {hintText}{card.back.length > 50 ? '…' : ''}
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Footer hint */}
                             <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 text-center">
@@ -230,11 +251,19 @@ export const StudyCard: React.FC<StudyCardProps> = ({
                             </div>
 
                             {/* Content */}
-                            <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 md:p-12 pt-16 sm:pt-20">
-                                <div className="text-center max-w-lg w-full overflow-y-auto max-h-full">
-                                    <CardContentRenderer 
-                                        content={card.back} 
-                                        className="text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-theme-primary leading-relaxed"
+                            <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 md:p-12 pt-16 sm:pt-20 pb-12 sm:pb-14">
+                                <div className="relative w-full max-w-lg">
+                                    <div className="overflow-y-auto max-h-full text-center" style={{ maxHeight: 'clamp(120px, 40vh, 320px)' }}>
+                                        <CardContentRenderer
+                                            content={card.back}
+                                            className="text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-theme-primary leading-relaxed"
+                                        />
+                                    </div>
+                                    {/* Scroll shadow: compare quando il contenuto supera l'altezza */}
+                                    <div
+                                        className="pointer-events-none absolute bottom-0 left-0 right-0 h-8"
+                                        style={{ background: 'linear-gradient(to bottom, transparent, var(--bg-card, rgba(255,255,255,0.06)))' }}
+                                        aria-hidden
                                     />
                                 </div>
                             </div>

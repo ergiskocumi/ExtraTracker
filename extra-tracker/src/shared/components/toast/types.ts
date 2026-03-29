@@ -11,6 +11,20 @@
 // Tipi di toast disponibili - facilmente estendibile
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
+/**
+ * 🎓 ACCESSIBILITÀ: Durate ottimizzate per tipo
+ * - Error: più lungo per permettere di leggere e capire il problema
+ * - Warning: tempo sufficiente per notare l'avviso
+ * - Info: tempo standard
+ * - Success: breve, non richiede attenzione prolungata
+ */
+export const TOAST_DURATIONS: Record<ToastType, number> = {
+  error: 8000,    // Errori visibili più a lungo
+  success: 4000,  // Successi brevi
+  info: 5000,     // Info standard
+  warning: 6000,  // Avvisi intermedi
+};
+
 // Posizioni supportate per il container dei toast
 export type ToastPosition = 
     | 'top-right' 

@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from 'recharts';
 import type { AIUsageDailyItem } from '../services/aiUsageDashboardService';
 import { cn } from '../../../lib/utils';
@@ -108,11 +107,12 @@ export const TokenChart = ({ data, loading = false, className }: TokenChartProps
                 borderRadius: '8px',
                 color: '#F9FAFB',
               }}
-              formatter={(value: number, name: string) => {
+              formatter={(value, name) => {
+                const numValue = typeof value === 'number' ? value : 0;
                 if (name === 'Costo (USD)') {
-                  return [`$${value.toFixed(4)}`, name];
+                  return [`$${numValue.toFixed(4)}`, name ?? ''];
                 }
-                return [value.toLocaleString('it-IT'), name];
+                return [numValue.toLocaleString('it-IT'), name ?? ''];
               }}
             />
             <Area

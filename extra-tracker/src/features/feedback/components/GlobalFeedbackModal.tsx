@@ -237,10 +237,10 @@ export const GlobalFeedbackModal: React.FC = () => {
             });
 
             closeFeedback();
-        } catch (error: any) {
-            console.error('Errore invio feedback:', error);
+        } catch (error: unknown) {
+            const apiError = error as { response?: { data?: { error?: { message?: string } } } };
             emitToast.error(
-                error?.response?.data?.error?.message ||
+                apiError?.response?.data?.error?.message ||
                     "Errore durante l'invio del feedback"
             );
         } finally {

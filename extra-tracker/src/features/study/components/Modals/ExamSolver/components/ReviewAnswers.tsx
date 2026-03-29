@@ -8,6 +8,7 @@ import { CheckCircle2, AlertCircle, Edit2, RefreshCw, Save, ArrowLeft, FileText,
 import { SourceViewer } from './SourceViewer';
 import { studyService } from '../../../../services/studyService';
 import { emitToast } from '../../../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../../../utils/errorMessage';
 import type { ReviewAnswersProps, FlashcardWithId } from '../ExamSolverModal.types';
 import { examSolverBadgeClass, examSolverButtonClass, examSolverFieldClass } from '../../../utils/studyButtonClasses';
 
@@ -158,9 +159,9 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
                     return newState;
                 });
             }, 2000);
-        } catch (err: any) {
+        } catch (err: unknown) {
             setSavingStates(prev => ({ ...prev, [cardId]: 'idle' }));
-            emitToast.error(err.message || 'Errore nel salvataggio');
+            emitToast.error(getErrorMessage(err) || 'Errore nel salvataggio');
         }
     }, [deckId, editedAnswers, onEdit]);
 
@@ -186,8 +187,8 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
             if (updatedCard) {
                 setEditedAnswers(prev => ({ ...prev, [card.id]: updatedCard.back }));
             }
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nella rigenerazione');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nella rigenerazione');
         } finally {
             setRegeneratingCards(prev => {
                 const newSet = new Set(prev);
@@ -215,8 +216,8 @@ export const ReviewAnswers: React.FC<ReviewAnswersProps> = ({
         try {
             emitToast.success(`${highConfidenceCards.length} flashcard approvate!`);
             onSave();
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nel salvataggio bulk');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nel salvataggio bulk');
         } finally {
             setIsBulkSaving(false);
         }

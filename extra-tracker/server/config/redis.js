@@ -10,6 +10,7 @@
  */
 
 const { createClient } = require('redis');
+const logger = require('../utils/logger');
 
 let redisClient = null;
 let isRedisAvailable = false;
@@ -20,7 +21,7 @@ let isRedisAvailable = false;
  */
 const initRedis = async () => {
     if (!process.env.REDIS_URL) {
-        console.log('⚠️  Redis non configurato. Rate limiter userà memoria locale (non distribuito).');
+        logger.warn('Redis', 'Redis non configurato. Rate limiter userà memoria locale (non distribuito).');
         return false;
     }
 
@@ -31,7 +32,7 @@ const initRedis = async () => {
                 reconnectStrategy: (retries) => {
                     // Riconnessione esponenziale: 50ms, 100ms, 200ms, 400ms, max 3000ms
                     const delay = Math.min(retries * 50, 3000);
-                    console.log(`🔄 Tentativo riconnessione Redis (${retries}): ${delay}ms`);
+                    logger.info('Redis', `Tentativo riconnessione (${retries}): ${delay}ms`);
                     return delay;
                 },
                 connectTimeout: 5000, // 5 secondi timeout
@@ -40,26 +41,26 @@ const initRedis = async () => {
 
         // Gestione errori
         redisClient.on('error', (err) => {
-            console.error('❌ Errore Redis:', err.message);
+            logger.error('Redis', 'Errore Redis', err);
             isRedisAvailable = false;
         });
 
         redisClient.on('connect', () => {
-            console.log('🔴 Connessione Redis in corso...');
+            logger.info('Redis', 'Connessione Redis in corso...');
         });
 
         redisClient.on('ready', () => {
-            console.log('✅ Redis connesso e pronto');
+            logger.success('Redis', 'Redis connesso e pronto');
             isRedisAvailable = true;
         });
 
         redisClient.on('reconnecting', () => {
-            console.log('🔄 Riconnessione a Redis...');
+            logger.info('Redis', 'Riconnessione a Redis...');
             isRedisAvailable = false;
         });
 
         redisClient.on('end', () => {
-            console.log('🔴 Connessione Redis chiusa');
+            logger.info('Redis', 'Connessione Redis chiusa');
             isRedisAvailable = false;
         });
 
@@ -67,8 +68,8 @@ const initRedis = async () => {
         await redisClient.connect();
         return true;
     } catch (error) {
-        console.error('❌ Impossibile connettersi a Redis:', error.message);
-        console.log('⚠️  Rate limiter userà memoria locale come fallback');
+        logger.error('Redis', 'Impossibile connettersi a Redis', error);
+        logger.warn('Redis', 'Rate limiter userà memoria locale come fallback');
         isRedisAvailable = false;
         return false;
     }
@@ -81,9 +82,9 @@ const closeRedis = async () => {
     if (redisClient) {
         try {
             await redisClient.quit();
-            console.log('🔴 Connessione Redis chiusa correttamente');
+            logger.success('Redis', 'Connessione Redis chiusa correttamente');
         } catch (error) {
-            console.error('❌ Errore chiusura Redis:', error.message);
+            logger.error('Redis', 'Errore chiusura Redis', error);
         } finally {
             redisClient = null;
             isRedisAvailable = false;

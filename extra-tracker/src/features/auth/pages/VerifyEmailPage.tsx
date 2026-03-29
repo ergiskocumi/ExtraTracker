@@ -35,9 +35,9 @@ export const VerifyEmailPage = () => {
                     setStatus('error');
                     setMessage('Token non valido o scaduto.');
                 }
-            } catch (err: any) {
+            } catch (err: unknown) {
                 setStatus('error');
-                setMessage(err.response?.data?.error?.message || 'Errore durante la verifica.');
+                setMessage((err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message || 'Errore durante la verifica.');
             }
         };
 

@@ -17,12 +17,12 @@ export default defineConfig({
       '@tiptap/starter-kit',
     ],
     alias: {
+      '@': path.resolve(__dirname, 'src'),
       react: path.resolve(__dirname, 'node_modules/react'),
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
       'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime.js'),
       'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime.js'),
       'framer-motion': path.resolve(__dirname, 'node_modules/framer-motion'),
-      '~landing': path.resolve(__dirname, 'landing/src'),
     },
   },
   define: {

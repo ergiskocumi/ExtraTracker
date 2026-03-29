@@ -25,10 +25,6 @@ vi.mock('../../components/Modals/ExamSolver', () => ({
     ExamSolverModal: () => null,
 }));
 
-vi.mock('../../components/Deck/DeckSettings', () => ({
-    DeckSettings: () => null,
-}));
-
 vi.mock('../../../../shared/components/ConfirmationModal', () => ({
     ConfirmationModal: () => null,
 }));

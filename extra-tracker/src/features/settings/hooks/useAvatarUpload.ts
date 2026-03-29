@@ -58,7 +58,7 @@ interface UseAvatarUploadReturn {
     clearError: () => void;
     
     // Refs
-    inputRef: React.RefObject<HTMLInputElement>;
+    inputRef: React.RefObject<HTMLInputElement | null>;
     
     // Stati booleani
     hasPreview: boolean;

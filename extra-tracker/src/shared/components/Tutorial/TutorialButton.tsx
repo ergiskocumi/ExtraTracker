@@ -23,7 +23,7 @@ export const TutorialButton: React.FC<TutorialButtonProps> = ({
     variant = 'default',
     className = '',
 }) => {
-    const { startTutorial, isTutorialCompleted, state } = useTutorial();
+    const { startTutorial, isTutorialCompleted: _isTutorialCompleted, state } = useTutorial();
     const isActive = state.currentTutorial === tutorialId;
 
     const handleClick = () => {

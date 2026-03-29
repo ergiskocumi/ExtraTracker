@@ -8,7 +8,7 @@
  * - Focus management e accessibility
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Card, ReviewRating } from '../../services/studyService';
 
@@ -34,15 +34,60 @@ export const TypingView: React.FC<TypingViewProps> = ({
     const [value, setValue] = useState('');
     const [status, setStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
     const [feedback, setFeedback] = useState('');
+    const [similarity, setSimilarity] = useState<number | null>(null);
     const [isChecking, setIsChecking] = useState(false);
     const [isExiting, setIsExiting] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const timeoutRef = useRef<number | null>(null);
+    const rafRef = useRef<number | null>(null);
+    const debounceRef = useRef<number | null>(null);
+    const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+
+    // Mobile keyboard: aggiusta l'altezza usando visualViewport (con rAF per Android)
+    // o window.innerHeight come fallback debounced.
+    useEffect(() => {
+        const vv = window.visualViewport;
+
+        const applyHeight = (h: number) => {
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            rafRef.current = requestAnimationFrame(() => setViewportHeight(h));
+        };
+
+        if (vv) {
+            // Leggi subito al mount (gestisce tastiera già aperta)
+            applyHeight(vv.height);
+            const onResize = () => applyHeight(vv.height);
+            vv.addEventListener('resize', onResize);
+            return () => {
+                vv.removeEventListener('resize', onResize);
+                if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            };
+        } else {
+            // Fallback: window.innerHeight con debounce 100ms
+            const onResize = () => {
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+                debounceRef.current = window.setTimeout(() => {
+                    setViewportHeight(window.innerHeight);
+                }, 100);
+            };
+            window.addEventListener('resize', onResize);
+            return () => {
+                window.removeEventListener('resize', onResize);
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+            };
+        }
+    }, []);
+
+    const rootStyle = useMemo(
+        () => viewportHeight != null ? { height: `${viewportHeight}px` } : undefined,
+        [viewportHeight]
+    );
 
     useEffect(() => {
         setValue('');
         setStatus('idle');
         setFeedback('');
+        setSimilarity(null);
         setIsChecking(false);
         setIsExiting(false);
         inputRef.current?.focus();
@@ -74,7 +119,9 @@ export const TypingView: React.FC<TypingViewProps> = ({
         try {
             const result = await onVerify(trimmed);
             const isCorrect = result.correct;
+            const sim = typeof result.similarity === 'number' ? result.similarity : null;
             setStatus(isCorrect ? 'correct' : 'wrong');
+            setSimilarity(sim);
             setFeedback(isCorrect ? 'Esatto!' : 'Non proprio.');
 
             const rating: ReviewRating = isCorrect ? 5 : 1;
@@ -109,7 +156,7 @@ export const TypingView: React.FC<TypingViewProps> = ({
                 : 'border-white/10 bg-white/[0.04] text-white/90 focus:ring-indigo-500/40';
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-4 h-full flex flex-col">
+        <div className="w-full max-w-4xl mx-auto px-4 h-full flex flex-col" style={rootStyle}>
             {/* Card Container - Flex grow per occupare spazio disponibile */}
             <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl overflow-hidden">
                 
@@ -201,13 +248,22 @@ export const TypingView: React.FC<TypingViewProps> = ({
                                         transition={{ duration: 0.2 }}
                                         className="rounded-2xl border border-rose-500/20 bg-rose-500/10 overflow-hidden"
                                     >
-                                        <div className="px-6 py-3 border-b border-rose-500/20">
+                                        <div className="px-6 py-3 border-b border-rose-500/20 flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2 text-rose-200/70 text-sm uppercase tracking-[0.15em]">
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
                                                 La risposta corretta era
                                             </div>
+                                            {similarity !== null && (
+                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                                                    similarity >= 0.8
+                                                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                                                        : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                                                }`}>
+                                                    Somiglianza: {Math.round(similarity * 100)}%
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="px-6 py-4 bg-rose-500/5">
                                             <p className="text-white text-lg font-medium break-words">{answer}</p>
@@ -229,7 +285,14 @@ export const TypingView: React.FC<TypingViewProps> = ({
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                             </svg>
                                         </div>
-                                        <span className="text-base text-emerald-200 font-medium">{feedback}</span>
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            <span className="text-base text-emerald-200 font-medium">{feedback}</span>
+                                            {similarity !== null && (
+                                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                                    {Math.round(similarity * 100)}% preciso
+                                                </span>
+                                            )}
+                                        </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>

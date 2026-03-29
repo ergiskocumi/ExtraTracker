@@ -34,8 +34,7 @@ describe('CinemaLayout theme contract', () => {
             <BrowserRouter>
                 <CinemaLayout
                     deck={mockDeck}
-                    pdfSrc={mockDeck.pdfUrl}
-                    onAddCard={vi.fn()}
+                    pdfSrc={mockDeck.pdfUrl ?? null}
                     onUpdateCard={vi.fn()}
                 />
             </BrowserRouter>
@@ -43,6 +42,6 @@ describe('CinemaLayout theme contract', () => {
 
         expect(container.querySelector('.bg-theme-base')).toBeInTheDocument();
         expect(container.querySelectorAll('.border-theme-default').length).toBeGreaterThanOrEqual(2);
-        expect(container.querySelector('.bg-theme-surface')).toBeInTheDocument();
+        expect(container.querySelector('.bg-theme-elevated')).toBeInTheDocument();
     });
 });

@@ -30,14 +30,14 @@
   /* Text - White to gray scale */
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.85);
-  --text-muted: rgba(255, 255, 255, 0.6);
-  --text-disabled: rgba(255, 255, 255, 0.4);
-  --text-placeholder: rgba(255, 255, 255, 0.35);
+  --text-muted: rgba(255, 255, 255, 0.72);
+  --text-disabled: rgba(255, 255, 255, 0.5);
+  --text-placeholder: rgba(255, 255, 255, 0.42);
   
-  /* Borders */
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.2);
+  /* Borders — alzato per visibilità card in dark mode */
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --border-default: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.26);
   --border-focus: rgba(124, 58, 237, 0.5);
   
   /* Shadows */
@@ -112,9 +112,9 @@
   /* Text - Dark slate for maximum readability */
   --text-primary: #1a1a2e;
   --text-secondary: #253246;
-  --text-muted: #4b5a71;
-  --text-disabled: #7f8ca3;
-  --text-placeholder: #7f8ca3;
+  --text-muted: #3d4f68;
+  --text-disabled: #5d6e87;
+  --text-placeholder: #6b7c96;
   
   /* Borders - Stronger for better element recognition */
   --border-subtle: rgba(15, 23, 42, 0.1);
@@ -166,8 +166,10 @@
   /* Selection */
   --selection-bg: rgba(124, 58, 237, 0.25);
   --selection-text: #1a1a2e;
-
 }
+/* ============================================
+   BASE STYLES
+   ============================================ */
 
 @layer base {
   * {
@@ -249,52 +251,6 @@
     animation: aurora-flow 20s ease-in-out infinite;
   }
   
-  /* Aurora Animation */
-  @keyframes aurora-flow {
-    0%, 100% {
-      filter: hue-rotate(0deg) brightness(1);
-    }
-    25% {
-      filter: hue-rotate(5deg) brightness(1.05);
-    }
-    50% {
-      filter: hue-rotate(0deg) brightness(1.1);
-    }
-    75% {
-      filter: hue-rotate(-5deg) brightness(1.05);
-    }
-  }
-
-  ::selection {
-    background: var(--selection-bg);
-    color: var(--selection-text);
-  }
-
-  /* Custom Scrollbar - theme aware */
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    @apply rounded-full;
-    transition: background-color 0.2s;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
-  }
-
   /* Prevenire scrollbar orizzontale globale */
   html, body {
     overflow-x: hidden;
@@ -319,17 +275,42 @@
     scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
-  /* Scrollbar nascosta su mobile */
-  @media (max-width: 640px) {
-    .custom-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .custom-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
+  ::selection {
+    background: var(--selection-bg);
+    color: var(--selection-text);
+  }
+
+  /* ============================================
+     FOCUS VISIBILE ACCESSIBILE
+     ============================================ */
+  
+  /* Focus visibile con ring per accessibilità tastiera */
+  :focus-visible {
+    outline: 2px solid var(--color-primary, hsl(265 89% 58%));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Rimuovi outline solo per mouse/touch */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Focus specifico per elementi interattivi */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--color-primary, hsl(265 89% 58%));
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px var(--color-primary-500, hsl(265 89% 58%)) / 20%;
   }
 }
+/* ============================================
+   COMPONENT STYLES - Theme Aware
+   ============================================ */
 
 @layer components {
   /* ============================================
@@ -530,7 +511,7 @@
     background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%);
     color: white;
     box-shadow: 0 4px 16px -4px rgba(124, 58, 237, 0.4);
-    border-radius: 1rem; /* bordi arrotondati (rounded-2xl) */
+    border-radius: 1rem;
   }
 
   .btn-primary:hover {
@@ -889,37 +870,50 @@
     }
   }
 }
+/* ============================================
+   SCROLLBAR STYLES - Consolidated
+   ============================================ */
+
+@layer base {
+  /* Custom Scrollbar - theme aware (base) */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    @apply rounded-full;
+    transition: background-color 0.2s;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  /* Scrollbar nascosta su mobile */
+  @media (max-width: 640px) {
+    .custom-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .custom-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  }
+}
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  /* Screen reader only - accessible but visually hidden */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border-width: 0;
-  }
-
-  .not-sr-only {
-    position: static;
-    width: auto;
-    height: auto;
-    padding: 0;
-    margin: 0;
-    overflow: visible;
-    clip: auto;
-    white-space: normal;
-  }
-
-  /* Custom scrollbar for dark theme */
+  /* Thin scrollbar with purple accent */
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: rgba(124, 58, 237, 0.3) transparent;
@@ -1007,6 +1001,39 @@
   .scrollbar-pdf::-webkit-scrollbar-thumb:active {
     background: linear-gradient(180deg, rgba(196, 181, 253, 0.8) 0%, rgba(167, 139, 250, 0.8) 100%);
   }
+}
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Screen reader only - accessible but visually hidden */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .not-sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
 
   /* Glass border effect */
   .border-glow {
@@ -1015,6 +1042,49 @@
                 linear-gradient(135deg, rgba(124, 58, 237, 0.5), rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.5)) border-box;
   }
 }
+
+/* ====================================
+   LIST STYLES - Custom Numbering
+   ==================================== */
+
+ol {
+  counter-reset: list-counter 0;
+}
+
+ol li {
+  counter-increment: list-counter 1;
+  list-style-type: none;
+  padding-left: 0;
+  position: relative;
+}
+
+ol li::before {
+  content: counter(list-counter) ". ";
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-right: 0.5em;
+  display: inline-block;
+  min-width: 1.5em;
+}
+
+/* Nested lists - reset per sottoliste */
+ol ol {
+  counter-reset: list-counter2 0;
+  margin-left: 2em;
+}
+
+ol ol li {
+  counter-increment: list-counter2 1;
+}
+
+ol ol li::before {
+  content: counter(list-counter) "." counter(list-counter2) ". ";
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+/* ====================================
+   VENDOR OVERRIDES
+   ==================================== */
 
 /* ====================================
    DATE & TIME PICKER STYLES
@@ -1099,147 +1169,147 @@ input[type="month"] {
    ==================================== */
 
 .react-datepicker {
-  font-family: 'Inter', system-ui, sans-serif !important;
-  background: var(--bg-elevated) !important;
-  border: 1px solid var(--border-default) !important;
-  border-radius: 16px !important;
-  box-shadow: var(--shadow-lg) !important;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   padding: 8px;
 }
 
 .react-datepicker-popper {
-  z-index: 9999 !important;
+  z-index: 9999;
 }
 
 .react-datepicker__header {
-  background: transparent !important;
-  border-bottom: 1px solid var(--border-subtle) !important;
-  padding: 12px 8px !important;
+  background: transparent;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 12px 8px;
 }
 
 .react-datepicker__current-month {
-  color: var(--text-primary) !important;
-  font-size: 1rem !important;
-  font-weight: 600 !important;
-  margin-bottom: 8px !important;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
   text-transform: capitalize;
 }
 
 .react-datepicker__day-names {
-  margin-top: 8px !important;
+  margin-top: 8px;
 }
 
 .react-datepicker__day-name {
-  color: var(--text-muted) !important;
-  font-size: 0.75rem !important;
-  font-weight: 500 !important;
-  width: 2.5rem !important;
-  line-height: 2.5rem !important;
-  margin: 2px !important;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  width: 2.5rem;
+  line-height: 2.5rem;
+  margin: 2px;
   text-transform: uppercase;
 }
 
 .react-datepicker__month {
-  margin: 8px !important;
+  margin: 8px;
 }
 
 .react-datepicker__day {
-  color: var(--text-primary) !important;
-  font-size: 0.875rem !important;
-  font-weight: 400 !important;
-  width: 2.5rem !important;
-  line-height: 2.5rem !important;
-  margin: 2px !important;
-  border-radius: 10px !important;
-  transition: all 0.15s ease !important;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 400;
+  width: 2.5rem;
+  line-height: 2.5rem;
+  margin: 2px;
+  border-radius: 10px;
+  transition: all 0.15s ease;
 }
 
 .react-datepicker__day:hover {
-  background: var(--bg-surface-hover) !important;
-  color: var(--text-primary) !important;
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
 }
 
 .react-datepicker__day--selected,
 .react-datepicker__day--keyboard-selected {
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%) !important;
-  color: white !important;
-  font-weight: 600 !important;
-  box-shadow: 0 0 15px rgba(124, 58, 237, 0.4) !important;
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
 }
 
 .react-datepicker__day--selected:hover,
 .react-datepicker__day--keyboard-selected:hover {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-400) 100%) !important;
+  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-400) 100%);
 }
 
 .react-datepicker__day--today {
-  border: 2px solid var(--primary-500) !important;
-  font-weight: 600 !important;
+  border: 2px solid var(--primary-500);
+  font-weight: 600;
 }
 
 .react-datepicker__day--outside-month {
-  color: var(--text-disabled) !important;
+  color: var(--text-disabled);
 }
 
 .react-datepicker__day--outside-month:hover {
-  background: var(--bg-surface) !important;
+  background: var(--bg-surface);
 }
 
 .react-datepicker__day--disabled {
-  color: var(--text-disabled) !important;
-  cursor: not-allowed !important;
+  color: var(--text-disabled);
+  cursor: not-allowed;
 }
 
 .react-datepicker__day--disabled:hover {
-  background: transparent !important;
+  background: transparent;
 }
 
 .react-datepicker__navigation {
-  top: 16px !important;
+  top: 16px;
 }
 
 .react-datepicker__navigation-icon::before {
-  border-color: var(--text-muted) !important;
-  border-width: 2px 2px 0 0 !important;
-  height: 8px !important;
-  width: 8px !important;
+  border-color: var(--text-muted);
+  border-width: 2px 2px 0 0;
+  height: 8px;
+  width: 8px;
 }
 
 .react-datepicker__navigation:hover .react-datepicker__navigation-icon::before {
-  border-color: var(--primary-500) !important;
+  border-color: var(--primary-500);
 }
 
 .react-datepicker__triangle {
-  display: none !important;
+  display: none;
 }
 
 .react-datepicker__week-number {
-  color: var(--text-disabled) !important;
-  font-size: 0.75rem !important;
+  color: var(--text-disabled);
+  font-size: 0.75rem;
 }
 
 .react-datepicker__year-dropdown,
 .react-datepicker__month-dropdown {
-  background: var(--bg-elevated) !important;
-  border: 1px solid var(--border-default) !important;
-  border-radius: 8px !important;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
 }
 
 .react-datepicker__year-option,
 .react-datepicker__month-option {
-  color: var(--text-primary) !important;
-  padding: 8px 16px !important;
+  color: var(--text-primary);
+  padding: 8px 16px;
 }
 
 .react-datepicker__year-option:hover,
 .react-datepicker__month-option:hover {
-  background: var(--bg-surface-hover) !important;
+  background: var(--bg-surface-hover);
 }
 
 .react-datepicker__year-option--selected,
 .react-datepicker__month-option--selected {
-  background: rgba(124, 58, 237, 0.2) !important;
+  background: rgba(124, 58, 237, 0.2);
 }
 
 .react-datepicker-wrapper {
@@ -1252,36 +1322,36 @@ input[type="month"] {
 
 /* Month picker specific */
 .react-datepicker__month-wrapper {
-  display: flex !important;
-  justify-content: space-around !important;
+  display: flex;
+  justify-content: space-around;
 }
 
 .react-datepicker__month-text {
-  color: var(--text-primary) !important;
-  font-size: 0.875rem !important;
-  font-weight: 500 !important;
-  padding: 10px 16px !important;
-  margin: 4px !important;
-  border-radius: 10px !important;
-  transition: all 0.15s ease !important;
-  text-transform: capitalize !important;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 10px 16px;
+  margin: 4px;
+  border-radius: 10px;
+  transition: all 0.15s ease;
+  text-transform: capitalize;
 }
 
 .react-datepicker__month-text:hover {
-  background: var(--bg-surface-hover) !important;
+  background: var(--bg-surface-hover);
 }
 
 .react-datepicker__month-text--selected,
 .react-datepicker__month-text--keyboard-selected {
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%) !important;
-  color: white !important;
-  font-weight: 600 !important;
-  box-shadow: 0 0 15px rgba(124, 58, 237, 0.4) !important;
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
 }
 
 .react-datepicker__month-text--today {
-  border: 2px solid var(--primary-500) !important;
-  font-weight: 600 !important;
+  border: 2px solid var(--primary-500);
+  font-weight: 600;
 }
 
 /* ====================================
@@ -1300,8 +1370,8 @@ input[type="month"] {
 
 /* Maschera sfumata rotelle (usa colore tema) */
 .wheel-date-picker > div {
-  mask-image: linear-gradient(to top, transparent, transparent 5%, var(--wheel-bg) 20%, var(--wheel-bg) 80%, transparent 95%, transparent) !important;
-  -webkit-mask-image: linear-gradient(to top, transparent, transparent 5%, var(--wheel-bg) 20%, var(--wheel-bg) 80%, transparent 95%, transparent) !important;
+  mask-image: linear-gradient(to top, transparent, transparent 5%, var(--wheel-bg) 20%, var(--wheel-bg) 80%, transparent 95%, transparent);
+  -webkit-mask-image: linear-gradient(to top, transparent, transparent 5%, var(--wheel-bg) 20%, var(--wheel-bg) 80%, transparent 95%, transparent);
 }
 
 .wheel-date-picker .wheel-date-picker-item {
@@ -1321,92 +1391,9 @@ input[type="month"] {
 
 /* Riga selezionata: sfondo a tutta larghezza (stile iOS) */
 .wheel-date-picker div:has(> .wheel-date-picker-item--selected) {
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%) !important;
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%);
   border-radius: 0.75rem;
   box-shadow: 0 2px 12px rgba(124, 58, 237, 0.3);
-}
-
-/* ====================================
-   ANIMATIONS
-   ==================================== */
-
-@keyframes dropdown-appear {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-dropdown {
-  animation: dropdown-appear 0.15s ease-out;
-}
-
-/* ====================================
-   MOBILE-SPECIFIC STYLES
-   ==================================== */
-
-@media (max-width: 640px) {
-  /* Form card più compatta su mobile */
-  .auth-form-card {
-    padding: 1.25rem !important;
-    border-radius: 1rem !important;
-  }
-
-  /* Logo più piccolo ma ancora visibile su mobile */
-  .auth-logo-mobile {
-    transform: scale(0.85);
-  }
-
-  /* Spaziatura ridotta tra elementi su mobile */
-  .auth-spacing-mobile {
-    margin-bottom: 1rem !important;
-  }
-
-  /* Testi più leggibili su mobile */
-  .auth-text-mobile {
-    font-size: 0.875rem;
-    line-height: 1.5;
-  }
-
-  /* Pulsanti full-width su mobile per migliore accessibilità */
-  .auth-button-mobile {
-    width: 100%;
-    padding: 0.875rem 1rem;
-    font-size: 1rem;
-  }
-  
-  /* Input fields più grandi su mobile per migliore UX touch */
-  input[type="email"],
-  input[type="password"],
-  input[type="text"],
-  input[type="tel"],
-  input[type="url"],
-  input[type="search"],
-  textarea,
-  select {
-    font-size: 16px !important;
-    -webkit-appearance: none;
-    border-radius: 0.75rem;
-    min-height: 44px !important;
-  }
-
-  /* Textarea specifico - più alto su mobile */
-  textarea {
-    min-height: 88px !important;
-    padding-top: 12px !important;
-    padding-bottom: 12px !important;
-  }
-
-  /* Migliora il touch target size su mobile */
-  button,
-  a {
-    min-height: 44px;
-    min-width: 44px;
-  }
 }
 
 /* ====================================
@@ -1414,19 +1401,19 @@ input[type="month"] {
    ==================================== */
 
 .react-pdf__Page {
-  min-width: 100% !important;
-  width: 100% !important;
+  min-width: 100%;
+  width: 100%;
   position: relative;
 }
 
 .react-pdf__Page__canvas {
-  width: 100% !important;
-  height: auto !important;
-  display: block !important;
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .react-pdf__Page__textContent {
-  transform: scale(1) !important;
+  transform: scale(1);
   position: absolute;
   left: 0;
   top: 0;
@@ -1465,46 +1452,101 @@ input[type="month"] {
   background: rgba(139, 92, 246, 0.3);
   color: transparent;
 }
-
 /* ====================================
-   LIST STYLES - Custom Numbering
+   ANIMATIONS
    ==================================== */
 
-ol {
-  counter-reset: list-counter 0;
+/* ====================================
+   KEYFRAMES
+   ==================================== */
+
+/* Aurora Animation */
+@keyframes aurora-flow {
+  0%, 100% {
+    filter: hue-rotate(0deg) brightness(1);
+  }
+  25% {
+    filter: hue-rotate(5deg) brightness(1.05);
+  }
+  50% {
+    filter: hue-rotate(0deg) brightness(1.1);
+  }
+  75% {
+    filter: hue-rotate(-5deg) brightness(1.05);
+  }
 }
 
-ol li {
-  counter-increment: list-counter 1;
-  list-style-type: none;
-  padding-left: 0;
-  position: relative;
+/* Confetti Animation */
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, -100%, 0) rotateZ(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, 110vh, 0) rotateZ(360deg);
+    opacity: 0;
+  }
 }
 
-ol li::before {
-  content: counter(list-counter) ". ";
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-right: 0.5em;
-  display: inline-block;
-  min-width: 1.5em;
+/* Dropdown Animation */
+@keyframes dropdown-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Nested lists - reset per sottoliste */
-ol ol {
-  counter-reset: list-counter2 0;
-  margin-left: 2em;
+/* Cinema Page Animations */
+@keyframes cinema-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-ol ol li {
-  counter-increment: list-counter2 1;
+@keyframes cinema-content-slide {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-ol ol li::before {
-  content: counter(list-counter) "." counter(list-counter2) ". ";
-  font-weight: 600;
-  color: var(--text-secondary);
+/* ====================================
+   ANIMATION CLASSES
+   ==================================== */
+
+.animate-confetti-fall {
+  animation: confetti-fall 2.8s ease-out forwards;
 }
+
+.animate-dropdown {
+  animation: dropdown-appear 0.15s ease-out;
+}
+
+.cinema-layout-enter {
+  animation: cinema-enter 0.2s ease-out both;
+}
+
+.cinema-content-enter {
+  animation: cinema-content-slide 0.25s ease-out 0.05s both;
+}
+
+/* ====================================
+   REDUCED MOTION SUPPORT
+   ==================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+/* ====================================
+   LIGHT THEME SPECIFIC FIXES & OVERRIDES
+   ==================================== */
 
 /* ====================================
    LIGHT THEME SPECIFIC FIXES
@@ -1548,15 +1590,15 @@ ol ol li::before {
 
 /* Settings page – titolo e indicatore attivo in violet/primary solo in light */
 [data-theme="light"] .settings-page-title {
-  background: linear-gradient(to right, var(--primary-500), var(--primary-600)) !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  color: transparent !important;
+  background: linear-gradient(to right, var(--primary-500), var(--primary-600));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 [data-theme="light"] .settings-sidebar-active-dot {
-  background: linear-gradient(135deg, var(--primary-500), var(--primary-600)) !important;
-  box-shadow: 0 0 10px rgba(124, 58, 237, 0.5) !important;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.5);
 }
 
 /* ====================================
@@ -1605,34 +1647,34 @@ ol ol li::before {
 }
 
 [data-theme="light"] .weekly-calendar-day-cell--default {
-  border: 1px solid var(--border-default) !important;
-  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
 }
 
 [data-theme="light"] .weekly-calendar-day-cell--default:hover {
-  background: var(--bg-surface-hover) !important;
-  border-color: var(--border-strong) !important;
+  background: var(--bg-surface-hover);
+  border-color: var(--border-strong);
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
 }
 
 [data-theme="light"] .weekly-calendar-day-cell .weekly-calendar-day-name:not(.text-primary-400) {
-  color: var(--text-muted) !important;
+  color: var(--text-muted);
 }
 
 [data-theme="light"] .weekly-calendar-day-cell .weekly-calendar-day-num {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
 }
 
 [data-theme="light"] .weekly-calendar-day-cell .weekly-calendar-day-bar {
-  background: var(--border-subtle) !important;
+  background: var(--border-subtle);
 }
 
 [data-theme="light"] .weekly-calendar-day-cell .weekly-calendar-day-due:not(.text-orange-400) {
-  color: var(--text-muted) !important;
+  color: var(--text-muted);
 }
 
 [data-theme="light"] .weekly-calendar-day-cell .weekly-calendar-day-extra {
-  color: var(--text-muted) !important;
+  color: var(--text-muted);
 }
 
 /* Flashcard specific */
@@ -1692,10 +1734,62 @@ ol ol li::before {
   border-color: var(--border-default);
 }
 
-/* Focus visible styles */
+/* ============================================
+   FOCUS VISIBLE — WCAG AA compliant
+   ============================================ */
+
+/* Reset: nessun outline di default per click/touch */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Focus visibile per navigazione da tastiera — dark theme (default) */
+*:focus-visible {
+  outline: 2px solid var(--primary-400, #a78bfa);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Focus visibile per navigazione da tastiera — light theme */
 [data-theme="light"] *:focus-visible {
-  outline: 2px solid var(--primary-500);
-  outline-offset: 2px;
+  outline: 2px solid var(--primary-600, #7c3aed);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Componenti con border-radius più grandi: adatta l'outline */
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  border-radius: inherit;
+}
+
+/* Focus ring su bottoni colorati (indigo, rose, emerald, amber, etc.)
+ * Doppio ring: box-shadow bianco interno + outline colorato esterno.
+ * Garantisce contrasto ≥ 3:1 su qualsiasi background (WCAG AA).
+ */
+button:focus-visible[class*="bg-indigo"],
+button:focus-visible[class*="bg-primary"],
+button:focus-visible[class*="bg-rose"],
+button:focus-visible[class*="bg-emerald"],
+button:focus-visible[class*="bg-amber"],
+button:focus-visible[class*="bg-violet"],
+button:focus-visible[class*="bg-blue"] {
+  outline: 2px solid var(--primary-400, #a78bfa);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px white inset;
+}
+
+[data-theme="light"] button:focus-visible[class*="bg-indigo"],
+[data-theme="light"] button:focus-visible[class*="bg-primary"],
+[data-theme="light"] button:focus-visible[class*="bg-rose"],
+[data-theme="light"] button:focus-visible[class*="bg-emerald"],
+[data-theme="light"] button:focus-visible[class*="bg-amber"],
+[data-theme="light"] button:focus-visible[class*="bg-violet"],
+[data-theme="light"] button:focus-visible[class*="bg-blue"] {
+  outline: 2px solid #1e1b4b;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px white inset;
 }
 
 /* ====================================
@@ -1712,7 +1806,7 @@ ol ol li::before {
 }
 
 [data-theme="light"] .time-tracking-grid {
-  opacity: 0.08 !important;
+  opacity: 0.08;
 }
 
 [data-theme="light"] .time-tracking-icon {
@@ -1764,11 +1858,11 @@ ol ol li::before {
 [data-theme="light"] .login-submit-btn {
   border: 1px solid rgba(76, 29, 149, 0.25);
   box-shadow: 0 14px 28px -14px rgba(109, 40, 217, 0.55);
-  color: #ffffff !important;
+  color: #ffffff;
 }
 
 [data-theme="light"] .login-submit-btn.keep-light-text * {
-  color: #ffffff !important;
+  color: #ffffff;
 }
 
 [data-theme="light"] .login-divider span {
@@ -1922,7 +2016,7 @@ ol ol li::before {
 }
 
 [data-theme="light"] .dashboard-page .dashboard-exam-progress-track {
-  background: rgba(15, 23, 42, 0.14) !important;
+  background: rgba(15, 23, 42, 0.14);
 }
 
 [data-theme="light"] .dashboard-page .dashboard-exam-progress-fill {
@@ -1947,7 +2041,7 @@ ol ol li::before {
 [data-theme="light"] .dashboard-page .dashboard-card-cta--accent {
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.24) 0%, rgba(16, 185, 129, 0.36) 100%);
   border-color: rgba(5, 150, 105, 0.44);
-  color: #065f46 !important;
+  color: #065f46;
 }
 
 [data-theme="light"] .dashboard-page .dashboard-card-cta--accent:hover {
@@ -1983,12 +2077,12 @@ ol ol li::before {
 }
 
 [data-theme="light"] .dashboard-page .dashboard-main-cta .keep-light-text {
-  color: #ffffff !important;
+  color: #ffffff;
 }
 
 [data-theme="light"] .dashboard-page .dashboard-main-cta-title,
 [data-theme="light"] .dashboard-page .dashboard-main-cta-subtitle {
-  color: #ffffff !important;
+  color: #ffffff;
 }
 
 /* Study dashboard header action buttons */
@@ -2261,6 +2355,9 @@ ol ol li::before {
 [data-theme="light"] .exam-quick-action-description--subtle {
   color: var(--text-secondary);
 }
+/* ====================================
+   EXAM SOLVER STYLES
+   ==================================== */
 
 /* Exam Solver buttons */
 .exam-solver-btn {
@@ -2531,6 +2628,9 @@ ol ol li::before {
   color: var(--text-secondary);
   border-color: var(--border-default);
 }
+/* ====================================
+   STUDY ORGANIZATION STYLES
+   ==================================== */
 
 /* Organization action buttons */
 .study-org-btn {
@@ -2677,6 +2777,7 @@ ol ol li::before {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
+/* Light theme overrides */
 [data-theme="light"] .study-org-btn--icon {
   color: var(--text-muted);
 }
@@ -2796,6 +2897,114 @@ ol ol li::before {
   color: #64748b;
   border-color: rgba(148, 163, 184, 0.3);
 }
+/* ====================================
+   STUDY SESSION STYLES
+   ==================================== */
+
+/* Study session: shared */
+.study-progress-dot--completed,
+.study-progress-dot--current {
+  background: var(--primary-500);
+}
+
+.study-progress-dot--pending {
+  background: var(--border-default);
+}
+
+[data-theme="dark"] .study-resume-overlay {
+  background: rgba(2, 6, 23, 0.94);
+}
+
+/* Study session: light mode */
+[data-theme="light"] .study-session-root,
+[data-theme="light"] .study-session-overlay {
+  background: var(--gradient-bg);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .study-resume-overlay {
+  background: rgba(242, 246, 252, 0.92);
+}
+
+[data-theme="light"] .study-session-header,
+[data-theme="light"] .study-session-footer {
+  background: rgba(246, 249, 255, 0.92);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .study-resume-panel {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="light"] .study-resume-stats {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+[data-theme="light"] .study-session-timer {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+[data-theme="light"] .study-session-timer--warning {
+  background: rgba(251, 113, 133, 0.16);
+}
+
+[data-theme="light"] .study-progress-track {
+  background: rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] .study-card-face--front {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.98), rgba(244, 247, 255, 0.94));
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="light"] .study-card-face--back {
+  background: linear-gradient(140deg, rgba(248, 250, 255, 0.96), rgba(241, 237, 255, 0.95));
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: 0 16px 34px -18px rgba(76, 29, 149, 0.35);
+}
+
+[data-theme="light"] .study-card-label {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="light"] .study-card-toggle {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .study-card-toggle:hover {
+  background: #ffffff;
+  border-color: var(--border-strong);
+}
+
+[data-theme="light"] .study-card-kbd,
+[data-theme="light"] .study-controls-kbd {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+[data-theme="light"] .study-card-footer-hint,
+[data-theme="light"] .study-card-back-footer {
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .study-controls-option {
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="light"] .study-controls-option:hover {
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme="light"] .study-complete-stat-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--border-default);
+}
+/* ====================================
+   DASHBOARD WIDGETS STYLES
+   ==================================== */
 
 /* Dashboard widgets: QuickStats, WeeklyMiniChart, QuickActions */
 [data-theme="light"] .dashboard-widget {
@@ -2915,141 +3124,11 @@ ol ol li::before {
   border-color: var(--border-default);
   box-shadow: var(--shadow-md);
 }
+/* ====================================
+   TABLES STYLES
+   ==================================== */
 
-@media (max-width: 768px) {
-  [data-theme="light"] .dashboard-page .dashboard-hero-title {
-    letter-spacing: -0.018em;
-    line-height: 1.16;
-  }
-
-  [data-theme="light"] .dashboard-page .dashboard-greeting-subtitle {
-    line-height: 1.42;
-    max-width: 32ch;
-  }
-
-  [data-theme="light"] .dashboard-page .dashboard-section-title {
-    font-size: 0.7rem;
-    letter-spacing: 0.11em;
-  }
-
-  [data-theme="light"] .dashboard-page .dashboard-exam-date,
-  [data-theme="light"] .dashboard-page .dashboard-exam-meta {
-    font-size: 0.72rem;
-  }
-
-  [data-theme="light"] .dashboard-widget .dashboard-widget-title {
-    font-size: 0.93rem;
-  }
-
-  [data-theme="light"] .dashboard-widget .dashboard-meta-text,
-  [data-theme="light"] .dashboard-widget .dashboard-caption-text {
-    line-height: 1.4;
-  }
-}
-
-/* Study session: shared */
-.study-progress-dot--completed,
-.study-progress-dot--current {
-  background: var(--primary-500);
-}
-
-.study-progress-dot--pending {
-  background: var(--border-default);
-}
-
-[data-theme="dark"] .study-resume-overlay {
-  background: rgba(2, 6, 23, 0.94);
-}
-
-/* Study session: light mode */
-[data-theme="light"] .study-session-root,
-[data-theme="light"] .study-session-overlay {
-  background: var(--gradient-bg);
-  color: var(--text-primary);
-}
-
-[data-theme="light"] .study-resume-overlay {
-  background: rgba(242, 246, 252, 0.92);
-}
-
-[data-theme="light"] .study-session-header,
-[data-theme="light"] .study-session-footer {
-  background: rgba(246, 249, 255, 0.92);
-  border-color: var(--border-default);
-}
-
-[data-theme="light"] .study-resume-panel {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: var(--border-default);
-  box-shadow: var(--shadow-lg);
-}
-
-[data-theme="light"] .study-resume-stats {
-  background: rgba(255, 255, 255, 0.86);
-}
-
-[data-theme="light"] .study-session-timer {
-  background: rgba(255, 255, 255, 0.88);
-}
-
-[data-theme="light"] .study-session-timer--warning {
-  background: rgba(251, 113, 133, 0.16);
-}
-
-[data-theme="light"] .study-progress-track {
-  background: rgba(15, 23, 42, 0.12);
-}
-
-[data-theme="light"] .study-card-face--front {
-  background: linear-gradient(140deg, rgba(255, 255, 255, 0.98), rgba(244, 247, 255, 0.94));
-  border-color: var(--border-default);
-  box-shadow: var(--shadow-lg);
-}
-
-[data-theme="light"] .study-card-face--back {
-  background: linear-gradient(140deg, rgba(248, 250, 255, 0.96), rgba(241, 237, 255, 0.95));
-  border-color: rgba(124, 58, 237, 0.3);
-  box-shadow: 0 16px 34px -18px rgba(76, 29, 149, 0.35);
-}
-
-[data-theme="light"] .study-card-label {
-  background: rgba(255, 255, 255, 0.9);
-}
-
-[data-theme="light"] .study-card-toggle {
-  background: rgba(255, 255, 255, 0.92);
-  border-color: var(--border-default);
-}
-
-[data-theme="light"] .study-card-toggle:hover {
-  background: #ffffff;
-  border-color: var(--border-strong);
-}
-
-[data-theme="light"] .study-card-kbd,
-[data-theme="light"] .study-controls-kbd {
-  background: rgba(255, 255, 255, 0.88);
-}
-
-[data-theme="light"] .study-card-footer-hint,
-[data-theme="light"] .study-card-back-footer {
-  color: var(--text-secondary);
-}
-
-[data-theme="light"] .study-controls-option {
-  box-shadow: var(--shadow-sm);
-}
-
-[data-theme="light"] .study-controls-option:hover {
-  box-shadow: var(--shadow-md);
-}
-
-[data-theme="light"] .study-complete-stat-card {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: var(--border-default);
-}
-
-/* Tables */
+/* Tables - Light theme */
 [data-theme="light"] .table-modern {
   background: rgba(255, 255, 255, 0.94);
   border-color: var(--border-default);
@@ -3091,7 +3170,247 @@ ol ol li::before {
   outline: 2px solid rgba(124, 58, 237, 0.25);
   outline-offset: -2px;
 }
+/* ============================================
+   LANDING PAGE STYLES
+   ============================================ */
 
+:root {
+  --landing-bg: #0a0a1a;
+  --landing-text: #f8fafc;
+  --landing-text-secondary: rgba(248, 250, 252, 0.82);
+  --landing-text-muted: rgba(248, 250, 252, 0.58);
+  --landing-surface: rgba(12, 12, 30, 0.92);
+  --landing-surface-strong: rgba(16, 16, 36, 0.96);
+  --landing-border: rgba(255, 255, 255, 0.14);
+  --landing-border-soft: rgba(255, 255, 255, 0.08);
+  --landing-shadow: 0 18px 38px -22px rgba(2, 6, 23, 0.5);
+  --landing-shadow-strong: 0 28px 55px -30px rgba(2, 6, 23, 0.6);
+  --landing-focus: rgba(124, 58, 237, 0.4);
+}
+
+[data-theme="light"] {
+  --landing-bg: #f2f6fc;
+  --landing-text: #111827;
+  --landing-text-secondary: #334155;
+  --landing-text-muted: #5b6b84;
+  --landing-surface: rgba(255, 255, 255, 0.9);
+  --landing-surface-strong: rgba(255, 255, 255, 0.96);
+  --landing-border: rgba(15, 23, 42, 0.18);
+  --landing-border-soft: rgba(15, 23, 42, 0.1);
+  --landing-shadow: 0 20px 42px -28px rgba(15, 23, 42, 0.34);
+  --landing-shadow-strong: 0 26px 50px -26px rgba(15, 23, 42, 0.36);
+  --landing-focus: rgba(124, 58, 237, 0.32);
+}
+
+/* Landing light theme (scoped to .landing-root) */
+[data-theme="light"] .landing-root { 
+  color: var(--landing-text); 
+  background: var(--landing-bg); 
+}
+
+[data-theme="light"] .landing-header { 
+  background: rgba(255, 255, 255, 0.86); 
+  border-bottom: 1px solid var(--landing-border); 
+  backdrop-filter: blur(14px); 
+}
+
+[data-theme="light"] .landing-root [class*="bg-dark-"] { 
+  background-color: var(--landing-surface); 
+}
+
+[data-theme="light"] .landing-root [class*="border-white/10"],
+[data-theme="light"] .landing-root [class*="border-white/5"] { 
+  border-color: var(--landing-border-soft); 
+}
+
+[data-theme="light"] .landing-root [class*="text-white/"] { 
+  color: var(--landing-text-secondary); 
+}
+
+[data-theme="light"] .landing-root [class*="text-white"] { 
+  color: var(--landing-text); 
+}
+
+[data-theme="light"] .landing-root h1,
+[data-theme="light"] .landing-root h2,
+[data-theme="light"] .landing-root h3,
+[data-theme="light"] .landing-root h4 { 
+  color: var(--landing-text); 
+}
+
+[data-theme="light"] .landing-root p { 
+  color: var(--landing-text-secondary); 
+}
+
+[data-theme="light"] .landing-nav-link { 
+  color: var(--landing-text-muted); 
+}
+
+[data-theme="light"] .landing-nav-link:hover { 
+  color: var(--landing-text); 
+}
+
+[data-theme="light"] .landing-primary-btn { 
+  border-color: rgba(76, 29, 149, 0.22); 
+  box-shadow: 0 16px 34px -20px rgba(109, 40, 217, 0.55); 
+}
+
+[data-theme="light"] .landing-secondary-btn { 
+  background: rgba(255, 255, 255, 0.9); 
+  color: var(--landing-text); 
+  border-color: var(--landing-border); 
+  box-shadow: var(--landing-shadow); 
+}
+
+[data-theme="light"] .landing-icon-btn { 
+  border: 1px solid var(--landing-border-soft); 
+  border-radius: 0.7rem; 
+  background: rgba(255, 255, 255, 0.74); 
+  box-shadow: var(--landing-shadow); 
+}
+
+[data-theme="light"] .landing-mobile-panel { 
+  background: rgba(255, 255, 255, 0.88); 
+  border-top-color: var(--landing-border-soft); 
+}
+
+[data-theme="light"] .landing-surface-card { 
+  background: var(--landing-surface); 
+  border-color: var(--landing-border-soft); 
+  box-shadow: var(--landing-shadow); 
+}
+
+[data-theme="light"] .landing-feature-tab { 
+  background: rgba(255, 255, 255, 0.85); 
+  border-color: var(--landing-border-soft); 
+  color: var(--landing-text-secondary); 
+}
+
+[data-theme="light"] .landing-feature-tab.landing-feature-tab--active { 
+  background: rgba(124, 58, 237, 0.14); 
+  border-color: rgba(124, 58, 237, 0.36); 
+  color: #4c1d95; 
+}
+
+[data-theme="light"] .landing-preview-shell { 
+  background: var(--landing-surface-strong); 
+  border-color: var(--landing-border); 
+  box-shadow: var(--landing-shadow-strong); 
+}
+
+[data-theme="light"] .landing-pricing-card { 
+  border: 1px solid var(--landing-border-soft); 
+  box-shadow: var(--landing-shadow); 
+}
+
+[data-theme="light"] .landing-cta-panel { 
+  border: 1px solid var(--landing-border); 
+  background: rgba(255, 255, 255, 0.82); 
+  box-shadow: var(--landing-shadow-strong); 
+}
+
+[data-theme="light"] .landing-footer { 
+  border-top-color: var(--landing-border-soft); 
+  background: rgba(255, 255, 255, 0.64); 
+}
+/* ====================================
+   MOBILE-SPECIFIC STYLES
+   ==================================== */
+
+@media (max-width: 640px) {
+  /* Form card più compatta su mobile */
+  .auth-form-card {
+    padding: 1.25rem;
+    border-radius: 1rem;
+  }
+
+  /* Logo più piccolo ma ancora visibile su mobile */
+  .auth-logo-mobile {
+    transform: scale(0.85);
+  }
+
+  /* Spaziatura ridotta tra elementi su mobile */
+  .auth-spacing-mobile {
+    margin-bottom: 1rem;
+  }
+
+  /* Testi più leggibili su mobile */
+  .auth-text-mobile {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  /* Pulsanti full-width su mobile per migliore accessibilità */
+  .auth-button-mobile {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+  }
+  
+  /* Input fields più grandi su mobile per migliore UX touch */
+  input[type="email"],
+  input[type="password"],
+  input[type="text"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px;
+    -webkit-appearance: none;
+    border-radius: 0.75rem;
+    min-height: 44px;
+  }
+
+  /* Textarea specifico - più alto su mobile */
+  textarea {
+    min-height: 88px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  /* Migliora il touch target size su mobile */
+  button,
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ====================================
+   MOBILE DASHBOARD RESPONSIVE
+   ==================================== */
+
+@media (max-width: 768px) {
+  [data-theme="light"] .dashboard-page .dashboard-hero-title {
+    letter-spacing: -0.018em;
+    line-height: 1.16;
+  }
+
+  [data-theme="light"] .dashboard-page .dashboard-greeting-subtitle {
+    line-height: 1.42;
+    max-width: 32ch;
+  }
+
+  [data-theme="light"] .dashboard-page .dashboard-section-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.11em;
+  }
+
+  [data-theme="light"] .dashboard-page .dashboard-exam-date,
+  [data-theme="light"] .dashboard-page .dashboard-exam-meta {
+    font-size: 0.72rem;
+  }
+
+  [data-theme="light"] .dashboard-widget .dashboard-widget-title {
+    font-size: 0.93rem;
+  }
+
+  [data-theme="light"] .dashboard-widget .dashboard-meta-text,
+  [data-theme="light"] .dashboard-widget .dashboard-caption-text {
+    line-height: 1.4;
+  }
+}
 /* ====================================
    ACCESSIBILITY IMPROVEMENTS
    ==================================== */
@@ -3131,56 +3450,3 @@ ol ol li::before {
     display: none;
   }
 }
-
-/* ============================================
-   LANDING PAGE (integrated) - CSS variables & theme
-   ============================================ */
-:root {
-  --landing-bg: #0a0a1a;
-  --landing-text: #f8fafc;
-  --landing-text-secondary: rgba(248, 250, 252, 0.82);
-  --landing-text-muted: rgba(248, 250, 252, 0.58);
-  --landing-surface: rgba(12, 12, 30, 0.92);
-  --landing-surface-strong: rgba(16, 16, 36, 0.96);
-  --landing-border: rgba(255, 255, 255, 0.14);
-  --landing-border-soft: rgba(255, 255, 255, 0.08);
-  --landing-shadow: 0 18px 38px -22px rgba(2, 6, 23, 0.5);
-  --landing-shadow-strong: 0 28px 55px -30px rgba(2, 6, 23, 0.6);
-  --landing-focus: rgba(124, 58, 237, 0.4);
-}
-[data-theme="light"] {
-  --landing-bg: #f2f6fc;
-  --landing-text: #111827;
-  --landing-text-secondary: #334155;
-  --landing-text-muted: #5b6b84;
-  --landing-surface: rgba(255, 255, 255, 0.9);
-  --landing-surface-strong: rgba(255, 255, 255, 0.96);
-  --landing-border: rgba(15, 23, 42, 0.18);
-  --landing-border-soft: rgba(15, 23, 42, 0.1);
-  --landing-shadow: 0 20px 42px -28px rgba(15, 23, 42, 0.34);
-  --landing-shadow-strong: 0 26px 50px -26px rgba(15, 23, 42, 0.36);
-  --landing-focus: rgba(124, 58, 237, 0.32);
-}
-/* Landing light theme (scoped to .landing-root) */
-[data-theme="light"] .landing-root { color: var(--landing-text); background: var(--landing-bg); }
-[data-theme="light"] .landing-header { background: rgba(255, 255, 255, 0.86); border-bottom: 1px solid var(--landing-border); backdrop-filter: blur(14px); }
-[data-theme="light"] .landing-root [class*="bg-dark-"] { background-color: var(--landing-surface) !important; }
-[data-theme="light"] .landing-root [class*="border-white/10"],
-[data-theme="light"] .landing-root [class*="border-white/5"] { border-color: var(--landing-border-soft) !important; }
-[data-theme="light"] .landing-root [class*="text-white/"] { color: var(--landing-text-secondary) !important; }
-[data-theme="light"] .landing-root [class*="text-white"] { color: var(--landing-text) !important; }
-[data-theme="light"] .landing-root h1,.landing-root h2,.landing-root h3,.landing-root h4 { color: var(--landing-text) !important; }
-[data-theme="light"] .landing-root p { color: var(--landing-text-secondary); }
-[data-theme="light"] .landing-nav-link { color: var(--landing-text-muted) !important; }
-[data-theme="light"] .landing-nav-link:hover { color: var(--landing-text) !important; }
-[data-theme="light"] .landing-primary-btn { border-color: rgba(76, 29, 149, 0.22) !important; box-shadow: 0 16px 34px -20px rgba(109, 40, 217, 0.55); }
-[data-theme="light"] .landing-secondary-btn { background: rgba(255, 255, 255, 0.9) !important; color: var(--landing-text) !important; border-color: var(--landing-border) !important; box-shadow: var(--landing-shadow); }
-[data-theme="light"] .landing-icon-btn { border: 1px solid var(--landing-border-soft) !important; border-radius: 0.7rem; background: rgba(255, 255, 255, 0.74) !important; box-shadow: var(--landing-shadow); }
-[data-theme="light"] .landing-mobile-panel { background: rgba(255, 255, 255, 0.88); border-top-color: var(--landing-border-soft) !important; }
-[data-theme="light"] .landing-surface-card { background: var(--landing-surface) !important; border-color: var(--landing-border-soft) !important; box-shadow: var(--landing-shadow); }
-[data-theme="light"] .landing-feature-tab { background: rgba(255, 255, 255, 0.85) !important; border-color: var(--landing-border-soft) !important; color: var(--landing-text-secondary) !important; }
-[data-theme="light"] .landing-feature-tab.landing-feature-tab--active { background: rgba(124, 58, 237, 0.14) !important; border-color: rgba(124, 58, 237, 0.36) !important; color: #4c1d95 !important; }
-[data-theme="light"] .landing-preview-shell { background: var(--landing-surface-strong) !important; border-color: var(--landing-border) !important; box-shadow: var(--landing-shadow-strong); }
-[data-theme="light"] .landing-pricing-card { border: 1px solid var(--landing-border-soft); box-shadow: var(--landing-shadow); }
-[data-theme="light"] .landing-cta-panel { border: 1px solid var(--landing-border) !important; background: rgba(255, 255, 255, 0.82); box-shadow: var(--landing-shadow-strong); }
-[data-theme="light"] .landing-footer { border-top-color: var(--landing-border-soft) !important; background: rgba(255, 255, 255, 0.64); }

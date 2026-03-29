@@ -6,10 +6,11 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Save, Search, Check, Loader2, AlertCircle } from 'lucide-react';
 import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../../utils/errorMessage';
 import type { ManualAnswerEditorProps, FlashcardWithId } from './ExamSolverModal.types';
 import { classList, examSolverButtonClass, examSolverFieldClass } from '../../utils/studyButtonClasses';
 
@@ -31,7 +32,7 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
     // State per ogni input
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [savingStates, setSavingStates] = useState<Record<string, 'idle' | 'saving' | 'saved'>>({});
-    const [autoSaveTimers, setAutoSaveTimers] = useState<Record<string, ReturnType<typeof setTimeout>>>({});
+    const [_autoSaveTimers, _setAutoSaveTimers] = useState<Record<string, ReturnType<typeof setTimeout>>>({});
     const autoSaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
     // Inizializza answers con i valori esistenti
@@ -98,9 +99,9 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                     return newState;
                 });
             }, 3000);
-        } catch (err: any) {
+        } catch (err: unknown) {
             setSavingStates(prev => ({ ...prev, [cardId]: 'idle' }));
-            emitToast.error(err.message || 'Errore nel salvataggio della risposta');
+            emitToast.error(getErrorMessage(err) || 'Errore nel salvataggio della risposta');
         }
     }, [deckId, validateAnswer, onSave]);
 

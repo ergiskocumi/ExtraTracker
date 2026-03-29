@@ -12,27 +12,18 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Folder, 
-    FolderOpen, 
-    ChevronRight, 
+    Folder,
+    ChevronRight,
     ChevronDown,
-    Plus,
     MoreVertical,
     Edit2,
     Trash2,
     Home,
-    Check,
-    X as XIcon,
-    Clock,
-    Zap,
     CheckCircle,
-    Star,
-    Target,
-    Calendar,
-    Wand2
 } from 'lucide-react';
 import { foldersService, type Folder as FolderType } from '../../services/foldersService';
 import { emitToast } from '../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 import { getFolderTheme } from '../../utils/folderTheme';
 import { studyOrgBadgeClass, studyOrgButtonClass, studyOrgFieldClass } from '../utils/studyButtonClasses';
 
@@ -87,15 +78,6 @@ const FolderItem: React.FC<FolderItemProps> = ({
     const hasChildren = folder.children && folder.children.length > 0;
     const hasDecks = (folder.count || 0) > 0;
     const theme = getFolderTheme(folder.name, hasDecks);
-    const paddingLeft = `${level * 20 + 12}px`;
-
-    // Calcola priorità visiva (solo per colori, non testi)
-    const getPriorityColor = useMemo(() => {
-        if (!folderStats || folderStats.totalCards === 0) return 'text-white/70';
-        if (folderStats.dueCards === 0) return 'text-emerald-400';
-        const ratio = folderStats.dueCards / folderStats.totalCards;
-        return ratio > 0.5 ? 'text-amber-400' : 'text-violet-400';
-    }, [folderStats]);
 
     // Verifica se è critico (più del 50% da ripassare)
     const isCritical = useMemo(() => {
@@ -157,8 +139,8 @@ const FolderItem: React.FC<FolderItemProps> = ({
             await foldersService.deleteFolder(folder.id);
             emitToast.success('Cartella eliminata');
             onRefresh();
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nell\'eliminazione');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nell\'eliminazione');
         } finally {
             setIsDeleting(false);
             setShowMenu(false);
@@ -173,8 +155,8 @@ const FolderItem: React.FC<FolderItemProps> = ({
                 emitToast.success('Cartella rinominata');
                 setIsEditing(false);
                 onRefresh();
-            } catch (err: any) {
-                emitToast.error(err.message || 'Errore nella rinomina');
+            } catch (err: unknown) {
+                emitToast.error(getErrorMessage(err) || 'Errore nella rinomina');
                 setEditedName(folder.name);
                 setIsEditing(false);
             }

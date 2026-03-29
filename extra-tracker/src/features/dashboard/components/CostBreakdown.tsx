@@ -78,10 +78,10 @@ export const CostBreakdown = ({ data, title, loading = false, className }: CostB
               cx="50%"
               cy="50%"
               outerRadius={80}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''}: ${((percent ?? 0) * 100).toFixed(0)}%`}
               labelLine={false}
             >
-              {chartData.map((entry, index) => (
+              {chartData.map((_entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="rgba(17, 24, 39, 0.8)" strokeWidth={2} />
               ))}
             </Pie>
@@ -92,11 +92,12 @@ export const CostBreakdown = ({ data, title, loading = false, className }: CostB
                 borderRadius: '8px',
                 color: '#F9FAFB',
               }}
-              formatter={(value: number, name: string, props: any) => {
+              formatter={(value, name, props) => {
+                const numValue = typeof value === 'number' ? value : 0;
                 const requests = props?.payload?.requests || 0;
                 return [
-                  `$${value.toFixed(4)}`,
-                  `${name} (${requests} richieste)`
+                  `$${numValue.toFixed(4)}`,
+                  `${name ?? ''} (${requests} richieste)`
                 ];
               }}
             />

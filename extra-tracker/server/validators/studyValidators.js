@@ -156,6 +156,22 @@ const saveQuizSnapshotSchema = z.object({
     questionCount: z.number().int().positive().optional(),
     sourceCardIds: z.array(z.string()).optional(),
     source: z.string().optional(),
+    questions: z.array(z.object({
+        questionText: z.string(),
+        correctAnswer: z.string(),
+        distractors: z.array(z.string()),
+        distractorExplanations: z.array(z.string()).optional().default([]),
+        correctAnswerExplanation: z.string().optional().default(''),
+        difficulty: z.string().optional().default('standard'),
+        options: z.array(z.string()).optional().default([]),
+    })).optional().default([]),
+});
+
+const recordQuizAttemptSchema = z.object({
+    score: z.number(),
+    accuracy: z.number(),
+    timeSeconds: z.number(),
+    wrongQuestionIndices: z.array(z.number()).optional().default([]),
 });
 
 const resetExamCardsSchema = z.object({
@@ -237,6 +253,7 @@ module.exports = {
     chatWithTutorSchema,
     answerExamQuestionSchema,
     saveQuizSnapshotSchema,
+    recordQuizAttemptSchema,
     resetExamCardsSchema,
     generateRecoveryQuestionsSchema,
     // Fase A

@@ -14,14 +14,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
-import { studyService, type Deck, type QuizType } from '../services/studyService';
+import { studyService, type Deck, type QuizType, type SavedQuizSnapshot, type SavedQuizReviewResponse, type StudyMode } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
+import { getErrorMessage } from '../../../utils/errorMessage';
 import { DeckDetailContent } from '../components/Deck/DeckDetailContent';
-import { DeckSettings } from '../components/Deck/DeckSettings';
 import { ExamSolverModal } from '../components/Modals/ExamSolver';
 import { MagicGenerateModal } from '../components/Modals/MagicGenerateModal';
 import { GenerateQuizModal } from '../components/Modals/GenerateQuizModal';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
+import { QuizReviewMode } from '../components/Study/QuizReviewMode';
 
 // ============================================
 // MAIN PAGE COMPONENT
@@ -40,9 +41,10 @@ export const DeckDetailPage: React.FC = () => {
     const [isExamSolverOpen, setIsExamSolverOpen] = useState(false);
     const [isMagicGenerateOpen, setIsMagicGenerateOpen] = useState(false);
     const [isGenerateQuizOpen, setIsGenerateQuizOpen] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [reviewData, setReviewData] = useState<SavedQuizReviewResponse | null>(null);
 
     // Load deck
     const loadDeck = useCallback(async () => {
@@ -52,8 +54,8 @@ export const DeckDetailPage: React.FC = () => {
             setError(null);
             const deckData = await studyService.getDeckById(id);
             setDeck(deckData);
-        } catch (err: any) {
-            setError(err.message || 'Errore nel caricamento del mazzo');
+        } catch (err: unknown) {
+            setError(getErrorMessage(err) || 'Errore nel caricamento del mazzo');
         } finally {
             setIsLoading(false);
         }
@@ -67,9 +69,9 @@ export const DeckDetailPage: React.FC = () => {
     useScrollToTop([id]);
 
     // Handlers
-    const handleStudy = useCallback(() => {
+    const handleStudy = useCallback((mode: StudyMode) => {
         if (!id) return;
-        navigate(`/study/${id}`);
+        navigate(`/study/${id}/session?mode=${mode}`);
     }, [id, navigate]);
 
     const handleBack = useCallback(() => {
@@ -94,7 +96,8 @@ export const DeckDetailPage: React.FC = () => {
     const handleGenerateQuizSession = useCallback(async (config: { questionCount: number; quizType: QuizType }) => {
         if (!id || !deck) return;
 
-        if ((deck.cards?.length || 0) < 10) {
+        const canGenerateTrueFalseFromPdf = config.quizType === 'true_false' && Boolean(deck.pdfUrl);
+        if (!canGenerateTrueFalseFromPdf && (deck.cards?.length || 0) < 10) {
             emitToast.info('Crea almeno 10 flashcard per sbloccare la generazione del quiz');
             return;
         }
@@ -119,12 +122,38 @@ export const DeckDetailPage: React.FC = () => {
 
             if (sourceCardIds.length > 0) {
                 try {
-                    await studyService.saveQuizSnapshot(id, {
+                    // Extract questions from prepared cards to persist them
+                    const questionsToSave = preparedSession.cards.map(card => ({
+                        questionText: card.front,
+                        correctAnswer: card.back,
+                        distractors: card.distractors || [],
+                        distractorExplanations: Array.isArray(card.distractorExplanations)
+                            ? card.distractorExplanations as unknown as string[]
+                            : card.distractorExplanations && typeof card.distractorExplanations === 'object'
+                                ? Object.values(card.distractorExplanations)
+                                : [],
+                        correctAnswerExplanation: card.explanation || '',
+                        difficulty: 'standard',
+                        options: card.options || [],
+                    }));
+
+                    const savedQuiz = await studyService.saveQuizSnapshot(id, {
                         quizType: config.quizType,
                         questionCount: preparedSession.cards.length,
                         sourceCardIds,
                         source: 'chapter',
                         name: `Quiz ${preparedSession.cards.length} domande`,
+                        questions: questionsToSave,
+                    });
+                    // Aggiorna lo state locale del deck per mostrare il nuovo quiz salvato
+                    setDeck(prev => {
+                        if (!prev) return prev;
+                        const existing = prev.savedQuizzes ?? [];
+                        const alreadyExists = existing.some(q => q.id === savedQuiz.id);
+                        return {
+                            ...prev,
+                            savedQuizzes: alreadyExists ? existing : [savedQuiz, ...existing],
+                        };
                     });
                 } catch (snapshotError) {
                     // Non blocca l'avvio del quiz se il salvataggio storico fallisce.
@@ -139,6 +168,9 @@ export const DeckDetailPage: React.FC = () => {
             params.set('quizType', config.quizType);
             params.set('quizSource', 'chapter');
             params.set('run', String(Date.now()));
+            if (sourceCardIds.length > 0) {
+                params.set('sourceCardIds', sourceCardIds.join(','));
+            }
 
             navigate(`/study/${id}/session?${params.toString()}`, {
                 state: {
@@ -146,11 +178,99 @@ export const DeckDetailPage: React.FC = () => {
                     preparedAt: Date.now(),
                 },
             });
-        } catch (err: any) {
-            emitToast.error(err?.message || 'Errore nella preparazione del quiz');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nella preparazione del quiz');
             throw err;
         }
     }, [id, deck, navigate]);
+
+    const handleRepeatSavedQuiz = useCallback(async (savedQuiz: SavedQuizSnapshot) => {
+        if (!id || !deck) return;
+
+        try {
+            // If quiz has persisted questions, use instant retake (no AI)
+            if (savedQuiz.hasQuestions) {
+                const retakeData = await studyService.retakeSavedQuiz(id, savedQuiz.id);
+
+                if (retakeData.cards.length === 0) {
+                    emitToast.info('Nessuna domanda disponibile per questo quiz');
+                    return;
+                }
+
+                const fakeDeck: typeof deck = { ...deck, cards: retakeData.cards, totalCards: retakeData.cards.length, dueCount: retakeData.cards.length };
+                const preparedSession = {
+                    deck: fakeDeck,
+                    cards: retakeData.cards,
+                    remaining: retakeData.cards.length,
+                    total: retakeData.cards.length,
+                    mode: 'quiz' as const,
+                    meta: { quizType: retakeData.quizType, questionCount: retakeData.questionCount },
+                };
+
+                const params = new URLSearchParams();
+                params.set('mode', 'quiz');
+                params.set('focus', 'all');
+                params.set('questions', String(retakeData.questionCount));
+                params.set('quizType', retakeData.quizType);
+                params.set('quizSource', 'saved');
+                params.set('savedQuizId', savedQuiz.id);
+                params.set('run', String(Date.now()));
+
+                navigate(`/study/${id}/session?${params.toString()}`, {
+                    state: {
+                        preparedSession,
+                        preparedAt: Date.now(),
+                    },
+                });
+                return;
+            }
+
+            // Legacy fallback: quiz without persisted questions -> use AI
+            const preparedSession = await studyService.getSession(id, {
+                mode: 'quiz',
+                focus: 'all',
+                questionCount: savedQuiz.questionCount,
+                limit: savedQuiz.questionCount,
+                quizType: savedQuiz.quizType,
+                sourceCardIds: savedQuiz.sourceCardIds,
+            });
+
+            if (preparedSession.cards.length === 0) {
+                emitToast.info('Nessuna carta disponibile per questo quiz');
+                return;
+            }
+
+            const params = new URLSearchParams();
+            params.set('mode', 'quiz');
+            params.set('focus', 'all');
+            params.set('questions', String(savedQuiz.questionCount));
+            params.set('quizType', savedQuiz.quizType);
+            params.set('quizSource', 'saved');
+            params.set('run', String(Date.now()));
+            if (savedQuiz.sourceCardIds.length > 0) {
+                params.set('sourceCardIds', savedQuiz.sourceCardIds.join(','));
+            }
+
+            navigate(`/study/${id}/session?${params.toString()}`, {
+                state: {
+                    preparedSession,
+                    preparedAt: Date.now(),
+                },
+            });
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nel caricamento del quiz');
+        }
+    }, [id, deck, navigate]);
+
+    const handleReviewSavedQuiz = useCallback(async (savedQuiz: SavedQuizSnapshot) => {
+        if (!id || !savedQuiz.hasQuestions) return;
+        try {
+            const data = await studyService.reviewSavedQuiz(id, savedQuiz.id);
+            setReviewData(data);
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nel caricamento della review');
+        }
+    }, [id]);
 
     const handleDeleteDeck = useCallback(async () => {
         if (!id || !deck) return;
@@ -160,40 +280,26 @@ export const DeckDetailPage: React.FC = () => {
             await studyService.deleteDeck(id);
             emitToast.success('Mazzo eliminato');
             navigate('/study');
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nell\'eliminazione');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nell\'eliminazione');
             setIsDeleting(false);
+        } finally {
+            setIsDeleteModalOpen(false);
         }
     }, [id, deck, navigate]);
 
     const handleResetProgress = useCallback(async () => {
         if (!id || !deck) return;
-        
+
         try {
-            // Resetta tutte le carte a stato 'new' e ripristina i parametri SRS
-            const updatedCards = deck.cards?.map(card => ({
-                ...card,
-                status: 'new' as const,
-                interval: 0,
-                repetitions: 0,
-                easinessFactor: 2.5,
-                nextReviewDate: new Date().toISOString(),
-            }));
-            
-            // Aggiorna il deck sul server (se c'è un endpoint specifico, usalo)
-            // Per ora simuliamo il reset locale
-            const updatedDeck = { ...deck, cards: updatedCards || [] };
+            const updatedDeck = await studyService.resetDeckProgress(id);
             setDeck(updatedDeck);
-            
-            emitToast.success('Progresso resettato con successo');
             setIsResetModalOpen(false);
-            
-            // Ricarica il deck per sincronizzare
-            await loadDeck();
-        } catch (error) {
-            emitToast.error('Errore nel reset del progresso');
+            emitToast.success('Progresso resettato con successo');
+        } catch (error: unknown) {
+            emitToast.error(getErrorMessage(error) || 'Errore nel reset del progresso');
         }
-    }, [id, deck, loadDeck]);
+    }, [id, deck]);
 
     const handleExport = useCallback(() => {
         if (!deck) return;
@@ -261,14 +367,12 @@ export const DeckDetailPage: React.FC = () => {
                     </svg>
                 </motion.div>
                 <p className="text-theme-secondary text-lg">{error || 'Mazzo non trovato'}</p>
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                <button
                     onClick={() => navigate('/study')}
-                    className="px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold shadow-lg shadow-primary-500/30"
+                    className="px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white font-semibold shadow-lg shadow-primary-500/30 transition-colors"
                 >
                     Torna ai Mazzi
-                </motion.button>
+                </button>
             </div>
         );
     }
@@ -281,12 +385,13 @@ export const DeckDetailPage: React.FC = () => {
                     onBack={handleBack}
                     onStudy={handleStudy}
                     onGenerateQuiz={() => setIsGenerateQuizOpen(true)}
+                    onRepeatSavedQuiz={handleRepeatSavedQuiz}
+                    onReviewSavedQuiz={handleReviewSavedQuiz}
                     onExamSolver={() => setIsExamSolverOpen(true)}
                     onReadPdf={deck.pdfUrl ? handleReadPdf : undefined}
                     onMagicGenerate={() => setIsMagicGenerateOpen(true)}
                     onDeckUpdate={handleDeckUpdate}
-                    onDeleteDeck={() => setIsDeleting(true)}
-                    onSettings={() => setIsSettingsOpen(true)}
+                    onDeleteDeck={() => setIsDeleteModalOpen(true)}
                     onExport={handleExport}
                     onShare={handleShare}
                     onResetProgress={() => setIsResetModalOpen(true)}
@@ -297,7 +402,7 @@ export const DeckDetailPage: React.FC = () => {
             <ExamSolverModal
                 isOpen={isExamSolverOpen}
                 onClose={() => setIsExamSolverOpen(false)}
-                onSuccess={async (deckId, stats) => {
+                onSuccess={async (_deckId, stats) => {
                     await loadDeck();
                     emitToast.success(
                         `✅ Exam Solver completato! ${stats.totalFlashcards} flashcard generate`,
@@ -321,64 +426,11 @@ export const DeckDetailPage: React.FC = () => {
                 }}
             />
 
-            {/* Settings Modal */}
-            <AnimatePresence>
-                {isSettingsOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay backdrop-blur-sm"
-                        onClick={(e) => e.target === e.currentTarget && setIsSettingsOpen(false)}
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="deck-settings-title"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            transition={{ type: 'tween', duration: 0.2 }}
-                            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-theme-elevated rounded-2xl border border-theme-default shadow-theme-lg flex flex-col"
-                        >
-                            <div className="sticky top-0 bg-theme-elevated/95 backdrop-blur-xl border-b border-theme-default px-6 py-5 flex items-center justify-between z-10 shrink-0">
-                                <h2 id="deck-settings-title" className="text-xl font-bold text-theme-primary flex items-center gap-3">
-                                    <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-500/15 text-primary-600 dark:text-primary-400">
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                    </span>
-                                    Impostazioni mazzo
-                                </h2>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsSettingsOpen(false)}
-                                    className="p-2.5 rounded-xl hover:bg-theme-surface text-theme-secondary hover:text-theme-primary transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-                                    aria-label="Chiudi impostazioni"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <div className="p-6 pt-5 overflow-y-auto">
-                                <DeckSettings
-                                    deck={deck}
-                                    onUpdate={(updatedDeck) => {
-                                        handleDeckUpdate(updatedDeck);
-                                        setIsSettingsOpen(false);
-                                    }}
-                                />
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             <GenerateQuizModal
                 isOpen={isGenerateQuizOpen}
                 totalCards={deck.cards?.length || 0}
+                hasPdf={Boolean(deck.pdfUrl)}
                 onClose={() => setIsGenerateQuizOpen(false)}
                 onGenerate={handleGenerateQuizSession}
             />
@@ -397,7 +449,7 @@ export const DeckDetailPage: React.FC = () => {
 
             {/* Delete Deck Confirmation */}
             <ConfirmationModal
-                isOpen={isDeleting}
+                isOpen={isDeleteModalOpen}
                 title="Elimina Mazzo"
                 description={`Sei sicuro di voler eliminare il mazzo "${deck.title}"? Verranno eliminate tutte le ${deck.totalCards} carte. L'azione è irreversibile.`}
                 confirmLabel="Elimina"
@@ -405,8 +457,18 @@ export const DeckDetailPage: React.FC = () => {
                 destructive
                 isLoading={isDeleting}
                 onConfirm={handleDeleteDeck}
-                onCancel={() => setIsDeleting(false)}
+                onCancel={() => setIsDeleteModalOpen(false)}
             />
+
+            {/* Quiz Review Mode */}
+            <AnimatePresence>
+                {reviewData && (
+                    <QuizReviewMode
+                        data={reviewData}
+                        onClose={() => setReviewData(null)}
+                    />
+                )}
+            </AnimatePresence>
         </>
     );
 };

@@ -47,7 +47,7 @@ export const ModernSettingsLayout: React.FC<ModernSettingsLayoutProps> = ({
 }) => {
     const [isMobile, setIsMobile] = useState(false);
     const [isCompact, setIsCompact] = useState(false);
-    const [hoveredTab, setHoveredTab] = useState<TabId | null>(null);
+    const [_hoveredTab, setHoveredTab] = useState<TabId | null>(null);
     const activeTabRef = useRef<HTMLButtonElement>(null);
     const [indicatorStyle, setIndicatorStyle] = useState({ top: 0, height: 0 });
 
@@ -193,7 +193,6 @@ export const ModernSettingsLayout: React.FC<ModernSettingsLayoutProps> = ({
                                 {tabs.map((tab, index) => {
                                     const Icon = tab.icon;
                                     const isActive = activeTab === tab.id;
-                                    const isHovered = hoveredTab === tab.id;
 
                                     return (
                                         <motion.button

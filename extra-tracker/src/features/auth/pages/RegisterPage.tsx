@@ -11,13 +11,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-    FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus, 
-    FiAlertCircle, FiLoader, FiCheck, FiX 
+import {
+    FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus,
+    FiAlertCircle, FiLoader, FiCheck, FiX,
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { registerSchema, type RegisterFormData } from '../validators/authValidators';
 import { Logo } from '../../../shared/components/Brand/Logo';
+import { Button } from '../../../shared/components/ui/button';
 
 // Password requirements per indicator visivo
 const PASSWORD_REQUIREMENTS = [
@@ -341,16 +342,17 @@ export const RegisterPage = () => {
                         </div>
 
                         {/* Submit Button */}
-                        <motion.button
-                            type="submit"
-                            disabled={isLoading}
+                        <motion.div
                             whileHover={{ scale: isLoading ? 1 : 1.01 }}
                             whileTap={{ scale: isLoading ? 1 : 0.99 }}
-                            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${
-                                isLoading
-                                    ? 'bg-emerald-500/50 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/20'
-                            } text-white`}
+                        >
+                        <Button
+                            type="submit"
+                            disabled={isLoading}
+                            size="md"
+                            variant="primary"
+                            fullWidth
+                            className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/20"
                         >
                             {isLoading ? (
                                 <>
@@ -363,7 +365,8 @@ export const RegisterPage = () => {
                                     Crea Account
                                 </>
                             )}
-                        </motion.button>
+                        </Button>
+                        </motion.div>
                     </form>
 
                     {/* Login Link */}

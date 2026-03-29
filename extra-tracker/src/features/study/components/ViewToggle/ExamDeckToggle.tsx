@@ -29,7 +29,7 @@ export const ExamDeckToggle: React.FC<ExamDeckToggleProps> = ({
     ];
 
     return (
-        <div className={`inline-flex p-1 rounded-xl bg-zinc-800/50 border border-white/10 backdrop-blur-xl ${className}`}>
+        <div className={`inline-flex p-1 rounded-xl bg-theme-surface border border-theme-default backdrop-blur-xl ${className}`}>
             {views.map((view) => (
                 <motion.button
                     key={view.key}
@@ -38,8 +38,8 @@ export const ExamDeckToggle: React.FC<ExamDeckToggleProps> = ({
                         relative px-4 py-2 rounded-lg text-sm font-medium transition-colors
                         flex items-center gap-2
                         ${currentView === view.key
-                            ? 'text-white'
-                            : 'text-white/50 hover:text-white/70'
+                            ? 'text-theme-primary'
+                            : 'text-theme-muted hover:text-theme-secondary'
                         }
                     `}
                     whileTap={{ scale: 0.95 }}

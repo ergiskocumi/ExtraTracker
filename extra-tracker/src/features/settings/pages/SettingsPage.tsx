@@ -19,7 +19,6 @@ import {
     Bell,
     Lock,
     Search,
-    WifiOff,
     Undo2,
     Redo2,
 } from 'lucide-react';
@@ -37,13 +36,7 @@ import { PrivacySettings } from '../components/PrivacySettings';
 import { SettingsSearch } from '../components/SettingsSearch';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { ModernSettingsLayout, type TabId } from '../components/layout/ModernSettingsLayout';
-import {
-    ProfileSkeleton,
-    PreferencesSkeleton,
-    SecuritySkeleton,
-    NotificationsSkeleton,
-    PrivacySkeleton,
-} from '../components/skeletons';
+import { SettingsSkeleton, type SectionConfig } from '../components/SettingsSkeleton';
 import { emitToast } from '../../../shared/components/toast';
 
 // Tab configuration
@@ -98,13 +91,50 @@ const tabs = [
     },
 ];
 
-const skeletonComponents = {
-    profile: ProfileSkeleton,
-    preferences: PreferencesSkeleton,
-    security: SecuritySkeleton,
-    notifications: NotificationsSkeleton,
-    privacy: PrivacySkeleton,
-    account: ProfileSkeleton,
+// Configurazioni skeleton per ogni tab
+const skeletonConfigs: Record<TabId, SectionConfig[]> = {
+    profile: [
+        { type: 'avatar' },
+        { type: 'row', iconSize: 'sm' },
+        { type: 'grid', fields: 8, columns: 2 },
+        { type: 'textarea' },
+        { type: 'button-bar', leftWidth: 32, buttonWidth: 36 },
+    ],
+    preferences: [
+        { type: 'header', iconSize: 'sm' },
+        { type: 'grid', fields: 2, columns: 2 },
+        { type: 'header', iconSize: 'sm' },
+        { type: 'grid', fields: 2, columns: 2 },
+        { type: 'button-bar', leftWidth: 32, buttonWidth: 40 },
+    ],
+    security: [
+        { type: 'header', iconSize: 'lg' },
+        { type: 'grid', fields: 3, columns: 1 },
+        { type: 'card-row' },
+        { type: 'session-row', rows: 3 },
+        { type: 'button-bar', leftWidth: 32, buttonWidth: 40 },
+    ],
+    notifications: [
+        { type: 'header', iconSize: 'sm' },
+        { type: 'toggle-row', rows: 3 },
+        { type: 'header', iconSize: 'sm' },
+        { type: 'toggle-row', rows: 2 },
+        { type: 'button-bar', leftWidth: 32, buttonWidth: 48 },
+    ],
+    privacy: [
+        { type: 'card-row' },
+        { type: 'header', iconSize: 'sm' },
+        { type: 'toggle-row', rows: 2 },
+        { type: 'header', iconSize: 'sm' },
+        { type: 'grid', fields: 2, columns: 2 },
+        { type: 'button-bar', leftWidth: 32, buttonWidth: 40 },
+    ],
+    account: [
+        { type: 'avatar' },
+        { type: 'row', iconSize: 'sm' },
+        { type: 'grid', fields: 4, columns: 2 },
+        { type: 'button-bar', leftWidth: 32, buttonWidth: 36 },
+    ],
 };
 
 export const SettingsPage = () => {
@@ -279,7 +309,7 @@ export const SettingsPage = () => {
         }
     };
 
-    const SkeletonComponent = skeletonComponents[activeTab];
+    const skeletonSections = skeletonConfigs[activeTab];
 
     return (
         <>
@@ -360,7 +390,7 @@ export const SettingsPage = () => {
                 }
             >
                 {isLoading ? (
-                    <SkeletonComponent />
+                    <SettingsSkeleton sections={skeletonSections} />
                 ) : (
                     <>
                         {activeTab === 'profile' && (
@@ -395,7 +425,7 @@ export const SettingsPage = () => {
                         )}
                         {activeTab === 'privacy' && (
                             <PrivacySettings
-                                onSave={async (data) => {
+                                onSave={async (_data) => {
                                     emitToast.success('Privacy aggiornata!');
                                     return true;
                                 }}

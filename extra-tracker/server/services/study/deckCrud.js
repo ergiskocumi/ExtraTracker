@@ -9,6 +9,7 @@ const examRepository = require('../../repositories/ExamRepository');
 const folderRepository = require('../../repositories/FolderRepository');
 const { DEFAULT_EASINESS_FACTOR } = require('./constants');
 const logger = require('../../utils/logger');
+const { resolveQuizSnapshotSourceCardIds } = require('./syntheticQuizIds');
 
 module.exports = {
 
@@ -293,15 +294,10 @@ module.exports = {
         const cardIdSet = new Set(
             (deck.cards || []).map(card => card?._id?.toString()).filter(Boolean)
         );
-        const sourceCardIds = Array.isArray(payload.sourceCardIds)
-            ? [...new Set(payload.sourceCardIds
-                .map(id => String(id || '').trim())
-                .filter(id => id.length > 0 && cardIdSet.has(id)))]
-            : [];
-
-        const isAiGeneratedQuiz = sourceCardIds.length === 0 &&
-            Array.isArray(payload.sourceCardIds) &&
-            payload.sourceCardIds.some(id => String(id).startsWith('quiz_ai_'));
+        const { sourceCardIds, isSyntheticOnlyQuiz: isAiGeneratedQuiz } = resolveQuizSnapshotSourceCardIds(
+            payload.sourceCardIds,
+            [...cardIdSet],
+        );
 
         if (sourceCardIds.length === 0 && !isAiGeneratedQuiz) {
             throw AppError.validation('Impossibile salvare il quiz: nessuna flashcard valida associata');
@@ -313,7 +309,9 @@ module.exports = {
         );
         const questionCount = Math.max(
             1,
-            Math.min(sourceCardIds.length, Math.round(questionCountRaw > 0 ? questionCountRaw : sourceCardIds.length))
+            isAiGeneratedQuiz
+                ? Math.round(questionCountRaw > 0 ? questionCountRaw : sourceCardIds.length)
+                : Math.min(sourceCardIds.length, Math.round(questionCountRaw > 0 ? questionCountRaw : sourceCardIds.length))
         );
 
         const quizType = this._normalizeQuizType(payload.quizType);
@@ -328,6 +326,7 @@ module.exports = {
             questionCount,
             sourceCardIds,
             source,
+            questions: Array.isArray(payload.questions) ? payload.questions : [],
             createdAt: new Date(),
         });
 
@@ -345,6 +344,155 @@ module.exports = {
             sourceCardIds,
             source,
             createdAt: savedQuiz?.createdAt || new Date(),
+        };
+    },
+
+    async getSavedQuizForRetake(tenantScope, deckId, quizId) {
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+        const quiz = deck.savedQuizzes.id(quizId);
+        if (!quiz) {
+            throw AppError.notFound('Quiz salvato');
+        }
+        if (!Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+            throw AppError.validation('Questo quiz non ha domande salvate (quiz legacy). Usa il flusso di generazione AI.');
+        }
+
+        // Fisher-Yates shuffle
+        const shuffled = [...quiz.questions.map(q => q.toObject ? q.toObject() : q)];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+
+        // Map to card format (same shape as _mapAiQuestionsToCards)
+        const cards = shuffled.map((q, index) => {
+            const opts = Array.isArray(q.options) && q.options.length > 0
+                ? q.options
+                : this._shuffleOptions([q.correctAnswer, ...q.distractors]);
+            const distractorExplanations = {};
+            opts.forEach((opt, i) => {
+                if (opt === q.correctAnswer) return;
+                const distIdx = q.distractors.indexOf(opt);
+                if (distIdx !== -1 && Array.isArray(q.distractorExplanations) && q.distractorExplanations[distIdx]) {
+                    distractorExplanations[i] = q.distractorExplanations[distIdx];
+                }
+            });
+            return {
+                id: `retake_${quizId}_${index}_${Date.now()}`,
+                front: q.questionText,
+                back: q.correctAnswer,
+                canonicalBack: q.correctAnswer,
+                difficulty: q.difficulty || 'standard',
+                correctAnswerExplanation: q.correctAnswerExplanation || '',
+                options: opts,
+                distractorExplanations,
+                distractors: q.distractors,
+                isRetake: true,
+            };
+        });
+
+        const attempts = (quiz.attempts || []).map(a => ({
+            id: a._id?.toString(),
+            score: a.score,
+            accuracy: a.accuracy,
+            timeSeconds: a.timeSeconds,
+            completedAt: a.completedAt,
+            wrongQuestionIndices: a.wrongQuestionIndices || [],
+        }));
+
+        return {
+            quizId: quiz._id.toString(),
+            name: quiz.name,
+            quizType: quiz.quizType,
+            questionCount: cards.length,
+            cards,
+            attempts,
+        };
+    },
+
+    _shuffleOptions(arr) {
+        const shuffled = [...arr];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    },
+
+    async getSavedQuizForReview(tenantScope, deckId, quizId) {
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+        const quiz = deck.savedQuizzes.id(quizId);
+        if (!quiz) {
+            throw AppError.notFound('Quiz salvato');
+        }
+        if (!Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+            throw AppError.validation('Questo quiz non ha domande salvate (quiz legacy).');
+        }
+
+        const questions = quiz.questions.map(q => {
+            const raw = q.toObject ? q.toObject() : q;
+            return {
+                questionText: raw.questionText,
+                correctAnswer: raw.correctAnswer,
+                distractors: raw.distractors || [],
+                distractorExplanations: raw.distractorExplanations || [],
+                correctAnswerExplanation: raw.correctAnswerExplanation || '',
+                difficulty: raw.difficulty || 'standard',
+                options: raw.options || [],
+            };
+        });
+
+        const attempts = (quiz.attempts || []).map(a => ({
+            id: a._id?.toString(),
+            score: a.score,
+            accuracy: a.accuracy,
+            timeSeconds: a.timeSeconds,
+            completedAt: a.completedAt,
+            wrongQuestionIndices: a.wrongQuestionIndices || [],
+        }));
+
+        return {
+            quizId: quiz._id.toString(),
+            name: quiz.name,
+            quizType: quiz.quizType,
+            questions,
+            attempts,
+        };
+    },
+
+    async recordQuizAttempt(tenantScope, deckId, quizId, attemptData) {
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+        const quiz = deck.savedQuizzes.id(quizId);
+        if (!quiz) {
+            throw AppError.notFound('Quiz salvato');
+        }
+
+        if (!Array.isArray(quiz.attempts)) {
+            quiz.attempts = [];
+        }
+
+        // Cap at 100 attempts
+        if (quiz.attempts.length >= 100) {
+            quiz.attempts.shift();
+        }
+
+        quiz.attempts.push({
+            score: attemptData.score,
+            accuracy: attemptData.accuracy,
+            timeSeconds: attemptData.timeSeconds || 0,
+            completedAt: new Date(),
+            wrongQuestionIndices: attemptData.wrongQuestionIndices || [],
+        });
+
+        await deck.save();
+
+        const saved = quiz.attempts[quiz.attempts.length - 1];
+        return {
+            id: saved._id?.toString(),
+            score: saved.score,
+            accuracy: saved.accuracy,
+            timeSeconds: saved.timeSeconds,
+            completedAt: saved.completedAt,
         };
     },
 

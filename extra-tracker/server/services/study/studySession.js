@@ -5,7 +5,10 @@
  */
 
 const AppError = require('../../utils/AppError');
-const { MIN_QUIZ_CARDS_REQUIRED, QUIZ_TYPES, DEFAULT_EASINESS_FACTOR, MIN_EASINESS_FACTOR } = require('./constants');
+const { MIN_QUIZ_CARDS_REQUIRED, QUIZ_TYPES, DEFAULT_EASINESS_FACTOR, MIN_EASINESS_FACTOR, TF_MIN_TEXT_CHARS } = require('./constants');
+const { generateTrueFalseFromText } = require('./trueFalseGenerator');
+const { hasOnlySyntheticQuizCardIds } = require('./syntheticQuizIds');
+const { shouldRequireMinimumQuizCards } = require('./quizSessionRules');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -44,9 +47,10 @@ module.exports = {
         const sourceCardIds = Array.isArray(config.sourceCardIds)
             ? config.sourceCardIds.map(id => String(id).trim()).filter(Boolean)
             : [];
+        const hasOnlySyntheticSourceCardIds = hasOnlySyntheticQuizCardIds(sourceCardIds);
 
         const sourceCardIdSet = new Set(sourceCardIds);
-        const scopedQuizCards = mode === 'quiz' && sourceCardIds.length > 0
+        const scopedQuizCards = mode === 'quiz' && sourceCardIds.length > 0 && !hasOnlySyntheticSourceCardIds
             ? cards.filter(card => sourceCardIdSet.has(this._resolveCardId(card)))
             : cards;
 
@@ -59,16 +63,26 @@ module.exports = {
             logger.debug('StudySession', 'questionCount', { requestedQuestions });
         }
 
-        if (mode === 'quiz' && sourceCardIds.length > 0 && scopedQuizCards.length === 0) {
+        if (mode === 'quiz' && sourceCardIds.length > 0 && !hasOnlySyntheticSourceCardIds && scopedQuizCards.length === 0) {
             throw AppError.validation('Nessuna flashcard valida per il quiz richiesto');
         }
 
         const isMultipleChoiceQuiz = mode === 'quiz' && quizType !== QUIZ_TYPES.TRUE_FALSE;
+        const hasSufficientText = (deck.extractedText || '').trim().length >= TF_MIN_TEXT_CHARS;
+        const isTrueFalseAiQuiz = mode === 'quiz' && quizType === QUIZ_TYPES.TRUE_FALSE && hasSufficientText;
+
         if (isMultipleChoiceQuiz) {
             if (!(deck.extractedText || '').trim()) {
                 throw AppError.validation('Quiz AI non disponibile: carica un PDF per abilitare questa modalità.');
             }
-        } else if (mode === 'quiz' && sourceCardIds.length === 0 && cards.length < MIN_QUIZ_CARDS_REQUIRED) {
+        }
+
+        if (shouldRequireMinimumQuizCards({
+            mode,
+            quizType,
+            hasExplicitSourceCards: sourceCardIds.length > 0,
+            isTrueFalseAiQuiz,
+        }) && cards.length < MIN_QUIZ_CARDS_REQUIRED) {
             throw AppError.validation('Crea almeno 10 flashcard per sbloccare la generazione del quiz');
         }
 
@@ -156,11 +170,59 @@ module.exports = {
             };
         }
 
+        // PDF-based AI True/False quiz: genera le affermazioni dal testo estratto e ritorna subito
+        if (isTrueFalseAiQuiz) {
+            const questionCount = requestedQuestions > 0 ? requestedQuestions
+                : requestedLimit > 0 ? requestedLimit
+                    : 10;
+            const previousQuestions = Array.isArray(deck.recentQuizQuestions)
+                ? deck.recentQuizQuestions.slice(-50)
+                : [];
+
+            const enrichedCards = await generateTrueFalseFromText(
+                deck.extractedText || '',
+                questionCount,
+                previousQuestions,
+                { userId, deckId: deck._id },
+                this._splitTextIntoChunks.bind(this),
+            );
+
+            const newStatementTexts = enrichedCards.map(c => c.front);
+            setImmediate(() => {
+                this.updateRaw(tenantScope, deck._id, {
+                    $push: { recentQuizQuestions: { $each: newStatementTexts, $slice: -50 } },
+                }).catch(() => {});
+            });
+
+            this._logQuizDebug('session-ai-tf', {
+                deckId: deck._id.toString(),
+                statementCount: enrichedCards.length,
+                textLength: (deck.extractedText || '').length,
+            });
+
+            return {
+                deck: { ...deckJson, totalCards: cards.length, dueCount: dueCards.length },
+                cards: enrichedCards,
+                remaining: enrichedCards.length,
+                total: enrichedCards.length,
+                mode,
+                cardModes: {},
+                meta: {
+                    focus: 'all',
+                    limit: enrichedCards.length,
+                    timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : undefined,
+                    questionCount: enrichedCards.length,
+                    direction: undefined,
+                    quizType,
+                },
+            };
+        }
+
         const allAnswers = cards
             .map(card => card.back)
             .filter(answer => typeof answer === 'string' && answer.trim().length > 0);
 
-        // True/false quiz e tutti gli altri modi usano ancora la selezione flashcard
+        // True/false quiz senza PDF e tutti gli altri modi usano ancora la selezione flashcard
         let enrichedCards = sessionCards.map(card => card);
 
         if (mode === 'quiz') {

@@ -80,7 +80,6 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
             // Calcola posizione tooltip
             const position = step.position || 'bottom';
             const offset = step.offset || { x: 0, y: 0 };
-            const padding = step.highlightPadding || 8;
 
             let top = 0;
             let left = 0;
@@ -142,7 +141,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
         };
 
         // Listener per scroll su tutti i container scrollabili
-        const handleScroll = (e: Event) => {
+        const handleScroll = (_e: Event) => {
             handleUpdate();
         };
 

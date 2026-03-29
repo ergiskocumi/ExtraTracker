@@ -31,6 +31,15 @@ const QUIZ_TYPES = {
 };
 const QUIZ_OPTION_WORD_MIN = 5;
 const QUIZ_OPTION_WORD_MAX = 20;
+
+// =========================================
+// TRUE/FALSE AI GENERATION
+// =========================================
+const TF_MIN_TEXT_CHARS = 500;
+const TF_CHARS_PER_STATEMENT = 1000;
+const TF_MIN_STATEMENTS = 3;
+const TF_MAX_STATEMENTS = 50;
+const TF_TEMPERATURE = 0.4;
 // Bump questo valore ogni volta che il prompt AI cambia significativamente.
 // Le card con versione diversa vengono rigenerate automaticamente alla prossima sessione.
 const DISTRACTOR_PROMPT_VERSION = 'v3';
@@ -150,6 +159,12 @@ module.exports = {
     MAX_TOTAL_CARDS_HARD_CAP,
     MAX_TOTAL_CARDS,
     SIMILARITY_THRESHOLD,
+
+    TF_MIN_TEXT_CHARS,
+    TF_CHARS_PER_STATEMENT,
+    TF_MIN_STATEMENTS,
+    TF_MAX_STATEMENTS,
+    TF_TEMPERATURE,
 
     FALLBACK_AI_MODEL,
     KNOWN_OPENAI_MODELS,

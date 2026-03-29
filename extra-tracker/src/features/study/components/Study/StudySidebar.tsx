@@ -1,43 +1,37 @@
-/**
- * 📚 STUDY SIDEBAR
- * ================
- * 
- * Reusable component containing the Flashcards/Chat tabs.
- * Used in both Desktop (right panel) and Mobile (drawer).
- */
-
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiCheck, FiArrowLeft } from 'react-icons/fi';
 import { Layers, MessageCircle } from 'lucide-react';
 import type { Deck, Card } from '../../services/studyService';
-import { PDFChat } from '../PDF/PDFChat';
 import { FlashcardList } from '../Flashcard/FlashcardList';
+
+const PDFChat = lazy(() => import('../PDF/PDFChat').then(m => ({ default: m.PDFChat })));
 
 interface StudySidebarProps {
     deck: Deck;
     pdfSrc: string | null;
-    onAddCard: () => void;
+    onAddCard?: () => void;
     onUpdateCard: (cardId: string, front: string, back: string) => Promise<void>;
     className?: string;
-    /** For mobile drawer: shows only the active tab content without header */
     compactMode?: boolean;
-    /** When in compact mode, which tab to show */
     activeTabOverride?: 'flashcards' | 'chat';
-    /** Programmatic tab switch (id must change to trigger) */
     tabRequest?: { id: string; tab: 'flashcards' | 'chat' } | null;
-    /** Programmatic message send in AI Tutor */
     pendingChatMessage?: { id: string; content: string } | null;
     onConsumePendingChatMessage?: (id: string) => void;
-    /** Callback per navigazione indietro (opzionale) */
     onNavigateBack?: () => void;
-    /** Callback quando il deck viene aggiornato (riordinamento, inserimento card) */
     onDeckUpdate?: (updatedDeck: Deck) => void;
-    /** Callback quando si clicca "Show Source" su una card */
     onShowSource?: (card: Card) => void;
-    /** ID della card attualmente evidenziata come "source active" */
     activeSourceCardId?: string | null;
 }
+
+const ChatFallback: React.FC = () => (
+    <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-3">
+            <div className="w-6 h-6 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
+            <p className="text-xs text-theme-muted">Caricamento AI Tutor...</p>
+        </div>
+    </div>
+);
 
 export const StudySidebar: React.FC<StudySidebarProps> = ({
     deck,
@@ -66,7 +60,6 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
         setActiveTab(tabRequest.tab);
     }, [tabRequest?.id, tabRequest?.tab]);
 
-    // Compact mode: just render the content
     if (compactMode) {
         return (
             <div className={`h-full min-w-0 overflow-hidden bg-theme-elevated text-theme-primary ${className}`}>
@@ -83,29 +76,29 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         compactMode={true}
                     />
                 ) : (
-                    <PDFChat
-                        deckId={deck.id}
-                        disabled={!pdfSrc}
-                        pendingMessage={pendingChatMessage}
-                        onConsumePendingMessage={onConsumePendingChatMessage}
-                    />
+                    <Suspense fallback={<ChatFallback />}>
+                        <PDFChat
+                            deckId={deck.id}
+                            disabled={!pdfSrc}
+                            pendingMessage={pendingChatMessage}
+                            onConsumePendingMessage={onConsumePendingChatMessage}
+                        />
+                    </Suspense>
                 )}
             </div>
         );
     }
 
-    // Full mode with tabs
     return (
         <div className={`h-full flex flex-col min-w-0 overflow-hidden bg-theme-elevated text-theme-primary ${className}`}>
-            {/* Tab Header - Stile moderno */}
             <div className="px-5 py-4 border-b border-theme-default bg-theme-surface backdrop-blur-sm flex-shrink-0">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-1 rounded-xl bg-theme-card border border-theme-default backdrop-blur-xl p-1 shadow-theme-sm">
                         <button
                             onClick={() => setActiveTab('flashcards')}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                                 currentTab === 'flashcards'
-                                    ? 'bg-primary-500/15 text-theme-primary border border-primary-500/40 shadow-theme-sm scale-[1.02]'
+                                    ? 'bg-primary-500/15 text-theme-primary border border-primary-500/40 shadow-theme-sm'
                                     : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-surface border border-transparent hover:border-theme-default'
                             }`}
                         >
@@ -114,9 +107,9 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         </button>
                         <button
                             onClick={() => setActiveTab('chat')}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                                 currentTab === 'chat'
-                                    ? 'bg-primary-500/15 text-theme-primary border border-primary-500/40 shadow-theme-sm scale-[1.02]'
+                                    ? 'bg-primary-500/15 text-theme-primary border border-primary-500/40 shadow-theme-sm'
                                     : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-surface border border-transparent hover:border-theme-default'
                             }`}
                         >
@@ -125,28 +118,23 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                         </button>
                     </div>
 
-                    {currentTab === 'flashcards' && (
-                        <div className="flex items-center gap-2">
-                            {/* Pulsante Indietro - Visibile solo se onNavigateBack è fornito */}
-                            {onNavigateBack && (
-                                <button
-                                    onClick={onNavigateBack}
-                                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary rounded-xl bg-theme-surface hover:bg-theme-card border border-theme-default hover:border-theme-strong shadow-theme-sm transition-all duration-300 active:scale-95"
-                                    aria-label="Torna al mazzo"
-                                    title="Torna al dettaglio del mazzo"
-                                >
-                                    <FiArrowLeft className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Indietro</span>
-                                </button>
-                            )}
-                        </div>
+                    {currentTab === 'flashcards' && onNavigateBack && (
+                        <button
+                            onClick={onNavigateBack}
+                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary rounded-xl bg-theme-surface hover:bg-theme-card border border-theme-default hover:border-theme-strong shadow-theme-sm transition-all duration-200 active:scale-95"
+                            aria-label="Torna al mazzo"
+                            title="Torna al dettaglio del mazzo"
+                        >
+                            <FiArrowLeft className="w-4 h-4" />
+                            <span className="hidden sm:inline">Indietro</span>
+                        </button>
                     )}
                 </div>
 
                 <div className="mt-3">
                     {currentTab === 'flashcards' ? (
                         <p className="text-xs text-theme-secondary">
-                            {deck.cards.length} carte • Modifica inline mentre leggi il PDF
+                            {deck.cards.length} carte · Modifica inline mentre leggi il PDF
                         </p>
                     ) : (
                         <p className="text-xs text-theme-secondary">
@@ -156,26 +144,25 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                 </div>
             </div>
 
-            {/* Tab Content */}
             <div className="flex-1 overflow-hidden">
                 {currentTab === 'flashcards' ? (
-                    <>
-                        <FlashcardList
-                            deck={deck}
-                            onAddCard={onAddCard}
-                            onUpdate={onUpdateCard}
-                            onDeckUpdate={onDeckUpdate}
-                            onShowSource={onShowSource}
-                            activeSourceCardId={activeSourceCardId}
-                        />
-                    </>
-                ) : (
-                    <PDFChat
-                        deckId={deck.id}
-                        disabled={!pdfSrc}
-                        pendingMessage={pendingChatMessage}
-                        onConsumePendingMessage={onConsumePendingChatMessage}
+                    <FlashcardList
+                        deck={deck}
+                        onAddCard={onAddCard}
+                        onUpdate={onUpdateCard}
+                        onDeckUpdate={onDeckUpdate}
+                        onShowSource={onShowSource}
+                        activeSourceCardId={activeSourceCardId}
                     />
+                ) : (
+                    <Suspense fallback={<ChatFallback />}>
+                        <PDFChat
+                            deckId={deck.id}
+                            disabled={!pdfSrc}
+                            pendingMessage={pendingChatMessage}
+                            onConsumePendingMessage={onConsumePendingChatMessage}
+                        />
+                    </Suspense>
                 )}
             </div>
         </div>

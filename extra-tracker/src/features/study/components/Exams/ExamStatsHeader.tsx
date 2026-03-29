@@ -272,7 +272,7 @@ export const ExamStatsHeader: React.FC<ExamStatsHeaderProps> = ({
                                         ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
                                         : stats.daysUntil <= 7 
                                             ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                                            : 'bg-white/10 text-white/70 border border-white/20'
+                                            : 'bg-theme-elevated text-theme-secondary border border-theme-strong'
                                     }
                                 `}>
                                     <Clock className="w-3.5 h-3.5" />
@@ -326,7 +326,7 @@ export const ExamStatsHeader: React.FC<ExamStatsHeaderProps> = ({
                             <span className="text-white/60">Progresso Temporale</span>
                             <span className="text-white/80 font-medium">{stats.timeProgress}%</span>
                         </div>
-                        <div className="h-2.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-2.5 bg-theme-surface rounded-full overflow-hidden">
                             <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${stats.timeProgress}%` }}

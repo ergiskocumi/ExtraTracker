@@ -131,7 +131,7 @@ const CardEditorComponent: React.FC<CardEditorProps> = ({
     }, [onSave]);
 
     // Hook auto-save
-    const { forceSave } = useAutoSave({
+    const { forceSave: _forceSave } = useAutoSave({
         content,
         onSave: handleAutoSave,
         enabled: autoSave && !!onSave && !disabled,

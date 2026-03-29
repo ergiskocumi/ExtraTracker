@@ -99,7 +99,7 @@ describe('FlashcardInlineForm', () => {
             expect(screen.getByLabelText('Inserisci la risposta...')).toBeDisabled();
         });
 
-        resolveSave?.();
+        resolveSave!();
 
         await waitFor(() => {
             expect(screen.getByText('Salva')).toBeInTheDocument();

@@ -336,7 +336,6 @@ export const useExamSolver = ({
         setCachedSession(null);
 
         emitToast.success('Sessione ripristinata!');
-        console.log('✅ Sessione ripristinata da cache');
     }, [examId]);
 
     useEffect(() => {
@@ -791,7 +790,6 @@ export const useExamSolver = ({
     const handleCancelGeneration = useCallback(() => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
-            console.log('🚫 Generazione cancellata dall\'utente');
         }
     }, []);
 

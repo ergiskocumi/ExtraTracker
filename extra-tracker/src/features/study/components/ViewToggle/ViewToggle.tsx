@@ -30,7 +30,7 @@ export const ViewToggle: React.FC<ViewToggleProps> = ({
     ];
 
     return (
-        <div className={`flex items-center gap-1 p-1 rounded-lg bg-zinc-900/50 border border-white/10 ${className}`}>
+        <div className={`flex items-center gap-1 p-1 rounded-lg bg-theme-surface border border-theme-default ${className}`}>
             {views.map(({ mode, icon: Icon, label }) => {
                 const isActive = view === mode;
                 return (
@@ -43,8 +43,8 @@ export const ViewToggle: React.FC<ViewToggleProps> = ({
                             relative px-3 py-1.5 rounded-md text-xs font-medium transition-all
                             flex items-center gap-1.5
                             ${isActive
-                                ? 'text-white bg-primary-500/20 border border-primary-500/30'
-                                : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                                ? 'text-primary-400 bg-primary-500/20 border border-primary-500/30'
+                                : 'text-theme-muted hover:text-theme-primary hover:bg-theme-elevated'
                             }
                         `}
                         title={label}
@@ -56,7 +56,7 @@ export const ViewToggle: React.FC<ViewToggleProps> = ({
                                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                             />
                         )}
-                        <Icon className={`w-4 h-4 relative z-10 ${isActive ? 'text-primary-400' : 'text-white/50'}`} />
+                        <Icon className={`w-4 h-4 relative z-10 ${isActive ? 'text-primary-400' : 'text-theme-muted'}`} />
                         <span className="hidden sm:inline relative z-10">{label}</span>
                     </motion.button>
                 );

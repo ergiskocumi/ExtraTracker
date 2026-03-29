@@ -12,7 +12,7 @@
 
 import React, { memo } from 'react';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
-import { FileSearch, Clock, CheckCircle, Sparkles, BookOpen } from 'lucide-react';
+import { FileSearch, Clock, CheckCircle, Sparkles, BookOpen, Repeat, Target, CalendarDays } from 'lucide-react';
 import type { Card } from '../../services/studyService';
 import { CardContentRenderer } from './CardContentRenderer/index';
 import { cn } from '../../../../lib/utils';
@@ -212,13 +212,22 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
                     <div className="px-4 py-2 border-t border-theme-subtle bg-theme-subtle/20">
                         <div className="flex items-center gap-4 text-xs text-theme-muted">
                             {card.repetitions > 0 && (
-                                <span>📚 {card.repetitions} ripetizioni</span>
+                                <span className="inline-flex items-center gap-1">
+                                    <Repeat className="w-3 h-3" />
+                                    {card.repetitions} ripetizioni
+                                </span>
                             )}
                             {card.interval > 0 && (
-                                <span>📅 Intervallo: {card.interval} giorni</span>
+                                <span className="inline-flex items-center gap-1">
+                                    <CalendarDays className="w-3 h-3" />
+                                    {card.interval}g
+                                </span>
                             )}
                             {card.easinessFactor && card.easinessFactor !== 2.5 && (
-                                <span>🎯 EF: {card.easinessFactor.toFixed(2)}</span>
+                                <span className="inline-flex items-center gap-1">
+                                    <Target className="w-3 h-3" />
+                                    EF: {card.easinessFactor.toFixed(2)}
+                                </span>
                             )}
                         </div>
                     </div>

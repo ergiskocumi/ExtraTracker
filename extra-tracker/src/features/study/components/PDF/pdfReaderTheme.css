@@ -92,13 +92,37 @@
     color: var(--pdf-text-muted) !important;
 }
 
+/* Popup / menu: portaled to body, so seletor senza .pdf-reader-shell */
+.rpv-menu__body,
+.rpv-menu,
+.rpv-popup__body {
+    background: var(--pdf-sidebar-bg, #131727) !important;
+    border: 1px solid var(--pdf-border, rgba(255,255,255,0.12)) !important;
+    color: var(--pdf-text, rgba(255,255,255,0.92)) !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.25) !important;
+    /* Fix: assicura che il popup sia sempre visibile nel viewport */
+    z-index: 9999 !important;
+    max-height: min(320px, 60vh) !important;
+    overflow-y: auto !important;
+}
+
+/* Fix: collision detection per popup che escono in basso
+ * Il browser non supporta "flip" CSS-only, ma garantiamo almeno che
+ * il popup non esca fuori dal viewport scrollando */
+.rpv-popup__body {
+    /* Impedisce al popup di essere renderizzato fuori dal viewport */
+    position: fixed !important;
+}
+
+/* Fallback per .pdf-reader-shell scope (alcuni popup non sono portaled) */
 .pdf-reader-shell .rpv-menu__body,
 .pdf-reader-shell .rpv-menu,
 .pdf-reader-shell .rpv-popup__body {
     background: var(--pdf-sidebar-bg) !important;
     border: 1px solid var(--pdf-border) !important;
     color: var(--pdf-text) !important;
-    box-shadow: var(--shadow-md) !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+    z-index: 9999 !important;
 }
 
 .pdf-reader-shell .rpv-menu__item,

@@ -2,7 +2,7 @@
  * 🖼️ AVATAR UPLOAD - Componente upload foto profilo premium con zoom
  */
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, X, Upload, Loader2, ZoomIn } from 'lucide-react';
 import { useAvatarUpload } from '../hooks/useAvatarUpload';

@@ -3,6 +3,7 @@ import { BookOpen } from 'lucide-react';
 import type { Deck, Tag } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 import type { DeckTheme } from './utils/deckTheme';
 
 interface DeckCardHeaderProps {
@@ -62,8 +63,8 @@ export const DeckCardHeader: React.FC<DeckCardHeaderProps> = ({
                 onUpdate(updated);
                 emitToast.success('Titolo aggiornato');
                 setIsEditingTitle(false);
-            } catch (err: any) {
-                emitToast.error(err.message || 'Errore nell\'aggiornamento');
+            } catch (err: unknown) {
+                emitToast.error(getErrorMessage(err) || 'Errore nell\'aggiornamento');
                 setEditedTitle(deck.title);
                 setIsEditingTitle(false);
             }
@@ -109,7 +110,7 @@ export const DeckCardHeader: React.FC<DeckCardHeaderProps> = ({
                         onBlur={handleTitleSave}
                         onKeyDown={handleTitleKeyDown}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-full text-base sm:text-lg md:text-xl font-bold text-white bg-white/10 border border-white/20 rounded-lg px-2 py-1 mb-1 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                        className="w-full text-base sm:text-lg md:text-xl font-bold text-theme-primary bg-theme-elevated border border-theme-strong rounded-lg px-2 py-1 mb-1 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
                         maxLength={120}
                     />
                 ) : (

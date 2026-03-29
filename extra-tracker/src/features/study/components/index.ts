@@ -2,6 +2,9 @@
  * 📚 Study Components - Barrel Export
  */
 
+// Providers
+export { StudyProviders } from './StudyProviders';
+
 // Flashcard components
 export { Flashcard, FlashcardSkeleton } from './Flashcard/Flashcard';
 export { FlashcardItem } from './Flashcard/FlashcardItem';
@@ -25,7 +28,6 @@ export { PDFChat } from './PDF/PDFChat';
 
 // Deck components
 export { DeckGrid } from './Deck/DeckGrid';
-export { DeckSettings } from './Deck/DeckSettings';
 export { DeckNotifications } from './Deck/DeckNotifications';
 
 // Organization components

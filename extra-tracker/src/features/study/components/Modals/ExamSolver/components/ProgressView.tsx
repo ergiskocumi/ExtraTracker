@@ -29,7 +29,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
     onClose,
     onSuccess,
 }) => {
-    const [elapsedTime, setElapsedTime] = useState(0);
+    const [_elapsedTime, setElapsedTime] = useState(0);
     const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<number | null>(null);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const startTimeRef = useRef<number | null>(null);

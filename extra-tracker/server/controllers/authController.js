@@ -281,11 +281,7 @@ const verifyEmail = asyncHandler(async (req, res, next) => {
     }
 
     const hashedToken = hashToken(token);
-
-    const user = await User.findOne({
-        emailVerificationToken: hashedToken,
-        emailVerificationExpires: { $gt: Date.now() },
-    }).select('+emailVerificationToken +emailVerificationExpires');
+    const user = await authService.verifyEmailToken(hashedToken);
 
     if (!user) {
         return res.status(400).json({
@@ -296,11 +292,6 @@ const verifyEmail = asyncHandler(async (req, res, next) => {
             },
         });
     }
-
-    user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
-    await user.save();
 
     // Audit log
     await auditService.log({
@@ -474,7 +465,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 
     // Invia email di conferma
     emailService.sendPasswordChangedEmail(user.email)
-        .catch(err => console.error('Errore invio email conferma:', err));
+        .catch(err => logger.error('AuthController', 'Errore invio email conferma password', { error: err.message }));
 
     res.status(200).json({
         success: true,

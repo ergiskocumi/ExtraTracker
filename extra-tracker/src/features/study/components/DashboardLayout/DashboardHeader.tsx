@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Folder, ArrowLeft, Home, BookOpen, CheckCircle, FileText } from 'lucide-react';
+import { Plus, Folder, ArrowLeft, BookOpen, CheckCircle, FileText } from 'lucide-react';
 
 interface DashboardHeaderProps {
     onCreateDeck: () => void;

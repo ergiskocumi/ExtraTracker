@@ -15,8 +15,8 @@ import type { ViewModeType } from './FlashcardList.constants';
 export interface FlashcardListProps {
     /** The deck containing the cards */
     deck: Deck;
-    /** Callback to add a new card */
-    onAddCard: () => void;
+    /** Callback to add a new card. When omitted, FlashcardList uses its inline form. */
+    onAddCard?: () => void;
     /** Callback to update card content */
     onUpdate: (cardId: string, front: string, back: string) => Promise<void>;
     /** Optional callback when card is clicked */

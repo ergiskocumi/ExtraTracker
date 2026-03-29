@@ -18,7 +18,7 @@ export type { QuestionsSkeletonProps, StreamingSkeletonProps };
 export const QuestionsSkeleton: React.FC<QuestionsSkeletonProps> = ({
     count = 5,
     isLoading,
-    onStreamingComplete,
+    onStreamingComplete: _onStreamingComplete,
 }) => {
     // Larghezze variabili per sembrare realistici
     const widths = ['70%', '85%', '60%', '90%', '75%', '80%', '65%', '88%', '72%', '82%'];
@@ -93,9 +93,8 @@ export const StreamingSkeleton: React.FC<StreamingSkeletonProps> = ({
     totalCount,
     currentCount,
     questions,
-    onComplete,
+    onComplete: _onComplete,
 }) => {
-    const widths = ['70%', '85%', '60%', '90%', '75%', '80%', '65%', '88%', '72%', '82%'];
     const remainingSkeletons = Math.max(0, totalCount - currentCount);
 
     return (

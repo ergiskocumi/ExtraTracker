@@ -161,7 +161,7 @@ describe('CardEditorModal', () => {
         fireEvent.click(backdrop);
         expect(props.onClose).toHaveBeenCalledTimes(1);
 
-        resolveSave?.();
+        resolveSave!();
         await waitFor(() => {
             expect(onSave).toHaveBeenCalledTimes(1);
         });

@@ -7,17 +7,17 @@
  */
 
 import apiClient from '../../../shared/services/apiClient';
+import type { Deck } from '../../../types/domain';
 
 // =========================================
 // TYPES
 // =========================================
 
-export interface DeckInfo {
-    id: string;
-    title: string;
+/** Subset of Deck used by dashboard summary */
+export type DeckInfo = Pick<Deck, 'id' | 'title'> & {
     dueCards: number;
     totalCards: number;
-}
+};
 
 export interface StudySummary {
     dueCards: number;

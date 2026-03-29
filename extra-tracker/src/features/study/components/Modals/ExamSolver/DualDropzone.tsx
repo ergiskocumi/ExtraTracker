@@ -5,9 +5,9 @@
  * animazioni e feedback visivo migliorato.
  */
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileQuestion, BookOpen, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import type { DropzoneConfig } from './ExamSolverModal.types';
 import { validateFileSize } from './utils/fileValidation';
 import { examSolverButtonClass } from '../../utils/studyButtonClasses';
@@ -192,7 +192,7 @@ interface SingleDropzoneProps {
     error: string | null;
 }
 
-const SingleDropzone: React.FC<SingleDropzoneProps> = ({ config, dropzone, error }) => {
+const SingleDropzone: React.FC<SingleDropzoneProps> = ({ config, dropzone, error: _error }) => {
     const {
         isDragging,
         isValidating,

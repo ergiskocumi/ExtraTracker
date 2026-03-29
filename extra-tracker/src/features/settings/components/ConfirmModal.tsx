@@ -60,7 +60,7 @@ export const ConfirmModal = ({
         onConfirm();
     };
 
-    const isConfirmDisabled = requireTextInput && inputValue !== requireTextInput;
+    const isConfirmDisabled = !!requireTextInput && inputValue !== requireTextInput;
 
     // Configurazione stili in base al tipo
     const config = {

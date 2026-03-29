@@ -50,7 +50,7 @@ export const PreferencesSettings = ({ preferences, onSave, status }: Preferences
     await onSave(next);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value as never }));
     setHasChanges(true);

@@ -107,11 +107,11 @@ describe('CinemaPage - Navigation Tests', () => {
 
         // Wait for error state
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /torna ai mazzi/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /indietro/i })).toBeInTheDocument();
         });
 
         // Click error back button
-        const errorButton = screen.getByRole('button', { name: /torna ai mazzi/i });
+        const errorButton = screen.getByRole('button', { name: /indietro/i });
         fireEvent.click(errorButton);
 
         // Verify navigation to exam decks from location state
@@ -132,10 +132,10 @@ describe('CinemaPage - Navigation Tests', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /torna ai mazzi/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /indietro/i })).toBeInTheDocument();
         });
 
-        fireEvent.click(screen.getByRole('button', { name: /torna ai mazzi/i }));
+        fireEvent.click(screen.getByRole('button', { name: /indietro/i }));
         expect(mockNavigate).toHaveBeenCalledWith('/study');
     });
 });

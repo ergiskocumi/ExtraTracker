@@ -17,14 +17,11 @@ import {
     Undo,
     Redo,
     Sigma,
-    Highlighter,
-    Palette,
     // Icons for categories
     Type,
     AlignLeft,
     Heading,
     Plus,
-    MoreHorizontal,
     ListIndentIncrease,
     ListIndentDecrease,
     Maximize2,
@@ -164,7 +161,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     wordCount,
     charCount,
     visible,
-    size = 'md',
+    size: _size = 'md',
     onToggleFullscreen,
     isFullscreen,
 }) => {

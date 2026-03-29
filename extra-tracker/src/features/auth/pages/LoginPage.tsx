@@ -10,6 +10,7 @@ import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn, FiAlertCircle, FiLoader, FiCl
 import { useAuth } from '../context/AuthContext';
 import { loginSchema, type LoginFormData } from '../validators/authValidators';
 import { Logo } from '../../../shared/components/Brand/Logo';
+import { Button } from '../../../shared/components/ui/button';
 
 // Feature highlight component
 const FeatureBadge: React.FC<{ icon: React.ReactNode; text: string; delay: number }> = ({ 
@@ -299,19 +300,18 @@ export const LoginPage = () => {
                         </motion.div>
 
                         {/* Submit Button */}
-                        <motion.button
-                            type="submit"
-                            disabled={isLoading}
+                        <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.6 }}
-                            whileHover={isLoading ? {} : { scale: 1.01 }}
-                            whileTap={isLoading ? {} : { scale: 0.99 }}
-                            className={`login-submit-btn keep-light-text relative w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-semibold text-base transition-all overflow-hidden
-                                ${isLoading
-                                    ? 'bg-primary-500/50 cursor-not-allowed text-white/70'
-                                    : 'bg-primary-600 hover:bg-primary-500 text-white shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40'
-                                }`}
+                        >
+                        <Button
+                            type="submit"
+                            disabled={isLoading}
+                            size="md"
+                            variant="primary"
+                            fullWidth
+                            className="keep-light-text text-base"
                         >
                             {isLoading ? (
                                 <>
@@ -324,7 +324,8 @@ export const LoginPage = () => {
                                     <span>Accedi</span>
                                 </>
                             )}
-                        </motion.button>
+                        </Button>
+                        </motion.div>
                     </form>
 
                     {/* Divider */}
