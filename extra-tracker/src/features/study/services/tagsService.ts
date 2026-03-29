@@ -55,7 +55,7 @@ class TagsService {
             const response = await apiClient.get<Tag[]>(this.baseUrl);
             const data = unwrap(response, 'Errore nel caricamento dei tag');
             return Array.isArray(data) ? data : [];
-        } catch (err: any) {
+        } catch (err: unknown) {
             throw err;
         }
     }
@@ -68,7 +68,7 @@ class TagsService {
             const response = await apiClient.post<Tag>(this.baseUrl, payload);
             const data = unwrap(response, 'Errore nella creazione del tag');
             return data;
-        } catch (err: any) {
+        } catch (err: unknown) {
             throw err;
         }
     }

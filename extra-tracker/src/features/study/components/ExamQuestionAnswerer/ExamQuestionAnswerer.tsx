@@ -10,6 +10,7 @@ import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiSend, FiCpu, FiAlertCircle, FiCheckCircle, FiBook } from 'react-icons/fi';
 import { emitToast } from '../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 import { studyService, type ExamAnswer } from '../../services/studyService';
 
 interface ExamQuestionAnswererProps {
@@ -43,8 +44,8 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
         try {
             const result = await studyService.answerExamQuestion(deckId, questionText);
             setAnswer(result);
-        } catch (err: any) {
-            const msg = err?.message || 'Errore nella risposta alla domanda';
+        } catch (err: unknown) {
+            const msg = getErrorMessage(err) || 'Errore nella risposta alla domanda';
             setError(msg);
             emitToast.error(msg, { title: 'Errore Tutor Accademico' });
         } finally {

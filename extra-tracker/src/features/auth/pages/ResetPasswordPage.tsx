@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { FiLock, FiEye, FiEyeOff, FiCheckCircle, FiXCircle, FiLoader, FiCheck, FiX } from 'react-icons/fi';
 import { apiClient } from '../../../shared/services/apiClient';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 // Requisiti password
 const PASSWORD_REQUIREMENTS = [
@@ -66,8 +67,8 @@ export const ResetPasswordPage = () => {
             } else {
                 setError('Errore durante il reset della password');
             }
-        } catch (err: any) {
-            setError(err.response?.data?.error?.message || 'Token non valido o scaduto');
+        } catch (err: unknown) {
+            setError((err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message || 'Token non valido o scaduto');
         } finally {
             setIsLoading(false);
         }

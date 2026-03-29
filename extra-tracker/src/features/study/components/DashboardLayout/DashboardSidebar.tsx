@@ -10,6 +10,7 @@ import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
 import { foldersService } from '../../services/foldersService';
 import { emitToast } from '../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 
 interface DashboardSidebarProps {
     isOpen: boolean;
@@ -91,8 +92,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
             emitToast.success('Cartella creata');
             onRefresh();
             setIsCreateFolderModalOpen(false);
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nella creazione');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nella creazione');
             throw err; // Rilancia per gestione nel modale
         }
     };

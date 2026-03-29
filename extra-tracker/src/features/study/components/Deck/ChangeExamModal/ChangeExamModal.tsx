@@ -29,6 +29,7 @@ import { studyService } from '../../../services/studyService';
 import examService from '../../../services/examService';
 import type { Exam } from '../../../types/exam';
 import { emitToast } from '../../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../../utils/errorMessage';
 import type { ChangeExamModalProps } from './types';
 import { USER_MESSAGES, ANIMATION_CONFIG } from './constants';
 
@@ -124,9 +125,9 @@ export function ChangeExamModal({
             if (activeExams.length === 0) {
                 setError(USER_MESSAGES.NO_EXAMS_AVAILABLE);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Errore nel caricamento degli esami:', err);
-            setError(err.message || USER_MESSAGES.ERROR_GENERIC);
+            setError(getErrorMessage(err) || USER_MESSAGES.ERROR_GENERIC);
             emitToast.error('Errore nel caricamento degli esami');
         } finally {
             setIsLoadingExams(false);
@@ -217,9 +218,9 @@ export function ChangeExamModal({
 
             // Chiude il modal dopo il successo
             onClose?.();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Errore nel cambio esame:', err);
-            const errorMessage = err.message || USER_MESSAGES.ERROR_GENERIC;
+            const errorMessage = getErrorMessage(err) || USER_MESSAGES.ERROR_GENERIC;
             setError(errorMessage);
             emitToast.error(errorMessage);
         } finally {

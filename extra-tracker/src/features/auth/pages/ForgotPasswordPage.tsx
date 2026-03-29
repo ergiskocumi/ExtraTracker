@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FiMail, FiSend, FiLoader, FiCheckCircle, FiArrowLeft } from 'react-icons/fi';
 import { apiClient } from '../../../shared/services/apiClient';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 export const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');
@@ -24,7 +25,7 @@ export const ForgotPasswordPage = () => {
         try {
             await apiClient.post<null>('/auth/forgot-password', { email });
             setIsSubmitted(true);
-        } catch (err: any) {
+        } catch (err: unknown) {
             // Non mostrare se l'email esiste o meno per sicurezza
             setIsSubmitted(true);
         } finally {

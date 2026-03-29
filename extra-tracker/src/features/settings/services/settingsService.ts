@@ -9,6 +9,7 @@
  */
 
 import { apiClient, type ApiResponse } from '../../../shared/services/apiClient';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 // ==========================================
 // TIPI PROFILO
@@ -315,11 +316,12 @@ class SettingsService {
                         force: force,
                     });
                     resolve(response);
-                } catch (error: any) {
+                } catch (error: unknown) {
                     // Se è un errore di dimensione, migliora il messaggio
-                    if (error?.response?.data?.error?.code === 'FILE_TOO_LARGE' || 
-                        error?.response?.data?.error?.code === 'PAYLOAD_TOO_LARGE') {
-                        const errorMessage = error.response.data.error.message || 
+                    const errorAny = error as { response?: { data?: { error?: { code?: string; message?: string } } } };
+                    if (errorAny?.response?.data?.error?.code === 'FILE_TOO_LARGE' ||
+                        errorAny?.response?.data?.error?.code === 'PAYLOAD_TOO_LARGE') {
+                        const errorMessage = errorAny.response!.data!.error!.message ||
                             'Il file è troppo grande. Il limite massimo è 50MB.';
                         reject(new Error(errorMessage));
                     } else {

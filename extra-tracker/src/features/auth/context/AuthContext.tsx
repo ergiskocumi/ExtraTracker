@@ -11,6 +11,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { authService, type User, type LoginData, type RegisterData, type AuthResponse } from '../services/authService';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 // ==========================================
 // TIPI
@@ -122,18 +123,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             return response;
-        } catch (err: any) {
+        } catch (err: unknown) {
             // Estrai il messaggio di errore dal backend, non dal messaggio generico di Axios
             let errorMessage = 'Errore durante il login';
-            
+            const errAny = err as { response?: { data?: { error?: { message?: string }; message?: string } }; userMessage?: string };
+
             // PRIORITÀ 1: Messaggio dal backend (se presente nella risposta)
-            if (err?.response?.data?.error?.message) {
-                errorMessage = err.response.data.error.message;
-            } else if (err?.response?.data?.message) {
-                errorMessage = err.response.data.message;
-            } else if (err?.userMessage) {
+            if (errAny?.response?.data?.error?.message) {
+                errorMessage = errAny.response.data.error.message!;
+            } else if (errAny?.response?.data?.message) {
+                errorMessage = errAny.response.data.message!;
+            } else if (errAny?.userMessage) {
                 // Messaggio estratto dall'interceptor
-                errorMessage = err.userMessage;
+                errorMessage = errAny.userMessage;
             } else if (err instanceof Error && !err.message.includes('status code')) {
                 // Usa il messaggio dell'errore solo se non è il generico "Request failed with status code XXX"
                 errorMessage = err.message;
@@ -173,18 +175,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             return response;
-        } catch (err: any) {
+        } catch (err: unknown) {
             // Estrai il messaggio di errore dal backend, non dal messaggio generico di Axios
             let errorMessage = 'Errore durante la registrazione';
-            
+            const errAny = err as { response?: { data?: { error?: { message?: string }; message?: string } }; userMessage?: string };
+
             // PRIORITÀ 1: Messaggio dal backend (se presente nella risposta)
-            if (err?.response?.data?.error?.message) {
-                errorMessage = err.response.data.error.message;
-            } else if (err?.response?.data?.message) {
-                errorMessage = err.response.data.message;
-            } else if (err?.userMessage) {
+            if (errAny?.response?.data?.error?.message) {
+                errorMessage = errAny.response.data.error.message!;
+            } else if (errAny?.response?.data?.message) {
+                errorMessage = errAny.response.data.message!;
+            } else if (errAny?.userMessage) {
                 // Messaggio estratto dall'interceptor
-                errorMessage = err.userMessage;
+                errorMessage = errAny.userMessage;
             } else if (err instanceof Error && !err.message.includes('status code')) {
                 // Usa il messaggio dell'errore solo se non è il generico "Request failed with status code XXX"
                 errorMessage = err.message;

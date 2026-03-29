@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { studyService, type Deck, type QuizType, type SavedQuizSnapshot, type SavedQuizReviewResponse, type StudyMode } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
+import { getErrorMessage } from '../../../utils/errorMessage';
 import { DeckDetailContent } from '../components/Deck/DeckDetailContent';
 import { ExamSolverModal } from '../components/Modals/ExamSolver';
 import { MagicGenerateModal } from '../components/Modals/MagicGenerateModal';
@@ -53,8 +54,8 @@ export const DeckDetailPage: React.FC = () => {
             setError(null);
             const deckData = await studyService.getDeckById(id);
             setDeck(deckData);
-        } catch (err: any) {
-            setError(err.message || 'Errore nel caricamento del mazzo');
+        } catch (err: unknown) {
+            setError(getErrorMessage(err) || 'Errore nel caricamento del mazzo');
         } finally {
             setIsLoading(false);
         }
@@ -177,8 +178,8 @@ export const DeckDetailPage: React.FC = () => {
                     preparedAt: Date.now(),
                 },
             });
-        } catch (err: any) {
-            emitToast.error(err?.message || 'Errore nella preparazione del quiz');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nella preparazione del quiz');
             throw err;
         }
     }, [id, deck, navigate]);
@@ -256,8 +257,8 @@ export const DeckDetailPage: React.FC = () => {
                     preparedAt: Date.now(),
                 },
             });
-        } catch (err: any) {
-            emitToast.error(err?.message || 'Errore nel caricamento del quiz');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nel caricamento del quiz');
         }
     }, [id, deck, navigate]);
 
@@ -266,8 +267,8 @@ export const DeckDetailPage: React.FC = () => {
         try {
             const data = await studyService.reviewSavedQuiz(id, savedQuiz.id);
             setReviewData(data);
-        } catch (err: any) {
-            emitToast.error(err?.message || 'Errore nel caricamento della review');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nel caricamento della review');
         }
     }, [id]);
 
@@ -279,8 +280,8 @@ export const DeckDetailPage: React.FC = () => {
             await studyService.deleteDeck(id);
             emitToast.success('Mazzo eliminato');
             navigate('/study');
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nell\'eliminazione');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nell\'eliminazione');
             setIsDeleting(false);
         } finally {
             setIsDeleteModalOpen(false);
@@ -295,8 +296,8 @@ export const DeckDetailPage: React.FC = () => {
             setDeck(updatedDeck);
             setIsResetModalOpen(false);
             emitToast.success('Progresso resettato con successo');
-        } catch (error: any) {
-            emitToast.error(error?.message || 'Errore nel reset del progresso');
+        } catch (error: unknown) {
+            emitToast.error(getErrorMessage(error) || 'Errore nel reset del progresso');
         }
     }, [id, deck]);
 

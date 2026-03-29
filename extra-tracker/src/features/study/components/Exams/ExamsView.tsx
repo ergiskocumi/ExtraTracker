@@ -11,6 +11,7 @@ import examService from '../../services/examService';
 import type { Tag } from '../../services/tagsService';
 import { ConfirmationModal } from '../../../../shared/components/ConfirmationModal';
 import { emitToast } from '../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 
 // ============================================
 // TYPES
@@ -72,8 +73,8 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             setError(null);
             const allExams = await examService.getAll();
             setExams(allExams);
-        } catch (err: any) {
-            setError(err.message || 'Errore nel caricamento degli esami');
+        } catch (err: unknown) {
+            setError(getErrorMessage(err) || 'Errore nel caricamento degli esami');
         } finally {
             setIsLoading(false);
         }
@@ -120,10 +121,10 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             if (onRefresh) {
                 onRefresh();
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             // Rollback in caso di errore
             await loadExams();
-            emitToast.error(err.message || 'Errore nell\'eliminazione dell\'esame');
+            emitToast.error(getErrorMessage(err) || 'Errore nell\'eliminazione dell\'esame');
         } finally {
             setIsDeleting(false);
             setPendingDeleteExamId(null);

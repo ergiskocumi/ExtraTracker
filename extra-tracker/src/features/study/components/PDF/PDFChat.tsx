@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiSend, FiCpu, FiAlertCircle } from 'react-icons/fi';
 import { emitToast } from '../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 import { studyService, type ChatMessage } from '../../services/studyService';
 
 interface PDFChatProps {
@@ -87,8 +88,8 @@ export const PDFChat: React.FC<PDFChatProps> = ({
 
                 const reply = await studyService.askTutor(deckId, content, history);
                 setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
-            } catch (err: any) {
-                const msg = err?.message || 'Errore nella chat con l’AI';
+            } catch (err: unknown) {
+                const msg = getErrorMessage(err) || ‘Errore nella chat con l\u2019AI’;
                 setError(msg);
                 emitToast.error(msg, { title: 'AI Tutor' });
             } finally {

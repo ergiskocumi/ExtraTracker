@@ -20,6 +20,7 @@ import {
 } from 'react-icons/fi';
 import examService from '../../services/examService';
 import type { CreateDeckPayload } from '../../services/studyService';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -123,8 +124,8 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
             if (onExamCreated) {
                 onExamCreated();
             }
-        } catch (err: any) {
-            setError(err.message || 'Errore nella creazione dell\'esame');
+        } catch (err: unknown) {
+            setError(getErrorMessage(err) || 'Errore nella creazione dell\'esame');
         } finally {
             setIsCreatingExam(false);
         }
@@ -147,8 +148,8 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
             // Reset form
             resetForm();
             onClose();
-        } catch (err: any) {
-            setError(err.message || 'Errore nella creazione del mazzo');
+        } catch (err: unknown) {
+            setError(getErrorMessage(err) || 'Errore nella creazione del mazzo');
         } finally {
             setIsSubmitting(false);
         }

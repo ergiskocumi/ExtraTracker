@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FiCheckCircle, FiXCircle, FiLoader, FiMail } from 'react-icons/fi';
 import { apiClient } from '../../../shared/services/apiClient';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 type VerificationStatus = 'loading' | 'success' | 'error' | 'no-token';
 
@@ -35,9 +36,9 @@ export const VerifyEmailPage = () => {
                     setStatus('error');
                     setMessage('Token non valido o scaduto.');
                 }
-            } catch (err: any) {
+            } catch (err: unknown) {
                 setStatus('error');
-                setMessage(err.response?.data?.error?.message || 'Errore durante la verifica.');
+                setMessage((err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message || 'Errore durante la verifica.');
             }
         };
 

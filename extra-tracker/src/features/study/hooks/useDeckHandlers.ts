@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { studyService, type Deck, type CreateDeckPayload, type AddCardPayload } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
+import { getErrorMessage } from '../../../utils/errorMessage';
 import type { StudyStartConfig } from '../components/Modals/StudyModeSelector';
 
 interface UseDeckHandlersProps {
@@ -117,8 +118,8 @@ export const useDeckHandlers = ({
             setDeletingDeck(null);
             await loadDecks();
             emitToast.success(`Mazzo "${deckTitle}" eliminato`);
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nell\'eliminazione');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nell\'eliminazione');
         }
     }, [deletingDeck, loadDecks]);
 
@@ -133,8 +134,8 @@ export const useDeckHandlers = ({
             const updatedDeck = await studyService.addCard(deckId, data);
             setDecks(prev => prev.map(d => d.id === deckId ? updatedDeck : d));
             emitToast.success('Carta aggiunta!');
-        } catch (err: any) {
-            emitToast.error(err.message);
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err));
             throw err;
         }
     }, [setDecks]);
@@ -156,9 +157,9 @@ export const useDeckHandlers = ({
             ]);
             
             emitToast.success(folderId ? 'Mazzo spostato nella cartella' : 'Mazzo spostato nella cartella radice');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[useDeckHandlers] handleDeckDrop: Error:', err);
-            emitToast.error(err.message || 'Errore nello spostamento');
+            emitToast.error(getErrorMessage(err) || 'Errore nello spostamento');
         }
     }, [decks, setDecks, loadDecks, loadFolders]);
 
@@ -180,8 +181,8 @@ export const useDeckHandlers = ({
                     ? 'Aggiunto ai preferiti' 
                     : 'Rimosso dai preferiti'
             );
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nell\'aggiornamento');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nell\'aggiornamento');
         }
     }, [setDecks]);
 

@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import { Save, Search, Check, Loader2, AlertCircle } from 'lucide-react';
 import { studyService } from '../../../services/studyService';
 import { emitToast } from '../../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../../utils/errorMessage';
 import type { ManualAnswerEditorProps, FlashcardWithId } from './ExamSolverModal.types';
 import { classList, examSolverButtonClass, examSolverFieldClass } from '../../utils/studyButtonClasses';
 
@@ -98,9 +99,9 @@ export const ManualAnswerEditor: React.FC<ManualAnswerEditorProps> = ({
                     return newState;
                 });
             }, 3000);
-        } catch (err: any) {
+        } catch (err: unknown) {
             setSavingStates(prev => ({ ...prev, [cardId]: 'idle' }));
-            emitToast.error(err.message || 'Errore nel salvataggio della risposta');
+            emitToast.error(getErrorMessage(err) || 'Errore nel salvataggio della risposta');
         }
     }, [deckId, validateAnswer, onSave]);
 

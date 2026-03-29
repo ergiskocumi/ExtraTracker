@@ -66,7 +66,7 @@ class FoldersService {
             const response = await apiClient.get<Folder[]>(this.baseUrl);
             const data = unwrap(response, 'Errore nel caricamento delle cartelle');
             return Array.isArray(data) ? data : [];
-        } catch (err: any) {
+        } catch (err: unknown) {
             throw err;
         }
     }
@@ -79,7 +79,7 @@ class FoldersService {
             const response = await apiClient.get<Folder[]>(`${this.baseUrl}/tree`);
             const data = unwrap(response, 'Errore nel caricamento dell\'albero delle cartelle');
             return Array.isArray(data) ? data : [];
-        } catch (err: any) {
+        } catch (err: unknown) {
             throw err;
         }
     }
@@ -92,7 +92,7 @@ class FoldersService {
             const response = await apiClient.post<Folder>(this.baseUrl, payload);
             const data = unwrap(response, 'Errore nella creazione della cartella');
             return data;
-        } catch (err: any) {
+        } catch (err: unknown) {
             throw err;
         }
     }

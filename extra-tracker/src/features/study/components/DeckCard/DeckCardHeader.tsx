@@ -3,6 +3,7 @@ import { BookOpen } from 'lucide-react';
 import type { Deck, Tag } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 import type { DeckTheme } from './utils/deckTheme';
 
 interface DeckCardHeaderProps {
@@ -62,8 +63,8 @@ export const DeckCardHeader: React.FC<DeckCardHeaderProps> = ({
                 onUpdate(updated);
                 emitToast.success('Titolo aggiornato');
                 setIsEditingTitle(false);
-            } catch (err: any) {
-                emitToast.error(err.message || 'Errore nell\'aggiornamento');
+            } catch (err: unknown) {
+                emitToast.error(getErrorMessage(err) || 'Errore nell\'aggiornamento');
                 setEditedTitle(deck.title);
                 setIsEditingTitle(false);
             }

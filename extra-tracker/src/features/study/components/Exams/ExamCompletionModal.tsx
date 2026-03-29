@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Trophy, AlertCircle, RotateCcw, Sparkles, RefreshCw, X } from 'lucide-react';
 import type { Exam, ExamOutcome } from '../../types/exam';
 import { emitToast } from '../../../../shared/components/toast';
+import { getErrorMessage } from '../../../../utils/errorMessage';
 
 // Dynamic import per canvas-confetti (opzionale)
 let confetti: any = null;
@@ -272,8 +273,8 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
             await onComplete(exam.id, outcome, 'passed');
             emitToast.success('Ottimo lavoro! Hai completato questo percorso.');
             onClose();
-        } catch (err: any) {
-            emitToast.error(err.message || 'Errore nel completamento dell\'esame');
+        } catch (err: unknown) {
+            emitToast.error(getErrorMessage(err) || 'Errore nel completamento dell\'esame');
         } finally {
             setIsLoading(false);
         }
@@ -308,9 +309,9 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
 
             await onComplete(exam.id, outcome, 'failed');
             setStep('recovery-actions');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[ExamCompletionModal] Errore nel salvataggio:', err);
-            emitToast.error(err.message || 'Errore nel salvataggio del risultato');
+            emitToast.error(getErrorMessage(err) || 'Errore nel salvataggio del risultato');
         } finally {
             setIsLoading(false);
         }
@@ -327,9 +328,9 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
             await onResetCards(exam.id, type);
             emitToast.success(type === 'all' ? 'Tutte le carte sono state resettate' : 'Le carte difficili sono state resettate');
             onClose();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[ExamCompletionModal] Errore nel reset:', err);
-            emitToast.error(err.message || 'Errore nel reset delle carte');
+            emitToast.error(getErrorMessage(err) || 'Errore nel reset delle carte');
         } finally {
             setIsLoading(false);
         }
@@ -358,9 +359,9 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
             await onGenerateAIQuestions(exam.id, topics);
             emitToast.success('Domande AI generate con successo!');
             onClose();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[ExamCompletionModal] Errore nella generazione AI:', err);
-            emitToast.error(err.message || 'Errore nella generazione delle domande');
+            emitToast.error(getErrorMessage(err) || 'Errore nella generazione delle domande');
         } finally {
             setIsLoading(false);
         }
