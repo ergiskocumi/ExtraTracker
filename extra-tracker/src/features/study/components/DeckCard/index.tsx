@@ -226,13 +226,13 @@ const DeckCardComponent: React.FC<DeckCardProps> = ({
             }}
             className={`
                 group relative rounded-xl sm:rounded-2xl md:rounded-3xl border overflow-hidden
-                transition-all duration-300 hover:shadow-xl
+                transition-colors duration-200 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]
                 flex flex-col
                 min-h-[280px] sm:min-h-[320px] md:min-h-[340px]
-                cursor-move
-                ${hasDueCards 
-                    ? 'border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent shadow-lg shadow-orange-500/10' 
-                    : `${theme.borderColor} bg-gradient-to-br ${theme.gradient} hover:shadow-lg`
+                cursor-move active:scale-[0.98]
+                ${hasDueCards
+                    ? 'border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]'
+                    : `${theme.borderColor} bg-gradient-to-br ${theme.gradient} hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)]`
                 }
             `}
             draggable

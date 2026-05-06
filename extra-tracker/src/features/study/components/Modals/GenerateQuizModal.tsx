@@ -169,7 +169,7 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
                                     if (!isGenerating) onClose();
                                 }}
                                 disabled={isGenerating}
-                                className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-surface transition-colors"
+                                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-surface transition-colors"
                                 aria-label="Chiudi modale"
                             >
                                 <X className="w-[18px] h-[18px]" />
@@ -213,7 +213,7 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
                                                             option.value,
                                                         )
                                                     }
-                                                    className={`min-h-[40px] px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                                                    className={`min-h-[40px] px-4 py-2 rounded-xl text-sm font-semibold border transition-colors duration-200 active:scale-[0.97] ${
                                                         option.disabled
                                                             ? 'bg-theme-surface/50 text-theme-disabled border-theme-subtle cursor-not-allowed opacity-40'
                                                             : selected
@@ -275,7 +275,7 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
                                 type="button"
                                 onClick={onClose}
                                 disabled={isGenerating}
-                                className="min-h-[40px] px-4 py-2 rounded-xl border border-theme-default text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-card font-medium transition-colors"
+                                className="min-h-[40px] px-4 py-2 rounded-xl border border-theme-default text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-card font-medium transition-colors duration-200 active:scale-[0.97]"
                             >
                                 Annulla
                             </button>
@@ -283,7 +283,7 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
                                 type="button"
                                 disabled={!canGenerate || isGenerating}
                                 onClick={handleGenerate}
-                                className={`min-h-[40px] px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                                className={`min-h-[40px] px-5 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 active:scale-[0.97] ${
                                     canGenerate && !isGenerating
                                         ? 'bg-primary-500 text-white hover:bg-primary-600 shadow-sm shadow-primary-500/20'
                                         : 'bg-theme-surface border border-theme-default text-theme-disabled cursor-not-allowed'
@@ -319,7 +319,7 @@ const QuizTypeCard: React.FC<QuizTypeCardProps> = ({
     <button
         type="button"
         onClick={onClick}
-        className={`relative p-4 rounded-xl border text-left transition-colors group ${
+        className={`relative p-4 rounded-xl border text-left transition-colors duration-200 active:scale-[0.98] group ${
             selected
                 ? 'border-primary-500 bg-primary-500/[0.06] ring-1 ring-primary-500/30'
                 : 'border-theme-default bg-theme-card hover:border-theme-strong hover:bg-theme-surface'

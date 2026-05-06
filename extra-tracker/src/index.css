@@ -340,6 +340,9 @@
   .bg-theme-card {
     background: var(--bg-card);
   }
+  .bg-theme-surface-hover {
+    background: var(--bg-surface-hover);
+  }
   .bg-theme-overlay {
     background: var(--bg-overlay);
   }

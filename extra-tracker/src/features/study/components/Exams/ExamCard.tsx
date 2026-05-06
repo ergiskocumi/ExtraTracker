@@ -208,14 +208,14 @@ export const ExamCard: React.FC<ExamCardProps> = ({
             onClick={onClick}
             className={`
                 relative rounded-2xl border overflow-hidden cursor-pointer
-                transition-all duration-300 h-full flex flex-col
+                transition-colors duration-200 h-full flex flex-col active:scale-[0.98]
                 ${isUrgent || isOverdue
-                    ? 'border-orange-500/40 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent shadow-lg shadow-orange-500/10'
+                    ? 'border-orange-500/25 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]'
                     : isCompleted
                         ? 'border-white/10 bg-gradient-to-br from-white/5 to-transparent opacity-80'
-                        : 'border-primary-500/30 bg-gradient-to-br from-primary-500/10 via-primary-500/5 to-transparent'
+                        : 'border-primary-500/20 bg-gradient-to-br from-primary-500/10 via-primary-500/5 to-transparent'
                 }
-                hover:border-primary-500/50 hover:shadow-xl hover:shadow-primary-500/15
+                hover:border-primary-500/40 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)]
                 backdrop-blur-sm
             `}
         >
@@ -283,7 +283,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: -8, scale: 0.95 }}
                                         transition={{ duration: 0.15 }}
-                                        className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-theme-default bg-theme-elevated shadow-2xl shadow-black/60 overflow-hidden z-50"
+                                        className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-theme-default bg-theme-elevated shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] overflow-hidden z-50"
                                     >
                                         {isCompleted && onReactivate && (
                                             <button

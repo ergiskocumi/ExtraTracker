@@ -11,7 +11,7 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, clickable, asButton, onClick, ...props }, ref) => {
     const clickableClasses = clickable
-      ? 'cursor-pointer transition-all duration-200 hover:shadow-theme-xl hover:border-primary-500/30 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-base active:translate-y-0'
+      ? 'cursor-pointer transition-colors duration-200 hover:shadow-theme-xl hover:border-primary-500/30 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-base active:translate-y-0 active:scale-[0.98]'
       : '';
 
     if (asButton && onClick) {

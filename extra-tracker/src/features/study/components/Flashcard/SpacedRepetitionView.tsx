@@ -253,11 +253,11 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
                                         whileTap={!isSubmitting ? { scale: 0.92 } : undefined}
                                         onClick={() => handleRate(rating)}
                                         disabled={isSubmitting}
-                                        className={`relative flex flex-col items-center justify-center gap-3 px-6 py-5 rounded-3xl transition-all border-2 font-bold text-white/90 ${
+                                        className={`relative flex flex-col items-center justify-center gap-3 px-6 py-5 rounded-3xl transition-colors duration-200 border font-bold text-white/90 active:scale-[0.97] ${
                                             isSelected
                                                 ? `border-white bg-gradient-to-br ${config.bgGradient} shadow-2xl ${config.glowColor}`
-                                                : `border-white/25 bg-white/5 hover:bg-white/8 hover:border-white/40`
-                                        } disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm`}
+                                                : `border-white/15 bg-white/5 hover:bg-white/[0.07] hover:border-white/30`
+                                        } disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-md`}
                                     >
                                         {/* Keyboard hint */}
                                         <span className="absolute top-1.5 right-3 text-xs font-bold text-white/50 bg-white/10 px-1.5 py-0.5 rounded">

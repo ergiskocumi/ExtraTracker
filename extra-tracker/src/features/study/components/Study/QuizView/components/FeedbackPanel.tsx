@@ -27,7 +27,7 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ result }) => {
       className="w-full max-w-4xl mx-auto mb-4 sm:mb-6"
     >
       {result === "correct" && (
-        <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-[2rem] bg-emerald-500/10 border-2 border-emerald-500/20 shadow-lg shadow-emerald-500/5">
+        <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]">
           <div className="p-2 rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
             <Check className="w-6 h-6" strokeWidth={4} />
           </div>
@@ -38,7 +38,7 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ result }) => {
       )}
 
       {result === "wrong" && (
-        <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-[2rem] bg-rose-500/10 border-2 border-rose-500/20 shadow-lg shadow-rose-500/5">
+        <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]">
           <div className="p-2 rounded-full bg-rose-500 text-white shadow-lg shadow-rose-500/20">
             <X className="w-6 h-6" strokeWidth={4} />
           </div>
@@ -49,7 +49,7 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ result }) => {
       )}
 
       {result === "dontKnow" && (
-        <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-[2rem] bg-amber-500/10 border-2 border-amber-500/20 shadow-lg shadow-amber-500/5">
+        <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]">
           <div className="p-2 rounded-full bg-amber-500 text-white shadow-lg shadow-amber-500/20">
             <HelpCircle className="w-6 h-6" strokeWidth={4} />
           </div>

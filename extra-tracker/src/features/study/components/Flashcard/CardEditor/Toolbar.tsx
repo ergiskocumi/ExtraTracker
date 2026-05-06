@@ -87,9 +87,9 @@ const ToolbarButton: React.FC<{
             className={`
                 relative flex items-center justify-center rounded-lg p-2 transition-all duration-200
                 ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}
-                ${isActive 
-                    ? 'bg-violet-500/20 text-violet-300' 
-                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                ${isActive
+                    ? 'bg-violet-500/20 text-violet-300'
+                    : 'text-theme-muted hover:text-theme-primary hover:bg-theme-surface-hover'
                 }
                 ${className}
             `}
@@ -100,7 +100,7 @@ const ToolbarButton: React.FC<{
 };
 
 const Divider: React.FC = () => (
-    <div className="w-px h-6 bg-white/10 mx-2 self-center" aria-hidden="true" />
+    <div className="w-px h-6 mx-2 self-center" style={{ backgroundColor: 'var(--border-default)' }} aria-hidden="true" />
 );
 
 // Popup menu component for categories
@@ -136,10 +136,10 @@ const CategoryMenu: React.FC<{
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="absolute top-full left-0 mt-2 p-2 bg-[#1a1d26] border border-white/10 rounded-xl shadow-xl z-50 flex flex-col gap-1 min-w-[200px]"
+                    className="absolute top-full left-0 mt-2 p-2 bg-theme-elevated border border-theme-default rounded-xl shadow-xl z-50 flex flex-col gap-1 min-w-[200px]"
                     style={{ left: '-50%' }} // Adjust alignment if needed
                 >
-                    <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-white/5 mb-1">
+                    <div className="px-3 py-2 text-xs font-semibold text-theme-muted uppercase tracking-wider border-b border-theme-subtle mb-1">
                         {title}
                     </div>
                     <div className="flex flex-wrap gap-1 p-1">
@@ -175,7 +175,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     return (
         <div
             className={`
-                relative flex items-center justify-between gap-2 rounded-2xl border border-white/5 bg-[#14161f] p-2 shadow-xl transition-opacity duration-300
+                relative flex items-center justify-between gap-2 rounded-2xl border border-theme-subtle bg-theme-elevated p-2 shadow-xl transition-opacity duration-300
                 ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
             `}
         >
@@ -316,14 +316,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
             {/* Right side: Stats & Fullscreen */}
             <div className="flex items-center gap-4 px-2">
-                <div className="hidden sm:flex flex-col items-end text-[10px] sm:text-xs text-slate-500 font-mono leading-none">
+                <div className="hidden sm:flex flex-col items-end text-[10px] sm:text-xs text-theme-muted font-mono leading-none">
                     <span>{wordCount} parole</span>
                     <span>{charCount} car.</span>
                 </div>
-                
+
                 {onToggleFullscreen && (
                     <>
-                        <div className="w-px h-6 bg-white/10" aria-hidden="true" />
+                        <div className="w-px h-6" style={{ backgroundColor: 'var(--border-default)' }} aria-hidden="true" />
                         <ToolbarButton 
                             label={isFullscreen ? "Esci da Fullscreen" : "Fullscreen"} 
                             onClick={onToggleFullscreen}

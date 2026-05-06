@@ -111,7 +111,7 @@ const MenuItemComponent = memo(({
         group flex items-center gap-3.5 px-4 py-3 mx-2 rounded-2xl transition-all duration-150 cursor-pointer
         ${isActive
             ? 'bg-gradient-to-r from-primary-500/25 to-violet-500/15 border border-primary-500/25 shadow-lg shadow-primary-500/10'
-            : 'hover:bg-white/[0.08] border border-transparent'
+            : 'hover:bg-theme-surface-hover border border-transparent'
         }
     `;
     const activeTextColor = isActive ? 'var(--text-primary)' : 'var(--text-secondary)';
@@ -124,7 +124,7 @@ const MenuItemComponent = memo(({
                     w-10 h-10 rounded-2xl flex items-center justify-center transition-all
                     ${isActive
                         ? 'bg-gradient-to-br from-primary-500 to-violet-600 shadow-lg shadow-primary-500/30'
-                        : 'bg-white/[0.06] group-hover:bg-white/[0.1]'
+                        : 'bg-theme-surface group-hover:bg-theme-surface-hover'
                     }
                 `}
                 style={{ color: isActive ? 'white' : activeTextColor }}
@@ -369,7 +369,7 @@ export const UserMenuDropdown = memo(() => {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 onClick={() => setIsOpen(false)}
-                                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
+                                className="fixed inset-0 bg-theme-overlay backdrop-blur-sm z-[9998]"
                             />
 
                             {/* Sidebar */}
@@ -392,7 +392,7 @@ export const UserMenuDropdown = memo(() => {
                                         <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Menu</h2>
                                         <button
                                             onClick={() => setIsOpen(false)}
-                                            className="p-2 rounded-lg transition-colors hover:bg-white/[0.08]"
+                                            className="p-2 rounded-lg transition-colors hover:bg-theme-surface-hover"
                                             style={{ color: 'var(--text-muted)' }}
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -508,7 +508,7 @@ export const UserMenuDropdown = memo(() => {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.2 }}
-                                className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+                                className="fixed inset-0 z-[10000] flex items-center justify-center bg-theme-overlay backdrop-blur-sm"
                                 onClick={() => setAvatarLightboxOpen(false)}
                                 role="button"
                                 tabIndex={0}

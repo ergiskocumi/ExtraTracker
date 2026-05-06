@@ -44,7 +44,7 @@ const TBtn: React.FC<{
             aria-label={label}
             data-active={isActive ? 'true' : undefined}
             className={`
-                relative flex items-center justify-center rounded-lg p-1.5 sm:p-2 min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px]
+                relative flex items-center justify-center rounded-lg p-1.5 sm:p-2 min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px]
                 transition-all duration-150
                 ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}
                 ${isActive

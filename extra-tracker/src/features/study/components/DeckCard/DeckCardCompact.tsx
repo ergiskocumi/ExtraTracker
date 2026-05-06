@@ -71,12 +71,12 @@ export const DeckCardCompact: React.FC<DeckCardCompactProps> = ({
             onClick={handleCardClick}
             className={`
                 relative rounded-xl border overflow-hidden cursor-pointer
-                transition-all duration-300
-                ${hasDueCards 
-                    ? 'border-orange-500/40 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent' 
+                transition-colors duration-200 active:scale-[0.98]
+                ${hasDueCards
+                    ? 'border-orange-500/25 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent'
                     : `${theme.borderColor} bg-gradient-to-br ${theme.gradient}`
                 }
-                hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/10
+                hover:border-primary-500/40 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]
             `}
         >
             {/* Badges - Due Cards & Pinned */}

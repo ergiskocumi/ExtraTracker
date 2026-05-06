@@ -65,7 +65,7 @@ const FlashcardFrontComponent: React.FC<FlashcardFrontProps> = ({
                         variant="study"
                         size="adaptive"
                         centered={true}
-                        className="text-white font-bold leading-relaxed"
+                        className="text-theme-primary font-bold leading-relaxed"
                     />
                 </div>
             </div>

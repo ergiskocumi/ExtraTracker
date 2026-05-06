@@ -72,7 +72,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 {searchQuery && (
                     <button
                         onClick={() => onSearchChange('')}
-                        className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-1 rounded-lg text-theme-muted hover:text-theme-primary active:bg-theme-elevated touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center"
+                        className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-1 rounded-lg text-theme-muted hover:text-theme-primary active:bg-theme-elevated touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
                         aria-label="Cancella ricerca"
                     >
                         <X className="w-4 h-4" />
@@ -95,7 +95,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                                 onClick={() => onFilterChange(filter.key)}
                                 className={`
                                     flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all touch-manipulation
-                                    min-h-[40px] sm:min-h-[44px]
+                                    min-h-[44px]
                                     ${activeFilter === filter.key
                                         ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
                                         : 'bg-theme-surface text-theme-muted hover:bg-theme-elevated hover:text-theme-secondary border border-theme-default active:bg-theme-elevated'

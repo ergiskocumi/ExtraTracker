@@ -44,7 +44,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay backdrop-blur-sm"
                     onClick={onClose}
                 >
                     <motion.div
@@ -52,24 +52,24 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.95, opacity: 0 }}
                         onClick={e => e.stopPropagation()}
-                        className="w-full max-w-lg rounded-3xl bg-zinc-900 border border-white/10 shadow-2xl overflow-hidden"
+                        className="w-full max-w-lg rounded-3xl bg-theme-elevated border border-theme-default shadow-2xl overflow-hidden"
                     >
-                        <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between">
+                        <div className="px-6 py-5 border-b border-theme-default flex items-center justify-between">
                             <div>
-                                <h2 className="text-lg font-bold text-white">Nuova Carta</h2>
-                                <p className="text-sm text-white/50">{deckTitle}</p>
+                                <h2 className="text-lg font-bold text-theme-primary">Nuova Carta</h2>
+                                <p className="text-sm text-theme-muted">{deckTitle}</p>
                             </div>
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-xl hover:bg-white/10 transition-colors"
+                                className="p-2 rounded-xl hover:bg-theme-surface-hover transition-colors"
                             >
-                                <X className="w-5 h-5 text-white/60" />
+                                <X className="w-5 h-5 text-theme-muted" />
                             </button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-5">
                             <div>
-                                <label className="block text-sm font-medium text-white/70 mb-2">
+                                <label className="block text-sm font-medium text-theme-secondary mb-2">
                                     Fronte (Domanda)
                                 </label>
                                 <textarea
@@ -77,13 +77,13 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                     onChange={e => setFront(e.target.value)}
                                     placeholder="Cosa vuoi memorizzare?"
                                     rows={3}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-theme-surface border border-theme-default rounded-xl text-theme-primary placeholder:text-slate-400 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all resize-none"
                                     autoFocus
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-white/70 mb-2">
+                                <label className="block text-sm font-medium text-theme-secondary mb-2">
                                     Retro (Risposta)
                                 </label>
                                 <textarea
@@ -91,7 +91,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                     onChange={e => setBack(e.target.value)}
                                     placeholder="La risposta..."
                                     rows={3}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-theme-surface border border-theme-default rounded-xl text-theme-primary placeholder:text-slate-400 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all resize-none"
                                 />
                             </div>
 
@@ -99,7 +99,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                 <button
                                     type="button"
                                     onClick={onClose}
-                                    className="flex-1 px-5 py-3.5 rounded-xl bg-white/5 text-white/70 hover:bg-white/10 transition-all font-medium"
+                                    className="flex-1 px-5 py-3.5 rounded-xl bg-theme-surface text-theme-secondary hover:bg-theme-surface-hover transition-all font-medium"
                                 >
                                     Annulla
                                 </button>

@@ -174,7 +174,7 @@ const PARAGRAPH_SPLIT_REGEX = /\n\n+/;
 const VARIANT_STYLES: Record<ContentVariant, string> = {
     question: `${COLORS.text.primary} font-semibold`,
     answer: `${COLORS.text.secondary} font-normal`,
-    study: 'text-white font-semibold drop-shadow-sm',
+    study: 'text-theme-primary font-semibold',
 };
 
 const SIZE_STYLES: Record<Exclude<TextSize, 'adaptive'>, string> = {
@@ -301,7 +301,7 @@ const createMarkdownComponents = (
     strong: ({ children }) => (
         <strong
             className={`font-bold ${
-                variant === 'study' ? 'text-white' : COLORS.text.primary
+                variant === 'study' ? 'text-theme-primary' : COLORS.text.primary
             }`}
         >
             {children}

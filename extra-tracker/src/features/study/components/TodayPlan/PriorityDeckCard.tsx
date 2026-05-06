@@ -84,14 +84,14 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
             transition={{ delay: index * 0.08, duration: 0.4 }}
             whileHover={{ y: -2 }}
             className={`
-                relative p-5 sm:p-6 rounded-2xl sm:rounded-3xl border-2
-                ${priority === 'high' 
-                    ? 'bg-gradient-to-br from-amber-500/15 to-amber-600/10 border-amber-500/40 shadow-lg shadow-amber-500/10' 
+                relative p-5 sm:p-6 rounded-2xl sm:rounded-3xl border
+                ${priority === 'high'
+                    ? 'bg-gradient-to-br from-amber-500/15 to-amber-600/10 border-amber-500/25 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]'
                     : priority === 'medium'
-                        ? 'bg-gradient-to-br from-violet-500/15 to-violet-600/10 border-violet-500/40 shadow-lg shadow-violet-500/10'
-                        : 'bg-gradient-to-br from-blue-500/15 to-blue-600/10 border-blue-500/40 shadow-lg shadow-blue-500/10'
+                        ? 'bg-gradient-to-br from-violet-500/15 to-violet-600/10 border-violet-500/25 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]'
+                        : 'bg-gradient-to-br from-blue-500/15 to-blue-600/10 border-blue-500/25 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]'
                 }
-                hover:shadow-xl hover:border-opacity-60 transition-all duration-300
+                hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-colors duration-200
                 backdrop-blur-sm
             `}
         >
