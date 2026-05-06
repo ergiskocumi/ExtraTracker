@@ -37,8 +37,10 @@ const addToBlacklist = async (token, ttlSeconds = 15 * 60) => {
 
 const isTokenBlacklisted = async (token) => {
     if (!getRedisAvailable()) {
-        logger.warn('TokenService', 'Redis non disponibile — token rifiutato per sicurezza');
-        return true;
+        // Redis non disponibile: assumi token NON blacklistato.
+        // La finestra di sicurezza è limitata (access token scade in 15 min).
+        // Bloccare tutto (return true) causa outage completo dell'app.
+        return false;
     }
 
     try {
