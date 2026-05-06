@@ -1,3 +1,4 @@
+// TODO: Refactor per evitare cross-feature coupling (CLAUDE.md). Il dashboard non dovrebbe dipendere direttamente dal tracker.
 import { useMemo, useState } from 'react';
 import { useWorkLog } from '../../tracker/context/WorkLogContext';
 import { useAuth } from '../../auth/context/AuthContext';

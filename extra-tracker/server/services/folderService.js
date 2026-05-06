@@ -39,6 +39,7 @@ class FolderService {
 
         // Conta i deck per ogni cartella
         const folderObjectIds = folders.map(f => f._id);
+        // ATTENZIONE: Il filtro { user: userId } deve SEMPRE essere nel $match — il plugin multi-tenancy non si applica a aggregate()
         const deckCounts = await Deck.aggregate([
             { $match: { user: userId, folderId: { $in: folderObjectIds } } },
             { $group: { _id: '$folderId', count: { $sum: 1 } } },

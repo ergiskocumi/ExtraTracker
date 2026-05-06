@@ -56,7 +56,7 @@ class WorkLogService extends BaseService {
     async getTotalsByPeriod(tenantScope, startDate, endDate) {
         const userId = this._getUserId(tenantScope);
         
-        // 🔒 SICUREZZA: Filtro esplicito per user
+        // ATTENZIONE: Il filtro { user: userId } deve SEMPRE essere nel $match — il plugin multi-tenancy non si applica a aggregate()
         const results = await WorkLog.aggregate([
             {
                 $match: {

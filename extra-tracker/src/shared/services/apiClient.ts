@@ -59,6 +59,10 @@ export interface ApiResponse<T> {
     error?: ApiError;
 }
 
+interface ApiErrorWithUserMessage extends AxiosError {
+    userMessage?: string;
+}
+
 // Configurazione base
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
@@ -343,7 +347,7 @@ axiosInstance.interceptors.response.use(
             // /auth/check 401 è normale quando l'utente non è loggato (public route)
             // Risolvi senza reject per evitare console error nel browser
             if (requestUrl.includes('/auth/check')) {
-                return Promise.resolve({ success: false, authenticated: false } as any);
+                return Promise.resolve({ success: false, data: null, error: { message: 'Not authenticated', code: 'NOT_AUTHENTICATED' } });
             }
 
             const errorData = error.response?.data as any;
@@ -386,10 +390,11 @@ axiosInstance.interceptors.response.use(
             }
             
             // Estrai messaggio per il componente (login/register/check)
+            const apiError = error as ApiErrorWithUserMessage;
             if (errorData?.error?.message) {
-                (error as any).userMessage = errorData.error.message;
+                apiError.userMessage = errorData.error.message;
             } else if (errorData?.message) {
-                (error as any).userMessage = errorData.message;
+                apiError.userMessage = errorData.message;
             }
         }
 

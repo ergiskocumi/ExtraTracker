@@ -221,7 +221,10 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
             studyService.saveQuizSnapshot(deckId, {
                 quizType, questionCount: cardIds.length, sourceCardIds: cardIds, source: 'repeat',
                 name: `Ripeti quiz ${cardIds.length} domande`,
-            }).catch(e => console.warn('[StudySessionPage] save repeat quiz snapshot failed:', e));
+            }).catch(e => {
+                console.error('[StudySessionPage] save repeat quiz snapshot failed:', e);
+                emitToast.error('Salvataggio quiz non riuscito. Riprova.');
+            });
         }
 
         const params = new URLSearchParams();
@@ -247,7 +250,10 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
             studyService.saveQuizSnapshot(deckId, {
                 quizType, questionCount: wrongCardIds.length, sourceCardIds: wrongCardIds, source: 'errors',
                 name: `Quiz errori ${wrongCardIds.length} domande`,
-            }).catch(e => console.warn('[StudySessionPage] save errors quiz snapshot failed:', e));
+            }).catch(e => {
+                console.error('[StudySessionPage] save errors quiz snapshot failed:', e);
+                emitToast.error('Salvataggio quiz non riuscito. Riprova.');
+            });
         }
 
         const params = new URLSearchParams();

@@ -23,6 +23,14 @@ const settingsController = require('../controllers/settingsController');
 const { requireAuth } = require('../middleware/auth');
 const { largeBodyParser } = require('../middleware/largeBodyParser');
 
+// Validators
+const { validateMiddleware } = require('../validators/validate');
+const {
+    updateProfileSchema,
+    updatePreferencesSchema,
+    updateNotificationsSchema,
+} = require('../validators/settingsValidators');
+
 // Tutte le route richiedono autenticazione
 router.use(requireAuth);
 
@@ -53,7 +61,7 @@ router.get('/profile', settingsController.getProfile);
  * @desc    Aggiorna profilo utente
  * @access  Private
  */
-router.put('/profile', settingsController.updateProfile);
+router.put('/profile', validateMiddleware(updateProfileSchema), settingsController.updateProfile);
 
 // ==========================================
 // PREFERENZE
@@ -71,7 +79,7 @@ router.get('/preferences', settingsController.getPreferences);
  * @desc    Aggiorna preferenze utente
  * @access  Private
  */
-router.put('/preferences', settingsController.updatePreferences);
+router.put('/preferences', validateMiddleware(updatePreferencesSchema), settingsController.updatePreferences);
 
 // ==========================================
 // NOTIFICHE
@@ -89,7 +97,7 @@ router.get('/notifications', settingsController.getNotifications);
  * @desc    Aggiorna preferenze notifiche
  * @access  Private
  */
-router.put('/notifications', settingsController.updateNotifications);
+router.put('/notifications', validateMiddleware(updateNotificationsSchema), settingsController.updateNotifications);
 
 // ==========================================
 // GDPR

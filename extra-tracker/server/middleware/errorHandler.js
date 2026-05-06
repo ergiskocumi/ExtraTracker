@@ -13,6 +13,7 @@
  */
 
 const AppError = require('../utils/AppError');
+const logger = require('../utils/logger');
 const crypto = require('crypto');
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -224,11 +225,12 @@ const logError = (err, req) => {
         // In sviluppo, log leggibile
         // Distingui tra warning (operazionali) e error (bug)
         if (err.isOperational) {
-            console.warn(`\n⚠️  WARNING (${err.statusCode}):`, err.message);
-            console.warn('Code:', err.code || 'N/A');
-            console.warn('Category:', err.category || 'N/A');
-            console.warn('Request ID:', requestId);
-            console.warn('URL:', requestUrl);
+            logger.warn('ErrorHandler', `${err.statusCode} ${err.message}`, {
+                code: err.code,
+                category: err.category,
+                requestId,
+                url: requestUrl,
+            });
         } else {
             console.error('\n🚨 ERROR 💥:', err.message);
             console.error('Code:', err.code || 'N/A');

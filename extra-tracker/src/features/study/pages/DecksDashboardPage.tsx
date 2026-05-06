@@ -184,31 +184,30 @@ export const DecksDashboardPage: React.FC = () => {
         navigate('/study', { replace: true });
     }, [navigate]);
 
+    const mountedRef = useRef(true);
     useEffect(() => {
-        let isMounted = true;
+        mountedRef.current = true;
 
         if (!selectedExamId) {
             setSavedExamQuizzes([]);
             setIsLoadingSavedExamQuizzes(false);
-            return () => {
-                isMounted = false;
-            };
+            return;
         }
 
         const loadSavedExamQuizzes = async () => {
             setIsLoadingSavedExamQuizzes(true);
             try {
                 const quizzes = await studyService.getExamSavedQuizzes(selectedExamId);
-                if (isMounted) {
+                if (mountedRef.current) {
                     setSavedExamQuizzes(quizzes);
                 }
             } catch (err) {
                 console.error('Errore nel caricamento dei quiz salvati:', err);
-                if (isMounted) {
+                if (mountedRef.current) {
                     setSavedExamQuizzes([]);
                 }
             } finally {
-                if (isMounted) {
+                if (mountedRef.current) {
                     setIsLoadingSavedExamQuizzes(false);
                 }
             }
@@ -217,7 +216,7 @@ export const DecksDashboardPage: React.FC = () => {
         loadSavedExamQuizzes();
 
         return () => {
-            isMounted = false;
+            mountedRef.current = false;
         };
     }, [selectedExamId]);
 

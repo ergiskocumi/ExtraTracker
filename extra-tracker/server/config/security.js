@@ -11,6 +11,7 @@
  */
 
 const { config: envConfig, isProduction } = require('../ENVIRONMENTS');
+const logger = require('../utils/logger');
 
 /**
  * Determina se frontend e backend sono sullo stesso dominio
@@ -125,7 +126,7 @@ const createCorsOriginValidator = () => {
             return callback(null, true);
         }
 
-        console.warn(`🛑 CORS BLOCCATO: ${requestOrigin}`);
+        logger.warn('CORS', `Bloccato: ${requestOrigin}`);
         callback(new Error('Bloccato dalla policy CORS'));
     };
 };
