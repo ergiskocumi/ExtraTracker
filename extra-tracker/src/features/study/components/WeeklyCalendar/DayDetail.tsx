@@ -162,8 +162,8 @@ export const DayDetail: React.FC<DayDetailProps> = ({
                     </div>
                 ) : (
                     <div className="text-center py-6">
-                        <BookOpen className="w-8 h-8 text-white/20 mx-auto mb-2" />
-                        <p className="text-sm text-white/40">Nessun esame con carte da ripassare</p>
+                        <BookOpen className="w-8 h-8 text-theme-muted/30 mx-auto mb-2" />
+                        <p className="text-sm text-theme-muted">Nessun esame con carte da ripassare</p>
                     </div>
                 )}
             </div>

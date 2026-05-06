@@ -204,10 +204,10 @@ export const WeeklyCalendar = memo<WeeklyCalendarProps>(({
                         <Calendar className="w-4 h-4 text-primary-400" />
                     </div>
                     <div>
-                        <h2 className="text-base sm:text-lg font-bold text-white">
+                        <h2 className="text-base sm:text-lg font-bold text-theme-primary">
                             Settimana: {weekHeader}
                         </h2>
-                        <p className="text-xs text-white/40">
+                        <p className="text-xs text-theme-muted">
                             {weekTotalDue > 0
                                 ? `${weekTotalDue} carte da ripassare questa settimana`
                                 : 'Nessuna carta da ripassare'}

@@ -62,7 +62,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
                 <div className="w-20 h-20 mb-6 rounded-full bg-red-500/20 flex items-center justify-center">
                     <AlertCircle className="w-10 h-10 text-red-400" />
                 </div>
-                <p className="text-white/60 mb-6 text-lg">{error}</p>
+                <p className="text-red-400 mb-6 text-lg">{error}</p>
                 <button
                     onClick={onRetry}
                     className="px-6 py-3 rounded-xl bg-theme-elevated text-theme-primary hover:bg-theme-surface transition-all"
@@ -91,10 +91,10 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-theme-surface border border-theme-default flex items-center justify-center mb-6">
                     <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 text-theme-muted" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-semibold text-white mb-2">
+                <h3 className="text-xl sm:text-2xl font-semibold text-theme-primary mb-2">
                     Nessun mazzo corrisponde ai filtri
                 </h3>
-                <p className="text-white/50 text-sm sm:text-base mb-6 max-w-md">
+                <p className="text-theme-muted text-sm sm:text-base mb-6 max-w-md">
                     {searchQuery 
                         ? `Nessun risultato per "${searchQuery}"`
                         : filter === 'due'

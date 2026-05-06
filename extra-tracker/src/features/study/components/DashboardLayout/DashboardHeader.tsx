@@ -99,14 +99,14 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.3 }}
-                                className="text-2xl sm:text-3xl md:text-4xl font-bold text-white"
+                                className="text-2xl sm:text-3xl md:text-4xl font-bold text-theme-primary"
                             >
                                 I Tuoi Esami
                             </motion.h1>
                         )}
                     </AnimatePresence>
                 </div>
-                <p className="text-white/50 mt-1 text-xs sm:text-sm md:text-base">
+                <p className="text-theme-secondary mt-1 text-xs sm:text-sm md:text-base">
                     {selectedExamName 
                         ? 'Mazzi per questo esame' 
                         : selectedFolderName 
