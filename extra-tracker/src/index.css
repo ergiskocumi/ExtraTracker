@@ -100,11 +100,11 @@
   /* Backgrounds - Higher separation for clearer affordance */
   --bg-base: #f2f6fc;
   --bg-elevated: #ffffff;
-  --bg-surface: rgba(255, 255, 255, 0.76);
-  --bg-surface-hover: rgba(255, 255, 255, 0.92);
-  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-surface: rgba(255, 255, 255, 0.85);
+  --bg-surface-hover: #ffffff;
+  --bg-card: #ffffff;
   --bg-card-hover: #ffffff;
-  --bg-input: rgba(255, 255, 255, 0.96);
+  --bg-input: #ffffff;
   --bg-header: rgba(246, 249, 255, 0.92);
   --bg-overlay: rgba(0, 0, 0, 0.5);
   --bg-dropdown: #ffffff;
@@ -112,22 +112,22 @@
   /* Text - Dark slate for maximum readability */
   --text-primary: #1a1a2e;
   --text-secondary: #253246;
-  --text-muted: #3d4f68;
-  --text-disabled: #5d6e87;
-  --text-placeholder: #6b7c96;
+  --text-muted: #5a6a82;
+  --text-disabled: #8a9ab0;
+  --text-placeholder: #9aabbe;
   
-  /* Borders - Stronger for better element recognition */
-  --border-subtle: rgba(15, 23, 42, 0.1);
-  --border-default: rgba(15, 23, 42, 0.16);
-  --border-strong: rgba(15, 23, 42, 0.26);
+  /* Borders - Much stronger for better element recognition in light theme */
+  --border-subtle: rgba(15, 23, 42, 0.12);
+  --border-default: rgba(15, 23, 42, 0.20);
+  --border-strong: rgba(15, 23, 42, 0.32);
   --border-focus: rgba(124, 58, 237, 0.5);
   
-  /* Shadows - Slightly stronger for depth separation */
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 10px 24px -12px rgba(15, 23, 42, 0.22), 0 3px 8px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 20px 42px -16px rgba(15, 23, 42, 0.3), 0 8px 18px rgba(15, 23, 42, 0.12);
+  /* Shadows - Stronger for depth separation */
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.10), 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 24px -12px rgba(15, 23, 42, 0.25), 0 3px 8px rgba(15, 23, 42, 0.10);
+  --shadow-lg: 0 20px 42px -16px rgba(15, 23, 42, 0.32), 0 8px 18px rgba(15, 23, 42, 0.14);
   --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.15);
-  --shadow-card: 0 10px 28px -16px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 10px 28px -16px rgba(15, 23, 42, 0.30), 0 0 0 1px rgba(15, 23, 42, 0.10);
   
   /* Modern Aurora Gradients - Light */
   --gradient-bg: linear-gradient(135deg, #eef3fb 0%, #f6f8fc 45%, #eef5ff 100%);

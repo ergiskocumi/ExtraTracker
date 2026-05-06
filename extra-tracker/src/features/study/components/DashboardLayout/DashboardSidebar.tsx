@@ -260,7 +260,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                             {/* Cartelle */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2">
+                                        <h3 className="text-xs font-bold text-theme-muted uppercase tracking-wider flex items-center gap-2">
                                         <FolderIcon className="w-3.5 h-3.5" />
                                         Cartelle
                                     </h3>
@@ -289,8 +289,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                                         animate={{ opacity: 1, y: 0 }}
                                         className="px-3 py-6 text-center"
                                     >
-                                        <FolderIcon className="w-10 h-10 mx-auto mb-3 text-white/20" />
-                                        <p className="text-xs text-white/40 mb-2">Nessuna cartella ancora</p>
+                                        <FolderIcon className="w-10 h-10 mx-auto mb-3 text-theme-muted" />
+                                        <p className="text-xs text-theme-muted mb-2">Nessuna cartella ancora</p>
                                         <button
                                             onClick={handleCreateFolder}
                                             className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
@@ -303,7 +303,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 
                             {/* Tag */}
                             <div>
-                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                <h3 className="text-xs font-bold text-theme-muted uppercase tracking-wider flex items-center gap-2 mb-4">
                                     <span>🏷️</span>
                                     Tag
                                 </h3>

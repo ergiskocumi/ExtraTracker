@@ -159,8 +159,8 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                                 <BookOpen className="w-5 h-5 text-primary-400" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-white">Mazzi dell'Esame</h2>
-                                <p className="text-sm text-white/50">
+                                <h2 className="text-lg font-bold text-theme-primary">Mazzi dell'Esame</h2>
+                                <p className="text-sm text-theme-muted">
                                     {stats.deckCount} {stats.deckCount === 1 ? 'mazzo' : 'mazzi'} 
                                     {stats.foldersCount > 0 && ` · ${stats.foldersCount} cartelle`}
                                 </p>
@@ -203,15 +203,15 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="flex flex-col items-center justify-center py-16 text-center p-8 rounded-2xl bg-white/5 border border-white/10 border-dashed"
+                            className="flex flex-col items-center justify-center py-16 text-center p-8 rounded-2xl bg-theme-surface border border-theme-default border-dashed"
                         >
                             <div className="w-20 h-20 rounded-2xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-5">
                                 <GraduationCap className="w-10 h-10 text-primary-400" />
                             </div>
-                            <h3 className="text-xl font-semibold text-white mb-2">
+                            <h3 className="text-xl font-semibold text-theme-primary mb-2">
                                 Nessun mazzo per questo esame
                             </h3>
-                            <p className="text-white/50 text-sm max-w-sm">
+                            <p className="text-theme-muted text-sm max-w-sm">
                                 Crea il tuo primo mazzo per iniziare a studiare. Puoi aggiungere carte manualmente o generarle con l'AI.
                             </p>
                         </motion.div>
@@ -263,10 +263,10 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
 
                     {/* Folders List (if any) */}
                     {stats.foldersCount > 0 && (
-                        <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+                        <div className="p-5 rounded-2xl bg-theme-card border border-theme-subtle">
                             <div className="flex items-center gap-2 mb-4">
                                 <FolderOpen className="w-4 h-4 text-amber-400" />
-                                <h3 className="text-sm font-semibold text-white">Cartelle</h3>
+                                <h3 className="text-sm font-semibold text-theme-primary">Cartelle</h3>
                             </div>
                             <div className="space-y-2">
                                 {Array.from(new Set(examDecks.filter(d => d.folderId).map(d => d.folderId)))
@@ -278,10 +278,10 @@ export const ExamDetailView: React.FC<ExamDetailViewProps> = ({
                                             <button
                                                 key={folderId}
                                                 onClick={() => onViewFolder?.(folderId!)}
-                                                className="w-full flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left"
+                                                className="w-full flex items-center justify-between p-3 rounded-xl bg-theme-surface hover:bg-theme-surface-hover border border-theme-default hover:border-theme-strong transition-all text-left"
                                             >
-                                                <span className="text-sm text-white truncate">{folder.name}</span>
-                                                <span className="text-xs text-white/50">{count} mazzi</span>
+                                                <span className="text-sm text-theme-primary truncate">{folder.name}</span>
+                                                <span className="text-xs text-theme-muted">{count} mazzi</span>
                                             </button>
                                         );
                                     })}

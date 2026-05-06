@@ -57,12 +57,12 @@ export const FILTER_STYLES: Record<
             },
         },
         inactive: {
-            background: 'bg-white/5',
-            text: 'text-white/50',
-            border: 'border-white/10',
+            background: 'bg-theme-surface',
+            text: 'text-theme-muted',
+            border: 'border-theme-subtle',
             hover: {
-                background: 'hover:bg-white/10',
-                text: 'hover:text-white/70',
+                background: 'hover:bg-theme-surface-hover',
+                text: 'hover:text-theme-primary',
             },
             badge: {
                 background: 'bg-slate-500/20',
@@ -82,12 +82,12 @@ export const FILTER_STYLES: Record<
             },
         },
         inactive: {
-            background: 'bg-white/5',
-            text: 'text-white/50',
-            border: 'border-white/10',
+            background: 'bg-theme-surface',
+            text: 'text-theme-muted',
+            border: 'border-theme-subtle',
             hover: {
-                background: 'hover:bg-white/10',
-                text: 'hover:text-white/70',
+                background: 'hover:bg-theme-surface-hover',
+                text: 'hover:text-theme-primary',
             },
             badge: {
                 background: 'bg-red-500/20',
@@ -107,12 +107,12 @@ export const FILTER_STYLES: Record<
             },
         },
         inactive: {
-            background: 'bg-white/5',
-            text: 'text-white/50',
-            border: 'border-white/10',
+            background: 'bg-theme-surface',
+            text: 'text-theme-muted',
+            border: 'border-theme-subtle',
             hover: {
-                background: 'hover:bg-white/10',
-                text: 'hover:text-white/70',
+                background: 'hover:bg-theme-surface-hover',
+                text: 'hover:text-theme-primary',
             },
             badge: {
                 background: 'bg-blue-500/20',
@@ -132,12 +132,12 @@ export const FILTER_STYLES: Record<
             },
         },
         inactive: {
-            background: 'bg-white/5',
-            text: 'text-white/50',
-            border: 'border-white/10',
+            background: 'bg-theme-surface',
+            text: 'text-theme-muted',
+            border: 'border-theme-subtle',
             hover: {
-                background: 'hover:bg-white/10',
-                text: 'hover:text-white/70',
+                background: 'hover:bg-theme-surface-hover',
+                text: 'hover:text-theme-primary',
             },
             badge: {
                 background: 'bg-emerald-500/20',

@@ -415,7 +415,7 @@ export const DecksDashboardPage: React.FC = () => {
                 </motion.div>
             ) : (
                 /* ═══ DEFAULT DASHBOARD: Calendar + ExamGrid ═══ */
-                <div className="space-y-8">
+                <div className="space-y-6 sm:space-y-8">
                     {/* Weekly Calendar */}
                     <WeeklyCalendar
                         weeklyStudyPlan={weeklyStudyPlan}
@@ -427,6 +427,13 @@ export const DecksDashboardPage: React.FC = () => {
                         onViewDetail={handlers.handleViewDetail}
                         onExamClick={handleExamClick}
                     />
+
+                    {/* Divider */}
+                    <div className="flex items-center gap-4">
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-theme-default to-transparent" />
+                        <span className="text-xs font-medium text-theme-muted uppercase tracking-wider whitespace-nowrap">I Tuoi Esami</span>
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-theme-default to-transparent" />
+                    </div>
 
                     {/* Exam Grid */}
                     <ExamGrid
