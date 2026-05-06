@@ -342,7 +342,7 @@ const createMarkdownComponents = (
         <pre
             className={`
                 p-3 rounded-xl overflow-x-auto mb-3 last:mb-0
-                bg-slate-900 border border-slate-700
+                bg-theme-surface border border-theme-default
                 ${cinemaMode ? 'text-base' : 'text-sm'}
             `}
         >

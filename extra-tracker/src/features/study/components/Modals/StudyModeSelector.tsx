@@ -670,8 +670,7 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
                     onClick={handleStart}
                     className="
                         flex-1 px-6 py-4 rounded-2xl font-semibold
-                        bg-gray-900 text-gray-50 hover:bg-gray-800
-                        dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100
+                        bg-primary-600 text-white hover:bg-primary-500
                         transition-all
                     "
                 >

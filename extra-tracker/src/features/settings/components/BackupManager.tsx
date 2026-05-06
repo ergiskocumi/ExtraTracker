@@ -292,51 +292,51 @@ export const BackupManager = () => {
             {/* STATISTICHE */}
             {stats && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800/40">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-blue-600 font-medium">Total Backup</p>
-                                <p className="text-2xl font-bold text-blue-900">
+                                <p className="text-sm text-blue-600 dark:text-blue-300 font-medium">Total Backup</p>
+                                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
                                     {stats.totalBackups}
                                 </p>
                             </div>
-                            <Save className="w-8 h-8 text-blue-400 opacity-50" />
+                            <Save className="w-8 h-8 text-blue-400 dark:text-blue-300 opacity-50" />
                         </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800/40">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-purple-600 font-medium">Spazio Usato</p>
-                                <p className="text-2xl font-bold text-purple-900">
+                                <p className="text-sm text-purple-600 dark:text-purple-300 font-medium">Spazio Usato</p>
+                                <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
                                     {formatSize(stats.totalSize)}
                                 </p>
                             </div>
-                            <HardDrive className="w-8 h-8 text-purple-400 opacity-50" />
+                            <HardDrive className="w-8 h-8 text-purple-400 dark:text-purple-300 opacity-50" />
                         </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 border border-green-200 dark:border-green-800/40">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-green-600 font-medium">Avg. Dimensione</p>
-                                <p className="text-2xl font-bold text-green-900">
+                                <p className="text-sm text-green-600 dark:text-green-300 font-medium">Avg. Dimensione</p>
+                                <p className="text-2xl font-bold text-green-900 dark:text-green-100">
                                     {formatSize(stats.averageSize)}
                                 </p>
                             </div>
-                            <Clock className="w-8 h-8 text-green-400 opacity-50" />
+                            <Clock className="w-8 h-8 text-green-400 dark:text-green-300 opacity-50" />
                         </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4 border border-amber-200">
+                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800/40">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-amber-600 font-medium">Bloccati</p>
-                                <p className="text-2xl font-bold text-amber-900">
+                                <p className="text-sm text-amber-600 dark:text-amber-300 font-medium">Bloccati</p>
+                                <p className="text-2xl font-bold text-amber-900 dark:text-amber-100">
                                     {stats.lockedCount}
                                 </p>
                             </div>
-                            <Lock className="w-8 h-8 text-amber-400 opacity-50" />
+                            <Lock className="w-8 h-8 text-amber-400 dark:text-amber-300 opacity-50" />
                         </div>
                     </div>
                 </div>
@@ -346,10 +346,10 @@ export const BackupManager = () => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm"
+                className="bg-white dark:bg-dark-400 rounded-lg p-6 border border-gray-200 dark:border-white/10 shadow-sm"
             >
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Plus className="w-5 h-5 text-blue-600" />
+                    <Plus className="w-5 h-5 text-blue-600 dark:text-blue-300" />
                     Crea Nuovo Backup
                 </h3>
 
@@ -359,7 +359,7 @@ export const BackupManager = () => {
                         placeholder="Nome backup (es: Backup Importante 2024)"
                         value={newBackupName}
                         onChange={(e) => setNewBackupName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-dark-400 text-gray-900 dark:text-white"
                     />
 
                     <textarea
@@ -367,7 +367,7 @@ export const BackupManager = () => {
                         value={newBackupDesc}
                         onChange={(e) => setNewBackupDesc(e.target.value)}
                         rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-dark-400 text-gray-900 dark:text-white"
                     />
 
                     <button
@@ -396,14 +396,14 @@ export const BackupManager = () => {
 
                 {loading ? (
                     <div className="text-center py-12">
-                        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-2" />
-                        <p className="text-gray-600">Caricamento backup...</p>
+                        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-blue-600 dark:text-blue-300 mb-2" />
+                        <p className="text-gray-600 dark:text-gray-300">Caricamento backup...</p>
                     </div>
                 ) : backups.length === 0 ? (
-                    <div className="bg-gray-50 rounded-lg p-8 text-center border-2 border-dashed border-gray-300">
-                        <Save className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                        <p className="text-gray-600 font-medium">Nessun backup ancora</p>
-                        <p className="text-gray-500 text-sm mt-1">
+                    <div className="bg-gray-50 dark:bg-dark-400/70 rounded-lg p-8 text-center border-2 border-dashed border-gray-300 dark:border-white/10">
+                        <Save className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-3" />
+                        <p className="text-gray-600 dark:text-gray-300 font-medium">Nessun backup ancora</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
                             Crea il tuo primo backup per proteggere i dati
                         </p>
                     </div>
@@ -416,10 +416,10 @@ export const BackupManager = () => {
                                     initial={{ opacity: 0, y: -10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -10 }}
-                                    className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all"
+                                    className="bg-white dark:bg-dark-400 border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all"
                                 >
                                     <div
-                                        className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                        className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                                         onClick={() =>
                                             setExpandedId(
                                                 expandedId === backup.id ? null : backup.id
@@ -448,7 +448,7 @@ export const BackupManager = () => {
                                                                 <Lock className="w-4 h-4 text-amber-500" />
                                                             )}
                                                         </div>
-                                                        <p className="text-xs text-gray-500 mt-1">
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                                             {formatDate(backup.createdAt)} • {backup.statistics.totalRecords} record •{' '}
                                                             {formatSize(backup.statistics.compressedSize)}
                                                         </p>
@@ -457,11 +457,11 @@ export const BackupManager = () => {
                                             </div>
 
                                             <div className="flex items-center gap-2">
-                                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                                <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full font-medium">
                                                     {backup.type}
                                                 </span>
                                                 <ChevronDown
-                                                    className={`w-5 h-5 text-gray-400 transition-transform ${
+                                                    className={`w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform ${
                                                         expandedId === backup.id
                                                             ? 'rotate-180'
                                                             : ''
@@ -478,18 +478,18 @@ export const BackupManager = () => {
                                                 initial={{ opacity: 0, height: 0 }}
                                                 animate={{ opacity: 1, height: 'auto' }}
                                                 exit={{ opacity: 0, height: 0 }}
-                                                className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 p-4 space-y-3"
+                                                className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-dark-400 dark:to-dark-500 border-t border-gray-200 dark:border-white/10 p-4 space-y-3"
                                             >
                                                 {/* INFO */}
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                                                     <div>
-                                                        <p className="text-gray-600 font-medium">Record</p>
+                                                        <p className="text-gray-600 dark:text-gray-300 font-medium">Record</p>
                                                         <p className="text-theme-primary font-semibold">
                                                             {backup.statistics.totalRecords}
                                                         </p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-gray-600 font-medium">
+                                                        <p className="text-gray-600 dark:text-gray-300 font-medium">
                                                             Compressione
                                                         </p>
                                                         <p className="text-theme-primary font-semibold">
@@ -497,7 +497,7 @@ export const BackupManager = () => {
                                                         </p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-gray-600 font-medium">
+                                                        <p className="text-gray-600 dark:text-gray-300 font-medium">
                                                             Tempo creazione
                                                         </p>
                                                         <p className="text-theme-primary font-semibold">
@@ -508,10 +508,10 @@ export const BackupManager = () => {
 
                                                 {backup.description && (
                                                     <div>
-                                                        <p className="text-sm text-gray-600 font-medium">
+                                                        <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">
                                                             Descrizione
                                                         </p>
-                                                        <p className="text-gray-700 text-sm mt-1">
+                                                        <p className="text-gray-700 dark:text-gray-200 text-sm mt-1">
                                                             {backup.description}
                                                         </p>
                                                     </div>
@@ -573,23 +573,23 @@ export const BackupManager = () => {
 
                 {/* PAGINAZIONE */}
                 {totalPages > 1 && (
-                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
                         <button
                             onClick={() => setPage(Math.max(0, page - 1))}
                             disabled={page === 0}
-                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-all"
+                            className="px-4 py-2 bg-gray-200 dark:bg-dark-300 text-gray-700 dark:text-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-dark-200 transition-all"
                         >
                             ← Precedente
                         </button>
 
-                        <span className="text-sm text-gray-600 font-medium">
+                        <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">
                             Pagina {page + 1} di {totalPages}
                         </span>
 
                         <button
                             onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                             disabled={page === totalPages - 1}
-                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-all"
+                            className="px-4 py-2 bg-gray-200 dark:bg-dark-300 text-gray-700 dark:text-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-dark-200 transition-all"
                         >
                             Successivo →
                         </button>
@@ -598,12 +598,12 @@ export const BackupManager = () => {
             </div>
 
             {/* INFO IMPORTANTE */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5" />
                     ℹ️ Informazioni Importanti
                 </h4>
-                <ul className="text-sm text-blue-800 space-y-1 ml-7">
+                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-7">
                     <li>✓ I backup sono salvati in modo sicuro e compresso</li>
                     <li>✓ Usa "Blocca" per proteggere i backup importanti</li>
                     <li>✓ Valida regolarmente l'integrità dei backup</li>

@@ -430,7 +430,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                             className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-primary-500/50 focus:outline-none transition-all mb-3"
                                         >
                                             {GRADING_SYSTEMS.map((system) => (
-                                                <option key={system.id} value={system.id} className="bg-zinc-900">{system.label}</option>
+                                                <option key={system.id} value={system.id} className="bg-theme-surface">{system.label}</option>
                                             ))}
                                         </select>
 
@@ -439,13 +439,13 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                         </label>
                                         {gradingSystem === 'letter' ? (
                                             <select value={grade} onChange={(e) => handleGradeChange(e.target.value)} className={`w-full px-4 py-3 rounded-xl bg-white/5 border ${gradeError ? 'border-red-500/50' : 'border-white/10'} text-white focus:border-primary-500/50 focus:outline-none transition-all`}>
-                                                <option value="" className="bg-zinc-900">Seleziona voto</option>
-                                                <option value="0" className="bg-zinc-900">F (Insufficiente)</option>
-                                                <option value="1" className="bg-zinc-900">D (Sufficiente)</option>
-                                                <option value="2" className="bg-zinc-900">C (Discreto)</option>
-                                                <option value="3" className="bg-zinc-900">B (Buono)</option>
-                                                <option value="4" className="bg-zinc-900">A (Ottimo)</option>
-                                                <option value="5" className="bg-zinc-900">A+ (Eccellente)</option>
+                                                <option value="" className="bg-theme-surface">Seleziona voto</option>
+                                                <option value="0" className="bg-theme-surface">F (Insufficiente)</option>
+                                                <option value="1" className="bg-theme-surface">D (Sufficiente)</option>
+                                                <option value="2" className="bg-theme-surface">C (Discreto)</option>
+                                                <option value="3" className="bg-theme-surface">B (Buono)</option>
+                                                <option value="4" className="bg-theme-surface">A (Ottimo)</option>
+                                                <option value="5" className="bg-theme-surface">A+ (Eccellente)</option>
                                             </select>
                                         ) : (
                                             <input

@@ -150,7 +150,7 @@ export const DeckCardCompact: React.FC<DeckCardCompactProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 10 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute inset-0 bg-zinc-900/95 backdrop-blur-sm rounded-xl
+                        className="absolute inset-0 bg-theme-elevated/95 backdrop-blur-sm rounded-xl
                                    flex items-center justify-center gap-2 p-4"
                         onClick={(e) => e.stopPropagation()}
                     >

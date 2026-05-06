@@ -1561,15 +1561,6 @@ input[type="month"] {
   color: var(--text-secondary);
 }
 
-/* Fix for any remaining hardcoded dark colors */
-[data-theme="light"] [class*="text-white"]:not([class*="keep-light-text"]) {
-  color: var(--text-primary);
-}
-
-[data-theme="light"] [class*="bg-dark-"] {
-  background-color: var(--bg-elevated);
-}
-
 /* Settings page – titolo e indicatore attivo in violet/primary solo in light */
 [data-theme="light"] .settings-page-title {
   background: linear-gradient(to right, var(--primary-500), var(--primary-600));
@@ -3171,23 +3162,6 @@ button:focus-visible[class*="bg-blue"] {
   background: rgba(255, 255, 255, 0.86); 
   border-bottom: 1px solid var(--landing-border); 
   backdrop-filter: blur(14px); 
-}
-
-[data-theme="light"] .landing-root [class*="bg-dark-"] { 
-  background-color: var(--landing-surface); 
-}
-
-[data-theme="light"] .landing-root [class*="border-white/10"],
-[data-theme="light"] .landing-root [class*="border-white/5"] { 
-  border-color: var(--landing-border-soft); 
-}
-
-[data-theme="light"] .landing-root [class*="text-white/"] { 
-  color: var(--landing-text-secondary); 
-}
-
-[data-theme="light"] .landing-root [class*="text-white"] { 
-  color: var(--landing-text); 
 }
 
 [data-theme="light"] .landing-root h1,

@@ -84,8 +84,8 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
                 >
                     {/* Drop Zones */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-                        <div className="flex items-center gap-3 bg-zinc-900/95 backdrop-blur-xl border border-primary-500/30 rounded-2xl p-4 shadow-2xl">
-                            <p className="text-sm text-white/80 font-medium">Trascina qui per organizzare:</p>
+                        <div className="flex items-center gap-3 bg-theme-elevated backdrop-blur-xl border border-primary-500/30 rounded-2xl p-4 shadow-2xl">
+                            <p className="text-sm text-theme-primary font-medium">Trascina qui per organizzare:</p>
                             
                             {/* Root Folder */}
                             <motion.div

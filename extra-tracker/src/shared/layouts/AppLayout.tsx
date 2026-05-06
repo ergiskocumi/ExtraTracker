@@ -47,7 +47,7 @@ const Header = memo(() => {
     }, []);
 
     return (
-        <header ref={headerRef} className="sticky top-0 z-50 transition-all duration-300">
+        <header ref={headerRef} className="sticky top-0 z-40 transition-all duration-300">
             {/* Premium Glass Background - Theme Aware */}
             <div
                 className="absolute inset-0 transition-all duration-300"
@@ -134,7 +134,7 @@ export const AppLayout = () => {
             <Header />
 
             {/* Main Content - contenuto centrato, più ampio per dashboard/study */}
-            <main className="flex-1 w-full relative z-0">
+            <main className="flex-1 w-full relative">
                 <div
                     className={cn(
                         "mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8",

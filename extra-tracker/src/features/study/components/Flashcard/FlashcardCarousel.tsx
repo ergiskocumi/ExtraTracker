@@ -159,7 +159,7 @@ const CardItem: React.FC<CardItemProps> = ({
                             size="sm"
                             minRows={2}
                             className="space-y-2"
-                            textareaClassName="min-h-[72px] bg-zinc-900/80 border border-zinc-700 text-white placeholder-white/30 focus:ring-violet-500/50 resize-none"
+                            textareaClassName="min-h-[72px] bg-theme-surface border border-theme-default text-theme-primary placeholder-theme-muted focus:ring-violet-500/50 resize-none"
                         />
                     </div>
 
@@ -177,7 +177,7 @@ const CardItem: React.FC<CardItemProps> = ({
                             size="sm"
                             minRows={4}
                             className="space-y-2"
-                            textareaClassName="min-h-[120px] bg-zinc-900/80 border border-zinc-700 text-white placeholder-white/30 focus:ring-violet-500/50 resize-none"
+                            textareaClassName="min-h-[120px] bg-theme-surface border border-theme-default text-theme-primary placeholder-theme-muted focus:ring-violet-500/50 resize-none"
                         />
                     </div>
                 </div>
@@ -508,8 +508,8 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
             </div>
 
             {/* Footer Stats */}
-            <div className="flex-shrink-0 px-4 py-3 border-t border-white/10 bg-zinc-900/50">
-                <div className="flex items-center justify-between text-xs text-white/40">
+            <div className="flex-shrink-0 px-4 py-3 border-t border-white/10 bg-theme-surface/50">
+                <div className="flex items-center justify-between text-xs text-theme-muted">
                     <span>
                         Card attiva: {activeIndex + 1} di {totalCards}
                     </span>

@@ -400,7 +400,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                 initial={{ opacity: 0, scale: 0.9, y: -10 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                                className="absolute right-0 mt-1 z-50 w-40 py-2 rounded-xl bg-zinc-900 border border-white/10 shadow-2xl"
+                                className="absolute right-0 mt-1 z-50 w-40 py-2 rounded-xl bg-theme-elevated border border-theme-default shadow-2xl"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <button
