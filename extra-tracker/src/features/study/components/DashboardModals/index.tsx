@@ -1,12 +1,15 @@
-import React from 'react';
-import { CreateDeckModal } from '../Modals/CreateDeckModal';
-import { CreateExamOnlyModal } from '../Modals/CreateExamOnlyModal';
-import { AddCardModal } from '../AddCardModal';
-import { MagicGenerateModal } from '../Modals/MagicGenerateModal';
-import { ExamSolverModal, type ExamSolverStats } from '../Modals/ExamSolver';
-import { StudyModeSelector, type StudyStartConfig } from '../Modals/StudyModeSelector';
-import { ConfirmationModal } from '../../../../shared/components/ConfirmationModal';
+import React, { lazy, Suspense } from 'react';
+import type { ExamSolverStats } from '../Modals/ExamSolver';
+import type { StudyStartConfig } from '../Modals/StudyModeSelector';
 import type { Deck, CreateDeckPayload, AddCardPayload } from '../../services/studyService';
+
+const CreateDeckModal = lazy(() => import('../Modals/CreateDeckModal').then(m => ({ default: m.CreateDeckModal })));
+const CreateExamOnlyModal = lazy(() => import('../Modals/CreateExamOnlyModal').then(m => ({ default: m.CreateExamOnlyModal })));
+const AddCardModal = lazy(() => import('../AddCardModal').then(m => ({ default: m.AddCardModal })));
+const MagicGenerateModal = lazy(() => import('../Modals/MagicGenerateModal').then(m => ({ default: m.MagicGenerateModal })));
+const ExamSolverModal = lazy(() => import('../Modals/ExamSolver').then(m => ({ default: m.ExamSolverModal })));
+const StudyModeSelector = lazy(() => import('../Modals/StudyModeSelector').then(m => ({ default: m.StudyModeSelector })));
+const ConfirmationModal = lazy(() => import('../../../../shared/components/ConfirmationModal').then(m => ({ default: m.ConfirmationModal })));
 
 interface DashboardModalsProps {
     // Create Exam Only Modal (da /study senza esame selezionato)
@@ -86,62 +89,76 @@ export const DashboardModals: React.FC<DashboardModalsProps> = ({
     return (
         <>
             {/* Modale esame-only: da /study senza esame selezionato */}
-            <CreateExamOnlyModal
-                isOpen={isCreateExamModalOpen}
-                onClose={onCreateExamModalClose}
-                onSuccess={onExamOnlyCreated}
-            />
+            <Suspense fallback={null}>
+                <CreateExamOnlyModal
+                    isOpen={isCreateExamModalOpen}
+                    onClose={onCreateExamModalClose}
+                    onSuccess={onExamOnlyCreated}
+                />
+            </Suspense>
 
             {/* Modale capitolo: con presetExamId salta Step 1; senza, flusso completo */}
-            <CreateDeckModal
-                isOpen={isCreateModalOpen}
-                onClose={onCreateModalClose}
-                onSubmit={onCreateDeck}
-                onExamCreated={onExamCreated}
-                presetExamId={presetExamId}
-            />
+            <Suspense fallback={null}>
+                <CreateDeckModal
+                    isOpen={isCreateModalOpen}
+                    onClose={onCreateModalClose}
+                    onSubmit={onCreateDeck}
+                    onExamCreated={onExamCreated}
+                    presetExamId={presetExamId}
+                />
+            </Suspense>
 
-            <AddCardModal
-                isOpen={isAddCardModalOpen}
-                deckId={selectedDeck?.id ?? null}
-                deckTitle={selectedDeck?.title ?? ''}
-                onClose={onAddCardModalClose}
-                onSubmit={onSubmitCard}
-            />
+            <Suspense fallback={null}>
+                <AddCardModal
+                    isOpen={isAddCardModalOpen}
+                    deckId={selectedDeck?.id ?? null}
+                    deckTitle={selectedDeck?.title ?? ''}
+                    onClose={onAddCardModalClose}
+                    onSubmit={onSubmitCard}
+                />
+            </Suspense>
 
-            <MagicGenerateModal
-                isOpen={isMagicGenerateOpen}
-                deckId={selectedDeck?.id ?? ''}
-                deckTitle={selectedDeck?.title ?? ''}
-                onClose={onMagicGenerateClose}
-                onSuccess={onMagicGenerateSuccess}
-            />
+            <Suspense fallback={null}>
+                <MagicGenerateModal
+                    isOpen={isMagicGenerateOpen}
+                    deckId={selectedDeck?.id ?? ''}
+                    deckTitle={selectedDeck?.title ?? ''}
+                    onClose={onMagicGenerateClose}
+                    onSuccess={onMagicGenerateSuccess}
+                />
+            </Suspense>
 
-            <ExamSolverModal
-                isOpen={isExamSolverOpen}
-                onClose={onExamSolverClose}
-                onSuccess={onExamSolverSuccess}
-                existingDecks={existingDecks}
-                examId={examId}
-                preselectedDeckId={examSolverDeckId || undefined}
-            />
+            <Suspense fallback={null}>
+                <ExamSolverModal
+                    isOpen={isExamSolverOpen}
+                    onClose={onExamSolverClose}
+                    onSuccess={onExamSolverSuccess}
+                    existingDecks={existingDecks}
+                    examId={examId}
+                    preselectedDeckId={examSolverDeckId || undefined}
+                />
+            </Suspense>
 
-            <StudyModeSelector
-                isOpen={isStudyModeOpen}
-                deckTitle={studyDeck?.title}
-                onClose={onStudyModeClose}
-                onStart={onStartSession}
-            />
+            <Suspense fallback={null}>
+                <StudyModeSelector
+                    isOpen={isStudyModeOpen}
+                    deckTitle={studyDeck?.title}
+                    onClose={onStudyModeClose}
+                    onStart={onStartSession}
+                />
+            </Suspense>
 
-            <ConfirmationModal
-                isOpen={!!deletingDeck}
-                title="Elimina Mazzo"
-                description={`Sei sicuro di voler eliminare "${deletingDeck?.title}"? Tutte le carte verranno eliminate.`}
-                confirmLabel="Elimina"
-                destructive
-                onConfirm={onDeleteConfirm}
-                onCancel={onDeleteCancel}
-            />
+            <Suspense fallback={null}>
+                <ConfirmationModal
+                    isOpen={!!deletingDeck}
+                    title="Elimina Mazzo"
+                    description={`Sei sicuro di voler eliminare "${deletingDeck?.title}"? Tutte le carte verranno eliminate.`}
+                    confirmLabel="Elimina"
+                    destructive
+                    onConfirm={onDeleteConfirm}
+                    onCancel={onDeleteCancel}
+                />
+            </Suspense>
         </>
     );
 };

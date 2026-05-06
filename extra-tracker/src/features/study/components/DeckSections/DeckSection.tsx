@@ -126,10 +126,11 @@ export const DeckSection: React.FC<DeckSectionProps> = ({
             <AnimatePresence>
                 {!isCollapsed && (
                     <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
+                        initial={{ opacity: 0, maxHeight: 0 }}
+                        animate={{ opacity: 1, maxHeight: 2000 }}
+                        exit={{ opacity: 0, maxHeight: 0 }}
                         transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
                     >
                         {layout === 'horizontal' ? (
                             <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">

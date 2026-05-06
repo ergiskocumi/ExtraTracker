@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FiClock, FiTrendingUp, FiActivity, FiCalendar } from 'react-icons/fi';
+import { Clock, TrendingUp, Activity, Calendar } from 'lucide-react';
 import type { WorkLog } from '../tracker/type';
 import { useFormat } from '../../shared/hooks/useFormat';
 
@@ -46,7 +46,7 @@ export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
             label: 'Ore Totali',
             value: formatHours(totalHours),
             suffix: '',
-            icon: FiClock,
+            icon: Clock,
             color: 'from-blue-500 to-blue-600',
             bgColor: 'bg-blue-500/15 dark:bg-blue-500/12',
             iconColor: 'text-blue-700 dark:text-blue-300',
@@ -57,7 +57,7 @@ export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
             label: 'Giorni Lavorati',
             value: uniqueDays.toString(),
             suffix: 'gg',
-            icon: FiCalendar,
+            icon: Calendar,
             color: 'from-purple-500 to-purple-600',
             bgColor: 'bg-purple-500/15 dark:bg-purple-500/12',
             iconColor: 'text-violet-700 dark:text-violet-300',
@@ -66,7 +66,7 @@ export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
             label: 'Media Giornaliera',
             value: avgHoursPerDay.toFixed(1),
             suffix: 'h/gg',
-            icon: FiActivity,
+            icon: Activity,
             color: 'from-amber-500 to-amber-600',
             bgColor: 'bg-amber-500/15 dark:bg-amber-500/12',
             iconColor: 'text-amber-700 dark:text-amber-300',
@@ -107,7 +107,7 @@ export const QuickStats = ({ logs, allLogs }: QuickStatsProps) => {
                         <div className={`dashboard-stat-trend dashboard-meta-text flex items-center gap-1 mt-2 text-[11px] sm:text-xs ${
                             stat.trendPositive ? 'dashboard-stat-trend--positive text-emerald-600 dark:text-emerald-400' : 'dashboard-stat-trend--negative text-rose-600 dark:text-rose-400'
                         }`}>
-                            <FiTrendingUp size={12} className={stat.trendPositive ? '' : 'rotate-180'} />
+                            <TrendingUp size={12} className={stat.trendPositive ? '' : 'rotate-180'} />
                             <span>{stat.trend} vs mese prec.</span>
                         </div>
                     )}

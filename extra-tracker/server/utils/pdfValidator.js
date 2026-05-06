@@ -70,6 +70,34 @@ const validatePdfFile = async (filePath) => {
             };
         }
 
+        // Check 4: Contenuti potenzialmente pericolosi (JS embedded, azioni automatiche)
+        const contentSample = buffer.slice(0, Math.min(buffer.length, 512 * 1024)).toString('ascii');
+        const dangerousPatterns = [
+            '/JavaScript',   // Embedded JS
+            '/JS',           // Embedded JS (compact)
+            '/Launch',       // Launch action
+            '/SubmitForm',   // Form submission
+            '/GoToE',        // Embedded file goto
+            '/GoToR',        // Remote goto
+            '/RichMedia',    // Rich media
+        ];
+        for (const pattern of dangerousPatterns) {
+            if (contentSample.includes(pattern) && !contentSample.includes(`/${pattern} (valid)`) /* false positive guard */) {
+                // Verifica se è un pattern reale (non dentro una stringa o commento)
+                const idx = contentSample.indexOf(pattern);
+                const context = contentSample.substring(Math.max(0, idx - 2), idx + pattern.length + 20);
+                if (/\/JavaScript\s*[\n\r{]/.test(context) ||
+                    /\/JS\s*[\n\r{]/.test(context) ||
+                    /\/Launch\s*[\n\r{]/.test(context) ||
+                    /\/SubmitForm\s*[\n\r{]/.test(context)) {
+                    return {
+                        isValid: false,
+                        error: `PDF contiene contenuti potenzialmente pericolosi (${pattern.slice(1)})`,
+                    };
+                }
+            }
+        }
+
         return { isValid: true };
 
     } catch (err) {
@@ -107,6 +135,25 @@ const validatePdfBuffer = (buffer) => {
                 isValid: false,
                 error: 'File PDF troppo piccolo o corrotto',
             };
+        }
+
+        // Check 4: Contenuti potenzialmente pericolosi
+        const contentSample = buffer.slice(0, Math.min(buffer.length, 512 * 1024)).toString('ascii');
+        const dangerousPatterns = ['/JavaScript', '/JS', '/Launch', '/SubmitForm', '/GoToE', '/GoToR', '/RichMedia'];
+        for (const pattern of dangerousPatterns) {
+            if (contentSample.includes(pattern)) {
+                const idx = contentSample.indexOf(pattern);
+                const context = contentSample.substring(Math.max(0, idx - 2), idx + pattern.length + 20);
+                if (/\/JavaScript\s*[\n\r{]/.test(context) ||
+                    /\/JS\s*[\n\r{]/.test(context) ||
+                    /\/Launch\s*[\n\r{]/.test(context) ||
+                    /\/SubmitForm\s*[\n\r{]/.test(context)) {
+                    return {
+                        isValid: false,
+                        error: `PDF contiene contenuti potenzialmente pericolosi (${pattern.slice(1)})`,
+                    };
+                }
+            }
         }
 
         return { isValid: true };

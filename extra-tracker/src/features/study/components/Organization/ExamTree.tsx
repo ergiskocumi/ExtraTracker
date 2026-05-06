@@ -184,14 +184,15 @@ const ExamItem: React.FC<ExamItemProps> = ({
                         </div>
                         <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                             <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${stats.masteryPercent}%` }}
+                                style={{ transformOrigin: 'left' }}
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: stats.masteryPercent / 100 }}
                                 transition={{ duration: 0.5 }}
-                                className={`h-full rounded-full ${
-                                    stats.masteryPercent === 100 
-                                        ? 'bg-emerald-400' 
-                                        : stats.masteryPercent > 70 
-                                            ? 'bg-violet-400' 
+                                className={`h-full w-full rounded-full ${
+                                    stats.masteryPercent === 100
+                                        ? 'bg-emerald-400'
+                                        : stats.masteryPercent > 70
+                                            ? 'bg-violet-400'
                                             : 'bg-amber-400'
                                 }`}
                             />
@@ -221,11 +222,11 @@ const ExamItem: React.FC<ExamItemProps> = ({
             <AnimatePresence>
                 {isExpanded && examDecks.length > 0 && (
                     <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
+                        initial={{ opacity: 0, maxHeight: 0 }}
+                        animate={{ opacity: 1, maxHeight: 2000 }}
+                        exit={{ opacity: 0, maxHeight: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="ml-6 mt-1 space-y-1"
+                        className="ml-6 mt-1 space-y-1 overflow-hidden"
                     >
                         {examDecks.map((deck) => {
                             const deckDueCount = deck.dueCount ?? 0;

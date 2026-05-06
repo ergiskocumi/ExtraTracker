@@ -4,7 +4,7 @@
  * Componente principale che coordina i sotto-componenti specializzati.
  */
 
-import { useMemo, useEffect } from "react";
+import { memo, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../../../../../lib/utils";
 
@@ -20,7 +20,7 @@ import { ExplanationCard } from "./components/ExplanationCard";
 import { ContinueButton } from "./components/ContinueButton";
 import { DontKnowButton } from "./components/DontKnowButton";
 
-export const QuizView: React.FC<QuizViewProps> = ({
+export const QuizView = memo<QuizViewProps>(({
   card,
   question,
   options,
@@ -174,6 +174,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default QuizView;

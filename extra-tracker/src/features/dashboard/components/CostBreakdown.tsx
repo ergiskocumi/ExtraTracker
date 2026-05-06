@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import {
   ResponsiveContainer,
   PieChart,
@@ -29,7 +29,8 @@ const COLORS = [
   '#F97316', // Orange
 ];
 
-export const CostBreakdown = ({ data, title, loading = false, className }: CostBreakdownProps) => {
+export const CostBreakdown = memo(
+  ({ data, title, loading = false, className }: CostBreakdownProps) => {
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return [];
     
@@ -111,4 +112,6 @@ export const CostBreakdown = ({ data, title, loading = false, className }: CostB
       </div>
     </div>
   );
-};
+},
+(prev, next) => prev.data === next.data,
+);

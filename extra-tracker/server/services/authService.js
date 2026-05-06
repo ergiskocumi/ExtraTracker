@@ -145,7 +145,7 @@ class AuthService {
     async hashBackupCodes(codes) {
         const hashed = [];
         for (const code of codes) {
-            const hash = await this.hashPassword(code.replace('-', ''));
+            const hash = await this.hashPassword(code.replace(/-/g, ''));
             hashed.push(hash);
         }
         return hashed;
@@ -153,12 +153,12 @@ class AuthService {
 
     async verifyBackupCode(code, hashedCodes) {
         const cleanCode = code.replace(/-/g, '').toUpperCase();
-        for (const hash of hashedCodes) {
-            if (await this.verifyPassword(hash, cleanCode)) {
-                return true;
+        for (let i = 0; i < hashedCodes.length; i++) {
+            if (await this.verifyPassword(hashedCodes[i], cleanCode)) {
+                return i; // Return index so caller can remove used code
             }
         }
-        return false;
+        return -1;
     }
 
     // ==========================================
@@ -263,12 +263,12 @@ class AuthService {
             const isValid2FA = this.verifyTwoFactorCode(user.twoFactorSecret, twoFactorCode);
 
             if (!isValid2FA) {
-                const isValidBackup = await this.verifyBackupCode(
+                const backupIndex = await this.verifyBackupCode(
                     twoFactorCode,
                     user.twoFactorBackupCodes || []
                 );
 
-                if (!isValidBackup) {
+                if (backupIndex === -1) {
                     await auditService.log2FA({
                         userId: user._id,
                         userEmail: user.email,
@@ -280,6 +280,10 @@ class AuthService {
                     });
                     throw AppError.unauthorized('Codice 2FA non valido');
                 }
+
+                // Burn after use: rimuovi il codice di backup usato
+                user.twoFactorBackupCodes.splice(backupIndex, 1);
+                await user.save();
 
                 await auditService.log2FA({
                     userId: user._id,
@@ -409,6 +413,14 @@ class AuthService {
 
         const hashedPassword = await this.hashPassword(newPassword);
         await user.addToPasswordHistory(user.password);
+
+        // Blacklist current access token so stolen tokens are invalidated
+        if (req) {
+            const token = req.cookies?.[securityConfig.cookie.name];
+            if (token) {
+                await tokenService.addToBlacklist(token);
+            }
+        }
 
         await User.updateOne(
             { _id: userId },

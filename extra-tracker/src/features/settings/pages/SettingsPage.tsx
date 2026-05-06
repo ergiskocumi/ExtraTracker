@@ -186,7 +186,7 @@ export const SettingsPage = () => {
     });
 
     useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 800);
+        const timer = setTimeout(() => setIsLoading(false), 300);
         return () => clearTimeout(timer);
     }, []);
 

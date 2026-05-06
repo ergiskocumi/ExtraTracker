@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -26,7 +26,8 @@ interface ChartDataPoint {
   cost: number;
 }
 
-export const TokenChart = ({ data, loading = false, className }: TokenChartProps) => {
+export const TokenChart = memo(
+  ({ data, loading = false, className }: TokenChartProps) => {
   const chartData: ChartDataPoint[] = useMemo(() => {
     if (!data || data.length === 0) return [];
     
@@ -138,4 +139,6 @@ export const TokenChart = ({ data, loading = false, className }: TokenChartProps
       </div>
     </div>
   );
-};
+},
+(prev, next) => prev.data === next.data,
+);

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { FiTrendingUp } from 'react-icons/fi';
+import { TrendingUp } from 'lucide-react';
 import type { WorkLog } from '../tracker/type';
 import { calculateDurationInHours } from '../../shared/utils/dateUtils';
 
@@ -49,7 +49,7 @@ export const WeeklyMiniChart = ({ logs }: MiniChartProps) => {
             <div className="flex items-center justify-between mb-3.5 sm:mb-4">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-primary-500/20 flex items-center justify-center">
-                        <FiTrendingUp className="text-primary-700 dark:text-primary-400" size={16} />
+                        <TrendingUp className="text-primary-700 dark:text-primary-400" size={16} />
                     </div>
                     <div>
                         <h3 className="dashboard-widget-title font-semibold text-theme-primary">Ultimi 7 Giorni</h3>

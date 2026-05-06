@@ -1,6 +1,6 @@
-import { useEffect, useId, type ReactNode } from 'react';
+import { useEffect, useId, useCallback, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FiAlertTriangle, FiX } from 'react-icons/fi';
+import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmationModalProps {
     isOpen: boolean;
@@ -30,11 +30,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     const titleId = useId();
     const descriptionId = useId();
 
-    const handleCancel = () => {
+    const handleCancel = useCallback(() => {
         if (!isLoading) {
             onCancel();
         }
-    };
+    }, [isLoading, onCancel]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -86,7 +86,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                                         ? 'border-red-500/30 bg-red-500/15 text-red-300'
                                         : 'border-white/15 bg-white/5 text-white/70'
                                 }`}>
-                                    {icon || <FiAlertTriangle className="h-5 w-5" />}
+                                    {icon || <AlertTriangle className="h-5 w-5" />}
                                 </div>
                                 <div>
                                     <h2 id={titleId} className="text-lg font-semibold text-white">
@@ -106,7 +106,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                                 aria-label="Close"
                                 disabled={isLoading}
                             >
-                                <FiX className="h-4 w-4" />
+                                <X className="h-4 w-4" />
                             </button>
                         </div>
 

@@ -7,7 +7,7 @@
  *   Mobile bottom bar — fixed study CTA in thumb zone
  */
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -27,7 +27,7 @@ import type { Deck, Card, StudyMode } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { FlashcardItem } from '../Flashcard/FlashcardItem';
-import { CardEditorModal } from './CardEditorModal';
+const CardEditorModal = lazy(() => import('./CardEditorModal').then(m => ({ default: m.CardEditorModal })));
 import { cn } from '../../../../lib/utils';
 import { getErrorMessage } from '../../../../utils/errorMessage';
 import { DeckDetailSidebar, formatRelativeTime, DistributionBar } from './DeckDetailSidebar';
@@ -480,33 +480,35 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
 
       {/* ───────── MODALS & OVERLAYS ───────── */}
 
-      <CardEditorModal
-        isOpen={isEditorOpen}
-        onClose={() => {
-          setIsEditorOpen(false);
-          setEditingCard(null);
-        }}
-        frontContent={editingCard?.front || ''}
-        backContent={editingCard?.back || ''}
-        onSave={handleSaveCard}
-        onDelete={
-          editingCard?.id !== 'temp-new' ? () => setDeletingCardId(editingCard?.id || null) : undefined
-        }
-        title={editingCard?.id === 'temp-new' ? 'Nuova Carta' : 'Modifica Carta'}
-        cardNumber={currentCardIndex !== -1 ? currentCardIndex + 1 : undefined}
-        totalCards={deck.cards?.length}
-        onNavigate={
-          currentCardIndex !== -1
-            ? dir => {
-                const newIndex = dir === 'prev' ? currentCardIndex - 1 : currentCardIndex + 1;
-                const cards = deck.cards ?? [];
-                if (newIndex >= 0 && newIndex < cards.length) {
-                  setEditingCard(cards[newIndex]);
+      <Suspense fallback={null}>
+        <CardEditorModal
+          isOpen={isEditorOpen}
+          onClose={() => {
+            setIsEditorOpen(false);
+            setEditingCard(null);
+          }}
+          frontContent={editingCard?.front || ''}
+          backContent={editingCard?.back || ''}
+          onSave={handleSaveCard}
+          onDelete={
+            editingCard?.id !== 'temp-new' ? () => setDeletingCardId(editingCard?.id || null) : undefined
+          }
+          title={editingCard?.id === 'temp-new' ? 'Nuova Carta' : 'Modifica Carta'}
+          cardNumber={currentCardIndex !== -1 ? currentCardIndex + 1 : undefined}
+          totalCards={deck.cards?.length}
+          onNavigate={
+            currentCardIndex !== -1
+              ? dir => {
+                  const newIndex = dir === 'prev' ? currentCardIndex - 1 : currentCardIndex + 1;
+                  const cards = deck.cards ?? [];
+                  if (newIndex >= 0 && newIndex < cards.length) {
+                    setEditingCard(cards[newIndex]);
+                  }
                 }
-              }
-            : undefined
-        }
-      />
+              : undefined
+          }
+        />
+      </Suspense>
 
       {/* Mobile bottom study bar */}
       <div

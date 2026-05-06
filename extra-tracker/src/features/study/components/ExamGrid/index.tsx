@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Exam } from '../../types/exam';
@@ -18,7 +18,7 @@ interface ExamGridProps {
     onRequestDeleteExam?: (examId: string) => void;
 }
 
-export const ExamGrid: React.FC<ExamGridProps> = ({
+export const ExamGrid = memo<ExamGridProps>(({
     exams,
     decks: _decks,
     onExamClick,
@@ -116,9 +116,9 @@ export const ExamGrid: React.FC<ExamGridProps> = ({
             <AnimatePresence>
                 {showCompleted && completedExams.length > 0 && (
                     <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
+                        initial={{ opacity: 0, maxHeight: 0 }}
+                        animate={{ opacity: 1, maxHeight: 2000 }}
+                        exit={{ opacity: 0, maxHeight: 0 }}
                         transition={{ duration: 0.3 }}
                         className="overflow-hidden"
                     >
@@ -156,4 +156,4 @@ export const ExamGrid: React.FC<ExamGridProps> = ({
             </AnimatePresence>
         </div>
     );
-};
+});

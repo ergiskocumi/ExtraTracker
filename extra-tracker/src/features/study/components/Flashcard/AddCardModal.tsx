@@ -7,9 +7,9 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiX, FiPlus } from 'react-icons/fi';
+import { X, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MarkdownEditor } from './CardEditor';
+import { MarkdownEditor } from './MarkdownEditor.lazy';
 
 interface AddCardModalProps {
     /** Whether the modal is open */
@@ -137,7 +137,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                     className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all duration-200 active:scale-95"
                                     aria-label="Chiudi"
                                 >
-                                    <FiX className="w-5 h-5" />
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
 
@@ -220,7 +220,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                         </>
                                     ) : (
                                         <>
-                                            <FiPlus className="w-4 h-4" />
+                                            <Plus className="w-4 h-4" />
                                             <span>Aggiungi Card</span>
                                         </>
                                     )}

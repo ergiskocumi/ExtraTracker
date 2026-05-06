@@ -10,7 +10,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
+import { X, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { 
     TbMoodSmile, TbMoodNeutral, TbFlame, 
     TbLayoutGrid, TbClipboardCheck, TbCertificate, TbToggleLeft,
@@ -637,7 +637,7 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
                 bg-amber-50 dark:bg-amber-500/10
                 border border-amber-200 dark:border-amber-500/20
             ">
-                <FiAlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <div>
                     <p className="font-medium text-amber-800 dark:text-amber-300 mb-1">
                         Attenzione
@@ -662,7 +662,7 @@ const ExamConfigView: React.FC<ExamConfigViewProps> = ({ onBack, onStart }) => {
                         transition-all
                     "
                 >
-                    <FiArrowLeft className="w-5 h-5" />
+                    <ArrowLeft className="w-5 h-5" />
                     Torna Indietro
                 </button>
                 <button
@@ -808,7 +808,7 @@ export const StudyModeSelector: React.FC<StudyModeSelectorProps> = ({
                                     "
                                     aria-label="Chiudi"
                                 >
-                                    <FiX className="w-5 h-5" />
+                                    <X className="w-5 h-5" />
                                 </button>
 
                                 <div className="text-center pr-10">

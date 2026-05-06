@@ -98,7 +98,7 @@ module.exports = {
         auth: {
             windowMs: parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MS || '900000', 10), // 15 minuti
             max: parseInt(process.env.RATE_LIMIT_AUTH_MAX || '15', 10),
-            skipSuccessfulRequests: process.env.RATE_LIMIT_AUTH_SKIP_SUCCESS === 'true' || true,
+            skipSuccessfulRequests: process.env.RATE_LIMIT_AUTH_SKIP_SUCCESS !== 'false',
         },
         // Rate limiter per chiamate AI - molto restrittivo per prevenire abusi
         // Le chiamate AI sono costose e devono essere limitate severamente

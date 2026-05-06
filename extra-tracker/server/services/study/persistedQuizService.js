@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const BaseService = require('../BaseService');
 const AppError = require('../../utils/AppError');
 const Deck = require('../../models/Deck');
@@ -505,44 +506,53 @@ class PersistedQuizService extends BaseService {
             : '';
         const sourceCardIds = this._trimArray(payload.sourceCardIds);
 
-        const createdQuiz = await this.create(tenantScope, {
-            deckId: deck._id,
-            examId: deck.examId || null,
-            name,
-            quizType,
-            source,
-            origin: {
-                kind: payload.originKind || 'ai_pdf',
-                pdfBased: payload.pdfBased !== false,
-                sourceCardIds,
-                generatedFromTextHash,
-                aiModel: payload.aiModel || DISTRACTOR_AI_MODEL,
-                promptVersion: payload.promptVersion || DISTRACTOR_PROMPT_VERSION,
-            },
-            questionCount: normalizedQuestions.length,
-            questions: normalizedQuestions,
-            status: 'ready',
-        });
+        const session = await mongoose.startSession();
+        try {
+            let createdQuiz;
+            await session.withTransaction(async () => {
+                createdQuiz = await new QuizDefinition({
+                    ...this._buildFilter(tenantScope, {}),
+                    deckId: deck._id,
+                    examId: deck.examId || null,
+                    name,
+                    quizType,
+                    source,
+                    origin: {
+                        kind: payload.originKind || 'ai_pdf',
+                        pdfBased: payload.pdfBased !== false,
+                        sourceCardIds,
+                        generatedFromTextHash,
+                        aiModel: payload.aiModel || DISTRACTOR_AI_MODEL,
+                        promptVersion: payload.promptVersion || DISTRACTOR_PROMPT_VERSION,
+                    },
+                    questionCount: normalizedQuestions.length,
+                    questions: normalizedQuestions,
+                    status: 'ready',
+                }).save({ session });
 
-        if (deck?.savedQuizzes) {
-            deck.savedQuizzes.push({
-                _id: createdQuiz._id,
-                quizRefId: createdQuiz._id,
-                name,
-                quizType,
-                questionCount: normalizedQuestions.length,
-                sourceCardIds: sourceCardIds.length > 0
-                    ? sourceCardIds
-                    : normalizedQuestions.map((question) => question.questionId),
-                source,
-                questions: [],
-                attempts: [],
-                createdAt: createdQuiz.createdAt,
+                if (deck?.savedQuizzes) {
+                    deck.savedQuizzes.push({
+                        _id: createdQuiz._id,
+                        quizRefId: createdQuiz._id,
+                        name,
+                        quizType,
+                        questionCount: normalizedQuestions.length,
+                        sourceCardIds: sourceCardIds.length > 0
+                            ? sourceCardIds
+                            : normalizedQuestions.map((question) => question.questionId),
+                        source,
+                        questions: [],
+                        attempts: [],
+                        createdAt: createdQuiz.createdAt,
+                    });
+                    await deck.save({ session });
+                }
             });
-            await deck.save();
-        }
 
-        return createdQuiz;
+            return createdQuiz;
+        } finally {
+            await session.endSession();
+        }
     }
 
     async findQuizForDeck(tenantScope, deckId, quizId, options = {}) {
@@ -673,57 +683,65 @@ class PersistedQuizService extends BaseService {
             .sort((a, b) => a.shownIndex - b.shownIndex)
             .map((result) => result.questionId);
 
-        const createdAttempt = await QuizAttempt.create({
-            ...this._buildFilter(tenantScope, {}),
-            quizId: quiz._id,
-            deckId: quiz.deckId,
-            examId: quiz.examId || null,
-            strategy: {
-                ...strategy,
-                targetCount: normalizedResults.length,
-            },
-            orderedQuestionIds,
-            results: normalizedResults,
-            score: attemptData.score,
-            accuracy: attemptData.accuracy,
-            timeSeconds: attemptData.timeSeconds || 0,
-            startedAt: attemptData.startedAt ? new Date(attemptData.startedAt) : new Date(),
-            completedAt: attemptData.completedAt ? new Date(attemptData.completedAt) : new Date(),
-        });
-
         const resultsMap = new Map(normalizedResults.map((result) => [result.questionId, result]));
-        let mutated = false;
-        for (const question of quiz.questions || []) {
-            const result = resultsMap.get(question.questionId);
-            if (!result) continue;
-            question.stats = this._calculateQuestionStats(question, question.stats || {}, result, strategy.params);
-            mutated = true;
-        }
-        if (mutated) {
-            await quiz.save();
-        }
 
-        const deck = await Deck.findOne(this._buildFilter(tenantScope, { _id: deckId })).exec();
-        if (deck) {
-            const summary = deck.savedQuizzes?.id(quizId);
-            if (summary) {
-                if (!Array.isArray(summary.attempts)) {
-                    summary.attempts = [];
-                }
-                if (summary.attempts.length >= 100) {
-                    summary.attempts.shift();
-                }
-                summary.attempts.push({
+        // Wrap multi-collection writes in transaction for consistency
+        const session = await mongoose.startSession();
+        let createdAttempt;
+        try {
+            await session.withTransaction(async () => {
+                createdAttempt = await QuizAttempt.create([{
+                    ...this._buildFilter(tenantScope, {}),
+                    quizId: quiz._id,
+                    deckId: quiz.deckId,
+                    examId: quiz.examId || null,
+                    strategy: { ...strategy, targetCount: normalizedResults.length },
+                    orderedQuestionIds,
+                    results: normalizedResults,
                     score: attemptData.score,
                     accuracy: attemptData.accuracy,
                     timeSeconds: attemptData.timeSeconds || 0,
-                    completedAt: new Date(),
-                    wrongQuestionIndices: normalizedResults
-                        .filter((result) => !result.isCorrect)
-                        .map((result) => result.shownIndex),
-                });
-                await deck.save();
-            }
+                    startedAt: attemptData.startedAt ? new Date(attemptData.startedAt) : new Date(),
+                    completedAt: attemptData.completedAt ? new Date(attemptData.completedAt) : new Date(),
+                }], { session });
+                createdAttempt = createdAttempt[0];
+
+                let mutated = false;
+                for (const question of quiz.questions || []) {
+                    const result = resultsMap.get(question.questionId);
+                    if (!result) continue;
+                    question.stats = this._calculateQuestionStats(question, question.stats || {}, result, strategy.params);
+                    mutated = true;
+                }
+                if (mutated) {
+                    await quiz.save({ session });
+                }
+
+                const deck = await Deck.findOne(this._buildFilter(tenantScope, { _id: deckId })).session(session).exec();
+                if (deck) {
+                    const summary = deck.savedQuizzes?.id(quizId);
+                    if (summary) {
+                        if (!Array.isArray(summary.attempts)) {
+                            summary.attempts = [];
+                        }
+                        if (summary.attempts.length >= 100) {
+                            summary.attempts.shift();
+                        }
+                        summary.attempts.push({
+                            score: attemptData.score,
+                            accuracy: attemptData.accuracy,
+                            timeSeconds: attemptData.timeSeconds || 0,
+                            completedAt: new Date(),
+                            wrongQuestionIndices: normalizedResults
+                                .filter((result) => !result.isCorrect)
+                                .map((result) => result.shownIndex),
+                        });
+                        await deck.save({ session });
+                    }
+                }
+            });
+        } finally {
+            await session.endSession();
         }
 
         return {

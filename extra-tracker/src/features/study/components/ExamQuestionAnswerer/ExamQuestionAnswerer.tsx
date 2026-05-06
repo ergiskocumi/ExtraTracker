@@ -8,7 +8,7 @@
 
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiSend, FiCpu, FiAlertCircle, FiCheckCircle, FiBook } from 'react-icons/fi';
+import { Send, Cpu, AlertCircle, CheckCircle, Book } from 'lucide-react';
 import { emitToast } from '../../../../shared/components/toast';
 import { getErrorMessage } from '../../../../utils/errorMessage';
 import { studyService, type ExamAnswer } from '../../services/studyService';
@@ -66,7 +66,7 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
             <div className="mb-6">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 rounded-xl bg-primary-500/20 border border-primary-500/30 flex items-center justify-center">
-                        <FiBook className="w-5 h-5 text-primary-400" />
+                        <Book className="w-5 h-5 text-primary-400" />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">Tutor Accademico</h3>
@@ -108,12 +108,12 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                     >
                         {isLoading ? (
                             <>
-                                <FiCpu className="w-4 h-4 animate-spin" />
+                                <Cpu className="w-4 h-4 animate-spin" />
                                 Analizzando...
                             </>
                         ) : (
                             <>
-                                <FiSend className="w-4 h-4" />
+                                <Send className="w-4 h-4" />
                                 Rispondi
                             </>
                         )}
@@ -138,11 +138,11 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                         <div className="flex items-start gap-3 mb-3">
                             {answer.foundInContext ? (
                                 <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-                                    <FiCheckCircle className="w-4 h-4 text-emerald-400" />
+                                    <CheckCircle className="w-4 h-4 text-emerald-400" />
                                 </div>
                             ) : (
                                 <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-                                    <FiAlertCircle className="w-4 h-4 text-amber-400" />
+                                    <AlertCircle className="w-4 h-4 text-amber-400" />
                                 </div>
                             )}
                             <div className="flex-1">
@@ -189,7 +189,7 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-3"
                 >
-                    <FiAlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                         <p className="text-sm font-medium text-rose-300 mb-1">Errore</p>
                         <p className="text-sm text-rose-200/80">{error}</p>

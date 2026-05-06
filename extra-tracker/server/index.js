@@ -232,8 +232,9 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // Gestione errori globali non catturati (previene crash silenzioso)
 process.on('unhandledRejection', (reason, promise) => {
     logger.error('Server', 'Unhandled Promise Rejection', { reason, promise });
-    // In produzione, considera di riavviare il processo dopo logging
-    // process.exit(1);
+    if (isProduction) {
+        process.exit(1);
+    }
 });
 
 process.on('uncaughtException', (error) => {

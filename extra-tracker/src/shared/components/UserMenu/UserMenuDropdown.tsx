@@ -11,16 +11,7 @@ import { useState, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    FiLayout,
-    FiSettings,
-    FiLogOut,
-    FiChevronDown,
-    FiBookOpen,
-    FiShield,
-    FiMessageCircle,
-    FiCpu,
-} from 'react-icons/fi';
+import { Layout, Settings, LogOut, ChevronDown, BookOpen, Shield, MessageCircle, Cpu } from 'lucide-react';
 import { useAuth } from '../../../features/auth/context/AuthContext';
 import { useSettings } from '../../../features/settings/context/SettingsContext';
 import { useFeedback } from '../../../features/feedback/context/FeedbackContext';
@@ -210,33 +201,33 @@ export const UserMenuDropdown = memo(() => {
         {
             label: 'Principale',
             items: [
-                { path: '/dashboard', label: 'Dashboard', icon: FiLayout, description: 'Centro di comando' },
-                { path: '/ai-dashboard', label: 'AI Usage', icon: FiCpu, description: 'Token, prompt e costi' },
+                { path: '/dashboard', label: 'Dashboard', icon: Layout, description: 'Centro di comando' },
+                { path: '/ai-dashboard', label: 'AI Usage', icon: Cpu, description: 'Token, prompt e costi' },
             ],
         },
         {
             label: 'Produttività',
             items: [
-                { path: '/study', label: 'Flashcards', icon: FiBookOpen, description: 'Studio intelligente' },
+                { path: '/study', label: 'Flashcards', icon: BookOpen, description: 'Studio intelligente' },
             ],
         },
         {
             label: 'Account',
             items: [
-                { path: '/settings', label: 'Impostazioni', icon: FiSettings, description: 'Personalizza' },
+                { path: '/settings', label: 'Impostazioni', icon: Settings, description: 'Personalizza' },
             ],
         },
         {
             label: 'Aiuto',
             items: [
-                { label: 'Segnala un problema', description: 'Bug o suggerimento', icon: FiMessageCircle, action: () => openFeedback() },
+                { label: 'Segnala un problema', description: 'Bug o suggerimento', icon: MessageCircle, action: () => openFeedback() },
             ],
         },
         ...(isAdmin ? [
             {
                 label: 'Admin',
                 items: [
-                    { path: '/admin/feedback', label: 'Feedbacks', icon: FiShield, description: 'Gestione feedback' },
+                    { path: '/admin/feedback', label: 'Feedbacks', icon: Shield, description: 'Gestione feedback' },
                 ],
             },
         ] : []),
@@ -360,7 +351,7 @@ export const UserMenuDropdown = memo(() => {
                     animate={{ rotate: isOpen ? 180 : 0 }}
                     transition={{ duration: 0.2 }}
                 >
-                    <FiChevronDown
+                    <ChevronDown
                         size={14}
                         className="text-slate-500 dark:text-slate-400"
                     />
@@ -491,7 +482,7 @@ export const UserMenuDropdown = memo(() => {
                                             <div className="flex items-center justify-center w-9 h-9 rounded-xl transition-colors" style={{
                                                 background: 'var(--bg-danger-subtle)',
                                             }}>
-                                                <FiLogOut size={16} />
+                                                <LogOut size={16} />
                                             </div>
                                             <div className="text-left">
                                                 <p className="text-sm font-medium">Disconnetti</p>

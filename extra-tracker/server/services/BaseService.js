@@ -399,12 +399,15 @@ class BaseService {
         await this.beforeDelete(tenantScope, id);
 
         // 🔒 SICUREZZA ESPLICITA: user è SEMPRE nel filtro
+        // Usa findOne + remove() invece di findOneAndDelete per triggerare pre('remove') middleware
         const secureFilter = this._buildFilter(tenantScope, { _id: id });
-        const doc = await this.Model.findOneAndDelete(secureFilter);
+        const doc = await this.Model.findOne(secureFilter);
 
         if (!doc) {
             throw AppError.notFound(this.options.entityName);
         }
+
+        await doc.remove();
 
         // Hook post-delete (es. cleanup)
         await this.afterDelete(tenantScope, doc);

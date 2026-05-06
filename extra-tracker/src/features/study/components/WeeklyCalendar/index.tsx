@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar } from 'lucide-react';
 import type { Exam } from '../../types/exam';
@@ -52,7 +52,7 @@ function getDotColor(bgColor: string): string {
     return DOT_COLOR_MAP[bgColor] || 'bg-primary-400';
 }
 
-export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
+export const WeeklyCalendar = memo<WeeklyCalendarProps>(({
     weeklyStudyPlan,
     exams,
     decks,
@@ -255,4 +255,4 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             </AnimatePresence>
         </div>
     );
-};
+});

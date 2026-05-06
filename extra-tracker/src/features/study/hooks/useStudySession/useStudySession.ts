@@ -37,6 +37,19 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
         ? `${deckId}-${mode}-${focus}-${length}-${questionCount}-${timeLimitMinutes}-${direction}-${examType}-${examDifficulty}-${quizType}-${quizId}-${sourceCardIdsKey}-${runKey}`
         : null;
 
+    // Track if this instance added to globalCompletedSessions for cleanup on unmount
+    const addedToGlobalRef = useRef(false);
+
+    // Cleanup on unmount: rimuovi il tracking globale per evitare StrictMode leak
+    useEffect(() => {
+        return () => {
+            if (sessionKey) {
+                globalCompletedSessions.delete(sessionKey);
+                addedToGlobalRef.current = false;
+            }
+        };
+    }, [sessionKey]);
+
     // Sub-hooks
     const { stats, setStats, updateStats, resetStats } = useStudyStats(0);
 
@@ -96,6 +109,10 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
         }
     }, [currentCardIndex, session, effectiveCompleteSession, setCurrentCardIndex]);
 
+    // Ref per evitare stale closure nel setTimeout di handleRate
+    const currentCardIndexRef = useRef(currentCardIndex);
+    currentCardIndexRef.current = currentCardIndex;
+
     const handleRate = useCallback(async (rating: ReviewRating, details?: { userAnswer?: string; correctAnswer?: string; correct?: boolean }) => {
         if (!session || !currentCard || isSubmitting || isCompleteRef.current) return;
 
@@ -123,7 +140,7 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
 
             if (cardMode !== 'quiz') {
                 setTimeout(() => {
-                    const nextIndex = currentCardIndex + 1;
+                    const nextIndex = currentCardIndexRef.current + 1;
                     if (nextIndex >= session.cards.length) {
                         effectiveCompleteSession();
                     } else {
@@ -131,17 +148,18 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
                         setIsFlipped(false);
                         setExitDirection(null);
                     }
-                }, 800);
+                    setIsSubmitting(false);
+                }, 250);
             } else {
+                setIsSubmitting(false);
                 setExitDirection(null);
             }
         } catch {
             emitToast.error('Errore nel salvataggio');
             setExitDirection(null);
-        } finally {
             setIsSubmitting(false);
         }
-    }, [session, currentCard, isSubmitting, currentCardIndex, mode, cardMode, updateStats, hasStudiedRef, setAnswersHistory, setCurrentCardIndex, setIsFlipped, setExitDirection, effectiveCompleteSession]);
+    }, [session, currentCard, isSubmitting, mode, cardMode, updateStats, hasStudiedRef, setAnswersHistory, setCurrentCardIndex, setIsFlipped, setExitDirection, effectiveCompleteSession]);
 
     const handleBack = useCallback(async () => {
         if (mode !== 'exam' && stats.total > 0 && !showExitConfirm) {

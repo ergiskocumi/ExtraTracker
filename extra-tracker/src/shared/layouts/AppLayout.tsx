@@ -21,11 +21,6 @@ const GlobalFeedbackModal = lazy(() =>
         default: m.GlobalFeedbackModal,
     }))
 );
-const TutorialManager = lazy(() =>
-    import('../components/Tutorial/TutorialManager').then((m) => ({
-        default: m.TutorialManager,
-    }))
-);
 
 // ============================================
 // HEADER COMPONENT
@@ -156,7 +151,6 @@ export const AppLayout = () => {
             {/* Global Feedback: modal apribile dal menu utente (Segnala un problema) */}
             <Suspense fallback={null}>
                 <GlobalFeedbackModal />
-                <TutorialManager />
             </Suspense>
         </div>
     );

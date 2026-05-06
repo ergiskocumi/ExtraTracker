@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiSend, FiCpu, FiAlertCircle } from 'react-icons/fi';
+import { Send, Cpu, AlertCircle } from 'lucide-react';
 import { emitToast } from '../../../../shared/components/toast';
 import { getErrorMessage } from '../../../../utils/errorMessage';
 import { studyService, type ChatMessage } from '../../services/studyService';
@@ -23,7 +23,7 @@ interface PDFChatProps {
 const LoadingBubble = () => (
     <div className="flex items-start gap-3">
         <div className="flex items-center justify-center w-8 h-8 border rounded-xl bg-theme-surface border-theme-default">
-            <FiCpu className="w-4 h-4 text-theme-secondary" />
+            <Cpu className="w-4 h-4 text-theme-secondary" />
         </div>
         <div className="px-4 py-3 text-sm border rounded-2xl bg-theme-surface border-theme-default text-theme-secondary animate-pulse">
             L&apos;AI sta scrivendo...
@@ -146,7 +146,7 @@ export const PDFChat: React.FC<PDFChatProps> = ({
                 {error && (
                     <div className="flex items-start gap-3">
                         <div className="flex items-center justify-center w-8 h-8 border rounded-xl bg-rose-500/12 border-rose-500/35">
-                            <FiAlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-300" />
+                            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-300" />
                         </div>
                         <div className="px-4 py-3 text-sm border rounded-2xl bg-rose-500/10 border-rose-500/25 text-rose-700 dark:text-rose-200">
                             {error}
@@ -185,7 +185,7 @@ export const PDFChat: React.FC<PDFChatProps> = ({
                         disabled={!canSend}
                         className="h-[46px] px-4 rounded-2xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-lg shadow-primary-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                     >
-                        <FiSend className="w-4 h-4" />
+                        <Send className="w-4 h-4" />
                         Invia
                     </motion.button>
                 </div>

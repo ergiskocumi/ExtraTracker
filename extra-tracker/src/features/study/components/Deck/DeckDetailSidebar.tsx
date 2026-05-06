@@ -59,10 +59,11 @@ export const DistributionBar = ({
         {items.map((item, idx) => (
           <motion.div
             key={item.label}
-            initial={{ width: 0 }}
-            animate={{ width: `${(item.count / total) * 100}%` }}
+            style={{ transformOrigin: 'left' }}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: item.count / total }}
             transition={{ duration: 0.6, delay: idx * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className={cn('h-full first:rounded-l-full last:rounded-r-full', item.color)}
+            className={cn('h-full w-full first:rounded-l-full last:rounded-r-full', item.color)}
             title={`${item.label}: ${item.count}`}
           />
         ))}
@@ -322,9 +323,9 @@ export const DeckDetailSidebar: React.FC<DeckDetailSidebarProps> = ({
       <AnimatePresence>
         {showMoreActions && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            initial={{ maxHeight: 0, opacity: 0 }}
+            animate={{ maxHeight: 2000, opacity: 1 }}
+            exit={{ maxHeight: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >

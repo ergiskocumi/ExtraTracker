@@ -13,7 +13,7 @@
  * @module FlashcardList
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { memo, useState, useCallback, useEffect, useMemo } from 'react';
 import {
     DndContext,
     closestCenter,
@@ -56,7 +56,7 @@ import { DragOverlayContent } from './FlashcardList.DragOverlay';
  * @param props - Component props
  * @returns FlashcardList component
  */
-export const FlashcardList: React.FC<FlashcardListProps> = ({
+export const FlashcardList = memo<FlashcardListProps>(({
     deck,
     onAddCard,
     onUpdate,
@@ -527,6 +527,6 @@ export const FlashcardList: React.FC<FlashcardListProps> = ({
             </div>
         </div>
     );
-};
+});
 
 export default FlashcardList;

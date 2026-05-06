@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FiCheckCircle, FiXCircle, FiLoader, FiMail } from 'react-icons/fi';
+import { CheckCircle, XCircle, Loader, Mail } from 'lucide-react';
 import { apiClient } from '../../../shared/services/apiClient';
 
 type VerificationStatus = 'loading' | 'success' | 'error' | 'no-token';
@@ -55,7 +55,7 @@ export const VerifyEmailPage = () => {
                 {status === 'loading' && (
                     <>
                         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-primary-500/20 flex items-center justify-center">
-                            <FiLoader className="text-primary-400 animate-spin" size={32} />
+                            <Loader className="text-primary-400 animate-spin" size={32} />
                         </div>
                         <h1 className="text-2xl font-bold text-white mb-2">Verifica in corso...</h1>
                         <p className="text-white/60">Stiamo verificando il tuo indirizzo email</p>
@@ -70,7 +70,7 @@ export const VerifyEmailPage = () => {
                             animate={{ scale: 1 }}
                             className="w-16 h-16 mx-auto mb-6 rounded-full bg-emerald-500/20 flex items-center justify-center"
                         >
-                            <FiCheckCircle className="text-emerald-400" size={32} />
+                            <CheckCircle className="text-emerald-400" size={32} />
                         </motion.div>
                         <h1 className="text-2xl font-bold text-white mb-2">Email Verificata!</h1>
                         <p className="text-white/60 mb-6">{message}</p>
@@ -91,7 +91,7 @@ export const VerifyEmailPage = () => {
                             animate={{ scale: 1 }}
                             className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-500/20 flex items-center justify-center"
                         >
-                            <FiXCircle className="text-red-400" size={32} />
+                            <XCircle className="text-red-400" size={32} />
                         </motion.div>
                         <h1 className="text-2xl font-bold text-white mb-2">Verifica Fallita</h1>
                         <p className="text-white/60 mb-6">{message}</p>
@@ -113,7 +113,7 @@ export const VerifyEmailPage = () => {
                 {status === 'no-token' && (
                     <>
                         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-amber-500/20 flex items-center justify-center">
-                            <FiMail className="text-amber-400" size={32} />
+                            <Mail className="text-amber-400" size={32} />
                         </div>
                         <h1 className="text-2xl font-bold text-white mb-2">Token Mancante</h1>
                         <p className="text-white/60 mb-6">

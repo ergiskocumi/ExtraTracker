@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { memo, useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Plus, Loader2, CheckCircle } from 'lucide-react';
 import type { Exam } from '../../types/exam';
@@ -39,7 +39,7 @@ interface ExamsViewProps {
 // COMPONENT
 // ============================================
 
-export const ExamsView: React.FC<ExamsViewProps> = ({
+export const ExamsView = memo<ExamsViewProps>(({
     decks,
     tags,
     onCreateExam,
@@ -497,4 +497,4 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             />
         </div>
     );
-};
+});

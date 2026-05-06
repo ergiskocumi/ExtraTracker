@@ -11,10 +11,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-    FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus,
-    FiAlertCircle, FiLoader, FiCheck, FiX,
-} from 'react-icons/fi';
+import { Mail, Lock, Eye, EyeOff, UserPlus, AlertCircle, Loader, Check, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { registerSchema, type RegisterFormData } from '../validators/authValidators';
 import { Logo } from '../../../shared/components/Brand/Logo';
@@ -152,7 +149,7 @@ export const RegisterPage = () => {
                             aria-live="assertive"
                         >
                             <div className="flex items-center gap-2 text-red-400">
-                                <FiAlertCircle size={18} aria-hidden="true" />
+                                <AlertCircle size={18} aria-hidden="true" />
                                 <p className="text-sm">{error}</p>
                             </div>
                         </motion.div>
@@ -165,7 +162,7 @@ export const RegisterPage = () => {
                                 Email
                             </label>
                             <div className="relative">
-                                <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} aria-hidden="true" />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} aria-hidden="true" />
                                 <input
                                     type="email"
                                     name="email"
@@ -193,7 +190,7 @@ export const RegisterPage = () => {
                                 Password
                             </label>
                             <div className="relative">
-                                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} aria-hidden="true" />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} aria-hidden="true" />
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     name="password"
@@ -217,7 +214,7 @@ export const RegisterPage = () => {
                                     aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
                                     aria-pressed={showPassword}
                                 >
-                                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
 
@@ -261,7 +258,7 @@ export const RegisterPage = () => {
                                                 req.passed ? 'text-emerald-500' : 'text-theme-muted'
                                             }`}
                                         >
-                                            {req.passed ? <FiCheck size={12} aria-label="Requirement met" /> : <FiX size={12} aria-label="Requirement not met" />}
+                                            {req.passed ? <Check size={12} aria-label="Requirement met" /> : <X size={12} aria-label="Requirement not met" />}
                                             <span>{req.label}</span>
                                         </div>
                                     ))}
@@ -279,7 +276,7 @@ export const RegisterPage = () => {
                                 Conferma Password
                             </label>
                             <div className="relative">
-                                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} aria-hidden="true" />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} aria-hidden="true" />
                                 <input
                                     type={showConfirmPassword ? 'text' : 'password'}
                                     name="confirmPassword"
@@ -304,7 +301,7 @@ export const RegisterPage = () => {
                                     aria-label={showConfirmPassword ? 'Nascondi conferma password' : 'Mostra conferma password'}
                                     aria-pressed={showConfirmPassword}
                                 >
-                                    {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
                             {fieldErrors.confirmPassword && (
@@ -356,12 +353,12 @@ export const RegisterPage = () => {
                         >
                             {isLoading ? (
                                 <>
-                                    <FiLoader className="animate-spin" size={18} />
+                                    <Loader className="animate-spin" size={18} />
                                     Registrazione in corso...
                                 </>
                             ) : (
                                 <>
-                                    <FiUserPlus size={18} />
+                                    <UserPlus size={18} />
                                     Crea Account
                                 </>
                             )}

@@ -30,18 +30,17 @@ export const useSSE = <T = unknown>(
     const listenersRef = useRef<SSEListener<T>[]>([]);
     const callbackRef = useRef<SSECallback<T> | null>(null);
 
-    useEffect(() => {
-        if (Array.isArray(listenersOrCallback)) {
-            listenersRef.current = listenersOrCallback;
-            callbackRef.current = null;
-        } else if (typeof listenersOrCallback === 'function') {
-            callbackRef.current = listenersOrCallback;
-            listenersRef.current = [];
-        } else {
-            listenersRef.current = [];
-            callbackRef.current = null;
-        }
-    }, [listenersOrCallback]);
+    // Aggiornamento sincrono durante render — sempre aggiornato, nessun ritardo di useEffect
+    if (Array.isArray(listenersOrCallback)) {
+        listenersRef.current = listenersOrCallback;
+        callbackRef.current = null;
+    } else if (typeof listenersOrCallback === 'function') {
+        callbackRef.current = listenersOrCallback;
+        listenersRef.current = [];
+    } else {
+        listenersRef.current = [];
+        callbackRef.current = null;
+    }
 
     useEffect(() => {
         if (!url) {

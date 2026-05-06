@@ -8,10 +8,10 @@
  */
 
 import React, { useCallback, memo } from 'react';
-import { FiX, FiCheck } from 'react-icons/fi';
+import { X, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG, TEXT_CONTENT, ICON_SIZES } from './FlashcardItem.constants';
-import { RichTextEditor as MarkdownEditor } from './CardEditor';
+import { MarkdownEditor } from './MarkdownEditor.lazy';
 
 // ============================================
 // TYPES
@@ -128,7 +128,7 @@ const EditModeComponent: React.FC<EditModeProps> = ({
                     disabled={isSaving}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-theme-default bg-theme-surface text-theme-secondary hover:text-theme-primary hover:bg-theme-card hover:border-theme-strong transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                 >
-                    <FiX className={ICON_SIZES.small} />
+                    <X className={ICON_SIZES.small} />
                     <span className="hidden sm:inline">{TEXT_CONTENT.buttons.cancel}</span>
                 </button>
                 <button
@@ -150,7 +150,7 @@ const EditModeComponent: React.FC<EditModeProps> = ({
                         </>
                     ) : (
                         <>
-                            <FiCheck className={ICON_SIZES.small} />
+                            <Check className={ICON_SIZES.small} />
                             <span>{TEXT_CONTENT.buttons.save}</span>
                         </>
                     )}

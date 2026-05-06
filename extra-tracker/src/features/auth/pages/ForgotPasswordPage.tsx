@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { FiMail, FiSend, FiLoader, FiCheckCircle, FiArrowLeft } from 'react-icons/fi';
+import { Mail, Send, Loader, CheckCircle, ArrowLeft } from 'lucide-react';
 import { apiClient } from '../../../shared/services/apiClient';
 
 export const ForgotPasswordPage = () => {
@@ -46,7 +46,7 @@ export const ForgotPasswordPage = () => {
                         animate={{ scale: 1 }}
                         className="w-16 h-16 mx-auto mb-6 rounded-full bg-emerald-500/20 flex items-center justify-center"
                     >
-                        <FiCheckCircle className="text-emerald-400" size={32} />
+                        <CheckCircle className="text-emerald-400" size={32} />
                     </motion.div>
                     <h1 className="text-2xl font-bold text-white mb-2">Controlla la tua Email</h1>
                     <p className="text-white/60 mb-6">
@@ -61,7 +61,7 @@ export const ForgotPasswordPage = () => {
                             to="/login"
                             className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 transition-colors"
                         >
-                            <FiArrowLeft size={16} />
+                            <ArrowLeft size={16} />
                             Torna al Login
                         </Link>
                     </div>
@@ -79,7 +79,7 @@ export const ForgotPasswordPage = () => {
             {/* Header */}
             <div className="text-center mb-8">
                 <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30 mb-4">
-                    <FiMail className="text-white" size={28} />
+                    <Mail className="text-white" size={28} />
                 </div>
                 <h1 className="text-2xl font-bold text-white">Password Dimenticata?</h1>
                 <p className="text-white/60 mt-1">Ti invieremo un link per reimpostarla</p>
@@ -99,7 +99,7 @@ export const ForgotPasswordPage = () => {
                             Email
                         </label>
                         <div className="relative">
-                            <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
                             <input
                                 type="email"
                                 value={email}
@@ -124,12 +124,12 @@ export const ForgotPasswordPage = () => {
                     >
                         {isLoading ? (
                             <>
-                                <FiLoader className="animate-spin" size={18} />
+                                <Loader className="animate-spin" size={18} />
                                 Invio in corso...
                             </>
                         ) : (
                             <>
-                                <FiSend size={18} />
+                                <Send size={18} />
                                 Invia Link di Reset
                             </>
                         )}
@@ -141,7 +141,7 @@ export const ForgotPasswordPage = () => {
                         to="/login"
                         className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 transition-colors"
                     >
-                        <FiArrowLeft size={16} />
+                        <ArrowLeft size={16} />
                         Torna al Login
                     </Link>
                 </div>

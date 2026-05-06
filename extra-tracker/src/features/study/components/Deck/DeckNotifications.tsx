@@ -7,11 +7,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    FiBell,
-    FiBellOff,
-    FiClock,
-} from 'react-icons/fi';
+import { Bell, BellOff, Clock } from 'lucide-react';
 import { emitToast } from '../../../../shared/components/toast/toastEvents'; ;
 
 interface DeckNotificationsProps {
@@ -142,7 +138,7 @@ export const DeckNotifications: React.FC<DeckNotificationsProps> = ({
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start flex-1 gap-3">
                             <div className="p-2 border rounded-xl bg-amber-500/20 border-amber-500/30">
-                                <FiClock className="w-5 h-5 text-amber-400" />
+                                <Clock className="w-5 h-5 text-amber-400" />
                             </div>
                             <div className="flex-1">
                                 <h3 className="mb-1 text-base font-semibold text-white">
@@ -161,9 +157,9 @@ export const DeckNotifications: React.FC<DeckNotificationsProps> = ({
                                 title={notificationsEnabled ? 'Disabilita notifiche' : 'Abilita notifiche'}
                             >
                                 {notificationsEnabled ? (
-                                    <FiBell className="w-4 h-4 text-amber-400" />
+                                    <Bell className="w-4 h-4 text-amber-400" />
                                 ) : (
-                                    <FiBellOff className="w-4 h-4 text-white/40" />
+                                    <BellOff className="w-4 h-4 text-white/40" />
                                 )}
                             </button>
                         </div>

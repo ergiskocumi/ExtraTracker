@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, FileText, Layers } from 'lucide-react';
 import { studyService, type Deck } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
-import { CinemaLayout } from '../layout/CinemaLayout';
+
+const CinemaLayout = lazy(() => import('../layout/CinemaLayout').then(m => ({ default: m.CinemaLayout })));
 
 // ============================================
 // SUB-COMPONENTS
@@ -189,12 +190,14 @@ export const CinemaPage: React.FC = () => {
     }
 
     return (
-        <CinemaLayout
-            deck={deck}
-            pdfSrc={pdfSrc}
-            onUpdateCard={handleUpdateCard}
-            onNavigateBack={handleNavigateBack}
-            onDeckUpdate={handleDeckUpdate}
-        />
+        <Suspense fallback={<CinemaSkeletonLoader />}>
+            <CinemaLayout
+                deck={deck}
+                pdfSrc={pdfSrc}
+                onUpdateCard={handleUpdateCard}
+                onNavigateBack={handleNavigateBack}
+                onDeckUpdate={handleDeckUpdate}
+            />
+        </Suspense>
     );
 };

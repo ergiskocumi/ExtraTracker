@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import type { Card, Deck } from '../../services/studyService';
 import { CardContentRenderer } from './CardContentRenderer/index';
-import { MarkdownEditor } from './CardEditor';
+import { MarkdownEditor } from './MarkdownEditor.lazy';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -243,9 +243,9 @@ const CardItem: React.FC<CardItemProps> = ({
                     <AnimatePresence>
                         {isExpanded && (
                             <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
+                                initial={{ maxHeight: 0, opacity: 0 }}
+                                animate={{ maxHeight: 2000, opacity: 1 }}
+                                exit={{ maxHeight: 0, opacity: 0 }}
                                 transition={{ duration: 0.2 }}
                                 className="overflow-hidden"
                             >

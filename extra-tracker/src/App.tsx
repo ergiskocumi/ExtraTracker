@@ -15,6 +15,7 @@ import { ProtectedRoute, useAuth } from './features/auth/context/AuthContext';
 import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
 import { StudyProviders } from './features/study/components/StudyProviders';
+import { ErrorBoundary } from './shared/components/ErrorBoundary';
 
 // OTTIMIZZATO: Lazy loading per tutte le pagine (code splitting)
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -74,11 +75,11 @@ function App() {
 
                 {/* ===== ROUTE PUBBLICHE (Auth) ===== */}
                 <Route element={<AuthLayout />}>
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                    <Route path="/reset-password" element={<ResetPasswordPage />} />
-                    <Route path="/verify-email" element={<VerifyEmailPage />} />
+                    <Route path="/login" element={<ErrorBoundary><LoginPage /></ErrorBoundary>} />
+                    <Route path="/register" element={<ErrorBoundary><RegisterPage /></ErrorBoundary>} />
+                    <Route path="/forgot-password" element={<ErrorBoundary><ForgotPasswordPage /></ErrorBoundary>} />
+                    <Route path="/reset-password" element={<ErrorBoundary><ResetPasswordPage /></ErrorBoundary>} />
+                    <Route path="/verify-email" element={<ErrorBoundary><VerifyEmailPage /></ErrorBoundary>} />
                 </Route>
 
                 {/* ===== ROUTE PROTETTE (App) ===== */}
@@ -93,23 +94,25 @@ function App() {
                         </ProtectedRoute>
                     }
                 >
-                    <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/ai-dashboard" element={<AIUsageDashboardPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/dashboard" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
+                    <Route path="/ai-dashboard" element={<ErrorBoundary><AIUsageDashboardPage /></ErrorBoundary>} />
+                    <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
 
                     {/* Study / Flashcards - con StudyProviders */}
-                    <Route path="/study" element={<StudyProviders><DecksDashboardPage /></StudyProviders>} />
-                    <Route path="/study/deck/:id" element={<StudyProviders><DeckDetailPage /></StudyProviders>} />
-                    <Route path="/study/deck/:deckId/cinema" element={<StudyProviders><CinemaPage /></StudyProviders>} />
-                    <Route path="/study/:deckId/session" element={<StudyProviders><StudySessionPage /></StudyProviders>} />
+                    <Route path="/study" element={<ErrorBoundary><StudyProviders><DecksDashboardPage /></StudyProviders></ErrorBoundary>} />
+                    <Route path="/study/deck/:id" element={<ErrorBoundary><StudyProviders><DeckDetailPage /></StudyProviders></ErrorBoundary>} />
+                    <Route path="/study/deck/:deckId/cinema" element={<ErrorBoundary><StudyProviders><CinemaPage /></StudyProviders></ErrorBoundary>} />
+                    <Route path="/study/:deckId/session" element={<ErrorBoundary><StudyProviders><StudySessionPage /></StudyProviders></ErrorBoundary>} />
 
                     {/* Admin Routes */}
                     <Route
                         path="/admin/feedback"
                         element={
-                            <AdminRoute>
-                                <AdminFeedbackPage />
-                            </AdminRoute>
+                            <ErrorBoundary>
+                                <AdminRoute>
+                                    <AdminFeedbackPage />
+                                </AdminRoute>
+                            </ErrorBoundary>
                         }
                     />
                 </Route>

@@ -10,20 +10,23 @@
  * - Supporto markdown nell'editor
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { studyService, type Deck, type QuizType, type SavedQuizSnapshot, type SavedQuizReviewResponse, type StudyMode } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { getErrorMessage } from '../../../utils/errorMessage';
+import { DeckGridSkeleton } from '../../../shared/components/skeleton/DeckGridSkeleton';
 import { DeckDetailContent } from '../components/Deck/DeckDetailContent';
-import { SavedQuizLibraryModal } from '../components/Deck/SavedQuizLibraryModal';
-import { ExamSolverModal } from '../components/Modals/ExamSolver';
-import { MagicGenerateModal } from '../components/Modals/MagicGenerateModal';
-import { GenerateQuizModal } from '../components/Modals/GenerateQuizModal';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
-import { QuizReviewMode } from '../components/Study/QuizReviewMode';
+
+// 🚀 OTTIMIZZATO: Lazy loading dei modali pesanti (code splitting)
+const SavedQuizLibraryModal = lazy(() => import('../components/Deck/SavedQuizLibraryModal').then(m => ({ default: m.SavedQuizLibraryModal })));
+const ExamSolverModal = lazy(() => import('../components/Modals/ExamSolver').then(m => ({ default: m.ExamSolverModal })));
+const MagicGenerateModal = lazy(() => import('../components/Modals/MagicGenerateModal').then(m => ({ default: m.MagicGenerateModal })));
+const GenerateQuizModal = lazy(() => import('../components/Modals/GenerateQuizModal').then(m => ({ default: m.GenerateQuizModal })));
+const QuizReviewMode = lazy(() => import('../components/Study/QuizReviewMode').then(m => ({ default: m.QuizReviewMode })));
 
 // ============================================
 // MAIN PAGE COMPONENT
@@ -328,11 +331,8 @@ export const DeckDetailPage: React.FC = () => {
     // Loading state (stesso stile di /study: nessun wrapper full-screen)
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center py-20">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="animate-spin w-10 h-10 border-3 border-primary-500 border-t-transparent rounded-full" />
-                    <p className="text-theme-secondary text-sm">Caricamento mazzo...</p>
-                </div>
+            <div className="py-20 px-4">
+                <DeckGridSkeleton count={3} />
             </div>
         );
     }
@@ -381,57 +381,64 @@ export const DeckDetailPage: React.FC = () => {
                 />
             </div>
 
-            <SavedQuizLibraryModal
-                isOpen={isQuizLibraryOpen}
-                deckTitle={deck.title}
-                quizzes={deck.savedQuizzes ?? []}
-                onClose={() => setIsQuizLibraryOpen(false)}
-                onRepeatQuiz={(quiz) => {
-                    setIsQuizLibraryOpen(false);
-                    void handleRepeatSavedQuiz(quiz);
-                }}
-                onReviewQuiz={(quiz) => {
-                    setIsQuizLibraryOpen(false);
-                    void handleReviewSavedQuiz(quiz);
-                }}
-            />
+            <Suspense fallback={null}>
+                <SavedQuizLibraryModal
+                    isOpen={isQuizLibraryOpen}
+                    deckTitle={deck.title}
+                    quizzes={deck.savedQuizzes ?? []}
+                    onClose={() => setIsQuizLibraryOpen(false)}
+                    onRepeatQuiz={(quiz) => {
+                        setIsQuizLibraryOpen(false);
+                        void handleRepeatSavedQuiz(quiz);
+                    }}
+                    onReviewQuiz={(quiz) => {
+                        setIsQuizLibraryOpen(false);
+                        void handleReviewSavedQuiz(quiz);
+                    }}
+                />
+            </Suspense>
 
             {/* Exam Solver Modal */}
-            <ExamSolverModal
-                isOpen={isExamSolverOpen}
-                onClose={() => setIsExamSolverOpen(false)}
-                onSuccess={async (_deckId, stats) => {
-                    await loadDeck();
-                    emitToast.success(
-                        `✅ Exam Solver completato! ${stats.totalFlashcards} flashcard generate`,
-                        { title: 'Exam Solver', duration: 5000 }
-                    );
-                }}
-                existingDecks={[{ id: deck.id, title: deck.title }]}
-                examId={deck.examId}
-                preselectedDeckId={deck.id}
-            />
+            <Suspense fallback={null}>
+                <ExamSolverModal
+                    isOpen={isExamSolverOpen}
+                    onClose={() => setIsExamSolverOpen(false)}
+                    onSuccess={async (_deckId, stats) => {
+                        await loadDeck();
+                        emitToast.success(
+                            `✅ Exam Solver completato! ${stats.totalFlashcards} flashcard generate`,
+                            { title: 'Exam Solver', duration: 5000 }
+                        );
+                    }}
+                    existingDecks={[{ id: deck.id, title: deck.title }]}
+                    examId={deck.examId}
+                    preselectedDeckId={deck.id}
+                />
+            </Suspense>
 
             {/* Magic Generate Modal */}
-            <MagicGenerateModal
-                isOpen={isMagicGenerateOpen}
-                onClose={() => setIsMagicGenerateOpen(false)}
-                deckId={deck.id}
-                deckTitle={deck.title}
-                onSuccess={async () => {
-                    await loadDeck();
-                    setIsMagicGenerateOpen(false);
-                }}
-            />
+            <Suspense fallback={null}>
+                <MagicGenerateModal
+                    isOpen={isMagicGenerateOpen}
+                    onClose={() => setIsMagicGenerateOpen(false)}
+                    deckId={deck.id}
+                    deckTitle={deck.title}
+                    onSuccess={async () => {
+                        await loadDeck();
+                        setIsMagicGenerateOpen(false);
+                    }}
+                />
+            </Suspense>
 
-
-            <GenerateQuizModal
-                isOpen={isGenerateQuizOpen}
-                totalCards={deck.cards?.length || 0}
-                hasPdf={Boolean(deck.pdfUrl)}
-                onClose={() => setIsGenerateQuizOpen(false)}
-                onGenerate={handleGenerateQuizSession}
-            />
+            <Suspense fallback={null}>
+                <GenerateQuizModal
+                    isOpen={isGenerateQuizOpen}
+                    totalCards={deck.cards?.length || 0}
+                    hasPdf={Boolean(deck.pdfUrl)}
+                    onClose={() => setIsGenerateQuizOpen(false)}
+                    onGenerate={handleGenerateQuizSession}
+                />
+            </Suspense>
 
             {/* Reset Progress Confirmation */}
             <ConfirmationModal
@@ -461,10 +468,12 @@ export const DeckDetailPage: React.FC = () => {
             {/* Quiz Review Mode */}
             <AnimatePresence>
                 {reviewData && (
-                    <QuizReviewMode
-                        data={reviewData}
-                        onClose={() => setReviewData(null)}
-                    />
+                    <Suspense fallback={null}>
+                        <QuizReviewMode
+                            data={reviewData}
+                            onClose={() => setReviewData(null)}
+                        />
+                    </Suspense>
                 )}
             </AnimatePresence>
         </>

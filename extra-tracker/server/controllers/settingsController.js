@@ -9,11 +9,15 @@
  */
 
 const User = require('../models/User');
+const mongoose = require('mongoose');
 const { asyncHandler } = require('../middleware/errorHandler');
 const AppError = require('../utils/AppError');
 const { exportUserData, importUserData } = require('../services/dataExportImportService');
 const authService = require('../services/authService');
+const fs = require('fs');
+const path = require('path');
 const { encryptFields, decryptFields } = require('../utils/encryption');
+const { importDataSchema } = require('../validators/settingsValidators');
 
 const PROFILE_SENSITIVE_FIELDS = ['phone', 'bio', 'company', 'jobTitle', 'location', 'website'];
 
@@ -364,12 +368,16 @@ const importData = asyncHandler(async (req, res) => {
         throw new AppError('Utente non trovato', 404, 'USER_NOT_FOUND');
     }
 
+    // Validazione input con Zod (previene NoSQL injection)
+    const parsed = importDataSchema.safeParse(req.body);
+    if (!parsed.success) {
+        throw AppError.validation(
+            `Dati di import non validi: ${parsed.error.errors.map(e => e.message).join(', ')}`
+        );
+    }
+
     const importData = req.body.data || req.body;
     const force = req.body.force || false; // Se true, ignora warning
-
-    if (!importData) {
-        throw new AppError('Dati di import non forniti', 400, 'MISSING_DATA');
-    }
 
     try {
         // Importa i dati usando il service
@@ -445,16 +453,36 @@ const deleteAccount = asyncHandler(async (req, res) => {
     const WorkTodo = require('../models/WorkTodo');
     const Feedback = require('../models/Feedback');
 
-    await Promise.all([
-        WorkLog.deleteMany({ user: req.user.id }),
-        Exam.deleteMany({ user: req.user.id }),
-        Deck.deleteMany({ user: req.user.id }),
-        Folder.deleteMany({ user: req.user.id }),
-        Tag.deleteMany({ user: req.user.id }),
-        WorkTodo.deleteMany({ user: req.user.id }),
-        Feedback.deleteMany({ user: req.user.id }),
-        User.findByIdAndDelete(req.user.id),
-    ]);
+    const session = await mongoose.startSession();
+    try {
+        await session.withTransaction(async () => {
+            await WorkLog.deleteMany({ user: req.user.id }, { session });
+            await Exam.deleteMany({ user: req.user.id }, { session });
+            await Deck.deleteMany({ user: req.user.id }, { session });
+            await Folder.deleteMany({ user: req.user.id }, { session });
+            await Tag.deleteMany({ user: req.user.id }, { session });
+            await WorkTodo.deleteMany({ user: req.user.id }, { session });
+            await Feedback.deleteMany({ user: req.user.id }, { session });
+            await User.findByIdAndDelete(req.user.id, { session });
+        });
+    } catch (error) {
+        throw AppError.internal('Errore durante l\'eliminazione dell\'account. Riprova.');
+    } finally {
+        await session.endSession();
+    }
+
+    // Clean up uploaded files after successful transaction
+    const avatarPath = path.join(__dirname, '..', 'uploads', 'avatars');
+    try {
+        const files = await fs.promises.readdir(avatarPath);
+        for (const file of files) {
+            if (file.startsWith(req.user.id)) {
+                await fs.promises.unlink(path.join(avatarPath, file));
+            }
+        }
+    } catch (e) {
+        // File cleanup is best-effort; data is already deleted
+    }
 
     res.status(200).json({
         success: true,
@@ -466,9 +494,6 @@ const deleteAccount = asyncHandler(async (req, res) => {
 // AVATAR
 // ==========================================
 
-const path = require('path');
-const fs = require('fs').promises;
-
 /**
  * POST /api/settings/avatar
  * Upload avatar utente
@@ -479,18 +504,32 @@ const uploadAvatar = asyncHandler(async (req, res) => {
         throw new AppError('Nessun file caricato', 400, 'NO_FILE');
     }
 
+    // Validazione MIME type — solo immagini
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+        throw new AppError('Tipo di file non supportato. Carica un\'immagine (JPEG, PNG, GIF, WebP).', 400, 'INVALID_FILE_TYPE');
+    }
+
+    // Validazione dimensione massima (5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (req.file.size > maxSize) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+        throw new AppError('Il file è troppo grande. Dimensione massima: 5MB.', 400, 'FILE_TOO_LARGE');
+    }
+
     const user = await User.findById(req.user.id);
-    
+
     if (!user) {
         // Elimina il file caricato se l'utente non esiste
-        await fs.unlink(req.file.path).catch(() => {});
+        await fs.promises.unlink(req.file.path).catch(() => {});
         throw new AppError('Utente non trovato', 404, 'USER_NOT_FOUND');
     }
 
     // Elimina avatar precedente se esiste
     if (user.profile?.avatar) {
         const oldAvatarPath = path.join(__dirname, '..', 'uploads', 'avatars', path.basename(user.profile.avatar));
-        await fs.unlink(oldAvatarPath).catch(() => {});
+        await fs.promises.unlink(oldAvatarPath).catch(() => {});
     }
 
     // Costruisci URL dell'avatar

@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { FiX, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
+import { X, Trash2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Card } from '../../services/studyService';
 
@@ -93,7 +93,7 @@ export const DeleteCardModal: React.FC<DeleteCardModalProps> = ({
                             {/* Header */}
                             <div className="flex items-center gap-3 p-6 border-b border-red-500/20">
                                 <div className="w-12 h-12 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0">
-                                    <FiAlertTriangle className="w-6 h-6 text-red-400" />
+                                    <AlertTriangle className="w-6 h-6 text-red-400" />
                                 </div>
                                 <div className="flex-1">
                                     <h2 className="text-xl md:text-2xl font-bold text-white">
@@ -109,7 +109,7 @@ export const DeleteCardModal: React.FC<DeleteCardModalProps> = ({
                                         className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all duration-200 active:scale-95"
                                         aria-label="Chiudi"
                                     >
-                                        <FiX className="w-5 h-5" />
+                                        <X className="w-5 h-5" />
                                     </button>
                                 )}
                             </div>
@@ -175,7 +175,7 @@ export const DeleteCardModal: React.FC<DeleteCardModalProps> = ({
                                         </>
                                     ) : (
                                         <>
-                                            <FiTrash2 className="w-4 h-4" />
+                                            <Trash2 className="w-4 h-4" />
                                             <span>Elimina</span>
                                         </>
                                     )}

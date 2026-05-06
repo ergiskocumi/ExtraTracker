@@ -12,9 +12,9 @@
  * - Supporto tastiera e touch
  */
 
-import { useEffect, useMemo, memo, useCallback } from 'react';
+import { useEffect, useMemo, memo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FiTarget } from 'react-icons/fi';
+import { Target } from 'lucide-react';
 import type { Card } from '../../services/studyService';
 import { CardContentRenderer } from './CardContentRenderer/index';
 
@@ -68,18 +68,23 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
     exitDirection = null,
     onShowSource,
 }) => {
-    // Gestione tastiera (Spazio per flip)
+    // Gestione tastiera (Spazio per flip) — refs evita ri-registrazione ad ogni flip
+    const isFlippedRef = useRef(isFlipped);
+    isFlippedRef.current = isFlipped;
+    const onFlipRef = useRef(onFlip);
+    onFlipRef.current = onFlip;
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.code === 'Space' && !isFlipped) {
+            if (e.code === 'Space' && !isFlippedRef.current) {
                 e.preventDefault();
-                onFlip();
+                onFlipRef.current();
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isFlipped, onFlip]);
+    }, []);
 
     const getExitVariant = useCallback(() => {
         if (exitDirection === 'left') return 'exitLeft';
@@ -156,14 +161,15 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                     y: 0, // Forza posizione Y fissa
                     x: 0  // Forza posizione X fissa
                 }}
-                transition={{ 
-                    duration: 1.2, // Più lento come richiesto
-                    type: 'spring', 
-                    stiffness: 80,
+                transition={{
+                    duration: 0.5,
+                    type: 'spring',
+                    stiffness: 120,
                     damping: 20
                 }}
-                style={{ 
+                style={{
                     transformStyle: 'preserve-3d',
+                    willChange: 'transform',
                     cursor: !isFlipped ? 'pointer' : 'default',
                     transformOrigin: 'center center' // Assicura che la rotazione avvenga dal centro
                 }}
@@ -207,7 +213,7 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                             title="Vedi nel testo (PDF)"
                             aria-label="Vai alla fonte nel PDF"
                         >
-                            <FiTarget className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
+                            <Target className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                         </button>
                     )}
 

@@ -77,9 +77,22 @@ const deleteAccountSchema = z.object({
     confirmation: z.string().min(1, 'Conferma obbligatoria'),
 }).strict();
 
+// ==========================================
+// IMPORT / EXPORT
+// ==========================================
+
+const importDataSchema = z.object({
+    data: z.record(z.string(), z.unknown()).optional(),
+    force: z.boolean().optional(),
+    merge: z.boolean().optional(),
+}).refine((v) => v.data || v.force !== undefined || v.merge !== undefined, {
+    message: 'Dati di import non forniti',
+});
+
 module.exports = {
     updateProfileSchema,
     updatePreferencesSchema,
     updateNotificationsSchema,
     deleteAccountSchema,
+    importDataSchema,
 };

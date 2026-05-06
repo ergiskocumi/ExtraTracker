@@ -5,7 +5,7 @@
  * Dettaglio esame: ExamDetailView (invariato)
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, GraduationCap, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -18,9 +18,10 @@ import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { WeeklyCalendar } from '../components/WeeklyCalendar';
 import { ExamGrid } from '../components/ExamGrid';
-import { ExamDetailView } from '../components/Exams/ExamDetailView';
 import { DashboardModals } from '../components/DashboardModals';
-import { ExamCompletionModal } from '../components/Exams/ExamCompletionModal';
+
+const ExamDetailView = lazy(() => import('../components/Exams/ExamDetailView').then(m => ({ default: m.ExamDetailView })));
+const ExamCompletionModal = lazy(() => import('../components/Exams/ExamCompletionModal').then(m => ({ default: m.ExamCompletionModal })));
 import { DragDropZone } from '../components/DeckSections/DragDropZone';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
 import type { Exam } from '../types/exam';
@@ -358,32 +359,34 @@ export const DecksDashboardPage: React.FC = () => {
                 </div>
             ) : selectedExamId && selectedExam ? (
                 /* ═══ EXAM DETAIL VIEW ═══ */
-                <ExamDetailView
-                    exam={selectedExam}
-                    decks={decks}
-                    folders={folders}
-                    tags={tags}
-                    onBack={handleBackToExams}
-                    onStudy={handlers.handleStudy}
-                    onRead={handlers.handleRead}
-                    onMagicGenerate={handlers.handleMagicGenerate}
-                    onAddCard={handlers.handleAddCard}
-                    onViewDetail={handlers.handleViewDetail}
-                    onDelete={handlers.setDeletingDeck}
-                    onUpdate={updated => {
-                        setDecks(prev => prev.map(d => (d.id === updated.id ? updated : d)));
-                    }}
-                    onExamSolver={handlers.handleExamSolver}
-                    onViewFolder={handleFolderSelect}
-                    onTogglePin={handlers.handleTogglePin}
-                    onReactivateExam={handleReactivateExam}
-                    onCompleteExam={() => setShowCompletionModal(true)}
-                    onDeleteExam={() => examDeletion.requestDelete()}
-                    viewMode="grid"
-                    savedQuizzes={savedExamQuizzes}
-                    isLoadingSavedQuizzes={isLoadingSavedExamQuizzes}
-                    onReplaySavedQuiz={handleReplaySavedQuiz}
-                />
+                <Suspense fallback={null}>
+                    <ExamDetailView
+                        exam={selectedExam}
+                        decks={decks}
+                        folders={folders}
+                        tags={tags}
+                        onBack={handleBackToExams}
+                        onStudy={handlers.handleStudy}
+                        onRead={handlers.handleRead}
+                        onMagicGenerate={handlers.handleMagicGenerate}
+                        onAddCard={handlers.handleAddCard}
+                        onViewDetail={handlers.handleViewDetail}
+                        onDelete={handlers.setDeletingDeck}
+                        onUpdate={updated => {
+                            setDecks(prev => prev.map(d => (d.id === updated.id ? updated : d)));
+                        }}
+                        onExamSolver={handlers.handleExamSolver}
+                        onViewFolder={handleFolderSelect}
+                        onTogglePin={handlers.handleTogglePin}
+                        onReactivateExam={handleReactivateExam}
+                        onCompleteExam={() => setShowCompletionModal(true)}
+                        onDeleteExam={() => examDeletion.requestDelete()}
+                        viewMode="grid"
+                        savedQuizzes={savedExamQuizzes}
+                        isLoadingSavedQuizzes={isLoadingSavedExamQuizzes}
+                        onReplaySavedQuiz={handleReplaySavedQuiz}
+                    />
+                </Suspense>
             ) : !isLoading && exams.length === 0 ? (
                 /* ═══ EMPTY STATE: nessun esame – messaggio chiaro e CTA ═══ */
                 <motion.div
@@ -542,14 +545,16 @@ export const DecksDashboardPage: React.FC = () => {
 
             {/* Exam Completion Modal */}
             {selectedExam && (
-                <ExamCompletionModal
-                    isOpen={showCompletionModal}
-                    exam={selectedExam}
-                    onClose={() => setShowCompletionModal(false)}
-                    onComplete={handleCompleteExam}
-                    onResetCards={handleResetCards}
-                    onGenerateAIQuestions={handleGenerateAIQuestions}
-                />
+                <Suspense fallback={null}>
+                    <ExamCompletionModal
+                        isOpen={showCompletionModal}
+                        exam={selectedExam}
+                        onClose={() => setShowCompletionModal(false)}
+                        onComplete={handleCompleteExam}
+                        onResetCards={handleResetCards}
+                        onGenerateAIQuestions={handleGenerateAIQuestions}
+                    />
+                </Suspense>
             )}
         </DashboardLayout>
     );

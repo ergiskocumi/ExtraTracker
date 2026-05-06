@@ -32,6 +32,23 @@ const envSchema = z.object({
     // URLs (obbligatorie in produzione, opzionali in sviluppo)
     FRONTEND_URL: z.string().url().optional(),
     BACKEND_URL: z.string().url().optional(),
+}).superRefine((data, ctx) => {
+    if (data.NODE_ENV === 'production') {
+        if (!data.FRONTEND_URL) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['FRONTEND_URL'],
+                message: 'FRONTEND_URL è obbligatoria in produzione',
+            });
+        }
+        if (!data.BACKEND_URL) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['BACKEND_URL'],
+                message: 'BACKEND_URL è obbligatoria in produzione',
+            });
+        }
+    }
 });
 
 /**

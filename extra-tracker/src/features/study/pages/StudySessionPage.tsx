@@ -8,7 +8,8 @@
 import { useEffect } from 'react';
 import { useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, Clock } from 'lucide-react';
+import { FlashcardSkeleton } from '../../../shared/components/skeleton/FlashcardSkeleton';
 import { StudyCard } from '../components/Study/StudyCard';
 import { StudyProgress } from '../components/Study/StudyProgress';
 import { StudyControls } from '../components/Study/StudyControls';
@@ -134,9 +135,9 @@ export const StudySessionPage: React.FC = () => {
             if (e.key === 'Escape') { setShowExitConfirm(true); return; }
             if (!isFlashcardMode) return;
             if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleFlip(); }
-            if (e.key === 'ArrowLeft') void handleRate(1);
-            if (e.key === 'ArrowRight') void handleRate(4);
-            if (e.key === 'ArrowUp') void handleRate(3);
+            if (e.key === 'ArrowLeft') handleRate(1).catch(() => {});
+            if (e.key === 'ArrowRight') handleRate(4).catch(() => {});
+            if (e.key === 'ArrowUp') handleRate(3).catch(() => {});
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
@@ -144,11 +145,10 @@ export const StudySessionPage: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="study-session-overlay fixed inset-0 top-16 z-50 flex flex-col items-center justify-center bg-theme-base gap-4">
-                <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
-                <p className="text-theme-muted text-sm">
-                    {mode === 'quiz' ? 'Preparazione quiz con AI in corso...' : 'Caricamento sessione...'}
-                </p>
+            <div className="study-session-overlay fixed inset-0 top-16 z-50 bg-theme-base p-8 flex flex-col items-center justify-center">
+                <div className="w-full max-w-lg space-y-4">
+                    <FlashcardSkeleton />
+                </div>
             </div>
         );
     }
