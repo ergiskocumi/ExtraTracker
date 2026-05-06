@@ -355,13 +355,13 @@ const FolderItem: React.FC<FolderItemProps> = ({
                 {/* Progress bar - SEMPRE visibile per uniformità quando ci sono carte */}
                 {folderStats && folderStats.totalCards > 0 && (
                     <div className="mt-1.5">
-                        <div className="flex justify-between text-[10px] text-white/50 mb-0.5">
+                        <div className="flex justify-between text-[10px] text-theme-muted mb-0.5">
                             <span>{folderStats.masteryPercent}% padronanza</span>
                             {folderStats.dueCards > 0 && (
                                 <span>{folderStats.dueCards}/{folderStats.totalCards} da ripassare</span>
                             )}
                         </div>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-theme-surface rounded-full overflow-hidden">
                             <motion.div
                                 style={{ transformOrigin: 'left' }}
                                 initial={{ scaleX: 0 }}

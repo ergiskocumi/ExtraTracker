@@ -26,21 +26,21 @@ export const DeckCardActions: React.FC<DeckCardActionsProps> = ({
 }) => {
     const primaryButtonBaseClass = `
         study-deck-primary-btn
-        w-full flex items-center justify-center gap-2 sm:gap-2.5
-        px-4 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl
-        font-semibold text-sm sm:text-base transition-all
+        w-full flex items-center justify-center gap-2
+        px-3 py-2.5 rounded-xl
+        font-semibold text-sm transition-all
         active:scale-[0.98] touch-manipulation
-        min-h-[48px] sm:min-h-[52px]
+        min-h-[44px]
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/45 focus-visible:ring-offset-2
     `;
 
     const secondaryButtonBaseClass = `
         study-deck-secondary-btn
-        flex items-center justify-center gap-1 sm:gap-1.5
-        px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg
-        font-medium text-[10px] sm:text-xs transition-all
+        flex items-center justify-center gap-1.5
+        px-2 py-2 rounded-lg
+        font-medium text-xs transition-all
         active:scale-[0.95] touch-manipulation
-        min-h-[36px] sm:min-h-[40px]
+        min-h-[36px]
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/35 focus-visible:ring-offset-2
     `;
 

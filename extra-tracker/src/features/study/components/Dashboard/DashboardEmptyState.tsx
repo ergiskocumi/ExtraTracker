@@ -23,10 +23,10 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
         >
             <Sparkles className="w-12 h-12 sm:w-14 sm:h-14 text-primary-400" />
         </motion.div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3 sm:mb-4">
+        <h2 className="text-2xl sm:text-3xl font-bold text-theme-primary mb-3 sm:mb-4">
             Crea il tuo primo mazzo
         </h2>
-        <p className="text-white/60 text-sm sm:text-base mb-8 sm:mb-10 max-w-md">
+        <p className="text-theme-secondary text-sm sm:text-base mb-8 sm:mb-10 max-w-md">
             Inizia organizzando il tuo materiale di studio. Crea mazzi di flashcard per memorizzare meglio le informazioni importanti.
         </p>
 

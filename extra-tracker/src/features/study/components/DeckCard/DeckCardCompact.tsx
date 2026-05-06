@@ -113,10 +113,10 @@ export const DeckCardCompact: React.FC<DeckCardCompactProps> = ({
                 {totalCards > 0 && (
                     <div className="mb-3">
                         <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-white/50">Padronanza</span>
-                            <span className="text-white/70 font-medium">{masteryPercent}%</span>
+                            <span className="text-theme-muted">Padronanza</span>
+                            <span className="text-theme-secondary font-medium">{masteryPercent}%</span>
                         </div>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-theme-surface rounded-full overflow-hidden">
                             <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${masteryPercent}%` }}

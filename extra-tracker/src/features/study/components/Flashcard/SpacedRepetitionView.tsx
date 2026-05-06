@@ -190,13 +190,13 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
                     </motion.div>
 
                     {/* Card Counter */}
-                    <div className="text-sm font-semibold text-white/60">
+                    <div className="text-sm font-semibold text-theme-secondary">
                         {currentIndex + 1}/{totalCards}
                     </div>
                 </div>
 
                 {/* Progress bar */}
-                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-theme-surface rounded-full overflow-hidden">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${progressPercent}%` }}

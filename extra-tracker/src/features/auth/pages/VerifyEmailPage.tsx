@@ -50,15 +50,15 @@ export const VerifyEmailPage = () => {
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-md mx-auto"
         >
-            <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-8 text-center">
+            <div className="rounded-2xl bg-theme-card border border-theme-default p-8 text-center">
                 {/* Loading State */}
                 {status === 'loading' && (
                     <>
                         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-primary-500/20 flex items-center justify-center">
                             <Loader className="text-primary-400 animate-spin" size={32} />
                         </div>
-                        <h1 className="text-2xl font-bold text-white mb-2">Verifica in corso...</h1>
-                        <p className="text-white/60">Stiamo verificando il tuo indirizzo email</p>
+                        <h1 className="text-2xl font-bold text-theme-primary mb-2">Verifica in corso...</h1>
+                        <p className="text-theme-secondary">Stiamo verificando il tuo indirizzo email</p>
                     </>
                 )}
 
@@ -72,8 +72,8 @@ export const VerifyEmailPage = () => {
                         >
                             <CheckCircle className="text-emerald-400" size={32} />
                         </motion.div>
-                        <h1 className="text-2xl font-bold text-white mb-2">Email Verificata!</h1>
-                        <p className="text-white/60 mb-6">{message}</p>
+                        <h1 className="text-2xl font-bold text-theme-primary mb-2">Email Verificata!</h1>
+                        <p className="text-theme-secondary mb-6">{message}</p>
                         <Link
                             to="/"
                             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium hover:from-primary-600 hover:to-primary-700 transition-all"
@@ -93,8 +93,8 @@ export const VerifyEmailPage = () => {
                         >
                             <XCircle className="text-red-400" size={32} />
                         </motion.div>
-                        <h1 className="text-2xl font-bold text-white mb-2">Verifica Fallita</h1>
-                        <p className="text-white/60 mb-6">{message}</p>
+                        <h1 className="text-2xl font-bold text-theme-primary mb-2">Verifica Fallita</h1>
+                        <p className="text-theme-secondary mb-6">{message}</p>
                         <div className="flex flex-col gap-3">
                             <Link
                                 to="/login"
@@ -102,7 +102,7 @@ export const VerifyEmailPage = () => {
                             >
                                 Vai al Login
                             </Link>
-                            <p className="text-sm text-white/40">
+                            <p className="text-sm text-theme-muted">
                                 Hai bisogno di un nuovo link? Accedi e richiedi una nuova email di verifica.
                             </p>
                         </div>
@@ -115,8 +115,8 @@ export const VerifyEmailPage = () => {
                         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-amber-500/20 flex items-center justify-center">
                             <Mail className="text-amber-400" size={32} />
                         </div>
-                        <h1 className="text-2xl font-bold text-white mb-2">Token Mancante</h1>
-                        <p className="text-white/60 mb-6">
+                        <h1 className="text-2xl font-bold text-theme-primary mb-2">Token Mancante</h1>
+                        <p className="text-theme-secondary mb-6">
                             Il link di verifica non è valido. Controlla di aver copiato l'intero link dall'email.
                         </p>
                         <Link

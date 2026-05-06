@@ -300,10 +300,10 @@ export const ProtectedRoute = ({ children, redirectTo = '/login' }: ProtectedRou
     // Mostra loading mentre verifica
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-dark-500">
+            <div className="flex items-center justify-center min-h-screen bg-theme-base">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-2 rounded-full border-primary-500 border-t-transparent animate-spin" />
-                    <p className="text-white/50 text-sm">Verifica sessione...</p>
+                    <p className="text-theme-muted text-sm">Verifica sessione...</p>
                 </div>
             </div>
         );

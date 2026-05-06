@@ -140,7 +140,7 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
             {/* Progress bar */}
             <div className="mb-5">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-white/60">Progresso</span>
+                    <span className="text-xs font-semibold text-theme-secondary">Progresso</span>
                     <span className={`text-xs font-bold ${
                         priority === 'high' ? 'text-amber-400' :
                         priority === 'medium' ? 'text-violet-400' :
@@ -149,7 +149,7 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
                         {Math.round(progressPercent)}%
                     </span>
                 </div>
-                <div className="h-2.5 bg-white/10 rounded-full overflow-hidden shadow-inner">
+                <div className="h-2.5 bg-theme-surface rounded-full overflow-hidden shadow-inner">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${progressPercent}%` }}
