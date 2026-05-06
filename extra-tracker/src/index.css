@@ -14,7 +14,7 @@
 /* ============================================
    DARK THEME (Default) - Modern Aurora
    ============================================ */
-[data-theme="dark"], :root {
+[data-theme="dark"] {
   /* Backgrounds - Rich dark palette with depth (elevated/surface leggermente più chiari per card leggibili) */
   --bg-base: #0c0c1a;
   --bg-elevated: #1a1a2e;

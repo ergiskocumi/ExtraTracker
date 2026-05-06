@@ -57,7 +57,7 @@ export const DayCell: React.FC<DayCellProps> = ({
                     ? 'ring-2 ring-primary-500/40 bg-primary-500/10 border border-primary-500/30'
                     : isToday
                         ? 'border border-primary-500/60 bg-gradient-to-b from-primary-500/15 to-primary-500/5'
-                        : 'weekly-calendar-day-cell--default border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20'
+                        : 'weekly-calendar-day-cell--default border border-theme-default bg-theme-surface hover:bg-theme-surface-hover hover:border-theme-strong'
                 }
             `}
             role="gridcell"
@@ -74,7 +74,7 @@ export const DayCell: React.FC<DayCellProps> = ({
             {/* Day name */}
             <span className={`
                 weekly-calendar-day-name text-[10px] sm:text-xs font-semibold uppercase tracking-wider
-                ${isToday ? 'text-primary-400' : 'text-white/50'}
+                ${isToday ? 'text-primary-400' : 'text-theme-muted'}
             `}>
                 {dayName}
             </span>
@@ -82,13 +82,13 @@ export const DayCell: React.FC<DayCellProps> = ({
             {/* Day number */}
             <span className={`
                 weekly-calendar-day-num text-base sm:text-lg font-bold leading-none
-                ${isToday ? 'text-white' : isSelected ? 'text-white/90' : 'text-white/70'}
+                ${isToday ? 'text-theme-primary' : isSelected ? 'text-theme-primary/90' : 'text-theme-secondary'}
             `}>
                 {dayNumber}
             </span>
 
             {/* Workload bar */}
-            <div className="weekly-calendar-day-bar w-full h-1 sm:h-1.5 rounded-full bg-white/10 overflow-hidden mt-0.5">
+            <div className="weekly-calendar-day-bar w-full h-1 sm:h-1.5 rounded-full bg-theme-surface overflow-hidden mt-0.5">
                 {dueCards > 0 && (
                     <motion.div
                         initial={{ width: 0 }}

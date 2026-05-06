@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it">
+<html lang="it" class="preload">
   <head>
     <!-- ANTI-FOUC: Apply theme BEFORE any rendering to prevent dark/light flash -->
     <script>
@@ -32,6 +32,8 @@
       [data-theme="light"] body{background:#f2f6fc;color:#1a1a2e}
       #root{min-height:100vh}
       .antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+      /* Prevent transition flash on first load — transitions enabled after app mounts */
+      html.preload *, html.preload *:before, html.preload *:after { transition: none !important; }
     </style>
   </head>
   <body class="antialiased">

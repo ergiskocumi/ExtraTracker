@@ -206,7 +206,7 @@ const CardItem: React.FC<CardItemProps> = ({
                                 content={card.front}
                                 variant={isActive ? 'study' : 'question'}
                                 size="sm"
-                                className={isActive ? 'text-white' : 'text-white/90'}
+                                className={isActive ? 'text-theme-primary' : 'text-theme-secondary'}
                             />
                         </div>
 

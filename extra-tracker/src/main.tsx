@@ -39,6 +39,9 @@ const queryClient = new QueryClient({
 // Sincronizza tema e classe dark prima del primo render React
 bootstrapTheme('dark');
 
+// Rimuovi classe preload — riabilita le transizioni CSS dopo il mount
+document.documentElement.classList.remove('preload');
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
