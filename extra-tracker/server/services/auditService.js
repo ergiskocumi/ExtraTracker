@@ -8,6 +8,7 @@
 const AuditLog = require('../models/AuditLog');
 const geoip = require('geoip-lite');
 const { UAParser } = require('ua-parser-js');
+const logger = require('../utils/logger');
 
 class AuditService {
     /**
@@ -94,7 +95,7 @@ class AuditService {
                 },
             };
         } catch (error) {
-            console.error('❌ Errore geolocalizzazione:', error.message);
+            logger.error('AuditService', 'Errore geolocalizzazione: ' + error.message);
             return null;
         }
     }

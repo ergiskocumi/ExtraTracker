@@ -204,6 +204,14 @@ const recordQuizAttempt = asyncHandler(async (req, res) => {
     res.status(201).json({ success: true, data: result });
 });
 
+const resetProgress = asyncHandler(async (req, res) => {
+    const deckId = req.params.id;
+    logger.info('DeckController', 'resetProgress', { deckId });
+    const result = await deckCrudService.resetProgress(req.tenantScope, deckId);
+    logger.info('DeckController', 'resetProgress completato', result);
+    res.json({ success: true, data: result });
+});
+
 const resetDistractors = asyncHandler(async (req, res) => {
     const deckId = req.params.id;
     logger.info('DeckController', 'resetDistractors', { deckId });
@@ -275,6 +283,7 @@ module.exports = {
     generatePersistedQuiz,
     getExamSavedQuizzes,
     resetDistractors,
+    resetProgress,
     retakeSavedQuiz,
     createRetakeSession,
     reviewSavedQuiz,

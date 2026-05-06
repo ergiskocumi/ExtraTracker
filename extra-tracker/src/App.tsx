@@ -8,7 +8,7 @@
  */
 
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
 import { FeedbackProvider } from './features/feedback/context/FeedbackContext';
 import { ProtectedRoute, useAuth } from './features/auth/context/AuthContext';
@@ -68,55 +68,81 @@ const RootRoute = () => {
 function App() {
     return (
         <Suspense fallback={<PageLoader />}>
-            <Routes>
-                {/* ===== ROUTE RADICE ===== */}
-                <Route path="/" element={<RootRoute />} />
-                <Route path="/landing" element={<Navigate to="/" replace />} />
+            <ErrorBoundary>
+                <Routes>
+                    {/* ===== ROUTE RADICE ===== */}
+                    <Route path="/" element={<RootRoute />} />
+                    <Route path="/landing" element={<Navigate to="/" replace />} />
 
-                {/* ===== ROUTE PUBBLICHE (Auth) ===== */}
-                <Route element={<AuthLayout />}>
-                    <Route path="/login" element={<ErrorBoundary><LoginPage /></ErrorBoundary>} />
-                    <Route path="/register" element={<ErrorBoundary><RegisterPage /></ErrorBoundary>} />
-                    <Route path="/forgot-password" element={<ErrorBoundary><ForgotPasswordPage /></ErrorBoundary>} />
-                    <Route path="/reset-password" element={<ErrorBoundary><ResetPasswordPage /></ErrorBoundary>} />
-                    <Route path="/verify-email" element={<ErrorBoundary><VerifyEmailPage /></ErrorBoundary>} />
-                </Route>
+                    {/* ===== ROUTE PUBBLICHE (Auth) ===== */}
+                    <Route element={<AuthLayout />}>
+                        <Route path="/login" element={<ErrorBoundary><LoginPage /></ErrorBoundary>} />
+                        <Route path="/register" element={<ErrorBoundary><RegisterPage /></ErrorBoundary>} />
+                        <Route path="/forgot-password" element={<ErrorBoundary><ForgotPasswordPage /></ErrorBoundary>} />
+                        <Route path="/reset-password" element={<ErrorBoundary><ResetPasswordPage /></ErrorBoundary>} />
+                        <Route path="/verify-email" element={<ErrorBoundary><VerifyEmailPage /></ErrorBoundary>} />
+                    </Route>
 
-                {/* ===== ROUTE PROTETTE (App) ===== */}
-                <Route
-                    element={
-                        <ProtectedRoute redirectTo="/">
-                            <SettingsProvider>
-                                <FeedbackProvider>
-                                    <AppLayout />
-                                </FeedbackProvider>
-                            </SettingsProvider>
-                        </ProtectedRoute>
-                    }
-                >
-                    <Route path="/dashboard" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
-                    <Route path="/ai-dashboard" element={<ErrorBoundary><AIUsageDashboardPage /></ErrorBoundary>} />
-                    <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
-
-                    {/* Study / Flashcards - con StudyProviders */}
-                    <Route path="/study" element={<ErrorBoundary><StudyProviders><DecksDashboardPage /></StudyProviders></ErrorBoundary>} />
-                    <Route path="/study/deck/:id" element={<ErrorBoundary><StudyProviders><DeckDetailPage /></StudyProviders></ErrorBoundary>} />
-                    <Route path="/study/deck/:deckId/cinema" element={<ErrorBoundary><StudyProviders><CinemaPage /></StudyProviders></ErrorBoundary>} />
-                    <Route path="/study/:deckId/session" element={<ErrorBoundary><StudyProviders><StudySessionPage /></StudyProviders></ErrorBoundary>} />
-
-                    {/* Admin Routes */}
+                    {/* ===== ROUTE PROTETTE (App) ===== */}
                     <Route
-                        path="/admin/feedback"
                         element={
-                            <ErrorBoundary>
-                                <AdminRoute>
-                                    <AdminFeedbackPage />
-                                </AdminRoute>
-                            </ErrorBoundary>
+                            <ProtectedRoute redirectTo="/">
+                                <SettingsProvider>
+                                    <FeedbackProvider>
+                                        <AppLayout />
+                                    </FeedbackProvider>
+                                </SettingsProvider>
+                            </ProtectedRoute>
+                        }
+                    >
+                        <Route path="/dashboard" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
+                        <Route path="/ai-dashboard" element={<ErrorBoundary><AIUsageDashboardPage /></ErrorBoundary>} />
+                        <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
+
+                        {/* Study / Flashcards - con StudyProviders */}
+                        <Route path="/study" element={<ErrorBoundary><StudyProviders><DecksDashboardPage /></StudyProviders></ErrorBoundary>} />
+                        <Route path="/study/deck/:id" element={<ErrorBoundary><StudyProviders><DeckDetailPage /></StudyProviders></ErrorBoundary>} />
+                        <Route path="/study/deck/:deckId/cinema" element={<ErrorBoundary><StudyProviders><CinemaPage /></StudyProviders></ErrorBoundary>} />
+                        <Route path="/study/:deckId/session" element={<ErrorBoundary><StudyProviders><StudySessionPage /></StudyProviders></ErrorBoundary>} />
+
+                        {/* Admin Routes */}
+                        <Route
+                            path="/admin/feedback"
+                            element={
+                                <ErrorBoundary>
+                                    <AdminRoute>
+                                        <AdminFeedbackPage />
+                                    </AdminRoute>
+                                </ErrorBoundary>
+                            }
+                        />
+                    </Route>
+
+                    {/* ===== CATCH-ALL 404 ===== */}
+                    <Route
+                        path="*"
+                        element={
+                            <div className="flex flex-col items-center justify-center min-h-screen gap-6 px-4 bg-theme-base">
+                                <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                                    <svg className="w-10 h-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                <h1 className="text-2xl font-bold text-theme-primary">Pagina non trovata</h1>
+                                <p className="text-theme-secondary text-center max-w-md">
+                                    La pagina che stai cercando non esiste o e stata spostata.
+                                </p>
+                                <Link
+                                    to="/dashboard"
+                                    className="px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white font-semibold shadow-lg shadow-primary-500/30 transition-colors"
+                                >
+                                    Torna alla Dashboard
+                                </Link>
+                            </div>
                         }
                     />
-                </Route>
-            </Routes>
+                </Routes>
+            </ErrorBoundary>
         </Suspense>
     );
 }

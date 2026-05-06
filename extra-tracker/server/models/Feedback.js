@@ -6,6 +6,7 @@
  */
 
 const mongoose = require('mongoose');
+const { multiTenancyPlugin } = require('../plugins/multiTenancy');
 
 const feedbackSchema = new mongoose.Schema(
     {
@@ -176,6 +177,12 @@ const feedbackSchema = new mongoose.Schema(
         },
     }
 );
+
+// ==========================================
+// MULTI-TENANCY PLUGIN
+// ==========================================
+
+feedbackSchema.plugin(multiTenancyPlugin, { tenantField: 'user', required: true });
 
 // ==========================================
 // INDEXES

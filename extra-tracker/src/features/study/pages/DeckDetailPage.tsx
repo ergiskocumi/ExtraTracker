@@ -156,7 +156,6 @@ export const DeckDetailPage: React.FC = () => {
             });
         } catch (err: unknown) {
             emitToast.error(getErrorMessage(err) || 'Errore nella preparazione del quiz');
-            throw err;
         }
     }, [id, deck, navigate]);
 

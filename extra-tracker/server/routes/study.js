@@ -195,6 +195,12 @@ router.delete('/:id/exam-progress', studySessionController.clearExamProgress);
  */
 router.post('/:id/reset-distractors', deckController.resetDistractors);
 
+/**
+ * POST /api/study/:id/reset-progress
+ * Resetta lo stato SRS di tutte le card del deck (riporta a 'new')
+ */
+router.post('/:id/reset-progress', deckController.resetProgress);
+
 // 🪄 Magic Generate from PDF (con multer middleware)
 // AI Generate - Rate limited: 10 chiamate per ora per utente
 router.post('/:id/generate-pdf', aiLimiter, (req, res, next) => {

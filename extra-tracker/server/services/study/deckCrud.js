@@ -612,4 +612,34 @@ module.exports = {
             message: `${resetCount} card resettate. I distrattori verranno rigenerati alla prossima sessione quiz.`,
         };
     },
+
+    /**
+     * Resetta lo stato SRS (SM-2 / FSRS) di tutte le card di un deck.
+     * Riporta ogni card a 'new' con easinessFactor=2.5, interval=0, repetitions=0,
+     * nextReviewDate=now, stability=0.4, difficulty=5.
+     */
+    async resetProgress(tenantScope, deckId) {
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+
+        let resetCount = 0;
+        for (const card of deck.cards) {
+            if (card.status !== 'new' || card.interval > 0 || card.repetitions > 0) {
+                card.status = 'new';
+                card.easinessFactor = 2.5;
+                card.interval = 0;
+                card.repetitions = 0;
+                card.nextReviewDate = new Date();
+                card.stability = 0.4;
+                card.difficulty = 5;
+                resetCount++;
+            }
+        }
+
+        if (resetCount > 0) {
+            await deck.save();
+        }
+
+        // Return full serialized deck so the frontend normalizeDeck() works correctly
+        return this._serializeDeck(deck);
+    },
 };

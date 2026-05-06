@@ -265,9 +265,11 @@ const normalizeCard = (raw: unknown): Card => {
         options: Array.isArray(r.options) ? (r.options as string[]) : undefined,
         distractors: Array.isArray(r.distractors) ? (r.distractors as string[]) : undefined,
         aiDistractorsFailed: Boolean(r.aiDistractorsFailed ?? r.ai_distractors_failed),
-        distractorExplanations: (r.distractorExplanations && typeof r.distractorExplanations === 'object' && !Array.isArray(r.distractorExplanations))
-            ? r.distractorExplanations as Record<string, string>
-            : undefined,
+        distractorExplanations: Array.isArray(r.distractorExplanations)
+            ? Object.fromEntries((r.distractorExplanations as string[]).map((v, i) => [i, v]))
+            : (r.distractorExplanations && typeof r.distractorExplanations === 'object')
+                ? r.distractorExplanations as Record<string, string>
+                : undefined,
         easinessFactor: safeNumber(r.easinessFactor, 2.5),
         interval: safeNumber(r.interval, 0),
         repetitions: safeNumber(r.repetitions, 0),
@@ -761,6 +763,13 @@ class StudyService {
         }
 
         const result = await response.json();
+        if (!result.success) {
+            throw new Error(
+                result.error?.message ||
+                result.message ||
+                'Estrazione domande fallita'
+            );
+        }
         return result.data || { questions: [] };
     }
 
@@ -812,6 +821,13 @@ class StudyService {
         }
 
         const result = await response.json();
+        if (!result.success) {
+            throw new Error(
+                result.error?.message ||
+                result.message ||
+                'Generazione risposte fallita'
+            );
+        }
         const data = result.data || result;
 
         return {
@@ -852,6 +868,13 @@ class StudyService {
         }
 
         const result = await response.json();
+        if (!result.success) {
+            throw new Error(
+                result.error?.message ||
+                result.message ||
+                'Risoluzione esame fallita'
+            );
+        }
         const data = result.data || result;
 
         return {

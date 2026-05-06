@@ -6,6 +6,7 @@
  */
 
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 
 const auditLogSchema = new mongoose.Schema(
     {
@@ -149,7 +150,7 @@ auditLogSchema.statics.createLog = async function(data) {
             createdAt: new Date(),
         });
     } catch (error) {
-        console.error('❌ Errore creazione audit log:', error.message);
+        logger.error('AuditLog', 'Errore creazione audit log: ' + error.message);
         // Non bloccare la richiesta se il logging fallisce
         return null;
     }

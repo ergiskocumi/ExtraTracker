@@ -15,6 +15,7 @@ const path = require('path');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/requireAdmin');
 const { tenantContext } = require('../middleware/tenantContext');
+const logger = require('../utils/logger');
 
 // Controller
 const feedbackController = require('../controllers/feedbackController');
@@ -86,7 +87,7 @@ userRoutes.use(tenantContext({ required: true }));
 userRoutes.post('/', (req, res, next) => {
     upload.array('attachments', 3)(req, res, (err) => {
         if (err) {
-            console.error('Multer error (feedback):', err.message);
+            logger.error('FeedbackRoutes', 'Multer error (feedback): ' + err.message);
             return res.status(400).json({
                 success: false,
                 error: { message: err.message || 'Errore nel caricamento dei file' },

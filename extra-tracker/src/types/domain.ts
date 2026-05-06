@@ -122,35 +122,14 @@ export interface ExamSavedQuiz extends SavedQuizSnapshot {
 }
 
 // ==========================================
-// ORGANIZATION
+// ORGANIZATION (re-exported from canonical locations)
 // ==========================================
 
-export interface Folder {
-    id: string;
-    name: string;
-    color?: string;
-    parentId?: string | null;
-    createdAt?: string;
-    updatedAt?: string;
-}
-
-export interface Tag {
-    id: string;
-    name: string;
-    color?: string;
-    createdAt?: string;
-}
+export type { Folder } from '../features/study/services/foldersService';
+export type { Tag } from '../features/study/services/tagsService';
 
 // ==========================================
-// EXAMS
+// EXAMS (re-exported from canonical location)
 // ==========================================
 
-export interface Exam {
-    id: string;
-    title: string;
-    subject?: string;
-    description?: string;
-    date?: string;
-    createdAt?: string;
-    updatedAt?: string;
-}
+export type { Exam } from '../features/study/types/exam';

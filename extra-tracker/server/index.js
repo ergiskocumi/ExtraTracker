@@ -108,8 +108,12 @@ app.use(express.urlencoded({ extended: true, limit: envConfig.bodyParser.urlenco
 app.use(cookieParser());
 
 // CSRF: set cookie if missing + validate state-changing requests
+// Esclude /api/auth per permettere login/register senza CSRF token
 app.use('/api', ensureCsrfCookie);
-app.use('/api', requireCsrf);
+app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/auth')) return next();
+    requireCsrf(req, res, next);
+});
 
 // ==========================================
 // 5. RATE LIMITING

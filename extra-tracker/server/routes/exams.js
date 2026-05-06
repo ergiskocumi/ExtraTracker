@@ -15,13 +15,16 @@ const { tenantContext } = require('../middleware/tenantContext');
 // Controller
 const examsController = require('../controllers/examsController');
 
+// Validators
+const { validateMiddleware, createExamSchema, updateExamSchema } = require('../validators/examValidators');
+
 router.use(requireAuth);
 router.use(tenantContext({ required: true }));
 
 router.get('/', examsController.getAllExams);
-router.post('/', examsController.createExam);
+router.post('/', validateMiddleware(createExamSchema), examsController.createExam);
 router.get('/:id', examsController.getExamById);
-router.patch('/:id', examsController.updateExam);
+router.patch('/:id', validateMiddleware(updateExamSchema), examsController.updateExam);
 router.delete('/:id', examsController.deleteExam);
 
 module.exports = router;
