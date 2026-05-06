@@ -155,6 +155,22 @@ class AppError extends Error {
 // ==========================================
 
 /**
+ * Richiesta malformata (400)
+ */
+AppError.badRequest = (message, options = {}) => {
+    return new AppError(
+        message,
+        400,
+        'BAD_REQUEST',
+        {
+            ...options,
+            category: ERROR_CATEGORIES.VALIDATION,
+            suggestion: 'Controlla i dati inviati e riprova',
+        }
+    );
+};
+
+/**
  * Errore di validazione (400)
  */
 AppError.validation = (message, details = {}, options = {}) => {

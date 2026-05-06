@@ -36,7 +36,10 @@ const addToBlacklist = async (token, ttlSeconds = 15 * 60) => {
 };
 
 const isTokenBlacklisted = async (token) => {
-    if (!getRedisAvailable()) return false;
+    if (!getRedisAvailable()) {
+        logger.warn('TokenService', 'Redis non disponibile — token rifiutato per sicurezza');
+        return true;
+    }
 
     try {
         const redisClient = getRedisClient();

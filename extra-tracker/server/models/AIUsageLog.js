@@ -9,35 +9,33 @@ const { multiTenancyPlugin } = require('../plugins/multiTenancy');
 
 const aiUsageLogSchema = new mongoose.Schema(
     {
+        // ⚠️ Single-field indexes removed intentionally.
+        // Compound indexes on (user + field + createdAt) below cover all query patterns.
+        // These single-field indexes only added write overhead with no query benefit.
         provider: {
             type: String,
             default: 'openai',
             trim: true,
-            index: true,
         },
         modality: {
             type: String,
             enum: ['chat', 'embedding', 'other'],
             default: 'chat',
-            index: true,
         },
         mode: {
             type: String,
             default: 'unknown',
             trim: true,
-            index: true,
         },
         feature: {
             type: String,
             default: 'generic',
             trim: true,
-            index: true,
         },
         model: {
             type: String,
             default: '',
             trim: true,
-            index: true,
         },
         promptLengthChars: {
             type: Number,
@@ -77,13 +75,11 @@ const aiUsageLogSchema = new mongoose.Schema(
         costEstimated: {
             type: Boolean,
             default: true,
-            index: true,
         },
         status: {
             type: String,
             enum: ['success', 'error'],
             default: 'success',
-            index: true,
         },
         latencyMs: {
             type: Number,

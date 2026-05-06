@@ -13,6 +13,7 @@
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const AppError = require('../utils/AppError');
 
 // ==========================================
 // CONFIGURAZIONE
@@ -81,6 +82,20 @@ const generateToken = () => {
  */
 const hashToken = (token) => {
     return crypto.createHash('sha256').update(token).digest('hex');
+};
+
+/**
+ * Restituisce FRONTEND_URL. In produzione, fallisce se non configurata.
+ */
+const getFrontendUrl = () => {
+    const url = process.env.FRONTEND_URL;
+    if (!url) {
+        if (process.env.NODE_ENV === 'production') {
+            throw AppError.internal({}, new Error('FRONTEND_URL environment variable is required in production'));
+        }
+        return 'http://localhost:5173';
+    }
+    return url;
 };
 
 // ==========================================
@@ -291,7 +306,7 @@ class EmailService {
      * Invia email di verifica
      */
     async sendVerificationEmail(email, token) {
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+        const frontendUrl = getFrontendUrl();
         const verifyUrl = `${frontendUrl}/verify-email?token=${token}`;
         
         const mailOptions = {
@@ -308,7 +323,7 @@ class EmailService {
      * Invia email di reset password
      */
     async sendPasswordResetEmail(email, token) {
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+        const frontendUrl = getFrontendUrl();
         const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
         
         const mailOptions = {
@@ -339,7 +354,7 @@ class EmailService {
      * Invia email aggiornamento feedback
      */
     async sendFeedbackUpdateEmail({ to, userName, issueKey, title, status, comment }) {
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+        const frontendUrl = getFrontendUrl();
         const feedbackUrl = `${frontendUrl}/settings?tab=feedback`;
         const statusLabels = {
             open: 'Aperto',

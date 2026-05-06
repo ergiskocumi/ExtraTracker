@@ -131,6 +131,10 @@ const auditLogSchema = new mongoose.Schema(
     }
 );
 
+// TTL index per auto-eliminazione log dopo 2 anni (GDPR - retention limitata)
+// Dichiarato esplicitamente perché expireAfterSeconds nelle schema options è ignorato da Mongoose
+auditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 2 * 365 * 24 * 60 * 60 });
+
 // Index composti per query comuni
 auditLogSchema.index({ userId: 1, createdAt: -1 });
 auditLogSchema.index({ action: 1, createdAt: -1 });

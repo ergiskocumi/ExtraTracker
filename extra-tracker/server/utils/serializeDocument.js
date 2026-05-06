@@ -24,7 +24,7 @@ function serializeDocument(doc) {
     }
     
     // Se è già un oggetto plain (da .lean() o JSON), serializza manualmente
-    const serialized = JSON.parse(JSON.stringify(doc)); // Deep clone per evitare mutazioni
+    const serialized = { ...doc }; // Shallow clone — JSON.parse(JSON.stringify()) era un collo di bottiglia
     
     // Converti _id in id se non esiste già
     if (serialized._id && !serialized.id) {

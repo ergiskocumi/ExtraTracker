@@ -5,6 +5,7 @@
  */
 
 const AppError = require('../../utils/AppError');
+const Deck = require('../../models/Deck');
 const examRepository = require('../../repositories/ExamRepository');
 const folderRepository = require('../../repositories/FolderRepository');
 const { DEFAULT_EASINESS_FACTOR } = require('./constants');
@@ -44,16 +45,24 @@ module.exports = {
             throw AppError.validation('Il retro della card e\' obbligatorio');
         }
 
-        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+        const userId = this._getUserId(tenantScope);
+        const deck = await Deck.findOneAndUpdate(
+            { _id: deckId, user: userId },
+            {
+                $push: {
+                    cards: {
+                        front: normalizedFront,
+                        back: normalizedBack,
+                        quizAnswerVariant: '',
+                        distractors: [],
+                        aiDistractorsFailed: false,
+                    },
+                },
+            },
+            { new: true },
+        );
 
-        deck.cards.push({
-            front: normalizedFront,
-            back: normalizedBack,
-            quizAnswerVariant: '',
-            distractors: [],
-            aiDistractorsFailed: false,
-        });
-        await deck.save();
+        if (!deck) throw AppError.notFound('Deck');
 
         return deck;
     },
@@ -69,16 +78,14 @@ module.exports = {
             throw AppError.validation('Il retro della card e\' obbligatorio');
         }
 
-        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+        const userId = this._getUserId(tenantScope);
+        const deck = await Deck.findOneAndUpdate(
+            { _id: deckId, user: userId, 'cards._id': cardId },
+            { $set: { 'cards.$.front': normalizedFront, 'cards.$.back': normalizedBack } },
+            { new: true },
+        );
 
-        const card = deck.cards.id(cardId);
-        if (!card) {
-            throw AppError.notFound('Carta');
-        }
-
-        card.front = normalizedFront;
-        card.back = normalizedBack;
-        await deck.save();
+        if (!deck) throw AppError.notFound('Carta o mazzo non trovato');
 
         return deck;
     },
@@ -96,15 +103,14 @@ module.exports = {
             throw AppError.validation('La risposta non può superare 1000 caratteri');
         }
 
-        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+        const userId = this._getUserId(tenantScope);
+        const deck = await Deck.findOneAndUpdate(
+            { _id: deckId, user: userId, 'cards._id': cardId },
+            { $set: { 'cards.$.back': normalizedAnswer } },
+            { new: true },
+        );
 
-        const card = deck.cards.id(cardId);
-        if (!card) {
-            throw AppError.notFound('Carta');
-        }
-
-        card.back = normalizedAnswer;
-        await deck.save();
+        if (!deck) throw AppError.notFound('Carta o mazzo non trovato');
 
         return deck;
     },
@@ -523,7 +529,10 @@ module.exports = {
 
         const decks = await this.find(tenantScope, { examId }, {
             select: '_id title examId savedQuizzes',
+            // TODO: Add compound index { examId: 1, updatedAt: -1 } to Deck model
+            // Currently sorts by updatedAt without index support, causing full scan
             sort: { updatedAt: -1 },
+            limit: 100,
         });
 
         const savedQuizzes = [];

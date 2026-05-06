@@ -314,35 +314,17 @@ const resendVerification = asyncHandler(async (req, res) => {
     const userId = req.user?.id;
 
     if (!userId) {
-        return res.status(401).json({
-            success: false,
-            error: {
-                message: 'Devi essere autenticato',
-                code: 'UNAUTHORIZED',
-            },
-        });
+        throw AppError.unauthorized('Devi essere autenticato');
     }
 
     const user = await User.findById(userId);
 
     if (!user) {
-        return res.status(404).json({
-            success: false,
-            error: {
-                message: 'Utente non trovato',
-                code: 'USER_NOT_FOUND',
-            },
-        });
+        throw AppError.notFound('Utente');
     }
 
     if (user.isEmailVerified) {
-        return res.status(400).json({
-            success: false,
-            error: {
-                message: 'Email già verificata',
-                code: 'ALREADY_VERIFIED',
-            },
-        });
+        throw AppError.validation('Email già verificata');
     }
 
     const verificationToken = generateToken();
@@ -370,13 +352,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
-        return res.status(400).json({
-            success: false,
-            error: {
-                message: 'Email obbligatoria',
-                code: 'MISSING_EMAIL',
-            },
-        });
+        throw AppError.validation('Email obbligatoria');
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });
@@ -449,6 +425,7 @@ const resetPassword = asyncHandler(async (req, res) => {
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     user.refreshTokenHash = undefined;
+    user.refreshTokens = []; // Invalida tutte le sessioni esistenti
     await user.save();
 
     // Audit log

@@ -156,7 +156,7 @@ module.exports = {
             setImmediate(() => {
                 this.updateRaw(tenantScope, deck._id, {
                     $push: { recentQuizQuestions: { $each: newQuestionTexts, $slice: -50 } },
-                }).catch(() => {});
+                }).catch(err => logger.error('StudySession', 'Failed to update recentQuizQuestions', { error: err.message }));
             });
 
             this._logQuizDebug('session-ai-quiz', {
@@ -204,7 +204,7 @@ module.exports = {
             setImmediate(() => {
                 this.updateRaw(tenantScope, deck._id, {
                     $push: { recentQuizQuestions: { $each: newStatementTexts, $slice: -50 } },
-                }).catch(() => {});
+                }).catch(err => logger.error('StudySession', 'Failed to update recentQuizQuestions', { error: err.message }));
             });
 
             this._logQuizDebug('session-ai-tf', {

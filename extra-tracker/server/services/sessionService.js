@@ -137,10 +137,12 @@ const refreshSession = async (refreshToken, deviceInfo = {}) => {
         const graceToken = user.findInGracePeriod(tokenHash);
 
         if (graceToken) {
-            const newAccessToken = tokenService.generateAccessToken(user);
-            const { token: newRefreshToken } = await tokenService.generateRefreshToken(user, deviceInfo);
-            await user.removeFromGracePeriod(tokenHash);
-            return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+            // Token theft detected — invalida TUTTE le sessioni
+            await User.updateOne(
+                { _id: user._id },
+                { $set: { refreshTokens: [], gracePeriodTokens: [] } }
+            );
+            throw AppError.unauthorized('Sessione non valida o scaduta');
         }
 
         await User.updateOne(

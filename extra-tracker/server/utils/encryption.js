@@ -71,7 +71,13 @@ const encryptString = (value) => {
     if (isEncrypted(value)) return value;
 
     const key = resolveKey();
-    if (!key) return value;
+    if (!key) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('DATA_ENCRYPTION_KEY non configurata in produzione — impossibile cifrare');
+        }
+        logger.warn('Encryption', 'DATA_ENCRYPTION_KEY mancante — dati salvati in chiaro (SOLO sviluppo)');
+        return value;
+    }
 
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv);

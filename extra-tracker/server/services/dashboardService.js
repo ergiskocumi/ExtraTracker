@@ -55,7 +55,7 @@ const getSummary = async (userId) => {
     const todayDateStr = new Date().toISOString().split('T')[0];
 
     const [decks, todayWorkLogs, user] = await Promise.all([
-        Deck.find({ user: userId }).select('title cards.nextReviewDate').lean(),
+        Deck.find({ user: userId }).select('title cards.nextReviewDate').limit(100).lean(),
         WorkLog.find({ user: userId, date: todayDateStr }).lean(),
         User.findById(userId).select('profile').lean(),
     ]);
