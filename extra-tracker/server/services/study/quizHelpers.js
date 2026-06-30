@@ -39,8 +39,8 @@ module.exports = {
     // =========================================
 
     async generateQuizFromPDFText(pdfTextChunk, questionCount = 5, previousQuestions = [], telemetry = {}) {
-        if (!process.env.OPENAI_API_KEY) {
-            throw new Error('OPENAI_API_KEY non configurata');
+        if (!process.env.ANTHROPIC_AUTH_TOKEN) {
+            throw new Error('ANTHROPIC_AUTH_TOKEN non configurata');
         }
         if (!pdfTextChunk || typeof pdfTextChunk !== 'string' || pdfTextChunk.trim().length < 100) {
             throw new Error('Testo PDF non valido o troppo breve per generare domande');

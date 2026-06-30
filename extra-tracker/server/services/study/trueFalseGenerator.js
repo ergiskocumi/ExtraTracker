@@ -228,8 +228,8 @@ function _mapStatementsToCards(statements) {
 // =========================================
 
 async function _generateChunk(textChunk, count, previousStatements = [], telemetry = {}) {
-    if (!process.env.OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY non configurata');
+    if (!process.env.ANTHROPIC_AUTH_TOKEN) {
+        throw new Error('ANTHROPIC_AUTH_TOKEN non configurata');
     }
     if (!textChunk || typeof textChunk !== 'string' || textChunk.trim().length < 100) {
         throw new Error('Testo troppo breve per generare affermazioni V/F');

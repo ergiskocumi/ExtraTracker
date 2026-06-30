@@ -15,11 +15,12 @@ const envSchema = z.object({
     // Auth
     JWT_SECRET: z.string().min(32, 'JWT_SECRET deve essere almeno 32 caratteri'),
 
-    // OpenAI
-    OPENAI_API_KEY: z.string().min(1, 'OPENAI_API_KEY è obbligatoria'),
-    OPENAI_MODEL: z.string().optional(),
-    OPENAI_CHAT_MODEL: z.string().optional(),
-    OPENAI_DISTRACTOR_MODEL: z.string().optional(),
+    // DeepSeek (Anthropic-compatible) — primary AI backend
+    ANTHROPIC_AUTH_TOKEN: z.string().min(1, 'ANTHROPIC_AUTH_TOKEN è obbligatoria'),
+    ANTHROPIC_MODEL: z.string().optional(),
+    ANTHROPIC_BASE_URL: z.string().url().optional(),
+    // Legacy OpenAI (opzionale — serve solo per embeddings Pinecone)
+    OPENAI_API_KEY: z.string().optional(),
 
     // Server
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

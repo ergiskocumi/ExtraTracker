@@ -137,8 +137,8 @@ module.exports = {
             }
         }
 
-        const model = getValidModel(process.env.OPENAI_CHAT_MODEL);
-        const contextLimit = model.includes('gpt-3.5') ? 15000 : 50000;
+        const model = getValidModel(process.env.ANTHROPIC_MODEL);
+        const contextLimit = model.includes('flash') ? 15000 : 50000;
 
         if (!context) {
             context = this._buildTutorContext(extractedText, cleanMessage, contextLimit);
@@ -271,8 +271,8 @@ module.exports = {
             }
         }
 
-        const model = getValidModel(process.env.OPENAI_CHAT_MODEL);
-        const contextLimit = model.includes('gpt-3.5') ? 15000 : 50000;
+        const model = getValidModel(process.env.ANTHROPIC_MODEL);
+        const contextLimit = model.includes('flash') ? 15000 : 50000;
 
         if (!context) {
             context = this._buildTutorContext(extractedText, cleanQuestion, contextLimit);
