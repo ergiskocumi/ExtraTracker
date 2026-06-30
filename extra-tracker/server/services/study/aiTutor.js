@@ -187,10 +187,10 @@ module.exports = {
 
             aiResponse = completion.choices[0]?.message?.content;
         } catch (err) {
-            logger.error('AiTutor', 'OpenAI Tutor Error', err);
+            logger.error('AiTutor', 'DeepSeek Tutor Error', err);
 
             if (err.code === 'insufficient_quota') {
-                throw AppError.validation('Quota OpenAI esaurita.');
+                throw AppError.validation('Quota AI esaurita.');
             }
             throw AppError.validation('Errore nella risposta AI. Riprova.');
         }
@@ -349,10 +349,10 @@ GENERA LA RISPOSTA:`;
 
             aiResponse = completion.choices[0]?.message?.content;
         } catch (err) {
-            logger.error('AiTutor', 'OpenAI Exam Tutor Error', err);
+            logger.error('AiTutor', 'DeepSeek Exam Tutor Error', err);
 
             if (err.code === 'insufficient_quota') {
-                throw AppError.validation('Quota OpenAI esaurita.');
+                throw AppError.validation('Quota AI esaurita.');
             }
             throw AppError.validation('Errore nella risposta AI. Riprova.');
         }

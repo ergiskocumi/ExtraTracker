@@ -1,7 +1,7 @@
 /**
  * 🔀 TRUE/FALSE AI GENERATOR
  * ===========================
- * Generates True/False statements from extractedText (PDF) via OpenAI structured output.
+ * Generates True/False statements from extractedText (PDF) via DeepSeek structured output.
  * Follows the same chunking + tracking pattern as MCQ generation in quizHelpers.js.
  */
 
@@ -21,7 +21,7 @@ const logger = require('../../utils/logger');
 const { buildChunkStatementCounts } = require('./trueFalseChunking');
 
 // =========================================
-// JSON SCHEMA (OpenAI Structured Output)
+// JSON SCHEMA (DeepSeek Structured Output via prompt)
 // =========================================
 
 const buildResponseFormat = (count) => ({

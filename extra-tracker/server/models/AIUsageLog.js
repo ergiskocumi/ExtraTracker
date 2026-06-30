@@ -14,7 +14,7 @@ const aiUsageLogSchema = new mongoose.Schema(
         // These single-field indexes only added write overhead with no query benefit.
         provider: {
             type: String,
-            default: 'openai',
+            default: 'deepseek',
             trim: true,
         },
         modality: {

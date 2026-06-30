@@ -16,7 +16,7 @@ const logger = require('../../utils/logger');
 
 const DEEPSEEK_BASE_URL = process.env.ANTHROPIC_BASE_URL || 'https://api.deepseek.com/anthropic';
 const DEEPSEEK_API_KEY = process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_API_KEY || '';
-const DEEPSEEK_DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || process.env.ANTHROPIC_DEFAULT_OPUS_MODEL || 'deepseek-v4-pro[1m]';
+const DEEPSEEK_DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || process.env.ANTHROPIC_DEFAULT_OPUS_MODEL || 'deepseek-v4-pro';
 const DEEPSEEK_FLASH_MODEL = process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL || process.env.CLAUDE_CODE_SUBAGENT_MODEL || 'deepseek-v4-flash';
 
 let clientLogSent = false;
@@ -36,7 +36,6 @@ if (!clientLogSent) {
 // =========================================
 
 const KNOWN_DEEPSEEK_MODELS = new Set([
-    'deepseek-v4-pro[1m]',
     'deepseek-v4-pro',
     'deepseek-v4-flash',
     'deepseek-v3',
@@ -48,8 +47,7 @@ function resolveModel(requestedModel) {
     if (!requestedModel) return DEEPSEEK_DEFAULT_MODEL;
     const trimmed = String(requestedModel).trim();
     if (KNOWN_DEEPSEEK_MODELS.has(trimmed)) return trimmed;
-    // Fallback: if it looks like an OpenAI model, use default
-    if (trimmed.startsWith('gpt-') || trimmed.startsWith('o1')) return DEEPSEEK_DEFAULT_MODEL;
+    // Fallback: unrecognized model → use default
     return trimmed;
 }
 
@@ -110,7 +108,7 @@ function toAnthropicParams(params = {}) {
         .filter((m) => m.content);
 
     // Model-specific max_tokens handling
-    // deepseek-v4-pro[1m] supports up to 1M tokens context but output limit varies
+    // deepseek-v4-pro supports up to 128K tokens context
     const effectiveMaxTokens = maxTokens || maxCompletionTokens || 4096;
 
     const anthropicParams = {

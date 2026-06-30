@@ -10,7 +10,6 @@ const logger = require('../utils/logger');
 
 const DEFAULT_CHAT_PRICING_PER_1M = {
     default: { input: 1.25, output: 5 },
-    'deepseek-v4-pro[1m]': { input: 1.25, output: 5 },
     'deepseek-v4-pro': { input: 1.25, output: 5 },
     'deepseek-v4-flash': { input: 0.15, output: 0.6 },
     'deepseek-chat': { input: 0.27, output: 1.1 },
@@ -219,7 +218,7 @@ const basePayload = (payload = {}) => {
     });
 
     return {
-        provider: payload.provider || 'openai',
+        provider: payload.provider || 'deepseek',
         modality: payload.modality || 'chat',
         mode: payload.mode || 'unknown',
         feature: payload.feature || 'generic',

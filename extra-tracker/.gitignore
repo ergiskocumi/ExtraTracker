@@ -18,8 +18,7 @@ server/uploads/pdfs/*
 server/uploads/avatars/*
 server/uploads/feedback/*
 
-# Environment variables
-.env
+# Environment variables (server .env is committed — contains DeepSeek config)
 .env.local
 .env.*.local
 
