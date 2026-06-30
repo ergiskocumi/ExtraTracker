@@ -280,20 +280,17 @@ const addCardAtPosition = asyncHandler(async (req, res) => {
 const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
     const body = generatePersistedQuizSchema.parse(req.body);
 
-    // Lightweight: NON caricare extractedText (200K+) nel controller
+    // Carica deck con extractedText per verificarne l'esistenza
     const deck = await sessionQuizService.findById(req.tenantScope, req.params.id, {
-        select: '+recentQuizQuestions',  // solo recentQuizQuestions, NON extractedText
+        select: '+extractedText +recentQuizQuestions',
         throwIfNotFound: true,
     });
 
-    // Check esistenza testo senza caricarlo in memoria
-    const DeckModel = sessionQuizService.Model || require('../models/Deck');
-    const hasText = await DeckModel.exists({
-        _id: req.params.id,
-        user: req.tenantScope.userId,
-        extractedText: { $exists: true, $ne: '', $ne: null },
-    });
-    if (!hasText) {
+    const extractedText = typeof deck.extractedText === 'string' ? deck.extractedText.trim() : '';
+    // Rilascia subito il riferimento Mongoose — il testo è ora in extractedText
+    deck.extractedText = undefined;
+
+    if (!extractedText) {
         return res.status(400).json({
             success: false,
             error: {
@@ -304,7 +301,7 @@ const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
     }
 
     // Stima conservativa (il chunking esatto lo fa il job)
-    const estimatedSeconds = Math.max(30, body.questionCount * 3);
+    const estimatedSeconds = Math.max(30, Math.ceil(extractedText.length / 5000) * 20);
 
     const { jobId } = quizGenerationService.createJob(req.tenantScope.userId, {
         deckId: deck._id.toString(),
@@ -408,8 +405,9 @@ const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
         };
     };
 
-    // Fire-and-forget: il job carica extractedText, processa chunking + AI + persist in background
+    // Fire-and-forget: il job processa chunking + AI + persist in background
     quizGenerationService.processJob(userId, jobId, processChunkFn, {
+        extractedText,
         deckId: deck._id.toString(),
         questionCount: body.questionCount,
         previousQuestions,

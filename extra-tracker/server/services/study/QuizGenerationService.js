@@ -171,17 +171,19 @@ class QuizGenerationService {
 
         const { deckId, questionCount, previousQuestions, telemetry, persistFn } = context;
 
-        // Carica extractedText dal DB (lean query — non tiene il documento Mongoose in memoria)
-        let extractedText = '';
-        try {
-            const DeckModel = require('../models/Deck');
-            const deckDoc = await DeckModel.findOne(
-                { _id: deckId, user: userId },
-                { extractedText: 1 },
-            ).lean();
-            extractedText = typeof deckDoc?.extractedText === 'string' ? deckDoc.extractedText.trim() : '';
-        } catch (err) {
-            logger.error('QuizGeneration', `Failed to load extractedText for job ${jobId}`, { error: err.message });
+        // Usa extractedText dal controller se disponibile, altrimenti carica da DB
+        let extractedText = context.extractedText || '';
+        if (!extractedText) {
+            try {
+                const DeckModel = require('../models/Deck');
+                const deckDoc = await DeckModel.findOne(
+                    { _id: deckId, user: userId },
+                    { extractedText: 1 },
+                ).lean();
+                extractedText = typeof deckDoc?.extractedText === 'string' ? deckDoc.extractedText.trim() : '';
+            } catch (err) {
+                logger.error('QuizGeneration', `Failed to load extractedText for job ${jobId}`, { error: err.message });
+            }
         }
 
         if (!extractedText) {
