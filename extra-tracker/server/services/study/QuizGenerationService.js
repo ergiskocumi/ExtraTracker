@@ -141,6 +141,12 @@ class QuizGenerationService {
             elapsedSeconds: job.startedAt
                 ? Math.round((Date.now() - job.startedAt.getTime()) / 1000)
                 : 0,
+            chunks: job.chunks.map((c) => ({
+                index: c.index,
+                status: c.status,
+                retries: c.retries || 0,
+            })),
+            config: job.config,
             result: job.status === 'completed' ? job.result : null,
         };
     }

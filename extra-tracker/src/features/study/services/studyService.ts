@@ -560,6 +560,7 @@ class StudyService {
         const response = await apiClient.post<{ jobId: string; estimatedSeconds: number }>(
             `${this.baseUrl}/${deckId}/quizzes/generate-async`,
             payload,
+            { timeout: 120_000 }, // 2 min — il controller deve rispondere in <2s, ma margine di sicurezza
         );
         return unwrap(response, 'Errore nell\'avvio della generazione quiz');
     }
@@ -583,6 +584,7 @@ class StudyService {
     }> {
         const response = await apiClient.get<any>(
             `${this.baseUrl}/${deckId}/quizzes/generate/${jobId}/status`,
+            { timeout: 15_000 }, // 15s — lettura veloce, se lento c'è un problema
         );
         return unwrap(response, 'Errore nel recupero stato generazione');
     }

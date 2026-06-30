@@ -246,6 +246,9 @@ export function useQuizGenerationProgress({
             }
         };
 
+        let consecutivePollFailures = 0;
+        const MAX_POLL_FAILURES = 5;
+
         const startPolling = () => {
             if (cancelled || !pollStatusFn) return;
             pollingTimer = setInterval(async () => {
@@ -254,15 +257,26 @@ export function useQuizGenerationProgress({
                     const status = await pollStatusFn(deckId, jobId);
                     if (cancelled) return;
 
+                    consecutivePollFailures = 0; // reset on success
+
                     if (!status) {
                         setProgress((prev) => ({
                             ...prev,
                             phase: 'failed',
-                            error: 'Job non trovato',
+                            error: 'Job non trovato o scaduto',
                         }));
                         if (pollingTimer) clearInterval(pollingTimer);
                         return;
                     }
+
+                    // Update chunks detail from status if available
+                    const updatedChunks = Array.isArray(status.chunks)
+                        ? status.chunks.map((c: { index: number; status: string; retries: number }) => ({
+                              index: c.index,
+                              status: c.status as 'pending' | 'processing' | 'done' | 'failed' | 'skipped',
+                              retries: c.retries || 0,
+                          }))
+                        : undefined;
 
                     setProgress((prev) => ({
                         ...prev,
@@ -277,6 +291,7 @@ export function useQuizGenerationProgress({
                         partialResult: Boolean(status.partialResult),
                         error: status.error || null,
                         result: status.result || prev.result,
+                        ...(updatedChunks ? { chunks: updatedChunks } : {}),
                     }));
 
                     if (status.status === 'completed') {
@@ -292,9 +307,17 @@ export function useQuizGenerationProgress({
                         onErrorRef.current?.(status.error || 'Generazione fallita');
                     }
                 } catch {
-                    // Poll failed, will retry
+                    consecutivePollFailures++;
+                    if (consecutivePollFailures >= MAX_POLL_FAILURES) {
+                        if (pollingTimer) clearInterval(pollingTimer);
+                        setProgress((prev) => ({
+                            ...prev,
+                            phase: 'failed',
+                            error: 'Impossibile verificare lo stato della generazione. Riprova.',
+                        }));
+                    }
                 }
-            }, 5000);
+            }, 3000); // 3s interval (was 5s)
         };
 
         connectSSE();
