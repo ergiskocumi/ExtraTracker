@@ -4,7 +4,7 @@
  * PDF-based quiz generation (AI), session card mapping, true/false transform.
  */
 
-const { openai, DISTRACTOR_AI_MODEL, QUIZ_DEBUG_LOGS, CHUNK_AI_TIMEOUT_MS } = require('./constants');
+const { createCompletion, DISTRACTOR_AI_MODEL, QUIZ_DEBUG_LOGS, CHUNK_AI_TIMEOUT_MS } = require('./constants');
 const aiUsageService = require('../aiUsageService');
 const logger = require('../../utils/logger');
 
@@ -189,12 +189,13 @@ module.exports = {
                         previousQuestionsCount: previousQuestions.length,
                     },
                 },
-                () => openai.chat.completions.create(
+                () => createCompletion(
                     {
                         model: DISTRACTOR_AI_MODEL,
                         messages,
                         response_format: responseFormat,
-                        ...({ temperature: 0.35 }),
+                        temperature: 0.35,
+                        max_tokens: 4096,
                     },
                     { timeout: CHUNK_AI_TIMEOUT_MS },
                 ),

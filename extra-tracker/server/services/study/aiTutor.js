@@ -11,7 +11,7 @@ const pdfCacheService = require('../pdfCacheService');
 const vectorStoreService = require('../vectorStoreService');
 const aiUsageService = require('../aiUsageService');
 const {
-    openai,
+    createCompletion,
     getValidModel,
     MAX_TUTOR_MESSAGE_LENGTH,
     MAX_EXTRACTED_TEXT_STORE_LENGTH,
@@ -178,11 +178,11 @@ module.exports = {
                     deckId: String(deckId),
                     historyMessages: safeHistory.length,
                 },
-            }, () => openai.chat.completions.create({
+            }, () => createCompletion({
                 model,
                 messages,
                 temperature: 0.2,
-                max_completion_tokens: 600,
+                max_tokens: 600,
             }));
 
             aiResponse = completion.choices[0]?.message?.content;
@@ -340,11 +340,11 @@ GENERA LA RISPOSTA:`;
                 metadata: {
                     deckId: String(deckId),
                 },
-            }, () => openai.chat.completions.create({
+            }, () => createCompletion({
                 model,
                 messages,
                 temperature: 0.1,
-                max_completion_tokens: 800,
+                max_tokens: 800,
             }));
 
             aiResponse = completion.choices[0]?.message?.content;

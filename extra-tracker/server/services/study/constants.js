@@ -3,9 +3,7 @@
  * =================================================
  */
 
-const OpenAI = require('openai');
 const path = require('path');
-const logger = require('../../utils/logger');
 
 // =========================================
 // COSTANTI BASE
@@ -98,42 +96,32 @@ const MAX_TOTAL_CARDS = Number.isFinite(ENV_MAX_TOTAL_CARDS) && ENV_MAX_TOTAL_CA
 const SIMILARITY_THRESHOLD = 0.55;
 
 // =========================================
-// CONFIGURAZIONE MODELLO AI
+// CONFIGURAZIONE MODELLO AI — DeepSeek via Anthropic API
 // =========================================
-const FALLBACK_AI_MODEL = 'gpt-5.2';
-const KNOWN_OPENAI_MODELS = new Set([
-    'gpt-4o',
-    'gpt-4o-mini',
-    'gpt-5.2',
-    'gpt-4-turbo',
-    'gpt-4-turbo-preview',
-    'gpt-4',
-    'gpt-3.5-turbo',
-    'o1',
-    'o1-mini',
-]);
-const envModel = (process.env.OPENAI_MODEL || FALLBACK_AI_MODEL).trim();
-const ACTIVE_AI_MODEL = KNOWN_OPENAI_MODELS.has(envModel) ? envModel : FALLBACK_AI_MODEL;
-const DISTRACTOR_AI_MODEL = KNOWN_OPENAI_MODELS.has((process.env.OPENAI_DISTRACTOR_MODEL || '').trim())
-    ? (process.env.OPENAI_DISTRACTOR_MODEL || '').trim()
-    : ACTIVE_AI_MODEL;
+
+const {
+    anthropic,
+    DEEPSEEK_DEFAULT_MODEL,
+    DEEPSEEK_FLASH_MODEL,
+    KNOWN_DEEPSEEK_MODELS,
+    createCompletion,
+} = require('./deepseekClient');
+
+const DEEPSEEK_MODEL = process.env.ANTHROPIC_MODEL || DEEPSEEK_DEFAULT_MODEL;
+const ACTIVE_AI_MODEL = DEEPSEEK_MODEL;
+const DISTRACTOR_AI_MODEL = process.env.ANTHROPIC_DEFAULT_OPUS_MODEL || DEEPSEEK_MODEL;
+const FALLBACK_AI_MODEL = DEEPSEEK_DEFAULT_MODEL;
 
 function getValidModel(envValue) {
     const v = (envValue || ACTIVE_AI_MODEL).trim();
-    return KNOWN_OPENAI_MODELS.has(v) ? v : ACTIVE_AI_MODEL;
+    return KNOWN_DEEPSEEK_MODELS.has(v) ? v : ACTIVE_AI_MODEL;
 }
 
 if (!global.__studyServiceModelLogged) {
-    if (envModel !== ACTIVE_AI_MODEL) {
-        logger.warn('StudyService', `OPENAI_MODEL="${envModel}" non valido; uso fallback: ${ACTIVE_AI_MODEL}`);
-    }
-    logger.info('StudyService', `Modello AI: ${ACTIVE_AI_MODEL} | Distractor: ${DISTRACTOR_AI_MODEL}`);
+    const logger = require('../../utils/logger');
+    logger.info('StudyService', `AI Backend: DeepSeek | Model: ${ACTIVE_AI_MODEL} | Distractor: ${DISTRACTOR_AI_MODEL}`);
     global.__studyServiceModelLogged = true;
 }
-
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
 
 module.exports = {
     MIN_EASINESS_FACTOR,
@@ -180,9 +168,13 @@ module.exports = {
     TF_TEMPERATURE,
 
     FALLBACK_AI_MODEL,
-    KNOWN_OPENAI_MODELS,
+    KNOWN_DEEPSEEK_MODELS,
     ACTIVE_AI_MODEL,
     DISTRACTOR_AI_MODEL,
+    DEEPSEEK_MODEL,
+    DEEPSEEK_DEFAULT_MODEL,
+    DEEPSEEK_FLASH_MODEL,
     getValidModel,
-    openai,
+    anthropic,
+    createCompletion,
 };

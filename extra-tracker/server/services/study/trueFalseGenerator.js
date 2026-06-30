@@ -6,7 +6,7 @@
  */
 
 const {
-    openai,
+    createCompletion,
     DISTRACTOR_AI_MODEL,
     QUIZ_DEBUG_LOGS,
     CHUNK_AI_TIMEOUT_MS,
@@ -271,12 +271,13 @@ async function _generateChunk(textChunk, count, previousStatements = [], telemet
                 previousStatementsCount: previousStatements.length,
             },
         },
-        () => openai.chat.completions.create(
+        () => createCompletion(
             {
                 model: DISTRACTOR_AI_MODEL,
                 messages,
                 response_format: buildResponseFormat(safeCount),
                 temperature: TF_TEMPERATURE,
+                max_tokens: 4096,
             },
             { timeout: CHUNK_AI_TIMEOUT_MS },
         ),

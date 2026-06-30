@@ -7,7 +7,7 @@
 const AppError = require('../../utils/AppError');
 const examRepository = require('../../repositories/ExamRepository');
 const {
-    openai,
+    createCompletion,
     ACTIVE_AI_MODEL,
     DEFAULT_EASINESS_FACTOR,
 } = require('./constants');
@@ -201,10 +201,11 @@ FORMATO JSON:
                         deckId: String(deck._id),
                         difficultiesCount: Array.isArray(difficulties) ? difficulties.length : 0,
                     },
-                }, () => openai.chat.completions.create({
+                }, () => createCompletion({
                     model: ACTIVE_AI_MODEL,
                     messages,
                     temperature: 0.7,
+                    max_tokens: 4096,
                 }));
 
                 const content = completion.choices[0]?.message?.content || '';

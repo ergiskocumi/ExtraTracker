@@ -13,7 +13,7 @@ const vectorStoreService = require('../vectorStoreService');
 const aiUsageService = require('../aiUsageService');
 const sseManager = require('../../utils/SSEManager');
 const {
-    openai,
+    createCompletion,
     ACTIVE_AI_MODEL,
     DEFAULT_EASINESS_FACTOR,
     MAX_EXTRACTED_TEXT_STORE_LENGTH,
@@ -95,7 +95,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                 metadata: {
                     sourceType: questionsIsPdf ? 'pdf' : 'text',
                 },
-            }, () => openai.chat.completions.create({
+            }, () => createCompletion({
                 model: ACTIVE_AI_MODEL,
                 messages,
                 temperature: 0.1,
@@ -310,7 +310,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                             questionCount: batch.questions.length,
                             retryAttempt: attempt + 1,
                         },
-                    }, () => openai.chat.completions.create({
+                    }, () => createCompletion({
                         model: ACTIVE_AI_MODEL,
                         messages,
                         temperature: 0.1,
@@ -611,7 +611,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                 metadata: {
                     sourceType: questionsIsPdf ? 'pdf' : 'text',
                 },
-            }, () => openai.chat.completions.create({
+            }, () => createCompletion({
                 model: ACTIVE_AI_MODEL,
                 messages,
                 temperature: 0.1,
@@ -723,7 +723,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                         batchStartIndex: i,
                         batchQuestionCount: batch.length,
                     },
-                }, () => openai.chat.completions.create({
+                }, () => createCompletion({
                     model: ACTIVE_AI_MODEL,
                     messages,
                     temperature: 0.1,
