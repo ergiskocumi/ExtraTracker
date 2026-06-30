@@ -24,6 +24,7 @@ let clientLogSent = false;
 const anthropic = new Anthropic({
     baseURL: DEEPSEEK_BASE_URL,
     apiKey: DEEPSEEK_API_KEY,
+    maxRetries: 0, // disabilitiamo retry interni SDK — abbiamo il nostro retry loop in QuizGenerationService
 });
 
 if (!clientLogSent) {

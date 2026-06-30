@@ -506,52 +506,80 @@ class PersistedQuizService extends BaseService {
             : '';
         const sourceCardIds = this._trimArray(payload.sourceCardIds);
 
-        const session = await mongoose.startSession();
+        // Prova con transazione; se MongoDB è standalone (non replica set), fallback senza
+        let session;
+        let useTransaction = true;
         try {
-            let createdQuiz;
-            await session.withTransaction(async () => {
-                createdQuiz = await new QuizDefinition({
-                    ...this._buildFilter(tenantScope, {}),
-                    deckId: deck._id,
-                    examId: deck.examId || null,
+            session = await mongoose.startSession();
+        } catch (_err) {
+            useTransaction = false;
+        }
+
+        const saveQuiz = async (writeSession) => {
+            const createdQuiz = await new QuizDefinition({
+                ...this._buildFilter(tenantScope, {}),
+                deckId: deck._id,
+                examId: deck.examId || null,
+                name,
+                quizType,
+                source,
+                origin: {
+                    kind: payload.originKind || 'ai_pdf',
+                    pdfBased: payload.pdfBased !== false,
+                    sourceCardIds,
+                    generatedFromTextHash,
+                    aiModel: payload.aiModel || DISTRACTOR_AI_MODEL,
+                    promptVersion: payload.promptVersion || DISTRACTOR_PROMPT_VERSION,
+                },
+                questionCount: normalizedQuestions.length,
+                questions: normalizedQuestions,
+                status: 'ready',
+            }).save(writeSession ? { session: writeSession } : {});
+
+            if (deck?.savedQuizzes) {
+                deck.savedQuizzes.push({
+                    _id: createdQuiz._id,
+                    quizRefId: createdQuiz._id,
                     name,
                     quizType,
-                    source,
-                    origin: {
-                        kind: payload.originKind || 'ai_pdf',
-                        pdfBased: payload.pdfBased !== false,
-                        sourceCardIds,
-                        generatedFromTextHash,
-                        aiModel: payload.aiModel || DISTRACTOR_AI_MODEL,
-                        promptVersion: payload.promptVersion || DISTRACTOR_PROMPT_VERSION,
-                    },
                     questionCount: normalizedQuestions.length,
-                    questions: normalizedQuestions,
-                    status: 'ready',
-                }).save({ session });
-
-                if (deck?.savedQuizzes) {
-                    deck.savedQuizzes.push({
-                        _id: createdQuiz._id,
-                        quizRefId: createdQuiz._id,
-                        name,
-                        quizType,
-                        questionCount: normalizedQuestions.length,
-                        sourceCardIds: sourceCardIds.length > 0
-                            ? sourceCardIds
-                            : normalizedQuestions.map((question) => question.questionId),
-                        source,
-                        questions: [],
-                        attempts: [],
-                        createdAt: createdQuiz.createdAt,
-                    });
-                    await deck.save({ session });
-                }
-            });
+                    sourceCardIds: sourceCardIds.length > 0
+                        ? sourceCardIds
+                        : normalizedQuestions.map((question) => question.questionId),
+                    source,
+                    questions: [],
+                    attempts: [],
+                    createdAt: createdQuiz.createdAt,
+                });
+                await deck.save(writeSession ? { session: writeSession } : {});
+            }
 
             return createdQuiz;
+        };
+
+        try {
+            if (useTransaction && session) {
+                let createdQuiz;
+                await session.withTransaction(async () => {
+                    createdQuiz = await saveQuiz(session);
+                });
+                return createdQuiz;
+            }
+            return await saveQuiz(null);
+        } catch (err) {
+            // Standalone MongoDB — transazioni non supportate, riprova senza
+            if (err.message && err.message.includes('Transaction numbers are only allowed')) {
+                if (session) {
+                    try { await session.endSession(); } catch (_) { /* ignore */ }
+                    session = null;
+                }
+                return await saveQuiz(null);
+            }
+            throw err;
         } finally {
-            await session.endSession();
+            if (session) {
+                try { await session.endSession(); } catch (_) { /* ignore */ }
+            }
         }
     }
 
@@ -685,63 +713,87 @@ class PersistedQuizService extends BaseService {
 
         const resultsMap = new Map(normalizedResults.map((result) => [result.questionId, result]));
 
-        // Wrap multi-collection writes in transaction for consistency
-        const session = await mongoose.startSession();
+        // Wrap multi-collection writes in transaction for consistency (standalone fallback included)
+        let session;
         let createdAttempt;
         try {
-            await session.withTransaction(async () => {
-                createdAttempt = await QuizAttempt.create([{
-                    ...this._buildFilter(tenantScope, {}),
-                    quizId: quiz._id,
-                    deckId: quiz.deckId,
-                    examId: quiz.examId || null,
-                    strategy: { ...strategy, targetCount: normalizedResults.length },
-                    orderedQuestionIds,
-                    results: normalizedResults,
-                    score: attemptData.score,
-                    accuracy: attemptData.accuracy,
-                    timeSeconds: attemptData.timeSeconds || 0,
-                    startedAt: attemptData.startedAt ? new Date(attemptData.startedAt) : new Date(),
-                    completedAt: attemptData.completedAt ? new Date(attemptData.completedAt) : new Date(),
-                }], { session });
-                createdAttempt = createdAttempt[0];
+            session = await mongoose.startSession();
+        } catch (_err) {
+            session = null;
+        }
 
-                let mutated = false;
-                for (const question of quiz.questions || []) {
-                    const result = resultsMap.get(question.questionId);
-                    if (!result) continue;
-                    question.stats = this._calculateQuestionStats(question, question.stats || {}, result, strategy.params);
-                    mutated = true;
-                }
-                if (mutated) {
-                    await quiz.save({ session });
-                }
+        const doSave = async (writeSession) => {
+            createdAttempt = await QuizAttempt.create([{
+                ...this._buildFilter(tenantScope, {}),
+                quizId: quiz._id,
+                deckId: quiz.deckId,
+                examId: quiz.examId || null,
+                strategy: { ...strategy, targetCount: normalizedResults.length },
+                orderedQuestionIds,
+                results: normalizedResults,
+                score: attemptData.score,
+                accuracy: attemptData.accuracy,
+                timeSeconds: attemptData.timeSeconds || 0,
+                startedAt: attemptData.startedAt ? new Date(attemptData.startedAt) : new Date(),
+                completedAt: attemptData.completedAt ? new Date(attemptData.completedAt) : new Date(),
+            }], writeSession ? { session: writeSession } : {});
+            createdAttempt = createdAttempt[0];
 
-                const deck = await Deck.findOne(this._buildFilter(tenantScope, { _id: deckId })).session(session).exec();
-                if (deck) {
-                    const summary = deck.savedQuizzes?.id(quizId);
-                    if (summary) {
-                        if (!Array.isArray(summary.attempts)) {
-                            summary.attempts = [];
-                        }
-                        if (summary.attempts.length >= 100) {
-                            summary.attempts.shift();
-                        }
-                        summary.attempts.push({
-                            score: attemptData.score,
-                            accuracy: attemptData.accuracy,
-                            timeSeconds: attemptData.timeSeconds || 0,
-                            completedAt: new Date(),
-                            wrongQuestionIndices: normalizedResults
-                                .filter((result) => !result.isCorrect)
-                                .map((result) => result.shownIndex),
-                        });
-                        await deck.save({ session });
+            let mutated = false;
+            for (const question of quiz.questions || []) {
+                const result = resultsMap.get(question.questionId);
+                if (!result) continue;
+                question.stats = this._calculateQuestionStats(question, question.stats || {}, result, strategy.params);
+                mutated = true;
+            }
+            if (mutated) {
+                await quiz.save(writeSession ? { session: writeSession } : {});
+            }
+
+            const deck = await Deck.findOne(this._buildFilter(tenantScope, { _id: deckId })).exec();
+            if (deck) {
+                const summary = deck.savedQuizzes?.id(quizId);
+                if (summary) {
+                    if (!Array.isArray(summary.attempts)) {
+                        summary.attempts = [];
                     }
+                    if (summary.attempts.length >= 100) {
+                        summary.attempts.shift();
+                    }
+                    summary.attempts.push({
+                        score: attemptData.score,
+                        accuracy: attemptData.accuracy,
+                        timeSeconds: attemptData.timeSeconds || 0,
+                        completedAt: new Date(),
+                        wrongQuestionIndices: normalizedResults
+                            .filter((result) => !result.isCorrect)
+                            .map((result) => result.shownIndex),
+                    });
+                    await deck.save(writeSession ? { session: writeSession } : {});
                 }
-            });
+            }
+        };
+
+        try {
+            if (session) {
+                await session.withTransaction(async () => { await doSave(session); });
+            } else {
+                await doSave(null);
+            }
+        } catch (err) {
+            if (err.message && err.message.includes('Transaction numbers are only allowed')) {
+                if (session) {
+                    try { await session.endSession(); } catch (_) { /* ignore */ }
+                    session = null;
+                }
+                await doSave(null);
+            } else {
+                throw err;
+            }
         } finally {
-            await session.endSession();
+            if (session) {
+                try { await session.endSession(); } catch (_) { /* ignore */ }
+            }
         }
 
         return {
