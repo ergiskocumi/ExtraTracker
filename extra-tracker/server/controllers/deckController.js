@@ -280,14 +280,20 @@ const addCardAtPosition = asyncHandler(async (req, res) => {
 const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
     const body = generatePersistedQuizSchema.parse(req.body);
 
-    // Fast: solo load deck + validazione essenziale
+    // Lightweight: NON caricare extractedText (200K+) nel controller
     const deck = await sessionQuizService.findById(req.tenantScope, req.params.id, {
-        select: '+extractedText +recentQuizQuestions',
+        select: '+recentQuizQuestions',  // solo recentQuizQuestions, NON extractedText
         throwIfNotFound: true,
     });
 
-    const extractedText = typeof deck.extractedText === 'string' ? deck.extractedText.trim() : '';
-    if (!extractedText) {
+    // Check esistenza testo senza caricarlo in memoria
+    const DeckModel = sessionQuizService.Model || require('../models/Deck');
+    const hasText = await DeckModel.exists({
+        _id: req.params.id,
+        user: req.tenantScope.userId,
+        extractedText: { $exists: true, $ne: '', $ne: null },
+    });
+    if (!hasText) {
         return res.status(400).json({
             success: false,
             error: {
@@ -298,7 +304,7 @@ const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
     }
 
     // Stima conservativa (il chunking esatto lo fa il job)
-    const estimatedSeconds = Math.max(30, Math.ceil(extractedText.length / 5000) * 20);
+    const estimatedSeconds = Math.max(30, body.questionCount * 3);
 
     const { jobId } = quizGenerationService.createJob(req.tenantScope.userId, {
         deckId: deck._id.toString(),
@@ -353,7 +359,13 @@ const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
         };
 
     // Persist function (eseguita alla fine del job)
-    const persistFn = async (deckDoc, questions, config) => {
+    // deckId + generatedFromText passati come parametri, NON catturati dalla closure
+    const persistFn = async (_unused, questions, config, generatedFromText) => {
+        // Ricarica il deck (leggero) per la persistenza
+        const deckDoc = await sessionQuizService.findById(tenantScope, req.params.id, {
+            throwIfNotFound: true,
+        });
+
         // Ensure PDF URL integrity before persisting
         await sessionQuizService._ensureDeckPdfUrlIntegrity(deckDoc);
 
@@ -362,7 +374,7 @@ const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
             quizType: config.quizType,
             source: config.source,
             questions,
-            generatedFromText: extractedText,
+            generatedFromText,
             pdfBased: true,
             originKind: 'ai_pdf',
         });
@@ -396,13 +408,12 @@ const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
         };
     };
 
-    // Fire-and-forget: il job processa chunking + AI + persist in background
+    // Fire-and-forget: il job carica extractedText, processa chunking + AI + persist in background
     quizGenerationService.processJob(userId, jobId, processChunkFn, {
-        extractedText,
+        deckId: deck._id.toString(),
         questionCount: body.questionCount,
         previousQuestions,
         telemetry,
-        deck,
         persistFn,
     }).catch((err) => {
         logger.error('DeckController', 'Async quiz generation failed', { jobId, error: err.message });

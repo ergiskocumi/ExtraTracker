@@ -157,7 +157,7 @@ class QuizGenerationService {
      * @param {string} userId
      * @param {string} jobId
      * @param {Function} processChunkFn — async (chunkText, questionCount, context) => questions[]
-     * @param {object} context — { extractedText, quizType, questionCount, previousQuestions, telemetry, deck, persistFn }
+     * @param {object} context — { deckId, questionCount, previousQuestions, telemetry, persistFn }
      */
     async processJob(userId, jobId, processChunkFn, context) {
         const job = this.getJob(userId, jobId);
@@ -169,11 +169,39 @@ class QuizGenerationService {
         job.status = 'processing';
         job.startedAt = new Date();
 
-        const { extractedText, questionCount, previousQuestions, telemetry, deck, persistFn } = context;
+        const { deckId, questionCount, previousQuestions, telemetry, persistFn } = context;
+
+        // Carica extractedText dal DB (lean query — non tiene il documento Mongoose in memoria)
+        let extractedText = '';
+        try {
+            const DeckModel = require('../models/Deck');
+            const deckDoc = await DeckModel.findOne(
+                { _id: deckId, user: userId },
+                { extractedText: 1 },
+            ).lean();
+            extractedText = typeof deckDoc?.extractedText === 'string' ? deckDoc.extractedText.trim() : '';
+        } catch (err) {
+            logger.error('QuizGeneration', `Failed to load extractedText for job ${jobId}`, { error: err.message });
+        }
+
+        if (!extractedText) {
+            job.status = 'failed';
+            job.error = 'Testo PDF non disponibile';
+            job.completedAt = new Date();
+            emitProgress(userId, jobId, 'error', { error: { message: job.error, code: 'NO_TEXT' } });
+            return;
+        }
 
         try {
             // --- Split text into chunks ---
             const chunks = this._splitTextIntoChunks(extractedText);
+            // Salva versione troncata per persistenza (non serve il testo intero)
+            const generatedFromText = extractedText.length > 5000
+                ? extractedText.substring(0, 5000) + '...'
+                : extractedText;
+            // FREE extractedText — non serve più, i chunk sono substring
+            extractedText = '';
+
             if (chunks.length === 0) {
                 throw new Error('Testo PDF non valido o vuoto');
             }
@@ -314,7 +342,7 @@ class QuizGenerationService {
                 // Persist partial quiz
                 if (persistFn) {
                     try {
-                        const result = await persistFn(deck, allQuestions, job.config);
+                        const result = await persistFn(null, allQuestions, job.config, generatedFromText);
                         job.result = result;
                     } catch (persistErr) {
                         logger.error('QuizGeneration', `Failed to persist partial quiz for job ${jobId}`, {
@@ -345,7 +373,7 @@ class QuizGenerationService {
                 job.completedAt = new Date();
 
                 if (persistFn) {
-                    const result = await persistFn(deck, allQuestions, job.config);
+                    const result = await persistFn(null, allQuestions, job.config, generatedFromText);
                     job.result = result;
                 }
 
@@ -403,7 +431,7 @@ class QuizGenerationService {
                 }
             }
 
-            chunks.push(text.substring(start, end).trim());
+            chunks.push(text.substring(start, end)); // V8 SlicedString — zero-copy
             start = end - overlap;
             // Prevent infinite loop on tiny texts
             if (start >= end) break;
