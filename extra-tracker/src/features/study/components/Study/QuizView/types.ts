@@ -25,6 +25,10 @@ export interface QuizViewProps {
   isTrueFalse?: boolean; // Modalita Vero/Falso
   correctStatement?: string | null; // Per V/F AI: la versione corretta dello statement falso
   explanation?: string; // Spiegazione AI per la risposta (V/F e MCQ)
+  /** Indice domanda corrente (1-based per display) */
+  currentIndex?: number;
+  /** Totale domande nel quiz */
+  totalQuestions?: number;
 }
 
 export type QuizResult = "correct" | "wrong" | "dontKnow" | null;

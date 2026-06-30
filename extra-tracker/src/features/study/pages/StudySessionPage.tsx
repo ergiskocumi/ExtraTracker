@@ -375,6 +375,8 @@ export const StudySessionPage: React.FC = () => {
                                 isTrueFalse={currentCard.isTrueFalse ?? false}
                                 correctStatement={currentCard.correctStatement}
                                 explanation={currentCard.explanation}
+                                currentIndex={currentCardIndex + 1}
+                                totalQuestions={session.cards.length}
                             />
                         </motion.div>
                     )}
