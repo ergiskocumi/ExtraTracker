@@ -17,7 +17,7 @@ import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { studyService, type Deck, type QuizType, type SavedQuizSnapshot, type SavedQuizReviewResponse, type StudyMode } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { getErrorMessage } from '../../../utils/errorMessage';
-import { DeckGridSkeleton } from '../../../shared/components/skeleton/DeckGridSkeleton';
+import { FlashcardSkeleton } from '../../../shared/components/skeleton/FlashcardSkeleton';
 import { DeckDetailContent } from '../components/Deck/DeckDetailContent';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
 
@@ -327,11 +327,13 @@ export const DeckDetailPage: React.FC = () => {
         });
     }, [deck]);
 
-    // Loading state (stesso stile di /study: nessun wrapper full-screen)
+    // Loading state — mostra skeleton flashcard invece di deck grid
     if (isLoading) {
         return (
-            <div className="py-20 px-4">
-                <DeckGridSkeleton count={3} />
+            <div className="py-8 px-4 max-w-3xl mx-auto space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <FlashcardSkeleton key={i} />
+                ))}
             </div>
         );
     }

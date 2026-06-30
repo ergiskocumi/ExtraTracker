@@ -22,9 +22,9 @@ const FlashcardSkeletonComponent: React.FC = () => {
     return (
         <div
             className="
-                rounded-lg border border-slate-700/50
-                bg-gradient-to-br from-slate-800/20 via-transparent to-transparent
-                p-4 space-y-3
+                rounded-xl border border-theme-default
+                bg-theme-card
+                p-4 sm:p-5 space-y-3
             "
         >
             {/* Question section */}
@@ -37,7 +37,7 @@ const FlashcardSkeletonComponent: React.FC = () => {
             </div>
 
             {/* Divider */}
-            <div className="border-t border-slate-700/30" />
+            <div className="border-t border-theme-default" />
 
             {/* Answer section */}
             <div className="flex items-start gap-3">
