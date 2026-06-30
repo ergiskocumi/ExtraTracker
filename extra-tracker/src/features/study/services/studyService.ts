@@ -528,8 +528,11 @@ class StudyService {
         };
     }
 
-    async generatePersistedQuiz(deckId: string, payload: PersistedQuizGenerationPayload): Promise<PersistedQuizGenerationResult> {
-        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/quizzes/generate`, payload);
+    async generatePersistedQuiz(deckId: string, payload: PersistedQuizGenerationPayload, signal?: AbortSignal): Promise<PersistedQuizGenerationResult> {
+        const response = await apiClient.post<any>(`${this.baseUrl}/${deckId}/quizzes/generate`, payload, {
+            timeout: 300_000, // 5 minuti — la generazione AI può richiedere diversi minuti su PDF grandi
+            signal,
+        });
         const raw = unwrap(response, 'Errore nella generazione del quiz persistito');
         const quizRaw = raw?.quiz ?? {};
         const quiz: ExamSavedQuiz & { hasQuestions?: boolean } = {
@@ -544,6 +547,44 @@ class StudyService {
             quiz,
             session: normalizeSession(raw?.session ?? {}),
         };
+    }
+
+    /**
+     * Avvia generazione quiz asincrona con SSE progress.
+     * Restituisce jobId — il progresso arriva via EventSource.
+     */
+    async generatePersistedQuizAsync(
+        deckId: string,
+        payload: PersistedQuizGenerationPayload,
+    ): Promise<{ jobId: string; estimatedSeconds: number }> {
+        const response = await apiClient.post<{ jobId: string; estimatedSeconds: number }>(
+            `${this.baseUrl}/${deckId}/quizzes/generate-async`,
+            payload,
+        );
+        return unwrap(response, 'Errore nell\'avvio della generazione quiz');
+    }
+
+    /**
+     * Polling dello stato di un job di generazione quiz.
+     * Usato come fallback quando SSE non è disponibile.
+     */
+    async getQuizGenerationStatus(
+        deckId: string,
+        jobId: string,
+    ): Promise<{
+        jobId: string;
+        status: string;
+        totalChunks?: number;
+        completedChunks?: number;
+        failedChunks?: number;
+        partialResult?: boolean;
+        error?: string;
+        result?: { quiz: Record<string, unknown>; session: Record<string, unknown> } | null;
+    }> {
+        const response = await apiClient.get<any>(
+            `${this.baseUrl}/${deckId}/quizzes/generate/${jobId}/status`,
+        );
+        return unwrap(response, 'Errore nel recupero stato generazione');
     }
 
     /**

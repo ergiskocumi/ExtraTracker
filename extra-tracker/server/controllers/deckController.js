@@ -7,6 +7,8 @@
 const deckCrudService = require('../services/study/deckCrudService');
 const sessionQuizService = require('../services/study/sessionQuizService');
 const persistedQuizService = require('../services/study/persistedQuizService');
+const quizGenerationService = require('../services/study/QuizGenerationService');
+const { generateTrueFalseStatementsFromText } = require('../services/study/trueFalseGenerator');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
 const {
@@ -273,6 +275,159 @@ const addCardAtPosition = asyncHandler(async (req, res) => {
     res.status(201).json({ success: true, data: deck });
 });
 
+// =========================================
+// ASYNC QUIZ GENERATION (SSE-based)
+// =========================================
+
+const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
+    const body = generatePersistedQuizSchema.parse(req.body);
+    const deck = await sessionQuizService.findById(req.tenantScope, req.params.id, {
+        select: '+extractedText +recentQuizQuestions',
+        throwIfNotFound: true,
+    });
+
+    await sessionQuizService._ensureDeckPdfUrlIntegrity(deck);
+
+    const extractedText = typeof deck.extractedText === 'string' ? deck.extractedText.trim() : '';
+    if (!extractedText) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Quiz AI non disponibile: carica un PDF per abilitare questa modalità.',
+                code: 'QUIZ_PDF_REQUIRED',
+            },
+        });
+    }
+
+    const previousQuestions = Array.isArray(deck.recentQuizQuestions)
+        ? deck.recentQuizQuestions.slice(-50)
+        : [];
+    const telemetry = {
+        userId: req.tenantScope?.userId,
+        deckId: deck._id,
+    };
+
+    // Estimate time: ~15s per chunk + 1.5s delay
+    const chunks = sessionQuizService._splitTextIntoChunks(extractedText);
+    const estimatedSeconds = Math.max(30, chunks.length * 20);
+
+    const { jobId } = quizGenerationService.createJob(req.tenantScope.userId, {
+        deckId: deck._id.toString(),
+        quizType: body.quizType,
+        questionCount: body.questionCount,
+        source: body.source,
+        name: body.name,
+        estimatedSeconds,
+    });
+
+    // Define the chunk processor based on quiz type
+    const processChunkFn = body.quizType === 'true_false'
+        ? async (chunkText, count, seenQuestions, chunkTelemetry) => {
+            const { generateTrueFalseStatementsFromText } = require('../services/study/trueFalseGenerator');
+            const statements = await generateTrueFalseStatementsFromText(
+                extractedText,
+                count,
+                previousQuestions,
+                { ...chunkTelemetry },
+                sessionQuizService._splitTextIntoChunks.bind(sessionQuizService),
+            );
+            // Filter only statements from this chunk (approximation — the generator handles distribution internally)
+            return statements.slice(0, count).map((statement) => ({
+                questionText: statement.statement,
+                correctAnswer: statement.isTrue ? 'Vero' : 'Falso',
+                options: ['Vero', 'Falso'],
+                distractors: [statement.isTrue ? 'Falso' : 'Vero'],
+                distractorExplanations: [],
+                correctAnswerExplanation: statement.explanation || '',
+                difficulty: statement.difficulty || 'standard',
+                correctStatement: statement.correctStatement || null,
+            }));
+        }
+        : async (chunkText, count, seenQuestions, chunkTelemetry) => {
+            const questions = await sessionQuizService.generateQuizFromPDFText(
+                chunkText,
+                count,
+                seenQuestions,
+                chunkTelemetry,
+            );
+            return questions.map((question) => ({
+                questionText: question.questionText,
+                correctAnswer: question.correctAnswer,
+                distractors: Array.isArray(question.distractors) ? question.distractors : [],
+                distractorExplanations: Array.isArray(question.explanations) ? question.explanations : [],
+                correctAnswerExplanation: question.correctAnswerExplanation || '',
+                difficulty: question.difficulty || 'standard',
+            }));
+        };
+
+    // Persist function
+    const persistFn = async (deck, questions, config) => {
+        const createdQuiz = await persistedQuizService.createGeneratedQuiz(req.tenantScope, deck, {
+            name: config.name,
+            quizType: config.quizType,
+            source: config.source,
+            questions,
+            generatedFromText: extractedText,
+            pdfBased: true,
+            originKind: 'ai_pdf',
+        });
+
+        const session = persistedQuizService.buildSessionFromQuiz(deck, createdQuiz, {
+            questionIds: createdQuiz.questions.map((q) => q.questionId),
+        });
+
+        const newQuestionTexts = questions.map((q) => q.questionText);
+        setImmediate(() => {
+            sessionQuizService.updateRaw(req.tenantScope, deck._id, {
+                $push: { recentQuizQuestions: { $each: newQuestionTexts, $slice: -50 } },
+            }).catch(() => {});
+        });
+
+        return {
+            quiz: {
+                id: createdQuiz._id.toString(),
+                deckId: deck._id.toString(),
+                deckTitle: deck.title,
+                examId: deck.examId ? deck.examId.toString() : null,
+                name: createdQuiz.name,
+                quizType: createdQuiz.quizType,
+                questionCount: createdQuiz.questionCount,
+                sourceCardIds: createdQuiz.questions.map((q) => q.questionId),
+                source: createdQuiz.source,
+                createdAt: createdQuiz.createdAt,
+                hasQuestions: true,
+            },
+            session,
+        };
+    };
+
+    // Fire-and-forget: process job in background
+    quizGenerationService.processJob(
+        req.tenantScope.userId,
+        jobId,
+        processChunkFn,
+        { extractedText, questionCount: body.questionCount, previousQuestions, telemetry, deck, persistFn },
+    ).catch((err) => {
+        logger.error('DeckController', 'Async quiz generation failed', { jobId, error: err.message });
+    });
+
+    res.status(202).json({
+        success: true,
+        data: { jobId, estimatedSeconds },
+    });
+});
+
+const getQuizGenerationStatus = asyncHandler(async (req, res) => {
+    const status = quizGenerationService.getJobStatus(req.tenantScope.userId, req.params.jobId);
+    if (!status) {
+        return res.status(404).json({
+            success: false,
+            error: { message: 'Job non trovato o scaduto', code: 'JOB_NOT_FOUND' },
+        });
+    }
+    res.json({ success: true, data: status });
+});
+
 module.exports = {
     createDeck,
     updateDeck,
@@ -281,6 +436,8 @@ module.exports = {
     updateDeckSettings,
     saveQuizSnapshot,
     generatePersistedQuiz,
+    generatePersistedQuizAsync,
+    getQuizGenerationStatus,
     getExamSavedQuizzes,
     resetDistractors,
     resetProgress,

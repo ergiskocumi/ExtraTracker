@@ -33,6 +33,14 @@ const QUIZ_OPTION_WORD_MIN = 5;
 const QUIZ_OPTION_WORD_MAX = 20;
 
 // =========================================
+// CHUNK RETRY & TIMEOUT
+// =========================================
+const CHUNK_AI_TIMEOUT_MS = 90_000;
+const CHUNK_MAX_RETRIES = 3;
+const CHUNK_RETRY_BASE_DELAY_MS = 1_000;
+const CHUNK_CIRCUIT_BREAKER_THRESHOLD = 0.5;
+
+// =========================================
 // TRUE/FALSE AI GENERATION
 // =========================================
 const TF_MIN_TEXT_CHARS = 500;
@@ -159,6 +167,11 @@ module.exports = {
     MAX_TOTAL_CARDS_HARD_CAP,
     MAX_TOTAL_CARDS,
     SIMILARITY_THRESHOLD,
+
+    CHUNK_AI_TIMEOUT_MS,
+    CHUNK_MAX_RETRIES,
+    CHUNK_RETRY_BASE_DELAY_MS,
+    CHUNK_CIRCUIT_BREAKER_THRESHOLD,
 
     TF_MIN_TEXT_CHARS,
     TF_CHARS_PER_STATEMENT,

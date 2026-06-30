@@ -9,6 +9,7 @@ const {
     openai,
     DISTRACTOR_AI_MODEL,
     QUIZ_DEBUG_LOGS,
+    CHUNK_AI_TIMEOUT_MS,
     TF_MIN_TEXT_CHARS,
     TF_CHARS_PER_STATEMENT,
     TF_MIN_STATEMENTS,
@@ -172,7 +173,9 @@ function _validateOutput(output, requestedCount) {
 
     const trueCount = output.statements.filter(s => s.isTrue).length;
     const ratio = trueCount / output.statements.length;
-    if (output.statements.length >= 4 && (ratio < 0.3 || ratio > 0.7)) {
+    if (output.statements.length >= 4 && (ratio < 0.2 || ratio > 0.8)) {
+        checks.push({ level: 'error', msg: `Sbilanciamento V/F critico: ${Math.round(ratio * 100)}% veri (min 20%, max 80%)` });
+    } else if (output.statements.length >= 4 && (ratio < 0.3 || ratio > 0.7)) {
         checks.push({ level: 'warning', msg: `Sbilanciamento V/F: ${Math.round(ratio * 100)}% veri` });
     }
 
@@ -275,7 +278,7 @@ async function _generateChunk(textChunk, count, previousStatements = [], telemet
                 response_format: buildResponseFormat(safeCount),
                 temperature: TF_TEMPERATURE,
             },
-            { timeout: 120000 },
+            { timeout: CHUNK_AI_TIMEOUT_MS },
         ),
     );
 

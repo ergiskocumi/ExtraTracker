@@ -98,7 +98,7 @@ export const DeckDetailPage: React.FC = () => {
         setDeck(updatedDeck);
     }, []);
 
-    const handleGenerateQuizSession = useCallback(async (config: { questionCount: number; quizType: QuizType }) => {
+    const handleGenerateQuizSession = useCallback(async (config: { questionCount: number; quizType: QuizType; signal: AbortSignal }) => {
         if (!id || !deck) return;
 
         const canGenerateTrueFalseFromPdf = config.quizType === 'true_false' && Boolean(deck.pdfUrl);
@@ -113,7 +113,7 @@ export const DeckDetailPage: React.FC = () => {
                 questionCount: config.questionCount,
                 source: 'chapter',
                 name: `Quiz ${config.questionCount} domande`,
-            });
+            }, config.signal);
             const preparedSession = generatedQuiz.session;
 
             if (preparedSession.cards.length === 0) {
@@ -157,6 +157,50 @@ export const DeckDetailPage: React.FC = () => {
         } catch (err: unknown) {
             emitToast.error(getErrorMessage(err) || 'Errore nella preparazione del quiz');
         }
+    }, [id, deck, navigate]);
+
+    /** Async generation completion handler — navigates to the session */
+    const handleAsyncGenerationComplete = useCallback((generatedQuiz: { quiz: Record<string, unknown>; session: Record<string, unknown> }) => {
+        if (!id || !deck) return;
+
+        const quiz = generatedQuiz.quiz;
+        const session = generatedQuiz.session as Record<string, unknown>;
+        const cards = (session.cards as Array<{ id?: string }>) || [];
+
+        const sourceCardIds = Array.from(
+            new Set(cards.map((card) => card.id).filter(Boolean))
+        );
+
+        setDeck((prev) => {
+            if (!prev) return prev;
+            const existing = prev.savedQuizzes ?? [];
+            const alreadyExists = existing.some((q) => q.id === quiz.id);
+            return {
+                ...prev,
+                savedQuizzes: alreadyExists ? existing : [quiz as SavedQuizSnapshot, ...existing],
+            };
+        });
+
+        const params = new URLSearchParams();
+        params.set('mode', 'quiz');
+        params.set('focus', 'all');
+        params.set('questions', String(cards.length));
+        params.set('quizType', (quiz as Record<string, unknown>).quizType as string || 'multiple_choice');
+        params.set('quizSource', 'chapter');
+        params.set('savedQuizId', quiz.id as string);
+        params.set('quizId', quiz.id as string);
+        params.set('run', String(Date.now()));
+        if (sourceCardIds.length > 0) {
+            params.set('sourceCardIds', sourceCardIds.join(','));
+        }
+
+        setIsGenerateQuizOpen(false);
+        navigate(`/study/${id}/session?${params.toString()}`, {
+            state: {
+                preparedSession: session,
+                preparedAt: Date.now(),
+            },
+        });
     }, [id, deck, navigate]);
 
     const handleRepeatSavedQuiz = useCallback(async (savedQuiz: SavedQuizSnapshot) => {
@@ -436,8 +480,10 @@ export const DeckDetailPage: React.FC = () => {
                     isOpen={isGenerateQuizOpen}
                     totalCards={deck.cards?.length || 0}
                     hasPdf={Boolean(deck.pdfUrl)}
+                    deckId={id}
                     onClose={() => setIsGenerateQuizOpen(false)}
                     onGenerate={handleGenerateQuizSession}
+                    onGenerationComplete={handleAsyncGenerationComplete}
                 />
             </Suspense>
 

@@ -4,7 +4,7 @@
  * PDF-based quiz generation (AI), session card mapping, true/false transform.
  */
 
-const { openai, DISTRACTOR_AI_MODEL, QUIZ_DEBUG_LOGS } = require('./constants');
+const { openai, DISTRACTOR_AI_MODEL, QUIZ_DEBUG_LOGS, CHUNK_AI_TIMEOUT_MS } = require('./constants');
 const aiUsageService = require('../aiUsageService');
 const logger = require('../../utils/logger');
 
@@ -196,7 +196,7 @@ module.exports = {
                         response_format: responseFormat,
                         ...({ temperature: 0.35 }),
                     },
-                    { timeout: 120000 },
+                    { timeout: CHUNK_AI_TIMEOUT_MS },
                 ),
             );
         } catch (apiError) {
