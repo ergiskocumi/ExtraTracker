@@ -462,8 +462,9 @@ class QuizGenerationService {
             // This allows extractedText to be truly freed after chunking (line 205).
             const raw = text.substring(start, end);
             chunks.push(Buffer.from(raw, 'utf8').toString('utf8'));
+            if (end >= text.length) break; // ultimo chunk raggiunto — evita loop infinito
             start = end - overlap;
-            // Prevent infinite loop on tiny texts
+            // Prevent infinite loop on tiny texts (overlap >= maxLength case)
             if (start >= end) break;
         }
 
