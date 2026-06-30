@@ -37,6 +37,7 @@ const CHUNK_AI_TIMEOUT_MS = 90_000;
 const CHUNK_MAX_RETRIES = 3;
 const CHUNK_RETRY_BASE_DELAY_MS = 1_000;
 const CHUNK_CIRCUIT_BREAKER_THRESHOLD = 0.5;
+const MAX_CONCURRENT_AI_JOBS = 2;
 
 // =========================================
 // TRUE/FALSE AI GENERATION

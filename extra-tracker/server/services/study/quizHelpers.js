@@ -262,7 +262,11 @@ module.exports = {
                 }
             }
 
-            chunks.push(text.slice(start, end));
+            // Materialize chunk: Buffer round-trip forces V8 to allocate an independent
+            // SeqString, breaking the SlicedString reference to the original backing store.
+            // This allows the original 200K+ extractedText to be GC'd after chunking.
+            const raw = text.slice(start, end);
+            chunks.push(Buffer.from(raw, 'utf8').toString('utf8'));
 
             if (end >= text.length) break;
 
@@ -279,6 +283,8 @@ module.exports = {
 
     async generateQuizFromFullPDF(fullText, totalQuestionsRequested, previousQuestions = [], telemetry = {}) {
         const chunks = this._splitTextIntoChunks(fullText);
+        // Release fullText reference — chunks are now materialized independent strings
+        fullText = null;
 
         if (chunks.length === 0) {
             throw new Error('Testo PDF non valido o vuoto');

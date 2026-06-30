@@ -145,7 +145,19 @@ router.get('/:id/session', studySessionController.getSession);
 router.get('/:id', deckController.getDeckById);
 router.post('/', deckController.createDeck);
 router.patch('/:id', deckController.updateDeck);
-router.post('/:id/quizzes/generate', aiLimiter, deckController.generatePersistedQuiz);
+// Sync quiz generation con timeout di 5 minuti — safety net per OOM.
+// Dopo il timeout il server risponde 504 e libera memoria.
+// Usare generate-async per PDF grandi (previene socket hang up + heap OOM).
+router.post('/:id/quizzes/generate', (req, res, next) => {
+    req.setTimeout(5 * 60 * 1000, () => {
+        if (!res.headersSent) {
+            const err = new Error('Quiz generation timeout — usa generate-async per PDF grandi');
+            err.code = 'ETIMEDOUT';
+            next(err);
+        }
+    });
+    next();
+}, aiLimiter, deckController.generatePersistedQuiz);
 // Async endpoint SENZA aiLimiter: il job creation è cheap (in-memory).
 // Il rate limiting sulle chiamate AI vere è gestito dentro QuizGenerationService.processJob.
 router.post('/:id/quizzes/generate-async', deckController.generatePersistedQuizAsync);

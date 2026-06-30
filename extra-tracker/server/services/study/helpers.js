@@ -570,36 +570,33 @@ module.exports = {
             .replace(/```\n?/g, '')
             .trim();
 
+        // Attempt 1: direct parse (covers 90%+ of cases)
         try {
             return JSON.parse(cleaned);
-        } catch (e) {
-            const extractedObject = cleaned.match(/\{[\s\S]*\}/)?.[0];
-            const extractedArray = cleaned.match(/\[[\s\S]*\]/)?.[0];
-            const extracted = extractedObject || extractedArray || '';
+        } catch (_e) {
+            // fall through to recovery
+        }
 
-            const sanitize = (value) => this._sanitizePotentialJson(value);
+        // Attempt 2: extract JSON structure + single sanitize pass
+        const extractedObject = cleaned.match(/\{[\s\S]*\}/)?.[0];
+        const extractedArray = cleaned.match(/\[[\s\S]*\]/)?.[0];
+        const extracted = extractedObject || extractedArray || "";
+        if (!extracted) {
+            logger.warn("Helpers", "_parseJSONResponse: No JSON structure found", {
+                preview: cleaned.slice(0, 240),
+                length: cleaned.length,
+            });
+            return null;
+        }
 
-            const candidates = [
-                extracted,
-                sanitize(extracted),
-                extracted.replace(/[\u0000-\u0019]/g, ' '),
-                sanitize(extracted.replace(/[\u0000-\u0019]/g, ' ')),
-                cleaned.replace(/[\u0000-\u0019]/g, ' '),
-                sanitize(cleaned),
-                sanitize(cleaned.replace(/[\u0000-\u0019]/g, ' ')),
-                cleaned.replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/\t/g, '\\t'),
-            ].filter(Boolean);
-
-            for (const candidate of candidates) {
-                try {
-                    return JSON.parse(candidate);
-                } catch (_ignored) {
-                    // continua su prossimo tentativo
-                }
-            }
-
-            logger.warn('Helpers', '_parseJSONResponse: Fallito parsing JSON', {
-                message: e.message,
+        // Single sanitize pass — avoids creating 8 candidate strings per parse failure
+        const sanitized = this._sanitizePotentialJson(
+            extracted.replace(/[\u0000-\u0019]/g, " ")
+        );
+        try {
+            return JSON.parse(sanitized);
+        } catch (_e2) {
+            logger.warn("Helpers", "_parseJSONResponse: Fallito parsing JSON after sanitize", {
                 preview: cleaned.slice(0, 240),
                 length: cleaned.length,
             });

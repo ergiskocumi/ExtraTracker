@@ -30,6 +30,13 @@ const JOB_TTL_ORPHANED_MS = 30 * 60 * 1000;   // 30 min max lifetime
 const CLEANUP_INTERVAL_MS = 60 * 1000;        // run cleanup every 60s
 
 // =========================================
+// CONCURRENCY LIMIT (prevents OOM from N simultaneous jobs)
+// =========================================
+const MAX_CONCURRENT_JOBS = 2;
+let activeJobCount = 0;
+const jobQueue = []; // queue of resolve() callbacks for waiting jobs
+
+// =========================================
 // SLEEP UTILITY
 // =========================================
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -193,6 +200,13 @@ class QuizGenerationService {
             emitProgress(userId, jobId, 'error', { error: { message: job.error, code: 'NO_TEXT' } });
             return;
         }
+
+        // --- Concurrency gate: prevent N simultaneous jobs from multiplying memory ---
+        if (activeJobCount >= MAX_CONCURRENT_JOBS) {
+            logger.info('QuizGeneration', `Job ${jobId} queued (${jobQueue.length + 1} waiting, ${activeJobCount} active)`);
+            await new Promise((resolve) => jobQueue.push(resolve));
+        }
+        activeJobCount++;
 
         try {
             // --- Split text into chunks ---
@@ -406,6 +420,16 @@ class QuizGenerationService {
                 error: { message: err.message, code: 'INTERNAL_ERROR' },
             });
             logger.error('QuizGeneration', `Job failed: ${jobId}`, { error: err.message });
+        } finally {
+            activeJobCount--;
+            if (jobQueue.length > 0) {
+                const next = jobQueue.shift();
+                next(); // resolve the next waiting job's promise
+            }
+            if (activeJobCount < 0) {
+                logger.error('QuizGeneration', 'activeJobCount went negative — resetting');
+                activeJobCount = 0;
+            }
         }
     }
 
@@ -433,7 +457,11 @@ class QuizGenerationService {
                 }
             }
 
-            chunks.push(text.substring(start, end)); // V8 SlicedString — zero-copy
+            // Materialize chunk: Buffer round-trip forces independent SeqString allocation,
+            // breaking the SlicedString reference to the original backing store.
+            // This allows extractedText to be truly freed after chunking (line 205).
+            const raw = text.substring(start, end);
+            chunks.push(Buffer.from(raw, 'utf8').toString('utf8'));
             start = end - overlap;
             // Prevent infinite loop on tiny texts
             if (start >= end) break;

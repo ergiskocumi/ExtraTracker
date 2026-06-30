@@ -72,6 +72,8 @@ const generatePersistedQuiz = asyncHandler(async (req, res) => {
     await sessionQuizService._ensureDeckPdfUrlIntegrity(deck);
 
     const extractedText = typeof deck.extractedText === 'string' ? deck.extractedText.trim() : '';
+    // Release Mongoose internal reference — text is now in local variable (matches async path)
+    deck.extractedText = undefined;
     if (!extractedText) {
         return res.status(400).json({
             success: false,
