@@ -146,7 +146,9 @@ router.get('/:id', deckController.getDeckById);
 router.post('/', deckController.createDeck);
 router.patch('/:id', deckController.updateDeck);
 router.post('/:id/quizzes/generate', aiLimiter, deckController.generatePersistedQuiz);
-router.post('/:id/quizzes/generate-async', aiLimiter, deckController.generatePersistedQuizAsync);
+// Async endpoint SENZA aiLimiter: il job creation è cheap (in-memory).
+// Il rate limiting sulle chiamate AI vere è gestito dentro QuizGenerationService.processJob.
+router.post('/:id/quizzes/generate-async', deckController.generatePersistedQuizAsync);
 router.get('/:id/quizzes/generate/:jobId/status', deckController.getQuizGenerationStatus);
 router.post('/:id/quizzes', deckController.saveQuizSnapshot);
 router.get('/:id/quizzes/:quizId/retake', deckController.retakeSavedQuiz);
