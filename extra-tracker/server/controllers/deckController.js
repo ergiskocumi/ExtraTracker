@@ -24,8 +24,6 @@ const {
     recordQuizAttemptSchema,
     updateDeckSettingsSchema,
 } = require('../validators/studyValidators');
-const { generateTrueFalseStatementsFromText } = require('../services/study/trueFalseGenerator');
-
 // =========================================
 // DECKS
 // =========================================
@@ -323,7 +321,6 @@ const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
     // Define the chunk processor based on quiz type
     const processChunkFn = body.quizType === 'true_false'
         ? async (chunkText, count, seenQuestions, chunkTelemetry) => {
-            const { generateTrueFalseStatementsFromText } = require('../services/study/trueFalseGenerator');
             const statements = await generateTrueFalseStatementsFromText(
                 extractedText,
                 count,
