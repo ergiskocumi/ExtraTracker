@@ -224,13 +224,6 @@ async function createCompletion(params, options = {}) {
     if (timeout) requestOptions.timeout = timeout;
     if (signal) requestOptions.signal = signal;
 
-    logger.debug('DeepSeekClient', 'createCompletion', {
-        model: anthropicParams.model,
-        systemLen: (anthropicParams.system || '').length,
-        messageCount: anthropicParams.messages.length,
-        maxTokens: anthropicParams.max_tokens,
-    });
-
     const response = await anthropic.messages.create(anthropicParams, requestOptions);
     return normalizeResponse(response);
 }

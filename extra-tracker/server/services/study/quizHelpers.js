@@ -201,7 +201,11 @@ module.exports = {
                 ),
             );
         } catch (apiError) {
-            this._logQuizDebug('quiz-from-pdf-api-error', { error: apiError.message });
+            logger.warn('StudyService.quiz', 'AI API error', {
+                error: apiError.message,
+                type: apiError.type || apiError.name,
+                status: apiError.status || apiError.statusCode,
+            });
             throw apiError;
         }
 

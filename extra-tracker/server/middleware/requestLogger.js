@@ -13,10 +13,13 @@ const SKIP_LOG_PATHS = [
     '/health',
     '/favicon.ico',
     '/api/auth/check', // 401 atteso quando non loggato; evita log inutili
+    '/api/sse/stream', // polling SSE ogni 3s — troppo rumoroso
 ];
 
 const shouldSkipLog = (path) => {
     if (path.includes('/assets/')) return true;
+    // Quiz generation status polling — ogni 3s, rumoroso
+    if (path.includes('/quizzes/generate/') && path.endsWith('/status')) return true;
     return SKIP_LOG_PATHS.some((p) => path === p || path.startsWith(p + '?'));
 };
 

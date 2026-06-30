@@ -294,6 +294,9 @@ class QuizGenerationService {
                         logger.warn('QuizGeneration', `Chunk ${i + 1}/${chunks.length} attempt ${retry + 1} failed`, {
                             jobId,
                             error: err.message,
+                            type: err.type || err.name || 'unknown',
+                            status: err.status || err.statusCode || null,
+                            code: err.code || null,
                         });
                     }
                 }

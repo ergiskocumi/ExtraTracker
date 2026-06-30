@@ -33,10 +33,10 @@ const QUIZ_OPTION_WORD_MAX = 20;
 // =========================================
 // CHUNK RETRY & TIMEOUT
 // =========================================
-const CHUNK_AI_TIMEOUT_MS = 90_000;
-const CHUNK_MAX_RETRIES = 3;
+const CHUNK_AI_TIMEOUT_MS = 60_000;   // 60s per chunk — reasonable for 4096 token response
+const CHUNK_MAX_RETRIES = 2;          // 2 retries = 3 total attempts per chunk
 const CHUNK_RETRY_BASE_DELAY_MS = 1_000;
-const CHUNK_CIRCUIT_BREAKER_THRESHOLD = 0.5;
+const CHUNK_CIRCUIT_BREAKER_THRESHOLD = 0.6; // allow 1 failure in first 2 chunks
 const MAX_CONCURRENT_AI_JOBS = 2;
 
 // =========================================
@@ -53,8 +53,7 @@ const DISTRACTOR_PROMPT_VERSION = 'v3';
 const QUIZ_OPTION_LENGTH_MIN_RATIO = 0.8;
 const QUIZ_OPTION_LENGTH_MAX_RATIO = 1.25;
 const QUIZ_OPTION_WORD_SPREAD_MAX = 4;
-const QUIZ_DEBUG_LOGS = process.env.NODE_ENV !== 'production'
-    || String(process.env.QUIZ_DEBUG_LOGS || '').toLowerCase() === 'true';
+const QUIZ_DEBUG_LOGS = String(process.env.QUIZ_DEBUG_LOGS || '').toLowerCase() === 'true';
 const INCOMPLETE_TRAILING_WORDS = new Set([
     'a', 'ad', 'al', 'alla', 'alle', 'allo', 'all', 'agli', 'ai',
     'da', 'dal', 'dalla', 'dalle', 'dallo', 'dei', 'degli', 'delle',
