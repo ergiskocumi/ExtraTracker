@@ -5,7 +5,7 @@
  * real-time progress state. Falls back to polling if SSE disconnects.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // =========================================
 // TYPES
@@ -16,6 +16,7 @@ export type QuizGenerationPhase =
     | 'connecting'
     | 'started'
     | 'processing'
+    | 'persisting'
     | 'completed'
     | 'failed'
     | 'cancelled';
@@ -54,10 +55,15 @@ export interface UseQuizGenerationProgressOptions {
         totalChunks?: number;
         completedChunks?: number;
         failedChunks?: number;
+        chunks?: Array<{ index: number; status: string; retries: number }>;
+        estimatedSeconds?: number;
+        elapsedSeconds?: number;
+        config?: { questionCount?: number };
+        questionCount?: number;
         partialResult?: boolean;
         error?: string;
         result?: { quiz: Record<string, unknown>; session: Record<string, unknown> } | null;
-    }>;
+    } | null>;
 }
 
 // =========================================
@@ -90,10 +96,14 @@ export function useQuizGenerationProgress({
     onCompleteRef.current = onComplete;
     const onErrorRef = useRef(onError);
     onErrorRef.current = onError;
+    const completionNotifiedRef = useRef(false);
+    const errorNotifiedRef = useRef(false);
 
     // Reset when jobId changes
     useEffect(() => {
         if (jobId) {
+            completionNotifiedRef.current = false;
+            errorNotifiedRef.current = false;
             setProgress((prev) => ({
                 ...prev,
                 phase: 'connecting',
@@ -119,6 +129,20 @@ export function useQuizGenerationProgress({
         let eventSource: EventSource | null = null;
         let pollingTimer: ReturnType<typeof setInterval> | null = null;
         let cancelled = false;
+        let consecutivePollFailures = 0;
+        const MAX_POLL_FAILURES = 5;
+
+        const notifyComplete = (result: { quiz: Record<string, unknown>; session: Record<string, unknown> }): void => {
+            if (completionNotifiedRef.current) return;
+            completionNotifiedRef.current = true;
+            onCompleteRef.current?.(result);
+        };
+
+        const notifyError = (error: string): void => {
+            if (errorNotifiedRef.current) return;
+            errorNotifiedRef.current = true;
+            onErrorRef.current?.(error);
+        };
 
         const connectSSE = () => {
             try {
@@ -149,7 +173,9 @@ export function useQuizGenerationProgress({
                                     ...prev,
                                     phase: 'processing',
                                     totalChunks: data.totalChunks || 0,
+                                    completedChunks: data.completedChunks || 0,
                                     estimatedSeconds: data.estimatedSeconds || 0,
+                                    questionCount: data.questionCount || 0,
                                     chunks: Array.from(
                                         { length: data.totalChunks || 0 },
                                         (_, i) => ({ index: i, status: 'pending' as const, retries: 0 }),
@@ -167,7 +193,13 @@ export function useQuizGenerationProgress({
                                             status: data.status === 'failed' ? 'failed' : 'processing',
                                         };
                                     }
-                                    return { ...prev, chunks };
+                                    return {
+                                        ...prev,
+                                        phase: 'processing',
+                                        chunks,
+                                        completedChunks: typeof data.completedChunks === 'number' ? data.completedChunks : prev.completedChunks,
+                                        failedChunks: typeof data.failedChunks === 'number' ? data.failedChunks : prev.failedChunks,
+                                    };
                                 });
                                 break;
 
@@ -181,7 +213,10 @@ export function useQuizGenerationProgress({
                                     return {
                                         ...prev,
                                         chunks,
-                                        completedChunks: (prev.completedChunks || 0) + 1,
+                                        completedChunks: typeof data.completedChunks === 'number'
+                                            ? data.completedChunks
+                                            : (prev.completedChunks || 0) + 1,
+                                        failedChunks: typeof data.failedChunks === 'number' ? data.failedChunks : prev.failedChunks,
                                     };
                                 });
                                 break;
@@ -200,6 +235,18 @@ export function useQuizGenerationProgress({
                                 });
                                 break;
 
+                            case 'quiz.generation.persisting':
+                                setProgress((prev) => ({
+                                    ...prev,
+                                    phase: 'persisting',
+                                    totalChunks: data.totalChunks || prev.totalChunks,
+                                    completedChunks: data.completedChunks ?? prev.completedChunks,
+                                    failedChunks: data.failedChunks ?? prev.failedChunks,
+                                    questionCount: data.questionCount || prev.questionCount,
+                                    partialResult: Boolean(data.partialResult),
+                                }));
+                                break;
+
                             case 'quiz.generation.complete':
                                 setProgress((prev) => ({
                                     ...prev,
@@ -211,8 +258,8 @@ export function useQuizGenerationProgress({
                                         session: data.session || null,
                                     },
                                 }));
-                                if (onCompleteRef.current && data.quiz && data.session) {
-                                    onCompleteRef.current({
+                                if (data.quiz && data.session) {
+                                    notifyComplete({
                                         quiz: data.quiz as Record<string, unknown>,
                                         session: data.session as Record<string, unknown>,
                                     });
@@ -225,7 +272,7 @@ export function useQuizGenerationProgress({
                                     phase: 'failed',
                                     error: data.error?.message || 'Errore sconosciuto',
                                 }));
-                                onErrorRef.current?.(data.error?.message || 'Errore sconosciuto');
+                                notifyError(data.error?.message || 'Errore sconosciuto');
                                 break;
                         }
                     } catch {
@@ -235,23 +282,18 @@ export function useQuizGenerationProgress({
 
                 eventSource.onerror = () => {
                     if (cancelled) return;
-                    // SSE connection lost — fall back to polling
                     eventSource?.close();
                     eventSource = null;
-                    startPolling();
                 };
             } catch {
-                // EventSource not available or connection failed — start polling
-                startPolling();
+                // EventSource not available. Polling is already active below.
             }
         };
 
-        let consecutivePollFailures = 0;
-        const MAX_POLL_FAILURES = 5;
-
         const startPolling = () => {
-            if (cancelled || !pollStatusFn) return;
-            pollingTimer = setInterval(async () => {
+            if (cancelled || !pollStatusFn || pollingTimer) return;
+
+            const pollOnce = async () => {
                 if (cancelled) return;
                 try {
                     const status = await pollStatusFn(deckId, jobId);
@@ -284,10 +326,15 @@ export function useQuizGenerationProgress({
                             ? 'completed'
                             : status.status === 'failed'
                               ? 'failed'
-                              : 'processing',
+                              : status.status === 'persisting'
+                                ? 'persisting'
+                                : 'processing',
                         totalChunks: status.totalChunks ?? prev.totalChunks,
                         completedChunks: status.completedChunks ?? prev.completedChunks,
                         failedChunks: status.failedChunks ?? prev.failedChunks,
+                        estimatedSeconds: status.estimatedSeconds ?? prev.estimatedSeconds,
+                        elapsedSeconds: status.elapsedSeconds ?? prev.elapsedSeconds,
+                        questionCount: status.questionCount ?? status.config?.questionCount ?? prev.questionCount,
                         partialResult: Boolean(status.partialResult),
                         error: status.error || null,
                         result: status.result || prev.result,
@@ -296,15 +343,15 @@ export function useQuizGenerationProgress({
 
                     if (status.status === 'completed') {
                         if (pollingTimer) clearInterval(pollingTimer);
-                        if (onCompleteRef.current && status.result?.quiz && status.result?.session) {
-                            onCompleteRef.current({
+                        if (status.result?.quiz && status.result?.session) {
+                            notifyComplete({
                                 quiz: status.result.quiz as Record<string, unknown>,
                                 session: status.result.session as Record<string, unknown>,
                             });
                         }
                     } else if (status.status === 'failed') {
                         if (pollingTimer) clearInterval(pollingTimer);
-                        onErrorRef.current?.(status.error || 'Generazione fallita');
+                        notifyError(status.error || 'Generazione fallita');
                     }
                 } catch {
                     consecutivePollFailures++;
@@ -315,12 +362,19 @@ export function useQuizGenerationProgress({
                             phase: 'failed',
                             error: 'Impossibile verificare lo stato della generazione. Riprova.',
                         }));
+                        notifyError('Impossibile verificare lo stato della generazione. Riprova.');
                     }
                 }
-            }, 3000); // 3s interval (was 5s)
+            };
+
+            void pollOnce();
+            pollingTimer = setInterval(() => {
+                void pollOnce();
+            }, 2000);
         };
 
         connectSSE();
+        startPolling();
 
         return () => {
             cancelled = true;

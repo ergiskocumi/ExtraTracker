@@ -101,8 +101,8 @@ export const DeckDetailPage: React.FC = () => {
     const handleGenerateQuizSession = useCallback(async (config: { questionCount: number; quizType: QuizType; signal: AbortSignal }) => {
         if (!id || !deck) return;
 
-        const canGenerateTrueFalseFromPdf = config.quizType === 'true_false' && Boolean(deck.pdfUrl);
-        if (!canGenerateTrueFalseFromPdf && (deck.cards?.length || 0) < 10) {
+        const canGenerateFromPdf = Boolean(deck.pdfUrl);
+        if (!canGenerateFromPdf && (deck.cards?.length || 0) < 10) {
             emitToast.info('Crea almeno 10 flashcard per sbloccare la generazione del quiz');
             return;
         }
@@ -166,6 +166,20 @@ export const DeckDetailPage: React.FC = () => {
         const quiz = generatedQuiz.quiz;
         const session = generatedQuiz.session as Record<string, unknown>;
         const cards = (session.cards as Array<{ id?: string }>) || [];
+        const savedQuizSnapshot: SavedQuizSnapshot = {
+            id: String(quiz.id || ''),
+            name: typeof quiz.name === 'string' ? quiz.name : 'Quiz',
+            quizType: quiz.quizType === 'true_false' ? 'true_false' : 'multiple_choice',
+            questionCount: typeof quiz.questionCount === 'number' ? quiz.questionCount : cards.length,
+            sourceCardIds: Array.isArray(quiz.sourceCardIds)
+                ? quiz.sourceCardIds.map((sourceCardId) => String(sourceCardId)).filter(Boolean)
+                : [],
+            source: ['repeat', 'errors', 'saved'].includes(String(quiz.source))
+                ? quiz.source as SavedQuizSnapshot['source']
+                : 'chapter',
+            createdAt: typeof quiz.createdAt === 'string' ? quiz.createdAt : undefined,
+            hasQuestions: Boolean(quiz.hasQuestions),
+        };
 
         const sourceCardIds = Array.from(
             new Set(cards.map((card) => card.id).filter(Boolean))
@@ -177,7 +191,7 @@ export const DeckDetailPage: React.FC = () => {
             const alreadyExists = existing.some((q) => q.id === quiz.id);
             return {
                 ...prev,
-                savedQuizzes: alreadyExists ? existing : [quiz as SavedQuizSnapshot, ...existing],
+                savedQuizzes: alreadyExists ? existing : [savedQuizSnapshot, ...existing],
             };
         });
 

@@ -578,6 +578,11 @@ class StudyService {
         totalChunks?: number;
         completedChunks?: number;
         failedChunks?: number;
+        chunks?: Array<{ index: number; status: string; retries: number }>;
+        estimatedSeconds?: number;
+        elapsedSeconds?: number;
+        questionCount?: number;
+        config?: { questionCount?: number };
         partialResult?: boolean;
         error?: string;
         result?: { quiz: Record<string, unknown>; session: Record<string, unknown> } | null;

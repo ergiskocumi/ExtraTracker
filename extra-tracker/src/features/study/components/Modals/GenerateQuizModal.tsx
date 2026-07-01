@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import type { QuizType } from '../../services/studyService';
 import { QuizGenerationProgress } from '../QuizGenerationProgress';
-import type { QuizGenerationProgress as QuizProgressState } from '../../hooks/useQuizGenerationProgress';
 import { useQuizGenerationProgress } from '../../hooks/useQuizGenerationProgress';
 import { studyService } from '../../services/studyService';
 
@@ -57,11 +56,16 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
     const [isGenerating, setIsGenerating] = useState(false);
     const [generationError, setGenerationError] = useState<string | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-    const usesPdfBasedTrueFalse = hasPdf && quizType === 'true_false';
+    const usesPdfBasedAiQuiz = hasPdf;
 
     // --- Async generation state ---
     const [asyncJobId, setAsyncJobId] = useState<string | null>(null);
     const useAsync = Boolean(deckId);
+
+    const pollQuizGenerationStatus = useCallback(
+        (dId: string, jId: string) => studyService.getQuizGenerationStatus(dId, jId),
+        [],
+    );
 
     const asyncProgress = useQuizGenerationProgress({
         jobId: asyncJobId,
@@ -74,13 +78,7 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
             setIsGenerating(false);
             setGenerationError(error);
         },
-        pollStatusFn: async (dId, jId) => {
-            try {
-                return await studyService.getQuizGenerationStatus(dId, jId);
-            } catch {
-                return null;
-            }
-        },
+        pollStatusFn: pollQuizGenerationStatus,
     });
 
     useEffect(() => {
@@ -98,11 +96,11 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
         const options: QuestionOption[] = PRESET_COUNTS.map((count) => ({
             value: count,
             label: String(count),
-            disabled: usesPdfBasedTrueFalse ? false : count > totalCards,
+            disabled: usesPdfBasedAiQuiz ? false : count > totalCards,
         }));
 
         const needsDynamic =
-            !usesPdfBasedTrueFalse &&
+            !usesPdfBasedAiQuiz &&
             totalCards >= MIN_QUIZ_CARDS &&
             !PRESET_COUNTS.includes(
                 totalCards as (typeof PRESET_COUNTS)[number],
@@ -118,7 +116,7 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
         }
 
         return options;
-    }, [totalCards, usesPdfBasedTrueFalse]);
+    }, [totalCards, usesPdfBasedAiQuiz]);
 
     const firstEnabledOption = useMemo(
         () => questionOptions.find((o) => !o.disabled)?.value ?? null,
@@ -136,7 +134,7 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
     }, [selectedCount, questionOptions, firstEnabledOption]);
 
     const canGenerate =
-        (usesPdfBasedTrueFalse || totalCards >= MIN_QUIZ_CARDS) &&
+        (usesPdfBasedAiQuiz || totalCards >= MIN_QUIZ_CARDS) &&
         effectiveSelectedCount !== null;
 
     const handleCancelGeneration = useCallback(() => {
@@ -209,7 +207,7 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay backdrop-blur-sm"
                     onClick={handleBackdropClick}
                 >
                     <motion.div
@@ -377,7 +375,11 @@ export const GenerateQuizModal: React.FC<GenerateQuizModalProps> = ({
                                             }
                                             icon={ListChecks}
                                             title="Scelta multipla"
-                                            description="1 corretta + 3 distrattori plausibili"
+                                            description={
+                                                hasPdf
+                                                    ? 'Domande AI dal contenuto del capitolo'
+                                                    : '1 corretta + 3 distrattori plausibili'
+                                            }
                                         />
                                         <QuizTypeCard
                                             selected={

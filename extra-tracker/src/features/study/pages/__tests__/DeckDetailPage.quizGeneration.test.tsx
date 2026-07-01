@@ -10,6 +10,7 @@ vi.mock('../../services/studyService', () => ({
     studyService: {
         getDeckById: vi.fn(),
         getSession: vi.fn(),
+        generatePersistedQuiz: vi.fn(),
         saveQuizSnapshot: vi.fn(),
         deleteDeck: vi.fn(),
         resetDeckProgress: vi.fn(),
@@ -109,7 +110,7 @@ describe('DeckDetailPage quiz generation gate', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockUseParams.mockReturnValue({ id: 'deck-1' });
-        (studyService.saveQuizSnapshot as any).mockResolvedValue({
+        vi.mocked(studyService.saveQuizSnapshot).mockResolvedValue({
             id: 'saved-1',
             deckId: 'deck-1',
             deckTitle: 'Deck quiz',
@@ -120,7 +121,7 @@ describe('DeckDetailPage quiz generation gate', () => {
             sourceCardIds: ['quiz_tf_1'],
             source: 'chapter',
         });
-        (studyService.getSession as any).mockResolvedValue({
+        vi.mocked(studyService.getSession).mockResolvedValue({
             deck: { id: 'deck-1', title: 'Deck quiz', cards: [], totalCards: 2, dueCount: 0, tags: [] },
             cards: [
                 { id: 'quiz_tf_1', front: 'S1', back: 'Vero', easinessFactor: 2.5, interval: 0, repetitions: 0, nextReviewDate: new Date().toISOString(), status: 'new' },
@@ -130,10 +131,34 @@ describe('DeckDetailPage quiz generation gate', () => {
             total: 2,
             mode: 'quiz',
         });
+        vi.mocked(studyService.generatePersistedQuiz).mockResolvedValue({
+            quiz: {
+                id: 'saved-1',
+                deckId: 'deck-1',
+                deckTitle: 'Deck quiz',
+                examId: null,
+                name: 'Quiz',
+                quizType: 'true_false',
+                questionCount: 2,
+                sourceCardIds: ['quiz_tf_1', 'quiz_tf_2'],
+                source: 'chapter',
+                hasQuestions: true,
+            },
+            session: {
+                deck: { id: 'deck-1', title: 'Deck quiz', cards: [], totalCards: 2, dueCount: 0, tags: [] },
+                cards: [
+                    { id: 'quiz_tf_1', front: 'S1', back: 'Vero', easinessFactor: 2.5, interval: 0, repetitions: 0, nextReviewDate: new Date().toISOString(), status: 'new' },
+                    { id: 'quiz_tf_2', front: 'S2', back: 'Falso', easinessFactor: 2.5, interval: 0, repetitions: 0, nextReviewDate: new Date().toISOString(), status: 'new' },
+                ],
+                remaining: 2,
+                total: 2,
+                mode: 'quiz',
+            },
+        });
     });
 
     it('allows true/false generation with few cards when a PDF is available', async () => {
-        (studyService.getDeckById as any).mockResolvedValue(buildDeck({ pdfUrl: '/uploads/chapter.pdf' }));
+        vi.mocked(studyService.getDeckById).mockResolvedValue(buildDeck({ pdfUrl: '/uploads/chapter.pdf' }));
 
         renderWithRouter();
 
@@ -142,19 +167,18 @@ describe('DeckDetailPage quiz generation gate', () => {
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Apri genera quiz' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Conferma vero falso' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Conferma vero falso' }));
 
         await waitFor(() => {
-            expect(studyService.getSession).toHaveBeenCalledWith('deck-1', expect.objectContaining({
-                mode: 'quiz',
+            expect(studyService.generatePersistedQuiz).toHaveBeenCalledWith('deck-1', expect.objectContaining({
                 quizType: 'true_false',
-            }));
+            }), undefined);
         });
         expect(emitToast.info).not.toHaveBeenCalledWith(expect.stringMatching(/Crea almeno 10 flashcard/i));
     });
 
     it('still blocks true/false generation without PDF when there are too few cards', async () => {
-        (studyService.getDeckById as any).mockResolvedValue(buildDeck({ pdfUrl: null }));
+        vi.mocked(studyService.getDeckById).mockResolvedValue(buildDeck({ pdfUrl: null }));
 
         renderWithRouter();
 
@@ -163,11 +187,12 @@ describe('DeckDetailPage quiz generation gate', () => {
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Apri genera quiz' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Conferma vero falso' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Conferma vero falso' }));
 
         await waitFor(() => {
             expect(emitToast.info).toHaveBeenCalledWith('Crea almeno 10 flashcard per sbloccare la generazione del quiz');
         });
         expect(studyService.getSession).not.toHaveBeenCalled();
+        expect(studyService.generatePersistedQuiz).not.toHaveBeenCalled();
     });
 });

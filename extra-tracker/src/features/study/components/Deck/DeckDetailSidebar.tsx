@@ -16,69 +16,8 @@ import {
 } from 'lucide-react';
 import type { Deck } from '../../services/studyService';
 import { cn } from '../../../../lib/utils';
-
-export const formatRelativeTime = (isoString: string | undefined): string => {
-  if (!isoString) return '';
-  const diff = Date.now() - new Date(isoString).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return 'poco fa';
-  if (minutes < 60) return `${minutes}m fa`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h fa`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}g fa`;
-  const months = Math.floor(days / 30);
-  return `${months} mes. fa`;
-};
-
-export const DistributionBar = ({
-  new: newCount,
-  learning,
-  review,
-  mastered,
-  total,
-}: {
-  new: number;
-  learning: number;
-  review: number;
-  mastered: number;
-  total: number;
-}): React.ReactElement | null => {
-  const items = [
-    { count: newCount, color: 'bg-sky-500', label: 'Nuove' },
-    { count: learning, color: 'bg-amber-500', label: 'In studio' },
-    { count: review, color: 'bg-orange-500', label: 'Ripasso' },
-    { count: mastered, color: 'bg-emerald-500', label: 'Padroneggiate' },
-  ].filter(item => item.count > 0);
-
-  if (total === 0) return null;
-
-  return (
-    <div className="space-y-2.5">
-      <div className="flex h-2 overflow-hidden rounded-full bg-theme-base">
-        {items.map((item, idx) => (
-          <motion.div
-            key={item.label}
-            style={{ transformOrigin: 'left' }}
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: item.count / total }}
-            transition={{ duration: 0.6, delay: idx * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className={cn('h-full w-full first:rounded-l-full last:rounded-r-full', item.color)}
-            title={`${item.label}: ${item.count}`}
-          />
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {items.map(item => (
-          <span key={item.label} className="flex items-center gap-1.5 text-xs text-theme-secondary">
-            <span className={cn('h-1.5 w-1.5 rounded-full', item.color)} />
-            {item.label} ({item.count})
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-};
+import { DistributionBar } from './DistributionBar';
+import { formatRelativeTime } from './DeckDetailSidebar.utils';
 
 interface SidebarSectionProps {
   title?: string;
@@ -142,7 +81,10 @@ export const DeckDetailSidebar: React.FC<DeckDetailSidebarProps> = ({
   onShare,
   onResetProgress,
   onReadPdf,
-}) => (
+}) => {
+  const canGenerateQuiz = Boolean(deck.pdfUrl) || stats.total >= 10;
+
+  return (
   <aside className="custom-scrollbar w-full flex-shrink-0 space-y-4 lg:sticky lg:top-[calc(var(--app-header-height,72px)+1.5rem)] lg:max-h-[calc(100dvh-var(--app-header-height,72px)-3rem)] lg:w-80 lg:self-start lg:overflow-y-auto xl:w-[340px]">
     <div className="hidden lg:block">
       <SidebarSection title="Distribuzione" icon={Layers} iconColor="text-sky-500">
@@ -194,15 +136,15 @@ export const DeckDetailSidebar: React.FC<DeckDetailSidebarProps> = ({
         {onGenerateQuiz && (
           <button
             onClick={onGenerateQuiz}
-            disabled={stats.total < 10}
+            disabled={!canGenerateQuiz}
             title={
-              stats.total < 10
-                ? 'Crea almeno 10 flashcard per sbloccare il quiz'
-                : 'Genera un quiz da questo mazzo'
+              canGenerateQuiz
+                ? 'Genera un quiz da questo mazzo'
+                : 'Carica un PDF o crea almeno 10 flashcard per generare un quiz'
             }
             className={cn(
               'group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-all active:scale-[0.98]',
-              stats.total >= 10
+              canGenerateQuiz
                 ? 'border border-theme-default bg-theme-surface text-theme-primary hover:border-indigo-500/40 hover:bg-indigo-500/[0.02] hover:shadow-md hover:shadow-indigo-500/5'
                 : 'cursor-not-allowed border border-theme-subtle bg-theme-surface/50 text-theme-muted opacity-60',
             )}
@@ -210,11 +152,11 @@ export const DeckDetailSidebar: React.FC<DeckDetailSidebarProps> = ({
             <div
               className={cn(
                 'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
-                stats.total >= 10 ? 'bg-indigo-500/10 group-hover:bg-indigo-500/20' : 'bg-theme-subtle',
+                canGenerateQuiz ? 'bg-indigo-500/10 group-hover:bg-indigo-500/20' : 'bg-theme-subtle',
               )}
             >
               <ListChecks
-                className={cn('h-4 w-4 flex-shrink-0', stats.total >= 10 ? 'text-indigo-500' : 'text-theme-muted')}
+                className={cn('h-4 w-4 flex-shrink-0', canGenerateQuiz ? 'text-indigo-500' : 'text-theme-muted')}
               />
             </div>
             <div className="flex flex-col items-start">
@@ -372,6 +314,7 @@ export const DeckDetailSidebar: React.FC<DeckDetailSidebarProps> = ({
       </div>
     )}
   </aside>
-);
+  );
+};
 
 export default DeckDetailSidebar;

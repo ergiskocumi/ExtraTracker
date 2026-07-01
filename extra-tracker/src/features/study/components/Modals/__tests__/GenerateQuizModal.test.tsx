@@ -50,4 +50,19 @@ describe('GenerateQuizModal', () => {
 
         expect(screen.getByRole('button', { name: /Genera Quiz/i })).toBeEnabled();
     });
+
+    it('allows multiple-choice generation from PDF even with fewer than 10 cards', () => {
+        render(
+            <GenerateQuizModal
+                isOpen
+                totalCards={2}
+                hasPdf
+                onClose={vi.fn()}
+                onGenerate={vi.fn()}
+            />
+        );
+
+        expect(screen.getByText(/Domande AI dal contenuto del capitolo/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Genera Quiz/i })).toBeEnabled();
+    });
 });

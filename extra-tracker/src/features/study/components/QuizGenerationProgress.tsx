@@ -6,8 +6,8 @@
 
 import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, CheckCircle2, XCircle, RefreshCw, Clock, AlertTriangle } from 'lucide-react';
-import type { QuizGenerationProgress as QuizProgressState } from '../../hooks/useQuizGenerationProgress';
+import { Loader2, CheckCircle2, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import type { QuizGenerationProgress as QuizProgressState } from '../hooks/useQuizGenerationProgress';
 
 // =========================================
 // TYPES
@@ -27,6 +27,7 @@ const PHASE_LABELS: Record<string, string> = {
     connecting: 'Connessione in corso...',
     started: 'Avvio generazione...',
     processing: 'Generazione quiz in corso',
+    persisting: 'Salvataggio quiz...',
     completed: 'Quiz generato!',
     failed: 'Generazione fallita',
     cancelled: 'Generazione annullata',
@@ -49,17 +50,25 @@ export const QuizGenerationProgress: React.FC<QuizGenerationProgressProps> = ({
 }) => {
     const percentage = useMemo(() => {
         if (progress.totalChunks === 0) return 0;
-        return Math.round((progress.completedChunks / progress.totalChunks) * 100);
-    }, [progress.completedChunks, progress.totalChunks]);
+        if (progress.phase === 'persisting' || progress.phase === 'completed') return 100;
+        const processedChunks = progress.completedChunks + progress.failedChunks;
+        return Math.round((processedChunks / progress.totalChunks) * 100);
+    }, [progress.completedChunks, progress.failedChunks, progress.phase, progress.totalChunks]);
+
+    const processingChunks = useMemo(
+        () => progress.chunks.filter((chunk) => chunk.status === 'processing').length,
+        [progress.chunks],
+    );
 
     const eta = useMemo(() => {
-        if (progress.completedChunks === 0 || progress.totalChunks === 0) return null;
-        const remaining = progress.totalChunks - progress.completedChunks;
+        const processedChunks = progress.completedChunks + progress.failedChunks;
+        if (processedChunks === 0 || progress.totalChunks === 0) return null;
+        const remaining = progress.totalChunks - processedChunks;
         const avgPerChunk = progress.elapsedSeconds > 0
-            ? progress.elapsedSeconds / progress.completedChunks
+            ? progress.elapsedSeconds / processedChunks
             : 15;
         return Math.round(remaining * avgPerChunk);
-    }, [progress.completedChunks, progress.totalChunks, progress.elapsedSeconds]);
+    }, [progress.completedChunks, progress.failedChunks, progress.totalChunks, progress.elapsedSeconds]);
 
     if (progress.phase === 'idle') return null;
 
@@ -76,7 +85,7 @@ export const QuizGenerationProgress: React.FC<QuizGenerationProgressProps> = ({
                 {/* ─── Phase label ─── */}
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        {progress.phase === 'processing' && (
+                        {(progress.phase === 'processing' || progress.phase === 'persisting') && (
                             <Loader2 className="w-4 h-4 text-primary-500 animate-spin" />
                         )}
                         {progress.phase === 'completed' && (
@@ -93,15 +102,15 @@ export const QuizGenerationProgress: React.FC<QuizGenerationProgressProps> = ({
                         </span>
                     </div>
 
-                    {progress.phase === 'processing' && (
+                    {(progress.phase === 'processing' || progress.phase === 'persisting') && (
                         <span className="text-xs text-theme-muted tabular-nums">
-                            {progress.completedChunks}/{progress.totalChunks} chunk
+                            {progress.completedChunks + progress.failedChunks}/{progress.totalChunks} parti
                         </span>
                     )}
                 </div>
 
                 {/* ─── Progress bar ─── */}
-                {progress.totalChunks > 0 && progress.phase === 'processing' && (
+                {progress.totalChunks > 0 && (progress.phase === 'processing' || progress.phase === 'persisting') && (
                     <div className="space-y-2">
                         {/* Bar */}
                         <div className="w-full h-2 bg-theme-surface rounded-full overflow-hidden">
@@ -141,7 +150,7 @@ export const QuizGenerationProgress: React.FC<QuizGenerationProgressProps> = ({
                                                       ? 'bg-theme-surface/50 text-theme-muted'
                                                       : 'bg-theme-surface/30 text-theme-muted'
                                         }`}
-                                        title={`Chunk ${chunk.index + 1}: ${chunk.status}${
+                                        title={`Parte ${chunk.index + 1}: ${chunk.status}${
                                             chunk.retries > 0 ? ` (${chunk.retries} retry)` : ''
                                         }`}
                                     >
@@ -159,13 +168,37 @@ export const QuizGenerationProgress: React.FC<QuizGenerationProgressProps> = ({
                             })}
                         </div>
 
-                        {/* ETA */}
-                        {eta !== null && eta > 0 && (
-                            <div className="flex items-center gap-1.5 text-xs text-theme-muted">
-                                <Clock className="w-3 h-3" />
-                                <span>Tempo stimato: ~{formatTime(eta)}</span>
+                        <div className="space-y-1 text-xs text-theme-muted">
+                            {progress.phase === 'processing' && (
+                                <p>
+                                    {processingChunks > 0
+                                        ? `Sto elaborando ${processingChunks} parti in parallelo.`
+                                        : 'Preparazione della prossima parte...'}
+                                </p>
+                            )}
+                            {progress.phase === 'persisting' && (
+                                <p>Domande generate. Sto salvando il quiz e preparando la sessione.</p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                {progress.questionCount > 0 && (
+                                    <span>{progress.questionCount} domande richieste</span>
+                                )}
+                                {progress.failedChunks > 0 && (
+                                    <span className="text-amber-600 dark:text-amber-400">
+                                        {progress.failedChunks} parti fallite
+                                    </span>
+                                )}
+                                {progress.elapsedSeconds > 0 && (
+                                    <span className="inline-flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        {formatTime(progress.elapsedSeconds)} trascorsi
+                                    </span>
+                                )}
+                                {eta !== null && eta > 0 && progress.phase === 'processing' && (
+                                    <span>~{formatTime(eta)} rimanenti</span>
+                                )}
                             </div>
-                        )}
+                        </div>
                     </div>
                 )}
 
@@ -189,7 +222,7 @@ export const QuizGenerationProgress: React.FC<QuizGenerationProgressProps> = ({
                 )}
 
                 {/* ─── Cancel button (only during processing) ─── */}
-                {progress.phase === 'processing' && onCancel && (
+                {(progress.phase === 'processing' || progress.phase === 'persisting') && onCancel && (
                     <button
                         type="button"
                         onClick={onCancel}

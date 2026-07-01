@@ -30,7 +30,9 @@ import { FlashcardItem } from '../Flashcard/FlashcardItem';
 const CardEditorModal = lazy(() => import('./CardEditorModal').then(m => ({ default: m.CardEditorModal })));
 import { cn } from '../../../../lib/utils';
 import { getErrorMessage } from '../../../../utils/errorMessage';
-import { DeckDetailSidebar, formatRelativeTime, DistributionBar } from './DeckDetailSidebar';
+import { DeckDetailSidebar } from './DeckDetailSidebar';
+import { DistributionBar } from './DistributionBar';
+import { formatRelativeTime } from './DeckDetailSidebar.utils';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -65,7 +67,6 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   onReadPdf,
   onMagicGenerate,
   onDeckUpdate,
-  onDeleteDeck: _onDeleteDeck,
   onExport,
   onShare,
   onResetProgress,
@@ -91,7 +92,6 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
       }, 800);
       return () => clearTimeout(t);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [filter, setFilter] = useState<FilterStatus>('all');
