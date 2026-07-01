@@ -45,7 +45,6 @@ const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
 const dashboardRoutes = require('./routes/dashboard');
 const sseRoutes = require('./routes/sse');
-const { userRoutes: feedbackUserRoutes, adminRoutes: feedbackAdminRoutes } = require('./routes/feedback');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
@@ -155,8 +154,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/sse', sseRoutes);
-app.use('/api/feedback', feedbackUserRoutes);
-app.use('/api/admin/feedback', feedbackAdminRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api', apiRoutes);
 app.use('/api/exams', examsRoutes);

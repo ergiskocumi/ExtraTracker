@@ -2,32 +2,11 @@
  * SETTINGS VALIDATORS
  * ====================
  *
- * Schemi Zod per gli endpoint di settingsController.
- * Usare con validate(schema) middleware oppure schema.parse(req.body).
+ * Schema Zod per l'aggiornamento delle preferenze utente.
+ * Usare con validateMiddleware(schema) oppure schema.parse(req.body).
  */
 
 const { z } = require('zod');
-
-// ==========================================
-// PROFILO
-// ==========================================
-
-const updateProfileSchema = z.object({
-    firstName: z.string().max(50).optional(),
-    lastName: z.string().max(50).optional(),
-    displayName: z.string().max(60).optional(),
-    phone: z.string().max(30).optional(),
-    bio: z.string().max(500).optional(),
-    avatar: z.string().url().optional().or(z.literal('')),
-    company: z.string().max(100).optional(),
-    jobTitle: z.string().max(100).optional(),
-    location: z.string().max(100).optional(),
-    website: z.string().url().optional().or(z.literal('')),
-}).strict();
-
-// ==========================================
-// PREFERENZE
-// ==========================================
 
 const updatePreferencesSchema = z.object({
     language: z.enum(['it', 'en', 'es', 'de', 'fr']).optional(),
@@ -47,52 +26,6 @@ const updatePreferencesSchema = z.object({
     weeklyGoalHours: z.number().min(0).max(168).optional(),
 }).strict();
 
-// ==========================================
-// NOTIFICHE
-// ==========================================
-
-const emailNotificationsSchema = z.object({
-    enabled: z.boolean().optional(),
-    weeklyReport: z.boolean().optional(),
-    projectUpdates: z.boolean().optional(),
-}).strict();
-
-const pushNotificationsSchema = z.object({
-    enabled: z.boolean().optional(),
-    dailyReminder: z.boolean().optional(),
-    reminderTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-}).strict();
-
-const updateNotificationsSchema = z.object({
-    email: emailNotificationsSchema.optional(),
-    push: pushNotificationsSchema.optional(),
-}).strict();
-
-// ==========================================
-// ACCOUNT (GDPR)
-// ==========================================
-
-const deleteAccountSchema = z.object({
-    password: z.string().min(1, 'Password obbligatoria'),
-    confirmation: z.string().min(1, 'Conferma obbligatoria'),
-}).strict();
-
-// ==========================================
-// IMPORT / EXPORT
-// ==========================================
-
-const importDataSchema = z.object({
-    data: z.record(z.string(), z.unknown()).optional(),
-    force: z.boolean().optional(),
-    merge: z.boolean().optional(),
-}).refine((v) => v.data || v.force !== undefined || v.merge !== undefined, {
-    message: 'Dati di import non forniti',
-});
-
 module.exports = {
-    updateProfileSchema,
     updatePreferencesSchema,
-    updateNotificationsSchema,
-    deleteAccountSchema,
-    importDataSchema,
 };

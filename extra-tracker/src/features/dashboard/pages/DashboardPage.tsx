@@ -167,15 +167,12 @@ export const DashboardPage = () => {
             <section className="dashboard-greeting space-y-2 relative" data-tutorial="greeting">
                 <h1 className="dashboard-hero-title text-3xl sm:text-4xl md:text-5xl font-bold text-theme-primary tracking-tight leading-snug pb-1">
                     <span className="opacity-90">{getGreeting()},</span>{' '}
-                    <button
-                        type="button"
+                    <span
                         data-tutorial="user-menu"
-                        onClick={() => navigate('/settings')}
-                        className="dashboard-user-link bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-violet-400 hover:from-primary-400 hover:to-violet-300 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:rounded pb-1"
-                        aria-label={`Vai alle impostazioni, utente ${userName}`}
+                        className="dashboard-user-link bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-violet-400 pb-1"
                     >
                         {userName}
-                    </button>
+                    </span>
                     .
                 </h1>
                 <p className="dashboard-greeting-subtitle dashboard-caption-text text-theme-secondary text-lg sm:text-xl md:text-2xl font-light tracking-wide max-w-2xl">

@@ -8,19 +8,13 @@
  * - Supporto temi Light/Dark
  */
 
-import { memo, useEffect, useRef, lazy, Suspense } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { ThemeToggle } from '../components/ThemeToggle';
-
-const GlobalFeedbackModal = lazy(() =>
-    import('../../features/feedback/components/GlobalFeedbackModal').then((m) => ({
-        default: m.GlobalFeedbackModal,
-    }))
-);
 
 // ============================================
 // HEADER COMPONENT
@@ -117,7 +111,7 @@ Footer.displayName = 'Footer';
 // ============================================
 
 // Routes che devono occupare tutto lo schermo (full-width)
-const FULL_WIDTH_ROUTES = ['/ai-dashboard', '/dashboard', '/study', '/settings'];
+const FULL_WIDTH_ROUTES = ['/dashboard', '/study'];
 
 export const AppLayout = () => {
     const { pathname } = useLocation();
@@ -147,11 +141,6 @@ export const AppLayout = () => {
 
             {/* Footer: nascosto in /study per non disturbare sessioni e studio */}
             {!hideFooter && <Footer />}
-
-            {/* Global Feedback: modal apribile dal menu utente (Segnala un problema) */}
-            <Suspense fallback={null}>
-                <GlobalFeedbackModal />
-            </Suspense>
         </div>
     );
 };

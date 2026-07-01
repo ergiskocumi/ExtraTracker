@@ -11,10 +11,9 @@ import { useState, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layout, Settings, LogOut, ChevronDown, BookOpen, Shield, MessageCircle, Cpu } from 'lucide-react';
+import { Layout, LogOut, ChevronDown, BookOpen } from 'lucide-react';
 import { useAuth } from '../../../features/auth/context/AuthContext';
 import { useSettings } from '../../../features/settings/context/SettingsContext';
-import { useFeedback } from '../../../features/feedback/context/FeedbackContext';
 
 // ============================================
 // TYPES
@@ -172,14 +171,10 @@ export const UserMenuDropdown = memo(() => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { profile } = useSettings();
-    const { openFeedback } = useFeedback();
 
     const [isOpen, setIsOpen] = useState(false);
     const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
-
-    // Check if user is admin
-    const isAdmin = user?.role === 'admin';
 
     // User info
     const userInitials = (() => {
@@ -202,7 +197,6 @@ export const UserMenuDropdown = memo(() => {
             label: 'Principale',
             items: [
                 { path: '/dashboard', label: 'Dashboard', icon: Layout, description: 'Centro di comando' },
-                { path: '/ai-dashboard', label: 'AI Usage', icon: Cpu, description: 'Token, prompt e costi' },
             ],
         },
         {
@@ -211,26 +205,6 @@ export const UserMenuDropdown = memo(() => {
                 { path: '/study', label: 'Flashcards', icon: BookOpen, description: 'Studio intelligente' },
             ],
         },
-        {
-            label: 'Account',
-            items: [
-                { path: '/settings', label: 'Impostazioni', icon: Settings, description: 'Personalizza' },
-            ],
-        },
-        {
-            label: 'Aiuto',
-            items: [
-                { label: 'Segnala un problema', description: 'Bug o suggerimento', icon: MessageCircle, action: () => openFeedback() },
-            ],
-        },
-        ...(isAdmin ? [
-            {
-                label: 'Admin',
-                items: [
-                    { path: '/admin/feedback', label: 'Feedbacks', icon: Shield, description: 'Gestione feedback' },
-                ],
-            },
-        ] : []),
     ];
 
     const handleLogout = async () => {
@@ -369,7 +343,7 @@ export const UserMenuDropdown = memo(() => {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 onClick={() => setIsOpen(false)}
-                                className="fixed inset-0 bg-theme-overlay backdrop-blur-sm z-[9998]"
+                                className="fixed inset-0 bg-theme-overlay backdrop-blur-sm z-max"
                             />
 
                             {/* Sidebar */}
@@ -378,7 +352,7 @@ export const UserMenuDropdown = memo(() => {
                                 animate={{ x: 0, opacity: 1 }}
                                 exit={{ x: '100%', opacity: 0 }}
                                 transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                                className="fixed top-0 right-0 h-full w-full max-w-[420px] z-[9999] shadow-2xl"
+                                className="fixed top-0 right-0 h-full w-full max-w-[420px] z-max shadow-2xl"
                                 style={{
                                     background: `linear-gradient(145deg, var(--bg-surface) 0%, var(--bg-elevated) 100%)`,
                                     backdropFilter: 'blur(28px) saturate(190%)',
@@ -508,7 +482,7 @@ export const UserMenuDropdown = memo(() => {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.2 }}
-                                className="fixed inset-0 z-[10000] flex items-center justify-center bg-theme-overlay backdrop-blur-sm"
+                                className="fixed inset-0 z-max flex items-center justify-center bg-theme-overlay backdrop-blur-sm"
                                 onClick={() => setAvatarLightboxOpen(false)}
                                 role="button"
                                 tabIndex={0}

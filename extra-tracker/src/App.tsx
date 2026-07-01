@@ -4,23 +4,19 @@
  * Sistema di routing:
  * - / → Redirect a /login; se autenticato redirect a /dashboard
  * - /login, /register, /forgot-password, /reset-password, /verify-email → Pagine pubbliche (AuthLayout)
- * - /dashboard, /settings, /study... → Pagine protette (AppLayout)
+ * - /dashboard, /study... → Pagine protette (AppLayout)
  */
 
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import { SettingsProvider } from './features/settings/context/SettingsContext';
-import { FeedbackProvider } from './features/feedback/context/FeedbackContext';
 import { ProtectedRoute, useAuth } from './features/auth/context/AuthContext';
-import { AdminRoute } from './features/auth/components/AdminRoute';
 import { AppLayout, AuthLayout } from './shared/layouts';
 import { StudyProviders } from './features/study/components/StudyProviders';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 
 // OTTIMIZZATO: Lazy loading per tutte le pagine (code splitting)
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
-const AIUsageDashboardPage = lazy(() => import('./features/dashboard/pages/AIUsageDashboardPage').then(m => ({ default: m.AIUsageDashboardPage })));
-const SettingsPage = lazy(() => import('./features/settings/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const LoginPage = lazy(() => import('./features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('./features/auth/pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
@@ -32,9 +28,6 @@ const DecksDashboardPage = lazy(() => import('./features/study/pages/DecksDashbo
 const StudySessionPage = lazy(() => import('./features/study/pages/StudySessionPage').then(m => ({ default: m.StudySessionPage })));
 const DeckDetailPage = lazy(() => import('./features/study/pages/DeckDetailPage').then(m => ({ default: m.DeckDetailPage })));
 const CinemaPage = lazy(() => import('./features/study/pages/CinemaPage').then(m => ({ default: m.CinemaPage })));
-
-// Admin Pages - Lazy loaded
-const AdminFeedbackPage = lazy(() => import('./features/feedback/pages/AdminFeedbackPage').then(m => ({ default: m.AdminFeedbackPage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -72,7 +65,6 @@ function App() {
                 <Routes>
                     {/* ===== ROUTE RADICE ===== */}
                     <Route path="/" element={<RootRoute />} />
-                    <Route path="/landing" element={<Navigate to="/" replace />} />
 
                     {/* ===== ROUTE PUBBLICHE (Auth) ===== */}
                     <Route element={<AuthLayout />}>
@@ -88,34 +80,18 @@ function App() {
                         element={
                             <ProtectedRoute redirectTo="/">
                                 <SettingsProvider>
-                                    <FeedbackProvider>
-                                        <AppLayout />
-                                    </FeedbackProvider>
+                                    <AppLayout />
                                 </SettingsProvider>
                             </ProtectedRoute>
                         }
                     >
                         <Route path="/dashboard" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
-                        <Route path="/ai-dashboard" element={<ErrorBoundary><AIUsageDashboardPage /></ErrorBoundary>} />
-                        <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
 
                         {/* Study / Flashcards - con StudyProviders */}
                         <Route path="/study" element={<ErrorBoundary><StudyProviders><DecksDashboardPage /></StudyProviders></ErrorBoundary>} />
                         <Route path="/study/deck/:id" element={<ErrorBoundary><StudyProviders><DeckDetailPage /></StudyProviders></ErrorBoundary>} />
                         <Route path="/study/deck/:deckId/cinema" element={<ErrorBoundary><StudyProviders><CinemaPage /></StudyProviders></ErrorBoundary>} />
                         <Route path="/study/:deckId/session" element={<ErrorBoundary><StudyProviders><StudySessionPage /></StudyProviders></ErrorBoundary>} />
-
-                        {/* Admin Routes */}
-                        <Route
-                            path="/admin/feedback"
-                            element={
-                                <ErrorBoundary>
-                                    <AdminRoute>
-                                        <AdminFeedbackPage />
-                                    </AdminRoute>
-                                </ErrorBoundary>
-                            }
-                        />
                     </Route>
 
                     {/* ===== CATCH-ALL 404 ===== */}

@@ -1,11 +1,10 @@
 /**
- * ⚙️ SETTINGS CONTEXT - Gestione Impostazioni Utente
- * 
- * Fornisce:
- * - Stato impostazioni utente (profilo, preferenze, notifiche)
- * - Metodi per aggiornare le impostazioni
- * - Sincronizzazione con backend
- * - Gestione tema e preferenze UI
+ * ⚙️ SETTINGS CONTEXT - Provider globale tema e profilo utente
+ *
+ * Fornisce a tutta l'app:
+ * - Profilo utente (nome, avatar) e preferenze (tema, formato data/ora)
+ * - Cambio tema (chiamato da ThemeToggle)
+ * - Caricamento silenzioso al login, nessuna UI di gestione dedicata
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
@@ -40,34 +39,8 @@ interface SettingsState {
 }
 
 interface SettingsContextValue extends SettingsState {
-    // Metodi
     loadSettings: () => Promise<void>;
-    updateProfile: (data: Partial<UserProfile>) => Promise<boolean>;
     updatePreferences: (data: Partial<UserPreferences>) => Promise<boolean>;
-    updateNotifications: (data: Partial<UserNotifications>) => Promise<boolean>;
-    exportData: () => Promise<unknown | null>;
-    checkImportData: (file: File) => Promise<{
-        isIdentical: boolean;
-        hasLessData: boolean;
-        existing: Record<string, number>;
-        importing: Record<string, number>;
-        differences: Record<string, number>;
-    } | null>;
-    importData: (file: File, force?: boolean) => Promise<{
-        success: boolean;
-        imported: {
-            exams: number;
-            projects: number;
-            workLogs: number;
-            decks: number;
-            folders: number;
-            tags: number;
-            workTodos: number;
-        };
-    } | null>;
-    deleteAccount: (password: string, confirmation: string) => Promise<boolean>;
-    uploadAvatar: (file: File) => Promise<string | null>;
-    deleteAvatar: () => Promise<boolean>;
     clearError: () => void;
 }
 
@@ -118,7 +91,7 @@ const SettingsContext = createContext<SettingsContextValue | undefined>(undefine
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     const { isAuthenticated } = useAuth();
-    
+
     const [state, setState] = useState<SettingsState>({
         profile: {},
         preferences: defaultPreferences,
@@ -178,47 +151,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }, [isAuthenticated, applyTheme]);
 
     /**
-     * Aggiorna profilo utente
-     */
-    const updateProfile = useCallback(async (data: Partial<UserProfile>): Promise<boolean> => {
-        setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-        try {
-            const response = await settingsService.updateProfile(data);
-
-            if (response.success && response.data) {
-                setState(prev => ({
-                    ...prev,
-                    profile: { ...prev.profile, ...response.data?.profile },
-                    isLoading: false,
-                }));
-                
-                // ✅ Toast di successo
-                emitToast.success('Profilo aggiornato con successo!', {
-                    title: 'Profilo Salvato',
-                });
-                
-                return true;
-            } else {
-                setState(prev => ({
-                    ...prev,
-                    isLoading: false,
-                    error: response.error?.message || 'Errore aggiornamento profilo',
-                }));
-                return false;
-            }
-        } catch (err) {
-            setState(prev => ({
-                ...prev,
-                isLoading: false,
-                error: err instanceof Error ? err.message : 'Errore aggiornamento profilo',
-            }));
-            return false;
-        }
-    }, []);
-
-    /**
-     * Aggiorna preferenze utente
+     * Aggiorna preferenze utente (usato da ThemeToggle per il cambio tema)
      */
     const updatePreferences = useCallback(async (data: Partial<UserPreferences>): Promise<boolean> => {
         setState(prev => ({ ...prev, isLoading: true, error: null }));
@@ -264,176 +197,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }, [state.preferences, applyTheme]);
 
     /**
-     * Aggiorna notifiche
-     */
-    const updateNotifications = useCallback(async (data: Partial<UserNotifications>): Promise<boolean> => {
-        setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-        try {
-            const response = await settingsService.updateNotifications(data);
-
-            if (response.success && response.data) {
-                setState(prev => ({
-                    ...prev,
-                    notifications: { ...prev.notifications, ...response.data?.notifications },
-                    isLoading: false,
-                }));
-                
-                // ✅ Toast di successo
-                emitToast.success('Notifiche aggiornate!', {
-                    title: 'Impostazioni Salvate',
-                });
-                
-                return true;
-            } else {
-                setState(prev => ({
-                    ...prev,
-                    isLoading: false,
-                    error: response.error?.message || 'Errore aggiornamento notifiche',
-                }));
-                return false;
-            }
-        } catch (err) {
-            setState(prev => ({
-                ...prev,
-                isLoading: false,
-                error: err instanceof Error ? err.message : 'Errore aggiornamento notifiche',
-            }));
-            return false;
-        }
-    }, []);
-
-    /**
-     * Esporta dati utente (GDPR)
-     */
-    const exportData = useCallback(async (): Promise<unknown | null> => {
-        try {
-            const data = await settingsService.exportData();
-            return data;
-        } catch {
-            return null;
-        }
-    }, []);
-
-    /**
-     * Verifica i dati da importare
-     */
-    const checkImportData = useCallback(async (file: File): Promise<{
-        isIdentical: boolean;
-        hasLessData: boolean;
-        existing: Record<string, number>;
-        importing: Record<string, number>;
-        differences: Record<string, number>;
-    } | null> => {
-        try {
-            const response = await settingsService.checkImportData(file);
-            if (response.success && response.data) {
-                return response.data;
-            }
-            return null;
-        } catch {
-            return null;
-        }
-    }, []);
-
-    /**
-     * Importa dati utente da file JSON
-     */
-    const importData = useCallback(async (file: File, force = false): Promise<{
-        success: boolean;
-        imported: {
-            exams: number;
-            projects: number;
-            workLogs: number;
-            decks: number;
-            folders: number;
-            tags: number;
-            workTodos: number;
-        };
-    } | null> => {
-        try {
-            const response = await settingsService.importData(file, force);
-            if (response.success && response.data) {
-                return response.data;
-            }
-            return null;
-        } catch {
-            return null;
-        }
-    }, []);
-
-    /**
-     * Elimina account (GDPR)
-     */
-    const deleteAccount = useCallback(async (password: string, confirmation: string): Promise<boolean> => {
-        try {
-            const response = await settingsService.deleteAccount(password, confirmation);
-            return response.success;
-        } catch {
-            return false;
-        }
-    }, []);
-
-    /**
-     * Upload avatar
-     */
-    const uploadAvatar = useCallback(async (file: File): Promise<string | null> => {
-        setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-        try {
-            const response = await settingsService.uploadAvatar(file);
-
-            if (response.success && response.data) {
-                setState(prev => ({
-                    ...prev,
-                    profile: { ...prev.profile, avatar: response.data?.avatarUrl },
-                    isLoading: false,
-                }));
-                
-                emitToast.success('Avatar aggiornato!', {
-                    title: 'Foto profilo',
-                });
-                
-                return response.data.avatarUrl;
-            } else {
-                setState(prev => ({
-                    ...prev,
-                    isLoading: false,
-                    error: response.error?.message || 'Errore upload avatar',
-                }));
-                return null;
-            }
-        } catch (err) {
-            setState(prev => ({
-                ...prev,
-                isLoading: false,
-                error: err instanceof Error ? err.message : 'Errore upload avatar',
-            }));
-            return null;
-        }
-    }, []);
-
-    /**
-     * Elimina avatar
-     */
-    const deleteAvatarFn = useCallback(async (): Promise<boolean> => {
-        try {
-            const response = await settingsService.deleteAvatar();
-            
-            if (response.success) {
-                setState(prev => ({
-                    ...prev,
-                    profile: { ...prev.profile, avatar: undefined },
-                }));
-                return true;
-            }
-            return false;
-        } catch {
-            return false;
-        }
-    }, []);
-
-    /**
      * Pulisci errore
      */
     const clearError = useCallback(() => {
@@ -474,15 +237,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     const value: SettingsContextValue = {
         ...state,
         loadSettings,
-        updateProfile,
         updatePreferences,
-        updateNotifications,
-        exportData,
-        checkImportData,
-        importData,
-        deleteAccount,
-        uploadAvatar,
-        deleteAvatar: deleteAvatarFn,
         clearError,
     };
 
