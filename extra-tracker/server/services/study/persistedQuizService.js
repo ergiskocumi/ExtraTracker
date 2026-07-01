@@ -6,7 +6,7 @@ const Deck = require('../../models/Deck');
 const QuizDefinition = require('../../models/QuizDefinition');
 const QuizAttempt = require('../../models/QuizAttempt');
 const {
-    DISTRACTOR_AI_MODEL,
+    QUIZ_GENERATION_MODEL,
     DISTRACTOR_PROMPT_VERSION,
     QUIZ_TYPES,
 } = require('./constants');
@@ -528,7 +528,7 @@ class PersistedQuizService extends BaseService {
                     pdfBased: payload.pdfBased !== false,
                     sourceCardIds,
                     generatedFromTextHash,
-                    aiModel: payload.aiModel || DISTRACTOR_AI_MODEL,
+                    aiModel: payload.aiModel || QUIZ_GENERATION_MODEL,
                     promptVersion: payload.promptVersion || DISTRACTOR_PROMPT_VERSION,
                 },
                 questionCount: normalizedQuestions.length,

@@ -13,8 +13,15 @@ const {
     CHUNK_MAX_RETRIES,
     CHUNK_RETRY_BASE_DELAY_MS,
     CHUNK_CIRCUIT_BREAKER_THRESHOLD,
-    CHUNK_AI_TIMEOUT_MS,
+    QUIZ_CHUNK_CONCURRENCY,
+    QUIZ_CHUNK_BATCH_DELAY_MS,
 } = require('./constants');
+const { buildChunkQuestionCounts } = require('./trueFalseChunking');
+const {
+    shouldUseQuizFastPath,
+    computeFastPathTaskCount,
+    buildFastPathTaskTexts,
+} = require('./quizTextSelection');
 
 // =========================================
 // JOB STORE
@@ -40,6 +47,27 @@ const jobQueue = []; // queue of resolve() callbacks for waiting jobs
 // SLEEP UTILITY
 // =========================================
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// =========================================
+// DEDUP UTILITY
+// =========================================
+/**
+ * Rimuove domande duplicate confrontando il questionText normalizzato.
+ * Serve perché i task fast-path girano in parallelo e non si vedono tra loro.
+ */
+function dedupeQuestions(questions) {
+    if (!Array.isArray(questions)) return [];
+    const seen = new Set();
+    const result = [];
+    for (const question of questions) {
+        const text = typeof question?.questionText === 'string' ? question.questionText : '';
+        const normalized = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!normalized || seen.has(normalized)) continue;
+        seen.add(normalized);
+        result.push(question);
+    }
+    return result;
+}
 
 // =========================================
 // JOB ID GENERATION
@@ -182,7 +210,7 @@ class QuizGenerationService {
         let extractedText = context.extractedText || '';
         if (!extractedText) {
             try {
-                const DeckModel = require('../models/Deck');
+                const DeckModel = require('../../models/Deck');
                 const deckDoc = await DeckModel.findOne(
                     { _id: deckId, user: userId },
                     { extractedText: 1 },
@@ -209,8 +237,10 @@ class QuizGenerationService {
         activeJobCount++;
 
         try {
-            // --- Split text into chunks ---
-            const chunks = this._splitTextIntoChunks(extractedText);
+            const safeQuestionCount = Math.max(1, Math.floor(Number(questionCount) || 0));
+            const fastPath = shouldUseQuizFastPath(safeQuestionCount);
+            // --- Split text into chunks, or use one representative AI call for small quizzes ---
+            const chunks = this._buildGenerationChunks(extractedText, safeQuestionCount);
             // Salva versione troncata per persistenza (non serve il testo intero)
             const generatedFromText = extractedText.length > 5000
                 ? extractedText.substring(0, 5000) + '...'
@@ -224,54 +254,64 @@ class QuizGenerationService {
 
             job.totalChunks = chunks.length;
 
-            // Distribute questions across chunks
-            const baseCount = Math.floor(questionCount / chunks.length);
-            const remainder = questionCount % chunks.length;
-            const counts = chunks.map((_, i) => baseCount + (i < remainder ? 1 : 0));
+            const counts = buildChunkQuestionCounts(chunks.length, safeQuestionCount);
+
+            job.chunks = counts.map((countForChunk, index) => ({
+                index,
+                status: countForChunk === 0 ? 'skipped' : 'pending',
+                retries: 0,
+                questions: 0,
+            }));
+            job.completedChunks = counts.filter((countForChunk) => countForChunk === 0).length;
+
+            logger.info('QuizGeneration', `▶️  Job ${jobId} avviato: ${safeQuestionCount} domande (${job.config.quizType}) in ${chunks.length} parti parallele`, {
+                domandeTotali: safeQuestionCount,
+                domandePerParte: counts.filter((c) => c > 0),
+                partiParallele: chunks.length,
+                concorrenza: QUIZ_CHUNK_CONCURRENCY,
+                fastPath,
+            });
 
             emitProgress(userId, jobId, 'started', {
                 totalChunks: chunks.length,
                 estimatedSeconds: job.estimatedSeconds,
-                questionCount,
+                questionCount: safeQuestionCount,
                 quizType: job.config.quizType,
+                completedChunks: job.completedChunks,
+                concurrency: QUIZ_CHUNK_CONCURRENCY,
+                fastPath,
             });
 
-            // --- Process chunks sequentially ---
-            const allQuestions = [];
+            // --- Process chunks in small batches ---
+            let allQuestions = [];
+            const questionsByChunk = new Map();
             let totalFailed = 0;
+            let processedChunks = 0;
+            let shouldStop = false;
+            const processableChunkIndexes = counts
+                .map((countForChunk, index) => ({ countForChunk, index }))
+                .filter(({ countForChunk }) => countForChunk > 0)
+                .map(({ index }) => index);
 
-            for (let i = 0; i < chunks.length; i++) {
-                const countForChunk = counts[i];
-                if (countForChunk === 0) {
-                    job.chunks.push({ index: i, status: 'skipped', questions: 0 });
-                    job.completedChunks++;
-                    continue;
-                }
-
-                const chunkState = { index: i, status: 'processing', retries: 0 };
-                job.chunks.push(chunkState);
+            const processChunkWithRetry = async (chunkIndex, seenQuestions) => {
+                const countForChunk = counts[chunkIndex];
+                const chunkState = job.chunks[chunkIndex];
+                chunkState.status = 'processing';
 
                 emitProgress(userId, jobId, 'chunk_progress', {
-                    chunkIndex: i + 1,
+                    chunkIndex: chunkIndex + 1,
                     totalChunks: chunks.length,
                     status: 'processing',
                 });
 
-                // --- Retry loop for this chunk ---
                 let chunkQuestions = [];
-                let chunkSuccess = false;
-
-                const seenQuestions = [
-                    ...previousQuestions,
-                    ...allQuestions.map((q) => q.questionText),
-                ];
 
                 for (let retry = 0; retry <= CHUNK_MAX_RETRIES; retry++) {
                     if (retry > 0) {
                         chunkState.retries = retry;
                         const delay = CHUNK_RETRY_BASE_DELAY_MS * Math.pow(2, retry - 1);
                         emitProgress(userId, jobId, 'chunk_retry', {
-                            chunkIndex: i + 1,
+                            chunkIndex: chunkIndex + 1,
                             retryCount: retry,
                             maxRetries: CHUNK_MAX_RETRIES,
                         });
@@ -279,19 +319,21 @@ class QuizGenerationService {
                     }
 
                     try {
-                        chunkQuestions = await processChunkFn(chunks[i], countForChunk, seenQuestions, {
+                        chunkQuestions = await processChunkFn(chunks[chunkIndex], countForChunk, seenQuestions, {
                             ...telemetry,
-                            chunkIndex: i + 1,
+                            chunkIndex: chunkIndex + 1,
                             totalChunks: chunks.length,
                         });
 
                         if (Array.isArray(chunkQuestions) && chunkQuestions.length > 0) {
-                            chunkSuccess = true;
-                            break;
+                            return {
+                                index: chunkIndex,
+                                success: true,
+                                questions: chunkQuestions,
+                            };
                         }
-                        // Empty result — retry
                     } catch (err) {
-                        logger.warn('QuizGeneration', `Chunk ${i + 1}/${chunks.length} attempt ${retry + 1} failed`, {
+                        logger.warn('QuizGeneration', `Parte ${chunkIndex + 1}/${chunks.length}: tentativo ${retry + 1}/${CHUNK_MAX_RETRIES + 1} fallito`, {
                             jobId,
                             error: err.message,
                             type: err.type || err.name || 'unknown',
@@ -301,45 +343,86 @@ class QuizGenerationService {
                     }
                 }
 
-                if (chunkSuccess) {
-                    chunkState.status = 'done';
-                    allQuestions.push(...chunkQuestions);
-                    job.completedChunks++;
+                return {
+                    index: chunkIndex,
+                    success: false,
+                    questions: [],
+                };
+            };
 
-                    emitProgress(userId, jobId, 'chunk_complete', {
-                        chunkIndex: i + 1,
-                        totalChunks: chunks.length,
-                        questionsGenerated: chunkQuestions.length,
-                    });
-                } else {
-                    chunkState.status = 'failed';
-                    job.failedChunks++;
-                    totalFailed++;
+            for (let batchStart = 0; batchStart < processableChunkIndexes.length && !shouldStop; batchStart += QUIZ_CHUNK_CONCURRENCY) {
+                allQuestions = [...questionsByChunk.entries()]
+                    .sort(([a], [b]) => a - b)
+                    .flatMap(([, questions]) => questions);
+                const seenQuestions = [
+                    ...previousQuestions,
+                    ...allQuestions.map((q) => q.questionText),
+                ];
+                const batchIndexes = processableChunkIndexes.slice(batchStart, batchStart + QUIZ_CHUNK_CONCURRENCY);
+                const batchResults = await Promise.all(
+                    batchIndexes.map((chunkIndex) => processChunkWithRetry(chunkIndex, seenQuestions)),
+                );
 
-                    emitProgress(userId, jobId, 'chunk_progress', {
-                        chunkIndex: i + 1,
-                        totalChunks: chunks.length,
-                        status: 'failed',
-                    });
+                // Prima raccogliamo TUTTI i risultati del batch (successi inclusi),
+                // poi valutiamo il circuit breaker. Altrimenti un fallimento
+                // processato per primo scarterebbe i task riusciti dello stesso batch.
+                for (const result of batchResults.sort((a, b) => a.index - b.index)) {
+                    processedChunks++;
+                    const chunkState = job.chunks[result.index];
 
-                    // Circuit breaker: if > threshold fail, stop
-                    const failRatio = totalFailed / (i + 1);
-                    if (failRatio > CHUNK_CIRCUIT_BREAKER_THRESHOLD) {
-                        job.error = `Troppi chunk falliti (${totalFailed}/${i + 1}). Generazione interrotta.`;
-                        logger.warn('QuizGeneration', `Circuit breaker tripped for job ${jobId}`, {
-                            failRatio,
-                            totalFailed,
-                            processedChunks: i + 1,
+                    if (result.success) {
+                        chunkState.status = 'done';
+                        chunkState.questions = result.questions.length;
+                        questionsByChunk.set(result.index, result.questions);
+                        job.completedChunks++;
+
+                        emitProgress(userId, jobId, 'chunk_complete', {
+                            chunkIndex: result.index + 1,
+                            totalChunks: chunks.length,
+                            questionsGenerated: result.questions.length,
+                            completedChunks: job.completedChunks,
+                            failedChunks: job.failedChunks,
                         });
-                        break;
+                    } else {
+                        chunkState.status = 'failed';
+                        job.failedChunks++;
+                        totalFailed++;
+
+                        emitProgress(userId, jobId, 'chunk_progress', {
+                            chunkIndex: result.index + 1,
+                            totalChunks: chunks.length,
+                            status: 'failed',
+                            completedChunks: job.completedChunks,
+                            failedChunks: job.failedChunks,
+                        });
                     }
                 }
 
-                // Rate-limit delay between chunks
-                if (i < chunks.length - 1) {
-                    await sleep(1500);
+                // Circuit breaker: interrompi solo se la quota di fallimenti supera
+                // la soglia E non abbiamo ancora nessuna domanda utile.
+                const failRatio = processedChunks > 0 ? totalFailed / processedChunks : 0;
+                const hasAnyQuestions = questionsByChunk.size > 0;
+                if (failRatio > CHUNK_CIRCUIT_BREAKER_THRESHOLD && !hasAnyQuestions) {
+                    job.error = `Generazione interrotta: ${totalFailed} parti su ${processedChunks} non hanno prodotto domande valide.`;
+                    logger.warn('QuizGeneration', `Circuit breaker attivato per job ${jobId}`, {
+                        failRatio: Math.round(failRatio * 100) / 100,
+                        totalFailed,
+                        processedChunks,
+                        hasAnyQuestions,
+                    });
+                    shouldStop = true;
+                }
+
+                if (!shouldStop && batchStart + QUIZ_CHUNK_CONCURRENCY < processableChunkIndexes.length && QUIZ_CHUNK_BATCH_DELAY_MS > 0) {
+                    await sleep(QUIZ_CHUNK_BATCH_DELAY_MS);
                 }
             }
+
+            allQuestions = dedupeQuestions(
+                [...questionsByChunk.entries()]
+                    .sort(([a], [b]) => a - b)
+                    .flatMap(([, questions]) => questions),
+            );
 
             // --- Determine outcome ---
             const successRatio = chunks.length > 0 ? (chunks.length - totalFailed) / chunks.length : 0;
@@ -354,9 +437,15 @@ class QuizGenerationService {
                 });
             } else if (successRatio < 1.0) {
                 // Partial success
-                job.status = 'completed';
+                job.status = 'persisting';
                 job.partialResult = true;
-                job.completedAt = new Date();
+                emitProgress(userId, jobId, 'persisting', {
+                    partialResult: true,
+                    totalChunks: chunks.length,
+                    completedChunks: job.completedChunks,
+                    failedChunks: job.failedChunks,
+                    questionCount: allQuestions.length,
+                });
 
                 // Persist partial quiz
                 if (persistFn) {
@@ -376,6 +465,8 @@ class QuizGenerationService {
                     }
                 }
 
+                job.status = 'completed';
+                job.completedAt = new Date();
                 emitProgress(userId, jobId, 'complete', {
                     jobId,
                     partialResult: true,
@@ -388,14 +479,22 @@ class QuizGenerationService {
                 });
             } else {
                 // Full success
-                job.status = 'completed';
-                job.completedAt = new Date();
+                job.status = 'persisting';
+                emitProgress(userId, jobId, 'persisting', {
+                    partialResult: false,
+                    totalChunks: chunks.length,
+                    completedChunks: job.completedChunks,
+                    failedChunks: job.failedChunks,
+                    questionCount: allQuestions.length,
+                });
 
                 if (persistFn) {
                     const result = await persistFn(null, allQuestions, job.config, generatedFromText);
                     job.result = result;
                 }
 
+                job.status = 'completed';
+                job.completedAt = new Date();
                 emitProgress(userId, jobId, 'complete', {
                     jobId,
                     partialResult: false,
@@ -407,13 +506,21 @@ class QuizGenerationService {
                 });
             }
 
-            logger.info('QuizGeneration', `Job completed: ${jobId}`, {
+            const durationSec = job.startedAt
+                ? Math.round((Date.now() - job.startedAt.getTime()) / 100) / 10
+                : null;
+            const outcomeLabel = job.status === 'completed'
+                ? (job.partialResult ? '✅ COMPLETATO (parziale)' : '✅ COMPLETATO')
+                : '❌ FALLITO';
+            logger.info('QuizGeneration', `Job ${jobId}: ${outcomeLabel} — ${allQuestions.length} domande in ${durationSec ?? '?'}s`, {
                 status: job.status,
-                totalChunks: chunks.length,
-                completedChunks: job.completedChunks,
-                failedChunks: job.failedChunks,
-                questionCount: allQuestions.length,
-                partialResult: job.partialResult,
+                domande: allQuestions.length,
+                partiTotali: chunks.length,
+                partiRiuscite: job.completedChunks,
+                partiFallite: job.failedChunks,
+                parziale: job.partialResult,
+                fastPath,
+                durataSec: durationSec,
             });
         } catch (err) {
             job.status = 'failed';
@@ -440,22 +547,37 @@ class QuizGenerationService {
      * Split text into chunks of ~5000 chars with 500 char overlap.
      */
     _splitTextIntoChunks(text, maxLength = 5000, overlap = 500) {
+        if (!text || typeof text !== 'string') return [];
+
+        const safeMaxLength = Math.max(1000, Math.floor(Number(maxLength) || 5000));
+        const safeOverlap = Math.min(
+            safeMaxLength - 1,
+            Math.max(0, Math.floor(Number(overlap) || 0)),
+        );
         const chunks = [];
         let start = 0;
 
         while (start < text.length) {
-            let end = Math.min(start + maxLength, text.length);
+            let end = Math.min(start + safeMaxLength, text.length);
 
             // Try to break at a sentence boundary
             if (end < text.length) {
-                const searchWindow = text.substring(end - Math.min(200, end - start));
+                const searchStart = Math.max(start, end - Math.min(400, end - start));
+                const searchWindow = text.slice(searchStart, end);
                 const sentenceBreak = searchWindow.lastIndexOf('. ');
                 const newlineBreak = searchWindow.lastIndexOf('\n');
-                const bestBreak = Math.max(
-                    sentenceBreak !== -1 ? end - Math.min(200, end - start) + sentenceBreak + 1 : -1,
-                    newlineBreak !== -1 ? end - Math.min(200, end - start) + newlineBreak + 1 : -1,
-                );
-                if (bestBreak > start + overlap) {
+                const spaceBreak = searchWindow.lastIndexOf(' ');
+                const candidates = [
+                    sentenceBreak !== -1 ? searchStart + sentenceBreak + 2 : -1,
+                    newlineBreak !== -1 ? searchStart + newlineBreak + 1 : -1,
+                    spaceBreak !== -1 ? searchStart + spaceBreak + 1 : -1,
+                ].filter((candidate) => (
+                    candidate > start + safeOverlap &&
+                    candidate > start &&
+                    candidate <= end
+                ));
+                const bestBreak = candidates.length > 0 ? Math.max(...candidates) : -1;
+                if (bestBreak !== -1) {
                     end = bestBreak;
                 }
             }
@@ -466,12 +588,22 @@ class QuizGenerationService {
             const raw = text.substring(start, end);
             chunks.push(Buffer.from(raw, 'utf8').toString('utf8'));
             if (end >= text.length) break; // ultimo chunk raggiunto — evita loop infinito
-            start = end - overlap;
-            // Prevent infinite loop on tiny texts (overlap >= maxLength case)
-            if (start >= end) break;
+            const nextStart = Math.max(end - safeOverlap, start + 1);
+            if (nextStart <= start) break;
+            start = nextStart;
         }
 
         return chunks.filter((c) => c.length > 0);
+    }
+
+    _buildGenerationChunks(text, questionCount) {
+        if (shouldUseQuizFastPath(questionCount)) {
+            // Fast path parallelo: N chiamate AI piccole invece di 1 monolitica.
+            const taskCount = computeFastPathTaskCount(questionCount);
+            return buildFastPathTaskTexts(text, taskCount);
+        }
+
+        return this._splitTextIntoChunks(text);
     }
 
     /**

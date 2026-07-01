@@ -34,9 +34,43 @@ const QUIZ_OPTION_WORD_MAX = 20;
 // CHUNK RETRY & TIMEOUT
 // =========================================
 const CHUNK_AI_TIMEOUT_MS = 60_000;   // 60s per chunk — reasonable for 4096 token response
+// Tetto massimo di token di output per una singola chiamata di generazione quiz.
+// Deve essere ampio: alcuni modelli spendono token in reasoning interno prima del
+// JSON, e un tetto basso produce output troncato. Overridabile via env.
+const QUIZ_MAX_OUTPUT_TOKENS = Math.max(
+    4096,
+    Math.min(16384, Number.parseInt(process.env.QUIZ_MAX_OUTPUT_TOKENS || '8192', 10) || 8192),
+);
 const CHUNK_MAX_RETRIES = 2;          // 2 retries = 3 total attempts per chunk
 const CHUNK_RETRY_BASE_DELAY_MS = 1_000;
 const CHUNK_CIRCUIT_BREAKER_THRESHOLD = 0.6; // allow 1 failure in first 2 chunks
+const QUIZ_CHUNK_CONCURRENCY = Math.max(
+    1,
+    Math.min(6, Number.parseInt(process.env.QUIZ_CHUNK_CONCURRENCY || '4', 10) || 4),
+);
+const QUIZ_CHUNK_BATCH_DELAY_MS = Math.max(
+    0,
+    Number.parseInt(process.env.QUIZ_CHUNK_BATCH_DELAY_MS || '250', 10) || 0,
+);
+const QUIZ_FAST_PATH_MAX_QUESTIONS = Math.max(
+    1,
+    Math.min(30, Number.parseInt(process.env.QUIZ_FAST_PATH_MAX_QUESTIONS || '12', 10) || 12),
+);
+const QUIZ_FAST_PATH_TEXT_BUDGET = Math.max(
+    4000,
+    Math.min(30000, Number.parseInt(process.env.QUIZ_FAST_PATH_TEXT_BUDGET || '12000', 10) || 12000),
+);
+// Fast path parallelo: invece di 1 chiamata AI monolitica, il quiz viene diviso in
+// più task paralleli (ciascuno su un segmento diverso del testo). Riduce il wall-clock
+// perché la latenza LLM dipende dai token in output *per chiamata*.
+const QUIZ_FAST_PATH_TASK_SIZE = Math.max(
+    2,
+    Math.min(10, Number.parseInt(process.env.QUIZ_FAST_PATH_TASK_SIZE || '5', 10) || 5),
+);
+const QUIZ_FAST_PATH_MAX_TASKS = Math.max(
+    1,
+    Math.min(6, Number.parseInt(process.env.QUIZ_FAST_PATH_MAX_TASKS || '4', 10) || 4),
+);
 const MAX_CONCURRENT_AI_JOBS = 2;
 
 // =========================================
@@ -111,6 +145,10 @@ const DEEPSEEK_MODEL = process.env.ANTHROPIC_MODEL || DEEPSEEK_DEFAULT_MODEL;
 const ACTIVE_AI_MODEL = DEEPSEEK_MODEL;
 const DISTRACTOR_AI_MODEL = process.env.ANTHROPIC_DEFAULT_OPUS_MODEL || DEEPSEEK_MODEL;
 const FALLBACK_AI_MODEL = DEEPSEEK_DEFAULT_MODEL;
+// Modello dedicato alla generazione dei quiz (MCQ + V/F).
+// Default: flash — ~3-4x più veloce e ~8x più economico del pro, con qualità adeguata
+// per domande generate da testo. Overridabile via env QUIZ_GENERATION_MODEL.
+const QUIZ_GENERATION_MODEL = process.env.QUIZ_GENERATION_MODEL || DEEPSEEK_FLASH_MODEL;
 
 function getValidModel(envValue) {
     const v = (envValue || ACTIVE_AI_MODEL).trim();
@@ -119,7 +157,7 @@ function getValidModel(envValue) {
 
 if (!global.__studyServiceModelLogged) {
     const logger = require('../../utils/logger');
-    logger.info('StudyService', `AI Backend: DeepSeek | Model: ${ACTIVE_AI_MODEL} | Distractor: ${DISTRACTOR_AI_MODEL}`);
+    logger.info('StudyService', `AI Backend: DeepSeek | Model: ${ACTIVE_AI_MODEL} | Quiz: ${QUIZ_GENERATION_MODEL} | Distractor: ${DISTRACTOR_AI_MODEL}`);
     global.__studyServiceModelLogged = true;
 }
 
@@ -157,9 +195,16 @@ module.exports = {
     SIMILARITY_THRESHOLD,
 
     CHUNK_AI_TIMEOUT_MS,
+    QUIZ_MAX_OUTPUT_TOKENS,
     CHUNK_MAX_RETRIES,
     CHUNK_RETRY_BASE_DELAY_MS,
     CHUNK_CIRCUIT_BREAKER_THRESHOLD,
+    QUIZ_CHUNK_CONCURRENCY,
+    QUIZ_CHUNK_BATCH_DELAY_MS,
+    QUIZ_FAST_PATH_MAX_QUESTIONS,
+    QUIZ_FAST_PATH_TEXT_BUDGET,
+    QUIZ_FAST_PATH_TASK_SIZE,
+    QUIZ_FAST_PATH_MAX_TASKS,
 
     TF_MIN_TEXT_CHARS,
     TF_CHARS_PER_STATEMENT,
@@ -171,6 +216,7 @@ module.exports = {
     KNOWN_DEEPSEEK_MODELS,
     ACTIVE_AI_MODEL,
     DISTRACTOR_AI_MODEL,
+    QUIZ_GENERATION_MODEL,
     DEEPSEEK_MODEL,
     DEEPSEEK_DEFAULT_MODEL,
     DEEPSEEK_FLASH_MODEL,

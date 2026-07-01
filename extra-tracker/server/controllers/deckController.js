@@ -8,7 +8,10 @@ const deckCrudService = require('../services/study/deckCrudService');
 const sessionQuizService = require('../services/study/sessionQuizService');
 const persistedQuizService = require('../services/study/persistedQuizService');
 const quizGenerationService = require('../services/study/QuizGenerationService');
-const { generateTrueFalseStatementsFromText } = require('../services/study/trueFalseGenerator');
+const {
+    generateTrueFalseStatementsForChunk,
+    generateTrueFalseStatementsFromText,
+} = require('../services/study/trueFalseGenerator');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
 const {
@@ -325,14 +328,13 @@ const generatePersistedQuizAsync = asyncHandler(async (req, res) => {
     // Process chunk: MCQ o True/False
     const processChunkFn = body.quizType === 'true_false'
         ? async (chunkText, count, seenQuestions, chunkTelemetry) => {
-            const statements = await generateTrueFalseStatementsFromText(
+            const statements = await generateTrueFalseStatementsForChunk(
                 chunkText,
                 count,
                 seenQuestions,
                 { ...chunkTelemetry },
-                sessionQuizService._splitTextIntoChunks.bind(sessionQuizService),
             );
-            return statements.slice(0, count).map((s) => ({
+            return statements.map((s) => ({
                 questionText: s.statement,
                 correctAnswer: s.isTrue ? 'Vero' : 'Falso',
                 options: ['Vero', 'Falso'],
