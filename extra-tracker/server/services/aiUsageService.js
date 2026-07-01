@@ -238,7 +238,14 @@ const basePayload = (payload = {}) => {
     };
 };
 
+// Dashboard "AI Usage" (analisi token/costi) rimossa: il tracking non scrive più
+// nel DB. Le funzioni restano attive come no-op per non rompere le chiamate AI
+// di quiz/tutor/esami che dipendono dal loro ritorno (runTrackedChatCompletion
+// deve continuare a restituire il risultato di operation()).
+const TRACKING_ENABLED = false;
+
 async function trackEvent(payload = {}) {
+    if (!TRACKING_ENABLED) return null;
     try {
         const userId = normalizeUserId(payload.userId);
         if (!userId) return null;
