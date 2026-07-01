@@ -28,14 +28,14 @@ export const LaTeXModal: React.FC<LaTeXModalProps> = ({
         : `$${value || 'x^2'}$`;
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
             <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                className="absolute inset-0 bg-theme-overlay backdrop-blur-sm"
                 onClick={onClose}
                 aria-hidden="true"
             />
-            <div className="relative z-10 w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-theme-elevated shadow-theme-lg">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+            <div className="relative z-10 w-full max-w-3xl overflow-hidden rounded-2xl border border-theme-subtle bg-theme-elevated shadow-theme-lg">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-theme-subtle">
                     <div>
                         <h2 className="text-base font-semibold text-theme-primary">Inserisci formula LaTeX</h2>
                         <p className="text-xs text-theme-muted">Compatibile con il renderer Markdown + KaTeX</p>
@@ -43,7 +43,7 @@ export const LaTeXModal: React.FC<LaTeXModalProps> = ({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-white/10 transition-all"
+                        className="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-surface-hover transition-all"
                         aria-label="Chiudi"
                     >
                         <X className="w-4 h-4" />
@@ -60,7 +60,7 @@ export const LaTeXModal: React.FC<LaTeXModalProps> = ({
                                 className={`px-2 py-1 rounded-full border text-xs transition-all ${
                                     mode === 'inline'
                                         ? 'border-violet-400/70 text-violet-200 bg-violet-500/20'
-                                        : 'border-white/10 text-theme-muted hover:text-theme-primary'
+                                        : 'border-theme-subtle text-theme-muted hover:text-theme-primary'
                                 }`}
                             >
                                 Inline
@@ -71,7 +71,7 @@ export const LaTeXModal: React.FC<LaTeXModalProps> = ({
                                 className={`px-2 py-1 rounded-full border text-xs transition-all ${
                                     mode === 'block'
                                         ? 'border-violet-400/70 text-violet-200 bg-violet-500/20'
-                                        : 'border-white/10 text-theme-muted hover:text-theme-primary'
+                                        : 'border-theme-subtle text-theme-muted hover:text-theme-primary'
                                 }`}
                             >
                                 Blocco
@@ -82,13 +82,13 @@ export const LaTeXModal: React.FC<LaTeXModalProps> = ({
                             onChange={(event) => onChange(event.target.value)}
                             placeholder="Es: \\frac{a}{b}"
                             rows={6}
-                            className="w-full min-h-[140px] resize-y rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-theme-primary placeholder:text-theme-muted focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60"
+                            className="w-full min-h-[140px] resize-y rounded-xl border border-theme-subtle bg-theme-surface p-3 text-sm text-theme-primary placeholder:text-theme-muted focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60"
                         />
                         <div className="flex items-center justify-end gap-2">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-3 py-2 rounded-lg text-sm text-theme-secondary border border-white/10 hover:bg-white/10 transition-all"
+                                className="px-3 py-2 rounded-lg text-sm text-theme-secondary border border-theme-subtle hover:bg-theme-surface-hover transition-all"
                             >
                                 Annulla
                             </button>
@@ -102,7 +102,7 @@ export const LaTeXModal: React.FC<LaTeXModalProps> = ({
                         </div>
                     </div>
 
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="rounded-xl border border-theme-subtle bg-theme-surface p-4">
                         <p className="text-xs font-semibold text-theme-muted mb-2">Preview</p>
                         <CardContentRenderer
                             content={previewContent}

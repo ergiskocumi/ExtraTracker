@@ -212,9 +212,9 @@ const FolderItem: React.FC<FolderItemProps> = ({
                 }}
                 className={`
                     group relative pl-${level * 4} pr-3 py-1.5 rounded-lg transition-all duration-200 touch-manipulation
-                    ${isSelected 
-                        ? 'bg-violet-500/20' 
-                        : 'hover:bg-white/5'
+                    ${isSelected
+                        ? 'bg-violet-500/20'
+                        : 'hover:bg-theme-surface-hover'
                     }
                     ${isDragOver 
                         ? 'bg-violet-500/40 border-2 border-violet-400 border-dashed shadow-2xl' 
@@ -272,7 +272,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                         : isCritical
                                             ? 'bg-amber-500/20 text-amber-400'
                                             : 'bg-violet-500/20 text-violet-400'
-                                    : 'bg-white/10 text-white/60'
+                                    : 'bg-theme-surface text-theme-muted'
                             }`}>
                                 <Folder className="w-3 h-3" />
                             </div>
@@ -296,7 +296,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                     onClick={(e) => e.stopPropagation()}
                                 />
                             ) : (
-                                <span className="text-sm font-medium text-white truncate max-w-[200px] sm:max-w-[280px]">
+                                <span className="text-sm font-medium text-theme-primary truncate max-w-[200px] sm:max-w-[280px]">
                                     {folder.name}
                                 </span>
                             )}
@@ -536,7 +536,7 @@ const RootFolderItem: React.FC<{
                 transition-all duration-200 touch-manipulation min-h-[44px]
                 ${isSelected
                     ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30 shadow-lg shadow-violet-500/10' 
-                    : 'hover:bg-white/10 text-white/70 hover:text-white border border-transparent'
+                    : 'hover:bg-theme-surface-hover text-theme-secondary hover:text-theme-primary border border-transparent'
                 }
                 ${isDragOver 
                     ? 'bg-violet-500/40 border-2 border-violet-400 border-dashed shadow-2xl' 

@@ -173,7 +173,7 @@ const CelebrationLayer: React.FC<{
     return (
         <div
             aria-hidden
-            className="pointer-events-none fixed inset-0 top-[var(--app-header-height,64px)] z-[60] overflow-hidden"
+            className="pointer-events-none fixed inset-0 top-[var(--app-header-height,64px)] z-modal-backdrop overflow-hidden"
         >
             <div className="absolute inset-0">
                 {Array.from({ length: isSuccess ? 80 : 50 }).map((_, i) => {

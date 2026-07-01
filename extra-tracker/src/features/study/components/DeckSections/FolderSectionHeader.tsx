@@ -41,7 +41,7 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
         ? 'text-blue-400' 
         : 'text-primary-400';
 
-    const dueColor = stats.dueCards > 0 ? 'text-orange-400' : 'text-white/50';
+    const dueColor = stats.dueCards > 0 ? 'text-orange-400' : 'text-theme-muted';
 
     return (
         <div className="flex items-center justify-between mb-4">
@@ -52,9 +52,9 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
                     className="p-1 rounded-lg hover:bg-theme-surface transition-colors"
                 >
                     {isCollapsed ? (
-                        <ChevronRight className="w-5 h-5 text-white/60" />
+                        <ChevronRight className="w-5 h-5 text-theme-muted" />
                     ) : (
-                        <ChevronDown className="w-5 h-5 text-white/60" />
+                        <ChevronDown className="w-5 h-5 text-theme-muted" />
                     )}
                 </button>
 
@@ -77,7 +77,7 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
                 {/* Title & Stats */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                        <h2 className="text-lg font-semibold text-white truncate">
+                        <h2 className="text-lg font-semibold text-theme-primary truncate">
                             {folder.name}
                         </h2>
                         {onViewFolder && (
@@ -94,8 +94,8 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
                     <div className="flex items-center gap-4 text-xs">
                         {/* Total Cards */}
                         <div className="flex items-center gap-1.5">
-                            <Target className="w-3.5 h-3.5 text-white/50" />
-                            <span className="text-white/70">
+                            <Target className="w-3.5 h-3.5 text-theme-muted" />
+                            <span className="text-theme-secondary">
                                 {stats.totalCards} carte
                             </span>
                         </div>
@@ -120,8 +120,8 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
 
                         {/* Total Decks */}
                         <div className="flex items-center gap-1.5">
-                            <Folder className="w-3.5 h-3.5 text-white/50" />
-                            <span className="text-white/70">
+                            <Folder className="w-3.5 h-3.5 text-theme-muted" />
+                            <span className="text-theme-secondary">
                                 {stats.totalDecks} {stats.totalDecks === 1 ? 'mazzo' : 'mazzi'}
                             </span>
                         </div>
@@ -135,7 +135,7 @@ export const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({
                     onClick={() => setShowMenu(!showMenu)}
                     className="p-2 rounded-lg hover:bg-theme-surface transition-colors"
                 >
-                    <MoreVertical className="w-5 h-5 text-white/50" />
+                    <MoreVertical className="w-5 h-5 text-theme-muted" />
                 </button>
 
                 {showMenu && (

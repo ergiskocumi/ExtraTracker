@@ -77,7 +77,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                     onChange={e => setFront(e.target.value)}
                                     placeholder="Cosa vuoi memorizzare?"
                                     rows={3}
-                                    className="w-full px-4 py-3 bg-theme-surface border border-theme-default rounded-xl text-theme-primary placeholder:text-slate-400 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-theme-surface border border-theme-default rounded-xl text-theme-primary placeholder:text-theme-muted focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all resize-none"
                                     autoFocus
                                 />
                             </div>
@@ -91,7 +91,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                     onChange={e => setBack(e.target.value)}
                                     placeholder="La risposta..."
                                     rows={3}
-                                    className="w-full px-4 py-3 bg-theme-surface border border-theme-default rounded-xl text-theme-primary placeholder:text-slate-400 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-theme-surface border border-theme-default rounded-xl text-theme-primary placeholder:text-theme-muted focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all resize-none"
                                 />
                             </div>
 

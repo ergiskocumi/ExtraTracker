@@ -91,7 +91,7 @@ export const DeckCardList: React.FC<DeckCardListProps> = ({
                 {/* Title & Info */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-white truncate text-sm">{deck.title}</h3>
+                        <h3 className="font-semibold text-theme-primary truncate text-sm">{deck.title}</h3>
                         {deck.pinned && (
                             <Star className="w-3.5 h-3.5 text-amber-400 fill-current flex-shrink-0" />
                         )}
@@ -102,7 +102,7 @@ export const DeckCardList: React.FC<DeckCardListProps> = ({
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-white/50">
+                    <div className="flex items-center gap-3 text-xs text-theme-muted">
                         <span>{totalCards} carte</span>
                         {totalCards > 0 && (
                             <>

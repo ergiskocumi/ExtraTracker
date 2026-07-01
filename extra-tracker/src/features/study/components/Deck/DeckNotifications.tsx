@@ -141,10 +141,10 @@ export const DeckNotifications: React.FC<DeckNotificationsProps> = ({
                                 <Clock className="w-5 h-5 text-amber-400" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="mb-1 text-base font-semibold text-white">
+                                <h3 className="mb-1 text-base font-semibold text-theme-primary">
                                     Carte in Scadenza
                                 </h3>
-                                <p className="text-sm text-white/70">
+                                <p className="text-sm text-theme-secondary">
                                     Hai <span className="font-bold text-amber-400">{dueCardsCount}</span>{' '}
                                     {dueCardsCount === 1 ? 'carta' : 'carte'} da ripassare in questo mazzo.
                                 </p>
@@ -153,13 +153,13 @@ export const DeckNotifications: React.FC<DeckNotificationsProps> = ({
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleToggleNotifications}
-                                className="p-2 transition-all rounded-lg hover:bg-white/10"
+                                className="p-2 transition-all rounded-lg hover:bg-theme-surface-hover"
                                 title={notificationsEnabled ? 'Disabilita notifiche' : 'Abilita notifiche'}
                             >
                                 {notificationsEnabled ? (
                                     <Bell className="w-4 h-4 text-amber-400" />
                                 ) : (
-                                    <BellOff className="w-4 h-4 text-white/40" />
+                                    <BellOff className="w-4 h-4 text-theme-muted" />
                                 )}
                             </button>
                         </div>

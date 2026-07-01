@@ -220,7 +220,7 @@ export const CardModal: React.FC<CardModalProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-2xl"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay backdrop-blur-2xl"
                     onClick={onClose}
                 >
                     <motion.div

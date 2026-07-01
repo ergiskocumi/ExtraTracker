@@ -60,7 +60,7 @@ export const ExamGridCard: React.FC<ExamGridCardProps> = ({
         masteryPercent >= 80 ? 'bg-emerald-500' : masteryPercent >= 50 ? 'bg-blue-500' : 'bg-primary-500';
 
     const deadlineColor = deadline.isPast
-        ? 'text-red-500 dark:text-red-400'
+        ? 'text-red-600 dark:text-red-400'
         : deadline.isUrgent
           ? 'text-amber-500 dark:text-amber-400'
           : 'text-theme-secondary';

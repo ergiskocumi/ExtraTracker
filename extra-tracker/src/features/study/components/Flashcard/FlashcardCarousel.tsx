@@ -109,9 +109,9 @@ const CardItem: React.FC<CardItemProps> = ({
             transition={{ duration: 0.2 }}
             className={`
                 rounded-xl border transition-all duration-200
-                ${isActive 
-                    ? 'bg-violet-500/10 border-violet-500/40 ring-2 ring-violet-500/20' 
-                    : 'bg-zinc-800/40 border-white/10 hover:border-white/20'
+                ${isActive
+                    ? 'bg-violet-500/10 border-violet-500/40 ring-2 ring-violet-500/20'
+                    : 'bg-theme-surface border-theme-subtle hover:border-theme-default'
                 }
             `}
         >
@@ -127,7 +127,7 @@ const CardItem: React.FC<CardItemProps> = ({
                             <button
                                 onClick={onCancelEdit}
                                 disabled={saving}
-                                className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-all"
+                                className="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-surface-hover transition-all"
                                 title="Annulla (Esc)"
                             >
                                 <X className="w-4 h-4" />
@@ -146,7 +146,7 @@ const CardItem: React.FC<CardItemProps> = ({
 
                     {/* Front Edit */}
                     <div>
-                        <label className="block mb-1.5 text-xs text-white/50">Domanda</label>
+                        <label className="block mb-1.5 text-xs text-theme-muted">Domanda</label>
                         <MarkdownEditor
                             value={editFront}
                             onChange={setEditFront}
@@ -165,7 +165,7 @@ const CardItem: React.FC<CardItemProps> = ({
 
                     {/* Back Edit */}
                     <div>
-                        <label className="block mb-1.5 text-xs text-white/50">Risposta</label>
+                        <label className="block mb-1.5 text-xs text-theme-muted">Risposta</label>
                         <MarkdownEditor
                             value={editBack}
                             onChange={setEditBack}
@@ -192,9 +192,9 @@ const CardItem: React.FC<CardItemProps> = ({
                         {/* Index Badge */}
                         <div className={`
                             flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold
-                            ${isActive 
-                                ? 'bg-violet-500 text-white' 
-                                : 'bg-white/10 text-white/60'
+                            ${isActive
+                                ? 'bg-violet-500 text-white'
+                                : 'bg-theme-surface text-theme-muted'
                             }
                         `}>
                             {index + 1}
@@ -217,7 +217,7 @@ const CardItem: React.FC<CardItemProps> = ({
                                     e.stopPropagation();
                                     onStartEdit();
                                 }}
-                                className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                className="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-surface-hover transition-all"
                                 title="Modifica"
                             >
                                 <Edit3 className="w-4 h-4" />
@@ -228,9 +228,9 @@ const CardItem: React.FC<CardItemProps> = ({
                                     onToggleExpand();
                                 }}
                                 className={`p-1.5 rounded-lg transition-all ${
-                                    isExpanded 
-                                        ? 'text-emerald-400 bg-emerald-500/20' 
-                                        : 'text-white/40 hover:text-white hover:bg-white/10'
+                                    isExpanded
+                                        ? 'text-emerald-400 bg-emerald-500/20'
+                                        : 'text-theme-muted hover:text-theme-primary hover:bg-theme-surface-hover'
                                 }`}
                                 title={isExpanded ? 'Nascondi risposta' : 'Mostra risposta'}
                             >
@@ -260,7 +260,7 @@ const CardItem: React.FC<CardItemProps> = ({
                                             content={card.back}
                                             variant="answer"
                                             size="sm"
-                                            className="text-white/85"
+                                            className="text-theme-primary"
                                         />
                                     </div>
                                 </div>
@@ -395,11 +395,11 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
         return (
             <div className={`flex flex-col items-center justify-center h-full p-8 ${className}`}>
                 <div className="text-center max-w-sm">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                        <Layers className="w-7 h-7 text-white/40" />
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-theme-surface border border-theme-subtle flex items-center justify-center">
+                        <Layers className="w-7 h-7 text-theme-muted" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">Nessuna flashcard</h3>
-                    <p className="text-sm text-white/60">
+                    <h3 className="text-lg font-semibold text-theme-primary mb-2">Nessuna flashcard</h3>
+                    <p className="text-sm text-theme-muted">
                         Genera flashcard dal PDF o aggiungine manualmente.
                     </p>
                 </div>
@@ -412,15 +412,15 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
     return (
         <div className={`flex flex-col h-full ${className}`}>
             {/* Header with Search */}
-            <div className="flex-shrink-0 p-4 border-b border-white/10 space-y-3">
+            <div className="flex-shrink-0 p-4 border-b border-theme-subtle space-y-3">
                 {/* Stats Row */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-white">
+                        <span className="text-sm font-medium text-theme-primary">
                             {totalCards} Flashcard
                         </span>
                         {searchQuery && (
-                            <span className="text-xs text-white/50">
+                            <span className="text-xs text-theme-muted">
                                 ({filteredCards.length} risultati)
                             </span>
                         )}
@@ -429,9 +429,9 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
                         onClick={handleToggleAllAnswers}
                         className={`
                             flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                            ${showAllAnswers 
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-                                : 'bg-white/5 text-white/60 hover:text-white border border-white/10'
+                            ${showAllAnswers
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-theme-surface text-theme-muted hover:text-theme-primary border border-theme-subtle'
                             }
                         `}
                     >
@@ -442,18 +442,18 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
 
                 {/* Search */}
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted" />
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Cerca nelle flashcard..."
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-800/50 border border-white/10 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-theme-surface border border-theme-subtle text-sm text-theme-primary placeholder:text-theme-muted focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50"
                     />
                     {searchQuery && (
                         <button
                             onClick={() => setSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-white/40 hover:text-white hover:bg-white/10"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-theme-muted hover:text-theme-primary hover:bg-theme-surface-hover"
                         >
                             <X className="w-3.5 h-3.5" />
                         </button>
@@ -462,7 +462,7 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
             </div>
 
             {/* Cards List */}
-            <div 
+            <div
                 ref={scrollContainerRef}
                 className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
             >
@@ -494,12 +494,12 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
                 {/* No results */}
                 {filteredCards.length === 0 && searchQuery && (
                     <div className="py-12 text-center">
-                        <p className="text-white/50 text-sm">
+                        <p className="text-theme-muted text-sm">
                             Nessuna flashcard corrisponde a "{searchQuery}"
                         </p>
                         <button
                             onClick={() => setSearchQuery('')}
-                            className="mt-3 px-4 py-2 rounded-lg bg-white/5 text-white/70 text-sm hover:bg-white/10 transition-all"
+                            className="mt-3 px-4 py-2 rounded-lg bg-theme-surface text-theme-secondary text-sm hover:bg-theme-surface-hover transition-all"
                         >
                             Cancella ricerca
                         </button>
@@ -508,7 +508,7 @@ export const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
             </div>
 
             {/* Footer Stats */}
-            <div className="flex-shrink-0 px-4 py-3 border-t border-white/10 bg-theme-surface/50">
+            <div className="flex-shrink-0 px-4 py-3 border-t border-theme-subtle bg-theme-surface/50">
                 <div className="flex items-center justify-between text-xs text-theme-muted">
                     <span>
                         Card attiva: {activeIndex + 1} di {totalCards}

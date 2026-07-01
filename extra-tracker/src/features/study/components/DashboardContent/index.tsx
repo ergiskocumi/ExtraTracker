@@ -60,9 +60,9 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
         return (
             <div className="flex flex-col items-center justify-center py-16">
                 <div className="w-20 h-20 mb-6 rounded-full bg-red-500/20 flex items-center justify-center">
-                    <AlertCircle className="w-10 h-10 text-red-400" />
+                    <AlertCircle className="w-10 h-10 text-red-600 dark:text-red-400" />
                 </div>
-                <p className="text-red-400 mb-6 text-lg">{error}</p>
+                <p className="text-red-600 dark:text-red-400 mb-6 text-lg">{error}</p>
                 <button
                     onClick={onRetry}
                     className="px-6 py-3 rounded-xl bg-theme-elevated text-theme-primary hover:bg-theme-surface transition-all"

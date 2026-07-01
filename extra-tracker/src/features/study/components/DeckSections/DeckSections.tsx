@@ -157,7 +157,7 @@ export const DeckSections: React.FC<DeckSectionsProps> = ({
                 organizedDecks.folders.length === 0 &&
                 organizedDecks.uncategorized.length === 0 && (
                     <div className="text-center py-16">
-                        <p className="text-white/50 text-lg">
+                        <p className="text-theme-muted text-lg">
                             Nessun mazzo disponibile
                         </p>
                     </div>

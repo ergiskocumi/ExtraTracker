@@ -44,7 +44,7 @@ export const ContinueButton: React.FC<ContinueButtonProps> = ({
           : "bg-theme-surface border-2 border-theme-default text-theme-muted cursor-not-allowed opacity-50",
       )}
     >
-      <span className="text-base text-white">
+      <span className={cn("text-base", canContinue ? "text-white" : "text-theme-muted")}>
         {canContinue ? continueButtonText : "Seleziona una risposta"}
       </span>
       {canContinue && (

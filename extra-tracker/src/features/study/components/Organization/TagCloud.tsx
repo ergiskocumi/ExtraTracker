@@ -59,7 +59,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
         <div className="space-y-3">
             {/* Header */}
             <div className="flex items-center justify-between px-3">
-                <h3 className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-theme-muted uppercase tracking-wider">
                     Tag
                 </h3>
                 {!isCreating && (
@@ -119,7 +119,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                                 type="color"
                                 value={newTagColor}
                                 onChange={(e) => setNewTagColor(e.target.value)}
-                                className="w-8 h-8 rounded border border-white/20 cursor-pointer"
+                                className="w-8 h-8 rounded border border-theme-default cursor-pointer"
                             />
                         </div>
                         <div className="flex items-center gap-2">
@@ -151,8 +151,8 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         className="px-3 py-4 text-center"
                     >
-                        <TagIcon className="w-8 h-8 mx-auto mb-2 text-white/20" />
-                        <p className="text-xs text-white/40 mb-2">Nessun tag ancora</p>
+                        <TagIcon className="w-8 h-8 mx-auto mb-2 text-theme-muted opacity-50" />
+                        <p className="text-xs text-theme-muted mb-2">Nessun tag ancora</p>
                         <button
                             onClick={() => setIsCreating(true)}
                             className={studyOrgButtonClass('text', 'text-xs')}
@@ -176,7 +176,7 @@ export const TagCloud: React.FC<TagCloudProps> = ({
                             >
                                 <motion.div
                                     whileHover={{ scale: 1.1 }}
-                                    className="w-3 h-3 rounded-full flex-shrink-0 border border-white/20"
+                                    className="w-3 h-3 rounded-full flex-shrink-0 border border-theme-default"
                                     style={{ backgroundColor: tag.color }}
                                 />
                                 <span className="flex-1 text-sm text-left truncate font-medium">

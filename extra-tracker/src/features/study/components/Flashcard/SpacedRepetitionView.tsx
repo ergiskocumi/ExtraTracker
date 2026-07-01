@@ -161,7 +161,7 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
     }, [sessionTime]);
 
     return (
-        <div className="w-full min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col px-3 py-4">
+        <div className="w-full min-h-screen bg-theme-base flex flex-col px-3 py-4">
             {/* ═══════════════════════════════════════════
                 HEADER - Più grande e leggibile
                 ═══════════════════════════════════════════ */}
@@ -175,7 +175,7 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
                     {/* Session Time */}
                     <div className="flex items-center gap-2">
                         <span className="text-lg">⏱️</span>
-                        <span className="text-sm font-mono text-white/60">{formattedTime}</span>
+                        <span className="text-sm font-mono text-theme-muted">{formattedTime}</span>
                     </div>
 
                     {/* Accuracy - Animated */}
@@ -186,7 +186,7 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
                         className="flex items-center gap-2.5"
                     >
                         <span className="text-xl font-bold text-cyan-400">{accuracy.accuracyPercentage}%</span>
-                        <span className="text-sm text-white/40">({accuracy.correctCount}/{accuracy.totalCount})</span>
+                        <span className="text-sm text-theme-muted">({accuracy.correctCount}/{accuracy.totalCount})</span>
                     </motion.div>
 
                     {/* Card Counter */}
@@ -253,14 +253,14 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
                                         whileTap={!isSubmitting ? { scale: 0.92 } : undefined}
                                         onClick={() => handleRate(rating)}
                                         disabled={isSubmitting}
-                                        className={`relative flex flex-col items-center justify-center gap-3 px-6 py-5 rounded-3xl transition-colors duration-200 border font-bold text-white/90 active:scale-[0.97] ${
+                                        className={`relative flex flex-col items-center justify-center gap-3 px-6 py-5 rounded-3xl transition-colors duration-200 border font-bold active:scale-[0.97] ${
                                             isSelected
-                                                ? `border-white bg-gradient-to-br ${config.bgGradient} shadow-2xl ${config.glowColor}`
-                                                : `border-white/15 bg-white/5 hover:bg-white/[0.07] hover:border-white/30`
+                                                ? `border-white text-white bg-gradient-to-br ${config.bgGradient} shadow-2xl ${config.glowColor}`
+                                                : `border-theme-subtle bg-theme-surface text-theme-secondary hover:bg-theme-surface-hover hover:border-theme-default`
                                         } disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-md`}
                                     >
                                         {/* Keyboard hint */}
-                                        <span className="absolute top-1.5 right-3 text-xs font-bold text-white/50 bg-white/10 px-1.5 py-0.5 rounded">
+                                        <span className="absolute top-1.5 right-3 text-xs font-bold text-theme-muted bg-theme-surface-hover px-1.5 py-0.5 rounded">
                                             {rating}
                                         </span>
 
@@ -287,9 +287,9 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.5 }}
-                            className="text-center text-white/40 text-xs mt-4 font-mono"
+                            className="text-center text-theme-muted text-xs mt-4 font-mono"
                         >
-                            Premi <span className="text-white/60 font-bold">1</span> <span className="text-white/30">|</span> <span className="text-white/60 font-bold">2</span> <span className="text-white/30">|</span> <span className="text-white/60 font-bold">3</span>
+                            Premi <span className="text-theme-secondary font-bold">1</span> <span className="text-theme-muted">|</span> <span className="text-theme-secondary font-bold">2</span> <span className="text-theme-muted">|</span> <span className="text-theme-secondary font-bold">3</span>
                         </motion.p>
                     </motion.div>
                 )}
@@ -301,7 +301,7 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
-                    className="text-center text-white/25 text-xs mt-4"
+                    className="text-center text-theme-muted text-xs mt-4"
                 >
                     Clicca per girare 👆
                 </motion.p>

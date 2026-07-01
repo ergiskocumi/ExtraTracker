@@ -61,7 +61,7 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
     };
 
     return (
-        <div className="h-full flex flex-col bg-gradient-to-br from-slate-900/50 to-slate-800/50 rounded-2xl border border-white/10 p-6">
+        <div className="h-full flex flex-col bg-theme-card rounded-2xl border border-theme-subtle p-6">
             {/* Header */}
             <div className="mb-6">
                 <div className="flex items-center gap-3 mb-2">
@@ -69,8 +69,8 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                         <Book className="w-5 h-5 text-primary-400" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-white">Tutor Accademico</h3>
-                        <p className="text-sm text-white/60">
+                        <h3 className="text-lg font-semibold text-theme-primary">Tutor Accademico</h3>
+                        <p className="text-sm text-theme-muted">
                             Risponde usando solo il materiale caricato
                         </p>
                     </div>
@@ -79,7 +79,7 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
 
             {/* Question Input */}
             <div className="mb-6">
-                <label className="block text-sm font-medium text-white/80 mb-2">
+                <label className="block text-sm font-medium text-theme-secondary mb-2">
                     Domanda da rispondere:
                 </label>
                 <textarea
@@ -93,10 +93,10 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                     }
                     rows={3}
                     disabled={disabled || isLoading}
-                    className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all resize-none disabled:opacity-50"
+                    className="w-full px-4 py-3 bg-theme-surface border border-theme-subtle rounded-xl text-theme-primary placeholder:text-theme-muted focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all resize-none disabled:opacity-50"
                 />
                 <div className="flex items-center justify-between mt-2">
-                    <p className="text-xs text-white/40">
+                    <p className="text-xs text-theme-muted">
                         Invio per inviare, Shift+Invio per andare a capo
                     </p>
                     <motion.button
@@ -155,22 +155,22 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                                         ? 'Risposta trovata nel materiale'
                                         : 'Risposta non trovata nel materiale'}
                                 </h4>
-                                <div className="text-white/90 whitespace-pre-wrap leading-relaxed">
+                                <div className="text-theme-primary whitespace-pre-wrap leading-relaxed">
                                     {answer.answer}
                                 </div>
                             </div>
                         </div>
 
                         {answer.relatedTopics && answer.relatedTopics.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-white/10">
-                                <p className="text-sm font-medium text-white/70 mb-2">
+                            <div className="mt-4 pt-4 border-t border-theme-subtle">
+                                <p className="text-sm font-medium text-theme-secondary mb-2">
                                     Argomenti correlati trovati:
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                     {answer.relatedTopics.map((topic, idx) => (
                                         <span
                                             key={idx}
-                                            className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-sm text-white/70"
+                                            className="px-3 py-1 rounded-lg bg-theme-surface border border-theme-subtle text-sm text-theme-secondary"
                                         >
                                             {topic}
                                         </span>
@@ -198,9 +198,9 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
             )}
 
             {/* Info Footer */}
-            <div className="mt-6 pt-4 border-t border-white/10">
-                <p className="text-xs text-white/40 leading-relaxed">
-                    <strong className="text-white/60">Nota:</strong> Il tutor accademico risponde{' '}
+            <div className="mt-6 pt-4 border-t border-theme-subtle">
+                <p className="text-xs text-theme-muted leading-relaxed">
+                    <strong className="text-theme-secondary">Nota:</strong> Il tutor accademico risponde{' '}
                     <strong>esclusivamente</strong> usando il contenuto del PDF caricato. Se
                     l&apos;informazione non è presente nel materiale, te lo comunicherà
                     chiaramente.

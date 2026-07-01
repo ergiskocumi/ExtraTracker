@@ -122,7 +122,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                         }
                     }
                 }}
-                className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 ${isOpen ? 'z-[60]' : 'z-40'}
+                className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 ${isOpen ? 'z-popover' : 'z-fixed-nav'}
                            w-12 h-12 sm:w-14 sm:h-14 rounded-full
                            ${isOpen 
                                ? 'bg-gradient-to-br from-violet-600 to-purple-700' 
@@ -207,7 +207,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                                 </h2>
                                 <button
                                     onClick={onClose}
-                                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors group dark:hover:bg-white/10"
+                                    className="p-1.5 rounded-lg hover:bg-theme-surface-hover transition-colors group"
                                     aria-label="Chiudi"
                                 >
                                     <X className="w-4 h-4 text-theme-muted group-hover:text-theme-primary transition-colors" />

@@ -44,7 +44,7 @@ export const QuizReviewMode: React.FC<QuizReviewModeProps> = ({ data, onClose })
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[90] bg-theme-base/80 backdrop-blur-lg"
+      className="fixed inset-0 z-toast bg-theme-base/80 backdrop-blur-lg"
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >

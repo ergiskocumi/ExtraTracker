@@ -764,14 +764,14 @@ export const StudyModeSelector: React.FC<StudyModeSelectorProps> = ({
                         transition={{ duration: 0.3 }}
                         onClick={handleClose}
                         className="
-                            fixed inset-0 z-[100]
-                            bg-black/10 :bg-black/40
+                            fixed inset-0 z-tooltip
+                            bg-black/10 dark:bg-black/40
                             backdrop-blur-xl
                         "
                     />
 
                     {/* Modal */}
-                    <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+                    <div className="fixed inset-0 z-tooltip flex items-center justify-center p-4 sm:p-6 pointer-events-none">
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}

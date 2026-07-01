@@ -101,7 +101,7 @@ export const SavedQuizLibraryModal: React.FC<SavedQuizLibraryModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] bg-theme-base/80 backdrop-blur-lg"
+          className="fixed inset-0 z-popover bg-theme-base/80 backdrop-blur-lg"
         >
           <div className="mx-auto flex min-h-full max-w-7xl items-start justify-center p-3 sm:p-6">
             <motion.div

@@ -288,7 +288,7 @@ const ErrorState = memo<ErrorStateProps>(({ error, pdfUrl, onRetry }) => (
                 </svg>
             </div>
             <p className="text-lg font-semibold text-red-400 text-center">{error}</p>
-            <p className="text-sm text-white/40 text-center break-all">
+            <p className="text-sm text-theme-muted text-center break-all">
                 URL: {pdfUrl || 'N/A'}
             </p>
             <button
@@ -308,18 +308,18 @@ interface LoadingStateProps {
 }
 
 const LoadingState = memo<LoadingStateProps>(({ pdfUrl }) => (
-    <div className="h-full w-full flex flex-col items-center justify-center text-white/40">
+    <div className="h-full w-full flex flex-col items-center justify-center text-theme-muted">
         <div className="flex flex-col items-center gap-4">
             <div className="relative">
                 <div className="animate-spin w-12 h-12 border-[3px] border-violet-500/20 border-t-violet-400 rounded-full" />
-                <div 
-                    className="absolute inset-0 animate-spin w-12 h-12 border-[3px] border-transparent border-r-violet-600/40 rounded-full" 
-                    style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} 
+                <div
+                    className="absolute inset-0 animate-spin w-12 h-12 border-[3px] border-transparent border-r-violet-600/40 rounded-full"
+                    style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
                 />
             </div>
             <div className="flex flex-col items-center gap-2">
-                <p className="text-base font-medium text-white/60">Caricamento PDF...</p>
-                <p className="text-xs text-white/30 text-center max-w-md break-all px-4">
+                <p className="text-base font-medium text-theme-secondary">Caricamento PDF...</p>
+                <p className="text-xs text-theme-muted text-center max-w-md break-all px-4">
                     {pdfUrl}
                 </p>
             </div>
@@ -330,7 +330,7 @@ const LoadingState = memo<LoadingStateProps>(({ pdfUrl }) => (
 LoadingState.displayName = 'LoadingState';
 
 const EmptyState = memo(() => (
-    <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-white/40">
+    <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-theme-muted">
         <div className="w-16 h-16 rounded-full border-2 border-violet-500/20 flex items-center justify-center bg-violet-500/5">
             <svg className="w-8 h-8 text-violet-400/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -347,7 +347,7 @@ interface PageLoadingProps {
 }
 
 const PageLoading = memo<PageLoadingProps>(({ pageNumber }) => (
-    <div className="flex items-center justify-center p-8 text-white/40">
+    <div className="flex items-center justify-center p-8 text-theme-muted">
         <div className="animate-spin w-6 h-6 border-2 border-violet-500/30 border-t-violet-400 rounded-full mr-3" />
         <p className="text-sm">Caricamento pagina {pageNumber}...</p>
     </div>
@@ -373,7 +373,7 @@ const PDFPage = memo<PDFPageProps>(({ pageNumber, width, isVisible }) => {
                     minHeight: 400,
                 }}
             >
-                <div className="text-white/20 text-sm">Pagina {pageNumber}</div>
+                <div className="text-theme-muted text-sm">Pagina {pageNumber}</div>
             </div>
         );
     }
@@ -516,10 +516,10 @@ export const FluidPDFViewer: React.FC<FluidPDFViewerProps> = ({ pdfUrl }) => {
         <div
             ref={containerRef}
             className="h-full w-full overflow-y-auto overflow-x-hidden scrollbar-pdf"
-            style={{ 
-                width: '100%', 
+            style={{
+                width: '100%',
                 height: '100%',
-                background: 'radial-gradient(ellipse at center, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%)',
+                background: 'radial-gradient(ellipse at center, var(--bg-base) 0%, var(--bg-elevated) 100%)',
             }}
         >
             {error && (

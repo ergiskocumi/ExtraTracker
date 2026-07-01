@@ -98,24 +98,24 @@ export const DeckSection: React.FC<DeckSectionProps> = ({
                         {collapsible && (
                             <button
                                 onClick={() => setIsCollapsed(!isCollapsed)}
-                                className="p-1 rounded-lg hover:bg-white/5 transition-colors"
+                                className="p-1 rounded-lg hover:bg-theme-surface-hover transition-colors"
                             >
                                 {isCollapsed ? (
-                                    <ChevronRight className="w-5 h-5 text-white/60" />
+                                    <ChevronRight className="w-5 h-5 text-theme-muted" />
                                 ) : (
-                                    <ChevronDown className="w-5 h-5 text-white/60" />
+                                    <ChevronDown className="w-5 h-5 text-theme-muted" />
                                 )}
                             </button>
                         )}
                         <div>
-                            <h2 className="text-lg font-semibold text-white">{title}</h2>
+                            <h2 className="text-lg font-semibold text-theme-primary">{title}</h2>
                             {subtitle && (
-                                <p className="text-sm text-white/50 mt-0.5">{subtitle}</p>
+                                <p className="text-sm text-theme-muted mt-0.5">{subtitle}</p>
                             )}
                         </div>
                     </div>
                     {hasMore && (
-                        <span className="text-xs text-white/40">
+                        <span className="text-xs text-theme-muted">
                             +{decks.length - (maxVisible || 0)} altri
                         </span>
                     )}

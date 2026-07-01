@@ -153,15 +153,15 @@ export const TypingView: React.FC<TypingViewProps> = ({
             ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200 focus:ring-emerald-500/30'
             : status === 'wrong'
                 ? 'border-rose-500/50 bg-rose-500/10 text-rose-200 focus:ring-rose-500/30'
-                : 'border-white/10 bg-white/[0.04] text-white/90 focus:ring-indigo-500/40';
+                : 'border-theme-subtle bg-theme-surface text-theme-primary focus:ring-indigo-500/40';
 
     return (
         <div className="w-full max-w-4xl mx-auto px-4 h-full flex flex-col" style={rootStyle}>
             {/* Card Container - Flex grow per occupare spazio disponibile */}
-            <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl overflow-hidden">
-                
+            <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-theme-subtle bg-theme-card backdrop-blur-xl overflow-hidden">
+
                 {/* Header - Fixed height */}
-                <div className="flex-none px-6 sm:px-8 py-5 border-b border-white/[0.06]">
+                <div className="flex-none px-6 sm:px-8 py-5 border-b border-theme-subtle">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center ring-1 ring-indigo-500/30">
@@ -210,7 +210,7 @@ export const TypingView: React.FC<TypingViewProps> = ({
                     <div className="px-6 sm:px-8 py-6 space-y-6">
                         
                         {/* Question */}
-                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-white leading-relaxed whitespace-pre-wrap break-words">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-theme-primary leading-relaxed whitespace-pre-wrap break-words">
                             {question}
                         </h2>
 
@@ -222,7 +222,7 @@ export const TypingView: React.FC<TypingViewProps> = ({
                                     value={value}
                                     onChange={(event) => setValue(event.target.value)}
                                     placeholder="Scrivi qui la tua risposta..."
-                                    className={`w-full rounded-2xl border px-6 py-5 text-base sm:text-xl focus:outline-none focus:ring-2 transition-all duration-200 placeholder:text-white/30 ${inputStyle}`}
+                                    className={`w-full rounded-2xl border px-6 py-5 text-base sm:text-xl focus:outline-none focus:ring-2 transition-all duration-200 placeholder:text-theme-muted ${inputStyle}`}
                                     disabled={isChecking || isSubmitting || status !== 'idle'}
                                     autoComplete="off"
                                     autoCorrect="off"
@@ -230,9 +230,9 @@ export const TypingView: React.FC<TypingViewProps> = ({
                                     spellCheck="false"
                                 />
                                 {status === 'idle' && (
-                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 text-white/30 text-sm hidden sm:flex items-center gap-1.5">
+                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 text-theme-muted text-sm hidden sm:flex items-center gap-1.5">
                                         <span>Premi</span>
-                                        <kbd className="px-2 py-1 rounded bg-white/10 text-white/60 text-xs font-mono border border-white/5">Enter</kbd>
+                                        <kbd className="px-2 py-1 rounded bg-theme-surface text-theme-secondary text-xs font-mono border border-theme-subtle">Enter</kbd>
                                     </div>
                                 )}
                             </div>
@@ -266,7 +266,7 @@ export const TypingView: React.FC<TypingViewProps> = ({
                                             )}
                                         </div>
                                         <div className="px-6 py-4 bg-rose-500/5">
-                                            <p className="text-white text-lg font-medium break-words">{answer}</p>
+                                            <p className="text-theme-primary text-lg font-medium break-words">{answer}</p>
                                         </div>
                                     </motion.div>
                                 )}
@@ -301,14 +301,14 @@ export const TypingView: React.FC<TypingViewProps> = ({
                 </div>
 
                 {/* Action Button - Fixed at bottom */}
-                <div className="flex-none px-6 sm:px-8 py-5 border-t border-white/[0.06] bg-white/[0.02]">
+                <div className="flex-none px-6 sm:px-8 py-5 border-t border-theme-subtle bg-theme-surface/50">
                     <button
                         onClick={() => handleSubmit()}
                         disabled={isChecking || isSubmitting || (status === 'idle' && !value.trim()) || isExiting}
                         className={`w-full rounded-2xl py-4 text-base font-semibold transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
                             status === 'idle'
                                 ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/35 hover:translate-y-[-1px] active:translate-y-[1px]'
-                                : 'bg-white/[0.08] text-white/80 hover:bg-white/[0.12] hover:translate-y-[-1px] active:translate-y-[1px]'
+                                : 'bg-theme-surface text-theme-secondary hover:bg-theme-surface-hover hover:translate-y-[-1px] active:translate-y-[1px]'
                         }`}
                     >
                         {isChecking ? (
@@ -331,7 +331,7 @@ export const TypingView: React.FC<TypingViewProps> = ({
                                 <span>Continua</span>
                                 <div className="flex items-center gap-1.5 text-sm opacity-80">
                                     <span>o premi</span>
-                                    <kbd className="px-2 py-1 rounded bg-white/20 text-xs font-mono">Enter</kbd>
+                                    <kbd className="px-2 py-1 rounded bg-theme-surface-hover text-xs font-mono">Enter</kbd>
                                 </div>
                             </>
                         )}

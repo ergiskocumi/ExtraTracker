@@ -9,9 +9,9 @@ export const DeckCardProgress: React.FC<DeckCardProgressProps> = ({ masteryPerce
     return (
         <div className="mb-4 sm:mb-5">
             <div className="flex items-center justify-between mb-1.5 sm:mb-2 text-xs sm:text-sm">
-                <span className="text-white/50">Padronanza</span>
+                <span className="text-theme-muted">Padronanza</span>
                 <span className={`font-bold ${
-                    masteryPercent === 100 ? 'text-emerald-400' : 'text-white/70'
+                    masteryPercent === 100 ? 'text-emerald-400' : 'text-theme-secondary'
                 }`}>
                     {masteryPercent}%
                 </span>

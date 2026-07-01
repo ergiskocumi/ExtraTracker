@@ -42,7 +42,7 @@ export const DeckGrid = memo<DeckGridProps>(({
     if (decks.length === 0) {
         return (
             <div className="text-center py-16">
-                <p className="text-white/50 text-lg">
+                <p className="text-theme-muted text-lg">
                     Nessun mazzo corrisponde ai filtri
                 </p>
             </div>

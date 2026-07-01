@@ -33,10 +33,10 @@ export const TodayPlan: React.FC<TodayPlanProps> = ({
             className="mt-8 sm:mt-12 mb-6 sm:mb-8"
         >
             {/* Separator line */}
-            <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-6 sm:mb-8" />
+            <div className="h-px bg-gradient-to-r from-transparent via-theme-default to-transparent mb-6 sm:mb-8" />
             
             <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2.5 sm:gap-3">
+                <h2 className="text-xl sm:text-2xl font-bold text-theme-primary flex items-center gap-2.5 sm:gap-3">
                     <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-violet-400" />
                     Oggi: Cosa Devo Studiare
                 </h2>

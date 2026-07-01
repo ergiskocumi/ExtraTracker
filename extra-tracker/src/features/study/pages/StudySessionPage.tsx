@@ -426,7 +426,7 @@ export const StudySessionPage: React.FC = () => {
 
             {/* Conferma uscita sessione */}
             {showExitConfirm && (
-                <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-modal-backdrop flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="w-full max-w-sm rounded-2xl bg-theme-elevated border border-theme-default shadow-theme-lg p-6 space-y-4">
                         <div className="text-center">
                             <p className="text-base font-semibold text-theme-primary">Uscire dalla sessione?</p>

@@ -147,7 +147,7 @@ const FullscreenEditModalComponent: React.FC<FullscreenEditModalProps> = ({
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="absolute inset-0 bg-black/60 backdrop-blur-md"
+                        className="absolute inset-0 bg-theme-overlay backdrop-blur-md"
                         onClick={handleCancel}
                         aria-hidden="true"
                     />
