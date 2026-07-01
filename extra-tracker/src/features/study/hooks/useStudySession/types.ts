@@ -15,6 +15,7 @@ export interface UseStudySessionParams {
     quizType: QuizType;
     sourceCardIdsKey: string;
     runKey: string;
+    quizId: string | null;
     savedQuizId: string | null;
     preloadedSession: StudySession | undefined;
 }

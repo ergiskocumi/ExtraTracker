@@ -137,10 +137,12 @@ const refreshSession = async (refreshToken, deviceInfo = {}) => {
         const graceToken = user.findInGracePeriod(tokenHash);
 
         if (graceToken) {
-            const newAccessToken = tokenService.generateAccessToken(user);
-            const { token: newRefreshToken } = await tokenService.generateRefreshToken(user, deviceInfo);
-            await user.removeFromGracePeriod(tokenHash);
-            return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+            // Token theft detected — invalida TUTTE le sessioni
+            await User.updateOne(
+                { _id: user._id },
+                { $set: { refreshTokens: [], gracePeriodTokens: [] } }
+            );
+            throw AppError.unauthorized('Sessione non valida o scaduta');
         }
 
         await User.updateOne(
@@ -150,15 +152,10 @@ const refreshSession = async (refreshToken, deviceInfo = {}) => {
         throw AppError.unauthorized('Sessione non valida o scaduta');
     }
 
-    await User.updateOne(
-        { _id: user._id, 'refreshTokens.hash': tokenHash },
-        { $set: { 'refreshTokens.$.lastUsedAt': new Date() } }
-    );
-
-    const newAccessToken = tokenService.generateAccessToken(user);
     const sessionUserAgent = decryptString(session.userAgent);
     const sessionIp = decryptString(session.ip);
 
+    const newAccessToken = tokenService.generateAccessToken(user);
     const { token: newRefreshToken, sessionData: newSessionData } =
         await tokenService.generateRefreshToken(user, {
             device: session.device,
@@ -166,21 +163,31 @@ const refreshSession = async (refreshToken, deviceInfo = {}) => {
             ip: deviceInfo.ip || sessionIp,
         });
 
-    const graceExpiresAt = new Date(Date.now() + GRACE_PERIOD_MS);
-
-    await User.updateOne(
-        { _id: user._id },
-        { $pull: { gracePeriodTokens: { expiresAt: { $lt: new Date() } } } }
-    );
-
-    await User.updateOne(
-        { _id: user._id },
-        { $push: { gracePeriodTokens: { hash: tokenHash, expiresAt: graceExpiresAt } } }
-    );
-
-    await User.findOneAndUpdate(
+    const result = await User.findOneAndUpdate(
         { _id: user._id },
         [
+            { $set: { 'refreshTokens.$[elem].lastUsedAt': new Date() } },
+            {
+                $set: {
+                    gracePeriodTokens: {
+                        $filter: {
+                            input: { $ifNull: ['$gracePeriodTokens', []] },
+                            as: 'gt',
+                            cond: { $gt: ['$$gt.expiresAt', new Date()] },
+                        },
+                    },
+                },
+            },
+            {
+                $set: {
+                    gracePeriodTokens: {
+                        $concatArrays: [
+                            { $ifNull: ['$gracePeriodTokens', []] },
+                            [{ hash: tokenHash, expiresAt: new Date(Date.now() + GRACE_PERIOD_MS) }],
+                        ],
+                    },
+                },
+            },
             {
                 $set: {
                     refreshTokens: {
@@ -210,8 +217,15 @@ const refreshSession = async (refreshToken, deviceInfo = {}) => {
                 },
             },
         ],
-        { new: true }
+        {
+            arrayFilters: [{ 'elem.hash': tokenHash }],
+            new: true,
+        }
     );
+
+    if (!result) {
+        throw AppError.unauthorized('Sessione non valida o già utilizzata');
+    }
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken };
 };

@@ -92,7 +92,7 @@ module.exports = {
         general: {
             windowMs: parseInt(process.env.RATE_LIMIT_GENERAL_WINDOW_MS || '900000', 10), // 15 minuti
             max: parseInt(process.env.RATE_LIMIT_GENERAL_MAX || '1000', 10), // Molto permissivo: 1000 richieste per 15 minuti
-            enabled: process.env.RATE_LIMIT_GENERAL_ENABLED === 'true' || false, // Disabilitato di default
+            enabled: process.env.RATE_LIMIT_GENERAL_ENABLED !== 'false', // Abilitato di default in produzione
         },
         // Rate limiter per autenticazione - previene brute force
         auth: {

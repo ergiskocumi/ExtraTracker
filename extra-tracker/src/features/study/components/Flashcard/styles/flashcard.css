@@ -35,7 +35,7 @@
     width: 100%;
     min-height: 360px;
     transform-style: preserve-3d;
-    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
     transform-origin: center center;
     cursor: pointer;
 }
@@ -76,7 +76,7 @@
         rgba(255, 255, 255, 0.02) 100%
     );
     box-shadow:
-        0 20px 60px -12px rgba(0, 0, 0, 0.5),
+        0 20px 40px -15px rgba(0, 0, 0, 0.05),
         0 0 0 1px rgba(255, 255, 255, 0.15),
         inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
         inset 0 -1px 0 0 rgba(0, 0, 0, 0.1);
@@ -118,7 +118,7 @@
         rgba(139, 92, 246, 0.05) 100%
     );
     box-shadow:
-        0 20px 60px -12px rgba(139, 92, 246, 0.3),
+        0 20px 40px -15px rgba(139, 92, 246, 0.25),
         0 0 0 1px rgba(139, 92, 246, 0.25),
         inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
         inset 0 -1px 0 0 rgba(0, 0, 0, 0.1);
@@ -216,26 +216,27 @@
     gap: 0.5rem;
     margin-top: 0.75rem;
     padding-top: 0.75rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.3);
+    border-top: 1px solid var(--border-subtle);
+    color: var(--text-muted);
     font-size: 0.75rem;
     font-weight: 500;
-    animation: pulse-opacity 2.5s ease-in-out infinite;
+    /* Pulsa 3 volte per attirare l'attenzione, poi si ferma (non infinita) */
+    animation: pulse-opacity 2.5s ease-in-out 3;
 }
 
 @keyframes pulse-opacity {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.5; }
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.8; }
 }
 
 .flashcard-hint kbd {
     padding: 0.125rem 0.375rem;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
     border-radius: 0.25rem;
     font-family: ui-monospace, monospace;
     font-size: 0.625rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-muted);
 }
 
 /* ===========================================
@@ -261,18 +262,18 @@
     border-radius: 0.75rem;
     font-size: 0.75rem;
     font-weight: 600;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
     backdrop-filter: blur(8px);
 }
 
 .flashcard-controls button:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+    border-color: var(--border-default);
 }
 
 .flashcard-controls button:active {
@@ -333,9 +334,18 @@
 .perspective-container:hover .flashcard-front,
 .perspective-container:hover .flashcard-back {
     box-shadow:
-        0 25px 70px -12px rgba(0, 0, 0, 0.6),
+        0 25px 50px -15px rgba(0, 0, 0, 0.08),
         0 0 0 1px rgba(255, 255, 255, 0.2),
         inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+.perspective-container:active .flashcard-inner {
+    transform: scale(0.98);
+    transition: transform 0.15s ease;
+}
+
+.perspective-container:active .flashcard-inner.rotated {
+    transform: rotateY(180deg) scale(0.98);
 }
 
 /* ===========================================
@@ -352,7 +362,7 @@
     );
     border-color: rgba(148, 163, 184, 0.3);
     box-shadow:
-        0 20px 60px -12px rgba(0, 0, 0, 0.15),
+        0 20px 40px -15px rgba(0, 0, 0, 0.05),
         0 0 0 1px rgba(148, 163, 184, 0.2);
 }
 

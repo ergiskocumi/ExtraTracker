@@ -84,14 +84,14 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
             transition={{ delay: index * 0.08, duration: 0.4 }}
             whileHover={{ y: -2 }}
             className={`
-                relative p-5 sm:p-6 rounded-2xl sm:rounded-3xl border-2
-                ${priority === 'high' 
-                    ? 'bg-gradient-to-br from-amber-500/15 to-amber-600/10 border-amber-500/40 shadow-lg shadow-amber-500/10' 
+                relative p-5 sm:p-6 rounded-2xl sm:rounded-3xl border
+                ${priority === 'high'
+                    ? 'bg-gradient-to-br from-amber-500/15 to-amber-600/10 border-amber-500/25 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]'
                     : priority === 'medium'
-                        ? 'bg-gradient-to-br from-violet-500/15 to-violet-600/10 border-violet-500/40 shadow-lg shadow-violet-500/10'
-                        : 'bg-gradient-to-br from-blue-500/15 to-blue-600/10 border-blue-500/40 shadow-lg shadow-blue-500/10'
+                        ? 'bg-gradient-to-br from-violet-500/15 to-violet-600/10 border-violet-500/25 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]'
+                        : 'bg-gradient-to-br from-blue-500/15 to-blue-600/10 border-blue-500/25 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]'
                 }
-                hover:shadow-xl hover:border-opacity-60 transition-all duration-300
+                hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-colors duration-200
                 backdrop-blur-sm
             `}
         >
@@ -128,10 +128,10 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
                     <ThemeIcon className={`w-7 h-7 sm:w-8 sm:h-8 ${theme.iconColor}`} />
                 </div>
                 <div className="flex-1 min-w-0 pt-1">
-                    <h3 className="text-base sm:text-lg font-bold text-white mb-1.5 line-clamp-2 leading-tight">
+                    <h3 className="text-base sm:text-lg font-bold text-theme-primary mb-1.5 line-clamp-2 leading-tight">
                         {deck.title}
                     </h3>
-                    <p className="text-xs sm:text-sm text-white/70 font-medium">
+                    <p className="text-xs sm:text-sm text-theme-secondary font-medium">
                         {dueCount} di {totalCards} carte da ripassare
                     </p>
                 </div>
@@ -140,7 +140,7 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
             {/* Progress bar */}
             <div className="mb-5">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-white/60">Progresso</span>
+                    <span className="text-xs font-semibold text-theme-secondary">Progresso</span>
                     <span className={`text-xs font-bold ${
                         priority === 'high' ? 'text-amber-400' :
                         priority === 'medium' ? 'text-violet-400' :
@@ -149,7 +149,7 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
                         {Math.round(progressPercent)}%
                     </span>
                 </div>
-                <div className="h-2.5 bg-white/10 rounded-full overflow-hidden shadow-inner">
+                <div className="h-2.5 bg-theme-surface rounded-full overflow-hidden shadow-inner">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${progressPercent}%` }}
@@ -195,7 +195,7 @@ export const PriorityDeckCard: React.FC<PriorityDeckCardProps> = ({
                         e.stopPropagation();
                         onViewDetail(deck.id);
                     }}
-                    className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition-all touch-manipulation opacity-60 hover:opacity-100"
+                    className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-theme-surface hover:bg-theme-surface-hover text-theme-muted hover:text-theme-secondary border border-theme-subtle hover:border-theme-default transition-all touch-manipulation opacity-60 hover:opacity-100"
                     aria-label="Visualizza dettagli"
                 >
                     <Eye className="w-4 h-4 sm:w-4 sm:h-4" />

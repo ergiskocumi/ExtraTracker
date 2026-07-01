@@ -122,7 +122,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                         }
                     }
                 }}
-                className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 ${isOpen ? 'z-[60]' : 'z-40'}
+                className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 ${isOpen ? 'z-popover' : 'z-fixed-nav'}
                            w-12 h-12 sm:w-14 sm:h-14 rounded-full
                            ${isOpen 
                                ? 'bg-gradient-to-br from-violet-600 to-purple-700' 
@@ -182,7 +182,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                                    md:max-w-[24rem]
                                    lg:max-w-[26rem]
                                    rounded-2xl
-                                   shadow-2xl shadow-black/60
+                                   shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]
                                    z-50
                                    flex flex-col
                                    pointer-events-auto
@@ -207,7 +207,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                                 </h2>
                                 <button
                                     onClick={onClose}
-                                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors group dark:hover:bg-white/10"
+                                    className="p-1.5 rounded-lg hover:bg-theme-surface-hover transition-colors group"
                                     aria-label="Chiudi"
                                 >
                                     <X className="w-4 h-4 text-theme-muted group-hover:text-theme-primary transition-colors" />
@@ -260,7 +260,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                             {/* Cartelle */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2">
+                                        <h3 className="text-xs font-bold text-theme-muted uppercase tracking-wider flex items-center gap-2">
                                         <FolderIcon className="w-3.5 h-3.5" />
                                         Cartelle
                                     </h3>
@@ -289,8 +289,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                                         animate={{ opacity: 1, y: 0 }}
                                         className="px-3 py-6 text-center"
                                     >
-                                        <FolderIcon className="w-10 h-10 mx-auto mb-3 text-white/20" />
-                                        <p className="text-xs text-white/40 mb-2">Nessuna cartella ancora</p>
+                                        <FolderIcon className="w-10 h-10 mx-auto mb-3 text-theme-muted" />
+                                        <p className="text-xs text-theme-muted mb-2">Nessuna cartella ancora</p>
                                         <button
                                             onClick={handleCreateFolder}
                                             className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
@@ -303,7 +303,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 
                             {/* Tag */}
                             <div>
-                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                <h3 className="text-xs font-bold text-theme-muted uppercase tracking-wider flex items-center gap-2 mb-4">
                                     <span>🏷️</span>
                                     Tag
                                 </h3>

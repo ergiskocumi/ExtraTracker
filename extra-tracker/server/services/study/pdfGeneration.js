@@ -13,7 +13,7 @@ const vectorStoreService = require('../vectorStoreService');
 const aiUsageService = require('../aiUsageService');
 const sseManager = require('../../utils/SSEManager');
 const {
-    openai,
+    createCompletion,
     ACTIVE_AI_MODEL,
     DEFAULT_EASINESS_FACTOR,
     MAX_EXTRACTED_TEXT_STORE_LENGTH,
@@ -606,10 +606,11 @@ Genera le flashcard nel seguente formato JSON:
                             chunkCount: chunks.length,
                         },
                     },
-                    () => openai.chat.completions.create({
+                    () => createCompletion({
                         model: ACTIVE_AI_MODEL,
                         messages,
                         temperature,
+                        max_tokens: 4096,
                         response_format: { type: 'json_object' },
                     })
                 );

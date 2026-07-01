@@ -239,7 +239,7 @@ export const ExamStatsHeader: React.FC<ExamStatsHeaderProps> = ({
                     {/* Titolo e Info */}
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-3 mb-2">
-                            <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-theme-primary truncate">
                                 {exam.title}
                             </h1>
                             <span className={`
@@ -253,14 +253,14 @@ export const ExamStatsHeader: React.FC<ExamStatsHeaderProps> = ({
                         </div>
                         
                         {exam.description && (
-                            <p className="text-white/60 text-sm sm:text-base leading-relaxed mb-4">
+                            <p className="text-theme-muted text-sm sm:text-base leading-relaxed mb-4">
                                 {exam.description}
                             </p>
                         )}
 
                         {/* Scadenza */}
                         <div className="flex flex-wrap items-center gap-4 text-sm">
-                            <div className="flex items-center gap-2 text-white/70">
+                            <div className="flex items-center gap-2 text-theme-muted">
                                 <Calendar className="w-4 h-4 text-primary-400" />
                                 <span>{formattedDeadline}</span>
                             </div>
@@ -323,8 +323,8 @@ export const ExamStatsHeader: React.FC<ExamStatsHeaderProps> = ({
                 {exam.status === 'active' && stats.daysUntil >= 0 && (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
-                            <span className="text-white/60">Progresso Temporale</span>
-                            <span className="text-white/80 font-medium">{stats.timeProgress}%</span>
+                            <span className="text-theme-muted">Progresso Temporale</span>
+                            <span className="text-theme-primary font-medium">{stats.timeProgress}%</span>
                         </div>
                         <div className="h-2.5 bg-theme-surface rounded-full overflow-hidden">
                             <motion.div
@@ -342,7 +342,7 @@ export const ExamStatsHeader: React.FC<ExamStatsHeaderProps> = ({
                                 `}
                             />
                         </div>
-                        <div className="flex justify-between text-xs text-white/40">
+                        <div className="flex justify-between text-xs text-theme-muted">
                             <span>Giorno 1</span>
                             <span>{stats.daysPassed} giorni trascorsi</span>
                             <span>Esame</span>

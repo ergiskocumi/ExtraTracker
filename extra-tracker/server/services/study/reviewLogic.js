@@ -142,8 +142,8 @@ module.exports = {
             return { skipped: true, reason: 'ai-generated' };
         }
 
+        // Carica solo i dati necessari (non l'intero deck) per calcolare SRS
         const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
-
         const card = deck.cards.id(cardId);
         if (!card) {
             throw AppError.notFound('Card');
@@ -152,49 +152,55 @@ module.exports = {
         const algorithmName = deck.algorithm || 'sm2';
         const algorithmResult = AlgorithmFactory.processReview(card, quality, algorithmName);
 
-        if (algorithmResult.easinessFactor !== undefined) {
-            card.easinessFactor = algorithmResult.easinessFactor;
-        }
-        if (algorithmResult.stability !== undefined) {
-            card.stability = algorithmResult.stability;
-        }
-        if (algorithmResult.box !== undefined) {
-            card.box = algorithmResult.box;
-        }
-        if (algorithmResult.difficulty !== undefined) {
-            card.difficulty = algorithmResult.difficulty;
-        }
-        card.interval = algorithmResult.interval;
-        card.repetitions = algorithmResult.repetitions;
-        card.nextReviewDate = algorithmResult.nextReviewDate;
-        card.lastReviewed = new Date();
-
-        if (!card.reviewHistory) {
-            card.reviewHistory = [];
-        }
-        card.reviewHistory.push({
+        const newReviewEntry = {
             date: new Date(),
             rating: quality,
             interval: algorithmResult.interval,
             easinessFactor: algorithmResult.easinessFactor || card.easinessFactor,
             repetitions: algorithmResult.repetitions,
             algorithm: algorithmName,
-        });
+        };
 
-        if (card.reviewHistory.length > 50) {
-            card.reviewHistory = card.reviewHistory.slice(-50);
-        }
-
+        const effectiveEF = algorithmResult.easinessFactor !== undefined
+            ? algorithmResult.easinessFactor : card.easinessFactor;
         const status = this._resolveCardStatus({
             quality,
             repetitions: algorithmResult.repetitions,
             interval: algorithmResult.interval,
             card: card,
         });
+
+        // Aggiornamento atomico: solo la carta specifica, non l'intero deck
+        const setFields = {
+            'cards.$.interval': algorithmResult.interval,
+            'cards.$.repetitions': algorithmResult.repetitions,
+            'cards.$.nextReviewDate': algorithmResult.nextReviewDate,
+            'cards.$.lastReviewed': new Date(),
+            'cards.$.status': status,
+            'cards.$.easinessFactor': effectiveEF,
+        };
+        if (algorithmResult.stability !== undefined) setFields['cards.$.stability'] = algorithmResult.stability;
+        if (algorithmResult.box !== undefined) setFields['cards.$.box'] = algorithmResult.box;
+        if (algorithmResult.difficulty !== undefined) setFields['cards.$.difficulty'] = algorithmResult.difficulty;
+
+        const secureFilter = this._buildFilter(tenantScope, { _id: deckId, 'cards._id': cardId });
+        await this.Model.findOneAndUpdate(
+            secureFilter,
+            {
+                $set: setFields,
+                $push: { 'cards.$.reviewHistory': { $each: [newReviewEntry], $slice: -50 } },
+            }
+        );
+
+        card.interval = algorithmResult.interval;
+        card.repetitions = algorithmResult.repetitions;
+        card.nextReviewDate = algorithmResult.nextReviewDate;
+        card.lastReviewed = new Date();
         card.status = status;
-
-        await deck.save();
-
+        card.easinessFactor = effectiveEF;
+        if (algorithmResult.stability !== undefined) card.stability = algorithmResult.stability;
+        if (algorithmResult.box !== undefined) card.box = algorithmResult.box;
+        if (algorithmResult.difficulty !== undefined) card.difficulty = algorithmResult.difficulty;
         const updatedCard = this._serializeCard(card);
 
         return {

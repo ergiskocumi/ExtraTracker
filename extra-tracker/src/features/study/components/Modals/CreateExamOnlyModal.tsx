@@ -6,8 +6,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiCheck, FiAlertCircle, FiTarget, FiCalendar } from 'react-icons/fi';
-import { GraduationCap } from 'lucide-react';
+import { X, Check, AlertCircle, Target, Calendar, GraduationCap } from 'lucide-react';
 import examService from '../../services/examService';
 import { WheelDatePicker } from './WheelDatePicker';
 
@@ -145,7 +144,7 @@ export const CreateExamOnlyModal: React.FC<CreateExamOnlyModalProps> = ({
                                 onClick={handleClose}
                                 className="absolute top-6 right-6 p-2 rounded-xl bg-theme-surface hover:bg-theme-card border-theme-subtle text-theme-secondary hover:text-theme-primary transition-colors"
                             >
-                                <FiX className="w-5 h-5" />
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
 
@@ -159,7 +158,7 @@ export const CreateExamOnlyModal: React.FC<CreateExamOnlyModalProps> = ({
                                         exit={{ opacity: 0, y: -10 }}
                                         className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm"
                                     >
-                                        <FiAlertCircle className="w-4 h-4 flex-shrink-0" />
+                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                         {error}
                                     </motion.div>
                                 )}
@@ -167,7 +166,7 @@ export const CreateExamOnlyModal: React.FC<CreateExamOnlyModalProps> = ({
 
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-sm font-medium text-theme-primary">
-                                    <FiTarget className="w-4 h-4 text-primary-500" />
+                                    <Target className="w-4 h-4 text-primary-500" />
                                     Nome esame <span className="text-red-500">*</span>
                                 </label>
                                 <input
@@ -182,7 +181,7 @@ export const CreateExamOnlyModal: React.FC<CreateExamOnlyModalProps> = ({
 
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-sm font-medium text-theme-primary">
-                                    <FiCalendar className="w-4 h-4 text-primary-500" />
+                                    <Calendar className="w-4 h-4 text-primary-500" />
                                     Data esame <span className="text-red-500">*</span>
                                 </label>
                                 <WheelDatePicker
@@ -222,7 +221,7 @@ export const CreateExamOnlyModal: React.FC<CreateExamOnlyModalProps> = ({
                                         </>
                                     ) : (
                                         <>
-                                            <FiCheck className="w-5 h-5" />
+                                            <Check className="w-5 h-5" />
                                             Crea Esame
                                         </>
                                     )}

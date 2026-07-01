@@ -49,9 +49,9 @@ const StatCard: React.FC<{
                 relative overflow-hidden group
                 p-4 rounded-2xl border backdrop-blur-sm
                 ${stat.bgClass}
-                hover:shadow-lg hover:shadow-black/10
-                transition-all duration-300 ease-out
-                min-h-[80px]
+                hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]
+                transition-colors duration-200 ease-out
+                min-h-[80px] active:scale-[0.98]
             `}
         >
             {/* Animated background gradient */}
@@ -74,7 +74,7 @@ const StatCard: React.FC<{
                     {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
                 </div>
                 
-                <div className="text-xs font-medium tracking-wide sm:text-sm text-white/70">
+                <div className="text-xs font-medium tracking-wide sm:text-sm text-theme-muted">
                     {stat.label}
                 </div>
             </div>
@@ -147,15 +147,15 @@ export const HeroStats: React.FC<HeroStatsProps> = ({
 
             {/* Mobile-friendly summary section */}
             <div className="mt-4 sm:hidden">
-                <div className="p-3 border bg-gray-800/50 rounded-xl border-gray-700/50">
+                <div className="p-3 border border-theme-default bg-theme-surface rounded-xl">
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300">Rapporto Generale</span>
+                        <span className="text-theme-secondary">Rapporto Generale</span>
                         <span className="font-semibold text-emerald-400">
                             {Math.round((masteredDecks / Math.max(totalDecks, 1)) * 100)}% completato
                         </span>
                     </div>
-                    <div className="w-full h-2 mt-2 bg-gray-700 rounded-full">
-                        <div 
+                    <div className="w-full h-2 mt-2 rounded-full" style={{ backgroundColor: 'var(--bg-surface-hover)' }}>
+                        <div
                             className="h-2 transition-all duration-500 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
                             style={{ width: `${Math.min((masteredDecks / Math.max(totalDecks, 1)) * 100, 100)}%` }}
                         ></div>

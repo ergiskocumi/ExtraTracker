@@ -96,7 +96,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             />
 
             {/* Main Content - Full Width */}
-            <div className="min-h-screen px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+            <div className="min-h-screen px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8">
                 <div className="max-w-6xl mx-auto">
                     {/* Header */}
                     <header className="mb-4 sm:mb-6 md:mb-8">

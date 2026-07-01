@@ -6,6 +6,7 @@
  */
 
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 
 const auditLogSchema = new mongoose.Schema(
     {
@@ -131,6 +132,10 @@ const auditLogSchema = new mongoose.Schema(
     }
 );
 
+// TTL index per auto-eliminazione log dopo 2 anni (GDPR - retention limitata)
+// Dichiarato esplicitamente perché expireAfterSeconds nelle schema options è ignorato da Mongoose
+auditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 2 * 365 * 24 * 60 * 60 });
+
 // Index composti per query comuni
 auditLogSchema.index({ userId: 1, createdAt: -1 });
 auditLogSchema.index({ action: 1, createdAt: -1 });
@@ -145,7 +150,7 @@ auditLogSchema.statics.createLog = async function(data) {
             createdAt: new Date(),
         });
     } catch (error) {
-        console.error('❌ Errore creazione audit log:', error.message);
+        logger.error('AuditLog', 'Errore creazione audit log: ' + error.message);
         // Non bloccare la richiesta se il logging fallisce
         return null;
     }

@@ -49,7 +49,7 @@ const extractQuestions = asyncHandler(async (req, res) => {
 
     const questionsFile = req.file;
     if (!questionsFile) {
-        return res.status(400).json({ success: false, error: { message: 'File domande (questionsFile) obbligatorio' } });
+        throw AppError.validation('File domande (questionsFile) obbligatorio');
     }
 
     const questionsIsPdf = questionsFile.mimetype === 'application/pdf';
@@ -57,17 +57,17 @@ const extractQuestions = asyncHandler(async (req, res) => {
                            questionsFile.originalname.toLowerCase().endsWith('.txt');
 
     if (!questionsIsPdf && !questionsIsTxt) {
-        return res.status(400).json({ success: false, error: { message: 'File domande deve essere PDF o TXT' } });
+        throw AppError.validation('File domande deve essere PDF o TXT');
     }
 
     if (questionsFile.size > 15 * 1024 * 1024) {
-        return res.status(400).json({ success: false, error: { message: 'File domande troppo grande. Massimo 15MB.' } });
+        throw AppError.validation('File domande troppo grande. Massimo 15MB.');
     }
 
     if (questionsIsPdf) {
         const pdfValidation = await validatePdfFile(questionsFile.path);
         if (!pdfValidation.isValid) {
-            return res.status(400).json({ success: false, error: { message: `PDF corrotto: ${pdfValidation.error}` } });
+            throw AppError.validation(`PDF corrotto: ${pdfValidation.error}`);
         }
     }
 
@@ -89,7 +89,7 @@ const generateAnswers = asyncHandler(async (req, res) => {
     try {
         parsed = generateAnswersSchema.parse(req.body);
     } catch (err) {
-        return res.status(400).json({ success: false, error: { message: err.errors?.[0]?.message || 'Dati non validi' } });
+        throw AppError.validation(err.errors?.[0]?.message || 'Dati non validi');
     }
 
     const { selectedQuestions, deckId, title, examId } = parsed;
@@ -133,12 +133,12 @@ const examSolver = asyncHandler(async (req, res) => {
 
     const questionsFile = req.files?.questionsFile?.[0];
     if (!questionsFile) {
-        return res.status(400).json({ success: false, error: { message: 'File domande (questionsFile) obbligatorio' } });
+        throw AppError.validation('File domande (questionsFile) obbligatorio');
     }
 
     const sourceFile = req.files?.sourceFile?.[0];
     if (!sourceFile) {
-        return res.status(400).json({ success: false, error: { message: 'File materiale (sourceFile) obbligatorio' } });
+        throw AppError.validation('File materiale (sourceFile) obbligatorio');
     }
 
     const questionsIsPdf = questionsFile.mimetype === 'application/pdf';
@@ -146,19 +146,19 @@ const examSolver = asyncHandler(async (req, res) => {
                            questionsFile.originalname.toLowerCase().endsWith('.txt');
 
     if (!questionsIsPdf && !questionsIsTxt) {
-        return res.status(400).json({ success: false, error: { message: 'File domande deve essere PDF o TXT' } });
+        throw AppError.validation('File domande deve essere PDF o TXT');
     }
 
     if (sourceFile.mimetype !== 'application/pdf') {
-        return res.status(400).json({ success: false, error: { message: 'File materiale deve essere un PDF' } });
+        throw AppError.validation('File materiale deve essere un PDF');
     }
 
     const maxSize = 15 * 1024 * 1024;
     if (questionsFile.size > maxSize) {
-        return res.status(400).json({ success: false, error: { message: 'File domande troppo grande. Massimo 15MB.' } });
+        throw AppError.validation('File domande troppo grande. Massimo 15MB.');
     }
     if (sourceFile.size > maxSize) {
-        return res.status(400).json({ success: false, error: { message: 'File materiale troppo grande. Massimo 15MB.' } });
+        throw AppError.validation('File materiale troppo grande. Massimo 15MB.');
     }
 
     // Validazione body Zod (deckId/title)

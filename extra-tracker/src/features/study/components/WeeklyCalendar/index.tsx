@@ -1,6 +1,6 @@
-import React, { useMemo, useCallback } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar } from 'lucide-react';
+import { Calendar, Sparkles, BarChart3 } from 'lucide-react';
 import type { Exam } from '../../types/exam';
 import type { Deck } from '../../services/studyService';
 import { getExamColors } from '../Exams/utils/examIcons';
@@ -29,7 +29,6 @@ interface WeeklyCalendarProps {
 
 const MONTHS = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
-// Map Tailwind bg-color classes to dot-friendly classes
 const DOT_COLOR_MAP: Record<string, string> = {
     'bg-blue-500/20': 'bg-blue-400',
     'bg-emerald-500/20': 'bg-emerald-400',
@@ -52,7 +51,15 @@ function getDotColor(bgColor: string): string {
     return DOT_COLOR_MAP[bgColor] || 'bg-primary-400';
 }
 
-export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
+function getWeekLoadingText(weekTotalDue: number): string {
+    if (weekTotalDue === 0) return 'Nessuna carta da ripassare';
+    if (weekTotalDue <= 5) return 'Settimana leggera, solo ' + weekTotalDue + ' carte';
+    if (weekTotalDue <= 20) return weekTotalDue + ' carte da ripassare questa settimana';
+    if (weekTotalDue <= 50) return 'Settimana intensa — ' + weekTotalDue + ' carte in programma';
+    return 'Carico pesante — ' + weekTotalDue + ' carte da smaltire questa settimana 💪';
+}
+
+export const WeeklyCalendar = memo<WeeklyCalendarProps>(({
     weeklyStudyPlan,
     exams,
     decks,
@@ -62,7 +69,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     onViewDetail,
     onExamClick,
 }) => {
-    // Calcola per ogni giorno quali esami hanno carte due
     const examsByDay = useMemo(() => {
         return weeklyStudyPlan.map(day => {
             const dayStart = new Date(day.date);
@@ -72,7 +78,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
             const examMap = new Map<string, { exam: Exam; dueCards: number; decks: Deck[] }>();
 
-            // Solo esami attivi
             const activeExams = exams.filter(e => e.status === 'active');
 
             activeExams.forEach(exam => {
@@ -111,7 +116,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
         });
     }, [weeklyStudyPlan, exams, decks]);
 
-    // Calcola deadline esami per giorno
     const examDeadlinesByDay = useMemo(() => {
         return weeklyStudyPlan.map(day => {
             const dayStr = day.date.toISOString().split('T')[0];
@@ -123,7 +127,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
         });
     }, [weeklyStudyPlan, exams]);
 
-    // Exam dots per day
     const examDotsByDay = useMemo(() => {
         return examsByDay.map(examMap => {
             const dots: Array<{ examId: string; title: string; color: string }> = [];
@@ -139,7 +142,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
         });
     }, [examsByDay]);
 
-    // Week range header
     const weekHeader = useMemo(() => {
         if (weeklyStudyPlan.length === 0) return '';
         const first = weeklyStudyPlan[0].date;
@@ -161,7 +163,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
         [selectedDayIndex, onDaySelect],
     );
 
-    // Exam breakdown per il giorno selezionato
     const selectedDayBreakdown = useMemo(() => {
         if (selectedDayIndex === null) return [];
         const examMap = examsByDay[selectedDayIndex];
@@ -184,67 +185,77 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             });
         });
 
-        // Ordina per due cards decrescente
         breakdown.sort((a, b) => b.dueCards - a.dueCards);
         return breakdown;
     }, [selectedDayIndex, examsByDay]);
 
-    // Totale carte settimana
     const weekTotalDue = useMemo(
         () => weeklyStudyPlan.reduce((sum, d) => sum + d.dueCards, 0),
         [weeklyStudyPlan],
     );
 
+    const daysWithCards = useMemo(
+        () => weeklyStudyPlan.filter(d => d.dueCards > 0).length,
+        [weeklyStudyPlan],
+    );
+
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 sm:space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary-500/15 border border-primary-500/30">
-                        <Calendar className="w-4 h-4 text-primary-400" />
+                    <div className="p-2 rounded-lg bg-primary-500/10 border border-primary-500/20">
+                        <Calendar className="w-4 h-4 text-primary-500" />
                     </div>
                     <div>
-                        <h2 className="text-base sm:text-lg font-bold text-white">
+                        <h2 className="text-base sm:text-lg font-bold text-theme-primary">
                             Settimana: {weekHeader}
                         </h2>
-                        <p className="text-xs text-white/40">
-                            {weekTotalDue > 0
-                                ? `${weekTotalDue} carte da ripassare questa settimana`
-                                : 'Nessuna carta da ripassare'}
+                        <p className="text-xs text-theme-muted">
+                            {getWeekLoadingText(weekTotalDue)}
                         </p>
                     </div>
                 </div>
+
+                {weekTotalDue > 0 && (
+                    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-theme-surface border border-theme-default">
+                        <BarChart3 className="w-3.5 h-3.5 text-theme-muted" />
+                        <span className="text-xs font-medium text-theme-muted tabular-nums">
+                            {daysWithCards}/{weeklyStudyPlan.length} giorni
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Calendar grid */}
-            <div className="grid grid-cols-7 gap-1.5 sm:gap-2" role="grid" aria-label="Calendario settimanale">
+            <motion.div
+                className="grid grid-cols-7 gap-1.5 sm:gap-2"
+                role="grid"
+                aria-label="Calendario settimanale"
+            >
                 {weeklyStudyPlan.map((day, index) => (
-                    <motion.div
+                    <DayCell
                         key={day.dayName}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.03, duration: 0.3 }}
-                    >
-                        <DayCell
-                            dayName={day.dayName}
-                            date={day.date}
-                            dueCards={day.dueCards}
-                            newCards={day.newCards}
-                            completedCards={day.completedCards}
-                            isToday={day.isToday}
-                            isSelected={selectedDayIndex === index}
-                            examDots={examDotsByDay[index]}
-                            hasExamDeadline={examDeadlinesByDay[index].length > 0}
-                            onClick={() => handleDayClick(index)}
-                        />
-                    </motion.div>
+                        dayName={day.dayName}
+                        date={day.date}
+                        dueCards={day.dueCards}
+                        newCards={day.newCards}
+                        completedCards={day.completedCards}
+                        isToday={day.isToday}
+                        isSelected={selectedDayIndex === index}
+                        examDots={examDotsByDay[index]}
+                        hasExamDeadline={examDeadlinesByDay[index].length > 0}
+                        onClick={() => handleDayClick(index)}
+                        index={index}
+                    />
                 ))}
-            </div>
+            </motion.div>
 
             {/* Day detail (expands below) */}
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
                 {selectedDayIndex !== null && weeklyStudyPlan[selectedDayIndex] && (
                     <DayDetail
+                        key={selectedDayIndex}
                         day={weeklyStudyPlan[selectedDayIndex]}
                         examBreakdown={selectedDayBreakdown}
                         onStudy={onStudy}
@@ -253,6 +264,21 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                     />
                 )}
             </AnimatePresence>
+
+            {/* Empty state */}
+            {weekTotalDue === 0 && selectedDayIndex === null && (
+                <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4, duration: 0.3 }}
+                    className="text-center py-6 sm:py-8"
+                >
+                    <Sparkles className="w-8 h-8 text-theme-muted/30 mx-auto mb-3" />
+                    <p className="text-sm text-theme-muted">
+                        Tutte le carte sono in regola! Goditi la pausa 🎉
+                    </p>
+                </motion.div>
+            )}
         </div>
     );
-};
+});

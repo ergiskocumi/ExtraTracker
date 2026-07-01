@@ -9,13 +9,11 @@ const AIUsageLog = require('../models/AIUsageLog');
 const logger = require('../utils/logger');
 
 const DEFAULT_CHAT_PRICING_PER_1M = {
-    default: { input: 2.5, output: 10 },
-    'gpt-4o': { input: 5, output: 15 },
-    'gpt-4o-mini': { input: 0.15, output: 0.6 },
-    'gpt-4-turbo': { input: 10, output: 30 },
-    'gpt-4': { input: 30, output: 60 },
-    'gpt-3.5-turbo': { input: 0.5, output: 1.5 },
-    'gpt-5.2': { input: 2.5, output: 10 },
+    default: { input: 1.25, output: 5 },
+    'deepseek-v4-pro': { input: 1.25, output: 5 },
+    'deepseek-v4-flash': { input: 0.15, output: 0.6 },
+    'deepseek-chat': { input: 0.27, output: 1.1 },
+    'deepseek-reasoner': { input: 1.25, output: 5 },
 };
 
 const DEFAULT_EMBED_PRICING_PER_1M = {
@@ -220,7 +218,7 @@ const basePayload = (payload = {}) => {
     });
 
     return {
-        provider: payload.provider || 'openai',
+        provider: payload.provider || 'deepseek',
         modality: payload.modality || 'chat',
         mode: payload.mode || 'unknown',
         feature: payload.feature || 'generic',
@@ -240,7 +238,14 @@ const basePayload = (payload = {}) => {
     };
 };
 
+// Dashboard "AI Usage" (analisi token/costi) rimossa: il tracking non scrive più
+// nel DB. Le funzioni restano attive come no-op per non rompere le chiamate AI
+// di quiz/tutor/esami che dipendono dal loro ritorno (runTrackedChatCompletion
+// deve continuare a restituire il risultato di operation()).
+const TRACKING_ENABLED = false;
+
 async function trackEvent(payload = {}) {
+    if (!TRACKING_ENABLED) return null;
     try {
         const userId = normalizeUserId(payload.userId);
         if (!userId) return null;
@@ -275,7 +280,7 @@ async function runTrackedChatCompletion(config, operation) {
 
         await trackEvent({
             userId,
-            provider: 'openai',
+            provider: 'deepseek',
             modality: 'chat',
             mode,
             feature,
@@ -294,7 +299,7 @@ async function runTrackedChatCompletion(config, operation) {
     } catch (err) {
         await trackEvent({
             userId,
-            provider: 'openai',
+            provider: 'deepseek',
             modality: 'chat',
             mode,
             feature,
@@ -331,7 +336,7 @@ async function trackEmbeddingEvent(config = {}) {
 
     return trackEvent({
         userId,
-        provider: 'openai',
+        provider: 'deepseek',
         modality: 'embedding',
         mode,
         feature,

@@ -14,7 +14,7 @@
 /* ============================================
    DARK THEME (Default) - Modern Aurora
    ============================================ */
-[data-theme="dark"], :root {
+[data-theme="dark"] {
   /* Backgrounds - Rich dark palette with depth (elevated/surface leggermente più chiari per card leggibili) */
   --bg-base: #0c0c1a;
   --bg-elevated: #1a1a2e;
@@ -100,34 +100,34 @@
   /* Backgrounds - Higher separation for clearer affordance */
   --bg-base: #f2f6fc;
   --bg-elevated: #ffffff;
-  --bg-surface: rgba(255, 255, 255, 0.76);
-  --bg-surface-hover: rgba(255, 255, 255, 0.92);
-  --bg-card: rgba(255, 255, 255, 0.9);
-  --bg-card-hover: #ffffff;
-  --bg-input: rgba(255, 255, 255, 0.96);
+  --bg-surface: #f4f2fb;
+  --bg-surface-hover: #ede9fe;
+  --bg-card: #ffffff;
+  --bg-card-hover: #faf9fd;
+  --bg-input: #ffffff;
   --bg-header: rgba(246, 249, 255, 0.92);
   --bg-overlay: rgba(0, 0, 0, 0.5);
   --bg-dropdown: #ffffff;
-  
+
   /* Text - Dark slate for maximum readability */
   --text-primary: #1a1a2e;
   --text-secondary: #253246;
-  --text-muted: #3d4f68;
-  --text-disabled: #5d6e87;
-  --text-placeholder: #6b7c96;
-  
-  /* Borders - Stronger for better element recognition */
-  --border-subtle: rgba(15, 23, 42, 0.1);
-  --border-default: rgba(15, 23, 42, 0.16);
-  --border-strong: rgba(15, 23, 42, 0.26);
+  --text-muted: #4a5568;
+  --text-disabled: #8a9ab0;
+  --text-placeholder: #9aabbe;
+
+  /* Borders - Much stronger for better element recognition in light theme */
+  --border-subtle: rgba(139, 92, 246, 0.10);
+  --border-default: rgba(139, 92, 246, 0.18);
+  --border-strong: rgba(139, 92, 246, 0.30);
   --border-focus: rgba(124, 58, 237, 0.5);
   
-  /* Shadows - Slightly stronger for depth separation */
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 10px 24px -12px rgba(15, 23, 42, 0.22), 0 3px 8px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 20px 42px -16px rgba(15, 23, 42, 0.3), 0 8px 18px rgba(15, 23, 42, 0.12);
+  /* Shadows - Stronger for depth separation */
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.10), 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 24px -12px rgba(15, 23, 42, 0.25), 0 3px 8px rgba(15, 23, 42, 0.10);
+  --shadow-lg: 0 20px 42px -16px rgba(15, 23, 42, 0.32), 0 8px 18px rgba(15, 23, 42, 0.14);
   --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.15);
-  --shadow-card: 0 10px 28px -16px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 10px 28px -16px rgba(15, 23, 42, 0.30), 0 0 0 1px rgba(15, 23, 42, 0.10);
   
   /* Modern Aurora Gradients - Light */
   --gradient-bg: linear-gradient(135deg, #eef3fb 0%, #f6f8fc 45%, #eef5ff 100%);
@@ -223,8 +223,8 @@
       radial-gradient(ellipse 70% 60% at 75% 85%, var(--gradient-mesh-3) 0%, transparent 50%),
       radial-gradient(ellipse 50% 40% at 20% 80%, var(--gradient-mesh-4) 0%, transparent 50%),
       radial-gradient(ellipse 100% 100% at 50% 50%, rgba(124, 58, 237, 0.05) 0%, transparent 70%) !important;
-    animation: aurora-flow 20s ease-in-out infinite !important;
   }
+
 
   /* Modern Aurora Mesh Gradient */
   body::before {
@@ -248,7 +248,6 @@
     pointer-events: none;
     z-index: -1;
     transition: var(--theme-transition);
-    animation: aurora-flow 20s ease-in-out infinite;
   }
   
   /* Prevenire scrollbar orizzontale globale */
@@ -341,6 +340,9 @@
   .bg-theme-card {
     background: var(--bg-card);
   }
+  .bg-theme-surface-hover {
+    background: var(--bg-surface-hover);
+  }
   .bg-theme-overlay {
     background: var(--bg-overlay);
   }
@@ -393,10 +395,11 @@
      ============================================ */
   
   .card {
-    @apply backdrop-blur-xl rounded-3xl transition-all duration-300 ease-out;
+    @apply backdrop-blur-xl rounded-3xl duration-300 ease-out;
     background: var(--bg-card);
     border: 1px solid var(--border-default);
     box-shadow: var(--shadow-card);
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
   }
   
   .card:hover {
@@ -417,12 +420,13 @@
      ============================================ */
   
   .input {
-    @apply w-full px-4 py-3 rounded-xl transition-all duration-200;
+    @apply w-full px-4 py-3 rounded-xl duration-200;
     background: var(--bg-input);
     border: 1px solid var(--border-default);
     color: var(--text-primary);
     font-size: 16px;
     min-height: 44px;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   }
   
   .input::placeholder {
@@ -441,7 +445,8 @@
   }
 
   .select {
-    @apply w-full px-4 py-3 rounded-xl cursor-pointer appearance-none transition-all duration-200;
+    @apply w-full px-4 py-3 rounded-xl cursor-pointer appearance-none duration-200;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     background: var(--bg-input);
     border: 1px solid var(--border-default);
     color: var(--text-primary);
@@ -473,8 +478,8 @@
      ============================================ */
   
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-3 
-           font-semibold text-sm rounded-xl transition-all duration-200 
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3
+           font-semibold text-sm rounded-xl duration-200
            focus:outline-none focus:ring-2 focus:ring-offset-2
            disabled:opacity-50 disabled:cursor-not-allowed
            active:scale-[0.98];
@@ -484,6 +489,7 @@
     min-width: 44px;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   }
   
   [data-theme="light"] .btn {
@@ -598,8 +604,9 @@
   }
 
   .table-modern tbody tr {
-    @apply transition-all duration-200;
+    @apply duration-200;
     background: transparent;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   }
 
   .table-modern tbody tr:hover {
@@ -635,7 +642,8 @@
      ============================================ */
   
   .badge {
-    @apply inline-flex items-center px-3 py-1 text-xs font-semibold transition-all duration-200 rounded-full;
+    @apply inline-flex items-center px-3 py-1 text-xs font-semibold duration-200 rounded-full;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
   .badge-primary {
@@ -683,8 +691,9 @@
      ============================================ */
   
   .nav-link {
-    @apply px-5 py-2.5 rounded-xl font-medium transition-all duration-200 flex items-center gap-2;
+    @apply px-5 py-2.5 rounded-xl font-medium duration-200 flex items-center gap-2;
     color: var(--text-muted);
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
   .nav-link:hover {
@@ -824,10 +833,11 @@
   /* Premium Action Card - For Dashboard */
   .card-action {
     @apply relative overflow-hidden rounded-3xl border backdrop-blur-xl p-6
-           transition-all duration-300 ease-out;
+           duration-300 ease-out;
     background: var(--bg-card);
     border-color: var(--border-default);
     box-shadow: var(--shadow-card);
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
   }
 
   .card-action:hover {
@@ -872,6 +882,7 @@
 }
 /* ============================================
    SCROLLBAR STYLES - Consolidated
+   TODO: Refactor into 2 variants (.custom-scrollbar + .scrollbar-pdf) using CSS custom properties
    ============================================ */
 
 @layer base {
@@ -990,7 +1001,7 @@
     border-radius: 10px;
     border: 2px solid rgba(0, 0, 0, 0.1);
     background-clip: padding-box;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
   }
 
   .scrollbar-pdf::-webkit-scrollbar-thumb:hover {
@@ -1222,7 +1233,7 @@ input[type="month"] {
   line-height: 2.5rem;
   margin: 2px;
   border-radius: 10px;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .react-datepicker__day:hover {
@@ -1333,7 +1344,7 @@ input[type="month"] {
   padding: 10px 16px;
   margin: 4px;
   border-radius: 10px;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
   text-transform: capitalize;
 }
 
@@ -1460,22 +1471,6 @@ input[type="month"] {
    KEYFRAMES
    ==================================== */
 
-/* Aurora Animation */
-@keyframes aurora-flow {
-  0%, 100% {
-    filter: hue-rotate(0deg) brightness(1);
-  }
-  25% {
-    filter: hue-rotate(5deg) brightness(1.05);
-  }
-  50% {
-    filter: hue-rotate(0deg) brightness(1.1);
-  }
-  75% {
-    filter: hue-rotate(-5deg) brightness(1.05);
-  }
-}
-
 /* Confetti Animation */
 @keyframes confetti-fall {
   0% {
@@ -1532,19 +1527,6 @@ input[type="month"] {
 }
 
 /* ====================================
-   REDUCED MOTION SUPPORT
-   ==================================== */
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-/* ====================================
    LIGHT THEME SPECIFIC FIXES & OVERRIDES
    ==================================== */
 
@@ -1577,15 +1559,6 @@ input[type="month"] {
 
 [data-theme="light"] p:not([class*="text-"]) {
   color: var(--text-secondary);
-}
-
-/* Fix for any remaining hardcoded dark colors */
-[data-theme="light"] [class*="text-white"]:not([class*="keep-light-text"]) {
-  color: var(--text-primary);
-}
-
-[data-theme="light"] [class*="bg-dark-"] {
-  background-color: var(--bg-elevated);
 }
 
 /* Settings page – titolo e indicatore attivo in violet/primary solo in light */
@@ -1732,29 +1705,6 @@ input[type="month"] {
 /* Horizontal rules */
 [data-theme="light"] hr {
   border-color: var(--border-default);
-}
-
-/* ============================================
-   FOCUS VISIBLE — WCAG AA compliant
-   ============================================ */
-
-/* Reset: nessun outline di default per click/touch */
-*:focus:not(:focus-visible) {
-  outline: none;
-}
-
-/* Focus visibile per navigazione da tastiera — dark theme (default) */
-*:focus-visible {
-  outline: 2px solid var(--primary-400, #a78bfa);
-  outline-offset: 3px;
-  border-radius: 4px;
-}
-
-/* Focus visibile per navigazione da tastiera — light theme */
-[data-theme="light"] *:focus-visible {
-  outline: 2px solid var(--primary-600, #7c3aed);
-  outline-offset: 3px;
-  border-radius: 4px;
 }
 
 /* Componenti con border-radius più grandi: adatta l'outline */
@@ -3169,149 +3119,6 @@ button:focus-visible[class*="bg-blue"] {
 [data-theme="light"] .table-modern tbody tr:focus-within {
   outline: 2px solid rgba(124, 58, 237, 0.25);
   outline-offset: -2px;
-}
-/* ============================================
-   LANDING PAGE STYLES
-   ============================================ */
-
-:root {
-  --landing-bg: #0a0a1a;
-  --landing-text: #f8fafc;
-  --landing-text-secondary: rgba(248, 250, 252, 0.82);
-  --landing-text-muted: rgba(248, 250, 252, 0.58);
-  --landing-surface: rgba(12, 12, 30, 0.92);
-  --landing-surface-strong: rgba(16, 16, 36, 0.96);
-  --landing-border: rgba(255, 255, 255, 0.14);
-  --landing-border-soft: rgba(255, 255, 255, 0.08);
-  --landing-shadow: 0 18px 38px -22px rgba(2, 6, 23, 0.5);
-  --landing-shadow-strong: 0 28px 55px -30px rgba(2, 6, 23, 0.6);
-  --landing-focus: rgba(124, 58, 237, 0.4);
-}
-
-[data-theme="light"] {
-  --landing-bg: #f2f6fc;
-  --landing-text: #111827;
-  --landing-text-secondary: #334155;
-  --landing-text-muted: #5b6b84;
-  --landing-surface: rgba(255, 255, 255, 0.9);
-  --landing-surface-strong: rgba(255, 255, 255, 0.96);
-  --landing-border: rgba(15, 23, 42, 0.18);
-  --landing-border-soft: rgba(15, 23, 42, 0.1);
-  --landing-shadow: 0 20px 42px -28px rgba(15, 23, 42, 0.34);
-  --landing-shadow-strong: 0 26px 50px -26px rgba(15, 23, 42, 0.36);
-  --landing-focus: rgba(124, 58, 237, 0.32);
-}
-
-/* Landing light theme (scoped to .landing-root) */
-[data-theme="light"] .landing-root { 
-  color: var(--landing-text); 
-  background: var(--landing-bg); 
-}
-
-[data-theme="light"] .landing-header { 
-  background: rgba(255, 255, 255, 0.86); 
-  border-bottom: 1px solid var(--landing-border); 
-  backdrop-filter: blur(14px); 
-}
-
-[data-theme="light"] .landing-root [class*="bg-dark-"] { 
-  background-color: var(--landing-surface); 
-}
-
-[data-theme="light"] .landing-root [class*="border-white/10"],
-[data-theme="light"] .landing-root [class*="border-white/5"] { 
-  border-color: var(--landing-border-soft); 
-}
-
-[data-theme="light"] .landing-root [class*="text-white/"] { 
-  color: var(--landing-text-secondary); 
-}
-
-[data-theme="light"] .landing-root [class*="text-white"] { 
-  color: var(--landing-text); 
-}
-
-[data-theme="light"] .landing-root h1,
-[data-theme="light"] .landing-root h2,
-[data-theme="light"] .landing-root h3,
-[data-theme="light"] .landing-root h4 { 
-  color: var(--landing-text); 
-}
-
-[data-theme="light"] .landing-root p { 
-  color: var(--landing-text-secondary); 
-}
-
-[data-theme="light"] .landing-nav-link { 
-  color: var(--landing-text-muted); 
-}
-
-[data-theme="light"] .landing-nav-link:hover { 
-  color: var(--landing-text); 
-}
-
-[data-theme="light"] .landing-primary-btn { 
-  border-color: rgba(76, 29, 149, 0.22); 
-  box-shadow: 0 16px 34px -20px rgba(109, 40, 217, 0.55); 
-}
-
-[data-theme="light"] .landing-secondary-btn { 
-  background: rgba(255, 255, 255, 0.9); 
-  color: var(--landing-text); 
-  border-color: var(--landing-border); 
-  box-shadow: var(--landing-shadow); 
-}
-
-[data-theme="light"] .landing-icon-btn { 
-  border: 1px solid var(--landing-border-soft); 
-  border-radius: 0.7rem; 
-  background: rgba(255, 255, 255, 0.74); 
-  box-shadow: var(--landing-shadow); 
-}
-
-[data-theme="light"] .landing-mobile-panel { 
-  background: rgba(255, 255, 255, 0.88); 
-  border-top-color: var(--landing-border-soft); 
-}
-
-[data-theme="light"] .landing-surface-card { 
-  background: var(--landing-surface); 
-  border-color: var(--landing-border-soft); 
-  box-shadow: var(--landing-shadow); 
-}
-
-[data-theme="light"] .landing-feature-tab { 
-  background: rgba(255, 255, 255, 0.85); 
-  border-color: var(--landing-border-soft); 
-  color: var(--landing-text-secondary); 
-}
-
-[data-theme="light"] .landing-feature-tab.landing-feature-tab--active { 
-  background: rgba(124, 58, 237, 0.14); 
-  border-color: rgba(124, 58, 237, 0.36); 
-  color: #4c1d95; 
-}
-
-[data-theme="light"] .landing-preview-shell { 
-  background: var(--landing-surface-strong); 
-  border-color: var(--landing-border); 
-  box-shadow: var(--landing-shadow-strong); 
-}
-
-[data-theme="light"] .landing-pricing-card { 
-  border: 1px solid var(--landing-border-soft); 
-  box-shadow: var(--landing-shadow); 
-}
-
-[data-theme="light"] .landing-cta-panel { 
-  border: 1px solid var(--landing-border); 
-  background: rgba(255, 255, 255, 0.82); 
-  box-shadow: var(--landing-shadow-strong); 
-}
-
-[data-theme="light"] .landing-footer { 
-  border-top-color: var(--landing-border-soft); 
-  background: rgba(255, 255, 255, 0.64); 
 }
 /* ====================================
    MOBILE-SPECIFIC STYLES

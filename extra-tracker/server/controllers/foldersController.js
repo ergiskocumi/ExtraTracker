@@ -29,8 +29,8 @@ const updateFolder = asyncHandler(async (req, res) => {
 });
 
 const deleteFolder = asyncHandler(async (req, res) => {
-    const result = await folderService.delete(req.tenantScope, req.params.id);
-    res.json({ success: true, ...result });
+    await folderService.delete(req.tenantScope, req.params.id);
+    res.json({ success: true, message: 'Cartella eliminata', data: null });
 });
 
 const moveDecksToFolder = asyncHandler(async (req, res) => {

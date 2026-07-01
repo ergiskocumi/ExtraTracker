@@ -115,14 +115,14 @@ export const DeckCardHeader: React.FC<DeckCardHeaderProps> = ({
                     />
                 ) : (
                     <h3 
-                        className="text-base sm:text-lg md:text-xl font-bold text-white truncate mb-1 cursor-text hover:text-white/80 transition-colors"
+                        className="text-base sm:text-lg md:text-xl font-bold text-theme-primary truncate mb-1 cursor-text hover:text-theme-secondary transition-colors"
                         onClick={handleTitleClick}
                         title="Doppio click per rinominare"
                     >
                         {deck.title}
                     </h3>
                 )}
-                <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-white/50 flex-wrap">
+                <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-theme-muted flex-wrap">
                     <span className="flex items-center gap-1 sm:gap-1.5">
                         <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         {totalCards} carte
@@ -153,7 +153,7 @@ export const DeckCardHeader: React.FC<DeckCardHeaderProps> = ({
                                 );
                             })}
                             {deck.tags.length > 3 && (
-                                <span className="text-[10px] text-white/40">
+                                <span className="text-[10px] text-theme-muted">
                                     +{deck.tags.length - 3}
                                 </span>
                             )}

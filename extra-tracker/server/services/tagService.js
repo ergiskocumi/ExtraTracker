@@ -27,6 +27,7 @@ class TagService {
 
         // Conta i deck per ogni tag
         const tagNames = serializedTags.map(t => t.name);
+        // ATTENZIONE: Il filtro { user: userId } deve SEMPRE essere nel $match — il plugin multi-tenancy non si applica a aggregate()
         const deckCounts = await Deck.aggregate([
             { $match: { user: userId, tags: { $in: tagNames } } },
             { $unwind: '$tags' },

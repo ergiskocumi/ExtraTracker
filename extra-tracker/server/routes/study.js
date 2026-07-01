@@ -145,8 +145,26 @@ router.get('/:id/session', studySessionController.getSession);
 router.get('/:id', deckController.getDeckById);
 router.post('/', deckController.createDeck);
 router.patch('/:id', deckController.updateDeck);
+// Sync quiz generation con timeout di 5 minuti — safety net per OOM.
+// Dopo il timeout il server risponde 504 e libera memoria.
+// Usare generate-async per PDF grandi (previene socket hang up + heap OOM).
+router.post('/:id/quizzes/generate', (req, res, next) => {
+    req.setTimeout(5 * 60 * 1000, () => {
+        if (!res.headersSent) {
+            const err = new Error('Quiz generation timeout — usa generate-async per PDF grandi');
+            err.code = 'ETIMEDOUT';
+            next(err);
+        }
+    });
+    next();
+}, aiLimiter, deckController.generatePersistedQuiz);
+// Async endpoint SENZA aiLimiter: il job creation è cheap (in-memory).
+// Il rate limiting sulle chiamate AI vere è gestito dentro QuizGenerationService.processJob.
+router.post('/:id/quizzes/generate-async', deckController.generatePersistedQuizAsync);
+router.get('/:id/quizzes/generate/:jobId/status', deckController.getQuizGenerationStatus);
 router.post('/:id/quizzes', deckController.saveQuizSnapshot);
 router.get('/:id/quizzes/:quizId/retake', deckController.retakeSavedQuiz);
+router.post('/:id/quizzes/:quizId/retake-session', deckController.createRetakeSession);
 router.get('/:id/quizzes/:quizId/review', deckController.reviewSavedQuiz);
 router.post('/:id/quizzes/:quizId/attempts', deckController.recordQuizAttempt);
 router.post('/:id/cards', deckController.addCard);
@@ -192,6 +210,12 @@ router.delete('/:id/exam-progress', studySessionController.clearExamProgress);
  * Resetta distrattori AI per forzare rigenerazione con nuovo modello pedagogico
  */
 router.post('/:id/reset-distractors', deckController.resetDistractors);
+
+/**
+ * POST /api/study/:id/reset-progress
+ * Resetta lo stato SRS di tutte le card del deck (riporta a 'new')
+ */
+router.post('/:id/reset-progress', deckController.resetProgress);
 
 // 🪄 Magic Generate from PDF (con multer middleware)
 // AI Generate - Rate limited: 10 chiamate per ora per utente

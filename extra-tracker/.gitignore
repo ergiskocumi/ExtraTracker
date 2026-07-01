@@ -15,9 +15,10 @@ dist-ssr
 # Uploads (persisted PDFs, ecc.)
 server/uploads/pdfs/*
 !server/uploads/pdfs/.gitkeep
+server/uploads/avatars/*
+server/uploads/feedback/*
 
-# Environment variables
-.env
+# Environment variables (server .env is committed — contains DeepSeek config)
 .env.local
 .env.*.local
 

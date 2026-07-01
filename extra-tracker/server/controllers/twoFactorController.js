@@ -54,10 +54,9 @@ const setup2FA = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         success: true,
-        message: 'Scansiona il QR code con la tua app di autenticazione',
+        message: 'Scansiona il QR code con la tua app di autenticazione. I codici di backup sono mostrati una sola volta — salvali subito.',
         data: {
             qrCode: qrCodeDataUrl,
-            secret,
             backupCodes,
         },
     });
@@ -181,9 +180,9 @@ const disable2FA = asyncHandler(async (req, res) => {
     let isBackupCode = false;
 
     if (!isValidCode) {
-        isBackupCode = await authService.verifyBackupCode(code, user.twoFactorBackupCodes);
-        
-        if (!isBackupCode) {
+        const backupIndex = await authService.verifyBackupCode(code, user.twoFactorBackupCodes);
+
+        if (backupIndex === -1) {
             await auditService.log2FA({
                 userId,
                 userEmail: user.email,
@@ -202,6 +201,11 @@ const disable2FA = asyncHandler(async (req, res) => {
                 },
             });
         }
+
+        // Burn after use: rimuovi il codice di backup usato
+        user.twoFactorBackupCodes.splice(backupIndex, 1);
+        await user.save();
+        isBackupCode = true;
     }
 
     user.twoFactorEnabled = false;

@@ -4,7 +4,7 @@
  * Componente principale che coordina i sotto-componenti specializzati.
  */
 
-import { useMemo, useEffect } from "react";
+import { memo, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../../../../../lib/utils";
 
@@ -20,7 +20,7 @@ import { ExplanationCard } from "./components/ExplanationCard";
 import { ContinueButton } from "./components/ContinueButton";
 import { DontKnowButton } from "./components/DontKnowButton";
 
-export const QuizView: React.FC<QuizViewProps> = ({
+export const QuizView = memo<QuizViewProps>(({
   card,
   question,
   options,
@@ -31,7 +31,10 @@ export const QuizView: React.FC<QuizViewProps> = ({
   onNext,
   isTrueFalse = false,
   explanation,
+  currentIndex,
+  totalQuestions,
 }) => {
+  const showProgress = currentIndex !== undefined && totalQuestions !== undefined && totalQuestions > 0;
   const normalizedCorrect = correctAnswer.trim().toLowerCase();
 
   const {
@@ -100,6 +103,21 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
   return (
     <div className="flex flex-col w-full h-full max-w-6xl px-3 mx-auto sm:px-4 lg:px-6 gap-4 sm:gap-6 py-2 sm:py-4">
+      {/* Progress bar: Domanda N di M */}
+      {showProgress && (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-1.5 bg-theme-surface rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary-500 rounded-full transition-all duration-300"
+              style={{ width: `${((currentIndex!) / totalQuestions!) * 100}%` }}
+            />
+          </div>
+          <span className="text-xs font-medium text-theme-muted tabular-nums whitespace-nowrap">
+            {currentIndex} / {totalQuestions}
+          </span>
+        </div>
+      )}
+
       <motion.div
         layout
         transition={{
@@ -174,6 +192,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default QuizView;

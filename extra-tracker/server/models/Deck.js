@@ -174,6 +174,12 @@ const quizAttemptSchema = new mongoose.Schema({
 }, { _id: true });
 
 const savedQuizSchema = new mongoose.Schema({
+    quizRefId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'QuizDefinition',
+        default: null,
+        index: true,
+    },
     name: {
         type: String,
         default: '',
@@ -394,11 +400,12 @@ deckSchema.set('toJSON', {
                     ...quiz,
                     id: quiz._id?.toString() || quiz.id,
                     _id: undefined,
+                    quizRefId: undefined,
                     // Computed fields
                     attemptCount: attempts.length,
                     lastScore: scores.length > 0 ? scores[scores.length - 1] : undefined,
                     bestScore: scores.length > 0 ? Math.max(...scores) : undefined,
-                    hasQuestions: Array.isArray(quiz.questions) && quiz.questions.length > 0,
+                    hasQuestions: Boolean(quiz.quizRefId) || (Array.isArray(quiz.questions) && quiz.questions.length > 0),
                     // Strip heavy data from listing
                     questions: undefined,
                     attempts: undefined,

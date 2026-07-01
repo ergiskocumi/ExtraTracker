@@ -97,5 +97,5 @@ exports.reopenTodo = asyncHandler(async (req, res) => {
  */
 exports.deleteTodo = asyncHandler(async (req, res) => {
     await workTodoService.delete(req.tenantScope, req.params.id);
-    res.json({ success: true, message: 'TODO eliminato' });
+    res.json({ success: true, message: 'TODO eliminato', data: null });
 });

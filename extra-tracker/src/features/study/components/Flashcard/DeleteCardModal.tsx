@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { FiX, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
+import { X, Trash2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Card } from '../../services/studyService';
 
@@ -93,10 +93,10 @@ export const DeleteCardModal: React.FC<DeleteCardModalProps> = ({
                             {/* Header */}
                             <div className="flex items-center gap-3 p-6 border-b border-red-500/20">
                                 <div className="w-12 h-12 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0">
-                                    <FiAlertTriangle className="w-6 h-6 text-red-400" />
+                                    <AlertTriangle className="w-6 h-6 text-red-400" />
                                 </div>
                                 <div className="flex-1">
-                                    <h2 className="text-xl md:text-2xl font-bold text-white">
+                                    <h2 className="text-xl md:text-2xl font-bold text-theme-primary">
                                         Elimina flashcard
                                     </h2>
                                     <p className="text-sm text-red-300/80 mt-1">
@@ -106,22 +106,22 @@ export const DeleteCardModal: React.FC<DeleteCardModalProps> = ({
                                 {!isDeleting && (
                                     <button
                                         onClick={onClose}
-                                        className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all duration-200 active:scale-95"
+                                        className="p-2 rounded-xl text-theme-muted hover:text-theme-primary hover:bg-theme-surface transition-all duration-200 active:scale-95"
                                         aria-label="Chiudi"
                                     >
-                                        <FiX className="w-5 h-5" />
+                                        <X className="w-5 h-5" />
                                     </button>
                                 )}
                             </div>
 
                             {/* Content */}
                             <div className="p-6 space-y-4">
-                                <p className="text-sm md:text-base text-slate-300 leading-relaxed">
+                                <p className="text-sm md:text-base text-theme-muted leading-relaxed">
                                     Sei sicuro di voler eliminare questa flashcard?
                                 </p>
 
                                 {/* Card Preview */}
-                                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 space-y-3">
+                                <div className="rounded-xl border border-theme-default bg-theme-card p-4 space-y-3">
                                     {/* Front */}
                                     <div>
                                         <div className="flex items-center gap-2 mb-2">
@@ -130,7 +130,7 @@ export const DeleteCardModal: React.FC<DeleteCardModalProps> = ({
                                             </span>
                                             <span className="text-xs font-semibold text-violet-300">Domanda</span>
                                         </div>
-                                        <p className="text-sm text-white/80 line-clamp-2">
+                                        <p className="text-sm text-theme-primary/80 line-clamp-2">
                                             {card.front}
                                         </p>
                                     </div>
@@ -143,7 +143,7 @@ export const DeleteCardModal: React.FC<DeleteCardModalProps> = ({
                                             </span>
                                             <span className="text-xs font-semibold text-amber-300">Risposta</span>
                                         </div>
-                                        <p className="text-sm text-white/80 line-clamp-2">
+                                        <p className="text-sm text-theme-primary/80 line-clamp-2">
                                             {card.back}
                                         </p>
                                     </div>
@@ -155,7 +155,7 @@ export const DeleteCardModal: React.FC<DeleteCardModalProps> = ({
                                 <button
                                     onClick={onClose}
                                     disabled={isDeleting}
-                                    className="flex-1 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-sm text-sm font-medium text-slate-300 hover:bg-white/[0.10] hover:text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                                    className="flex-1 px-4 py-3 rounded-xl border border-theme-default bg-theme-surface backdrop-blur-sm text-sm font-medium text-theme-muted hover:bg-theme-surface/80 hover:text-theme-primary transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                                 >
                                     Annulla
                                 </button>
@@ -175,7 +175,7 @@ export const DeleteCardModal: React.FC<DeleteCardModalProps> = ({
                                         </>
                                     ) : (
                                         <>
-                                            <FiTrash2 className="w-4 h-4" />
+                                            <Trash2 className="w-4 h-4" />
                                             <span>Elimina</span>
                                         </>
                                     )}

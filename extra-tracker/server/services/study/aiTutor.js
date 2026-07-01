@@ -11,7 +11,7 @@ const pdfCacheService = require('../pdfCacheService');
 const vectorStoreService = require('../vectorStoreService');
 const aiUsageService = require('../aiUsageService');
 const {
-    openai,
+    createCompletion,
     getValidModel,
     MAX_TUTOR_MESSAGE_LENGTH,
     MAX_EXTRACTED_TEXT_STORE_LENGTH,
@@ -137,8 +137,8 @@ module.exports = {
             }
         }
 
-        const model = getValidModel(process.env.OPENAI_CHAT_MODEL);
-        const contextLimit = model.includes('gpt-3.5') ? 15000 : 50000;
+        const model = getValidModel(process.env.ANTHROPIC_MODEL);
+        const contextLimit = model.includes('flash') ? 15000 : 50000;
 
         if (!context) {
             context = this._buildTutorContext(extractedText, cleanMessage, contextLimit);
@@ -178,19 +178,19 @@ module.exports = {
                     deckId: String(deckId),
                     historyMessages: safeHistory.length,
                 },
-            }, () => openai.chat.completions.create({
+            }, () => createCompletion({
                 model,
                 messages,
                 temperature: 0.2,
-                max_completion_tokens: 600,
+                max_tokens: 600,
             }));
 
             aiResponse = completion.choices[0]?.message?.content;
         } catch (err) {
-            logger.error('AiTutor', 'OpenAI Tutor Error', err);
+            logger.error('AiTutor', 'DeepSeek Tutor Error', err);
 
             if (err.code === 'insufficient_quota') {
-                throw AppError.validation('Quota OpenAI esaurita.');
+                throw AppError.validation('Quota AI esaurita.');
             }
             throw AppError.validation('Errore nella risposta AI. Riprova.');
         }
@@ -271,8 +271,8 @@ module.exports = {
             }
         }
 
-        const model = getValidModel(process.env.OPENAI_CHAT_MODEL);
-        const contextLimit = model.includes('gpt-3.5') ? 15000 : 50000;
+        const model = getValidModel(process.env.ANTHROPIC_MODEL);
+        const contextLimit = model.includes('flash') ? 15000 : 50000;
 
         if (!context) {
             context = this._buildTutorContext(extractedText, cleanQuestion, contextLimit);
@@ -340,19 +340,19 @@ GENERA LA RISPOSTA:`;
                 metadata: {
                     deckId: String(deckId),
                 },
-            }, () => openai.chat.completions.create({
+            }, () => createCompletion({
                 model,
                 messages,
                 temperature: 0.1,
-                max_completion_tokens: 800,
+                max_tokens: 800,
             }));
 
             aiResponse = completion.choices[0]?.message?.content;
         } catch (err) {
-            logger.error('AiTutor', 'OpenAI Exam Tutor Error', err);
+            logger.error('AiTutor', 'DeepSeek Exam Tutor Error', err);
 
             if (err.code === 'insufficient_quota') {
-                throw AppError.validation('Quota OpenAI esaurita.');
+                throw AppError.validation('Quota AI esaurita.');
             }
             throw AppError.validation('Errore nella risposta AI. Riprova.');
         }

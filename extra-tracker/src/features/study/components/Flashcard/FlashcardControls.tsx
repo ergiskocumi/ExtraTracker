@@ -14,7 +14,7 @@
  */
 
 import React, { memo, useCallback } from 'react';
-import { FiEdit2, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { Edit, Trash2, RefreshCw } from 'lucide-react';
 
 // ============================================
 // TYPES
@@ -112,7 +112,7 @@ const FlashcardControlsComponent: React.FC<FlashcardControlsProps> = ({
                     aria-label={editLabel}
                     title={editLabel}
                 >
-                    <FiEdit2 className="w-4 h-4" />
+                    <Edit className="w-4 h-4" />
                     <span>{editLabel}</span>
                 </button>
             )}
@@ -127,7 +127,7 @@ const FlashcardControlsComponent: React.FC<FlashcardControlsProps> = ({
                     aria-label={flipLabel}
                     title={flipLabel}
                 >
-                    <FiRefreshCw className="w-4 h-4" />
+                    <RefreshCw className="w-4 h-4" />
                     <span>{flipLabel}</span>
                 </button>
             )}
@@ -142,7 +142,7 @@ const FlashcardControlsComponent: React.FC<FlashcardControlsProps> = ({
                     aria-label={deleteLabel}
                     title={deleteLabel}
                 >
-                    <FiTrash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" />
                     <span>{deleteLabel}</span>
                 </button>
             )}

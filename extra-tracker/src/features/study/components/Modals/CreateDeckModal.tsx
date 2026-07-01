@@ -8,16 +8,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    FiX,
-    FiPlus,
-    FiTarget,
-    FiCheck,
-    FiAlertCircle,
-    FiBookOpen,
-    FiTag,
-    FiLayers
-} from 'react-icons/fi';
+import { X, Plus, Target, Check, AlertCircle, BookOpen, Tag, Layers } from 'lucide-react';
 import examService from '../../services/examService';
 import type { CreateDeckPayload } from '../../services/studyService';
 import { getErrorMessage } from '../../../../utils/errorMessage';
@@ -213,7 +204,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                         <div className="relative px-6 pt-6 pb-4 border-b border-theme-subtle">
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-primary-500/10 border border-primary-500/20">
-                                    <FiLayers className="w-6 h-6 text-primary-500" />
+                                    <Layers className="w-6 h-6 text-primary-500" />
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold text-theme-primary">
@@ -230,7 +221,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                 onClick={handleClose}
                                 className="absolute top-6 right-6 p-2 rounded-xl bg-theme-surface hover:bg-theme-card border-theme-subtle text-theme-secondary hover:text-theme-primary transition-colors"
                             >
-                                <FiX className="w-5 h-5" />
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
 
@@ -244,7 +235,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                         exit={{ opacity: 0, y: -10 }}
                                         className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm mb-5"
                                     >
-                                        <FiAlertCircle className="w-4 h-4 flex-shrink-0" />
+                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                         {error}
                                     </motion.div>
                                 )}
@@ -273,7 +264,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                     </div>
                                     <div className="min-w-0 flex-1 space-y-2 py-4">
                                         <label className="flex items-center gap-2 text-sm font-medium text-theme-primary">
-                                            <FiTarget className="w-4 h-4 text-primary-500" />
+                                            <Target className="w-4 h-4 text-primary-500" />
                                             Crea un nuovo esame
                                         </label>
                                         <p className="text-xs text-theme-muted">
@@ -335,7 +326,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                                         className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
                                                                     />
                                                                 ) : (
-                                                                    <FiCheck className="w-4 h-4" />
+                                                                    <Check className="w-4 h-4" />
                                                                 )}
                                                                 Crea esame e continua
                                                             </button>
@@ -374,7 +365,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                     </div>
                                     <div className="min-w-0 flex-1 space-y-2 py-4">
                                         <label className="flex items-center gap-2 text-sm font-medium text-theme-primary">
-                                            <FiBookOpen className="w-4 h-4 text-theme-secondary" />
+                                            <BookOpen className="w-4 h-4 text-theme-secondary" />
                                             Nuovo Capitolo
                                             <span className="text-red-500">*</span>
                                         </label>
@@ -408,7 +399,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                     </div>
                                     <div className="min-w-0 flex-1 space-y-2 py-4">
                                         <label className="flex items-center gap-2 text-sm font-medium text-theme-primary">
-                                            <FiTag className="w-4 h-4 text-theme-secondary" />
+                                            <Tag className="w-4 h-4 text-theme-secondary" />
                                             Tags (opzionale)
                                         </label>
                                         {!showTagsSection ? (
@@ -418,7 +409,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                                 className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-theme-default bg-theme-surface text-theme-secondary hover:border-primary-500/40 hover:bg-primary-500/5 hover:text-primary-500 transition-colors text-sm font-medium"
                                             >
                                                 <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary-500/15 text-primary-500">
-                                                    <FiPlus className="w-4 h-4" strokeWidth={2.5} />
+                                                    <Plus className="w-4 h-4" strokeWidth={2.5} />
                                                 </span>
                                                 Aggiungi tag
                                             </button>
@@ -476,7 +467,7 @@ export const CreateDeckModal: React.FC<CreateDeckModalProps> = ({
                                         </>
                                     ) : (
                                         <>
-                                            <FiPlus className="w-5 h-5" />
+                                            <Plus className="w-5 h-5" />
                                             Crea Mazzo
                                         </>
                                     )}

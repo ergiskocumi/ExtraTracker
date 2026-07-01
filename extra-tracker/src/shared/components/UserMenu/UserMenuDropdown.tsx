@@ -11,19 +11,9 @@ import { useState, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    FiLayout,
-    FiSettings,
-    FiLogOut,
-    FiChevronDown,
-    FiBookOpen,
-    FiShield,
-    FiMessageCircle,
-    FiCpu,
-} from 'react-icons/fi';
+import { Layout, LogOut, ChevronDown, BookOpen } from 'lucide-react';
 import { useAuth } from '../../../features/auth/context/AuthContext';
 import { useSettings } from '../../../features/settings/context/SettingsContext';
-import { useFeedback } from '../../../features/feedback/context/FeedbackContext';
 
 // ============================================
 // TYPES
@@ -120,7 +110,7 @@ const MenuItemComponent = memo(({
         group flex items-center gap-3.5 px-4 py-3 mx-2 rounded-2xl transition-all duration-150 cursor-pointer
         ${isActive
             ? 'bg-gradient-to-r from-primary-500/25 to-violet-500/15 border border-primary-500/25 shadow-lg shadow-primary-500/10'
-            : 'hover:bg-white/[0.08] border border-transparent'
+            : 'hover:bg-theme-surface-hover border border-transparent'
         }
     `;
     const activeTextColor = isActive ? 'var(--text-primary)' : 'var(--text-secondary)';
@@ -133,7 +123,7 @@ const MenuItemComponent = memo(({
                     w-10 h-10 rounded-2xl flex items-center justify-center transition-all
                     ${isActive
                         ? 'bg-gradient-to-br from-primary-500 to-violet-600 shadow-lg shadow-primary-500/30'
-                        : 'bg-white/[0.06] group-hover:bg-white/[0.1]'
+                        : 'bg-theme-surface group-hover:bg-theme-surface-hover'
                     }
                 `}
                 style={{ color: isActive ? 'white' : activeTextColor }}
@@ -181,14 +171,10 @@ export const UserMenuDropdown = memo(() => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { profile } = useSettings();
-    const { openFeedback } = useFeedback();
 
     const [isOpen, setIsOpen] = useState(false);
     const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
-
-    // Check if user is admin
-    const isAdmin = user?.role === 'admin';
 
     // User info
     const userInitials = (() => {
@@ -210,36 +196,15 @@ export const UserMenuDropdown = memo(() => {
         {
             label: 'Principale',
             items: [
-                { path: '/dashboard', label: 'Dashboard', icon: FiLayout, description: 'Centro di comando' },
-                { path: '/ai-dashboard', label: 'AI Usage', icon: FiCpu, description: 'Token, prompt e costi' },
+                { path: '/dashboard', label: 'Dashboard', icon: Layout, description: 'Centro di comando' },
             ],
         },
         {
             label: 'Produttività',
             items: [
-                { path: '/study', label: 'Flashcards', icon: FiBookOpen, description: 'Studio intelligente' },
+                { path: '/study', label: 'Flashcards', icon: BookOpen, description: 'Studio intelligente' },
             ],
         },
-        {
-            label: 'Account',
-            items: [
-                { path: '/settings', label: 'Impostazioni', icon: FiSettings, description: 'Personalizza' },
-            ],
-        },
-        {
-            label: 'Aiuto',
-            items: [
-                { label: 'Segnala un problema', description: 'Bug o suggerimento', icon: FiMessageCircle, action: () => openFeedback() },
-            ],
-        },
-        ...(isAdmin ? [
-            {
-                label: 'Admin',
-                items: [
-                    { path: '/admin/feedback', label: 'Feedbacks', icon: FiShield, description: 'Gestione feedback' },
-                ],
-            },
-        ] : []),
     ];
 
     const handleLogout = async () => {
@@ -360,7 +325,7 @@ export const UserMenuDropdown = memo(() => {
                     animate={{ rotate: isOpen ? 180 : 0 }}
                     transition={{ duration: 0.2 }}
                 >
-                    <FiChevronDown
+                    <ChevronDown
                         size={14}
                         className="text-slate-500 dark:text-slate-400"
                     />
@@ -378,7 +343,7 @@ export const UserMenuDropdown = memo(() => {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 onClick={() => setIsOpen(false)}
-                                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
+                                className="fixed inset-0 bg-theme-overlay backdrop-blur-sm z-max"
                             />
 
                             {/* Sidebar */}
@@ -387,7 +352,7 @@ export const UserMenuDropdown = memo(() => {
                                 animate={{ x: 0, opacity: 1 }}
                                 exit={{ x: '100%', opacity: 0 }}
                                 transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                                className="fixed top-0 right-0 h-full w-full max-w-[420px] z-[9999] shadow-2xl"
+                                className="fixed top-0 right-0 h-full w-full max-w-[420px] z-max shadow-2xl"
                                 style={{
                                     background: `linear-gradient(145deg, var(--bg-surface) 0%, var(--bg-elevated) 100%)`,
                                     backdropFilter: 'blur(28px) saturate(190%)',
@@ -401,7 +366,7 @@ export const UserMenuDropdown = memo(() => {
                                         <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Menu</h2>
                                         <button
                                             onClick={() => setIsOpen(false)}
-                                            className="p-2 rounded-lg transition-colors hover:bg-white/[0.08]"
+                                            className="p-2 rounded-lg transition-colors hover:bg-theme-surface-hover"
                                             style={{ color: 'var(--text-muted)' }}
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -491,7 +456,7 @@ export const UserMenuDropdown = memo(() => {
                                             <div className="flex items-center justify-center w-9 h-9 rounded-xl transition-colors" style={{
                                                 background: 'var(--bg-danger-subtle)',
                                             }}>
-                                                <FiLogOut size={16} />
+                                                <LogOut size={16} />
                                             </div>
                                             <div className="text-left">
                                                 <p className="text-sm font-medium">Disconnetti</p>
@@ -517,7 +482,7 @@ export const UserMenuDropdown = memo(() => {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.2 }}
-                                className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+                                className="fixed inset-0 z-max flex items-center justify-center bg-theme-overlay backdrop-blur-sm"
                                 onClick={() => setAvatarLightboxOpen(false)}
                                 role="button"
                                 tabIndex={0}

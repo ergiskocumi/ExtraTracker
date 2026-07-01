@@ -563,7 +563,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 spellCheck
                 autoCorrect="on"
                 autoCapitalize="sentences"
-                className={`w-full resize-y min-h-[100px] rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm md:text-base text-theme-primary placeholder:text-theme-muted focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60 transition-all duration-300 ${textareaClassName ?? ''}`}
+                className={`w-full resize-y min-h-[100px] rounded-xl border border-theme-default bg-theme-surface p-3 text-sm md:text-base text-theme-primary placeholder:text-theme-muted focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/60 transition-all duration-300 ${textareaClassName ?? ''}`}
             />
 
             <LaTeXModal
@@ -583,9 +583,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-modal-backdrop flex items-center justify-center p-4">
             <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                className="absolute inset-0 bg-theme-overlay backdrop-blur-sm"
                 onClick={() => setIsFullscreen(false)}
                 aria-hidden="true"
             />

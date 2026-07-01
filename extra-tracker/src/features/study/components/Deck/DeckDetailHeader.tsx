@@ -101,7 +101,7 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
     const hasDueCards = stats.dueCount > 0;
     const hasCards = stats.total > 0;
     const hasPdf = !!deck.pdfUrl;
-    const canGenerateQuiz = stats.total >= 10;
+    const canGenerateQuiz = hasPdf || stats.total >= 10;
 
     const statItems: StatItem[] = [
         {
@@ -224,7 +224,7 @@ export const DeckDetailHeader: React.FC<DeckDetailHeaderProps> = ({
                                 whileTap={canGenerateQuiz ? { scale: 0.98 } : undefined}
                                 onClick={onGenerateQuiz}
                                 disabled={!canGenerateQuiz}
-                                title={!canGenerateQuiz ? 'Crea almeno 10 flashcard per sbloccare la generazione del quiz' : undefined}
+                                title={!canGenerateQuiz ? 'Carica un PDF o crea almeno 10 flashcard per generare un quiz' : undefined}
                                 className={`
                                     flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all
                                     ${canGenerateQuiz

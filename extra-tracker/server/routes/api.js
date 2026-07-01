@@ -28,6 +28,10 @@ const workspaceController = require('../controllers/workspaceController');
 const foldersRoutes = require('./folders');
 const tagsRoutes = require('./tags');
 
+// Validators
+const { validateMiddleware } = require('../validators/validate');
+const { createTodoSchema, updateTodoSchema } = require('../validators/workspaceValidators');
+
 // =========================================
 // MIDDLEWARE: Applica a TUTTE le routes
 // =========================================
@@ -233,13 +237,13 @@ router.get('/workspace/todos/:id', workspaceController.getTodo);
  * POST /api/workspace/todos
  * Crea nuovo TODO
  */
-router.post('/workspace/todos', workspaceController.createTodo);
+router.post('/workspace/todos', validateMiddleware(createTodoSchema), workspaceController.createTodo);
 
 /**
  * PUT /api/workspace/todos/:id
  * Aggiorna TODO
  */
-router.put('/workspace/todos/:id', workspaceController.updateTodo);
+router.put('/workspace/todos/:id', validateMiddleware(updateTodoSchema), workspaceController.updateTodo);
 
 /**
  * PATCH /api/workspace/todos/:id/complete

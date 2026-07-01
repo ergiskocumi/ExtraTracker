@@ -208,14 +208,14 @@ export const ExamCard: React.FC<ExamCardProps> = ({
             onClick={onClick}
             className={`
                 relative rounded-2xl border overflow-hidden cursor-pointer
-                transition-all duration-300 h-full flex flex-col
+                transition-colors duration-200 h-full flex flex-col active:scale-[0.98]
                 ${isUrgent || isOverdue
-                    ? 'border-orange-500/40 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent shadow-lg shadow-orange-500/10'
+                    ? 'border-orange-500/25 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]'
                     : isCompleted
                         ? 'border-white/10 bg-gradient-to-br from-white/5 to-transparent opacity-80'
-                        : 'border-primary-500/30 bg-gradient-to-br from-primary-500/10 via-primary-500/5 to-transparent'
+                        : 'border-primary-500/20 bg-gradient-to-br from-primary-500/10 via-primary-500/5 to-transparent'
                 }
-                hover:border-primary-500/50 hover:shadow-xl hover:shadow-primary-500/15
+                hover:border-primary-500/40 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)]
                 backdrop-blur-sm
             `}
         >
@@ -233,7 +233,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                     {/* Titolo e Descrizione */}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-bold text-white text-lg truncate leading-tight">
+                            <h3 className="font-bold text-theme-primary text-lg truncate leading-tight">
                                 {exam.title}
                             </h3>
                         </div>
@@ -283,7 +283,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: -8, scale: 0.95 }}
                                         transition={{ duration: 0.15 }}
-                                        className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-theme-default bg-theme-elevated shadow-2xl shadow-black/60 overflow-hidden z-50"
+                                        className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-theme-default bg-theme-elevated shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] overflow-hidden z-50"
                                     >
                                         {isCompleted && onReactivate && (
                                             <button
@@ -310,7 +310,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
 
                 {/* Descrizione */}
                 {exam.description && (
-                    <p className="text-sm text-white/50 line-clamp-2 leading-relaxed mb-4">
+                    <p className="text-sm text-theme-muted line-clamp-2 leading-relaxed mb-4">
                         {exam.description}
                     </p>
                 )}
@@ -319,13 +319,13 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                 {totalCards > 0 && (
                     <div className="mb-4">
                         <div className="flex items-center justify-between text-xs mb-2">
-                            <span className="text-white/40 flex items-center gap-1.5">
+                            <span className="text-theme-muted flex items-center gap-1.5">
                                 <FileText className="w-3.5 h-3.5" />
                                 {totalCards} carte
                             </span>
                             <span className={`
                                 font-medium
-                                ${masteryPercent >= 80 ? 'text-emerald-400' : masteryPercent >= 50 ? 'text-amber-400' : 'text-white/60'}
+                                ${masteryPercent >= 80 ? 'text-emerald-400' : masteryPercent >= 50 ? 'text-amber-400' : 'text-theme-muted'}
                             `}>
                                 {masteryPercent}% padronanza
                             </span>
@@ -364,7 +364,7 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                         </div>
                         
                         {/* Legenda mini */}
-                        <div className="flex items-center gap-3 mt-2 text-[10px] text-white/40">
+                        <div className="flex items-center gap-3 mt-2 text-[10px] text-theme-muted">
                             {distribution.new > 0 && (
                                 <span className="flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
@@ -424,8 +424,8 @@ export const ExamCard: React.FC<ExamCardProps> = ({
                                 <Calendar className={`w-3.5 h-3.5 ${isOverdue ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-theme-muted'}`} />
                         </div>
                         <div>
-                            <p className="text-[10px] text-white/40 uppercase tracking-wide">Scadenza</p>
-                            <p className={`text-sm font-semibold ${isOverdue ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-white/80'}`}>
+                            <p className="text-[10px] text-theme-muted uppercase tracking-wide">Scadenza</p>
+                            <p className={`text-sm font-semibold ${isOverdue ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-theme-secondary'}`}>
                                 {isOverdue 
                                     ? `Scaduto (${Math.abs(daysUntilDeadline)}gg fa)`
                                     : daysUntilDeadline === 0 

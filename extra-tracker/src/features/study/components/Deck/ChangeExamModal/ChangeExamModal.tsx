@@ -279,7 +279,7 @@ export function ChangeExamModal({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: ANIMATION_CONFIG.DURATION_STANDARD }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                className="fixed inset-0 bg-theme-overlay backdrop-blur-sm z-50 flex items-center justify-center p-4"
                 onClick={handleClose}
             >
                 {/* Modal Container - Click sul contenuto non chiude il modal */}
@@ -292,32 +292,32 @@ export function ChangeExamModal({
                         ease: ANIMATION_CONFIG.EASING_SMOOTH,
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-md rounded-3xl border border-white/10 
-                               bg-gradient-to-br from-gray-800/95 via-gray-900/95 to-black/95
+                    className="w-full max-w-md rounded-3xl border border-theme-subtle
+                               bg-theme-card
                                backdrop-blur-2xl backdrop-saturate-150
-                               shadow-2xl shadow-black/50
+                               shadow-2xl
                                overflow-hidden"
                 >
                     {/* Header del Modal */}
-                    <div className="p-6 border-b border-white/10">
+                    <div className="p-6 border-b border-theme-subtle">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-xl bg-primary-500/20 border border-primary-500/30">
                                     <BookOpen className="w-5 h-5 text-primary-400" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-white">
+                                    <h2 className="text-xl font-bold text-theme-primary">
                                         Cambia Esame
                                     </h2>
-                                    <p className="text-sm text-white/60 mt-0.5">
+                                    <p className="text-sm text-theme-muted mt-0.5">
                                         Sposta il mazzo a un altro esame
                                     </p>
                                 </div>
                             </div>
                             <button
                                 onClick={handleClose}
-                                className="p-2 rounded-lg hover:bg-white/10 transition-colors
-                                           text-white/60 hover:text-white"
+                                className="p-2 rounded-lg hover:bg-theme-surface-hover transition-colors
+                                           text-theme-muted hover:text-theme-primary"
                                 aria-label="Chiudi modal"
                             >
                                 <X className="w-5 h-5" />
@@ -328,9 +328,9 @@ export function ChangeExamModal({
                     {/* Contenuto del Modal */}
                     <div className="p-6 space-y-6">
                         {/* Informazioni sul Deck */}
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                            <p className="text-sm text-white/60 mb-1">Mazzo</p>
-                            <p className="font-semibold text-white">{deck.title}</p>
+                        <div className="rounded-xl border border-theme-subtle bg-theme-surface p-4">
+                            <p className="text-sm text-theme-muted mb-1">Mazzo</p>
+                            <p className="font-semibold text-theme-primary">{deck.title}</p>
                         </div>
 
                         {/* Esame Corrente */}
@@ -339,13 +339,13 @@ export function ChangeExamModal({
                                 <p className="text-sm text-blue-300 mb-1 font-medium">
                                     Esame corrente
                                 </p>
-                                <p className="text-white font-semibold">{currentExam.title}</p>
+                                <p className="text-theme-primary font-semibold">{currentExam.title}</p>
                             </div>
                         )}
 
                         {/* Selezione Nuovo Esame */}
                         <div>
-                            <label className="block text-sm font-medium text-white/80 mb-2">
+                            <label className="block text-sm font-medium text-theme-secondary mb-2">
                                 Seleziona nuovo esame
                             </label>
                             {isLoadingExams ? (
@@ -357,8 +357,8 @@ export function ChangeExamModal({
                                     value={selectedExamId || ''}
                                     onChange={handleExamSelectChange}
                                     disabled={isSaving || availableExams.length === 0}
-                                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 
-                                               text-white focus:outline-none focus:ring-2 focus:ring-primary-500
+                                    className="w-full px-4 py-3 rounded-xl bg-theme-surface border border-theme-subtle
+                                               text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500
                                                disabled:opacity-50 disabled:cursor-not-allowed
                                                transition-all"
                                 >
@@ -398,8 +398,8 @@ export function ChangeExamModal({
                                 disabled={isSaving}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
-                                className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10
-                                           text-white/80 font-semibold hover:bg-white/10 hover:text-white
+                                className="flex-1 px-4 py-3 rounded-xl bg-theme-surface border border-theme-subtle
+                                           text-theme-secondary font-semibold hover:bg-theme-surface-hover hover:text-theme-primary
                                            disabled:opacity-50 disabled:cursor-not-allowed
                                            transition-all"
                             >

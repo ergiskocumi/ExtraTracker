@@ -268,7 +268,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                     e.stopPropagation();
                     handleOpenMenu();
                 }}
-                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-black/20 backdrop-blur-sm text-white/60 hover:text-white hover:bg-black/40 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-theme-card border border-theme-subtle backdrop-blur-sm text-theme-muted hover:text-theme-primary hover:bg-theme-card-hover transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
                 aria-label="Menu opzioni"
             >
                 <MoreHorizontal className="w-5 h-5 sm:w-5 sm:h-5" />
@@ -285,7 +285,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                className="fixed inset-0 z-[99998]"
+                                className="fixed inset-0 z-max"
                                 onClick={onToggleMenu}
                                 style={{ pointerEvents: 'auto' }}
                             />
@@ -300,7 +300,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                 POSIZIONAMENTO FIXED:
                                 - Usa fixed invece di absolute per evitare problemi di overflow
                                 - La posizione viene calcolata dinamicamente basandosi sul pulsante
-                                - z-[99999]: z-index estremamente alto per apparire sopra tutti gli elementi
+                                - z-max: livello massimo della scala z-index per apparire sopra tutti gli elementi
                                 
                                 LARGHEZZA:
                                 - min-w-[200px]: larghezza minima per garantire leggibilità
@@ -317,8 +317,8 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                 - Appare sempre sopra tutti gli altri elementi
                                 - Posizione precisa calcolata dinamicamente
                                 
-                                Z-INDEX MOLTO ALTO:
-                                - z-[99999] assicura che il menu appaia sopra qualsiasi altro elemento
+                                Z-INDEX:
+                                - z-max (scala Tailwind) assicura che il menu appaia sopra qualsiasi altro elemento
                                 - Anche sopra modali e altri overlay se necessario
                             */}
                             {menuPosition && (
@@ -331,7 +331,7 @@ export const DeckCardMenu: React.FC<DeckCardMenuProps> = ({
                                         position: 'fixed',
                                         top: `${menuPosition.top}px`,
                                         left: `${menuPosition.left}px`,
-                                        zIndex: 99999,
+                                        zIndex: 9999, // allineato a z-max della scala Tailwind (tailwind.config.js)
                                     }}
                                     className="min-w-[200px] max-w-[280px] w-auto 
                                                py-2 rounded-xl 

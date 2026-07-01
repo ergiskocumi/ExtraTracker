@@ -225,14 +225,14 @@ const DeckCardComponent: React.FC<DeckCardProps> = ({
                 ease: 'easeOut',
             }}
             className={`
-                group relative rounded-xl sm:rounded-2xl md:rounded-3xl border overflow-hidden
-                transition-all duration-300 hover:shadow-xl
+                group relative rounded-2xl border border-theme-default bg-theme-card overflow-hidden
+                transition-all duration-200
                 flex flex-col
-                min-h-[280px] sm:min-h-[320px] md:min-h-[340px]
-                cursor-move
-                ${hasDueCards 
-                    ? 'border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent shadow-lg shadow-orange-500/10' 
-                    : `${theme.borderColor} bg-gradient-to-br ${theme.gradient} hover:shadow-lg`
+                min-h-[240px]
+                cursor-pointer active:scale-[0.98]
+                ${hasDueCards
+                    ? '!border-orange-500/30 bg-gradient-to-br from-orange-500/5 via-transparent to-transparent shadow-theme-md hover:shadow-theme-lg'
+                    : `${theme.borderColor} bg-gradient-to-br ${theme.gradient} shadow-theme-sm hover:shadow-theme-lg`
                 }
             `}
             draggable

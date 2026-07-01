@@ -8,7 +8,8 @@
 import { useEffect } from 'react';
 import { useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, Clock } from 'lucide-react';
+import { FlashcardSkeleton } from '../../../shared/components/skeleton/FlashcardSkeleton';
 import { StudyCard } from '../components/Study/StudyCard';
 import { StudyProgress } from '../components/Study/StudyProgress';
 import { StudyControls } from '../components/Study/StudyControls';
@@ -67,7 +68,8 @@ export const StudySessionPage: React.FC = () => {
         .filter(Boolean)
         .join('|');
     const runKey = searchParams.get('run') || 'default';
-    const savedQuizId = searchParams.get('savedQuizId');
+    const quizId = searchParams.get('quizId') || searchParams.get('savedQuizId');
+    const savedQuizId = searchParams.get('savedQuizId') || searchParams.get('quizId');
 
     // ── Hook ──────────────────────────────────────────────────────────────
 
@@ -119,6 +121,7 @@ export const StudySessionPage: React.FC = () => {
         quizType,
         sourceCardIdsKey,
         runKey,
+        quizId,
         savedQuizId,
         preloadedSession,
     });
@@ -132,9 +135,9 @@ export const StudySessionPage: React.FC = () => {
             if (e.key === 'Escape') { setShowExitConfirm(true); return; }
             if (!isFlashcardMode) return;
             if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleFlip(); }
-            if (e.key === 'ArrowLeft') void handleRate(1);
-            if (e.key === 'ArrowRight') void handleRate(4);
-            if (e.key === 'ArrowUp') void handleRate(3);
+            if (e.key === 'ArrowLeft') handleRate(1).catch(() => {});
+            if (e.key === 'ArrowRight') handleRate(4).catch(() => {});
+            if (e.key === 'ArrowUp') handleRate(3).catch(() => {});
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
@@ -142,11 +145,10 @@ export const StudySessionPage: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="study-session-overlay fixed inset-0 top-16 z-50 flex flex-col items-center justify-center bg-theme-base gap-4">
-                <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
-                <p className="text-theme-muted text-sm">
-                    {mode === 'quiz' ? 'Preparazione quiz con AI in corso...' : 'Caricamento sessione...'}
-                </p>
+            <div className="study-session-overlay fixed inset-0 top-[var(--app-header-height,64px)] z-50 bg-theme-base p-8 flex flex-col items-center justify-center">
+                <div className="w-full max-w-lg space-y-4">
+                    <FlashcardSkeleton />
+                </div>
             </div>
         );
     }
@@ -154,7 +156,7 @@ export const StudySessionPage: React.FC = () => {
     // Non mostrare errore se il modal di resume è aperto (session può essere null in quel caso)
     if ((error || !session) && !showResumeModal) {
         return (
-            <div className="study-session-overlay fixed inset-0 top-16 z-50 flex flex-col items-center justify-center bg-theme-base gap-4 p-4">
+            <div className="study-session-overlay fixed inset-0 top-[var(--app-header-height,64px)] z-50 flex flex-col items-center justify-center bg-theme-base gap-4 p-4">
                 <p className="text-red-400 text-lg">{error || 'Sessione non trovata'}</p>
                 <button
                     onClick={handleBack}
@@ -169,7 +171,7 @@ export const StudySessionPage: React.FC = () => {
     // Session complete screen
     if (isComplete) {
         return (
-            <div className="study-session-overlay fixed inset-0 top-16 z-50 bg-theme-base">
+            <div className="study-session-overlay fixed inset-0 top-[var(--app-header-height,64px)] z-50 bg-theme-base">
                 <SessionComplete
                     totalCards={stats.total}
                     correctCount={stats.good + stats.easy}
@@ -190,7 +192,7 @@ export const StudySessionPage: React.FC = () => {
     // Resume Modal (modale per riprendere esame)
     if (showResumeModal && savedProgress) {
         return (
-            <div className="study-resume-overlay fixed inset-0 top-16 z-50 flex items-center justify-center backdrop-blur-sm">
+            <div className="study-resume-overlay fixed inset-0 top-[var(--app-header-height,64px)] z-50 flex items-center justify-center backdrop-blur-sm">
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -256,7 +258,7 @@ export const StudySessionPage: React.FC = () => {
     if (!session) return null;
 
     return (
-        <div className="study-session-root fixed inset-0 top-16 z-50 bg-theme-base flex flex-col">
+        <div className="study-session-root fixed inset-0 top-[var(--app-header-height,64px)] z-50 bg-theme-base flex flex-col">
             {/* Header */}
             <header className="study-session-header flex-none px-4 sm:px-6 py-3 border-b border-theme-default bg-theme-base/80 backdrop-blur-xl z-50">
                 <div className="w-full flex items-center gap-3 sm:gap-6">
@@ -373,6 +375,8 @@ export const StudySessionPage: React.FC = () => {
                                 isTrueFalse={currentCard.isTrueFalse ?? false}
                                 correctStatement={currentCard.correctStatement}
                                 explanation={currentCard.explanation}
+                                currentIndex={currentCardIndex + 1}
+                                totalQuestions={session.cards.length}
                             />
                         </motion.div>
                     )}
@@ -422,7 +426,7 @@ export const StudySessionPage: React.FC = () => {
 
             {/* Conferma uscita sessione */}
             {showExitConfirm && (
-                <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-modal-backdrop flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="w-full max-w-sm rounded-2xl bg-theme-elevated border border-theme-default shadow-theme-lg p-6 space-y-4">
                         <div className="text-center">
                             <p className="text-base font-semibold text-theme-primary">Uscire dalla sessione?</p>

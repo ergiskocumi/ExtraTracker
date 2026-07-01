@@ -12,9 +12,9 @@
  * - Supporto tastiera e touch
  */
 
-import { useEffect, useMemo, memo, useCallback } from 'react';
+import { useEffect, useMemo, memo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FiTarget } from 'react-icons/fi';
+import { Target } from 'lucide-react';
 import type { Card } from '../../services/studyService';
 import { CardContentRenderer } from './CardContentRenderer/index';
 
@@ -68,18 +68,23 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
     exitDirection = null,
     onShowSource,
 }) => {
-    // Gestione tastiera (Spazio per flip)
+    // Gestione tastiera (Spazio per flip) — refs evita ri-registrazione ad ogni flip
+    const isFlippedRef = useRef(isFlipped);
+    isFlippedRef.current = isFlipped;
+    const onFlipRef = useRef(onFlip);
+    onFlipRef.current = onFlip;
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.code === 'Space' && !isFlipped) {
+            if (e.code === 'Space' && !isFlippedRef.current) {
                 e.preventDefault();
-                onFlip();
+                onFlipRef.current();
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isFlipped, onFlip]);
+    }, []);
 
     const getExitVariant = useCallback(() => {
         if (exitDirection === 'left') return 'exitLeft';
@@ -156,14 +161,15 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                     y: 0, // Forza posizione Y fissa
                     x: 0  // Forza posizione X fissa
                 }}
-                transition={{ 
-                    duration: 1.2, // Più lento come richiesto
-                    type: 'spring', 
-                    stiffness: 80,
+                transition={{
+                    duration: 0.5,
+                    type: 'spring',
+                    stiffness: 120,
                     damping: 20
                 }}
-                style={{ 
+                style={{
                     transformStyle: 'preserve-3d',
+                    willChange: 'transform',
                     cursor: !isFlipped ? 'pointer' : 'default',
                     transformOrigin: 'center center' // Assicura che la rotazione avvenga dal centro
                 }}
@@ -173,14 +179,14 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                     FRONTE DELLA CARTA - 3D Flip
                     ═══════════════════════════════════════════ */}
                 <div
-                    className={`absolute inset-0 w-full h-full ${isMobile ? 'rounded-xl p-4' : 'rounded-3xl p-6 md:p-8'} backdrop-blur-xl border border-white/[0.15] shadow-2xl flex flex-col`}
-                    style={{ 
+                    className={`absolute inset-0 w-full h-full ${isMobile ? 'rounded-xl p-4' : 'rounded-3xl p-6 md:p-8'} backdrop-blur-xl border border-theme-strong shadow-2xl flex flex-col text-theme-primary`}
+                    style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        background: 'linear-gradient(145deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 100%)',
-                        boxShadow: isMobile 
-                            ? '0 10px 30px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.12)'
-                            : '0 20px 60px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 0 rgba(0, 0, 0, 0.1)'
+                        background: 'linear-gradient(145deg, var(--bg-card-hover) 0%, var(--bg-card) 60%, var(--bg-surface) 100%)',
+                        boxShadow: isMobile
+                            ? 'var(--shadow-md)'
+                            : 'var(--shadow-lg)'
                     }}
                 >
                     {/* Status Badge */}
@@ -207,7 +213,7 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                             title="Vedi nel testo (PDF)"
                             aria-label="Vai alla fonte nel PDF"
                         >
-                            <FiTarget className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
+                            <Target className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                         </button>
                     )}
 
@@ -235,16 +241,16 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                     </div>
 
                     {/* Hint per flip - LEGGERO E CENTRATO */}
-                    <motion.div 
-                        className="flex items-center justify-center gap-2 text-white/30 mt-3 pt-3 border-t border-white/[0.05] flex-shrink-0"
-                        animate={{ opacity: [0.3, 0.5, 0.3] }}
+                    <motion.div
+                        className="flex items-center justify-center gap-2 text-theme-muted mt-3 pt-3 border-t border-theme-subtle flex-shrink-0"
+                        animate={{ opacity: [0.5, 0.8, 0.5] }}
                         transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
                     >
                         <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium`}>Tocca per girare</span>
                         {!isMobile && (
                             <>
                                 <span className="text-xs">•</span>
-                                <kbd className="px-1.5 py-0.5 bg-white/[0.08] text-white/40 rounded text-[10px] font-mono border border-white/[0.08]">
+                                <kbd className="px-1.5 py-0.5 bg-theme-surface text-theme-muted rounded text-[10px] font-mono border border-theme-subtle">
                                     Spazio
                                 </kbd>
                             </>
@@ -256,15 +262,15 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                     RETRO DELLA CARTA - 3D Flip
                     ═══════════════════════════════════════════ */}
                 <div
-                    className={`absolute inset-0 w-full h-full ${isMobile ? 'rounded-xl p-4' : 'rounded-3xl p-6 md:p-8'} backdrop-blur-xl border border-white/[0.15] shadow-2xl flex flex-col`}
-                    style={{ 
+                    className={`absolute inset-0 w-full h-full ${isMobile ? 'rounded-xl p-4' : 'rounded-3xl p-6 md:p-8'} backdrop-blur-xl border border-primary-500/30 shadow-2xl flex flex-col text-theme-primary`}
+                    style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
                         transform: 'rotateY(180deg)',
-                        background: 'linear-gradient(145deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.08) 50%, rgba(139, 92, 246, 0.05) 100%)',
+                        background: 'linear-gradient(145deg, rgba(139, 92, 246, 0.15) 0%, var(--bg-card) 60%, var(--bg-surface) 100%)',
                         boxShadow: isMobile
                             ? '0 10px 30px -8px rgba(139, 92, 246, 0.25), 0 0 0 1px rgba(139, 92, 246, 0.2)'
-                            : '0 20px 60px -12px rgba(139, 92, 246, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 0 rgba(0, 0, 0, 0.1)'
+                            : '0 20px 60px -12px rgba(139, 92, 246, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.25)'
                     }}
                 >
                     {/* Label Risposta - BEN SEPARATO SU MOBILE */}
@@ -292,7 +298,7 @@ export const Flashcard: React.FC<FlashcardProps> = memo(({
                                 variant="study"
                                 size="adaptive"
                                 centered={true}
-                                className={`${backFontSize} ${isMobile ? 'font-medium leading-tight' : 'font-semibold leading-relaxed'} text-white/95 max-w-full`}
+                                className={`${backFontSize} ${isMobile ? 'font-medium leading-tight' : 'font-semibold leading-relaxed'} text-theme-primary max-w-full`}
                             />
                         </div>
                     </div>
@@ -327,13 +333,12 @@ Flashcard.displayName = 'Flashcard';
 export const FlashcardSkeleton: React.FC = () => {
     return (
         <div className="w-full max-w-lg mx-auto px-4">
-            <div 
-                className="w-full min-h-[300px] sm:min-h-[360px] md:min-h-[400px] rounded-3xl backdrop-blur-xl border border-white/[0.08] animate-pulse"
-                style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)' }}
+            <div
+                className="w-full min-h-[300px] sm:min-h-[360px] md:min-h-[400px] rounded-3xl backdrop-blur-xl border border-theme-subtle animate-pulse bg-theme-card"
             >
                 <div className="h-full flex flex-col items-center justify-center p-8 gap-4">
-                    <div className="w-3/4 h-7 bg-white/10 rounded-lg" />
-                    <div className="w-1/2 h-7 bg-white/5 rounded-lg" />
+                    <div className="w-3/4 h-7 bg-theme-surface rounded-lg" />
+                    <div className="w-1/2 h-7 bg-theme-surface rounded-lg" />
                 </div>
             </div>
         </div>

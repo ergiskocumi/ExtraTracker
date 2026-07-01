@@ -1,3 +1,4 @@
+// TODO: Refactor per evitare cross-feature coupling (CLAUDE.md). Il dashboard non dovrebbe dipendere direttamente dal tracker.
 import { useMemo, useState } from 'react';
 import { useWorkLog } from '../../tracker/context/WorkLogContext';
 import { useAuth } from '../../auth/context/AuthContext';
@@ -84,7 +85,7 @@ export const useDashboard = () => {
     );
 
     const greeting = useMemo(() => {
-        const name = user?.displayName || user?.firstName || 'Benvenuto';
+        const name = user?.displayName || user?.firstName || user?.email?.split('@')[0] || 'Benvenuto';
         return {
             title: `Ciao ${name}!`,
             subtitle: 'Ecco un riepilogo rapido della tua settimana',

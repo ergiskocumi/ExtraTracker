@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Deck, Tag } from '../../services/studyService';
 
@@ -23,7 +23,7 @@ interface DeckGridProps {
     viewMode?: 'grid' | 'list';
 }
 
-export const DeckGrid: React.FC<DeckGridProps> = ({
+export const DeckGrid = memo<DeckGridProps>(({
     decks,
     tags = [],
     DeckCardComponent,
@@ -42,7 +42,7 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
     if (decks.length === 0) {
         return (
             <div className="text-center py-16">
-                <p className="text-white/50 text-lg">
+                <p className="text-theme-muted text-lg">
                     Nessun mazzo corrisponde ai filtri
                 </p>
             </div>
@@ -74,8 +74,8 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
                             scale: 1
                         }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ 
-                            delay: index * 0.05,
+                        transition={{
+                            delay: index * 0.02,
                             duration: isFolderSelected ? 0.5 : 0.3,
                             ease: isFolderSelected ? 'easeOut' : 'easeInOut'
                         }}
@@ -98,4 +98,4 @@ export const DeckGrid: React.FC<DeckGridProps> = ({
             </AnimatePresence>
         </motion.div>
     );
-};
+});

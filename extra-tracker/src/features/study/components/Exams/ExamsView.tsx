@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { memo, useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Plus, Loader2, CheckCircle } from 'lucide-react';
 import type { Exam } from '../../types/exam';
@@ -39,7 +39,7 @@ interface ExamsViewProps {
 // COMPONENT
 // ============================================
 
-export const ExamsView: React.FC<ExamsViewProps> = ({
+export const ExamsView = memo<ExamsViewProps>(({
     decks,
     tags,
     onCreateExam,
@@ -256,7 +256,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
     if (error) {
         return (
             <div className="flex flex-col items-center justify-center py-16">
-                <p className="text-white/60 mb-4">{error}</p>
+                <p className="text-theme-muted mb-4">{error}</p>
                 <button
                     onClick={loadExams}
                     className="px-4 py-2 rounded-xl bg-theme-elevated text-theme-primary hover:bg-theme-surface transition-all"
@@ -277,10 +277,10 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                 <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-br from-primary-500/20 to-primary-600/10 border border-primary-500/30 flex items-center justify-center mb-6">
                     <BookOpen className="w-12 h-12 sm:w-14 sm:h-14 text-primary-400" />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3 sm:mb-4">
+                <h2 className="text-2xl sm:text-3xl font-bold text-theme-primary mb-3 sm:mb-4">
                     Nessun esame trovato
                 </h2>
-                <p className="text-white/60 text-sm sm:text-base mb-8 sm:mb-10 max-w-md">
+                <p className="text-theme-muted text-sm sm:text-base mb-8 sm:mb-10 max-w-md">
                     Crea il tuo primo esame per iniziare a organizzare i tuoi mazzi di studio.
                 </p>
                 <motion.button
@@ -323,8 +323,8 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold text-white mb-1">I tuoi Esami</h2>
-                    <p className="text-white/50 text-sm">
+                    <h2 className="text-2xl font-bold text-theme-primary mb-1">I tuoi Esami</h2>
+                    <p className="text-theme-muted text-sm">
                         {filteredAndSortedExams.length} di {exams.length} {exams.length === 1 ? 'esame' : 'esami'}
                     </p>
                 </div>
@@ -377,10 +377,10 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                     <div className="w-20 h-20 rounded-2xl bg-theme-surface border border-theme-default flex items-center justify-center mb-4">
                         <BookOpen className="w-10 h-10 text-theme-muted" />
                     </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
+                    <h3 className="text-xl font-semibold text-theme-primary mb-2">
                         Nessun esame trovato
                     </h3>
-                    <p className="text-white/50 text-sm">
+                    <p className="text-theme-muted text-sm">
                         {searchQuery || filter !== 'all'
                             ? 'Prova a modificare i filtri o la ricerca'
                             : 'Crea il tuo primo esame per iniziare'
@@ -393,9 +393,9 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
                     {filteredAndSortedExams.filter(e => e.status === 'active').length > 0 && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                                <h3 className="text-lg font-semibold text-white/80 px-4">Esami Attivi</h3>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-theme-default to-transparent" style={{ background: 'linear-gradient(to right, transparent, var(--border-default), transparent)' }}></div>
+                                <h3 className="text-lg font-semibold text-theme-muted px-4">Esami Attivi</h3>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-theme-default to-transparent" style={{ background: 'linear-gradient(to right, transparent, var(--border-default), transparent)' }}></div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 items-stretch">
                                 {filteredAndSortedExams
@@ -497,4 +497,4 @@ export const ExamsView: React.FC<ExamsViewProps> = ({
             />
         </div>
     );
-};
+});

@@ -1,5 +1,6 @@
 /**
- * Re-export: lo StudyService ora vive in ./study/index.js
- * Questo file mantiene il path originale per compatibilita' con gli import esistenti.
+ * DEPRECATED - Rimuovere.
+ * Questo file era un re-export di ./study/index.js.
+ * study/index.js e' stato rimosso perche' non piu' utilizzato.
  */
-module.exports = require('./study');
+module.exports = {};

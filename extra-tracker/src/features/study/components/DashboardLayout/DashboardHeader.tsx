@@ -59,12 +59,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={onBackToExams}
-                                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-400/30 transition-all group"
+                                    className="p-2 rounded-lg bg-theme-surface hover:bg-theme-surface-hover border border-theme-default hover:border-violet-400/30 transition-all group"
                                     aria-label="Torna agli esami"
                                 >
-                                    <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white/60 group-hover:text-violet-400 transition-colors" />
+                                    <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-theme-muted group-hover:text-violet-400 transition-colors" />
                                 </motion.button>
-                                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white flex items-center gap-2 sm:gap-3">
+                                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-theme-primary flex items-center gap-2 sm:gap-3">
                                     <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-violet-400" />
                                     {selectedExamName}
                                 </h1>
@@ -82,12 +82,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={onBackToAll}
-                                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-400/30 transition-all group"
+                                    className="p-2 rounded-lg bg-theme-surface hover:bg-theme-surface-hover border border-theme-default hover:border-violet-400/30 transition-all group"
                                     aria-label="Torna a tutti i mazzi"
                                 >
-                                    <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white/60 group-hover:text-violet-400 transition-colors" />
+                                    <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-theme-muted group-hover:text-violet-400 transition-colors" />
                                 </motion.button>
-                                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white flex items-center gap-2 sm:gap-3">
+                                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-theme-primary flex items-center gap-2 sm:gap-3">
                                     <Folder className="w-5 h-5 sm:w-6 sm:h-6 text-violet-400" />
                                     {selectedFolderName}
                                 </h1>
@@ -99,14 +99,14 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.3 }}
-                                className="text-2xl sm:text-3xl md:text-4xl font-bold text-white"
+                                className="text-2xl sm:text-3xl md:text-4xl font-bold text-theme-primary"
                             >
                                 I Tuoi Esami
                             </motion.h1>
                         )}
                     </AnimatePresence>
                 </div>
-                <p className="text-white/50 mt-1 text-xs sm:text-sm md:text-base">
+                <p className="text-theme-secondary mt-1 text-xs sm:text-sm md:text-base">
                     {selectedExamName 
                         ? 'Mazzi per questo esame' 
                         : selectedFolderName 

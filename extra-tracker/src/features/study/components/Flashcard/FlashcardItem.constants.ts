@@ -88,11 +88,11 @@ export const BUTTON_STYLES = {
         active: 'active:scale-95',
     },
     edit: {
-        border: 'border-white/[0.08]',
-        background: 'bg-white/[0.05]',
-        text: 'text-white/70',
+        border: 'border-theme-default',
+        background: 'bg-theme-surface-hover',
+        text: 'text-theme-secondary',
         hover: {
-            text: 'hover:text-white',
+            text: 'hover:text-theme-primary',
             background: 'hover:bg-white/[0.10]',
         },
     },
@@ -135,11 +135,11 @@ export const BUTTON_STYLES = {
         },
     },
     cancel: {
-        border: 'border-white/[0.08]',
-        background: 'bg-white/[0.05]',
-        text: 'text-slate-300',
+        border: 'border-theme-default',
+        background: 'bg-theme-surface-hover',
+        text: 'text-theme-muted',
         hover: {
-            text: 'hover:text-white',
+            text: 'hover:text-theme-primary',
             background: 'hover:bg-white/[0.10]',
         },
         disabled: {
@@ -169,10 +169,10 @@ export const INPUT_STYLES = {
         padding: 'p-3',
         borderRadius: 'rounded-xl',
         fontSize: 'text-sm md:text-base',
-        background: 'bg-white/[0.05]',
+        background: 'bg-theme-surface-hover',
         border: 'border border-white/[0.08]',
         backdrop: 'backdrop-blur-sm',
-        text: 'text-white',
+        text: 'text-theme-primary',
         placeholder: 'placeholder:text-slate-400',
         focus: {
             outline: 'focus:outline-none',
@@ -255,8 +255,8 @@ export const LAYOUT = {
         paddingTop: 'pt-3',
     },
     text: {
-        question: 'text-sm md:text-base font-semibold leading-relaxed text-white',
-        answer: 'text-sm md:text-base leading-relaxed whitespace-pre-wrap text-white/80',
+        question: 'text-sm md:text-base font-semibold leading-relaxed text-theme-primary',
+        answer: 'text-sm md:text-base leading-relaxed whitespace-pre-wrap text-theme-primary',
     },
     divider: {
         border: 'border-t border-white/[0.08]',

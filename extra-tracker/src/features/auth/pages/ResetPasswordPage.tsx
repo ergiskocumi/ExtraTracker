@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { FiLock, FiEye, FiEyeOff, FiCheckCircle, FiXCircle, FiLoader, FiCheck, FiX } from 'react-icons/fi';
+import { Lock, Eye, EyeOff, CheckCircle, XCircle, Loader, Check, X } from 'lucide-react';
 import { apiClient } from '../../../shared/services/apiClient';
 
 // Requisiti password
@@ -81,12 +81,12 @@ export const ResetPasswordPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-md mx-auto"
             >
-                <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-8 text-center">
+                <div className="rounded-2xl bg-theme-card border border-theme-default p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-500/20 flex items-center justify-center">
-                        <FiXCircle className="text-red-400" size={32} />
+                        <XCircle className="text-red-400" size={32} />
                     </div>
-                    <h1 className="text-2xl font-bold text-white mb-2">Link Non Valido</h1>
-                    <p className="text-white/60 mb-6">
+                    <h1 className="text-2xl font-bold text-theme-primary mb-2">Link Non Valido</h1>
+                    <p className="text-theme-secondary mb-6">
                         Il link di reset non è valido. Richiedi un nuovo reset password.
                     </p>
                     <Link
@@ -108,16 +108,16 @@ export const ResetPasswordPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-md mx-auto"
             >
-                <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-8 text-center">
+                <div className="rounded-2xl bg-theme-card border border-theme-default p-8 text-center">
                     <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         className="w-16 h-16 mx-auto mb-6 rounded-full bg-emerald-500/20 flex items-center justify-center"
                     >
-                        <FiCheckCircle className="text-emerald-400" size={32} />
+                        <CheckCircle className="text-emerald-400" size={32} />
                     </motion.div>
-                    <h1 className="text-2xl font-bold text-white mb-2">Password Aggiornata!</h1>
-                    <p className="text-white/60 mb-6">
+                    <h1 className="text-2xl font-bold text-theme-primary mb-2">Password Aggiornata!</h1>
+                    <p className="text-theme-secondary mb-6">
                         La tua password è stata aggiornata con successo. Ora puoi effettuare il login.
                     </p>
                     <button
@@ -140,14 +140,14 @@ export const ResetPasswordPage = () => {
             {/* Header */}
             <div className="text-center mb-8">
                 <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/30 mb-4">
-                    <FiLock className="text-white" size={28} />
+                    <Lock className="text-white" size={28} />
                 </div>
-                <h1 className="text-2xl font-bold text-white">Nuova Password</h1>
-                <p className="text-white/60 mt-1">Crea una nuova password sicura</p>
+                <h1 className="text-2xl font-bold text-theme-primary">Nuova Password</h1>
+                <p className="text-theme-secondary mt-1">Crea una nuova password sicura</p>
             </div>
 
             {/* Form */}
-            <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-6">
+            <div className="rounded-2xl bg-theme-card border border-theme-default p-6">
                 {error && (
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
@@ -161,24 +161,24 @@ export const ResetPasswordPage = () => {
                 <form onSubmit={handleSubmit} className="space-y-5">
                     {/* Nuova Password */}
                     <div>
-                        <label className="block mb-2 text-sm font-medium text-white/70">
+                        <label className="block mb-2 text-sm font-medium text-theme-secondary">
                             Nuova Password
                         </label>
                         <div className="relative">
-                            <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} />
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
-                                className="w-full pl-11 pr-12 py-3 rounded-xl bg-white/[0.05] border border-white/[0.08] text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                className="w-full pl-11 pr-12 py-3 rounded-xl bg-theme-surface border border-theme-default text-theme-primary placeholder:text-theme-muted focus:outline-none focus:border-primary-500/50 focus:ring-2 focus:ring-primary-500/20 transition-all"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-primary transition-colors"
                             >
-                                {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
 
@@ -187,17 +187,17 @@ export const ResetPasswordPage = () => {
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
-                                className="mt-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]"
+                                className="mt-3 p-3 rounded-lg bg-theme-surface border border-theme-default"
                             >
                                 <div className="grid grid-cols-2 gap-2">
                                     {passwordChecks.map(check => (
                                         <div
                                             key={check.id}
                                             className={`flex items-center gap-2 text-xs ${
-                                                check.passed ? 'text-emerald-400' : 'text-white/40'
+                                                check.passed ? 'text-emerald-400' : 'text-theme-muted'
                                             }`}
                                         >
-                                            {check.passed ? <FiCheck size={12} /> : <FiX size={12} />}
+                                            {check.passed ? <Check size={12} /> : <X size={12} />}
                                             {check.label}
                                         </div>
                                     ))}
@@ -208,30 +208,30 @@ export const ResetPasswordPage = () => {
 
                     {/* Conferma Password */}
                     <div>
-                        <label className="block mb-2 text-sm font-medium text-white/70">
+                        <label className="block mb-2 text-sm font-medium text-theme-secondary">
                             Conferma Password
                         </label>
                         <div className="relative">
-                            <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" size={18} />
                             <input
                                 type={showConfirmPassword ? 'text' : 'password'}
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="••••••••"
-                                className={`w-full pl-11 pr-12 py-3 rounded-xl bg-white/[0.05] border ${
+                                className={`w-full pl-11 pr-12 py-3 rounded-xl bg-theme-surface border ${
                                     confirmPassword.length > 0
                                         ? passwordsMatch
                                             ? 'border-emerald-500/50'
                                             : 'border-red-500/50'
-                                        : 'border-white/[0.08]'
-                                } text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all`}
+                                        : 'border-theme-default'
+                                } text-theme-primary placeholder:text-theme-muted focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all`}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-primary transition-colors"
                             >
-                                {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
                         {confirmPassword.length > 0 && !passwordsMatch && (
@@ -253,12 +253,12 @@ export const ResetPasswordPage = () => {
                     >
                         {isLoading ? (
                             <>
-                                <FiLoader className="animate-spin" size={18} />
+                                <Loader className="animate-spin" size={18} />
                                 Aggiornamento...
                             </>
                         ) : (
                             <>
-                                <FiLock size={18} />
+                                <Lock size={18} />
                                 Imposta Nuova Password
                             </>
                         )}

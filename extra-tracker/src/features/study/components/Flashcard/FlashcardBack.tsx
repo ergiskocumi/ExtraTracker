@@ -59,7 +59,7 @@ const FlashcardBackComponent: React.FC<FlashcardBackProps> = ({
                         variant="study"
                         size="adaptive"
                         centered={true}
-                        className="text-white/95 font-semibold leading-relaxed"
+                        className="text-theme-primary font-semibold leading-relaxed"
                     />
                 </div>
             </div>

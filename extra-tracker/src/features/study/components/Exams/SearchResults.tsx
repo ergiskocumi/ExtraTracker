@@ -98,13 +98,13 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     if (exams.length === 0 && decks.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-                    <BookOpen className="w-10 h-10 text-white/40" />
+                <div className="w-20 h-20 rounded-2xl bg-theme-surface border border-theme-default flex items-center justify-center mb-4">
+                    <BookOpen className="w-10 h-10 text-theme-muted" />
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-2">
+                <h3 className="text-xl font-semibold text-theme-primary mb-2">
                     Nessun risultato trovato
                 </h3>
-                <p className="text-white/50 text-sm">
+                <p className="text-theme-muted text-sm">
                     Nessun esame o mazzo corrisponde a "{searchQuery}"
                 </p>
             </div>
@@ -125,10 +125,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                             <BookOpen className="w-5 h-5 text-primary-400" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white">
+                            <h3 className="text-lg font-bold text-theme-primary">
                                 Esami trovati ({exams.length})
                             </h3>
-                            <p className="text-white/50 text-sm">
+                            <p className="text-theme-muted text-sm">
                                 Risultati per "{searchQuery}"
                             </p>
                         </div>
@@ -171,10 +171,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                             <Layers className="w-5 h-5 text-violet-400" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white">
+                            <h3 className="text-lg font-bold text-theme-primary">
                                 Mazzi trovati ({decks.length})
                             </h3>
-                            <p className="text-white/50 text-sm">
+                            <p className="text-theme-muted text-sm">
                                 Risultati per "{searchQuery}"
                             </p>
                         </div>

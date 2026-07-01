@@ -84,6 +84,10 @@ const getSessionSchema = z.object({
                     .filter(Boolean)
                 : undefined
         ),
+
+    savedQuizId: z.string().optional().transform(v => (v ? String(v).trim() : undefined)),
+
+    quizId: z.string().optional().transform(v => (v ? String(v).trim() : undefined)),
 });
 
 // =========================================
@@ -167,11 +171,43 @@ const saveQuizSnapshotSchema = z.object({
     })).optional().default([]),
 });
 
+const generatePersistedQuizSchema = z.object({
+    name: z.string().trim().max(180).optional(),
+    quizType: z.enum(['multiple_choice', 'true_false']),
+    questionCount: z.number().int().min(1).max(50),
+    source: z.enum(['chapter', 'repeat', 'errors', 'saved']).optional().default('chapter'),
+});
+
+const retakeQuizStrategySchema = z.object({
+    mode: z.enum(['full', 'weak_first', 'errors_only', 'spaced_mix']).optional().default('full'),
+    targetCount: z.number().int().min(1).max(100).optional(),
+    seed: z.string().trim().max(64).optional(),
+    params: z.object({
+        wrongWeight: z.number().min(0).max(2).optional(),
+        recencyWeight: z.number().min(0).max(2).optional(),
+        difficultyWeight: z.number().min(0).max(2).optional(),
+        noveltyWeight: z.number().min(0).max(2).optional(),
+        shuffleStrength: z.number().min(0).max(1).optional(),
+    }).optional().default({}),
+});
+
+const createRetakeSessionSchema = retakeQuizStrategySchema;
+
 const recordQuizAttemptSchema = z.object({
     score: z.number(),
     accuracy: z.number(),
     timeSeconds: z.number(),
     wrongQuestionIndices: z.array(z.number()).optional().default([]),
+    strategy: retakeQuizStrategySchema.optional(),
+    results: z.array(z.object({
+        questionId: z.string().min(1, 'questionId è obbligatorio'),
+        shownIndex: z.number().int().nonnegative(),
+        selectedAnswer: z.string().optional().default(''),
+        correctAnswer: z.string().optional().default(''),
+        isCorrect: z.boolean(),
+        responseMs: z.number().nonnegative().optional(),
+        skipped: z.boolean().optional(),
+    })).optional().default([]),
 });
 
 const resetExamCardsSchema = z.object({
@@ -253,6 +289,8 @@ module.exports = {
     chatWithTutorSchema,
     answerExamQuestionSchema,
     saveQuizSnapshotSchema,
+    generatePersistedQuizSchema,
+    createRetakeSessionSchema,
     recordQuizAttemptSchema,
     resetExamCardsSchema,
     generateRecoveryQuestionsSchema,

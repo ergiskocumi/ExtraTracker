@@ -13,6 +13,7 @@
  */
 
 const AppError = require('../utils/AppError');
+const logger = require('../utils/logger');
 const crypto = require('crypto');
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -194,9 +195,18 @@ const logError = (err, req) => {
             url: req.originalUrl,
             path: req.path,
             query: req.query,
-            // NON loggare body con password!
-            body: req.body?.password 
-                ? { ...req.body, password: '[REDACTED]' }
+            // NON loggare campi sensibili!
+            body: ['password', 'twoFactorCode', 'currentPassword', 'newPassword', 'confirmPassword', 'token', 'refreshToken'].some(f => req.body?.[f])
+                ? {
+                    ...req.body,
+                    password: '[REDACTED]',
+                    twoFactorCode: '[REDACTED]',
+                    currentPassword: '[REDACTED]',
+                    newPassword: '[REDACTED]',
+                    confirmPassword: '[REDACTED]',
+                    token: '[REDACTED]',
+                    refreshToken: '[REDACTED]',
+                  }
                 : req.body,
             ip: req.ip,
             userAgent: req.headers['user-agent'],
@@ -215,11 +225,12 @@ const logError = (err, req) => {
         // In sviluppo, log leggibile
         // Distingui tra warning (operazionali) e error (bug)
         if (err.isOperational) {
-            console.warn(`\n⚠️  WARNING (${err.statusCode}):`, err.message);
-            console.warn('Code:', err.code || 'N/A');
-            console.warn('Category:', err.category || 'N/A');
-            console.warn('Request ID:', requestId);
-            console.warn('URL:', requestUrl);
+            logger.warn('ErrorHandler', `${err.statusCode} ${err.message}`, {
+                code: err.code,
+                category: err.category,
+                requestId,
+                url: requestUrl,
+            });
         } else {
             console.error('\n🚨 ERROR 💥:', err.message);
             console.error('Code:', err.code || 'N/A');

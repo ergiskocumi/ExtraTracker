@@ -93,9 +93,6 @@ export const pagePreloaders = {
     dashboard: createPreloader(
         () => import('../../features/dashboard/pages/DashboardPage')
     ),
-    settings: createPreloader(
-        () => import('../../features/settings/pages/SettingsPage')
-    ),
 };
 
 export default usePreload;

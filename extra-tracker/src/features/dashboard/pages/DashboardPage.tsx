@@ -113,6 +113,42 @@ export const DashboardPage = () => {
         return examById.get(deck.examId)?.title ?? null;
     };
 
+    if (isLoading) {
+        return (
+            <div className="dashboard-page space-y-6 md:space-y-8 animate-pulse">
+                <div className="space-y-2">
+                    <div className="h-10 bg-theme-default rounded-lg w-1/3" />
+                    <div className="h-6 bg-theme-default rounded-lg w-1/2" />
+                </div>
+                <div className="rounded-3xl border border-theme-default bg-theme-surface p-8">
+                    <div className="h-4 bg-theme-default rounded w-1/4 mb-6" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="rounded-2xl border border-theme-default bg-theme-card p-6 min-h-[180px] space-y-4">
+                                <div className="h-6 bg-theme-default rounded-lg w-3/4" />
+                                <div className="h-4 bg-theme-default rounded w-1/2" />
+                                <div className="h-10 bg-theme-default rounded-lg w-full mt-6" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="rounded-3xl border border-theme-default bg-theme-surface p-8 space-y-4">
+                        <div className="h-4 bg-theme-default rounded w-1/3 mb-6" />
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="h-16 bg-theme-default rounded-xl" />
+                        ))}
+                    </div>
+                    <div className="rounded-3xl bg-gradient-to-br from-primary-600 to-violet-700 p-8">
+                        <div className="h-16 w-16 rounded-full bg-white/10 mx-auto mb-4" />
+                        <div className="h-6 bg-white/20 rounded-lg w-1/2 mx-auto mb-2" />
+                        <div className="h-4 bg-white/10 rounded w-1/3 mx-auto" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="dashboard-page space-y-6 md:space-y-8">
             {/* Ambient Glow Background - Subtle, theme-aware via CSS variables */}
@@ -131,15 +167,12 @@ export const DashboardPage = () => {
             <section className="dashboard-greeting space-y-2 relative" data-tutorial="greeting">
                 <h1 className="dashboard-hero-title text-3xl sm:text-4xl md:text-5xl font-bold text-theme-primary tracking-tight leading-snug pb-1">
                     <span className="opacity-90">{getGreeting()},</span>{' '}
-                    <button
-                        type="button"
+                    <span
                         data-tutorial="user-menu"
-                        onClick={() => navigate('/settings')}
-                        className="dashboard-user-link bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-violet-400 hover:from-primary-400 hover:to-violet-300 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:rounded pb-1"
-                        aria-label={`Vai alle impostazioni, utente ${userName}`}
+                        className="dashboard-user-link bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-violet-400 pb-1"
                     >
                         {userName}
-                    </button>
+                    </span>
                     .
                 </h1>
                 <p className="dashboard-greeting-subtitle dashboard-caption-text text-theme-secondary text-lg sm:text-xl md:text-2xl font-light tracking-wide max-w-2xl">

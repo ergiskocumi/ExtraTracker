@@ -147,9 +147,9 @@ export const CardDistributionChart: React.FC<CardDistributionChartProps> = ({
                     >
                         {/* Tooltip su hover */}
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                            <div className="px-3 py-2 rounded-lg bg-slate-900 border border-white/20 shadow-xl whitespace-nowrap">
-                                <p className="text-xs font-semibold text-white">{segment.label}</p>
-                                <p className="text-xs text-white/60">{segment.count} carte ({segment.percent}%)</p>
+                            <div className="px-3 py-2 rounded-lg bg-theme-elevated border border-theme-default shadow-xl whitespace-nowrap">
+                                <p className="text-xs font-semibold text-theme-primary">{segment.label}</p>
+                                <p className="text-xs text-theme-muted">{segment.count} carte ({segment.percent}%)</p>
                             </div>
                         </div>
                     </motion.div>

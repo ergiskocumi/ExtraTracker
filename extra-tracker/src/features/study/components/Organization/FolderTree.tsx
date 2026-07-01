@@ -212,9 +212,9 @@ const FolderItem: React.FC<FolderItemProps> = ({
                 }}
                 className={`
                     group relative pl-${level * 4} pr-3 py-1.5 rounded-lg transition-all duration-200 touch-manipulation
-                    ${isSelected 
-                        ? 'bg-violet-500/20' 
-                        : 'hover:bg-white/5'
+                    ${isSelected
+                        ? 'bg-violet-500/20'
+                        : 'hover:bg-theme-surface-hover'
                     }
                     ${isDragOver 
                         ? 'bg-violet-500/40 border-2 border-violet-400 border-dashed shadow-2xl' 
@@ -272,7 +272,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                         : isCritical
                                             ? 'bg-amber-500/20 text-amber-400'
                                             : 'bg-violet-500/20 text-violet-400'
-                                    : 'bg-white/10 text-white/60'
+                                    : 'bg-theme-surface text-theme-muted'
                             }`}>
                                 <Folder className="w-3 h-3" />
                             </div>
@@ -296,7 +296,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                     onClick={(e) => e.stopPropagation()}
                                 />
                             ) : (
-                                <span className="text-sm font-medium text-white truncate max-w-[200px] sm:max-w-[280px]">
+                                <span className="text-sm font-medium text-theme-primary truncate max-w-[200px] sm:max-w-[280px]">
                                     {folder.name}
                                 </span>
                             )}
@@ -355,22 +355,23 @@ const FolderItem: React.FC<FolderItemProps> = ({
                 {/* Progress bar - SEMPRE visibile per uniformità quando ci sono carte */}
                 {folderStats && folderStats.totalCards > 0 && (
                     <div className="mt-1.5">
-                        <div className="flex justify-between text-[10px] text-white/50 mb-0.5">
+                        <div className="flex justify-between text-[10px] text-theme-muted mb-0.5">
                             <span>{folderStats.masteryPercent}% padronanza</span>
                             {folderStats.dueCards > 0 && (
                                 <span>{folderStats.dueCards}/{folderStats.totalCards} da ripassare</span>
                             )}
                         </div>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-theme-surface rounded-full overflow-hidden">
                             <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${folderStats.masteryPercent}%` }}
+                                style={{ transformOrigin: 'left' }}
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: folderStats.masteryPercent / 100 }}
                                 transition={{ duration: 0.5 }}
-                                className={`h-full rounded-full ${
-                                    folderStats.masteryPercent === 100 
-                                        ? 'bg-emerald-400' 
-                                        : folderStats.masteryPercent > 70 
-                                            ? 'bg-violet-400' 
+                                className={`h-full w-full rounded-full ${
+                                    folderStats.masteryPercent === 100
+                                        ? 'bg-emerald-400'
+                                        : folderStats.masteryPercent > 70
+                                            ? 'bg-violet-400'
                                             : 'bg-amber-400'
                                 }`}
                             />
@@ -399,7 +400,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                 initial={{ opacity: 0, scale: 0.9, y: -10 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                                className="absolute right-0 mt-1 z-50 w-40 py-2 rounded-xl bg-zinc-900 border border-white/10 shadow-2xl"
+                                className="absolute right-0 mt-1 z-50 w-40 py-2 rounded-xl bg-theme-elevated border border-theme-default shadow-2xl"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <button
@@ -436,10 +437,11 @@ const FolderItem: React.FC<FolderItemProps> = ({
             <AnimatePresence>
                 {hasChildren && isExpanded && (
                     <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
+                        initial={{ opacity: 0, maxHeight: 0 }}
+                        animate={{ opacity: 1, maxHeight: 2000 }}
+                        exit={{ opacity: 0, maxHeight: 0 }}
                         transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
                     >
                         {folder.children!.map((child) => {
                             // Passa folderStats ai children se disponibile
@@ -534,7 +536,7 @@ const RootFolderItem: React.FC<{
                 transition-all duration-200 touch-manipulation min-h-[44px]
                 ${isSelected
                     ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30 shadow-lg shadow-violet-500/10' 
-                    : 'hover:bg-white/10 text-white/70 hover:text-white border border-transparent'
+                    : 'hover:bg-theme-surface-hover text-theme-secondary hover:text-theme-primary border border-transparent'
                 }
                 ${isDragOver 
                     ? 'bg-violet-500/40 border-2 border-violet-400 border-dashed shadow-2xl' 

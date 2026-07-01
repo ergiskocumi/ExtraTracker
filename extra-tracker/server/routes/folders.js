@@ -15,6 +15,9 @@ const { tenantContext } = require('../middleware/tenantContext');
 // Controller
 const foldersController = require('../controllers/foldersController');
 
+// Validators
+const { validateMiddleware, createFolderSchema, updateFolderSchema } = require('../validators/folderValidators');
+
 // =========================================
 // MIDDLEWARE: Auth + Tenant Context
 // =========================================
@@ -28,8 +31,8 @@ router.use(tenantContext({ required: true }));
 
 router.get('/', foldersController.getAllFolders);
 router.get('/tree', foldersController.getFolderTree);
-router.post('/', foldersController.createFolder);
-router.patch('/:id', foldersController.updateFolder);
+router.post('/', validateMiddleware(createFolderSchema), foldersController.createFolder);
+router.patch('/:id', validateMiddleware(updateFolderSchema), foldersController.updateFolder);
 router.delete('/:id', foldersController.deleteFolder);
 router.post('/:id/move-decks', foldersController.moveDecksToFolder);
 

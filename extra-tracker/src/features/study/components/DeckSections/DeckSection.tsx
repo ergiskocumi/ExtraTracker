@@ -98,24 +98,24 @@ export const DeckSection: React.FC<DeckSectionProps> = ({
                         {collapsible && (
                             <button
                                 onClick={() => setIsCollapsed(!isCollapsed)}
-                                className="p-1 rounded-lg hover:bg-white/5 transition-colors"
+                                className="p-1 rounded-lg hover:bg-theme-surface-hover transition-colors"
                             >
                                 {isCollapsed ? (
-                                    <ChevronRight className="w-5 h-5 text-white/60" />
+                                    <ChevronRight className="w-5 h-5 text-theme-muted" />
                                 ) : (
-                                    <ChevronDown className="w-5 h-5 text-white/60" />
+                                    <ChevronDown className="w-5 h-5 text-theme-muted" />
                                 )}
                             </button>
                         )}
                         <div>
-                            <h2 className="text-lg font-semibold text-white">{title}</h2>
+                            <h2 className="text-lg font-semibold text-theme-primary">{title}</h2>
                             {subtitle && (
-                                <p className="text-sm text-white/50 mt-0.5">{subtitle}</p>
+                                <p className="text-sm text-theme-muted mt-0.5">{subtitle}</p>
                             )}
                         </div>
                     </div>
                     {hasMore && (
-                        <span className="text-xs text-white/40">
+                        <span className="text-xs text-theme-muted">
                             +{decks.length - (maxVisible || 0)} altri
                         </span>
                     )}
@@ -126,10 +126,11 @@ export const DeckSection: React.FC<DeckSectionProps> = ({
             <AnimatePresence>
                 {!isCollapsed && (
                     <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
+                        initial={{ opacity: 0, maxHeight: 0 }}
+                        animate={{ opacity: 1, maxHeight: 2000 }}
+                        exit={{ opacity: 0, maxHeight: 0 }}
                         transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
                     >
                         {layout === 'horizontal' ? (
                             <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
@@ -208,7 +209,7 @@ export const DeckSection: React.FC<DeckSectionProps> = ({
                                 ))}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
                                 {visibleDecks.map((deck, index) => (
                                     <motion.div
                                         key={deck.id}

@@ -50,6 +50,7 @@ const buildProps = (overrides: Partial<ComponentProps<typeof DeckDetailHeader>> 
     deck: buildDeck(),
     onBack: vi.fn(),
     onStudy: vi.fn(),
+    onGenerateQuiz: vi.fn(),
     onExamSolver: vi.fn(),
     onAddCard: vi.fn(),
     onReadPdf: vi.fn(),
@@ -104,6 +105,19 @@ describe('DeckDetailHeader', () => {
         expect(screen.queryByRole('button', { name: /Exam Solver/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /PDF/i })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Studia/i })).toBeDisabled();
+    });
+
+    it('allows quiz generation from PDF even when there are fewer than 10 cards', () => {
+        const props = buildProps({
+            deck: buildDeck({ pdfUrl: 'https://example.com/notes.pdf' }),
+        });
+        render(<DeckDetailHeader {...props} />);
+
+        const generateButton = screen.getByRole('button', { name: /Genera Quiz/i });
+        expect(generateButton).toBeEnabled();
+
+        fireEvent.click(generateButton);
+        expect(props.onGenerateQuiz).toHaveBeenCalledTimes(1);
     });
 
     it('renders distribution legend and mastery progress labels', () => {

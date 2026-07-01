@@ -166,7 +166,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
             >
                 <motion.div
                 className="relative w-full h-full"
-                style={{ transformStyle: 'preserve-3d' }}
+                style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
                 animate={{ rotateY: isFlipped ? 180 : 0 }}
                     transition={{ duration: 0.45, ease: FLIP_TRANSITION_EASE }}
                 >

@@ -42,7 +42,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 
     const style = variant === 'wave' ? {
         backgroundSize: '200% 100%',
-        backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%)',
+        backgroundImage: 'linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-surface-hover) 50%, var(--bg-surface) 75%)',
     } : undefined;
 
     return (
@@ -52,7 +52,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
                 ${height}
                 ${rounded}
                 ${animationClass}
-                ${variant === 'pulse' ? 'bg-gradient-to-r from-slate-800/50 via-slate-700/50 to-slate-800/50' : ''}
+                bg-theme-surface
                 ${className}
             `}
             style={style}

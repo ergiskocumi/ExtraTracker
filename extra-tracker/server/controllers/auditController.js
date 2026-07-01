@@ -8,6 +8,7 @@ const auditService = require('../services/auditService');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { decryptString } = require('../utils/encryption');
 
 /**
  * GET /api/auth/audit-logs
@@ -71,8 +72,8 @@ const getUserDevices = asyncHandler(async (req, res) => {
     const activeSessions = user.refreshTokens?.map(session => ({
         id: session.hash,
         device: session.device,
-        userAgent: session.userAgent,
-        ip: session.ip,
+        userAgent: decryptString(session.userAgent) || session.userAgent,
+        ip: decryptString(session.ip) || session.ip,
         createdAt: session.createdAt,
         lastUsedAt: session.lastUsedAt,
         isCurrent: false, // Sarà aggiornato dal middleware se corrisponde

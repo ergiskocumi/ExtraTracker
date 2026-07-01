@@ -76,9 +76,9 @@ const ExamItem: React.FC<ExamItemProps> = ({
                 whileHover={{ x: 4 }}
                 className={`
                     group relative px-3 py-1.5 rounded-lg transition-all duration-200 touch-manipulation
-                    ${isSelected 
-                        ? 'bg-violet-500/20' 
-                        : 'hover:bg-white/5'
+                    ${isSelected
+                        ? 'bg-violet-500/20'
+                        : 'hover:bg-theme-surface-hover'
                     }
                 `}
                 onClick={onSelect}
@@ -121,13 +121,13 @@ const ExamItem: React.FC<ExamItemProps> = ({
                                         : isCritical
                                             ? 'bg-amber-500/20 text-amber-400'
                                             : 'bg-violet-500/20 text-violet-400'
-                                    : 'bg-white/10 text-white/60'
+                                    : 'bg-theme-surface text-theme-muted'
                             }`}>
                                 <ExamIcon className="w-3 h-3" />
                             </div>
-                            
+
                             {/* Nome esame */}
-                            <span className="text-sm font-medium text-white truncate max-w-[200px] sm:max-w-[280px]">
+                            <span className="text-sm font-medium text-theme-primary truncate max-w-[200px] sm:max-w-[280px]">
                                 {exam.title}
                             </span>
                         </div>
@@ -176,22 +176,23 @@ const ExamItem: React.FC<ExamItemProps> = ({
                 {/* Progress bar - Solo quando ci sono carte */}
                 {stats.totalCards > 0 && (
                     <div className="mt-1.5">
-                        <div className="flex justify-between text-[10px] text-white/50 mb-0.5">
+                        <div className="flex justify-between text-[10px] text-theme-muted mb-0.5">
                             <span>{stats.masteryPercent}% padronanza</span>
                             {stats.dueCards > 0 && (
                                 <span>{stats.dueCards}/{stats.totalCards} da ripassare</span>
                             )}
                         </div>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-theme-surface rounded-full overflow-hidden">
                             <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${stats.masteryPercent}%` }}
+                                style={{ transformOrigin: 'left' }}
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: stats.masteryPercent / 100 }}
                                 transition={{ duration: 0.5 }}
-                                className={`h-full rounded-full ${
-                                    stats.masteryPercent === 100 
-                                        ? 'bg-emerald-400' 
-                                        : stats.masteryPercent > 70 
-                                            ? 'bg-violet-400' 
+                                className={`h-full w-full rounded-full ${
+                                    stats.masteryPercent === 100
+                                        ? 'bg-emerald-400'
+                                        : stats.masteryPercent > 70
+                                            ? 'bg-violet-400'
                                             : 'bg-amber-400'
                                 }`}
                             />
@@ -221,11 +222,11 @@ const ExamItem: React.FC<ExamItemProps> = ({
             <AnimatePresence>
                 {isExpanded && examDecks.length > 0 && (
                     <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
+                        initial={{ opacity: 0, maxHeight: 0 }}
+                        animate={{ opacity: 1, maxHeight: 2000 }}
+                        exit={{ opacity: 0, maxHeight: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="ml-6 mt-1 space-y-1"
+                        className="ml-6 mt-1 space-y-1 overflow-hidden"
                     >
                         {examDecks.map((deck) => {
                             const deckDueCount = deck.dueCount ?? 0;
@@ -240,8 +241,8 @@ const ExamItem: React.FC<ExamItemProps> = ({
                                     key={deck.id}
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    whileHover={{ x: 4, backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
-                                    className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/15 hover:border-white/20 transition-all cursor-pointer group"
+                                    whileHover={{ x: 4 }}
+                                    className="px-4 py-2 rounded-lg bg-theme-surface border border-theme-subtle hover:bg-theme-surface-hover hover:border-theme-default transition-all cursor-pointer group"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         if (onDeckClick) {
@@ -251,8 +252,8 @@ const ExamItem: React.FC<ExamItemProps> = ({
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                                            <Layers className="w-3 h-3 text-white/60 group-hover:text-white/80 transition-colors flex-shrink-0" />
-                                            <span className="text-xs sm:text-sm text-white/80 group-hover:text-white transition-colors truncate">
+                                            <Layers className="w-3 h-3 text-theme-muted group-hover:text-theme-secondary transition-colors flex-shrink-0" />
+                                            <span className="text-xs sm:text-sm text-theme-secondary group-hover:text-theme-primary transition-colors truncate">
                                                 {deck.title}
                                             </span>
                                         </div>
@@ -266,7 +267,7 @@ const ExamItem: React.FC<ExamItemProps> = ({
                                                 </span>
                                             )}
                                             {deckTotalCards > 0 && (
-                                                <span className="text-[10px] text-white/50 group-hover:text-white/70 transition-colors">
+                                                <span className="text-[10px] text-theme-muted group-hover:text-theme-secondary transition-colors">
                                                     {deckMasteryPercent}%
                                                 </span>
                                             )}
@@ -349,8 +350,8 @@ export const ExamTree: React.FC<ExamTreeProps> = ({
     if (exams.length === 0) {
         return (
             <div className="px-3 py-6 text-center">
-                <BookOpen className="w-10 h-10 mx-auto mb-3 text-white/20" />
-                <p className="text-xs text-white/40 mb-2">Nessun esame ancora</p>
+                <BookOpen className="w-10 h-10 mx-auto mb-3 text-theme-muted" />
+                <p className="text-xs text-theme-muted mb-2">Nessun esame ancora</p>
             </div>
         );
     }

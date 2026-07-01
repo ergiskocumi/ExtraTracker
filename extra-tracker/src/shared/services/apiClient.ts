@@ -59,12 +59,16 @@ export interface ApiResponse<T> {
     error?: ApiError;
 }
 
+interface ApiErrorWithUserMessage extends AxiosError {
+    userMessage?: string;
+}
+
 // Configurazione base
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
     // CRITICO: Necessario per inviare/ricevere cookies cross-origin
     withCredentials: true,
-    timeout: 120000, // 60 secondi timeout per richieste AI più lente
+    timeout: 30000, // 30 secondi timeout default (AI endpoints sovrascrivono per-request)
 });
 
 let cachedCsrfToken: string | null = null;
@@ -340,13 +344,18 @@ axiosInstance.interceptors.response.use(
         // Per questi endpoint, NON fare refresh (sarebbe un loop infinito)
         // Ma estrai comunque il messaggio dal backend per mostrarlo all'utente
         if (error.response?.status === 401 && shouldSkipRefresh) {
-            const errorData = error.response.data as any;
-            
+            // /auth/check 401 è normale quando l'utente non è loggato (public route)
+            // Risolvi senza reject per evitare console error nel browser
+            if (requestUrl.includes('/auth/check')) {
+                return Promise.resolve({ success: false, data: null, error: { message: 'Not authenticated', code: 'NOT_AUTHENTICATED' } });
+            }
+
+            const errorData = error.response?.data as any;
+
             // EVITA LOOP INFINITI: Se l'errore viene dalla rotta di refresh, è finita.
             // Non provare a fare refresh del refresh.
             if (requestUrl.includes('/auth/refresh')) {
                 // Verifica se l'account è disattivato
-                const errorData = error.response?.data as any;
                 const errorMessage = errorData?.error?.message || errorData?.message || '';
                 const isAccountDeactivated = errorMessage.includes('disattivato') || errorMessage.includes('Account disattivato');
                 
@@ -381,10 +390,11 @@ axiosInstance.interceptors.response.use(
             }
             
             // Estrai messaggio per il componente (login/register/check)
+            const apiError = error as ApiErrorWithUserMessage;
             if (errorData?.error?.message) {
-                (error as any).userMessage = errorData.error.message;
+                apiError.userMessage = errorData.error.message;
             } else if (errorData?.message) {
-                (error as any).userMessage = errorData.message;
+                apiError.userMessage = errorData.message;
             }
         }
 

@@ -7,7 +7,7 @@
  *   Mobile bottom bar — fixed study CTA in thumb zone
  */
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -23,14 +23,16 @@ import {
   BookOpen,
   MonitorPlay,
 } from 'lucide-react';
-import type { Deck, Card, SavedQuizSnapshot, StudyMode } from '../../services/studyService';
+import type { Deck, Card, StudyMode } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
 import { emitToast } from '../../../../shared/components/toast';
 import { FlashcardItem } from '../Flashcard/FlashcardItem';
-import { CardEditorModal } from './CardEditorModal';
+const CardEditorModal = lazy(() => import('./CardEditorModal').then(m => ({ default: m.CardEditorModal })));
 import { cn } from '../../../../lib/utils';
 import { getErrorMessage } from '../../../../utils/errorMessage';
-import { DeckDetailSidebar, formatRelativeTime, DistributionBar } from './DeckDetailSidebar';
+import { DeckDetailSidebar } from './DeckDetailSidebar';
+import { DistributionBar } from './DistributionBar';
+import { formatRelativeTime } from './DeckDetailSidebar.utils';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -39,8 +41,7 @@ interface DeckDetailContentProps {
   onBack: () => void;
   onStudy: (mode: StudyMode) => void;
   onGenerateQuiz?: () => void;
-  onRepeatSavedQuiz?: (quiz: SavedQuizSnapshot) => void;
-  onReviewSavedQuiz?: (quiz: SavedQuizSnapshot) => void;
+  onOpenQuizLibrary?: () => void;
   onExamSolver?: () => void;
   onReadPdf?: () => void;
   onMagicGenerate?: () => void;
@@ -61,13 +62,11 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
   onBack,
   onStudy,
   onGenerateQuiz,
-  onRepeatSavedQuiz,
-  onReviewSavedQuiz,
+  onOpenQuizLibrary,
   onExamSolver,
   onReadPdf,
   onMagicGenerate,
   onDeckUpdate,
-  onDeleteDeck: _onDeleteDeck,
   onExport,
   onShare,
   onResetProgress,
@@ -93,7 +92,6 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
       }, 800);
       return () => clearTimeout(t);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [filter, setFilter] = useState<FilterStatus>('all');
@@ -472,8 +470,7 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
           onMagicGenerate={onMagicGenerate}
           onExamSolver={onExamSolver}
           onGenerateQuiz={onGenerateQuiz}
-          onRepeatSavedQuiz={onRepeatSavedQuiz}
-          onReviewSavedQuiz={onReviewSavedQuiz}
+          onOpenQuizLibrary={onOpenQuizLibrary}
           onExport={onExport}
           onShare={onShare}
           onResetProgress={onResetProgress}
@@ -483,33 +480,35 @@ export const DeckDetailContent: React.FC<DeckDetailContentProps> = ({
 
       {/* ───────── MODALS & OVERLAYS ───────── */}
 
-      <CardEditorModal
-        isOpen={isEditorOpen}
-        onClose={() => {
-          setIsEditorOpen(false);
-          setEditingCard(null);
-        }}
-        frontContent={editingCard?.front || ''}
-        backContent={editingCard?.back || ''}
-        onSave={handleSaveCard}
-        onDelete={
-          editingCard?.id !== 'temp-new' ? () => setDeletingCardId(editingCard?.id || null) : undefined
-        }
-        title={editingCard?.id === 'temp-new' ? 'Nuova Carta' : 'Modifica Carta'}
-        cardNumber={currentCardIndex !== -1 ? currentCardIndex + 1 : undefined}
-        totalCards={deck.cards?.length}
-        onNavigate={
-          currentCardIndex !== -1
-            ? dir => {
-                const newIndex = dir === 'prev' ? currentCardIndex - 1 : currentCardIndex + 1;
-                const cards = deck.cards ?? [];
-                if (newIndex >= 0 && newIndex < cards.length) {
-                  setEditingCard(cards[newIndex]);
+      <Suspense fallback={null}>
+        <CardEditorModal
+          isOpen={isEditorOpen}
+          onClose={() => {
+            setIsEditorOpen(false);
+            setEditingCard(null);
+          }}
+          frontContent={editingCard?.front || ''}
+          backContent={editingCard?.back || ''}
+          onSave={handleSaveCard}
+          onDelete={
+            editingCard?.id !== 'temp-new' ? () => setDeletingCardId(editingCard?.id || null) : undefined
+          }
+          title={editingCard?.id === 'temp-new' ? 'Nuova Carta' : 'Modifica Carta'}
+          cardNumber={currentCardIndex !== -1 ? currentCardIndex + 1 : undefined}
+          totalCards={deck.cards?.length}
+          onNavigate={
+            currentCardIndex !== -1
+              ? dir => {
+                  const newIndex = dir === 'prev' ? currentCardIndex - 1 : currentCardIndex + 1;
+                  const cards = deck.cards ?? [];
+                  if (newIndex >= 0 && newIndex < cards.length) {
+                    setEditingCard(cards[newIndex]);
+                  }
                 }
-              }
-            : undefined
-        }
-      />
+              : undefined
+          }
+        />
+      </Suspense>
 
       {/* Mobile bottom study bar */}
       <div

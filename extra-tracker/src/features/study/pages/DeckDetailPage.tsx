@@ -10,19 +10,23 @@
  * - Supporto markdown nell'editor
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { studyService, type Deck, type QuizType, type SavedQuizSnapshot, type SavedQuizReviewResponse, type StudyMode } from '../services/studyService';
 import { emitToast } from '../../../shared/components/toast';
 import { getErrorMessage } from '../../../utils/errorMessage';
+import { FlashcardSkeleton } from '../../../shared/components/skeleton/FlashcardSkeleton';
 import { DeckDetailContent } from '../components/Deck/DeckDetailContent';
-import { ExamSolverModal } from '../components/Modals/ExamSolver';
-import { MagicGenerateModal } from '../components/Modals/MagicGenerateModal';
-import { GenerateQuizModal } from '../components/Modals/GenerateQuizModal';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
-import { QuizReviewMode } from '../components/Study/QuizReviewMode';
+
+// 🚀 OTTIMIZZATO: Lazy loading dei modali pesanti (code splitting)
+const SavedQuizLibraryModal = lazy(() => import('../components/Deck/SavedQuizLibraryModal').then(m => ({ default: m.SavedQuizLibraryModal })));
+const ExamSolverModal = lazy(() => import('../components/Modals/ExamSolver').then(m => ({ default: m.ExamSolverModal })));
+const MagicGenerateModal = lazy(() => import('../components/Modals/MagicGenerateModal').then(m => ({ default: m.MagicGenerateModal })));
+const GenerateQuizModal = lazy(() => import('../components/Modals/GenerateQuizModal').then(m => ({ default: m.GenerateQuizModal })));
+const QuizReviewMode = lazy(() => import('../components/Study/QuizReviewMode').then(m => ({ default: m.QuizReviewMode })));
 
 // ============================================
 // MAIN PAGE COMPONENT
@@ -45,6 +49,7 @@ export const DeckDetailPage: React.FC = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [reviewData, setReviewData] = useState<SavedQuizReviewResponse | null>(null);
+    const [isQuizLibraryOpen, setIsQuizLibraryOpen] = useState(false);
 
     // Load deck
     const loadDeck = useCallback(async () => {
@@ -93,23 +98,23 @@ export const DeckDetailPage: React.FC = () => {
         setDeck(updatedDeck);
     }, []);
 
-    const handleGenerateQuizSession = useCallback(async (config: { questionCount: number; quizType: QuizType }) => {
+    const handleGenerateQuizSession = useCallback(async (config: { questionCount: number; quizType: QuizType; signal: AbortSignal }) => {
         if (!id || !deck) return;
 
-        const canGenerateTrueFalseFromPdf = config.quizType === 'true_false' && Boolean(deck.pdfUrl);
-        if (!canGenerateTrueFalseFromPdf && (deck.cards?.length || 0) < 10) {
+        const canGenerateFromPdf = Boolean(deck.pdfUrl);
+        if (!canGenerateFromPdf && (deck.cards?.length || 0) < 10) {
             emitToast.info('Crea almeno 10 flashcard per sbloccare la generazione del quiz');
             return;
         }
 
         try {
-            const preparedSession = await studyService.getSession(id, {
-                mode: 'quiz',
-                focus: 'all',
-                questionCount: config.questionCount,
-                limit: config.questionCount,
+            const generatedQuiz = await studyService.generatePersistedQuiz(id, {
                 quizType: config.quizType,
-            });
+                questionCount: config.questionCount,
+                source: 'chapter',
+                name: `Quiz ${config.questionCount} domande`,
+            }, config.signal);
+            const preparedSession = generatedQuiz.session;
 
             if (preparedSession.cards.length === 0) {
                 emitToast.info('Nessuna carta disponibile per il quiz');
@@ -120,53 +125,24 @@ export const DeckDetailPage: React.FC = () => {
                 new Set(preparedSession.cards.map(card => card.id).filter(Boolean))
             );
 
-            if (sourceCardIds.length > 0) {
-                try {
-                    // Extract questions from prepared cards to persist them
-                    const questionsToSave = preparedSession.cards.map(card => ({
-                        questionText: card.front,
-                        correctAnswer: card.back,
-                        distractors: card.distractors || [],
-                        distractorExplanations: Array.isArray(card.distractorExplanations)
-                            ? card.distractorExplanations as unknown as string[]
-                            : card.distractorExplanations && typeof card.distractorExplanations === 'object'
-                                ? Object.values(card.distractorExplanations)
-                                : [],
-                        correctAnswerExplanation: card.explanation || '',
-                        difficulty: 'standard',
-                        options: card.options || [],
-                    }));
-
-                    const savedQuiz = await studyService.saveQuizSnapshot(id, {
-                        quizType: config.quizType,
-                        questionCount: preparedSession.cards.length,
-                        sourceCardIds,
-                        source: 'chapter',
-                        name: `Quiz ${preparedSession.cards.length} domande`,
-                        questions: questionsToSave,
-                    });
-                    // Aggiorna lo state locale del deck per mostrare il nuovo quiz salvato
-                    setDeck(prev => {
-                        if (!prev) return prev;
-                        const existing = prev.savedQuizzes ?? [];
-                        const alreadyExists = existing.some(q => q.id === savedQuiz.id);
-                        return {
-                            ...prev,
-                            savedQuizzes: alreadyExists ? existing : [savedQuiz, ...existing],
-                        };
-                    });
-                } catch (snapshotError) {
-                    // Non blocca l'avvio del quiz se il salvataggio storico fallisce.
-                    console.warn('[DeckDetailPage] saveQuizSnapshot failed:', snapshotError);
-                }
-            }
+            setDeck(prev => {
+                if (!prev) return prev;
+                const existing = prev.savedQuizzes ?? [];
+                const alreadyExists = existing.some(q => q.id === generatedQuiz.quiz.id);
+                return {
+                    ...prev,
+                    savedQuizzes: alreadyExists ? existing : [generatedQuiz.quiz, ...existing],
+                };
+            });
 
             const params = new URLSearchParams();
             params.set('mode', 'quiz');
             params.set('focus', 'all');
-            params.set('questions', String(config.questionCount));
+            params.set('questions', String(preparedSession.cards.length));
             params.set('quizType', config.quizType);
             params.set('quizSource', 'chapter');
+            params.set('savedQuizId', generatedQuiz.quiz.id);
+            params.set('quizId', generatedQuiz.quiz.id);
             params.set('run', String(Date.now()));
             if (sourceCardIds.length > 0) {
                 params.set('sourceCardIds', sourceCardIds.join(','));
@@ -180,8 +156,65 @@ export const DeckDetailPage: React.FC = () => {
             });
         } catch (err: unknown) {
             emitToast.error(getErrorMessage(err) || 'Errore nella preparazione del quiz');
-            throw err;
         }
+    }, [id, deck, navigate]);
+
+    /** Async generation completion handler — navigates to the session */
+    const handleAsyncGenerationComplete = useCallback((generatedQuiz: { quiz: Record<string, unknown>; session: Record<string, unknown> }) => {
+        if (!id || !deck) return;
+
+        const quiz = generatedQuiz.quiz;
+        const session = generatedQuiz.session as Record<string, unknown>;
+        const cards = (session.cards as Array<{ id?: string }>) || [];
+        const savedQuizSnapshot: SavedQuizSnapshot = {
+            id: String(quiz.id || ''),
+            name: typeof quiz.name === 'string' ? quiz.name : 'Quiz',
+            quizType: quiz.quizType === 'true_false' ? 'true_false' : 'multiple_choice',
+            questionCount: typeof quiz.questionCount === 'number' ? quiz.questionCount : cards.length,
+            sourceCardIds: Array.isArray(quiz.sourceCardIds)
+                ? quiz.sourceCardIds.map((sourceCardId) => String(sourceCardId)).filter(Boolean)
+                : [],
+            source: ['repeat', 'errors', 'saved'].includes(String(quiz.source))
+                ? quiz.source as SavedQuizSnapshot['source']
+                : 'chapter',
+            createdAt: typeof quiz.createdAt === 'string' ? quiz.createdAt : undefined,
+            hasQuestions: Boolean(quiz.hasQuestions),
+        };
+
+        const sourceCardIds = Array.from(
+            new Set(cards.map((card) => card.id).filter(Boolean))
+        );
+
+        setDeck((prev) => {
+            if (!prev) return prev;
+            const existing = prev.savedQuizzes ?? [];
+            const alreadyExists = existing.some((q) => q.id === quiz.id);
+            return {
+                ...prev,
+                savedQuizzes: alreadyExists ? existing : [savedQuizSnapshot, ...existing],
+            };
+        });
+
+        const params = new URLSearchParams();
+        params.set('mode', 'quiz');
+        params.set('focus', 'all');
+        params.set('questions', String(cards.length));
+        params.set('quizType', (quiz as Record<string, unknown>).quizType as string || 'multiple_choice');
+        params.set('quizSource', 'chapter');
+        params.set('savedQuizId', quiz.id as string);
+        params.set('quizId', quiz.id as string);
+        params.set('run', String(Date.now()));
+        if (sourceCardIds.length > 0) {
+            params.set('sourceCardIds', sourceCardIds.join(','));
+        }
+
+        setIsGenerateQuizOpen(false);
+        navigate(`/study/${id}/session?${params.toString()}`, {
+            state: {
+                preparedSession: session,
+                preparedAt: Date.now(),
+            },
+        });
     }, [id, deck, navigate]);
 
     const handleRepeatSavedQuiz = useCallback(async (savedQuiz: SavedQuizSnapshot) => {
@@ -190,7 +223,10 @@ export const DeckDetailPage: React.FC = () => {
         try {
             // If quiz has persisted questions, use instant retake (no AI)
             if (savedQuiz.hasQuestions) {
-                const retakeData = await studyService.retakeSavedQuiz(id, savedQuiz.id);
+                const retakeData = await studyService.retakeSavedQuiz(id, savedQuiz.id, {
+                    mode: 'full',
+                    targetCount: Math.max(savedQuiz.questionCount || 0, 1),
+                });
 
                 if (retakeData.cards.length === 0) {
                     emitToast.info('Nessuna domanda disponibile per questo quiz');
@@ -198,13 +234,17 @@ export const DeckDetailPage: React.FC = () => {
                 }
 
                 const fakeDeck: typeof deck = { ...deck, cards: retakeData.cards, totalCards: retakeData.cards.length, dueCount: retakeData.cards.length };
-                const preparedSession = {
+                const preparedSession = retakeData.session ?? {
                     deck: fakeDeck,
                     cards: retakeData.cards,
                     remaining: retakeData.cards.length,
                     total: retakeData.cards.length,
                     mode: 'quiz' as const,
-                    meta: { quizType: retakeData.quizType, questionCount: retakeData.questionCount },
+                    meta: {
+                        quizType: retakeData.quizType,
+                        questionCount: retakeData.questionCount,
+                        retakeStrategy: retakeData.strategy,
+                    },
                 };
 
                 const params = new URLSearchParams();
@@ -214,6 +254,10 @@ export const DeckDetailPage: React.FC = () => {
                 params.set('quizType', retakeData.quizType);
                 params.set('quizSource', 'saved');
                 params.set('savedQuizId', savedQuiz.id);
+                params.set('quizId', savedQuiz.id);
+                if (retakeData.cards.length > 0) {
+                    params.set('sourceCardIds', retakeData.cards.map(card => card.id).join(','));
+                }
                 params.set('run', String(Date.now()));
 
                 navigate(`/study/${id}/session?${params.toString()}`, {
@@ -341,14 +385,13 @@ export const DeckDetailPage: React.FC = () => {
         });
     }, [deck]);
 
-    // Loading state (stesso stile di /study: nessun wrapper full-screen)
+    // Loading state — mostra skeleton flashcard invece di deck grid
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center py-20">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="animate-spin w-10 h-10 border-3 border-primary-500 border-t-transparent rounded-full" />
-                    <p className="text-theme-secondary text-sm">Caricamento mazzo...</p>
-                </div>
+            <div className="py-8 px-4 max-w-3xl mx-auto space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <FlashcardSkeleton key={i} />
+                ))}
             </div>
         );
     }
@@ -385,8 +428,7 @@ export const DeckDetailPage: React.FC = () => {
                     onBack={handleBack}
                     onStudy={handleStudy}
                     onGenerateQuiz={() => setIsGenerateQuizOpen(true)}
-                    onRepeatSavedQuiz={handleRepeatSavedQuiz}
-                    onReviewSavedQuiz={handleReviewSavedQuiz}
+                    onOpenQuizLibrary={() => setIsQuizLibraryOpen(true)}
                     onExamSolver={() => setIsExamSolverOpen(true)}
                     onReadPdf={deck.pdfUrl ? handleReadPdf : undefined}
                     onMagicGenerate={() => setIsMagicGenerateOpen(true)}
@@ -398,42 +440,66 @@ export const DeckDetailPage: React.FC = () => {
                 />
             </div>
 
+            <Suspense fallback={null}>
+                <SavedQuizLibraryModal
+                    isOpen={isQuizLibraryOpen}
+                    deckTitle={deck.title}
+                    quizzes={deck.savedQuizzes ?? []}
+                    onClose={() => setIsQuizLibraryOpen(false)}
+                    onRepeatQuiz={(quiz) => {
+                        setIsQuizLibraryOpen(false);
+                        void handleRepeatSavedQuiz(quiz);
+                    }}
+                    onReviewQuiz={(quiz) => {
+                        setIsQuizLibraryOpen(false);
+                        void handleReviewSavedQuiz(quiz);
+                    }}
+                />
+            </Suspense>
+
             {/* Exam Solver Modal */}
-            <ExamSolverModal
-                isOpen={isExamSolverOpen}
-                onClose={() => setIsExamSolverOpen(false)}
-                onSuccess={async (_deckId, stats) => {
-                    await loadDeck();
-                    emitToast.success(
-                        `✅ Exam Solver completato! ${stats.totalFlashcards} flashcard generate`,
-                        { title: 'Exam Solver', duration: 5000 }
-                    );
-                }}
-                existingDecks={[{ id: deck.id, title: deck.title }]}
-                examId={deck.examId}
-                preselectedDeckId={deck.id}
-            />
+            <Suspense fallback={null}>
+                <ExamSolverModal
+                    isOpen={isExamSolverOpen}
+                    onClose={() => setIsExamSolverOpen(false)}
+                    onSuccess={async (_deckId, stats) => {
+                        await loadDeck();
+                        emitToast.success(
+                            `✅ Exam Solver completato! ${stats.totalFlashcards} flashcard generate`,
+                            { title: 'Exam Solver', duration: 5000 }
+                        );
+                    }}
+                    existingDecks={[{ id: deck.id, title: deck.title }]}
+                    examId={deck.examId}
+                    preselectedDeckId={deck.id}
+                />
+            </Suspense>
 
             {/* Magic Generate Modal */}
-            <MagicGenerateModal
-                isOpen={isMagicGenerateOpen}
-                onClose={() => setIsMagicGenerateOpen(false)}
-                deckId={deck.id}
-                deckTitle={deck.title}
-                onSuccess={async () => {
-                    await loadDeck();
-                    setIsMagicGenerateOpen(false);
-                }}
-            />
+            <Suspense fallback={null}>
+                <MagicGenerateModal
+                    isOpen={isMagicGenerateOpen}
+                    onClose={() => setIsMagicGenerateOpen(false)}
+                    deckId={deck.id}
+                    deckTitle={deck.title}
+                    onSuccess={async () => {
+                        await loadDeck();
+                        setIsMagicGenerateOpen(false);
+                    }}
+                />
+            </Suspense>
 
-
-            <GenerateQuizModal
-                isOpen={isGenerateQuizOpen}
-                totalCards={deck.cards?.length || 0}
-                hasPdf={Boolean(deck.pdfUrl)}
-                onClose={() => setIsGenerateQuizOpen(false)}
-                onGenerate={handleGenerateQuizSession}
-            />
+            <Suspense fallback={null}>
+                <GenerateQuizModal
+                    isOpen={isGenerateQuizOpen}
+                    totalCards={deck.cards?.length || 0}
+                    hasPdf={Boolean(deck.pdfUrl)}
+                    deckId={id}
+                    onClose={() => setIsGenerateQuizOpen(false)}
+                    onGenerate={handleGenerateQuizSession}
+                    onGenerationComplete={handleAsyncGenerationComplete}
+                />
+            </Suspense>
 
             {/* Reset Progress Confirmation */}
             <ConfirmationModal
@@ -463,10 +529,12 @@ export const DeckDetailPage: React.FC = () => {
             {/* Quiz Review Mode */}
             <AnimatePresence>
                 {reviewData && (
-                    <QuizReviewMode
-                        data={reviewData}
-                        onClose={() => setReviewData(null)}
-                    />
+                    <Suspense fallback={null}>
+                        <QuizReviewMode
+                            data={reviewData}
+                            onClose={() => setReviewData(null)}
+                        />
+                    </Suspense>
                 )}
             </AnimatePresence>
         </>

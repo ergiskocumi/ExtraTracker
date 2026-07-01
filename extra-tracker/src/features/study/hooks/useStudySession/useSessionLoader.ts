@@ -19,6 +19,7 @@ interface UseSessionLoaderParams {
     examDifficulty: string | undefined;
     quizType: QuizType;
     sourceCardIdsKey: string;
+    quizId: string | null;
     runKey: string;
     preloadedSession: StudySession | undefined;
     sessionKey: string | null;
@@ -51,6 +52,7 @@ export const useSessionLoader = ({
     examDifficulty,
     quizType,
     sourceCardIdsKey,
+    quizId,
     preloadedSession,
     sessionKey,
     isCompleteRef,
@@ -117,6 +119,8 @@ export const useSessionLoader = ({
                     examType,
                     examDifficulty,
                     quizType,
+                    quizId: quizId || undefined,
+                    savedQuizId: quizId || undefined,
                     sourceCardIds: sourceCardIdsKey ? sourceCardIdsKey.split('|') : undefined,
                 });
 
@@ -142,7 +146,7 @@ export const useSessionLoader = ({
         };
 
         loadSession();
-    }, [sessionKey, deckId, mode, focus, limit, questionCount, timeLimitMinutes, direction, examType, examDifficulty, quizType, sourceCardIdsKey, preloadedSession, navigate, isCompleteRef, onSessionLoaded, onShowResumeModal]);
+    }, [sessionKey, deckId, mode, focus, limit, questionCount, timeLimitMinutes, direction, examType, examDifficulty, quizType, sourceCardIdsKey, quizId, preloadedSession, navigate, isCompleteRef, onSessionLoaded, onShowResumeModal]);
 
     const reload = () => {
         hasLoadedRef.current = false;

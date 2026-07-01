@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ReviewRating, Card } from '../../services/studyService';
 import { studyService } from '../../services/studyService';
@@ -17,26 +17,41 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
         deckId, mode, focus, length, direction, limit,
         questionCount, timeLimitMinutes, timeLimitSeconds,
         examType, examDifficulty, quizType,
-        sourceCardIdsKey, runKey, savedQuizId, preloadedSession,
+        sourceCardIdsKey, runKey, quizId, savedQuizId, preloadedSession,
     } = params;
 
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     const [quizAnswerDetails, setQuizAnswerDetails] = useState<QuizAnswerDetail[]>([]);
+    const [isComplete, setIsComplete] = useState(false);
+    const isCompleteRef = useRef(false);
+    const [wrongAnswersForReview, setWrongAnswersForReview] = useState<Array<{
+        cardId: string;
+        front: string;
+        userAnswer: string;
+        back: string;
+    }>>([]);
 
     const sessionKey = deckId
-        ? `${deckId}-${mode}-${focus}-${length}-${questionCount}-${timeLimitMinutes}-${direction}-${examType}-${examDifficulty}-${quizType}-${sourceCardIdsKey}-${runKey}`
+        ? `${deckId}-${mode}-${focus}-${length}-${questionCount}-${timeLimitMinutes}-${direction}-${examType}-${examDifficulty}-${quizType}-${quizId}-${sourceCardIdsKey}-${runKey}`
         : null;
+
+    // Track if this instance added to globalCompletedSessions for cleanup on unmount
+    const addedToGlobalRef = useRef(false);
+
+    // Cleanup on unmount: rimuovi il tracking globale per evitare StrictMode leak
+    useEffect(() => {
+        return () => {
+            if (sessionKey) {
+                globalCompletedSessions.delete(sessionKey);
+                addedToGlobalRef.current = false;
+            }
+        };
+    }, [sessionKey]);
 
     // Sub-hooks
     const { stats, setStats, updateStats, resetStats } = useStudyStats(0);
-    const { elapsedSeconds, setElapsedSeconds, setTimeLeft } = useStudyTimer({ session: null, timeLimitSeconds, isComplete: false });
-
-    const { isComplete, setIsComplete, isCompleteRef, wrongAnswersForReview, setWrongAnswersForReview, completeSession } = useStudyCompletion({
-        session: null, deckId, mode, stats, elapsedSeconds, sessionKey,
-        answersHistory: [], quizAnswerDetails: [], savedQuizId,
-    });
 
     const { showResumeModal, setShowResumeModal, savedProgress, setSavedProgress, answersHistory, setAnswersHistory, hasStudiedRef, handleResumeExam: baseHandleResumeExam, handleStartFresh: baseHandleStartFresh, handlePauseExam } = useExamState({
         deckId, mode, focus, length, limit, questionCount, timeLimitMinutes, direction, examType, examDifficulty,
@@ -47,12 +62,8 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
 
     const { session, setSession, isLoading, setIsLoading, error, setError, hasLoadedRef } = useSessionLoader({
         deckId, mode, focus, length, limit, questionCount, timeLimitMinutes, direction, examType, examDifficulty,
-        quizType, sourceCardIdsKey, runKey, preloadedSession, sessionKey, isCompleteRef,
+        quizType, sourceCardIdsKey, quizId, runKey, preloadedSession, sessionKey, isCompleteRef,
         onSessionLoaded: handleSessionLoaded, onShowResumeModal: handleShowResumeModal,
-    });
-
-    const { currentCardIndex, setCurrentCardIndex, isFlipped, setIsFlipped, exitDirection, setExitDirection, currentCard, cardMode, isFlashcardMode, shouldReverse, displayCard, resetNavigation } = useStudyNavigation({
-        session, mode, direction, isComplete, onComplete: completeSession,
     });
 
     // Update timer with session
@@ -60,13 +71,20 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
     const effectiveElapsedSeconds = timerResult.elapsedSeconds;
     const effectiveTimeLeft = timerResult.timeLeft;
     const effectiveTimerWarning = timerResult.timerWarning;
+    const setElapsedSeconds = timerResult.setElapsedSeconds;
+    const setTimeLeft = timerResult.setTimeLeft;
 
     // Update completion hook with current session
     const completionResult = useStudyCompletion({
         session, deckId, mode, stats, elapsedSeconds: effectiveElapsedSeconds, sessionKey,
         answersHistory, quizAnswerDetails, savedQuizId,
+        isComplete, setIsComplete, isCompleteRef, wrongAnswersForReview, setWrongAnswersForReview,
     });
     const effectiveCompleteSession = completionResult.completeSession;
+
+    const { currentCardIndex, setCurrentCardIndex, isFlipped, setIsFlipped, exitDirection, setExitDirection, currentCard, cardMode, isFlashcardMode, shouldReverse, displayCard, resetNavigation } = useStudyNavigation({
+        session, mode, direction, isComplete, onComplete: effectiveCompleteSession,
+    });
 
     // Time limit expiry
     useEffect(() => {
@@ -91,6 +109,10 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
         }
     }, [currentCardIndex, session, effectiveCompleteSession, setCurrentCardIndex]);
 
+    // Ref per evitare stale closure nel setTimeout di handleRate
+    const currentCardIndexRef = useRef(currentCardIndex);
+    currentCardIndexRef.current = currentCardIndex;
+
     const handleRate = useCallback(async (rating: ReviewRating, details?: { userAnswer?: string; correctAnswer?: string; correct?: boolean }) => {
         if (!session || !currentCard || isSubmitting || isCompleteRef.current) return;
 
@@ -98,7 +120,9 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
         setExitDirection(rating <= 2 ? 'left' : rating >= 4 ? 'right' : 'up');
 
         try {
-            await studyService.submitReview(session.deck.id, { cardId: currentCard.id, rating });
+            if (cardMode !== 'quiz') {
+                await studyService.submitReview(session.deck.id, { cardId: currentCard.id, rating });
+            }
             updateStats(rating);
             hasStudiedRef.current = true;
 
@@ -116,7 +140,7 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
 
             if (cardMode !== 'quiz') {
                 setTimeout(() => {
-                    const nextIndex = currentCardIndex + 1;
+                    const nextIndex = currentCardIndexRef.current + 1;
                     if (nextIndex >= session.cards.length) {
                         effectiveCompleteSession();
                     } else {
@@ -124,17 +148,18 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
                         setIsFlipped(false);
                         setExitDirection(null);
                     }
-                }, 800);
+                    setIsSubmitting(false);
+                }, 250);
             } else {
+                setIsSubmitting(false);
                 setExitDirection(null);
             }
         } catch {
             emitToast.error('Errore nel salvataggio');
             setExitDirection(null);
-        } finally {
             setIsSubmitting(false);
         }
-    }, [session, currentCard, isSubmitting, currentCardIndex, mode, cardMode, updateStats, hasStudiedRef, setAnswersHistory, setCurrentCardIndex, setIsFlipped, setExitDirection, effectiveCompleteSession]);
+    }, [session, currentCard, isSubmitting, mode, cardMode, updateStats, hasStudiedRef, setAnswersHistory, setCurrentCardIndex, setIsFlipped, setExitDirection, effectiveCompleteSession]);
 
     const handleBack = useCallback(async () => {
         if (mode !== 'exam' && stats.total > 0 && !showExitConfirm) {
@@ -163,9 +188,9 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
     }, [savedProgress, baseHandleResumeExam, setIsLoading, setError, setSession, setCurrentCardIndex, setStats, setElapsedSeconds, hasLoadedRef]);
 
     const handleStartFresh = useCallback(async () => {
-        await baseHandleStartFresh(setIsLoading, setError, setSession, resetStats, hasLoadedRef, quizType, sourceCardIdsKey);
+        await baseHandleStartFresh(setIsLoading, setError, setSession, resetStats, hasLoadedRef, quizType, sourceCardIdsKey, quizId);
         setElapsedSeconds(0); setAnswersHistory([]); setQuizAnswerDetails([]);
-    }, [baseHandleStartFresh, setIsLoading, setError, setSession, resetStats, hasLoadedRef, quizType, sourceCardIdsKey, setElapsedSeconds, setAnswersHistory]);
+    }, [baseHandleStartFresh, setIsLoading, setError, setSession, resetStats, hasLoadedRef, quizType, sourceCardIdsKey, quizId, setElapsedSeconds, setAnswersHistory]);
 
     const handlePauseExamWrapper = useCallback(async () => {
         await handlePauseExam(session, currentCardIndex, stats, effectiveElapsedSeconds);
@@ -192,40 +217,58 @@ export const useStudySession = (params: UseStudySessionParams): UseStudySessionR
         const cardIds = session.cards.map((c: Card) => c.id).filter(Boolean);
         if (cardIds.length === 0) { window.location.reload(); return; }
 
-        studyService.saveQuizSnapshot(deckId, {
-            quizType, questionCount: cardIds.length, sourceCardIds: cardIds, source: 'repeat',
-            name: `Ripeti quiz ${cardIds.length} domande`,
-        }).catch(e => console.warn('[StudySessionPage] save repeat quiz snapshot failed:', e));
+        if (!savedQuizId) {
+            studyService.saveQuizSnapshot(deckId, {
+                quizType, questionCount: cardIds.length, sourceCardIds: cardIds, source: 'repeat',
+                name: `Ripeti quiz ${cardIds.length} domande`,
+            }).catch(e => {
+                console.error('[StudySessionPage] save repeat quiz snapshot failed:', e);
+                emitToast.error('Salvataggio quiz non riuscito. Riprova.');
+            });
+        }
 
         const params = new URLSearchParams();
         params.set('mode', 'quiz'); params.set('focus', 'all');
         params.set('questions', String(cardIds.length)); params.set('quizType', quizType);
         params.set('sourceCardIds', cardIds.join(',')); params.set('quizSource', 'repeat');
+        if (savedQuizId) {
+            params.set('savedQuizId', savedQuizId);
+            params.set('quizId', savedQuizId);
+        }
         params.set('run', String(Date.now()));
 
         resetForNewQuizRun();
         navigate(`/study/${deckId}/session?${params.toString()}`);
-    }, [mode, deckId, session, quizType, resetForNewQuizRun, navigate]);
+    }, [mode, deckId, session, quizType, savedQuizId, resetForNewQuizRun, navigate]);
 
     const handleStudyErrors = useCallback(() => {
         if (mode !== 'quiz' || !deckId) return;
         const wrongCardIds = Array.from(new Set(wrongAnswersForReview.map(a => a.cardId).filter(Boolean)));
         if (wrongCardIds.length === 0) { emitToast.info('Nessun errore da ripassare'); return; }
 
-        studyService.saveQuizSnapshot(deckId, {
-            quizType, questionCount: wrongCardIds.length, sourceCardIds: wrongCardIds, source: 'errors',
-            name: `Quiz errori ${wrongCardIds.length} domande`,
-        }).catch(e => console.warn('[StudySessionPage] save errors quiz snapshot failed:', e));
+        if (!savedQuizId) {
+            studyService.saveQuizSnapshot(deckId, {
+                quizType, questionCount: wrongCardIds.length, sourceCardIds: wrongCardIds, source: 'errors',
+                name: `Quiz errori ${wrongCardIds.length} domande`,
+            }).catch(e => {
+                console.error('[StudySessionPage] save errors quiz snapshot failed:', e);
+                emitToast.error('Salvataggio quiz non riuscito. Riprova.');
+            });
+        }
 
         const params = new URLSearchParams();
         params.set('mode', 'quiz'); params.set('focus', 'all');
         params.set('questions', String(wrongCardIds.length)); params.set('quizType', quizType);
         params.set('sourceCardIds', wrongCardIds.join(',')); params.set('quizSource', 'errors');
+        if (savedQuizId) {
+            params.set('savedQuizId', savedQuizId);
+            params.set('quizId', savedQuizId);
+        }
         params.set('run', String(Date.now()));
 
         resetForNewQuizRun();
         navigate(`/study/${deckId}/session?${params.toString()}`);
-    }, [mode, deckId, wrongAnswersForReview, quizType, resetForNewQuizRun, navigate]);
+    }, [mode, deckId, wrongAnswersForReview, quizType, savedQuizId, resetForNewQuizRun, navigate]);
 
     return {
         session, isLoading, error, isComplete,

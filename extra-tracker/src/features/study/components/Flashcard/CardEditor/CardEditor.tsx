@@ -173,7 +173,7 @@ const CardEditorComponent: React.FC<CardEditorProps> = ({
 
     // Layout classes
     const containerClasses = useMemo(() => {
-        const base = 'rounded-2xl border border-white/10 bg-theme-elevated overflow-hidden';
+        const base = 'rounded-2xl border border-theme-subtle bg-theme-elevated overflow-hidden';
         return `${base} ${className}`;
     }, [className]);
 
@@ -202,7 +202,7 @@ const CardEditorComponent: React.FC<CardEditorProps> = ({
     return (
         <div className={containerClasses}>
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/[0.02]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-theme-subtle bg-theme-surface">
                 <div className="flex items-center gap-3">
                     {label && (
                         <span className="text-sm font-medium text-theme-primary">
@@ -222,7 +222,7 @@ const CardEditorComponent: React.FC<CardEditorProps> = ({
                         <button
                             type="button"
                             onClick={cycleLayout}
-                            className="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-white/[0.08] transition-all"
+                            className="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-surface-hover transition-all"
                             aria-label={LAYOUT_LABELS[layout]}
                             title={LAYOUT_LABELS[layout]}
                         >
@@ -238,7 +238,7 @@ const CardEditorComponent: React.FC<CardEditorProps> = ({
                                     type="button"
                                     onClick={handleCancel}
                                     disabled={disabled}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-theme-secondary border border-white/10 hover:bg-white/[0.08] transition-all disabled:opacity-50"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-theme-secondary border border-theme-subtle hover:bg-theme-surface-hover transition-all disabled:opacity-50"
                                 >
                                     <X className="w-4 h-4" />
                                     <span className="hidden sm:inline">Annulla</span>

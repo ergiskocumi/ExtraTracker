@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FiPlus, FiArrowLeft } from 'react-icons/fi';
+import { Plus, ArrowLeft } from 'lucide-react';
 import { HEADER_STYLES, TEXT_CONTENT, ICON_SIZES } from './FlashcardList.constants';
 import type { HeaderProps } from './FlashcardList.types';
 
@@ -56,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
                             aria-label={TEXT_CONTENT.ariaLabels.back}
                             title={TEXT_CONTENT.buttons.back}
                         >
-                            <FiArrowLeft className={ICON_SIZES.small} />
+                            <ArrowLeft className={ICON_SIZES.small} />
                             <span className="hidden sm:inline">{TEXT_CONTENT.buttons.back}</span>
                         </button>
                     )}
@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
                             aria-label={TEXT_CONTENT.ariaLabels.addCard}
                             title={TEXT_CONTENT.buttons.addCard}
                         >
-                            <FiPlus className={ICON_SIZES.small} />
+                            <Plus className={ICON_SIZES.small} />
                         </button>
                     )}
                 </div>

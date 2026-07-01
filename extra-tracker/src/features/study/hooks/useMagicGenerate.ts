@@ -68,8 +68,7 @@ export type PipelinePhase = {
 // Constants
 // ============================================================
 
-let logIdCounter = 0;
-
+// ID counter per istanza hook (non module-level per evitare conflitti StrictMode)
 export const PIPELINE_PHASES: PipelinePhase[] = [
     {
         key: 'uploading',
@@ -189,6 +188,7 @@ export function useMagicGenerate({
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [progress, setProgress] = useState<ProgressData>({ step: 'idle' });
+    const logIdCounter = useRef(0);
     const [error, setError] = useState<string | null>(null);
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [currentJobId, setCurrentJobId] = useState<string | null>(null);
@@ -209,7 +209,7 @@ export function useMagicGenerate({
             setLogs((prev) => [
                 ...prev,
                 {
-                    id: `log-${++logIdCounter}`,
+                    id: `log-${++logIdCounter.current}`,
                     timestamp: Date.now(),
                     message,
                     type,

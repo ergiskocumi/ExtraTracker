@@ -5,7 +5,7 @@
  * Dettaglio esame: ExamDetailView (invariato)
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, GraduationCap, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -18,9 +18,10 @@ import { useScrollToTop } from '../../../shared/hooks/useScrollToTop';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { WeeklyCalendar } from '../components/WeeklyCalendar';
 import { ExamGrid } from '../components/ExamGrid';
-import { ExamDetailView } from '../components/Exams/ExamDetailView';
 import { DashboardModals } from '../components/DashboardModals';
-import { ExamCompletionModal } from '../components/Exams/ExamCompletionModal';
+
+const ExamDetailView = lazy(() => import('../components/Exams/ExamDetailView').then(m => ({ default: m.ExamDetailView })));
+const ExamCompletionModal = lazy(() => import('../components/Exams/ExamCompletionModal').then(m => ({ default: m.ExamCompletionModal })));
 import { DragDropZone } from '../components/DeckSections/DragDropZone';
 import { ConfirmationModal } from '../../../shared/components/ConfirmationModal';
 import type { Exam } from '../types/exam';
@@ -183,31 +184,30 @@ export const DecksDashboardPage: React.FC = () => {
         navigate('/study', { replace: true });
     }, [navigate]);
 
+    const mountedRef = useRef(true);
     useEffect(() => {
-        let isMounted = true;
+        mountedRef.current = true;
 
         if (!selectedExamId) {
             setSavedExamQuizzes([]);
             setIsLoadingSavedExamQuizzes(false);
-            return () => {
-                isMounted = false;
-            };
+            return;
         }
 
         const loadSavedExamQuizzes = async () => {
             setIsLoadingSavedExamQuizzes(true);
             try {
                 const quizzes = await studyService.getExamSavedQuizzes(selectedExamId);
-                if (isMounted) {
+                if (mountedRef.current) {
                     setSavedExamQuizzes(quizzes);
                 }
             } catch (err) {
                 console.error('Errore nel caricamento dei quiz salvati:', err);
-                if (isMounted) {
+                if (mountedRef.current) {
                     setSavedExamQuizzes([]);
                 }
             } finally {
-                if (isMounted) {
+                if (mountedRef.current) {
                     setIsLoadingSavedExamQuizzes(false);
                 }
             }
@@ -216,14 +216,72 @@ export const DecksDashboardPage: React.FC = () => {
         loadSavedExamQuizzes();
 
         return () => {
-            isMounted = false;
+            mountedRef.current = false;
         };
     }, [selectedExamId]);
 
-    const handleReplaySavedQuiz = useCallback((quiz: ExamSavedQuiz) => {
+    const handleReplaySavedQuiz = useCallback(async (quiz: ExamSavedQuiz) => {
         if (!quiz.deckId || !Array.isArray(quiz.sourceCardIds) || quiz.sourceCardIds.length === 0) {
             emitToast.info('Questo quiz non è più disponibile');
             return;
+        }
+
+        if (quiz.hasQuestions) {
+            try {
+                const retakeData = await studyService.retakeSavedQuiz(quiz.deckId, quiz.id, {
+                    mode: 'full',
+                    targetCount: Math.max(quiz.questionCount || 0, 1),
+                });
+
+                if (retakeData.cards.length === 0) {
+                    emitToast.info('Nessuna domanda disponibile per questo quiz');
+                    return;
+                }
+
+                const preparedSession = retakeData.session ?? {
+                    deck: {
+                        id: quiz.deckId,
+                        examId: quiz.examId ?? undefined,
+                        title: quiz.deckTitle,
+                        tags: [],
+                        cards: retakeData.cards,
+                        totalCards: retakeData.cards.length,
+                        dueCount: retakeData.cards.length,
+                        savedQuizzes: [],
+                    },
+                    cards: retakeData.cards,
+                    remaining: retakeData.cards.length,
+                    total: retakeData.cards.length,
+                    mode: 'quiz' as const,
+                    meta: {
+                        quizType: retakeData.quizType,
+                        questionCount: retakeData.questionCount,
+                        retakeStrategy: retakeData.strategy,
+                    },
+                };
+
+                const params = new URLSearchParams();
+                params.set('mode', 'quiz');
+                params.set('focus', 'all');
+                params.set('questions', String(retakeData.questionCount));
+                params.set('quizType', retakeData.quizType);
+                params.set('sourceCardIds', retakeData.cards.map(card => card.id).join(','));
+                params.set('quizSource', 'saved');
+                params.set('savedQuizId', quiz.id);
+                params.set('quizId', quiz.id);
+                params.set('run', String(Date.now()));
+
+                navigate(`/study/${quiz.deckId}/session?${params.toString()}`, {
+                    state: {
+                        preparedSession,
+                        preparedAt: Date.now(),
+                    },
+                });
+                return;
+            } catch (_err) {
+                emitToast.error('Errore nel caricamento del quiz');
+                return;
+            }
         }
 
         const params = new URLSearchParams();
@@ -300,32 +358,34 @@ export const DecksDashboardPage: React.FC = () => {
                 </div>
             ) : selectedExamId && selectedExam ? (
                 /* ═══ EXAM DETAIL VIEW ═══ */
-                <ExamDetailView
-                    exam={selectedExam}
-                    decks={decks}
-                    folders={folders}
-                    tags={tags}
-                    onBack={handleBackToExams}
-                    onStudy={handlers.handleStudy}
-                    onRead={handlers.handleRead}
-                    onMagicGenerate={handlers.handleMagicGenerate}
-                    onAddCard={handlers.handleAddCard}
-                    onViewDetail={handlers.handleViewDetail}
-                    onDelete={handlers.setDeletingDeck}
-                    onUpdate={updated => {
-                        setDecks(prev => prev.map(d => (d.id === updated.id ? updated : d)));
-                    }}
-                    onExamSolver={handlers.handleExamSolver}
-                    onViewFolder={handleFolderSelect}
-                    onTogglePin={handlers.handleTogglePin}
-                    onReactivateExam={handleReactivateExam}
-                    onCompleteExam={() => setShowCompletionModal(true)}
-                    onDeleteExam={() => examDeletion.requestDelete()}
-                    viewMode="grid"
-                    savedQuizzes={savedExamQuizzes}
-                    isLoadingSavedQuizzes={isLoadingSavedExamQuizzes}
-                    onReplaySavedQuiz={handleReplaySavedQuiz}
-                />
+                <Suspense fallback={null}>
+                    <ExamDetailView
+                        exam={selectedExam}
+                        decks={decks}
+                        folders={folders}
+                        tags={tags}
+                        onBack={handleBackToExams}
+                        onStudy={handlers.handleStudy}
+                        onRead={handlers.handleRead}
+                        onMagicGenerate={handlers.handleMagicGenerate}
+                        onAddCard={handlers.handleAddCard}
+                        onViewDetail={handlers.handleViewDetail}
+                        onDelete={handlers.setDeletingDeck}
+                        onUpdate={updated => {
+                            setDecks(prev => prev.map(d => (d.id === updated.id ? updated : d)));
+                        }}
+                        onExamSolver={handlers.handleExamSolver}
+                        onViewFolder={handleFolderSelect}
+                        onTogglePin={handlers.handleTogglePin}
+                        onReactivateExam={handleReactivateExam}
+                        onCompleteExam={() => setShowCompletionModal(true)}
+                        onDeleteExam={() => examDeletion.requestDelete()}
+                        viewMode="grid"
+                        savedQuizzes={savedExamQuizzes}
+                        isLoadingSavedQuizzes={isLoadingSavedExamQuizzes}
+                        onReplaySavedQuiz={handleReplaySavedQuiz}
+                    />
+                </Suspense>
             ) : !isLoading && exams.length === 0 ? (
                 /* ═══ EMPTY STATE: nessun esame – messaggio chiaro e CTA ═══ */
                 <motion.div
@@ -355,7 +415,7 @@ export const DecksDashboardPage: React.FC = () => {
                 </motion.div>
             ) : (
                 /* ═══ DEFAULT DASHBOARD: Calendar + ExamGrid ═══ */
-                <div className="space-y-8">
+                <div className="space-y-6 sm:space-y-8">
                     {/* Weekly Calendar */}
                     <WeeklyCalendar
                         weeklyStudyPlan={weeklyStudyPlan}
@@ -367,6 +427,13 @@ export const DecksDashboardPage: React.FC = () => {
                         onViewDetail={handlers.handleViewDetail}
                         onExamClick={handleExamClick}
                     />
+
+                    {/* Divider */}
+                    <div className="flex items-center gap-4">
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-theme-default to-transparent" />
+                        <span className="text-xs font-medium text-theme-muted uppercase tracking-wider whitespace-nowrap">I Tuoi Esami</span>
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-theme-default to-transparent" />
+                    </div>
 
                     {/* Exam Grid */}
                     <ExamGrid
@@ -484,14 +551,16 @@ export const DecksDashboardPage: React.FC = () => {
 
             {/* Exam Completion Modal */}
             {selectedExam && (
-                <ExamCompletionModal
-                    isOpen={showCompletionModal}
-                    exam={selectedExam}
-                    onClose={() => setShowCompletionModal(false)}
-                    onComplete={handleCompleteExam}
-                    onResetCards={handleResetCards}
-                    onGenerateAIQuestions={handleGenerateAIQuestions}
-                />
+                <Suspense fallback={null}>
+                    <ExamCompletionModal
+                        isOpen={showCompletionModal}
+                        exam={selectedExam}
+                        onClose={() => setShowCompletionModal(false)}
+                        onComplete={handleCompleteExam}
+                        onResetCards={handleResetCards}
+                        onGenerateAIQuestions={handleGenerateAIQuestions}
+                    />
+                </Suspense>
             )}
         </DashboardLayout>
     );

@@ -4,9 +4,15 @@
  * PDF-based quiz generation (AI), session card mapping, true/false transform.
  */
 
-const { openai, DISTRACTOR_AI_MODEL, QUIZ_DEBUG_LOGS } = require('./constants');
+const { createCompletion, QUIZ_GENERATION_MODEL, QUIZ_DEBUG_LOGS, CHUNK_AI_TIMEOUT_MS, QUIZ_MAX_OUTPUT_TOKENS } = require('./constants');
 const aiUsageService = require('../aiUsageService');
 const logger = require('../../utils/logger');
+const { buildChunkQuestionCounts } = require('./trueFalseChunking');
+const {
+    buildRepresentativeQuizText,
+    shouldUseQuizFastPath,
+} = require('./quizTextSelection');
+const { parseQuizArrayResponse } = require('./quizJsonParser');
 
 module.exports = {
 
@@ -39,14 +45,21 @@ module.exports = {
     // =========================================
 
     async generateQuizFromPDFText(pdfTextChunk, questionCount = 5, previousQuestions = [], telemetry = {}) {
-        if (!process.env.OPENAI_API_KEY) {
-            throw new Error('OPENAI_API_KEY non configurata');
+        if (!process.env.ANTHROPIC_AUTH_TOKEN) {
+            throw new Error('ANTHROPIC_AUTH_TOKEN non configurata');
         }
         if (!pdfTextChunk || typeof pdfTextChunk !== 'string' || pdfTextChunk.trim().length < 100) {
             throw new Error('Testo PDF non valido o troppo breve per generare domande');
         }
 
         const count = Math.max(1, Math.floor(questionCount));
+        // Budget generoso: alcuni modelli DeepSeek consumano token in ragionamento
+        // interno prima dell'output, quindi un tetto basso tronca il JSON a metà.
+        // Overridabile via env QUIZ_MAX_OUTPUT_TOKENS.
+        const maxCompletionTokens = Math.min(
+            QUIZ_MAX_OUTPUT_TOKENS,
+            Math.max(4096, count * 1200),
+        );
 
         const responseFormat = {
             type: 'json_schema',
@@ -102,6 +115,9 @@ module.exports = {
         });
         const systemPrompt = `Agisci come un esperto di Instructional Design, Cognitive Load Theory e Psicometria. Riceverai dei contenuti da studiare.
         Il tuo compito è generare ${count} domande a risposta multipla che testano la padronanza concettuale profonda, NON la memoria di lavoro.
+
+        ━━━ LINGUA — OBBLIGATORIO ━━━
+        Scrivi OGNI campo (questionText, correctAnswer, distractors, explanations, correctAnswerExplanation) ESCLUSIVAMENTE in ITALIANO, indipendentemente dalla lingua del testo sorgente. Nessuna parola o frase in inglese.
 
         ━━━ REGOLA ZERO — DIVIETO ASSOLUTO DI RIFERIMENTI ALLA FONTE ━━━
         ⛔ È VIETATO in qualsiasi campo (questionText, opzioni, spiegazioni) usare frasi come:
@@ -159,7 +175,7 @@ module.exports = {
 
         const userPrompt = `Genera ${count} domande a risposta multipla basate ESCLUSIVAMENTE sul seguente testo:${previousBlock}\n\n${pdfTextChunk}`;
 
-        const isReasoningModel = /^o\d/.test(DISTRACTOR_AI_MODEL);
+        const isReasoningModel = /^o\d/.test(QUIZ_GENERATION_MODEL);
         this._logQuizDebug('quiz-from-pdf-start', {
             questionCount: count,
             textLength: pdfTextChunk.length,
@@ -178,7 +194,7 @@ module.exports = {
                     userId: telemetry?.userId,
                     mode: 'quiz',
                     feature: 'quiz_generation_pdf_chunk',
-                    model: DISTRACTOR_AI_MODEL,
+                    model: QUIZ_GENERATION_MODEL,
                     messages,
                     promptLengthChars: systemPrompt.length + userPrompt.length,
                     metadata: {
@@ -189,33 +205,64 @@ module.exports = {
                         previousQuestionsCount: previousQuestions.length,
                     },
                 },
-                () => openai.chat.completions.create(
+                () => createCompletion(
                     {
-                        model: DISTRACTOR_AI_MODEL,
+                        model: QUIZ_GENERATION_MODEL,
                         messages,
                         response_format: responseFormat,
-                        ...({ temperature: 0.35 }),
+                        temperature: 0.35,
+                        max_tokens: maxCompletionTokens,
                     },
-                    { timeout: 120000 },
+                    { timeout: CHUNK_AI_TIMEOUT_MS },
                 ),
             );
         } catch (apiError) {
-            this._logQuizDebug('quiz-from-pdf-api-error', { error: apiError.message });
+            logger.warn('StudyService.quiz', 'AI API error', {
+                error: apiError.message,
+                type: apiError.type || apiError.name,
+                status: apiError.status || apiError.statusCode,
+            });
             throw apiError;
         }
 
         const content = completion.choices[0]?.message?.content || '';
-        this._logQuizDebug('quiz-from-pdf-raw', {
-            finishReason: completion.choices[0]?.finish_reason,
+        const finishReason = completion.choices[0]?.finish_reason;
+        const usage = completion.usage || {};
+        const truncated = finishReason === 'length' || finishReason === 'max_tokens';
+
+        // Log diagnostico SEMPRE (non solo in debug): serve per capire cosa fa l'AI.
+        logger.info('StudyService.quiz', `MCQ chunk ${count} richieste → risposta AI`, {
+            model: QUIZ_GENERATION_MODEL,
+            finishReason,
+            truncated,
             contentLength: content.length,
+            inputTokens: usage.prompt_tokens ?? usage.input_tokens ?? null,
+            outputTokens: usage.completion_tokens ?? usage.output_tokens ?? null,
+            maxTokens: maxCompletionTokens,
         });
 
-        const parsed = this._parseJSONResponse(content);
-        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+        const { items, recovered } = parseQuizArrayResponse(content, 'questions');
+        if (recovered || truncated) {
+            logger.warn('StudyService.quiz', 'MCQ: risposta AI troncata/recuperata parzialmente', {
+                model: QUIZ_GENERATION_MODEL,
+                finishReason,
+                recoveredItems: items.length,
+                requested: count,
+                hint: truncated
+                    ? 'Il modello ha esaurito i token di output (max_tokens). Domande complete recuperate dal JSON parziale.'
+                    : 'JSON non standard: recuperati gli oggetti completi.',
+            });
+        }
+        if (items.length === 0) {
+            logger.warn('StudyService.quiz', 'MCQ: nessuna domanda parsabile', {
+                model: QUIZ_GENERATION_MODEL,
+                finishReason,
+                contentPreview: content.slice(0, 200),
+            });
             throw new Error('Risposta AI non valida: nessuna domanda generata');
         }
 
-        const questions = parsed.questions
+        const questions = items
             .filter(q =>
                 q.questionText && q.correctAnswer &&
                 Array.isArray(q.distractors) && q.distractors.length >= 3,
@@ -261,7 +308,11 @@ module.exports = {
                 }
             }
 
-            chunks.push(text.slice(start, end));
+            // Materialize chunk: Buffer round-trip forces V8 to allocate an independent
+            // SeqString, breaking the SlicedString reference to the original backing store.
+            // This allows the original 200K+ extractedText to be GC'd after chunking.
+            const raw = text.slice(start, end);
+            chunks.push(Buffer.from(raw, 'utf8').toString('utf8'));
 
             if (end >= text.length) break;
 
@@ -277,22 +328,25 @@ module.exports = {
     // =========================================
 
     async generateQuizFromFullPDF(fullText, totalQuestionsRequested, previousQuestions = [], telemetry = {}) {
-        const chunks = this._splitTextIntoChunks(fullText);
+        const originalTextLength = typeof fullText === 'string' ? fullText.length : 0;
+        const requestedQuestionCount = Math.max(1, Math.floor(Number(totalQuestionsRequested) || 0));
+        const chunks = (shouldUseQuizFastPath(requestedQuestionCount)
+            ? [buildRepresentativeQuizText(fullText)]
+            : this._splitTextIntoChunks(fullText)).filter(Boolean);
+        // Release fullText reference — chunks are now materialized independent strings
+        fullText = null;
 
         if (chunks.length === 0) {
             throw new Error('Testo PDF non valido o vuoto');
         }
 
-        // Distribute questions evenly: remainder goes to the first N chunks (+1 each)
-        const baseCount = Math.floor(totalQuestionsRequested / chunks.length);
-        const remainder = totalQuestionsRequested % chunks.length;
-        const counts = chunks.map((_, i) => baseCount + (i < remainder ? 1 : 0));
+        const counts = buildChunkQuestionCounts(chunks.length, requestedQuestionCount);
 
         this._logQuizDebug('quiz-full-pdf-start', {
             totalChunks: chunks.length,
-            totalQuestionsRequested,
+            totalQuestionsRequested: requestedQuestionCount,
             distribution: counts,
-            textLength: fullText.length,
+            textLength: originalTextLength,
         });
 
         const allGeneratedQuestions = [];
@@ -321,15 +375,10 @@ module.exports = {
                 });
                 // Graceful degradation: partial results are better than a total crash
             }
-
-            // Rate-limit protection between chunks (skip after the last one)
-            if (i < chunks.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 1500));
-            }
         }
 
         this._logQuizDebug('quiz-full-pdf-success', {
-            totalRequested: totalQuestionsRequested,
+            totalRequested: requestedQuestionCount,
             totalGenerated: allGeneratedQuestions.length,
         });
 

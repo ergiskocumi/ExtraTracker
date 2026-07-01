@@ -1,7 +1,6 @@
 import React, { lazy, Suspense, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiCheck, FiArrowLeft } from 'react-icons/fi';
-import { Layers, MessageCircle } from 'lucide-react';
+import { X, Check, ArrowLeft, Layers, MessageCircle } from 'lucide-react';
 import type { Deck, Card } from '../../services/studyService';
 import { FlashcardList } from '../Flashcard/FlashcardList';
 
@@ -125,7 +124,7 @@ export const StudySidebar: React.FC<StudySidebarProps> = ({
                             aria-label="Torna al mazzo"
                             title="Torna al dettaglio del mazzo"
                         >
-                            <FiArrowLeft className="w-4 h-4" />
+                            <ArrowLeft className="w-4 h-4" />
                             <span className="hidden sm:inline">Indietro</span>
                         </button>
                     )}
@@ -221,7 +220,7 @@ export const CardModal: React.FC<CardModalProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-2xl"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay backdrop-blur-2xl"
                     onClick={onClose}
                 >
                     <motion.div
@@ -237,7 +236,7 @@ export const CardModal: React.FC<CardModalProps> = ({
                                 onClick={onClose}
                                 className="p-2 rounded-xl border border-theme-default bg-theme-surface backdrop-blur-sm hover:bg-theme-card transition-all duration-300 active:scale-95"
                             >
-                                <FiX className="w-5 h-5 text-theme-secondary" />
+                                <X className="w-5 h-5 text-theme-secondary" />
                             </button>
                         </div>
 
@@ -280,7 +279,7 @@ export const CardModal: React.FC<CardModalProps> = ({
                                     disabled={!front.trim() || !back.trim() || saving}
                                     className="flex items-center justify-center flex-1 gap-2 px-4 py-3 font-medium text-white transition-all duration-300 shadow-lg rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-violet-500/25 hover:from-violet-400 hover:to-fuchsia-400 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                 >
-                                    <FiCheck className="w-4 h-4" />
+                                    <Check className="w-4 h-4" />
                                     {saving ? 'Salvando...' : confirmLabel}
                                 </button>
                             </div>

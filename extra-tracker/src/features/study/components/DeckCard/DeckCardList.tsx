@@ -91,7 +91,7 @@ export const DeckCardList: React.FC<DeckCardListProps> = ({
                 {/* Title & Info */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-white truncate text-sm">{deck.title}</h3>
+                        <h3 className="font-semibold text-theme-primary truncate text-sm">{deck.title}</h3>
                         {deck.pinned && (
                             <Star className="w-3.5 h-3.5 text-amber-400 fill-current flex-shrink-0" />
                         )}
@@ -102,7 +102,7 @@ export const DeckCardList: React.FC<DeckCardListProps> = ({
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-white/50">
+                    <div className="flex items-center gap-3 text-xs text-theme-muted">
                         <span>{totalCards} carte</span>
                         {totalCards > 0 && (
                             <>
@@ -130,10 +130,11 @@ export const DeckCardList: React.FC<DeckCardListProps> = ({
                     <div className="w-24 hidden sm:block">
                         <div className="h-1.5 bg-theme-surface rounded-full overflow-hidden">
                             <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${masteryPercent}%` }}
+                                style={{ transformOrigin: 'left' }}
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: masteryPercent / 100 }}
                                 transition={{ duration: 0.5, ease: 'easeOut' }}
-                                className={`h-full rounded-full ${
+                                className={`h-full w-full rounded-full ${
                                     masteryPercent >= 80 ? 'bg-emerald-500' :
                                     masteryPercent >= 50 ? 'bg-blue-500' :
                                     'bg-primary-500'
@@ -184,9 +185,10 @@ export const DeckCardList: React.FC<DeckCardListProps> = ({
                     <AnimatePresence>
                         {isHovered && (
                             <motion.div
-                                initial={{ opacity: 0, width: 0 }}
-                                animate={{ opacity: 1, width: 'auto' }}
-                                exit={{ opacity: 0, width: 0 }}
+                                initial={{ opacity: 0, scaleX: 0 }}
+                                animate={{ opacity: 1, scaleX: 1 }}
+                                exit={{ opacity: 0, scaleX: 0 }}
+                                style={{ transformOrigin: 'left' }}
                                 className="flex items-center gap-1 overflow-hidden"
                             >
                                 {totalCards === 0 && (

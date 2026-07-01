@@ -13,7 +13,7 @@ const vectorStoreService = require('../vectorStoreService');
 const aiUsageService = require('../aiUsageService');
 const sseManager = require('../../utils/SSEManager');
 const {
-    openai,
+    createCompletion,
     ACTIVE_AI_MODEL,
     DEFAULT_EASINESS_FACTOR,
     MAX_EXTRACTED_TEXT_STORE_LENGTH,
@@ -95,7 +95,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                 metadata: {
                     sourceType: questionsIsPdf ? 'pdf' : 'text',
                 },
-            }, () => openai.chat.completions.create({
+            }, () => createCompletion({
                 model: ACTIVE_AI_MODEL,
                 messages,
                 temperature: 0.1,
@@ -118,7 +118,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                 }
             }
         } catch (err) {
-            logger.error('ExamSolver', 'OpenAI Extraction Error', { message: err.message });
+            logger.error('ExamSolver', 'DeepSeek Extraction Error', { message: err.message });
             questions = this._extractQuestionsFallback(normalizedQuestionsText);
         }
 
@@ -310,7 +310,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                             questionCount: batch.questions.length,
                             retryAttempt: attempt + 1,
                         },
-                    }, () => openai.chat.completions.create({
+                    }, () => createCompletion({
                         model: ACTIVE_AI_MODEL,
                         messages,
                         temperature: 0.1,
@@ -320,7 +320,7 @@ Genera una risposta per OGNI domanda nella lista.`;
 
                     const batchResponse = batchCompletion.choices[0]?.message?.content;
                     if (!batchResponse) {
-                        throw AppError.ai('Risposta vuota da OpenAI', null);
+                        throw AppError.ai('Risposta vuota da DeepSeek', null);
                     }
 
                     const parsed = JSON.parse(batchResponse);
@@ -611,7 +611,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                 metadata: {
                     sourceType: questionsIsPdf ? 'pdf' : 'text',
                 },
-            }, () => openai.chat.completions.create({
+            }, () => createCompletion({
                 model: ACTIVE_AI_MODEL,
                 messages,
                 temperature: 0.1,
@@ -634,7 +634,7 @@ Estrai TUTTE le domande e restituisci SOLO JSON valido:`;
                 }
             }
         } catch (err) {
-            logger.error('ExamSolver', 'OpenAI Extraction Error [legacy]', { message: err.message });
+            logger.error('ExamSolver', 'DeepSeek Extraction Error [legacy]', { message: err.message });
             questions = this._extractQuestionsFallback(normalizedQuestionsText);
         }
 
@@ -723,7 +723,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                         batchStartIndex: i,
                         batchQuestionCount: batch.length,
                     },
-                }, () => openai.chat.completions.create({
+                }, () => createCompletion({
                     model: ACTIVE_AI_MODEL,
                     messages,
                     temperature: 0.1,
@@ -757,7 +757,7 @@ Genera una risposta per OGNI domanda nella lista.`;
                     }
                 }
             } catch (err) {
-                logger.error('ExamSolver', `OpenAI Batch Error (${i}-${i + batch.length}) [legacy]`, { message: err.message });
+                logger.error('ExamSolver', `DeepSeek Batch Error (${i}-${i + batch.length}) [legacy]`, { message: err.message });
                 for (const question of batch) {
                     allFlashcards.push({
                         front: question.trim(),

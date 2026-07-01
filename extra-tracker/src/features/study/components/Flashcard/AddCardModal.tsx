@@ -7,9 +7,9 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiX, FiPlus } from 'react-icons/fi';
+import { X, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MarkdownEditor } from './CardEditor';
+import { MarkdownEditor } from './MarkdownEditor.lazy';
 
 interface AddCardModalProps {
     /** Whether the modal is open */
@@ -114,7 +114,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             transition={{ duration: 0.2, ease: 'easeOut' }}
                             onClick={(e) => e.stopPropagation()}
-                            className="relative w-full max-w-2xl rounded-3xl border border-white/[0.15] backdrop-blur-xl shadow-2xl"
+                            className="relative w-full max-w-2xl rounded-3xl border border-theme-default backdrop-blur-xl shadow-2xl"
                             style={{
                                 background: 'linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 100%)',
                                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 1px 0 0 rgba(255, 255, 255, 0.15)',
@@ -123,21 +123,21 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                             {/* Header */}
                             <div className="flex items-center justify-between p-6 border-b border-white/[0.08]">
                                 <div>
-                                    <h2 className="text-xl md:text-2xl font-bold text-white">
+                                    <h2 className="text-xl md:text-2xl font-bold text-theme-primary">
                                         Aggiungi nuova flashcard
                                     </h2>
                                     {position !== undefined && (
-                                        <p className="text-sm text-slate-400 mt-1">
+                                        <p className="text-sm text-theme-muted mt-1">
                                             Posizione: {position + 1}
                                         </p>
                                     )}
                                 </div>
                                 <button
                                     onClick={onClose}
-                                    className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all duration-200 active:scale-95"
+                                    className="p-2 rounded-xl text-theme-muted hover:text-theme-primary hover:bg-theme-surface transition-all duration-200 active:scale-95"
                                     aria-label="Chiudi"
                                 >
-                                    <FiX className="w-5 h-5" />
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
 
@@ -165,7 +165,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                         size="md"
                                         minRows={4}
                                         className="space-y-2"
-                                        textareaClassName="min-h-[100px] bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:ring-violet-500/50 focus:border-violet-500/60"
+                                        textareaClassName="min-h-[100px] bg-theme-surface border border-theme-default backdrop-blur-sm text-theme-primary placeholder:text-theme-muted focus:ring-violet-500/50 focus:border-violet-500/60"
                                     />
                                 </div>
 
@@ -190,7 +190,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                         size="md"
                                         minRows={5}
                                         className="space-y-2"
-                                        textareaClassName="min-h-[120px] bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:ring-violet-500/50 focus:border-violet-500/60"
+                                        textareaClassName="min-h-[120px] bg-theme-surface border border-theme-default backdrop-blur-sm text-theme-primary placeholder:text-theme-muted focus:ring-violet-500/50 focus:border-violet-500/60"
                                     />
                                 </div>
                             </div>
@@ -200,7 +200,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                 <button
                                     onClick={onClose}
                                     disabled={isSubmitting}
-                                    className="flex-1 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-sm text-sm font-medium text-slate-300 hover:bg-white/[0.10] hover:text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                                    className="flex-1 px-4 py-3 rounded-xl border border-theme-default bg-theme-surface backdrop-blur-sm text-sm font-medium text-theme-muted hover:bg-theme-surface/80 hover:text-theme-primary transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                                 >
                                     Annulla
                                 </button>
@@ -220,7 +220,7 @@ export const AddCardModal: React.FC<AddCardModalProps> = ({
                                         </>
                                     ) : (
                                         <>
-                                            <FiPlus className="w-4 h-4" />
+                                            <Plus className="w-4 h-4" />
                                             <span>Aggiungi Card</span>
                                         </>
                                     )}

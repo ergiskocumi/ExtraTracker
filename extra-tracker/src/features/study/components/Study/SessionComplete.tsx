@@ -8,7 +8,7 @@
  *  - Sticky action footer
  */
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { memo, useEffect, useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
     Clock,
@@ -173,7 +173,7 @@ const CelebrationLayer: React.FC<{
     return (
         <div
             aria-hidden
-            className="pointer-events-none fixed inset-0 top-16 z-[60] overflow-hidden"
+            className="pointer-events-none fixed inset-0 top-[var(--app-header-height,64px)] z-modal-backdrop overflow-hidden"
         >
             <div className="absolute inset-0">
                 {Array.from({ length: isSuccess ? 80 : 50 }).map((_, i) => {
@@ -258,11 +258,11 @@ const ErrorReviewCard: React.FC<{
             {/* Answer comparison — expandable */}
             {expanded && (
                 <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
+                    initial={{ opacity: 0, maxHeight: 0 }}
+                    animate={{ opacity: 1, maxHeight: 2000 }}
+                    exit={{ opacity: 0, maxHeight: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-3"
+                    className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-3 overflow-hidden"
                 >
                     <div className="ml-10 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {/* Wrong answer */}
@@ -310,7 +310,7 @@ const ErrorReviewCard: React.FC<{
 // MAIN COMPONENT
 // ============================================
 
-export const SessionComplete: React.FC<SessionCompleteProps> = ({
+export const SessionComplete = memo<SessionCompleteProps>(({
     totalCards,
     correctCount,
     wrongCount,
@@ -515,27 +515,29 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
 
                         <div className="flex h-3 rounded-full overflow-hidden bg-theme-surface border border-theme-subtle">
                             <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${accuracy}%` }}
+                                style={{ transformOrigin: 'left' }}
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: accuracy / 100 }}
                                 transition={{
                                     delay: 0.85,
                                     duration: 0.6,
                                     ease: 'easeOut',
                                 }}
-                                className="h-full rounded-l-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                                className="h-full w-full rounded-l-full bg-gradient-to-r from-emerald-500 to-emerald-400"
                             />
                             {wrongCount > 0 && (
                                 <motion.div
-                                    initial={{ width: 0 }}
+                                    style={{ transformOrigin: 'left' }}
+                                    initial={{ scaleX: 0 }}
                                     animate={{
-                                        width: `${100 - accuracy}%`,
+                                        scaleX: (100 - accuracy) / 100,
                                     }}
                                     transition={{
                                         delay: 0.85,
                                         duration: 0.6,
                                         ease: 'easeOut',
                                     }}
-                                    className="h-full rounded-r-full bg-rose-500/50"
+                                    className="h-full w-full rounded-r-full bg-rose-500/50"
                                 />
                             )}
                         </div>
@@ -693,6 +695,6 @@ export const SessionComplete: React.FC<SessionCompleteProps> = ({
             </div>
         </div>
     );
-};
+});
 
 export default SessionComplete;

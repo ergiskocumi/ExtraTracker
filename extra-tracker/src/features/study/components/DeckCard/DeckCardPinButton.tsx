@@ -36,7 +36,7 @@ export const DeckCardPinButton: React.FC<DeckCardPinButtonProps> = ({
                 p-1.5 rounded-lg transition-all
                 ${isPinned
                     ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                    : 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white/50 border border-white/10'
+                    : 'bg-theme-surface text-theme-muted hover:bg-theme-surface-hover hover:text-theme-primary border border-theme-subtle'
                 }
                 ${className}
             `}

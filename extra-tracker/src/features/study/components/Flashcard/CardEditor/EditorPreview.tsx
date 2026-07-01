@@ -66,7 +66,7 @@ const EditorPreviewComponent: React.FC<EditorPreviewProps> = ({
                     <button
                         type="button"
                         onClick={onToggleVisibility}
-                        className="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-white/[0.08] transition-all"
+                        className="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-surface transition-all"
                         aria-label={visible ? 'Nascondi anteprima' : 'Mostra anteprima'}
                         title={visible ? 'Nascondi anteprima' : 'Mostra anteprima'}
                     >
@@ -85,16 +85,13 @@ const EditorPreviewComponent: React.FC<EditorPreviewProps> = ({
                     className={`
                         ${minHeight}
                         rounded-xl
-                        border border-white/10
-                        bg-white/[0.03]
+                        border border-theme-subtle
+                        bg-theme-surface
                         p-4
                         overflow-y-auto
+                        custom-scrollbar
                         transition-all duration-300
                     `}
-                    style={{
-                        scrollbarWidth: 'thin',
-                        scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-                    }}
                 >
                     {hasContent ? (
                         <CardContentRenderer

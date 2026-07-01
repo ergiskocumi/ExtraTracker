@@ -123,9 +123,10 @@ const JobCard: React.FC<JobCardProps> = ({ job, isExpanded, onToggle, onRemove, 
             {isActive && job.progress > 0 && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-theme-surface">
                     <motion.div
-                        className="h-full bg-gradient-to-r from-primary-500 to-primary-400"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${job.progress}%` }}
+                        className="h-full w-full bg-gradient-to-r from-primary-500 to-primary-400"
+                        style={{ transformOrigin: 'left' }}
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: job.progress / 100 }}
                         transition={{ duration: 0.3 }}
                     />
                 </div>
@@ -195,10 +196,10 @@ const JobCard: React.FC<JobCardProps> = ({ job, isExpanded, onToggle, onRemove, 
             <AnimatePresence>
                 {isExpanded && isActive && (
                     <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="border-t border-theme-subtle"
+                        initial={{ maxHeight: 0, opacity: 0 }}
+                        animate={{ maxHeight: 2000, opacity: 1 }}
+                        exit={{ maxHeight: 0, opacity: 0 }}
+                        className="border-t border-theme-subtle overflow-hidden"
                     >
                         <div className="p-3 space-y-3">
                             {/* Stats Grid */}

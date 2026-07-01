@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FiZap, FiCopy, FiCalendar } from 'react-icons/fi';
+import { Zap, Copy, Calendar } from 'lucide-react';
 import type { WorkLog } from '../tracker/type';
 
 interface QuickActionsProps {
@@ -23,7 +23,7 @@ export const QuickActions = ({ logs, onDuplicate }: QuickActionsProps) => {
             {/* Header */}
             <div className="flex items-center gap-2 mb-3.5 sm:mb-4">
                 <div className="dashboard-action-icon-shell w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                    <FiZap className="text-amber-700 dark:text-amber-400" size={16} />
+                    <Zap className="text-amber-700 dark:text-amber-400" size={16} />
                 </div>
                 <div>
                     <h3 className="dashboard-widget-title font-semibold text-theme-primary">Azioni Rapide</h3>
@@ -35,7 +35,7 @@ export const QuickActions = ({ logs, onDuplicate }: QuickActionsProps) => {
             {recentLogs.length > 0 ? (
                 <div>
                     <p className="dashboard-widget-meta dashboard-meta-text flex items-center gap-1 mb-2.5 sm:mb-3 text-xs font-medium text-theme-secondary">
-                        <FiCalendar size={12} />
+                        <Calendar size={12} />
                         Duplica recenti
                     </p>
                     <div className="space-y-2">
@@ -63,7 +63,7 @@ export const QuickActions = ({ logs, onDuplicate }: QuickActionsProps) => {
                                             </p>
                                         </div>
                                     </div>
-                                    <FiCopy className="dashboard-action-copy text-theme-secondary group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors" size={16} />
+                                    <Copy className="dashboard-action-copy text-theme-secondary group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors" size={16} />
                                 </button>
                             );
                         })}

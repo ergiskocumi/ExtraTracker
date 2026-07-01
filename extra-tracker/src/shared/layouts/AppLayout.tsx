@@ -8,24 +8,13 @@
  * - Supporto temi Light/Dark
  */
 
-import { memo, useEffect, useRef, lazy, Suspense } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { Logo } from '../components/Brand/Logo';
 import { UserMenuDropdown } from '../components/UserMenu';
 import { ThemeToggle } from '../components/ThemeToggle';
-
-const GlobalFeedbackModal = lazy(() =>
-    import('../../features/feedback/components/GlobalFeedbackModal').then((m) => ({
-        default: m.GlobalFeedbackModal,
-    }))
-);
-const TutorialManager = lazy(() =>
-    import('../components/Tutorial/TutorialManager').then((m) => ({
-        default: m.TutorialManager,
-    }))
-);
 
 // ============================================
 // HEADER COMPONENT
@@ -52,7 +41,7 @@ const Header = memo(() => {
     }, []);
 
     return (
-        <header ref={headerRef} className="sticky top-0 z-50 transition-all duration-300">
+        <header ref={headerRef} className="sticky top-0 z-40 transition-all duration-300">
             {/* Premium Glass Background - Theme Aware */}
             <div
                 className="absolute inset-0 transition-all duration-300"
@@ -122,7 +111,7 @@ Footer.displayName = 'Footer';
 // ============================================
 
 // Routes che devono occupare tutto lo schermo (full-width)
-const FULL_WIDTH_ROUTES = ['/ai-dashboard', '/dashboard', '/study', '/settings'];
+const FULL_WIDTH_ROUTES = ['/dashboard', '/study'];
 
 export const AppLayout = () => {
     const { pathname } = useLocation();
@@ -139,7 +128,7 @@ export const AppLayout = () => {
             <Header />
 
             {/* Main Content - contenuto centrato, più ampio per dashboard/study */}
-            <main className="flex-1 w-full relative z-0">
+            <main className="flex-1 w-full relative">
                 <div
                     className={cn(
                         "mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8",
@@ -152,12 +141,6 @@ export const AppLayout = () => {
 
             {/* Footer: nascosto in /study per non disturbare sessioni e studio */}
             {!hideFooter && <Footer />}
-
-            {/* Global Feedback: modal apribile dal menu utente (Segnala un problema) */}
-            <Suspense fallback={null}>
-                <GlobalFeedbackModal />
-                <TutorialManager />
-            </Suspense>
         </div>
     );
 };

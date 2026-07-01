@@ -563,48 +563,57 @@ module.exports = {
     // =========================================
 
     _parseJSONResponse(content) {
-        if (!content || typeof content !== 'string') return null;
+        if (!content || typeof content !== "string") return null;
 
         const cleaned = content
             .replace(/```json\n?/g, '')
             .replace(/```\n?/g, '')
             .trim();
 
+        // Attempt 1: direct parse (covers 90%+ of cases, zero extra allocation)
         try {
             return JSON.parse(cleaned);
-        } catch (e) {
-            const extractedObject = cleaned.match(/\{[\s\S]*\}/)?.[0];
-            const extractedArray = cleaned.match(/\[[\s\S]*\]/)?.[0];
-            const extracted = extractedObject || extractedArray || '';
+        } catch (_e) {
+            // fall through to recovery
+        }
 
-            const sanitize = (value) => this._sanitizePotentialJson(value);
-
-            const candidates = [
-                extracted,
-                sanitize(extracted),
-                extracted.replace(/[\u0000-\u0019]/g, ' '),
-                sanitize(extracted.replace(/[\u0000-\u0019]/g, ' ')),
-                cleaned.replace(/[\u0000-\u0019]/g, ' '),
-                sanitize(cleaned),
-                sanitize(cleaned.replace(/[\u0000-\u0019]/g, ' ')),
-                cleaned.replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/\t/g, '\\t'),
-            ].filter(Boolean);
-
-            for (const candidate of candidates) {
-                try {
-                    return JSON.parse(candidate);
-                } catch (_ignored) {
-                    // continua su prossimo tentativo
-                }
-            }
-
-            logger.warn('Helpers', '_parseJSONResponse: Fallito parsing JSON', {
-                message: e.message,
+        const extractedObject = cleaned.match(/\{[\s\S]*\}/)?.[0];
+        const extractedArray = cleaned.match(/\[[\s\S]*\]/)?.[0];
+        const extracted = extractedObject || extractedArray || "";
+        if (!extracted) {
+            logger.warn("Helpers", "_parseJSONResponse: No JSON structure found", {
                 preview: cleaned.slice(0, 240),
                 length: cleaned.length,
             });
             return null;
         }
+
+        // Recovery attempts — lazy factories, one at a time (not all in memory)
+        const candidates = [
+            () => extracted,
+            () => this._sanitizePotentialJson(extracted),
+            () => extracted.replace(/[\u0000-\u0019]/g, " "),
+            () => this._sanitizePotentialJson(extracted.replace(/[\u0000-\u0019]/g, " ")),
+            () => cleaned.replace(/[\u0000-\u0019]/g, " "),
+            () => this._sanitizePotentialJson(cleaned),
+            () => this._sanitizePotentialJson(cleaned.replace(/[\u0000-\u0019]/g, " ")),
+        ];
+
+        for (const factory of candidates) {
+            try {
+                const candidate = factory();
+                if (!candidate) continue;
+                return JSON.parse(candidate);
+            } catch (_ignored) {
+                // continua su prossimo tentativo
+            }
+        }
+
+        logger.warn("Helpers", "_parseJSONResponse: Fallito parsing JSON after all recovery attempts", {
+            preview: cleaned.slice(0, 240),
+            length: cleaned.length,
+        });
+        return null;
     },
 
     _sanitizePotentialJson(content) {

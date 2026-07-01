@@ -15,6 +15,9 @@ const { tenantContext } = require('../middleware/tenantContext');
 // Controller
 const tagsController = require('../controllers/tagsController');
 
+// Validators
+const { validateMiddleware, createTagSchema, updateTagSchema } = require('../validators/tagValidators');
+
 // =========================================
 // MIDDLEWARE: Auth + Tenant Context
 // =========================================
@@ -27,8 +30,8 @@ router.use(tenantContext({ required: true }));
 // =========================================
 
 router.get('/', tagsController.getAllTags);
-router.post('/', tagsController.createTag);
-router.patch('/:id', tagsController.updateTag);
+router.post('/', validateMiddleware(createTagSchema), tagsController.createTag);
+router.patch('/:id', validateMiddleware(updateTagSchema), tagsController.updateTag);
 router.delete('/:id', tagsController.deleteTag);
 
 module.exports = router;

@@ -170,8 +170,8 @@ export const ToastItem: React.FC<ToastProps> = ({ toast, onDismiss }) => {
                     {/* Icona con background glassmorphism */}
                     <span className={`
                         flex-shrink-0 p-2 rounded-xl
-                        backdrop-blur-sm bg-white/5
-                        border border-white/10
+                        backdrop-blur-sm bg-theme-surface
+                        border border-theme-subtle
                         ${iconStyles[toast.type]}
                     `}>
                         {icons[toast.type]}
@@ -180,24 +180,24 @@ export const ToastItem: React.FC<ToastProps> = ({ toast, onDismiss }) => {
                     {/* Contenuto */}
                     <div className="flex-1 min-w-0">
                         {toast.title && (
-                            <p className="font-semibold text-sm mb-1 text-white/90">
+                            <p className="font-semibold text-sm mb-1 text-theme-primary">
                                 {toast.title}
                             </p>
                         )}
-                        <p className="text-sm text-white/70">
+                        <p className="text-sm text-theme-secondary">
                             {toast.message}
                         </p>
-                        
+
                         {/* Action Button (opzionale) */}
                         {toast.action && (
                             <button
                                 onClick={toast.action.onClick}
                                 className={`
                                     mt-2 px-3 py-1.5 text-xs font-medium rounded-lg
-                                    backdrop-blur-sm bg-white/10 hover:bg-white/20
-                                    border border-white/20
+                                    backdrop-blur-sm bg-theme-surface hover:bg-theme-surface-hover
+                                    border border-theme-default
                                     transition-all duration-200
-                                    focus:outline-none focus:ring-2 focus:ring-white/30
+                                    focus:outline-none focus:ring-2 focus:ring-primary-400/50
                                     ${iconStyles[toast.type]}
                                 `}
                             >
@@ -212,11 +212,11 @@ export const ToastItem: React.FC<ToastProps> = ({ toast, onDismiss }) => {
                             onClick={handleDismiss}
                             className="
                                 flex-shrink-0 p-1.5 rounded-lg
-                                backdrop-blur-sm hover:bg-white/10
-                                border border-transparent hover:border-white/10
-                                text-white/50 hover:text-white/80
+                                backdrop-blur-sm hover:bg-theme-surface
+                                border border-transparent hover:border-theme-subtle
+                                text-theme-muted hover:text-theme-primary
                                 transition-all duration-200
-                                focus:outline-none focus:ring-2 focus:ring-white/30
+                                focus:outline-none focus:ring-2 focus:ring-primary-400/50
                             "
                             aria-label="Chiudi notifica"
                         >

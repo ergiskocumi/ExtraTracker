@@ -193,16 +193,16 @@ export const UnassignedDecksSection: React.FC<UnassignedDecksSectionProps> = ({
                             <AlertCircle className="w-6 h-6 text-amber-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-xl font-bold text-white mb-1">
+                            <h3 className="text-xl font-bold text-theme-primary mb-1">
                                 Mazzi senza esame associato
                             </h3>
-                            <p className="text-white/70 text-sm mb-3">
+                            <p className="text-theme-secondary text-sm mb-3">
                                 Ci sono <span className="font-semibold text-amber-300">{stats.deckCount}</span> mazzi
                                 che non sono associati a nessun esame. Associa un esame per organizzarli meglio.
                             </p>
-                            <div className="flex items-center gap-4 text-sm text-white/60">
+                            <div className="flex items-center gap-4 text-sm text-theme-muted">
                                 <span>
-                                    <span className="font-semibold text-white">{stats.totalCards}</span> carte totali
+                                    <span className="font-semibold text-theme-primary">{stats.totalCards}</span> carte totali
                                 </span>
                                 {stats.dueCards > 0 && (
                                     <span>

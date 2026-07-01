@@ -75,9 +75,10 @@ export const StudyProgress: React.FC<StudyProgressProps> = ({
                 {/* Background track */}
                 <div className="study-progress-track h-2.5 sm:h-3 bg-theme-surface border border-theme-default rounded-full overflow-hidden shadow-inner relative">
                     <motion.div
-                        className="h-full bg-gradient-to-r from-primary-600 via-primary-500 to-primary-400 relative"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
+                        className="h-full w-full bg-gradient-to-r from-primary-600 via-primary-500 to-primary-400 relative"
+                        style={{ transformOrigin: 'left' }}
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: progress / 100 }}
                         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     >
                         {/* Subtle shine effect */}
@@ -86,10 +87,9 @@ export const StudyProgress: React.FC<StudyProgressProps> = ({
                 </div>
 
                 {/* Percentage indicator floating */}
-                <motion.div 
-                    className="absolute -top-6 text-[10px] font-black text-primary-500 bg-theme-base px-1.5 py-0.5 rounded border border-primary-500/20 shadow-sm"
-                    animate={{ left: `${progress}%` }}
-                    style={{ x: '-50%' }}
+                <motion.div
+                    className="absolute -top-6 left-0 text-[10px] font-black text-primary-500 bg-theme-base px-1.5 py-0.5 rounded border border-primary-500/20 shadow-sm"
+                    animate={{ x: `${progress}%` }}
                     transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 >
                     {Math.round(progress)}%

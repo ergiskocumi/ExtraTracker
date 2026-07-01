@@ -11,6 +11,18 @@ export default {
         content: '72rem',        // ~1152px - layout standard
         'content-wide': '90rem', // ~1440px - layout ampio ma centrato
       },
+      zIndex: {
+        dropdown: '20',
+        sticky: '30',
+        'fixed-nav': '40',
+        overlay: '50',
+        'modal-backdrop': '60',
+        modal: '70',
+        popover: '80',
+        toast: '90',
+        tooltip: '100',
+        max: '9999',
+      },
       colors: {
         // Dark theme base colors
         dark: {
@@ -104,11 +116,7 @@ export default {
         'slide-up': 'slideUp 0.5s ease-out',
         'slide-down': 'slideDown 0.3s ease-out',
         'scale-in': 'scaleIn 0.3s ease-out',
-        'float': 'float 3s ease-in-out infinite',
-        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
         'shimmer': 'shimmer 2s linear infinite',
-        'glow-pulse': 'glowPulse 2s ease-in-out infinite',
-        'border-glow': 'borderGlow 3s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -127,25 +135,9 @@ export default {
           '0%': { opacity: '0', transform: 'scale(0.95)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-5px)' },
-        },
-        pulseSoft: {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0.8' },
-        },
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
-        },
-        glowPulse: {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(124, 58, 237, 0.3)' },
-          '50%': { boxShadow: '0 0 30px rgba(124, 58, 237, 0.5)' },
-        },
-        borderGlow: {
-          '0%, 100%': { borderColor: 'rgba(124, 58, 237, 0.3)' },
-          '50%': { borderColor: 'rgba(124, 58, 237, 0.6)' },
         },
       },
       backdropBlur: {

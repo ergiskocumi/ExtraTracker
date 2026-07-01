@@ -338,7 +338,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                 className="fixed inset-0 z-50 flex items-center justify-center p-4"
                 onClick={onClose}
             >
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-lg" />
+                <div className="absolute inset-0 bg-theme-overlay backdrop-blur-lg" />
 
                 <motion.div
                     initial={{ scale: 0.95, y: 12, opacity: 0 }}
@@ -346,12 +346,12 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                     exit={{ scale: 0.95, y: 12, opacity: 0 }}
                     transition={{ type: 'spring', damping: 24, stiffness: 300 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.03] shadow-2xl"
+                    className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-theme-subtle bg-theme-card shadow-2xl"
                 >
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-black/30 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-theme-surface via-transparent to-theme-overlay pointer-events-none" />
 
                     {/* Header */}
-                    <div className="relative flex items-center justify-between gap-4 px-6 pt-6 pb-4 border-b border-white/10">
+                    <div className="relative flex items-center justify-between gap-4 px-6 pt-6 pb-4 border-b border-theme-subtle">
                         <div className="flex items-center gap-3">
                             {step === 'outcome' && (
                                 <div className="p-3 rounded-xl bg-primary-500/20 border border-primary-500/30">
@@ -369,13 +369,13 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                 </div>
                             )}
                             <div>
-                                <h2 className="text-xl font-bold text-white">
+                                <h2 className="text-xl font-bold text-theme-primary">
                                     {step === 'outcome' && "Com'è andato l'esame?"}
                                     {step === 'victory-grade' && 'Ottimo lavoro! 🎉'}
                                     {step === 'recovery-reason' && 'Cosa non ha funzionato?'}
                                     {step === 'recovery-actions' && 'Piano di Recupero'}
                                 </h2>
-                                <p className="text-sm text-white/60 mt-1">
+                                <p className="text-sm text-theme-muted mt-1">
                                     {step === 'outcome' && exam.title}
                                     {step === 'victory-grade' && 'Hai completato questo percorso'}
                                     {step === 'recovery-reason' && 'Aiutaci a capire per migliorare'}
@@ -385,7 +385,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                            className="p-2 rounded-lg bg-theme-surface hover:bg-theme-surface-hover text-theme-muted hover:text-theme-primary transition-colors"
                             disabled={isLoading}
                         >
                             <X className="w-5 h-5" />
@@ -398,15 +398,15 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                             {/* STEP 1: Outcome Question */}
                             {step === 'outcome' && (
                                 <motion.div key="outcome" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                                    <p className="text-white/80 mb-6 text-center">Seleziona il risultato dell'esame</p>
+                                    <p className="text-theme-secondary mb-6 text-center">Seleziona il risultato dell'esame</p>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => dispatch({ type: 'GO_TO_VICTORY' })} className="flex flex-col items-center gap-4 p-6 rounded-xl border-2 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all">
                                             <div className="p-4 rounded-full bg-emerald-500/20"><CheckCircle className="w-8 h-8 text-emerald-400" /></div>
-                                            <span className="text-lg font-bold text-white">SUPERATO</span>
+                                            <span className="text-lg font-bold text-theme-primary">SUPERATO</span>
                                         </motion.button>
                                         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => dispatch({ type: 'GO_TO_RECOVERY_REASON' })} className="flex flex-col items-center gap-4 p-6 rounded-xl border-2 border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 transition-all">
                                             <div className="p-4 rounded-full bg-orange-500/20"><XCircle className="w-8 h-8 text-orange-400" /></div>
-                                            <span className="text-lg font-bold text-white">NON SUPERATO</span>
+                                            <span className="text-lg font-bold text-theme-primary">NON SUPERATO</span>
                                         </motion.button>
                                     </div>
                                 </motion.div>
@@ -419,33 +419,33 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} className="inline-block p-6 rounded-full bg-emerald-500/20 mb-4">
                                             <Trophy className="w-12 h-12 text-emerald-400" />
                                         </motion.div>
-                                        <p className="text-white/80 text-lg mb-6">Ottimo lavoro! Hai completato questo percorso.</p>
+                                        <p className="text-theme-secondary text-lg mb-6">Ottimo lavoro! Hai completato questo percorso.</p>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-white/80 mb-2">Sistema di Valutazione</label>
+                                        <label className="block text-sm font-medium text-theme-secondary mb-2">Sistema di Valutazione</label>
                                         <select
                                             value={gradingSystem}
                                             onChange={(e) => dispatch({ type: 'SET_GRADING_SYSTEM', system: e.target.value as GradingSystem })}
-                                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-primary-500/50 focus:outline-none transition-all mb-3"
+                                            className="w-full px-4 py-3 rounded-xl bg-theme-surface border border-theme-subtle text-theme-primary focus:border-primary-500/50 focus:outline-none transition-all mb-3"
                                         >
                                             {GRADING_SYSTEMS.map((system) => (
-                                                <option key={system.id} value={system.id} className="bg-zinc-900">{system.label}</option>
+                                                <option key={system.id} value={system.id} className="bg-theme-surface">{system.label}</option>
                                             ))}
                                         </select>
 
-                                        <label className="block text-sm font-medium text-white/80 mb-2">
+                                        <label className="block text-sm font-medium text-theme-secondary mb-2">
                                             Voto {gradingSystem === 'letter' ? '(0=F, 1=D, 2=C, 3=B, 4=A, 5=A+)' : `(opzionale, ${currentGradingConfig.min}-${currentGradingConfig.max})`}
                                         </label>
                                         {gradingSystem === 'letter' ? (
-                                            <select value={grade} onChange={(e) => handleGradeChange(e.target.value)} className={`w-full px-4 py-3 rounded-xl bg-white/5 border ${gradeError ? 'border-red-500/50' : 'border-white/10'} text-white focus:border-primary-500/50 focus:outline-none transition-all`}>
-                                                <option value="" className="bg-zinc-900">Seleziona voto</option>
-                                                <option value="0" className="bg-zinc-900">F (Insufficiente)</option>
-                                                <option value="1" className="bg-zinc-900">D (Sufficiente)</option>
-                                                <option value="2" className="bg-zinc-900">C (Discreto)</option>
-                                                <option value="3" className="bg-zinc-900">B (Buono)</option>
-                                                <option value="4" className="bg-zinc-900">A (Ottimo)</option>
-                                                <option value="5" className="bg-zinc-900">A+ (Eccellente)</option>
+                                            <select value={grade} onChange={(e) => handleGradeChange(e.target.value)} className={`w-full px-4 py-3 rounded-xl bg-theme-surface border ${gradeError ? 'border-red-500/50' : 'border-theme-subtle'} text-theme-primary focus:border-primary-500/50 focus:outline-none transition-all`}>
+                                                <option value="" className="bg-theme-surface">Seleziona voto</option>
+                                                <option value="0" className="bg-theme-surface">F (Insufficiente)</option>
+                                                <option value="1" className="bg-theme-surface">D (Sufficiente)</option>
+                                                <option value="2" className="bg-theme-surface">C (Discreto)</option>
+                                                <option value="3" className="bg-theme-surface">B (Buono)</option>
+                                                <option value="4" className="bg-theme-surface">A (Ottimo)</option>
+                                                <option value="5" className="bg-theme-surface">A+ (Eccellente)</option>
                                             </select>
                                         ) : (
                                             <input
@@ -456,7 +456,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                                 value={grade}
                                                 onChange={(e) => handleGradeChange(e.target.value)}
                                                 placeholder={currentGradingConfig.placeholder}
-                                                className={`w-full px-4 py-3 rounded-xl bg-white/5 border ${gradeError ? 'border-red-500/50' : 'border-white/10'} text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all`}
+                                                className={`w-full px-4 py-3 rounded-xl bg-theme-surface border ${gradeError ? 'border-red-500/50' : 'border-theme-subtle'} text-theme-primary placeholder:text-theme-muted focus:border-primary-500/50 focus:outline-none transition-all`}
                                             />
                                         )}
                                         {gradeError && <p className="mt-2 text-sm text-red-400">{gradeError}</p>}
@@ -466,7 +466,7 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                             const isPassing = gradingSystem === 'letter' ? Math.round(gradeValue) >= passingGrade : gradeValue >= passingGrade;
                                             return (
                                                 <div className="mt-2 space-y-1">
-                                                    <p className="text-sm text-white/60">Voto formattato: {currentGradingConfig.formatValue(gradeValue)}</p>
+                                                    <p className="text-sm text-theme-muted">Voto formattato: {currentGradingConfig.formatValue(gradeValue)}</p>
                                                     {!isPassing && (
                                                         <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/30">
                                                             <AlertCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />
@@ -481,8 +481,8 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-white/80 mb-2">Note (opzionale)</label>
-                                        <textarea value={notes} onChange={(e) => dispatch({ type: 'SET_NOTES', notes: e.target.value })} placeholder="Come ti sei sentito? Cosa hai imparato?" rows={3} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all resize-none" />
+                                        <label className="block text-sm font-medium text-theme-secondary mb-2">Note (opzionale)</label>
+                                        <textarea value={notes} onChange={(e) => dispatch({ type: 'SET_NOTES', notes: e.target.value })} placeholder="Come ti sei sentito? Cosa hai imparato?" rows={3} className="w-full px-4 py-3 rounded-xl bg-theme-surface border border-theme-subtle text-theme-primary placeholder:text-theme-muted focus:border-primary-500/50 focus:outline-none transition-all resize-none" />
                                     </div>
 
                                     <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleVictoryComplete} disabled={isLoading} className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -495,11 +495,11 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                             {step === 'recovery-reason' && (
                                 <motion.div key="recovery-reason" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                                     <div className="text-center py-2">
-                                        <p className="text-white/80 mb-6">Non mollare! Capiamo cosa migliorare per la prossima volta.</p>
+                                        <p className="text-theme-secondary mb-6">Non mollare! Capiamo cosa migliorare per la prossima volta.</p>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-white/80 mb-3">
+                                        <label className="block text-sm font-medium text-theme-secondary mb-3">
                                             Cosa pensi non abbia funzionato? (seleziona tutte le opzioni rilevanti)
                                         </label>
                                         <div className="space-y-2">
@@ -511,8 +511,8 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                                     onClick={() => dispatch({ type: 'TOGGLE_DIFFICULTY', difficulty: key })}
                                                     className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
                                                         selectedDifficulties.has(key)
-                                                            ? 'border-orange-500/50 bg-orange-500/20 text-white'
-                                                            : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20'
+                                                            ? 'border-orange-500/50 bg-orange-500/20 text-theme-primary'
+                                                            : 'border-theme-subtle bg-theme-surface text-theme-secondary hover:border-theme-default'
                                                     }`}
                                                 >
                                                     {label}
@@ -522,8 +522,8 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-white/80 mb-2">Note aggiuntive (opzionale)</label>
-                                        <textarea value={notes} onChange={(e) => dispatch({ type: 'SET_NOTES', notes: e.target.value })} placeholder="Racconta la tua esperienza..." rows={3} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none transition-all resize-none" />
+                                        <label className="block text-sm font-medium text-theme-secondary mb-2">Note aggiuntive (opzionale)</label>
+                                        <textarea value={notes} onChange={(e) => dispatch({ type: 'SET_NOTES', notes: e.target.value })} placeholder="Racconta la tua esperienza..." rows={3} className="w-full px-4 py-3 rounded-xl bg-theme-surface border border-theme-subtle text-theme-primary placeholder:text-theme-muted focus:border-primary-500/50 focus:outline-none transition-all resize-none" />
                                     </div>
 
                                     <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleRecoveryComplete} disabled={isLoading || selectedDifficulties.size === 0} className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold shadow-lg shadow-orange-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -538,9 +538,9 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                     <div className="text-center py-2 mb-4">
                                         <div className="flex items-center justify-center gap-2 mb-2">
                                             <AlertCircle className="w-5 h-5 text-orange-400" />
-                                            <p className="text-white font-semibold">Esame segnato come non superato</p>
+                                            <p className="text-theme-primary font-semibold">Esame segnato come non superato</p>
                                         </div>
-                                        <p className="text-white/80 text-sm mb-3">Ecco un piano di recupero personalizzato per te:</p>
+                                        <p className="text-theme-secondary text-sm mb-3">Ecco un piano di recupero personalizzato per te:</p>
                                         <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-left">
                                             <p className="text-xs text-blue-300">
                                                 💡 <strong>Suggerimento:</strong> Dopo aver scelto un'azione, potrai continuare a studiare con le carte aggiornate.
@@ -553,8 +553,8 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                             <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} onClick={() => handleResetCards('hard-only')} disabled={isLoading} className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 transition-all text-left">
                                                 <div className="p-2 rounded-lg bg-blue-500/20"><RotateCcw className="w-5 h-5 text-blue-400" /></div>
                                                 <div className="flex-1">
-                                                    <p className="font-semibold text-white">Reset Mirato</p>
-                                                    <p className="text-sm text-white/60">Reset solo delle carte difficili. Mantieni quelle che conosci già.</p>
+                                                    <p className="font-semibold text-theme-primary">Reset Mirato</p>
+                                                    <p className="text-sm text-theme-muted">Reset solo delle carte difficili. Mantieni quelle che conosci già.</p>
                                                 </div>
                                             </motion.button>
                                         )}
@@ -562,8 +562,8 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                             <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} onClick={handleGenerateAIQuestions} disabled={isLoading} className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 transition-all text-left">
                                                 <div className="p-2 rounded-lg bg-purple-500/20"><Sparkles className="w-5 h-5 text-purple-400" /></div>
                                                 <div className="flex-1">
-                                                    <p className="font-semibold text-white">Analisi AI</p>
-                                                    <p className="text-sm text-white/60">Genera 10 nuove domande di approfondimento sugli argomenti difficili.</p>
+                                                    <p className="font-semibold text-theme-primary">Analisi AI</p>
+                                                    <p className="text-sm text-theme-muted">Genera 10 nuove domande di approfondimento sugli argomenti difficili.</p>
                                                 </div>
                                             </motion.button>
                                         )}
@@ -571,15 +571,15 @@ export const ExamCompletionModal: React.FC<ExamCompletionModalProps> = ({
                                             <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} onClick={() => handleResetCards('all')} disabled={isLoading} className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-red-500/30 bg-red-500/10 hover:bg-red-500/20 transition-all text-left">
                                                 <div className="p-2 rounded-lg bg-red-500/20"><RefreshCw className="w-5 h-5 text-red-400" /></div>
                                                 <div className="flex-1">
-                                                    <p className="font-semibold text-white">Ricomincia</p>
-                                                    <p className="text-sm text-white/60">Reset di tutte le carte a 0% per ricominciare da capo.</p>
+                                                    <p className="font-semibold text-theme-primary">Ricomincia</p>
+                                                    <p className="text-sm text-theme-muted">Reset di tutte le carte a 0% per ricominciare da capo.</p>
                                                 </div>
                                             </motion.button>
                                         )}
                                     </div>
 
-                                    <div className="pt-4 border-t border-white/10">
-                                        <button onClick={onClose} className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all">
+                                    <div className="pt-4 border-t border-theme-subtle">
+                                        <button onClick={onClose} className="w-full py-3 rounded-xl bg-theme-surface hover:bg-theme-surface-hover text-theme-secondary hover:text-theme-primary transition-all">
                                             Chiudi
                                         </button>
                                     </div>

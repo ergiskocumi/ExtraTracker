@@ -14,4 +14,5 @@ function buildChunkStatementCounts(chunkCount, totalRequested) {
 
 module.exports = {
     buildChunkStatementCounts,
+    buildChunkQuestionCounts: buildChunkStatementCounts,
 };

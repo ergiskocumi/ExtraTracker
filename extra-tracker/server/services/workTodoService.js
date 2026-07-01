@@ -71,6 +71,7 @@ class WorkTodoService extends BaseService {
     async countByStatus(tenantScope, projectId) {
         const userId = this._getUserId(tenantScope);
         
+        // ATTENZIONE: Il filtro { user: userId } deve SEMPRE essere nel $match — il plugin multi-tenancy non si applica a aggregate()
         const counts = await WorkTodo.aggregate([
             { $match: { user: userId, project: projectId } },
             {

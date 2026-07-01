@@ -16,7 +16,7 @@ import { validateCardContent, isTemporaryCard, getButtonState, shouldHandleCardC
 import type { FlashcardItemProps } from './FlashcardItem.types';
 import { ViewMode } from './FlashcardItem.ViewMode';
 import { EditMode } from './FlashcardItem.EditMode';
-import { FullscreenEditModal } from './CardEditor';
+import { FullscreenEditModal } from './FullscreenEditModal.lazy';
 
 // ============================================
 // COMPONENT

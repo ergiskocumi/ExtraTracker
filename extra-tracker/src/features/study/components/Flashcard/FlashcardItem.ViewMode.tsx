@@ -11,8 +11,7 @@
  */
 
 import React, { memo } from 'react';
-import { FiEdit2, FiTrash2 } from 'react-icons/fi';
-import { FileSearch, Clock, CheckCircle, Sparkles, BookOpen, Repeat, Target, CalendarDays } from 'lucide-react';
+import { Edit, Trash2, FileSearch, Clock, CheckCircle, Sparkles, BookOpen, Repeat, Target, CalendarDays } from 'lucide-react';
 import type { Card } from '../../services/studyService';
 import { CardContentRenderer } from './CardContentRenderer/index';
 import { cn } from '../../../../lib/utils';
@@ -146,7 +145,7 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
                             className="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-card transition-colors"
                             title="Modifica"
                         >
-                            <FiEdit2 className="w-4 h-4" />
+                            <Edit className="w-4 h-4" />
                         </button>
                         
                         {onDelete && (
@@ -158,7 +157,7 @@ const ViewModeComponent: React.FC<ViewModeProps> = ({
                                 className="p-1.5 rounded-lg text-theme-muted hover:text-red-500 hover:bg-red-500/10 transition-colors"
                                 title="Elimina"
                             >
-                                <FiTrash2 className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4" />
                             </button>
                         )}
                     </div>

@@ -26,7 +26,7 @@ export const ExplanationCard: React.FC<ExplanationCardProps> = ({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="px-8 py-6 border-2 rounded-[2rem] border-emerald-500/10 bg-emerald-500/5 shadow-inner"
+        className="px-8 py-6 border rounded-2xl border-emerald-500/10 bg-emerald-500/5 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.03)]"
       >
         <p className="text-base sm:text-lg md:text-xl leading-relaxed text-theme-primary text-center font-medium italic">
           <Quote className="w-4 h-4 inline-block -mt-2 mr-2 opacity-20 rotate-180" />
@@ -44,7 +44,7 @@ export const ExplanationCard: React.FC<ExplanationCardProps> = ({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="px-8 py-6 border-2 rounded-[2rem] border-rose-500/10 bg-rose-500/5 shadow-inner"
+        className="px-8 py-6 border rounded-2xl border-rose-500/10 bg-rose-500/5 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.03)]"
       >
         <div className="space-y-3 text-center">
           {selectedExplanation && (
@@ -69,7 +69,7 @@ export const ExplanationCard: React.FC<ExplanationCardProps> = ({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="px-8 py-6 border-2 rounded-[2rem] border-amber-500/10 bg-amber-500/5 shadow-inner"
+        className="px-8 py-6 border rounded-2xl border-amber-500/10 bg-amber-500/5 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.03)]"
       >
         <p className="text-base sm:text-lg md:text-xl leading-relaxed text-theme-primary text-center font-medium italic">
           {explanation}

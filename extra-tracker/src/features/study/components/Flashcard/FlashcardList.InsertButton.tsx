@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { FiPlus } from 'react-icons/fi';
+import { Plus } from 'lucide-react';
 import { INSERT_BUTTON_STYLES, DRAG_AND_DROP, TEXT_CONTENT } from './FlashcardList.constants';
 import type { InsertButtonProps } from './FlashcardList.types';
 
@@ -43,7 +43,7 @@ export const InsertButton: React.FC<InsertButtonProps> = ({
                 aria-label={TEXT_CONTENT.ariaLabels.insertCard(position)}
                 title={TEXT_CONTENT.buttons.insertCard(position)}
             >
-                <FiPlus className={INSERT_BUTTON_STYLES.icon.size} />
+                <Plus className={INSERT_BUTTON_STYLES.icon.size} />
             </button>
             <div className={`${INSERT_BUTTON_STYLES.line.flex} ${INSERT_BUTTON_STYLES.line.height} ${INSERT_BUTTON_STYLES.line.background}`} />
         </div>

@@ -8,7 +8,7 @@
  * - Layout compatto su mobile
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { memo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { X, AlertTriangle, Minus, ThumbsUp, Check, RotateCcw } from 'lucide-react';
 import type { ReviewRating } from '../../services/studyService';
@@ -90,7 +90,7 @@ const RATING_OPTIONS: RatingOption[] = [
 // COMPONENT
 // ============================================
 
-export const StudyControls: React.FC<StudyControlsProps> = ({
+export const StudyControls = memo<StudyControlsProps>(({
     onRate,
     onSkip,
     disabled,
@@ -209,6 +209,6 @@ export const StudyControls: React.FC<StudyControlsProps> = ({
             </div>
         </div>
     );
-};
+});
 
 export default StudyControls;

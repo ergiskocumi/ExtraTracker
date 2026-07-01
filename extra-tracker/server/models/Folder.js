@@ -107,6 +107,10 @@ folderSchema.pre('save', function(next) {
 // Pre-remove: sposta i deck nella cartella radice (o elimina se necessario)
 // IMPORTANTE: Filtra per user per garantire multi-tenancy
 folderSchema.pre('remove', async function(next) {
+    // Guard: se user è undefined, updateMany matcha TUTTI gli utenti — blocco per sicurezza
+    if (!this.user) {
+        return next(new Error('Folder user is required for cascade delete'));
+    }
     const Deck = mongoose.model('Deck');
     await Deck.updateMany(
         { folderId: this._id, user: this.user },

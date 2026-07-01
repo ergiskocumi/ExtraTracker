@@ -32,8 +32,8 @@ const updateExam = asyncHandler(async (req, res) => {
 });
 
 const deleteExam = asyncHandler(async (req, res) => {
-    const result = await examCrudService.delete(req.tenantScope, req.params.id);
-    res.json({ success: true, ...result });
+    await examCrudService.delete(req.tenantScope, req.params.id);
+    res.json({ success: true, message: 'Esame eliminato', data: null });
 });
 
 module.exports = {

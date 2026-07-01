@@ -184,12 +184,6 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
 
         dispatch({ type: 'ADD_TOAST', payload: toast });
 
-        // Rimuovi i toast più vecchi se superiamo il limite
-        // Nota: Questo viene fatto dopo l'aggiunta
-        setTimeout(() => {
-            dispatch({ type: 'REMOVE_TOAST', payload: '' }); // Trigger re-render per cleanup
-        }, 0);
-
         return id;
     }, [defaultDuration, generateId, state.toasts]);
 

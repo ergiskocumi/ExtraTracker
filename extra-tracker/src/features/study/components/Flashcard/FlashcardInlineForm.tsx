@@ -8,9 +8,9 @@
  */
 
 import React, { useState } from 'react';
-import { FiCheck, FiX } from 'react-icons/fi';
+import { Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { RichTextEditor as MarkdownEditor } from './CardEditor';
+import { MarkdownEditor } from './MarkdownEditor.lazy';
 
 interface FlashcardInlineFormProps {
     /** Callback when the form is saved */
@@ -85,7 +85,7 @@ export const FlashcardInlineForm: React.FC<FlashcardInlineFormProps> = ({
                         size="sm"
                         minRows={3}
                         className="space-y-2"
-                        textareaClassName="min-h-[80px] bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:ring-violet-500/50 focus:border-violet-500/60"
+                        textareaClassName="min-h-[80px] bg-theme-surface border border-theme-default backdrop-blur-sm text-theme-primary placeholder:text-theme-muted focus:ring-violet-500/50 focus:border-violet-500/60"
                     />
                 </div>
 
@@ -110,19 +110,19 @@ export const FlashcardInlineForm: React.FC<FlashcardInlineFormProps> = ({
                         size="sm"
                         minRows={4}
                         className="space-y-2"
-                        textareaClassName="min-h-[100px] bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm text-white placeholder:text-slate-400 focus:ring-violet-500/50 focus:border-violet-500/60"
+                        textareaClassName="min-h-[100px] bg-theme-surface border border-theme-default backdrop-blur-sm text-theme-primary placeholder:text-theme-muted focus:ring-violet-500/50 focus:border-violet-500/60"
                     />
                 </div>
 
                 {/* Action Bar */}
-                <div className="flex items-center gap-3 pt-3 border-t border-white/[0.08]">
+                <div className="flex items-center gap-3 pt-3 border-t border-theme-default">
                     <button
                         type="button"
                         onClick={onCancel}
                         disabled={isSaving}
-                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-sm text-sm font-medium text-slate-300 hover:bg-white/[0.10] hover:text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-theme-default bg-theme-surface backdrop-blur-sm text-sm font-medium text-theme-muted hover:bg-theme-surface/80 hover:text-theme-primary transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                     >
-                        <FiX className="w-4 h-4" />
+                        <X className="w-4 h-4" />
                         <span className="hidden sm:inline">Annulla</span>
                     </button>
                     <button
@@ -142,7 +142,7 @@ export const FlashcardInlineForm: React.FC<FlashcardInlineFormProps> = ({
                             </>
                         ) : (
                             <>
-                                <FiCheck className="w-4 h-4" />
+                                <Check className="w-4 h-4" />
                                 <span>Salva</span>
                             </>
                         )}

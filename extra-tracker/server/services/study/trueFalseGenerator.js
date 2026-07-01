@@ -1,26 +1,33 @@
 /**
  * 🔀 TRUE/FALSE AI GENERATOR
  * ===========================
- * Generates True/False statements from extractedText (PDF) via OpenAI structured output.
+ * Generates True/False statements from extractedText (PDF) via DeepSeek structured output.
  * Follows the same chunking + tracking pattern as MCQ generation in quizHelpers.js.
  */
 
 const {
-    openai,
-    DISTRACTOR_AI_MODEL,
+    createCompletion,
+    QUIZ_GENERATION_MODEL,
     QUIZ_DEBUG_LOGS,
+    CHUNK_AI_TIMEOUT_MS,
+    QUIZ_MAX_OUTPUT_TOKENS,
     TF_MIN_TEXT_CHARS,
     TF_CHARS_PER_STATEMENT,
     TF_MIN_STATEMENTS,
     TF_MAX_STATEMENTS,
     TF_TEMPERATURE,
 } = require('./constants');
+const { parseQuizArrayResponse } = require('./quizJsonParser');
 const aiUsageService = require('../aiUsageService');
 const logger = require('../../utils/logger');
 const { buildChunkStatementCounts } = require('./trueFalseChunking');
+const {
+    buildRepresentativeQuizText,
+    shouldUseQuizFastPath,
+} = require('./quizTextSelection');
 
 // =========================================
-// JSON SCHEMA (OpenAI Structured Output)
+// JSON SCHEMA (DeepSeek Structured Output via prompt)
 // =========================================
 
 const buildResponseFormat = (count) => ({
@@ -91,6 +98,9 @@ const buildSystemPrompt = (count) => {
     return `Sei un esperto di Instructional Design, Cognitive Load Theory e Psicometria specializzato nella creazione di test Vero/Falso per esami universitari.
 
 Il tuo compito: generare ${count} affermazioni Vero/Falso dal testo accademico fornito.
+
+━━━ LINGUA — OBBLIGATORIO ━━━
+Scrivi OGNI campo (statement, explanation, correctStatement) ESCLUSIVAMENTE in ITALIANO, indipendentemente dalla lingua del testo sorgente. Nessuna parola o frase in inglese.
 
 ━━━ REGOLA ZERO — DIVIETO ASSOLUTO DI RIFERIMENTI ALLA FONTE ━━━
 ⛔ È VIETATO in qualsiasi campo usare frasi come:
@@ -172,7 +182,9 @@ function _validateOutput(output, requestedCount) {
 
     const trueCount = output.statements.filter(s => s.isTrue).length;
     const ratio = trueCount / output.statements.length;
-    if (ratio < 0.3 || ratio > 0.7) {
+    if (output.statements.length >= 4 && (ratio < 0.2 || ratio > 0.8)) {
+        checks.push({ level: 'error', msg: `Sbilanciamento V/F critico: ${Math.round(ratio * 100)}% veri (min 20%, max 80%)` });
+    } else if (output.statements.length >= 4 && (ratio < 0.3 || ratio > 0.7)) {
         checks.push({ level: 'warning', msg: `Sbilanciamento V/F: ${Math.round(ratio * 100)}% veri` });
     }
 
@@ -225,14 +237,16 @@ function _mapStatementsToCards(statements) {
 // =========================================
 
 async function _generateChunk(textChunk, count, previousStatements = [], telemetry = {}) {
-    if (!process.env.OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY non configurata');
+    if (!process.env.ANTHROPIC_AUTH_TOKEN) {
+        throw new Error('ANTHROPIC_AUTH_TOKEN non configurata');
     }
     if (!textChunk || typeof textChunk !== 'string' || textChunk.trim().length < 100) {
         throw new Error('Testo troppo breve per generare affermazioni V/F');
     }
 
     const safeCount = Math.max(1, Math.min(TF_MAX_STATEMENTS, Math.floor(count)));
+    // Budget generoso per evitare troncamento del JSON (vedi nota in quizHelpers).
+    const maxCompletionTokens = Math.min(QUIZ_MAX_OUTPUT_TOKENS, Math.max(3072, safeCount * 700));
     const systemPrompt = buildSystemPrompt(safeCount);
 
     const previousBlock = previousStatements.length > 0
@@ -257,7 +271,7 @@ async function _generateChunk(textChunk, count, previousStatements = [], telemet
             userId: telemetry?.userId,
             mode: 'quiz',
             feature: 'true_false_generation_chunk',
-            model: DISTRACTOR_AI_MODEL,
+            model: QUIZ_GENERATION_MODEL,
             messages,
             promptLengthChars: systemPrompt.length + userPrompt.length,
             metadata: {
@@ -268,30 +282,56 @@ async function _generateChunk(textChunk, count, previousStatements = [], telemet
                 previousStatementsCount: previousStatements.length,
             },
         },
-        () => openai.chat.completions.create(
+        () => createCompletion(
             {
-                model: DISTRACTOR_AI_MODEL,
+                model: QUIZ_GENERATION_MODEL,
                 messages,
                 response_format: buildResponseFormat(safeCount),
                 temperature: TF_TEMPERATURE,
+                max_tokens: maxCompletionTokens,
             },
-            { timeout: 120000 },
+            { timeout: CHUNK_AI_TIMEOUT_MS },
         ),
     );
 
     const content = completion.choices[0]?.message?.content || '';
-    _logDebug('chunk-raw', {
-        finishReason: completion.choices[0]?.finish_reason,
+    const finishReason = completion.choices[0]?.finish_reason;
+    const usage = completion.usage || {};
+    const truncated = finishReason === 'length' || finishReason === 'max_tokens';
+
+    logger.info('TrueFalseGenerator', `V/F chunk ${safeCount} richieste → risposta AI`, {
+        model: QUIZ_GENERATION_MODEL,
+        finishReason,
+        truncated,
         contentLength: content.length,
+        inputTokens: usage.prompt_tokens ?? usage.input_tokens ?? null,
+        outputTokens: usage.completion_tokens ?? usage.output_tokens ?? null,
+        maxTokens: maxCompletionTokens,
     });
 
-    const parsed = _parseJSONResponse(content);
-    if (!parsed || !Array.isArray(parsed.statements) || parsed.statements.length === 0) {
+    const { items, recovered } = parseQuizArrayResponse(content, 'statements');
+    if (recovered || truncated) {
+        logger.warn('TrueFalseGenerator', 'V/F: risposta AI troncata/recuperata parzialmente', {
+            model: QUIZ_GENERATION_MODEL,
+            finishReason,
+            recoveredItems: items.length,
+            requested: safeCount,
+            hint: truncated
+                ? 'Il modello ha esaurito i token di output (max_tokens). Statement completi recuperati dal JSON parziale.'
+                : 'JSON non standard: recuperati gli oggetti completi.',
+        });
+    }
+    if (items.length === 0) {
+        logger.warn('TrueFalseGenerator', 'V/F: nessuno statement parsabile', {
+            model: QUIZ_GENERATION_MODEL,
+            finishReason,
+            contentPreview: content.slice(0, 200),
+        });
         throw new Error('Risposta AI non valida: nessun statement V/F generato');
     }
 
     // Validate
-    const checks = _validateOutput(parsed, safeCount);
+    const checks = _validateOutput({ statements: items }, safeCount);
     const errors = checks.filter(c => c.level === 'error');
     const warnings = checks.filter(c => c.level === 'warning');
 
@@ -304,7 +344,7 @@ async function _generateChunk(textChunk, count, previousStatements = [], telemet
 
     // Filter valid statements (deduplicate)
     const seen = new Set();
-    const validStatements = parsed.statements.filter(s => {
+    const validStatements = items.filter(s => {
         if (!s.statement || typeof s.statement !== 'string') return false;
         if (typeof s.isTrue !== 'boolean') return false;
         const normalized = s.statement.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -339,27 +379,37 @@ async function _generateChunk(textChunk, count, previousStatements = [], telemet
  * @param {function} splitTextFn - Reference to _splitTextIntoChunks from quizHelpers (injected to avoid circular deps)
  * @returns {object[]} Array of card-shaped objects ready for QuizView
  */
+/**
+ * Generates True/False statements and maps them to card shape (for use in study sessions).
+ * Thin wrapper around generateTrueFalseStatementsFromText + _mapStatementsToCards.
+ */
 async function generateTrueFalseFromText(extractedText, questionCount, previousStatements = [], telemetry = {}, splitTextFn) {
+    const statements = await generateTrueFalseStatementsFromText(
+        extractedText, questionCount, previousStatements, telemetry, splitTextFn,
+    );
+    return _mapStatementsToCards(statements);
+}
+
+async function generateTrueFalseStatementsForChunk(textChunk, statementCount, previousStatements = [], telemetry = {}) {
+    const safeCount = Math.max(1, Math.min(TF_MAX_STATEMENTS, Math.floor(Number(statementCount) || 0)));
+    return _generateChunk(textChunk, safeCount, previousStatements, telemetry);
+}
+
+async function generateTrueFalseStatementsFromText(extractedText, questionCount, previousStatements = [], telemetry = {}, splitTextFn) {
     if (!extractedText || extractedText.trim().length < TF_MIN_TEXT_CHARS) {
         throw new Error(`Testo troppo breve per generare V/F (minimo ${TF_MIN_TEXT_CHARS} caratteri)`);
     }
 
     const safeCount = Math.max(TF_MIN_STATEMENTS, Math.min(TF_MAX_STATEMENTS, questionCount));
-    const chunks = splitTextFn(extractedText, 5000, 500);
+    const chunks = (shouldUseQuizFastPath(safeCount)
+        ? [buildRepresentativeQuizText(extractedText)]
+        : splitTextFn(extractedText, 5000, 500)).filter(Boolean);
 
     if (chunks.length === 0) {
         throw new Error('Testo PDF non valido o vuoto');
     }
 
     const counts = buildChunkStatementCounts(chunks.length, safeCount);
-
-    _logDebug('orchestrator-start', {
-        totalChunks: chunks.length,
-        totalRequested: safeCount,
-        distribution: counts,
-        textLength: extractedText.length,
-    });
-
     const allStatements = [];
 
     for (let i = 0; i < chunks.length; i++) {
@@ -383,29 +433,30 @@ async function generateTrueFalseFromText(extractedText, questionCount, previousS
                 chunkIndex: i,
                 error: err.message,
             });
-            // Graceful degradation: partial results > total crash
-        }
-
-        // Rate-limit protection between chunks
-        if (i < chunks.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
         }
     }
 
-    _logDebug('orchestrator-success', {
-        totalRequested: safeCount,
-        totalGenerated: allStatements.length,
-    });
+    if (allStatements.length >= 4) {
+        const totalTrueCount = allStatements.filter((statement) => statement.isTrue).length;
+        const totalRatio = totalTrueCount / allStatements.length;
+        if (totalRatio < 0.3 || totalRatio > 0.7) {
+            _logDebug('orchestrator-warnings', {
+                warnings: [`Sbilanciamento V/F finale: ${Math.round(totalRatio * 100)}% veri`],
+            });
+        }
+    }
 
     if (allStatements.length === 0) {
         throw new Error('Generazione V/F fallita: nessun statement valido prodotto');
     }
 
-    return _mapStatementsToCards(allStatements);
+    return allStatements;
 }
 
 module.exports = {
     generateTrueFalseFromText,
+    generateTrueFalseStatementsForChunk,
+    generateTrueFalseStatementsFromText,
     // Exported for testing
     _generateChunk,
     _validateOutput,

@@ -56,7 +56,7 @@ class WorkLogService extends BaseService {
     async getTotalsByPeriod(tenantScope, startDate, endDate) {
         const userId = this._getUserId(tenantScope);
         
-        // 🔒 SICUREZZA: Filtro esplicito per user
+        // ATTENZIONE: Il filtro { user: userId } deve SEMPRE essere nel $match — il plugin multi-tenancy non si applica a aggregate()
         const results = await WorkLog.aggregate([
             {
                 $match: {
@@ -100,10 +100,11 @@ class WorkLogService extends BaseService {
      */
     async groupByDate(tenantScope, limit = 30) {
         const userId = this._getUserId(tenantScope);
-        
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
         // 🔒 SICUREZZA: Filtro esplicito per user
         return WorkLog.aggregate([
-            { $match: { user: userId } },
+            { $match: { user: userId, date: { $gte: thirtyDaysAgo } } },
             { $sort: { date: -1, createdAt: -1 } }, // Timeline-friendly sort
             {
                 $group: {

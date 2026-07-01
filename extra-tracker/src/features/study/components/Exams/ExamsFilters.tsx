@@ -140,7 +140,7 @@ export const ExamsFilters: React.FC<ExamsFiltersProps> = ({
                         className="appearance-none px-4 py-2.5 pr-10 rounded-xl bg-theme-surface border border-theme-default text-theme-primary text-sm font-medium focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all cursor-pointer"
                     >
                         {sortOptions.map((option) => (
-                            <option key={option.key} value={option.key} className="bg-zinc-900">
+                            <option key={option.key} value={option.key} className="bg-theme-surface">
                                 {option.label}
                             </option>
                         ))}

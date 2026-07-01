@@ -71,12 +71,12 @@ export const DeckCardCompact: React.FC<DeckCardCompactProps> = ({
             onClick={handleCardClick}
             className={`
                 relative rounded-xl border overflow-hidden cursor-pointer
-                transition-all duration-300
-                ${hasDueCards 
-                    ? 'border-orange-500/40 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent' 
+                transition-colors duration-200 active:scale-[0.98]
+                ${hasDueCards
+                    ? 'border-orange-500/25 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent'
                     : `${theme.borderColor} bg-gradient-to-br ${theme.gradient}`
                 }
-                hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/10
+                hover:border-primary-500/40 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]
             `}
         >
             {/* Badges - Due Cards & Pinned */}
@@ -102,8 +102,8 @@ export const DeckCardCompact: React.FC<DeckCardCompactProps> = ({
                         <ThemeIcon className={`w-5 h-5 ${theme.iconColor}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-white truncate text-sm">{deck.title}</h3>
-                        <p className="text-xs text-white/50 mt-0.5">
+                        <h3 className="font-semibold text-theme-primary truncate text-sm">{deck.title}</h3>
+                        <p className="text-xs text-theme-muted mt-0.5">
                             {totalCards} carte {hasDueCards && `• ${deck.dueCount} da ripassare`}
                         </p>
                     </div>
@@ -113,10 +113,10 @@ export const DeckCardCompact: React.FC<DeckCardCompactProps> = ({
                 {totalCards > 0 && (
                     <div className="mb-3">
                         <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-white/50">Padronanza</span>
-                            <span className="text-white/70 font-medium">{masteryPercent}%</span>
+                            <span className="text-theme-muted">Padronanza</span>
+                            <span className="text-theme-secondary font-medium">{masteryPercent}%</span>
                         </div>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-theme-surface rounded-full overflow-hidden">
                             <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${masteryPercent}%` }}
@@ -150,7 +150,7 @@ export const DeckCardCompact: React.FC<DeckCardCompactProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 10 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute inset-0 bg-zinc-900/95 backdrop-blur-sm rounded-xl
+                        className="absolute inset-0 bg-theme-elevated/95 backdrop-blur-sm rounded-xl
                                    flex items-center justify-center gap-2 p-4"
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -203,8 +203,8 @@ export const DeckCardCompact: React.FC<DeckCardCompactProps> = ({
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => onAddCard(deck.id)}
-                                    className="p-2 rounded-lg bg-white/5 border border-white/10 
-                                               text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                                    className="p-2 rounded-lg bg-theme-surface border border-theme-subtle
+                                               text-theme-muted hover:bg-theme-surface-hover hover:text-theme-primary transition-colors"
                                     title="Aggiungi carta"
                                 >
                                     <Plus className="w-4 h-4" />
@@ -218,7 +218,7 @@ export const DeckCardCompact: React.FC<DeckCardCompactProps> = ({
                                         className={`p-2 rounded-lg border transition-colors
                                             ${deck.pinned
                                                 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                                                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border-white/10'
+                                                : 'bg-theme-surface text-theme-muted hover:bg-theme-surface-hover hover:text-theme-primary border-theme-subtle'
                                             }`}
                                         title={deck.pinned ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
                                     >
@@ -229,8 +229,8 @@ export const DeckCardCompact: React.FC<DeckCardCompactProps> = ({
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => onViewDetail(deck.id)}
-                                    className="p-2 rounded-lg bg-white/5 border border-white/10 
-                                               text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                                    className="p-2 rounded-lg bg-theme-surface border border-theme-subtle
+                                               text-theme-muted hover:bg-theme-surface-hover hover:text-theme-primary transition-colors"
                                     title="Dettagli"
                                 >
                                     <MoreVertical className="w-4 h-4" />

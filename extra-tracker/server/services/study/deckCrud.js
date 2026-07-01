@@ -5,11 +5,13 @@
  */
 
 const AppError = require('../../utils/AppError');
+const Deck = require('../../models/Deck');
 const examRepository = require('../../repositories/ExamRepository');
 const folderRepository = require('../../repositories/FolderRepository');
 const { DEFAULT_EASINESS_FACTOR } = require('./constants');
 const logger = require('../../utils/logger');
 const { resolveQuizSnapshotSourceCardIds } = require('./syntheticQuizIds');
+const persistedQuizService = require('./persistedQuizService');
 
 module.exports = {
 
@@ -43,16 +45,24 @@ module.exports = {
             throw AppError.validation('Il retro della card e\' obbligatorio');
         }
 
-        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+        const userId = this._getUserId(tenantScope);
+        const deck = await Deck.findOneAndUpdate(
+            { _id: deckId, user: userId },
+            {
+                $push: {
+                    cards: {
+                        front: normalizedFront,
+                        back: normalizedBack,
+                        quizAnswerVariant: '',
+                        distractors: [],
+                        aiDistractorsFailed: false,
+                    },
+                },
+            },
+            { new: true },
+        );
 
-        deck.cards.push({
-            front: normalizedFront,
-            back: normalizedBack,
-            quizAnswerVariant: '',
-            distractors: [],
-            aiDistractorsFailed: false,
-        });
-        await deck.save();
+        if (!deck) throw AppError.notFound('Deck');
 
         return deck;
     },
@@ -68,16 +78,14 @@ module.exports = {
             throw AppError.validation('Il retro della card e\' obbligatorio');
         }
 
-        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+        const userId = this._getUserId(tenantScope);
+        const deck = await Deck.findOneAndUpdate(
+            { _id: deckId, user: userId, 'cards._id': cardId },
+            { $set: { 'cards.$.front': normalizedFront, 'cards.$.back': normalizedBack } },
+            { new: true },
+        );
 
-        const card = deck.cards.id(cardId);
-        if (!card) {
-            throw AppError.notFound('Carta');
-        }
-
-        card.front = normalizedFront;
-        card.back = normalizedBack;
-        await deck.save();
+        if (!deck) throw AppError.notFound('Carta o mazzo non trovato');
 
         return deck;
     },
@@ -95,15 +103,14 @@ module.exports = {
             throw AppError.validation('La risposta non può superare 1000 caratteri');
         }
 
-        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+        const userId = this._getUserId(tenantScope);
+        const deck = await Deck.findOneAndUpdate(
+            { _id: deckId, user: userId, 'cards._id': cardId },
+            { $set: { 'cards.$.back': normalizedAnswer } },
+            { new: true },
+        );
 
-        const card = deck.cards.id(cardId);
-        if (!card) {
-            throw AppError.notFound('Carta');
-        }
-
-        card.back = normalizedAnswer;
-        await deck.save();
+        if (!deck) throw AppError.notFound('Carta o mazzo non trovato');
 
         return deck;
     },
@@ -347,7 +354,14 @@ module.exports = {
         };
     },
 
-    async getSavedQuizForRetake(tenantScope, deckId, quizId) {
+    async getSavedQuizForRetake(tenantScope, deckId, quizId, options = {}) {
+        const persistedQuiz = await persistedQuizService.findQuizForDeck(tenantScope, deckId, quizId, {
+            throwIfNotFound: false,
+        });
+        if (persistedQuiz) {
+            return persistedQuizService.getSavedQuizForRetake(tenantScope, deckId, quizId, options);
+        }
+
         const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
         const quiz = deck.savedQuizzes.id(quizId);
         if (!quiz) {
@@ -420,6 +434,13 @@ module.exports = {
     },
 
     async getSavedQuizForReview(tenantScope, deckId, quizId) {
+        const persistedQuiz = await persistedQuizService.findQuizForDeck(tenantScope, deckId, quizId, {
+            throwIfNotFound: false,
+        });
+        if (persistedQuiz) {
+            return persistedQuizService.getSavedQuizForReview(tenantScope, deckId, quizId);
+        }
+
         const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
         const quiz = deck.savedQuizzes.id(quizId);
         if (!quiz) {
@@ -461,6 +482,13 @@ module.exports = {
     },
 
     async recordQuizAttempt(tenantScope, deckId, quizId, attemptData) {
+        const persistedQuiz = await persistedQuizService.findQuizForDeck(tenantScope, deckId, quizId, {
+            throwIfNotFound: false,
+        });
+        if (persistedQuiz) {
+            return persistedQuizService.recordQuizAttempt(tenantScope, deckId, quizId, attemptData);
+        }
+
         const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
         const quiz = deck.savedQuizzes.id(quizId);
         if (!quiz) {
@@ -501,7 +529,10 @@ module.exports = {
 
         const decks = await this.find(tenantScope, { examId }, {
             select: '_id title examId savedQuizzes',
+            // TODO: Add compound index { examId: 1, updatedAt: -1 } to Deck model
+            // Currently sorts by updatedAt without index support, causing full scan
             sort: { updatedAt: -1 },
+            limit: 100,
         });
 
         const savedQuizzes = [];
@@ -513,6 +544,8 @@ module.exports = {
             const deckSavedQuizzes = Array.isArray(deck.savedQuizzes) ? deck.savedQuizzes : [];
 
             for (const quiz of deckSavedQuizzes) {
+                const attempts = Array.isArray(quiz?.attempts) ? quiz.attempts : [];
+                const scores = attempts.map(a => a.score).filter(score => typeof score === 'number');
                 savedQuizzes.push({
                     id: quiz?._id?.toString(),
                     deckId,
@@ -526,6 +559,10 @@ module.exports = {
                         : [],
                     source: this._normalizeQuizSnapshotSource(quiz?.source),
                     createdAt: quiz?.createdAt || null,
+                    attemptCount: attempts.length,
+                    lastScore: scores.length > 0 ? scores[scores.length - 1] : undefined,
+                    bestScore: scores.length > 0 ? Math.max(...scores) : undefined,
+                    hasQuestions: Boolean(quiz?.quizRefId) || (Array.isArray(quiz?.questions) && quiz.questions.length > 0),
                 });
             }
         }
@@ -574,5 +611,35 @@ module.exports = {
             resetCards: resetCount,
             message: `${resetCount} card resettate. I distrattori verranno rigenerati alla prossima sessione quiz.`,
         };
+    },
+
+    /**
+     * Resetta lo stato SRS (SM-2 / FSRS) di tutte le card di un deck.
+     * Riporta ogni card a 'new' con easinessFactor=2.5, interval=0, repetitions=0,
+     * nextReviewDate=now, stability=0.4, difficulty=5.
+     */
+    async resetProgress(tenantScope, deckId) {
+        const deck = await this.findById(tenantScope, deckId, { throwIfNotFound: true });
+
+        let resetCount = 0;
+        for (const card of deck.cards) {
+            if (card.status !== 'new' || card.interval > 0 || card.repetitions > 0) {
+                card.status = 'new';
+                card.easinessFactor = 2.5;
+                card.interval = 0;
+                card.repetitions = 0;
+                card.nextReviewDate = new Date();
+                card.stability = 0.4;
+                card.difficulty = 5;
+                resetCount++;
+            }
+        }
+
+        if (resetCount > 0) {
+            await deck.save();
+        }
+
+        // Return full serialized deck so the frontend normalizeDeck() works correctly
+        return this._serializeDeck(deck);
     },
 };

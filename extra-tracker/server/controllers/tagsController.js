@@ -24,8 +24,8 @@ const updateTag = asyncHandler(async (req, res) => {
 });
 
 const deleteTag = asyncHandler(async (req, res) => {
-    const result = await tagService.delete(req.tenantScope, req.params.id);
-    res.json({ success: true, ...result });
+    await tagService.delete(req.tenantScope, req.params.id);
+    res.json({ success: true, message: 'Tag eliminato', data: null });
 });
 
 module.exports = {

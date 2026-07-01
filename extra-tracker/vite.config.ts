@@ -49,7 +49,7 @@ export default defineConfig({
       },
     } as any,
     cssCodeSplit: true,
-    reportCompressedSize: false,
+    reportCompressedSize: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -63,7 +63,7 @@ export default defineConfig({
         },
       },
     },
-    chunkSizeWarningLimit: 1500,
+    chunkSizeWarningLimit: 500,
     sourcemap: false,
   },
   server: {

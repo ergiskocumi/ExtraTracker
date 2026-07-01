@@ -8,7 +8,7 @@
 
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiSend, FiCpu, FiAlertCircle, FiCheckCircle, FiBook } from 'react-icons/fi';
+import { Send, Cpu, AlertCircle, CheckCircle, Book } from 'lucide-react';
 import { emitToast } from '../../../../shared/components/toast';
 import { getErrorMessage } from '../../../../utils/errorMessage';
 import { studyService, type ExamAnswer } from '../../services/studyService';
@@ -61,16 +61,16 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
     };
 
     return (
-        <div className="h-full flex flex-col bg-gradient-to-br from-slate-900/50 to-slate-800/50 rounded-2xl border border-white/10 p-6">
+        <div className="h-full flex flex-col bg-theme-card rounded-2xl border border-theme-subtle p-6">
             {/* Header */}
             <div className="mb-6">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 rounded-xl bg-primary-500/20 border border-primary-500/30 flex items-center justify-center">
-                        <FiBook className="w-5 h-5 text-primary-400" />
+                        <Book className="w-5 h-5 text-primary-400" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-white">Tutor Accademico</h3>
-                        <p className="text-sm text-white/60">
+                        <h3 className="text-lg font-semibold text-theme-primary">Tutor Accademico</h3>
+                        <p className="text-sm text-theme-muted">
                             Risponde usando solo il materiale caricato
                         </p>
                     </div>
@@ -79,7 +79,7 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
 
             {/* Question Input */}
             <div className="mb-6">
-                <label className="block text-sm font-medium text-white/80 mb-2">
+                <label className="block text-sm font-medium text-theme-secondary mb-2">
                     Domanda da rispondere:
                 </label>
                 <textarea
@@ -93,10 +93,10 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                     }
                     rows={3}
                     disabled={disabled || isLoading}
-                    className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white placeholder-white/30 focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all resize-none disabled:opacity-50"
+                    className="w-full px-4 py-3 bg-theme-surface border border-theme-subtle rounded-xl text-theme-primary placeholder:text-theme-muted focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all resize-none disabled:opacity-50"
                 />
                 <div className="flex items-center justify-between mt-2">
-                    <p className="text-xs text-white/40">
+                    <p className="text-xs text-theme-muted">
                         Invio per inviare, Shift+Invio per andare a capo
                     </p>
                     <motion.button
@@ -108,12 +108,12 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                     >
                         {isLoading ? (
                             <>
-                                <FiCpu className="w-4 h-4 animate-spin" />
+                                <Cpu className="w-4 h-4 animate-spin" />
                                 Analizzando...
                             </>
                         ) : (
                             <>
-                                <FiSend className="w-4 h-4" />
+                                <Send className="w-4 h-4" />
                                 Rispondi
                             </>
                         )}
@@ -138,11 +138,11 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                         <div className="flex items-start gap-3 mb-3">
                             {answer.foundInContext ? (
                                 <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-                                    <FiCheckCircle className="w-4 h-4 text-emerald-400" />
+                                    <CheckCircle className="w-4 h-4 text-emerald-400" />
                                 </div>
                             ) : (
                                 <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-                                    <FiAlertCircle className="w-4 h-4 text-amber-400" />
+                                    <AlertCircle className="w-4 h-4 text-amber-400" />
                                 </div>
                             )}
                             <div className="flex-1">
@@ -155,22 +155,22 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                                         ? 'Risposta trovata nel materiale'
                                         : 'Risposta non trovata nel materiale'}
                                 </h4>
-                                <div className="text-white/90 whitespace-pre-wrap leading-relaxed">
+                                <div className="text-theme-primary whitespace-pre-wrap leading-relaxed">
                                     {answer.answer}
                                 </div>
                             </div>
                         </div>
 
                         {answer.relatedTopics && answer.relatedTopics.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-white/10">
-                                <p className="text-sm font-medium text-white/70 mb-2">
+                            <div className="mt-4 pt-4 border-t border-theme-subtle">
+                                <p className="text-sm font-medium text-theme-secondary mb-2">
                                     Argomenti correlati trovati:
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                     {answer.relatedTopics.map((topic, idx) => (
                                         <span
                                             key={idx}
-                                            className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-sm text-white/70"
+                                            className="px-3 py-1 rounded-lg bg-theme-surface border border-theme-subtle text-sm text-theme-secondary"
                                         >
                                             {topic}
                                         </span>
@@ -189,7 +189,7 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-3"
                 >
-                    <FiAlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                         <p className="text-sm font-medium text-rose-300 mb-1">Errore</p>
                         <p className="text-sm text-rose-200/80">{error}</p>
@@ -198,9 +198,9 @@ export const ExamQuestionAnswerer: React.FC<ExamQuestionAnswererProps> = ({
             )}
 
             {/* Info Footer */}
-            <div className="mt-6 pt-4 border-t border-white/10">
-                <p className="text-xs text-white/40 leading-relaxed">
-                    <strong className="text-white/60">Nota:</strong> Il tutor accademico risponde{' '}
+            <div className="mt-6 pt-4 border-t border-theme-subtle">
+                <p className="text-xs text-theme-muted leading-relaxed">
+                    <strong className="text-theme-secondary">Nota:</strong> Il tutor accademico risponde{' '}
                     <strong>esclusivamente</strong> usando il contenuto del PDF caricato. Se
                     l&apos;informazione non è presente nel materiale, te lo comunicherà
                     chiaramente.

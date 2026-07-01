@@ -112,9 +112,9 @@ workLogSchema.index({ user: 1, date: -1 });
 workLogSchema.index({ user: 1, projectId: 1, date: -1 });
 
 /**
- * Indice per ricerca testuale su titolo e descrizione
+ * Indice text rimosso: BaseService.search() usa $regex, non $text, quindi questo indice non era mai utilizzato.
+ * Se in futuro si implementa full-text search, ricreare con: workLogSchema.index({ title: 'text', description: 'text' });
  */
-workLogSchema.index({ title: 'text', description: 'text' });
 
 /**
  * Indice per tag (per ricerca futura)

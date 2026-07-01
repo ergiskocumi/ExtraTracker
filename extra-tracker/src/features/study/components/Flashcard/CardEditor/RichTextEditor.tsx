@@ -205,7 +205,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (!isFullscreen) return editorBody;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-modal-backdrop flex items-center justify-center p-4">
             <div
                 className="absolute inset-0 bg-black/70 backdrop-blur-sm"
                 onClick={() => setIsFullscreen(false)}

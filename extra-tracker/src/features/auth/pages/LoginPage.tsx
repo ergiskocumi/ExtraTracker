@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn, FiAlertCircle, FiLoader, FiClock, FiTrendingUp, FiBriefcase } from 'react-icons/fi';
+import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, Loader, Clock, TrendingUp, Briefcase } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { loginSchema, type LoginFormData } from '../validators/authValidators';
 import { Logo } from '../../../shared/components/Brand/Logo';
@@ -100,11 +100,11 @@ export const LoginPage = () => {
                     <Logo size="2xl" variant="full" className="text-theme-primary" />
                 </motion.div>
 
-                <motion.h1 
+                <motion.h1
                     className="text-3xl font-bold text-theme-primary mb-2"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ delay: 0.1 }}
                 >
                     Bentornato!
                 </motion.h1>
@@ -113,32 +113,32 @@ export const LoginPage = () => {
                     className="text-theme-secondary text-base"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 }}
+                    transition={{ delay: 0.15 }}
                 >
                     Traccia il tuo tempo, massimizza la produttività
                 </motion.p>
 
                 {/* Feature badges */}
-                <motion.div 
+                <motion.div
                     className="flex flex-wrap justify-center gap-4 mt-5"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
+                    transition={{ delay: 0.2 }}
                 >
-                    <FeatureBadge 
-                        icon={<FiClock size={14} />} 
-                        text="Time tracking" 
-                        delay={0.5} 
+                    <FeatureBadge
+                        icon={<Clock size={14} />}
+                        text="Time tracking"
+                        delay={0.25}
                     />
-                    <FeatureBadge 
-                        icon={<FiTrendingUp size={14} />} 
-                        text="Report analytics" 
-                        delay={0.6} 
+                    <FeatureBadge
+                        icon={<TrendingUp size={14} />}
+                        text="Report analytics"
+                        delay={0.3}
                     />
-                    <FeatureBadge 
-                        icon={<FiBriefcase size={14} />} 
-                        text="Gestione progetti" 
-                        delay={0.7} 
+                    <FeatureBadge
+                        icon={<Briefcase size={14} />}
+                        text="Gestione progetti"
+                        delay={0.35}
                     />
                 </motion.div>
             </motion.div>
@@ -148,7 +148,7 @@ export const LoginPage = () => {
                 className="relative login-shell"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
             >
                 {/* Glow effect - gradient from theme vars (index.css) */}
                 <div className="login-card-glow absolute -inset-0.5 rounded-2xl blur opacity-30" />
@@ -170,7 +170,7 @@ export const LoginPage = () => {
                             aria-live="assertive"
                         >
                             <div className="flex items-center gap-2 text-red-400">
-                                <FiAlertCircle size={18} aria-hidden="true" />
+                                <AlertCircle size={18} aria-hidden="true" />
                                 <p className="text-sm">{error}</p>
                             </div>
                         </motion.div>
@@ -179,9 +179,9 @@ export const LoginPage = () => {
                     <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
                         {/* Email Field */}
                         <motion.div
-                            initial={{ opacity: 0, x: -20 }}
+                            initial={false}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.3 }}
+                            transition={{ delay: 0.15 }}
                         >
                             <label className="block mb-2 text-sm font-medium text-theme-secondary">
                                 Email
@@ -190,7 +190,7 @@ export const LoginPage = () => {
                                 <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${
                                     focusedField === 'email' ? 'text-primary-500' : 'text-theme-muted'
                                 }`}>
-                                    <FiMail size={18} />
+                                    <Mail size={18} />
                                 </div>
                                 <input
                                     type="email"
@@ -220,7 +220,7 @@ export const LoginPage = () => {
                                     role="alert"
                                     aria-live="polite"
                                 >
-                                    <FiAlertCircle size={12} aria-hidden="true" />
+                                    <AlertCircle size={12} aria-hidden="true" />
                                     {fieldErrors.email}
                                 </motion.p>
                             )}
@@ -228,9 +228,9 @@ export const LoginPage = () => {
 
                         {/* Password Field */}
                         <motion.div
-                            initial={{ opacity: 0, x: -20 }}
+                            initial={false}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.4 }}
+                            transition={{ delay: 0.2 }}
                         >
                             <label className="block mb-2 text-sm font-medium text-theme-secondary">
                                 Password
@@ -239,7 +239,7 @@ export const LoginPage = () => {
                                 <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${
                                     focusedField === 'password' ? 'text-primary-500' : 'text-theme-muted'
                                 }`}>
-                                    <FiLock size={18} />
+                                    <Lock size={18} />
                                 </div>
                                 <input
                                     type={showPassword ? 'text' : 'password'}
@@ -266,7 +266,7 @@ export const LoginPage = () => {
                                     aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
                                     aria-pressed={showPassword}
                                 >
-                                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
                             {fieldErrors.password && (
@@ -278,18 +278,17 @@ export const LoginPage = () => {
                                     role="alert"
                                     aria-live="polite"
                                 >
-                                    <FiAlertCircle size={12} aria-hidden="true" />
+                                    <AlertCircle size={12} aria-hidden="true" />
                                     {fieldErrors.password}
                                 </motion.p>
                             )}
                         </motion.div>
 
                         {/* Forgot Password */}
-                        <motion.div 
+                        <motion.div
                             className="flex justify-end"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.5 }}
+                            initial={false}
+                            transition={{ delay: 0.25 }}
                         >
                             <Link
                                 to="/forgot-password"
@@ -301,9 +300,8 @@ export const LoginPage = () => {
 
                         {/* Submit Button */}
                         <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.6 }}
+                            initial={false}
+                            transition={{ delay: 0.3 }}
                         >
                         <Button
                             type="submit"
@@ -315,12 +313,12 @@ export const LoginPage = () => {
                         >
                             {isLoading ? (
                                 <>
-                                    <FiLoader className="animate-spin" size={18} />
+                                    <Loader className="animate-spin" size={18} />
                                     <span>Accesso in corso...</span>
                                 </>
                             ) : (
                                 <>
-                                    <FiLogIn size={18} />
+                                    <LogIn size={18} />
                                     <span>Accedi</span>
                                 </>
                             )}
@@ -329,11 +327,10 @@ export const LoginPage = () => {
                     </form>
 
                     {/* Divider */}
-                    <motion.div 
+                    <motion.div
                         className="login-divider relative my-6"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.7 }}
+                        initial={false}
+                        transition={{ delay: 0.35 }}
                     >
                         <div className="absolute inset-0 flex items-center">
                             <div className="w-full border-t border-theme-default" />
@@ -344,11 +341,10 @@ export const LoginPage = () => {
                     </motion.div>
 
                     {/* Register Link */}
-                    <motion.div 
+                    <motion.div
                         className="text-center"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.8 }}
+                        initial={false}
+                        transition={{ delay: 0.4 }}
                     >
                         <p className="text-sm text-theme-secondary">
                             Non hai un account?{' '}
@@ -368,7 +364,7 @@ export const LoginPage = () => {
                 className="mt-6 text-center text-xs text-theme-muted"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.9 }}
+                transition={{ delay: 0.4 }}
             >
                 Accedendo, accetti i{' '}
                 <a href="/terms" className="text-theme-secondary hover:text-theme-primary transition-colors">Termini</a>

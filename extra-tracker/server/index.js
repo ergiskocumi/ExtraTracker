@@ -45,7 +45,6 @@ const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
 const dashboardRoutes = require('./routes/dashboard');
 const sseRoutes = require('./routes/sse');
-const { userRoutes: feedbackUserRoutes, adminRoutes: feedbackAdminRoutes } = require('./routes/feedback');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
@@ -108,8 +107,12 @@ app.use(express.urlencoded({ extended: true, limit: envConfig.bodyParser.urlenco
 app.use(cookieParser());
 
 // CSRF: set cookie if missing + validate state-changing requests
+// Esclude /api/auth per permettere login/register senza CSRF token
 app.use('/api', ensureCsrfCookie);
-app.use('/api', requireCsrf);
+app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/auth')) return next();
+    requireCsrf(req, res, next);
+});
 
 // ==========================================
 // 5. RATE LIMITING
@@ -151,8 +154,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/sse', sseRoutes);
-app.use('/api/feedback', feedbackUserRoutes);
-app.use('/api/admin/feedback', feedbackAdminRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api', apiRoutes);
 app.use('/api/exams', examsRoutes);
@@ -232,8 +233,9 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // Gestione errori globali non catturati (previene crash silenzioso)
 process.on('unhandledRejection', (reason, promise) => {
     logger.error('Server', 'Unhandled Promise Rejection', { reason, promise });
-    // In produzione, considera di riavviare il processo dopo logging
-    // process.exit(1);
+    if (isProduction) {
+        process.exit(1);
+    }
 });
 
 process.on('uncaughtException', (error) => {
