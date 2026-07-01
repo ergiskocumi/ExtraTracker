@@ -100,26 +100,26 @@
   /* Backgrounds - Higher separation for clearer affordance */
   --bg-base: #f2f6fc;
   --bg-elevated: #ffffff;
-  --bg-surface: rgba(255, 255, 255, 0.85);
-  --bg-surface-hover: #ffffff;
+  --bg-surface: #f4f2fb;
+  --bg-surface-hover: #ede9fe;
   --bg-card: #ffffff;
-  --bg-card-hover: #ffffff;
+  --bg-card-hover: #faf9fd;
   --bg-input: #ffffff;
   --bg-header: rgba(246, 249, 255, 0.92);
   --bg-overlay: rgba(0, 0, 0, 0.5);
   --bg-dropdown: #ffffff;
-  
+
   /* Text - Dark slate for maximum readability */
   --text-primary: #1a1a2e;
   --text-secondary: #253246;
-  --text-muted: #5a6a82;
+  --text-muted: #4a5568;
   --text-disabled: #8a9ab0;
   --text-placeholder: #9aabbe;
-  
+
   /* Borders - Much stronger for better element recognition in light theme */
-  --border-subtle: rgba(15, 23, 42, 0.12);
-  --border-default: rgba(15, 23, 42, 0.20);
-  --border-strong: rgba(15, 23, 42, 0.32);
+  --border-subtle: rgba(139, 92, 246, 0.10);
+  --border-default: rgba(139, 92, 246, 0.18);
+  --border-strong: rgba(139, 92, 246, 0.30);
   --border-focus: rgba(124, 58, 237, 0.5);
   
   /* Shadows - Stronger for depth separation */
@@ -3119,132 +3119,6 @@ button:focus-visible[class*="bg-blue"] {
 [data-theme="light"] .table-modern tbody tr:focus-within {
   outline: 2px solid rgba(124, 58, 237, 0.25);
   outline-offset: -2px;
-}
-/* ============================================
-   LANDING PAGE STYLES
-   ============================================ */
-
-:root {
-  --landing-bg: #0a0a1a;
-  --landing-text: #f8fafc;
-  --landing-text-secondary: rgba(248, 250, 252, 0.82);
-  --landing-text-muted: rgba(248, 250, 252, 0.58);
-  --landing-surface: rgba(12, 12, 30, 0.92);
-  --landing-surface-strong: rgba(16, 16, 36, 0.96);
-  --landing-border: rgba(255, 255, 255, 0.14);
-  --landing-border-soft: rgba(255, 255, 255, 0.08);
-  --landing-shadow: 0 18px 38px -22px rgba(2, 6, 23, 0.5);
-  --landing-shadow-strong: 0 28px 55px -30px rgba(2, 6, 23, 0.6);
-  --landing-focus: rgba(124, 58, 237, 0.4);
-}
-
-[data-theme="light"] {
-  --landing-bg: #f2f6fc;
-  --landing-text: #111827;
-  --landing-text-secondary: #334155;
-  --landing-text-muted: #5b6b84;
-  --landing-surface: rgba(255, 255, 255, 0.9);
-  --landing-surface-strong: rgba(255, 255, 255, 0.96);
-  --landing-border: rgba(15, 23, 42, 0.18);
-  --landing-border-soft: rgba(15, 23, 42, 0.1);
-  --landing-shadow: 0 20px 42px -28px rgba(15, 23, 42, 0.34);
-  --landing-shadow-strong: 0 26px 50px -26px rgba(15, 23, 42, 0.36);
-  --landing-focus: rgba(124, 58, 237, 0.32);
-}
-
-/* Landing light theme (scoped to .landing-root) */
-[data-theme="light"] .landing-root { 
-  color: var(--landing-text); 
-  background: var(--landing-bg); 
-}
-
-[data-theme="light"] .landing-header { 
-  background: rgba(255, 255, 255, 0.86); 
-  border-bottom: 1px solid var(--landing-border); 
-  backdrop-filter: blur(14px); 
-}
-
-[data-theme="light"] .landing-root h1,
-[data-theme="light"] .landing-root h2,
-[data-theme="light"] .landing-root h3,
-[data-theme="light"] .landing-root h4 { 
-  color: var(--landing-text); 
-}
-
-[data-theme="light"] .landing-root p { 
-  color: var(--landing-text-secondary); 
-}
-
-[data-theme="light"] .landing-nav-link { 
-  color: var(--landing-text-muted); 
-}
-
-[data-theme="light"] .landing-nav-link:hover { 
-  color: var(--landing-text); 
-}
-
-[data-theme="light"] .landing-primary-btn { 
-  border-color: rgba(76, 29, 149, 0.22); 
-  box-shadow: 0 16px 34px -20px rgba(109, 40, 217, 0.55); 
-}
-
-[data-theme="light"] .landing-secondary-btn { 
-  background: rgba(255, 255, 255, 0.9); 
-  color: var(--landing-text); 
-  border-color: var(--landing-border); 
-  box-shadow: var(--landing-shadow); 
-}
-
-[data-theme="light"] .landing-icon-btn { 
-  border: 1px solid var(--landing-border-soft); 
-  border-radius: 0.7rem; 
-  background: rgba(255, 255, 255, 0.74); 
-  box-shadow: var(--landing-shadow); 
-}
-
-[data-theme="light"] .landing-mobile-panel { 
-  background: rgba(255, 255, 255, 0.88); 
-  border-top-color: var(--landing-border-soft); 
-}
-
-[data-theme="light"] .landing-surface-card { 
-  background: var(--landing-surface); 
-  border-color: var(--landing-border-soft); 
-  box-shadow: var(--landing-shadow); 
-}
-
-[data-theme="light"] .landing-feature-tab { 
-  background: rgba(255, 255, 255, 0.85); 
-  border-color: var(--landing-border-soft); 
-  color: var(--landing-text-secondary); 
-}
-
-[data-theme="light"] .landing-feature-tab.landing-feature-tab--active { 
-  background: rgba(124, 58, 237, 0.14); 
-  border-color: rgba(124, 58, 237, 0.36); 
-  color: #4c1d95; 
-}
-
-[data-theme="light"] .landing-preview-shell { 
-  background: var(--landing-surface-strong); 
-  border-color: var(--landing-border); 
-  box-shadow: var(--landing-shadow-strong); 
-}
-
-[data-theme="light"] .landing-pricing-card { 
-  border: 1px solid var(--landing-border-soft); 
-  box-shadow: var(--landing-shadow); 
-}
-
-[data-theme="light"] .landing-cta-panel { 
-  border: 1px solid var(--landing-border); 
-  background: rgba(255, 255, 255, 0.82); 
-  box-shadow: var(--landing-shadow-strong); 
-}
-
-[data-theme="light"] .landing-footer { 
-  border-top-color: var(--landing-border-soft); 
-  background: rgba(255, 255, 255, 0.64); 
 }
 /* ====================================
    MOBILE-SPECIFIC STYLES
